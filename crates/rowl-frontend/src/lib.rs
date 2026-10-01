@@ -18,6 +18,7 @@ pub mod iri;
 
 pub mod encoding;
 pub mod functional;
+pub mod functional_annotation_axioms;
 pub mod functional_annotations;
 pub mod functional_declarations;
 pub mod functional_header;

@@ -1969,3 +1969,53 @@ This block adds 14 public theorems and 5 independent definitions: totals are
 600 audited theorems, 497 definitions, 322 Rust regressions and 793 ledger
 obligations. Full M3/M4, all required formats/export laws, normative datatypes,
 SROIQ/query and complete byte-to-answer release proofs remain pending.
+
+
+## M3: Functional Syntax annotation axioms
+
+`functional_annotation_axioms::read_annotation_axiom` reads exactly one
+annotation axiom at a caller-supplied position:
+`AnnotationAssertion( {Annotation} property subject value )`,
+`SubAnnotationPropertyOf( {Annotation} sub super )`,
+`AnnotationPropertyDomain( {Annotation} property IRI )` or
+`AnnotationPropertyRange( {Annotation} property IRI )`. Axiom annotations reuse
+the proved annotation reader and assertion values reuse its value reader, so
+literal values keep the mandatory rdf:PlainLiteral expansion. Every property,
+subject and domain/range IRI resolves its original span through the checked prefix
+table under the `iri` limit. A node-ID subject keeps its exact label without `_:`;
+its scope belongs to the later import assembler. Records keep the original keyword
+and IRI tokens, and the suffix after the closing parenthesis stays unchanged.
+
+Errors report the first failing step in source order: the axiom keyword, `(`, the
+axiom annotations, the body positions, then `)`. EOF errors use the source length.
+A wrong assertion value is reported by the shared value reader inside a `Value`
+error, so its diagnostics stay identical to those of annotation values.
+
+FunctionalAnnotationAxioms proves keyword and subject classification and the
+one-token syntax step exact, and the actual IRI, subject, body and axiom readers
+total, with exact result/error equivalence to the independent IriRun, SubjectRun,
+BodyRun and AxiomRun derivations. The IRI reader is proved at both IRI positions,
+and the fallbacks after a checked keyword, IRI or subject token cannot occur.
+Success gives a body whose kind matches the keyword, axiom annotations equal to
+the independent maximal annotation Section, and at least five consumed tokens
+plus five per top-level annotation. FunctionalAnnotationAxiomSource composes
+original whole-byte prefix parsing and normative table checking with the
+annotation-axiom contract.
+
+With declarations, every non-logical axiom form now has a proved reader. The
+logical axioms (classes, properties, individuals, keys and datatype definitions),
+the axiom loop, the ontology closing token, complete document/AST construction,
+anonymous scopes and kernel axiom values remain pending.
+
+Four frontend and two public-library regressions cover all four forms with exact
+IRIs and both subject families, IRI and node-ID values, axiom annotations with
+their depth limit, every missing or wrong terminal with its EOF or token offset,
+the shared value diagnostic, and property, subject, label, literal-datatype and
+domain resolution failures. The maintenance-vocabulary.ofn fixture and the
+runnable functional_annotation_axioms example read a vocabulary ontology of
+declarations and annotation axioms up to its closing token.
+
+This block adds 20 public theorems and 9 independent definitions: totals are
+620 audited theorems, 506 definitions, 328 Rust regressions and 813 ledger
+obligations. Full M3/M4, all required formats/export laws, normative datatypes,
+SROIQ/query and complete byte-to-answer release proofs remain pending.

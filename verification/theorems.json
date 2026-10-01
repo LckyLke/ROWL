@@ -1050,6 +1050,38 @@
       "theorems": [
         "Rowl.FunctionalDeclarationSource.source_prefix_declaration_result_iff"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalAnnotationAxioms",
+      "namespace": "Rowl.FunctionalAnnotationAxioms",
+      "theorems": [
+        "Rowl.FunctionalAnnotationAxioms.axiom_kind_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.subject_kind_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.expected_terminal_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.take_expected_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.take_expected_result_iff",
+        "Rowl.FunctionalAnnotationAxioms.take_progress",
+        "Rowl.FunctionalAnnotationAxioms.iri_position_expected",
+        "Rowl.FunctionalAnnotationAxioms.read_iri_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.read_iri_result_iff",
+        "Rowl.FunctionalAnnotationAxioms.iri_source_value",
+        "Rowl.FunctionalAnnotationAxioms.read_subject_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.read_subject_result_iff",
+        "Rowl.FunctionalAnnotationAxioms.subject_progress",
+        "Rowl.FunctionalAnnotationAxioms.read_body_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.read_body_result_iff",
+        "Rowl.FunctionalAnnotationAxioms.body_source_values",
+        "Rowl.FunctionalAnnotationAxioms.read_annotation_axiom_total_correct",
+        "Rowl.FunctionalAnnotationAxioms.read_annotation_axiom_result_iff",
+        "Rowl.FunctionalAnnotationAxioms.annotation_axiom_source_values"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalAnnotationAxiomSource",
+      "namespace": "Rowl.FunctionalAnnotationAxiomSource",
+      "theorems": [
+        "Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff"
+      ]
     }
   ],
   "specifications": [
@@ -1549,6 +1581,15 @@
     "Rowl.FunctionalDeclarations.Expected",
     "Rowl.FunctionalDeclarations.TakeRun",
     "Rowl.FunctionalDeclarations.EntityRun",
-    "Rowl.FunctionalDeclarations.DeclarationRun"
+    "Rowl.FunctionalDeclarations.DeclarationRun",
+    "Rowl.FunctionalAnnotationAxioms.AxiomKind",
+    "Rowl.FunctionalAnnotationAxioms.SubjectKind",
+    "Rowl.FunctionalAnnotationAxioms.Expected",
+    "Rowl.FunctionalAnnotationAxioms.TakeRun",
+    "Rowl.FunctionalAnnotationAxioms.IriRun",
+    "Rowl.FunctionalAnnotationAxioms.SubjectRun",
+    "Rowl.FunctionalAnnotationAxioms.BodyKind",
+    "Rowl.FunctionalAnnotationAxioms.BodyRun",
+    "Rowl.FunctionalAnnotationAxioms.AxiomRun"
   ]
 }

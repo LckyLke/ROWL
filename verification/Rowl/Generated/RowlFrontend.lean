@@ -2714,6 +2714,63 @@ def functional.next_terminal
     functional.extend functional.Terminal.Whitespace bytes position choice81
   functional.extend functional.Terminal.Comment bytes position choice82
 
+/-- [rowl_frontend::functional_annotation_axioms::AnnotationAxiomKind]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 18:0-23:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotation_axioms.AnnotationAxiomKind where
+| Assertion : functional_annotation_axioms.AnnotationAxiomKind
+| SubProperty : functional_annotation_axioms.AnnotationAxiomKind
+| Domain : functional_annotation_axioms.AnnotationAxiomKind
+| Range : functional_annotation_axioms.AnnotationAxiomKind
+
+/-- [rowl_frontend::functional_annotation_axioms::{impl core::clone::Clone for rowl_frontend::functional_annotation_axioms::AnnotationAxiomKind}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 17:9-17:14
+    Visibility: public -/
+def functional_annotation_axioms.AnnotationAxiomKind.Insts.CoreCloneClone.clone
+  (self : functional_annotation_axioms.AnnotationAxiomKind) :
+  Result functional_annotation_axioms.AnnotationAxiomKind
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_annotation_axioms::{impl core::clone::Clone for rowl_frontend::functional_annotation_axioms::AnnotationAxiomKind}]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 17:9-17:14 -/
+@[reducible]
+def functional_annotation_axioms.AnnotationAxiomKind.Insts.CoreCloneClone :
+  core.clone.Clone functional_annotation_axioms.AnnotationAxiomKind := {
+  clone :=
+    functional_annotation_axioms.AnnotationAxiomKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_annotation_axioms::{impl core::marker::Copy for rowl_frontend::functional_annotation_axioms::AnnotationAxiomKind}]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 17:16-17:20 -/
+@[reducible]
+def functional_annotation_axioms.AnnotationAxiomKind.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_annotation_axioms.AnnotationAxiomKind := {
+  cloneInst :=
+    functional_annotation_axioms.AnnotationAxiomKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_header::HeaderIri]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 10:0-13:1
+    Visibility: public -/
+structure functional_header.HeaderIri where
+  token : functional.Token
+  value : alloc.vec.Vec Std.U8
+
+/-- [rowl_frontend::functional_annotation_axioms::SourceAnnotationSubject]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 26:0-29:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotation_axioms.SourceAnnotationSubject where
+| Iri :
+  functional_header.HeaderIri →
+  functional_annotation_axioms.SourceAnnotationSubject
+| Anonymous :
+  functional.Token →
+  alloc.vec.Vec Std.U8 →
+  functional_annotation_axioms.SourceAnnotationSubject
+
 /-- [rowl_frontend::functional_literals::SourceLiteralForm]
     Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 13:0-17:1
     Visibility: public -/
@@ -2735,13 +2792,6 @@ structure functional_literals.SourceLiteral where
   lexical : alloc.vec.Vec Std.U8
   datatype : alloc.vec.Vec Std.U8
 
-/-- [rowl_frontend::functional_header::HeaderIri]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 10:0-13:1
-    Visibility: public -/
-structure functional_header.HeaderIri where
-  token : functional.Token
-  value : alloc.vec.Vec Std.U8
-
 /-- [rowl_frontend::functional_annotations::SourceAnnotationValue]
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 15:0-19:1
     Visibility: public -/
@@ -2757,6 +2807,29 @@ inductive functional_annotations.SourceAnnotationValue where
 | Literal :
   functional_literals.SourceLiteral →
   functional_annotations.SourceAnnotationValue
+
+/-- [rowl_frontend::functional_annotation_axioms::SourceAnnotationAxiomBody]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 30:0-48:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotation_axioms.SourceAnnotationAxiomBody where
+| Assertion :
+  functional_header.HeaderIri →
+  functional_annotation_axioms.SourceAnnotationSubject →
+  functional_annotations.SourceAnnotationValue →
+  functional_annotation_axioms.SourceAnnotationAxiomBody
+| SubProperty :
+  functional_header.HeaderIri →
+  functional_header.HeaderIri →
+  functional_annotation_axioms.SourceAnnotationAxiomBody
+| Domain :
+  functional_header.HeaderIri →
+  functional_header.HeaderIri →
+  functional_annotation_axioms.SourceAnnotationAxiomBody
+| Range :
+  functional_header.HeaderIri →
+  functional_header.HeaderIri →
+  functional_annotation_axioms.SourceAnnotationAxiomBody
 
 /-- [rowl_frontend::functional_annotations::SourceAnnotation]
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 20:0-25:1
@@ -2841,66 +2914,52 @@ theorem functional_annotations.SourceAnnotation.value._simpLemma_ (keyword :
     =
     value := by rfl
 
-/-- [rowl_frontend::functional_lexer::Tokens]
-    Source: 'crates/rowl-frontend/src/functional_lexer.rs', lines 8:0-11:1
+/-- [rowl_frontend::functional_annotation_axioms::SourceAnnotationAxiom]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 49:0-53:1
     Visibility: public -/
-@[discriminant isize]
-inductive functional_lexer.Tokens where
-| Empty : functional_lexer.Tokens
-| Cons :
-  functional.Token →
-  functional_lexer.Tokens →
-  functional_lexer.Tokens
-
-/-- [rowl_frontend::functional_annotations::SourceAnnotations]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 26:0-29:1
-    Visibility: public -/
-structure functional_annotations.SourceAnnotations where
+structure functional_annotation_axioms.SourceAnnotationAxiom where
+  keyword : functional.Token
   annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
-  remaining : functional_lexer.Tokens
+  body : functional_annotation_axioms.SourceAnnotationAxiomBody
 
-/-- [rowl_frontend::functional_annotations::AnnotationLimits]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 34:0-39:1
-    Visibility: public -/
-structure functional_annotations.AnnotationLimits where
-  depth : Std.Usize
-  count : Std.Usize
-  iri : Std.Usize
-  lexical : Std.Usize
-
-/-- [rowl_frontend::functional_annotations::AnnotationExpected]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 41:0-46:1
+/-- [rowl_frontend::functional_annotation_axioms::AnnotationAxiomExpected]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 55:0-62:1
     Visibility: public -/
 @[discriminant isize]
-inductive functional_annotations.AnnotationExpected where
-| Open : functional_annotations.AnnotationExpected
-| Property : functional_annotations.AnnotationExpected
-| Value : functional_annotations.AnnotationExpected
-| Close : functional_annotations.AnnotationExpected
+inductive functional_annotation_axioms.AnnotationAxiomExpected where
+| Keyword : functional_annotation_axioms.AnnotationAxiomExpected
+| Open : functional_annotation_axioms.AnnotationAxiomExpected
+| Property : functional_annotation_axioms.AnnotationAxiomExpected
+| Subject : functional_annotation_axioms.AnnotationAxiomExpected
+| Iri : functional_annotation_axioms.AnnotationAxiomExpected
+| Close : functional_annotation_axioms.AnnotationAxiomExpected
 
-/-- [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}::clone]:
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14
+/-- [rowl_frontend::functional_annotation_axioms::{impl core::clone::Clone for rowl_frontend::functional_annotation_axioms::AnnotationAxiomExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 54:9-54:14
     Visibility: public -/
-def functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
-  (self : functional_annotations.AnnotationExpected) :
-  Result functional_annotations.AnnotationExpected
+def
+  functional_annotation_axioms.AnnotationAxiomExpected.Insts.CoreCloneClone.clone
+  (self : functional_annotation_axioms.AnnotationAxiomExpected) :
+  Result functional_annotation_axioms.AnnotationAxiomExpected
   := do
   ok self
 
-/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14 -/
+/-- Trait implementation: [rowl_frontend::functional_annotation_axioms::{impl core::clone::Clone for rowl_frontend::functional_annotation_axioms::AnnotationAxiomExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 54:9-54:14 -/
 @[reducible]
-def functional_annotations.AnnotationExpected.Insts.CoreCloneClone :
-  core.clone.Clone functional_annotations.AnnotationExpected := {
-  clone := functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
+def functional_annotation_axioms.AnnotationAxiomExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_annotation_axioms.AnnotationAxiomExpected := {
+  clone :=
+    functional_annotation_axioms.AnnotationAxiomExpected.Insts.CoreCloneClone.clone
 }
 
-/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::marker::Copy for rowl_frontend::functional_annotations::AnnotationExpected}]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:16-40:20 -/
+/-- Trait implementation: [rowl_frontend::functional_annotation_axioms::{impl core::marker::Copy for rowl_frontend::functional_annotation_axioms::AnnotationAxiomExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 54:16-54:20 -/
 @[reducible]
-def functional_annotations.AnnotationExpected.Insts.CoreMarkerCopy :
-  core.marker.Copy functional_annotations.AnnotationExpected := {
-  cloneInst := functional_annotations.AnnotationExpected.Insts.CoreCloneClone
+def functional_annotation_axioms.AnnotationAxiomExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_annotation_axioms.AnnotationAxiomExpected := {
+  cloneInst :=
+    functional_annotation_axioms.AnnotationAxiomExpected.Insts.CoreCloneClone
 }
 
 /-- [rowl_frontend::functional_names::NameError]
@@ -2911,6 +2970,17 @@ inductive functional_names.NameError where
 | InvalidSpan : Std.Usize → functional_names.NameError
 | InvalidToken : Std.Usize → functional_names.NameError
 | ResourceLimit : Std.Usize → functional_names.NameError
+
+/-- [rowl_frontend::functional_iris::SourceIriError]
+    Source: 'crates/rowl-frontend/src/functional_iris.rs', lines 17:0-23:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_iris.SourceIriError where
+| Name : functional_names.NameError → functional_iris.SourceIriError
+| InvalidParts : Std.Usize → functional_iris.SourceIriError
+| UndeclaredPrefix : Std.Usize → functional_iris.SourceIriError
+| ResourceLimit : Std.Usize → functional_iris.SourceIriError
+| InvalidExpandedIri : Std.Usize → functional_iris.SourceIriError
 
 /-- [rowl_frontend::ntriples::ErrorKind]
     Source: 'crates/rowl-frontend/src/ntriples.rs', lines 16:0-31:1
@@ -2947,17 +3017,6 @@ inductive functional_literals.LiteralExpected where
 | Quoted : functional_literals.LiteralExpected
 | Datatype : functional_literals.LiteralExpected
 
-/-- [rowl_frontend::functional_iris::SourceIriError]
-    Source: 'crates/rowl-frontend/src/functional_iris.rs', lines 17:0-23:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_iris.SourceIriError where
-| Name : functional_names.NameError → functional_iris.SourceIriError
-| InvalidParts : Std.Usize → functional_iris.SourceIriError
-| UndeclaredPrefix : Std.Usize → functional_iris.SourceIriError
-| ResourceLimit : Std.Usize → functional_iris.SourceIriError
-| InvalidExpandedIri : Std.Usize → functional_iris.SourceIriError
-
 /-- [rowl_frontend::functional_literals::SourceLiteralError]
     Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 29:0-46:1
     Visibility: public -/
@@ -2977,6 +3036,16 @@ inductive functional_literals.SourceLiteralError where
   functional_literals.SourceLiteralError
 | LexicalLimit : Std.Usize → functional_literals.SourceLiteralError
 | DatatypeLimit : Std.Usize → functional_literals.SourceLiteralError
+
+/-- [rowl_frontend::functional_annotations::AnnotationExpected]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 41:0-46:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotations.AnnotationExpected where
+| Open : functional_annotations.AnnotationExpected
+| Property : functional_annotations.AnnotationExpected
+| Value : functional_annotations.AnnotationExpected
+| Close : functional_annotations.AnnotationExpected
 
 /-- [rowl_frontend::functional_annotations::AnnotationError]
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 47:0-62:1
@@ -3002,6 +3071,28 @@ inductive functional_annotations.AnnotationError where
 | DepthLimit : Std.Usize → functional_annotations.AnnotationError
 | CountLimit : Std.Usize → functional_annotations.AnnotationError
 
+/-- [rowl_frontend::functional_annotation_axioms::AnnotationAxiomError]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 63:0-72:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotation_axioms.AnnotationAxiomError where
+| Expected :
+  functional_annotation_axioms.AnnotationAxiomExpected →
+  Std.Usize →
+  functional_annotation_axioms.AnnotationAxiomError
+| Annotation :
+  functional_annotations.AnnotationError →
+  functional_annotation_axioms.AnnotationAxiomError
+| Iri :
+  functional_iris.SourceIriError →
+  functional_annotation_axioms.AnnotationAxiomError
+| Anonymous :
+  functional_names.NameError →
+  functional_annotation_axioms.AnnotationAxiomError
+| Value :
+  functional_annotations.AnnotationError →
+  functional_annotation_axioms.AnnotationAxiomError
+
 /-- [rowl_frontend::functional_iris::SourceIriKind]
     Source: 'crates/rowl-frontend/src/functional_iris.rs', lines 9:0-12:1
     Visibility: public -/
@@ -3010,21 +3101,118 @@ inductive functional_iris.SourceIriKind where
 | Full : functional_iris.SourceIriKind
 | Abbreviated : functional_iris.SourceIriKind
 
-/-- [rowl_frontend::functional_annotations::AnnotationValueKind]
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 63:0-67:1 -/
+/-- [rowl_frontend::functional_annotation_axioms::AnnotationSubjectKind]
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 73:0-76:1 -/
 @[discriminant isize]
-inductive functional_annotations.AnnotationValueKind where
+inductive functional_annotation_axioms.AnnotationSubjectKind where
 | Iri :
   functional_iris.SourceIriKind →
-  functional_annotations.AnnotationValueKind
-| Anonymous : functional_annotations.AnnotationValueKind
-| Literal : functional_annotations.AnnotationValueKind
+  functional_annotation_axioms.AnnotationSubjectKind
+| Anonymous : functional_annotation_axioms.AnnotationSubjectKind
 
-/-- [rowl_frontend::functional_annotations::value_kind]:
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 68:0-76:1 -/
-def functional_annotations.value_kind
+/-- [rowl_frontend::functional_annotation_axioms::axiom_kind]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 77:0-87:1 -/
+def functional_annotation_axioms.axiom_kind
   (terminal : functional.Terminal) :
-  Result (Option functional_annotations.AnnotationValueKind)
+  Result (Option functional_annotation_axioms.AnnotationAxiomKind)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok none
+    | functional.Keyword.Ontology => ok none
+    | functional.Keyword.Import => ok none
+    | functional.Keyword.Declaration => ok none
+    | functional.Keyword.Class => ok none
+    | functional.Keyword.Datatype => ok none
+    | functional.Keyword.ObjectProperty => ok none
+    | functional.Keyword.DataProperty => ok none
+    | functional.Keyword.AnnotationProperty => ok none
+    | functional.Keyword.NamedIndividual => ok none
+    | functional.Keyword.Annotation => ok none
+    | functional.Keyword.AnnotationAssertion =>
+      ok (some functional_annotation_axioms.AnnotationAxiomKind.Assertion)
+    | functional.Keyword.SubAnnotationPropertyOf =>
+      ok (some functional_annotation_axioms.AnnotationAxiomKind.SubProperty)
+    | functional.Keyword.AnnotationPropertyDomain =>
+      ok (some functional_annotation_axioms.AnnotationAxiomKind.Domain)
+    | functional.Keyword.AnnotationPropertyRange =>
+      ok (some functional_annotation_axioms.AnnotationAxiomKind.Range)
+    | functional.Keyword.ObjectInverseOf => ok none
+    | functional.Keyword.DataIntersectionOf => ok none
+    | functional.Keyword.DataUnionOf => ok none
+    | functional.Keyword.DataComplementOf => ok none
+    | functional.Keyword.DataOneOf => ok none
+    | functional.Keyword.DatatypeRestriction => ok none
+    | functional.Keyword.ObjectIntersectionOf => ok none
+    | functional.Keyword.ObjectUnionOf => ok none
+    | functional.Keyword.ObjectComplementOf => ok none
+    | functional.Keyword.ObjectOneOf => ok none
+    | functional.Keyword.ObjectSomeValuesFrom => ok none
+    | functional.Keyword.ObjectAllValuesFrom => ok none
+    | functional.Keyword.ObjectHasValue => ok none
+    | functional.Keyword.ObjectHasSelf => ok none
+    | functional.Keyword.ObjectMinCardinality => ok none
+    | functional.Keyword.ObjectMaxCardinality => ok none
+    | functional.Keyword.ObjectExactCardinality => ok none
+    | functional.Keyword.DataSomeValuesFrom => ok none
+    | functional.Keyword.DataAllValuesFrom => ok none
+    | functional.Keyword.DataHasValue => ok none
+    | functional.Keyword.DataMinCardinality => ok none
+    | functional.Keyword.DataMaxCardinality => ok none
+    | functional.Keyword.DataExactCardinality => ok none
+    | functional.Keyword.SubClassOf => ok none
+    | functional.Keyword.EquivalentClasses => ok none
+    | functional.Keyword.DisjointClasses => ok none
+    | functional.Keyword.DisjointUnion => ok none
+    | functional.Keyword.SubObjectPropertyOf => ok none
+    | functional.Keyword.ObjectPropertyChain => ok none
+    | functional.Keyword.EquivalentObjectProperties => ok none
+    | functional.Keyword.DisjointObjectProperties => ok none
+    | functional.Keyword.ObjectPropertyDomain => ok none
+    | functional.Keyword.ObjectPropertyRange => ok none
+    | functional.Keyword.InverseObjectProperties => ok none
+    | functional.Keyword.FunctionalObjectProperty => ok none
+    | functional.Keyword.InverseFunctionalObjectProperty => ok none
+    | functional.Keyword.ReflexiveObjectProperty => ok none
+    | functional.Keyword.IrreflexiveObjectProperty => ok none
+    | functional.Keyword.SymmetricObjectProperty => ok none
+    | functional.Keyword.AsymmetricObjectProperty => ok none
+    | functional.Keyword.TransitiveObjectProperty => ok none
+    | functional.Keyword.SubDataPropertyOf => ok none
+    | functional.Keyword.EquivalentDataProperties => ok none
+    | functional.Keyword.DisjointDataProperties => ok none
+    | functional.Keyword.DataPropertyDomain => ok none
+    | functional.Keyword.DataPropertyRange => ok none
+    | functional.Keyword.FunctionalDataProperty => ok none
+    | functional.Keyword.DatatypeDefinition => ok none
+    | functional.Keyword.HasKey => ok none
+    | functional.Keyword.SameIndividual => ok none
+    | functional.Keyword.DifferentIndividuals => ok none
+    | functional.Keyword.ClassAssertion => ok none
+    | functional.Keyword.ObjectPropertyAssertion => ok none
+    | functional.Keyword.NegativeObjectPropertyAssertion => ok none
+    | functional.Keyword.DataPropertyAssertion => ok none
+    | functional.Keyword.NegativeDataPropertyAssertion => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId => ok none
+  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri => ok none
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_frontend::functional_annotation_axioms::subject_kind]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 88:0-95:1 -/
+def functional_annotation_axioms.subject_kind
+  (terminal : functional.Terminal) :
+  Result (Option functional_annotation_axioms.AnnotationSubjectKind)
   := do
   match terminal with
   | functional.Terminal.Keyword _ => ok none
@@ -3033,17 +3221,16 @@ def functional_annotations.value_kind
   | functional.Terminal.Equals => ok none
   | functional.Terminal.DatatypeIndicator => ok none
   | functional.Terminal.Integer => ok none
-  | functional.Terminal.QuotedString =>
-    ok (some functional_annotations.AnnotationValueKind.Literal)
+  | functional.Terminal.QuotedString => ok none
   | functional.Terminal.LanguageTag => ok none
   | functional.Terminal.NodeId =>
-    ok (some functional_annotations.AnnotationValueKind.Anonymous)
+    ok (some functional_annotation_axioms.AnnotationSubjectKind.Anonymous)
   | functional.Terminal.FullIri =>
-    ok (some (functional_annotations.AnnotationValueKind.Iri
+    ok (some (functional_annotation_axioms.AnnotationSubjectKind.Iri
       functional_iris.SourceIriKind.Full))
   | functional.Terminal.PrefixName => ok none
   | functional.Terminal.AbbreviatedIri =>
-    ok (some (functional_annotations.AnnotationValueKind.Iri
+    ok (some (functional_annotation_axioms.AnnotationSubjectKind.Iri
       functional_iris.SourceIriKind.Abbreviated))
   | functional.Terminal.Whitespace => ok none
   | functional.Terminal.Comment => ok none
@@ -3071,15 +3258,18 @@ def functional_header.iri_kind
   | functional.Terminal.Whitespace => ok none
   | functional.Terminal.Comment => ok none
 
-/-- [rowl_frontend::functional_annotations::expected_terminal]:
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 77:0-84:1 -/
-def functional_annotations.expected_terminal
-  (expected : functional_annotations.AnnotationExpected)
+/-- [rowl_frontend::functional_annotation_axioms::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 96:0-106:1 -/
+def functional_annotation_axioms.expected_terminal
+  (expected : functional_annotation_axioms.AnnotationAxiomExpected)
   (terminal : functional.Terminal) :
   Result Bool
   := do
   match expected with
-  | functional_annotations.AnnotationExpected.Open =>
+  | functional_annotation_axioms.AnnotationAxiomExpected.Keyword =>
+    let o ← functional_annotation_axioms.axiom_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotation_axioms.AnnotationAxiomExpected.Open =>
     match terminal with
     | functional.Terminal.Keyword _ => ok false
     | functional.Terminal.Open => ok true
@@ -3095,13 +3285,16 @@ def functional_annotations.expected_terminal
     | functional.Terminal.AbbreviatedIri => ok false
     | functional.Terminal.Whitespace => ok false
     | functional.Terminal.Comment => ok false
-  | functional_annotations.AnnotationExpected.Property =>
+  | functional_annotation_axioms.AnnotationAxiomExpected.Property =>
     let o ← functional_header.iri_kind terminal
     ok (core.option.Option.is_some o)
-  | functional_annotations.AnnotationExpected.Value =>
-    let o ← functional_annotations.value_kind terminal
+  | functional_annotation_axioms.AnnotationAxiomExpected.Subject =>
+    let o ← functional_annotation_axioms.subject_kind terminal
     ok (core.option.Option.is_some o)
-  | functional_annotations.AnnotationExpected.Close =>
+  | functional_annotation_axioms.AnnotationAxiomExpected.Iri =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotation_axioms.AnnotationAxiomExpected.Close =>
     match terminal with
     | functional.Terminal.Keyword _ => ok false
     | functional.Terminal.Open => ok false
@@ -3118,25 +3311,40 @@ def functional_annotations.expected_terminal
     | functional.Terminal.Whitespace => ok false
     | functional.Terminal.Comment => ok false
 
-/-- [rowl_frontend::functional_annotations::take_expected]:
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 85:0-106:1 -/
-def functional_annotations.take_expected
+/-- [rowl_frontend::functional_lexer::Tokens]
+    Source: 'crates/rowl-frontend/src/functional_lexer.rs', lines 8:0-11:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_lexer.Tokens where
+| Empty : functional_lexer.Tokens
+| Cons :
+  functional.Token →
+  functional_lexer.Tokens →
+  functional_lexer.Tokens
+
+/-- [rowl_frontend::functional_annotation_axioms::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 107:0-128:1 -/
+def functional_annotation_axioms.take_expected
   (tokens : functional_lexer.Tokens)
-  (expected : functional_annotations.AnnotationExpected) (eof : Std.Usize) :
+  (expected : functional_annotation_axioms.AnnotationAxiomExpected)
+  (eof : Std.Usize) :
   Result (core.result.Result (functional.Token × functional_lexer.Tokens)
-    functional_annotations.AnnotationError)
+    functional_annotation_axioms.AnnotationAxiomError)
   := do
   match tokens with
   | functional_lexer.Tokens.Empty =>
-    ok (core.result.Result.Err (functional_annotations.AnnotationError.Expected
-      expected eof))
+    ok (core.result.Result.Err
+      (functional_annotation_axioms.AnnotationAxiomError.Expected expected
+      eof))
   | functional_lexer.Tokens.Cons token next =>
-    let b ← functional_annotations.expected_terminal expected token.terminal
+    let b ←
+      functional_annotation_axioms.expected_terminal expected token.terminal
     if b
     then ok (core.result.Result.Ok (token, next))
     else
       ok (core.result.Result.Err
-        (functional_annotations.AnnotationError.Expected expected token.start))
+        (functional_annotation_axioms.AnnotationAxiomError.Expected expected
+        token.start))
 
 /-- [rowl_frontend::prefixes::Declaration]
     Source: 'crates/rowl-frontend/src/prefixes.rs', lines 11:0-14:1
@@ -3720,18 +3928,18 @@ def functional_iris.resolve_span
           (functional_iris.SourceIriError.InvalidExpandedIri start))
     | core.result.Result.Err error => ok (core.result.Result.Err error)
 
-/-- [rowl_frontend::functional_annotations::read_property]:
-    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 107:0-131:1 -/
-def functional_annotations.read_property
+/-- [rowl_frontend::functional_annotation_axioms::read_iri]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 130:0-154:1 -/
+def functional_annotation_axioms.read_iri
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
-  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_annotation_axioms.AnnotationAxiomExpected)
+  (limit : Std.Usize) :
   Result (core.result.Result (functional_header.HeaderIri ×
-    functional_lexer.Tokens) functional_annotations.AnnotationError)
+    functional_lexer.Tokens) functional_annotation_axioms.AnnotationAxiomError)
   := do
   let i := alloc.vec.Vec.len bytes
-  let r ←
-    functional_annotations.take_expected tokens
-      functional_annotations.AnnotationExpected.Property i
+  let r ← functional_annotation_axioms.take_expected tokens expected i
   match r with
   | core.result.Result.Ok value =>
     let (token, remaining) := value
@@ -3739,8 +3947,8 @@ def functional_annotations.read_property
     match o with
     | none =>
       ok (core.result.Result.Err
-        (functional_annotations.AnnotationError.Expected
-        functional_annotations.AnnotationExpected.Property token.start))
+        (functional_annotation_axioms.AnnotationAxiomError.Expected expected
+        token.start))
     | some kind =>
       let r1 ←
         functional_iris.resolve_span table kind bytes token.start token.end
@@ -3750,7 +3958,59 @@ def functional_annotations.read_property
         ok (core.result.Result.Ok ({ token, value := value1 }, remaining))
       | core.result.Result.Err error =>
         ok (core.result.Result.Err
-          (functional_annotations.AnnotationError.Property error))
+          (functional_annotation_axioms.AnnotationAxiomError.Iri error))
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotation_axioms::read_subject]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 155:0-190:1 -/
+def functional_annotation_axioms.read_subject
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result
+    (functional_annotation_axioms.SourceAnnotationSubject ×
+    functional_lexer.Tokens) functional_annotation_axioms.AnnotationAxiomError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_annotation_axioms.take_expected tokens
+      functional_annotation_axioms.AnnotationAxiomExpected.Subject i
+  match r with
+  | core.result.Result.Ok value =>
+    let (token, remaining) := value
+    let o ← functional_annotation_axioms.subject_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_annotation_axioms.AnnotationAxiomError.Expected
+        functional_annotation_axioms.AnnotationAxiomExpected.Subject
+        token.start))
+    | some ask =>
+      match ask with
+      | functional_annotation_axioms.AnnotationSubjectKind.Iri kind =>
+        let r1 ←
+          functional_iris.resolve_span table kind bytes token.start token.end
+            limit
+        match r1 with
+        | core.result.Result.Ok value1 =>
+          ok (core.result.Result.Ok
+            (functional_annotation_axioms.SourceAnnotationSubject.Iri
+            { token, value := value1 }, remaining))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotation_axioms.AnnotationAxiomError.Iri error))
+      | functional_annotation_axioms.AnnotationSubjectKind.Anonymous =>
+        let r1 ←
+          functional_names.read_span functional_names.NameKind.NodeId bytes
+            token.start token.end limit
+        match r1 with
+        | core.result.Result.Ok label =>
+          ok (core.result.Result.Ok
+            (functional_annotation_axioms.SourceAnnotationSubject.Anonymous
+            token label, remaining))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotation_axioms.AnnotationAxiomError.Anonymous
+            error))
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_frontend::functional_literals::plain_datatype]:
@@ -4334,6 +4594,120 @@ def functional_literals.read_literal
     | core.result.Result.Err error => ok (core.result.Result.Err error)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
+/-- [rowl_frontend::functional_annotations::AnnotationValueKind]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 63:0-67:1 -/
+@[discriminant isize]
+inductive functional_annotations.AnnotationValueKind where
+| Iri :
+  functional_iris.SourceIriKind →
+  functional_annotations.AnnotationValueKind
+| Anonymous : functional_annotations.AnnotationValueKind
+| Literal : functional_annotations.AnnotationValueKind
+
+/-- [rowl_frontend::functional_annotations::value_kind]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 68:0-76:1 -/
+def functional_annotations.value_kind
+  (terminal : functional.Terminal) :
+  Result (Option functional_annotations.AnnotationValueKind)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString =>
+    ok (some functional_annotations.AnnotationValueKind.Literal)
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId =>
+    ok (some functional_annotations.AnnotationValueKind.Anonymous)
+  | functional.Terminal.FullIri =>
+    ok (some (functional_annotations.AnnotationValueKind.Iri
+      functional_iris.SourceIriKind.Full))
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri =>
+    ok (some (functional_annotations.AnnotationValueKind.Iri
+      functional_iris.SourceIriKind.Abbreviated))
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_frontend::functional_annotations::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 77:0-84:1 -/
+def functional_annotations.expected_terminal
+  (expected : functional_annotations.AnnotationExpected)
+  (terminal : functional.Terminal) :
+  Result Bool
+  := do
+  match expected with
+  | functional_annotations.AnnotationExpected.Open =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok true
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_annotations.AnnotationExpected.Property =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotations.AnnotationExpected.Value =>
+    let o ← functional_annotations.value_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotations.AnnotationExpected.Close =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok false
+    | functional.Terminal.Close => ok true
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_annotations::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 85:0-106:1 -/
+def functional_annotations.take_expected
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_annotations.AnnotationExpected) (eof : Std.Usize) :
+  Result (core.result.Result (functional.Token × functional_lexer.Tokens)
+    functional_annotations.AnnotationError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err (functional_annotations.AnnotationError.Expected
+      expected eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_annotations.expected_terminal expected token.terminal
+    if b
+    then ok (core.result.Result.Ok (token, next))
+    else
+      ok (core.result.Result.Err
+        (functional_annotations.AnnotationError.Expected expected token.start))
+
+/-- [rowl_frontend::functional_annotations::AnnotationLimits]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 34:0-39:1
+    Visibility: public -/
+structure functional_annotations.AnnotationLimits where
+  depth : Std.Usize
+  count : Std.Usize
+  iri : Std.Usize
+  lexical : Std.Usize
+
 /-- [rowl_frontend::functional_annotations::read_value]:
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 132:0-172:1 -/
 def functional_annotations.read_value
@@ -4398,12 +4772,117 @@ def functional_annotations.read_value
             (functional_annotations.AnnotationError.Literal error))
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
+/-- [rowl_frontend::functional_annotation_axioms::read_body]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 191:0-275:1 -/
+def functional_annotation_axioms.read_body
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (kind : functional_annotation_axioms.AnnotationAxiomKind)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result
+    (functional_annotation_axioms.SourceAnnotationAxiomBody ×
+    functional_lexer.Tokens) functional_annotation_axioms.AnnotationAxiomError)
+  := do
+  let r ←
+    functional_annotation_axioms.read_iri table bytes tokens
+      functional_annotation_axioms.AnnotationAxiomExpected.Property limits.iri
+  match r with
+  | core.result.Result.Ok value =>
+    let (property, tokens1) := value
+    match kind with
+    | functional_annotation_axioms.AnnotationAxiomKind.Assertion =>
+      let r1 ←
+        functional_annotation_axioms.read_subject table bytes tokens1
+          limits.iri
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (subject, tokens2) := value1
+        let r2 ← functional_annotations.read_value table bytes tokens2 limits
+        match r2 with
+        | core.result.Result.Ok p =>
+          let (value2, remaining) := p
+          ok (core.result.Result.Ok
+            (functional_annotation_axioms.SourceAnnotationAxiomBody.Assertion
+            property subject value2, remaining))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotation_axioms.AnnotationAxiomError.Value error))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | functional_annotation_axioms.AnnotationAxiomKind.SubProperty =>
+      let r1 ←
+        functional_annotation_axioms.read_iri table bytes tokens1
+          functional_annotation_axioms.AnnotationAxiomExpected.Property
+          limits.iri
+      match r1 with
+      | core.result.Result.Ok p =>
+        let (super_property, remaining) := p
+        ok (core.result.Result.Ok
+          (functional_annotation_axioms.SourceAnnotationAxiomBody.SubProperty
+          property super_property, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | functional_annotation_axioms.AnnotationAxiomKind.Domain =>
+      let r1 ←
+        functional_annotation_axioms.read_iri table bytes tokens1
+          functional_annotation_axioms.AnnotationAxiomExpected.Iri limits.iri
+      match r1 with
+      | core.result.Result.Ok p =>
+        let (domain, remaining) := p
+        ok (core.result.Result.Ok
+          (functional_annotation_axioms.SourceAnnotationAxiomBody.Domain
+          property domain, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | functional_annotation_axioms.AnnotationAxiomKind.Range =>
+      let r1 ←
+        functional_annotation_axioms.read_iri table bytes tokens1
+          functional_annotation_axioms.AnnotationAxiomExpected.Iri limits.iri
+      match r1 with
+      | core.result.Result.Ok p =>
+        let (range, remaining) := p
+        ok (core.result.Result.Ok
+          (functional_annotation_axioms.SourceAnnotationAxiomBody.Range
+          property range, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
 /-- [rowl_frontend::functional_annotations::AnnotationTail]
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 173:0-177:1 -/
 structure functional_annotations.AnnotationTail where
   property : functional_header.HeaderIri
   value : functional_annotations.SourceAnnotationValue
   remaining : functional_lexer.Tokens
+
+/-- [rowl_frontend::functional_annotations::read_property]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 107:0-131:1 -/
+def functional_annotations.read_property
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_header.HeaderIri ×
+    functional_lexer.Tokens) functional_annotations.AnnotationError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_annotations.take_expected tokens
+      functional_annotations.AnnotationExpected.Property i
+  match r with
+  | core.result.Result.Ok value =>
+    let (token, remaining) := value
+    let o ← functional_header.iri_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_annotations.AnnotationError.Expected
+        functional_annotations.AnnotationExpected.Property token.start))
+    | some kind =>
+      let r1 ←
+        functional_iris.resolve_span table kind bytes token.start token.end
+          limit
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        ok (core.result.Result.Ok ({ token, value := value1 }, remaining))
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err
+          (functional_annotations.AnnotationError.Property error))
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_frontend::functional_annotations::finish_annotation]:
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 178:0-201:1 -/
@@ -4433,6 +4912,13 @@ def functional_annotations.finish_annotation
       | core.result.Result.Err error => ok (core.result.Result.Err error)
     | core.result.Result.Err error => ok (core.result.Result.Err error)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::SourceAnnotations]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 26:0-29:1
+    Visibility: public -/
+structure functional_annotations.SourceAnnotations where
+  annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
+  remaining : functional_lexer.Tokens
 
 /-- [rowl_frontend::functional_annotations::scan_annotations]:
     Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 202:0-256:1 -/
@@ -4673,6 +5159,93 @@ def functional_annotations.read_annotations
   := do
   functional_annotations.scan_annotations table bytes tokens (alloc.vec.Vec.new
     functional_annotations.SourceAnnotation) limits.depth limits
+
+/-- [rowl_frontend::functional_annotation_axioms::read_annotation_axiom]:
+    Source: 'crates/rowl-frontend/src/functional_annotation_axioms.rs', lines 285:0-329:1
+    Visibility: public -/
+def functional_annotation_axioms.read_annotation_axiom
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result
+    (functional_annotation_axioms.SourceAnnotationAxiom ×
+    functional_lexer.Tokens) functional_annotation_axioms.AnnotationAxiomError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_annotation_axioms.take_expected tokens
+      functional_annotation_axioms.AnnotationAxiomExpected.Keyword i
+  match r with
+  | core.result.Result.Ok value =>
+    let (keyword, tokens1) := value
+    let o ← functional_annotation_axioms.axiom_kind keyword.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_annotation_axioms.AnnotationAxiomError.Expected
+        functional_annotation_axioms.AnnotationAxiomExpected.Keyword
+        keyword.start))
+    | some kind =>
+      let i1 := alloc.vec.Vec.len bytes
+      let r1 ←
+        functional_annotation_axioms.take_expected tokens1
+          functional_annotation_axioms.AnnotationAxiomExpected.Open i1
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (_, tokens2) := value1
+        let r2 ←
+          functional_annotations.read_annotations table bytes tokens2 limits
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let r3 ←
+            functional_annotation_axioms.read_body table bytes kind
+              value2.remaining limits
+          match r3 with
+          | core.result.Result.Ok value3 =>
+            let (body, tokens3) := value3
+            let i2 := alloc.vec.Vec.len bytes
+            let r4 ←
+              functional_annotation_axioms.take_expected tokens3
+                functional_annotation_axioms.AnnotationAxiomExpected.Close i2
+            match r4 with
+            | core.result.Result.Ok value4 =>
+              let (_, remaining) := value4
+              ok (core.result.Result.Ok
+                ({ keyword, annotations := value2.annotations, body },
+                remaining))
+            | core.result.Result.Err error => ok (core.result.Result.Err error)
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotation_axioms.AnnotationAxiomError.Annotation
+            error))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14
+    Visibility: public -/
+def functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
+  (self : functional_annotations.AnnotationExpected) :
+  Result functional_annotations.AnnotationExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14 -/
+@[reducible]
+def functional_annotations.AnnotationExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_annotations.AnnotationExpected := {
+  clone := functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::marker::Copy for rowl_frontend::functional_annotations::AnnotationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:16-40:20 -/
+@[reducible]
+def functional_annotations.AnnotationExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_annotations.AnnotationExpected := {
+  cloneInst := functional_annotations.AnnotationExpected.Insts.CoreCloneClone
+}
 
 /-- [rowl_frontend::functional_declarations::SourceEntityKind]
     Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 16:0-23:1

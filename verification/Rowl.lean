@@ -99,3 +99,5 @@ import Rowl.FunctionalAnnotations
 import Rowl.FunctionalAnnotationSource
 import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
+import Rowl.FunctionalAnnotationAxioms
+import Rowl.FunctionalAnnotationAxiomSource

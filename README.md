@@ -95,6 +95,10 @@ entity kinds, are now read one axiom at a time with the same proof guarantees.
 Axiom annotations reuse the annotation reader; the entity IRI resolves through the
 checked prefix table. Declaration typing stays the existing kernel check, and the
 axiom loop and the other axiom forms remain pending.
+The four annotation axioms (`AnnotationAssertion`, `SubAnnotationPropertyOf`,
+`AnnotationPropertyDomain`, `AnnotationPropertyRange`) are read the same way, so
+every non-logical axiom now has a proved reader. The logical axioms, the axiom
+loop and complete document construction remain pending.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -117,6 +121,7 @@ cargo run -p rowl --example functional_header # source ontology/version identity
 cargo run -p rowl --example functional_literals # exact text/language/type values from original maintenance source
 cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
 cargo run -p rowl --example functional_declarations # entity declarations with axiom annotations from original source
+cargo run -p rowl --example functional_annotation_axioms # declarations and annotation axioms of a vocabulary ontology
 python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
 ```
 
@@ -128,7 +133,7 @@ does not entail membership in A. Search must consider every interpretation.
 | Path | Responsibility |
 | --- | --- |
 | `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks and ordered semantic preparation |
-| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
+| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |
 | `verification` | Actual generated Rust translation, independent semantics, Lean proofs |

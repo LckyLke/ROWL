@@ -1,0 +1,12 @@
+Prefix(ex:=<https://example.org/maintenance/>)
+Ontology(ex:plant
+ Declaration(NamedIndividual(ex:pump1))
+ Declaration(AnnotationProperty(ex:shortLabel))
+ Declaration(AnnotationProperty(ex:inspectedBy))
+ Declaration(AnnotationProperty(ex:inspectionCode))
+ SubAnnotationPropertyOf(ex:shortLabel rdfs:label)
+ AnnotationPropertyDomain(ex:inspectedBy ex:Machine)
+ AnnotationPropertyRange(ex:inspectionCode xsd:integer)
+ AnnotationAssertion(ex:shortLabel ex:pump1 "P7")
+ AnnotationAssertion(Annotation(rdfs:comment "From the 2026 audit") ex:inspectedBy ex:pump1 _:inspector)
+ AnnotationAssertion(ex:inspectionCode ex:pump1 "007"^^xsd:integer))

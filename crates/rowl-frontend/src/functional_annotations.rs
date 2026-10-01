@@ -129,7 +129,7 @@ fn read_property(
         Err(error) => Err(AnnotationError::Property(error)),
     }
 }
-fn read_value(
+pub(crate) fn read_value(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
     tokens: Tokens,

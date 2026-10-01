@@ -73,6 +73,8 @@ import Rowl.FunctionalAnnotations
 import Rowl.FunctionalAnnotationSource
 import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
+import Rowl.FunctionalAnnotationAxioms
+import Rowl.FunctionalAnnotationAxiomSource
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -674,6 +676,26 @@ import Rowl.FunctionalDeclarationSource
 #print axioms Rowl.FunctionalDeclarations.declaration_source_values
 #print axioms Rowl.FunctionalDeclarations.declaration_token_progress
 #print axioms Rowl.FunctionalDeclarationSource.source_prefix_declaration_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.axiom_kind_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.subject_kind_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.expected_terminal_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.take_expected_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.take_expected_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.take_progress
+#print axioms Rowl.FunctionalAnnotationAxioms.iri_position_expected
+#print axioms Rowl.FunctionalAnnotationAxioms.read_iri_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.read_iri_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.iri_source_value
+#print axioms Rowl.FunctionalAnnotationAxioms.read_subject_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.read_subject_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.subject_progress
+#print axioms Rowl.FunctionalAnnotationAxioms.read_body_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.read_body_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.body_source_values
+#print axioms Rowl.FunctionalAnnotationAxioms.read_annotation_axiom_total_correct
+#print axioms Rowl.FunctionalAnnotationAxioms.read_annotation_axiom_result_iff
+#print axioms Rowl.FunctionalAnnotationAxioms.annotation_axiom_source_values
+#print axioms Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1171,3 +1193,12 @@ import Rowl.FunctionalDeclarationSource
 #print axioms Rowl.FunctionalDeclarations.TakeRun
 #print axioms Rowl.FunctionalDeclarations.EntityRun
 #print axioms Rowl.FunctionalDeclarations.DeclarationRun
+#print axioms Rowl.FunctionalAnnotationAxioms.AxiomKind
+#print axioms Rowl.FunctionalAnnotationAxioms.SubjectKind
+#print axioms Rowl.FunctionalAnnotationAxioms.Expected
+#print axioms Rowl.FunctionalAnnotationAxioms.TakeRun
+#print axioms Rowl.FunctionalAnnotationAxioms.IriRun
+#print axioms Rowl.FunctionalAnnotationAxioms.SubjectRun
+#print axioms Rowl.FunctionalAnnotationAxioms.BodyKind
+#print axioms Rowl.FunctionalAnnotationAxioms.BodyRun
+#print axioms Rowl.FunctionalAnnotationAxioms.AxiomRun
