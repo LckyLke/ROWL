@@ -102,3 +102,4 @@ import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.Nnf
+import Rowl.Tableau

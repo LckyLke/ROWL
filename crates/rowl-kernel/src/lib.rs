@@ -58,3 +58,5 @@ pub mod axiom_set;
 pub mod decimal;
 
 pub mod nnf;
+
+pub mod tableau;

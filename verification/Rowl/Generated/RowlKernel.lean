@@ -10946,6 +10946,200 @@ def roles.check_simplicity
     roles.check_required facts.simple_required non_simple
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
+/-- [rowl_kernel::tableau::Concepts]
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 19:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tableau.Concepts where
+| Empty : tableau.Concepts
+| Entry : nnf.NnfConcept → tableau.Concepts → tableau.Concepts
+
+/-- [rowl_kernel::tableau::duplicate]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 27:0-44:1 -/
+def tableau.duplicate
+  (list : tableau.Concepts) :
+  Result (tableau.Concepts × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty =>
+    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (left, right) ← tableau.duplicate next
+    ok (tableau.Concepts.Entry concept left, tableau.Concepts.Entry concept
+      right)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::contains_atom]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 46:0-64:1 -/
+def tableau.contains_atom
+  (list : tableau.Concepts) («class» : model.Class) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (concept1, class1, here) ←
+      match concept with
+      | nnf.NnfConcept.Top => ok (nnf.NnfConcept.Top, «class», false)
+      | nnf.NnfConcept.Bottom => ok (nnf.NnfConcept.Bottom, «class», false)
+      | nnf.NnfConcept.Atom other =>
+        do
+        let here1 ←
+          symbols.same_spelling other.iri.spelling «class».iri.spelling
+        ok (concept, «class», here1)
+      | nnf.NnfConcept.NotAtom _ => ok (concept, «class», false)
+      | nnf.NnfConcept.And _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Or _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Exists _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Forall _ _ => ok (concept, «class», false)
+    let (later, rest) ← tableau.contains_atom next class1
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, tableau.Concepts.Entry concept1 rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::has_clash]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 66:0-78:1 -/
+def tableau.has_clash
+  (all : tableau.Concepts) (cursor : tableau.Concepts) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match cursor with
+  | tableau.Concepts.Empty => ok (false, all)
+  | tableau.Concepts.Entry concept next =>
+    let (here, all1) ←
+      match concept with
+      | nnf.NnfConcept.Top => ok (false, all)
+      | nnf.NnfConcept.Bottom => ok (false, all)
+      | nnf.NnfConcept.Atom _ => ok (false, all)
+      | nnf.NnfConcept.NotAtom «class» => tableau.contains_atom all «class»
+      | nnf.NnfConcept.And _ _ => ok (false, all)
+      | nnf.NnfConcept.Or _ _ => ok (false, all)
+      | nnf.NnfConcept.Exists _ _ => ok (false, all)
+      | nnf.NnfConcept.Forall _ _ => ok (false, all)
+    let (later, all2) ← tableau.has_clash all1 next
+    if here
+    then ok (true, all2)
+    else ok (later, all2)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::universal_fillers]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 81:0-111:1 -/
+def tableau.universal_fillers
+  (list : tableau.Concepts) (role : model.ObjectProperty) :
+  Result (tableau.Concepts × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty =>
+    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (fillers, rest) ← tableau.universal_fillers next role
+    match concept with
+    | nnf.NnfConcept.Top =>
+      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Top rest)
+    | nnf.NnfConcept.Bottom =>
+      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Bottom rest)
+    | nnf.NnfConcept.Atom _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.NotAtom _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.And _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Or _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Exists _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Forall other filler =>
+      let b ← symbols.same_spelling other.iri.spelling role.iri.spelling
+      if b
+      then
+        ok (tableau.Concepts.Entry filler fillers, tableau.Concepts.Entry
+          concept rest)
+      else ok (fillers, tableau.Concepts.Entry concept rest)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::tableau::expand]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 114:0-165:1 -/
+def tableau.expand
+  (pending : tableau.Concepts) (literals : tableau.Concepts) :
+  Result Bool
+  := do
+  match pending with
+  | tableau.Concepts.Empty =>
+    let (cursor, literals1) ← tableau.duplicate literals
+    let (clash, literals2) ← tableau.has_clash literals1 cursor
+    if clash
+    then ok false
+    else
+      let (cursor1, literals3) ← tableau.duplicate literals2
+      let (b, _) ← tableau.existentials_hold literals3 cursor1
+      ok b
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tableau.expand next literals
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ =>
+      tableau.expand next (tableau.Concepts.Entry concept literals)
+    | nnf.NnfConcept.NotAtom _ =>
+      tableau.expand next (tableau.Concepts.Entry concept literals)
+    | nnf.NnfConcept.And left right =>
+      tableau.expand (tableau.Concepts.Entry left (tableau.Concepts.Entry right
+        next)) literals
+    | nnf.NnfConcept.Or left right =>
+      let (next1, other_pending) ← tableau.duplicate next
+      let (literals1, other_literals) ← tableau.duplicate literals
+      let b ← tableau.expand (tableau.Concepts.Entry left next1) literals1
+      if b
+      then ok true
+      else
+        tableau.expand (tableau.Concepts.Entry right other_pending)
+          other_literals
+    | nnf.NnfConcept.Exists _ _ =>
+      tableau.expand next (tableau.Concepts.Entry concept literals)
+    | nnf.NnfConcept.Forall _ _ =>
+      tableau.expand next (tableau.Concepts.Entry concept literals)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::existentials_hold]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 169:0-188:1 -/
+def tableau.existentials_hold
+  (all : tableau.Concepts) (cursor : tableau.Concepts) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match cursor with
+  | tableau.Concepts.Empty => ok (true, all)
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tableau.existentials_hold all next
+    | nnf.NnfConcept.Bottom => tableau.existentials_hold all next
+    | nnf.NnfConcept.Atom _ => tableau.existentials_hold all next
+    | nnf.NnfConcept.NotAtom _ => tableau.existentials_hold all next
+    | nnf.NnfConcept.And _ _ => tableau.existentials_hold all next
+    | nnf.NnfConcept.Or _ _ => tableau.existentials_hold all next
+    | nnf.NnfConcept.Exists role filler =>
+      let (fillers, all1) ← tableau.universal_fillers all role
+      let here ←
+        tableau.expand (tableau.Concepts.Entry filler fillers)
+          tableau.Concepts.Empty
+      let (later, all2) ← tableau.existentials_hold all1 next
+      if here
+      then ok (later, all2)
+      else ok (false, all2)
+    | nnf.NnfConcept.Forall _ _ => tableau.existentials_hold all next
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::tableau::satisfiable]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 190:0-198:1
+    Visibility: public -/
+def tableau.satisfiable (concept : nnf.NnfConcept) : Result Bool := do
+  tableau.expand (tableau.Concepts.Entry concept tableau.Concepts.Empty)
+    tableau.Concepts.Empty
+
 /-- [rowl_kernel::topdata::equal_from]:
     Source: 'crates/rowl-kernel/src/topdata.rs', lines 12:0-18:1 -/
 def topdata.equal_from

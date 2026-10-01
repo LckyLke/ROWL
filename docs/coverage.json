@@ -8938,6 +8938,226 @@
       "theorem": "Rowl.Nnf.nnf_instances",
       "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
       "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.toList_fromList",
+      "requirement": "Verified ALC concept satisfiability without a TBox: toList_fromList",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.toList_fromList",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.class_eq_iff",
+      "requirement": "Verified ALC concept satisfiability without a TBox: class_eq_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.class_eq_iff",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.property_eq_iff",
+      "requirement": "Verified ALC concept satisfiability without a TBox: property_eq_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.property_eq_iff",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.fillers_mem",
+      "requirement": "Verified ALC concept satisfiability without a TBox: fillers_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.fillers_mem",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.fillers_exists_total",
+      "requirement": "Verified ALC concept satisfiability without a TBox: fillers_exists_total",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.fillers_exists_total",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.existentials_mem",
+      "requirement": "Verified ALC concept satisfiability without a TBox: existentials_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.existentials_mem",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.duplicate_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: duplicate_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::duplicate",
+      "theorem": "Rowl.Tableau.duplicate_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.contains_atom_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: contains_atom_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::contains_atom",
+      "theorem": "Rowl.Tableau.contains_atom_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.has_clash_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: has_clash_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::has_clash",
+      "theorem": "Rowl.Tableau.has_clash_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.universal_fillers_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: universal_fillers_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::universal_fillers",
+      "theorem": "Rowl.Tableau.universal_fillers_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.holds_cons",
+      "requirement": "Verified ALC concept satisfiability without a TBox: holds_cons",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.holds_cons",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.holds_of_subset",
+      "requirement": "Verified ALC concept satisfiability without a TBox: holds_of_subset",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.holds_of_subset",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.tree_of_subset",
+      "requirement": "Verified ALC concept satisfiability without a TBox: tree_of_subset",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.tree_of_subset",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.satisfiable_of_subset",
+      "requirement": "Verified ALC concept satisfiability without a TBox: satisfiable_of_subset",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.satisfiable_of_subset",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.tree_subtree",
+      "requirement": "Verified ALC concept satisfiability without a TBox: tree_subtree",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.tree_subtree",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.tree_root",
+      "requirement": "Verified ALC concept satisfiability without a TBox: tree_root",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.tree_root",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.expand_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: expand_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::expand",
+      "theorem": "Rowl.Tableau.expand_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.satisfiable_correct",
+      "requirement": "Verified ALC concept satisfiability without a TBox: satisfiable_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::satisfiable",
+      "theorem": "Rowl.Tableau.satisfiable_correct",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.class_instances_accepted",
+      "requirement": "Verified ALC concept satisfiability without a TBox: class_instances_accepted",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::satisfiable",
+      "theorem": "Rowl.Tableau.class_instances_accepted",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Tableau.rejected_class_empty",
+      "requirement": "Verified ALC concept satisfiability without a TBox: rejected_class_empty",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tableau::satisfiable",
+      "theorem": "Rowl.Tableau.rejected_class_empty",
+      "regression": "crates/rowl-kernel/tests/tableau.rs; crates/rowl/examples/tableau.rs",
+      "implementation_scope": "Actual ALC concept-satisfiability procedure in the kernel, without a TBox: it decides whether some interpretation has an element in a negation-normal-form concept. Conjunctions are expanded, disjunctions branch, top is dropped and bottom rejects; once only named-class literals and restrictions remain, a named class occurring both positively and negated is a clash, and every existential restriction is decided recursively together with the universal restrictions on the same property, with properties and classes compared by exact IRI spelling. The procedure is proved total by well-founded recursion on the lexicographic pair of the total and the pending concept size. It is proved sound: every acceptance yields an explicit tree interpretation over paths whose root satisfies the concept, built from the successor models of the existential restrictions. It is proved complete: any interpretation in any universe with an element in the concept forces acceptance. Composed with the proved negation-normal-form translation, the tableau never rejects an OWL class expression with an instance in an OWL interpretation, so every rejection proves the expression empty in every OWL interpretation, which justifies unsatisfiability and subsumption answers for the ALC fragment. This is an internal fragment experiment toward M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes, the OWL-level tree model fixing owl:Thing and owl:Nothing, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     }
   ]
 }

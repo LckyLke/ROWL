@@ -65,6 +65,7 @@ fn main() -> std::process::ExitCode {
             println!("Functional Syntax entity declarations are read one axiom at a time for all six entity kinds, with axiom annotations from the proved annotation reader and the entity IRI resolved through the checked prefix table. Totality and exact result/error proofs are complete; declaration typing stays the separate kernel check, and the axiom loop and other axiom forms remain pending.");
             println!("The four annotation axioms are read one axiom at a time with the same totality and exact result/error proofs, reusing the proved annotation, value and IRI readers, so every non-logical axiom now has a proved reader. The logical axioms, the axiom loop and complete document construction remain pending.");
             println!("Reasoner track: class expressions in the ALC fragment translate to negation normal form, proved total and meaning-preserving under the independent Direct Semantics in every OWL interpretation. The tableau, TBox reasoning and the remaining constructors are pending.");
+            println!("A verified ALC tableau decides concept satisfiability without a TBox: proved total, sound (explicit tree models) and complete, so each rejection proves a class empty in every OWL interpretation. TBox reasoning with blocking is the next reasoner stage.");
             println!("Full OWL 2 DL parsing and reasoning are not implemented.");
         }
         [command] if command == "demo" => {

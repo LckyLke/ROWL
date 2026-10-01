@@ -823,3 +823,10 @@ constructors to `NnfConcept` and the translation (inverse roles, number
 restrictions, nominals, then the remaining SROIQ features and datatypes) and
 re-proves the affected cases. Expressions outside the current fragment have no
 translation, so no answer is ever given for an unsupported input.
+
+The first decision procedure is the ALC tableau without a TBox. It is a
+recursive procedure over lists of concepts rather than a completion graph: with
+no axioms, each existential successor can be decided independently, which keeps
+the termination, soundness and completeness proofs small. A TBox requires
+completion graphs with blocking. That stage will reuse the concept language, its
+meaning and the tree-model construction, but it needs a new termination argument.

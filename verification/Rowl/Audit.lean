@@ -76,6 +76,7 @@ import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.Nnf
+import Rowl.Tableau
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -704,6 +705,26 @@ import Rowl.Nnf
 #print axioms Rowl.Nnf.nnf_supported_iff
 #print axioms Rowl.Nnf.nnf_meaning
 #print axioms Rowl.Nnf.nnf_instances
+#print axioms Rowl.Tableau.toList_fromList
+#print axioms Rowl.Tableau.class_eq_iff
+#print axioms Rowl.Tableau.property_eq_iff
+#print axioms Rowl.Tableau.fillers_mem
+#print axioms Rowl.Tableau.fillers_exists_total
+#print axioms Rowl.Tableau.existentials_mem
+#print axioms Rowl.Tableau.duplicate_correct
+#print axioms Rowl.Tableau.contains_atom_correct
+#print axioms Rowl.Tableau.has_clash_correct
+#print axioms Rowl.Tableau.universal_fillers_correct
+#print axioms Rowl.Tableau.holds_cons
+#print axioms Rowl.Tableau.holds_of_subset
+#print axioms Rowl.Tableau.tree_of_subset
+#print axioms Rowl.Tableau.satisfiable_of_subset
+#print axioms Rowl.Tableau.tree_subtree
+#print axioms Rowl.Tableau.tree_root
+#print axioms Rowl.Tableau.expand_correct
+#print axioms Rowl.Tableau.satisfiable_correct
+#print axioms Rowl.Tableau.class_instances_accepted
+#print axioms Rowl.Tableau.rejected_class_empty
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1221,3 +1242,17 @@ import Rowl.Nnf
 #print axioms Rowl.Nnf.Every
 #print axioms Rowl.Nnf.Gather
 #print axioms Rowl.Nnf.Quantified
+#print axioms Rowl.Tableau.toList
+#print axioms Rowl.Tableau.fromList
+#print axioms Rowl.Tableau.weight
+#print axioms Rowl.Tableau.total
+#print axioms Rowl.Tableau.Literal
+#print axioms Rowl.Tableau.Clash
+#print axioms Rowl.Tableau.fillers
+#print axioms Rowl.Tableau.existentials
+#print axioms Rowl.Tableau.Holds
+#print axioms Rowl.Tableau.Satisfiable
+#print axioms Rowl.Tableau.TreeSatisfiable
+#print axioms Rowl.Tableau.Decides
+#print axioms Rowl.Tableau.emptyModel
+#print axioms Rowl.Tableau.tree

@@ -2064,3 +2064,51 @@ This block adds 7 public theorems and 11 independent definitions: totals are
 obligations. The tableau, TBox reasoning and blocking, the remaining
 constructors, normative datatypes, query reductions and full OWL decisions remain
 pending.
+
+
+## Reasoner track: verified ALC tableau without a TBox
+
+`tableau::satisfiable` decides whether some interpretation has an element in a
+negation-normal-form concept. `expand` works on two lists: pending concepts and
+literals (named classes, negated named classes and restrictions). It drops top,
+rejects bottom, splits a conjunction into both operands and tries each operand of
+a disjunction. Every other concept moves to the literals. When nothing is
+pending, a named class that occurs both positively and negated is a clash.
+Otherwise every existential restriction `∃r.C` is decided recursively as the
+list `C` plus the filler of every universal restriction `∀r.D` on the same
+property. Classes and properties are compared by exact IRI spelling. Following
+the kernel's extraction subset, lists are borrowed cons lists passed by value and
+handed back, and branching uses an explicit `duplicate`.
+
+Tableau proves every helper exact: duplication, positive-atom search, clash
+detection and universal-filler collection. The main theorem proves `expand`
+total by well-founded recursion on the lexicographic pair (total concept size,
+pending concept size): expansions and disjunctions shrink the total, moving a
+literal shrinks the pending size, and each successor list is smaller than the
+literals that produced it. Soundness builds an explicit tree interpretation over
+paths: the root carries the positive named classes, and the i-th existential
+leads to the root of the i-th successor's tree model, chosen classically. The
+subtree lemma shows that the tree agrees with each successor model below the
+root. Completeness follows any model, in any universe: a model has no clash,
+satisfies one operand of every disjunction, and supplies a successor for every
+existential that satisfies all the matching universal fillers.
+
+Composed with the NNF stage, the tableau never rejects an OWL class expression
+that has an instance in an OWL interpretation (class_instances_accepted), so a
+rejection proves the expression empty in every OWL interpretation
+(rejected_class_empty). This justifies unsatisfiability and subsumption answers
+for ALC. Acceptance yields a tree model of the concept; turning it into an OWL
+model that also fixes owl:Thing and owl:Nothing, TBox axioms with blocking, the
+remaining SROIQ constructors, datatypes, ontology-level queries and performance
+remain pending. This is an internal fragment experiment toward M6.
+
+Five kernel regressions check propositional clashes and branching, successors
+for existentials only, propagation through nested restrictions, OWL subsumption
+through negation normal form, and that every one of 2000 pseudo-random concepts
+with a model of at most three elements is accepted. The runnable tableau example
+answers maintenance satisfiability and subsumption questions.
+
+This block adds 20 public theorems and 14 independent definitions: totals are
+647 audited theorems, 531 definitions, 339 Rust regressions and 840 ledger
+obligations. Full OWL reasoning, ontology-level queries and byte-to-answer
+release proofs remain pending.

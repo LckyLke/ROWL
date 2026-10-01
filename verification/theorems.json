@@ -1095,6 +1095,32 @@
         "Rowl.Nnf.nnf_meaning",
         "Rowl.Nnf.nnf_instances"
       ]
+    },
+    {
+      "module": "Rowl.Tableau",
+      "namespace": "Rowl.Tableau",
+      "theorems": [
+        "Rowl.Tableau.toList_fromList",
+        "Rowl.Tableau.class_eq_iff",
+        "Rowl.Tableau.property_eq_iff",
+        "Rowl.Tableau.fillers_mem",
+        "Rowl.Tableau.fillers_exists_total",
+        "Rowl.Tableau.existentials_mem",
+        "Rowl.Tableau.duplicate_correct",
+        "Rowl.Tableau.contains_atom_correct",
+        "Rowl.Tableau.has_clash_correct",
+        "Rowl.Tableau.universal_fillers_correct",
+        "Rowl.Tableau.holds_cons",
+        "Rowl.Tableau.holds_of_subset",
+        "Rowl.Tableau.tree_of_subset",
+        "Rowl.Tableau.satisfiable_of_subset",
+        "Rowl.Tableau.tree_subtree",
+        "Rowl.Tableau.tree_root",
+        "Rowl.Tableau.expand_correct",
+        "Rowl.Tableau.satisfiable_correct",
+        "Rowl.Tableau.class_instances_accepted",
+        "Rowl.Tableau.rejected_class_empty"
+      ]
     }
   ],
   "specifications": [
@@ -1614,6 +1640,20 @@
     "Rowl.Nnf.Correct",
     "Rowl.Nnf.Every",
     "Rowl.Nnf.Gather",
-    "Rowl.Nnf.Quantified"
+    "Rowl.Nnf.Quantified",
+    "Rowl.Tableau.toList",
+    "Rowl.Tableau.fromList",
+    "Rowl.Tableau.weight",
+    "Rowl.Tableau.total",
+    "Rowl.Tableau.Literal",
+    "Rowl.Tableau.Clash",
+    "Rowl.Tableau.fillers",
+    "Rowl.Tableau.existentials",
+    "Rowl.Tableau.Holds",
+    "Rowl.Tableau.Satisfiable",
+    "Rowl.Tableau.TreeSatisfiable",
+    "Rowl.Tableau.Decides",
+    "Rowl.Tableau.emptyModel",
+    "Rowl.Tableau.tree"
   ]
 }

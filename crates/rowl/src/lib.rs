@@ -54,6 +54,7 @@ pub mod experimental {
     pub use rowl_kernel::role_order;
     pub use rowl_kernel::roles;
     pub use rowl_kernel::symbols;
+    pub use rowl_kernel::tableau;
     pub use rowl_kernel::topdata;
     pub use rowl_kernel::typing;
     pub use rowl_kernel::vocabulary;
