@@ -979,6 +979,51 @@
         "Rowl.FunctionalLiteralSource.source_prefix_literal_result_iff",
         "Rowl.FunctionalLiteralSource.source_prefix_literal_derivation"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalAnnotationParts",
+      "namespace": "Rowl.FunctionalAnnotationParts",
+      "theorems": [
+        "Rowl.FunctionalAnnotationParts.value_kind_total_correct",
+        "Rowl.FunctionalAnnotationParts.expected_terminal_total_correct",
+        "Rowl.FunctionalAnnotationParts.take_expected_total_correct",
+        "Rowl.FunctionalAnnotationParts.take_expected_result_iff",
+        "Rowl.FunctionalAnnotationParts.take_progress",
+        "Rowl.FunctionalAnnotationParts.read_property_total_correct",
+        "Rowl.FunctionalAnnotationParts.read_property_result_iff",
+        "Rowl.FunctionalAnnotationParts.property_progress",
+        "Rowl.FunctionalAnnotationParts.property_source_value",
+        "Rowl.FunctionalAnnotationParts.read_value_total_correct",
+        "Rowl.FunctionalAnnotationParts.read_value_result_iff",
+        "Rowl.FunctionalAnnotationParts.literal_run_progress",
+        "Rowl.FunctionalAnnotationParts.value_progress",
+        "Rowl.FunctionalAnnotationParts.finish_annotation_total_correct",
+        "Rowl.FunctionalAnnotationParts.finish_annotation_result_iff",
+        "Rowl.FunctionalAnnotationParts.finish_progress"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalAnnotations",
+      "namespace": "Rowl.FunctionalAnnotations",
+      "theorems": [
+        "Rowl.FunctionalAnnotations.scan_remaining_le",
+        "Rowl.FunctionalAnnotations.scan_annotations_total_correct",
+        "Rowl.FunctionalAnnotations.scan_annotations_result_iff",
+        "Rowl.FunctionalAnnotations.read_annotations_total_correct",
+        "Rowl.FunctionalAnnotations.read_annotations_result_iff",
+        "Rowl.FunctionalAnnotations.read_annotations_accepted_iff",
+        "Rowl.FunctionalAnnotations.section_maximal",
+        "Rowl.FunctionalAnnotations.section_records",
+        "Rowl.FunctionalAnnotations.section_token_count"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalAnnotationSource",
+      "namespace": "Rowl.FunctionalAnnotationSource",
+      "theorems": [
+        "Rowl.FunctionalAnnotationSource.source_prefix_annotations_result_iff",
+        "Rowl.FunctionalAnnotationSource.source_ontology_annotations"
+      ]
     }
   ],
   "specifications": [
@@ -1465,6 +1510,14 @@
     "Rowl.FunctionalLiteralValues.DatatypeCorrect",
     "Rowl.FunctionalLiterals.WithSuffix",
     "Rowl.FunctionalLiterals.FinishRun",
-    "Rowl.FunctionalLiterals.Run"
+    "Rowl.FunctionalLiterals.Run",
+    "Rowl.FunctionalAnnotationParts.ValueKind",
+    "Rowl.FunctionalAnnotationParts.Expected",
+    "Rowl.FunctionalAnnotationParts.TakeRun",
+    "Rowl.FunctionalAnnotationParts.PropertyRun",
+    "Rowl.FunctionalAnnotationParts.ValueRun",
+    "Rowl.FunctionalAnnotationParts.FinishRun",
+    "Rowl.FunctionalAnnotations.ScanRun",
+    "Rowl.FunctionalAnnotations.Section"
   ]
 }

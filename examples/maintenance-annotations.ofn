@@ -1,0 +1,9 @@
+Prefix(ex:=<https://example.org/maintenance/>)
+Ontology(ex:plant
+ Annotation(rdfs:label "Pump 7"@de)
+ Annotation(
+  Annotation(rdfs:comment "Recorded during the 2026 inspection")
+  ex:inspectedBy _:inspector)
+ Annotation(ex:inspectionCode "007"^^xsd:integer)
+ Declaration(AnnotationProperty(ex:inspectedBy))
+ Declaration(AnnotationProperty(ex:inspectionCode)))

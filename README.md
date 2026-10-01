@@ -69,8 +69,9 @@ and maximal leading-import stage is now also proved: exact source values,
 original reference tokens, ordered repeated imports, unchanged suffixes and
 every first syntax/resolution/count error. Its type permits a version only with
 an ontology IRI. Source prefix/table/header composition uses the declarations
-from the same original bytes. Annotations, axioms, scopes, complete document
-construction and canonical import assembly remain pending.
+from the same original bytes. Annotations are read by the separate stage below;
+axioms, scopes, complete document construction and canonical import assembly
+remain pending.
 One-literal Functional Syntax reading now also has totality, exact source
 value/error equivalence, original quote/form tokens, intact suffixes and exact
 one/two/three-terminal progress proofs. Explicit types preserve decoded lexical
@@ -80,7 +81,15 @@ becomes `Pump@de`), preserving original language case. Final lexical/type budget
 include the separator and the entire datatype IRI. Source prefix/table composition
 uses precisely the original parsed namespaces; literal positions still come from
 the caller. Concrete datatype lexical/value/facet validity and complete ontology
-annotation/axiom/AST parsing remain pending.
+axiom/AST parsing remain pending.
+Functional Syntax annotations, including recursively nested ones, are now read
+as the maximal leading `Annotation` sequence, for example the ontology annotations
+after the header. Properties and IRI values resolve through the checked prefix
+table, node IDs keep their exact label and literals use the proved literal reader.
+Caller limits bound the nesting depth and each sequence's count. Totality, exact
+result/error equivalence and an independent success grammar are proved, and the
+source composition uses the namespaces parsed from the same bytes. Anonymous
+scopes, axioms, the closing token and complete document construction remain pending.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -101,6 +110,7 @@ cargo run -p rowl --example functional_iris # original source names become exact
 cargo run -p rowl --example functional_prefixes # read source declarations, check the table and resolve source IRIs
 cargo run -p rowl --example functional_header # source ontology/version identity and import targets with original offsets
 cargo run -p rowl --example functional_literals # exact text/language/type values from original maintenance source
+cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
 python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
 ```
 
@@ -112,7 +122,7 @@ does not entail membership in A. Search must consider every interpretation.
 | Path | Responsibility |
 | --- | --- |
 | `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks and ordered semantic preparation |
-| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
+| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |
 | `verification` | Actual generated Rust translation, independent semantics, Lean proofs |

@@ -1858,3 +1858,61 @@ This block adds 25 public theorems and 14 independent definitions: totals are
 559 audited theorems, 484 definitions, 302 Rust regressions and 752 ledger
 obligations. Full M3/M4, all required formats/export laws, normative datatypes,
 SROIQ/query and complete byte-to-answer release proofs remain pending.
+
+
+## M3: Functional Syntax annotations with recursive nesting
+
+`functional_annotations::read_annotations` borrows the checked prefix table and
+original byte buffer and reads the maximal leading `{ Annotation }` sequence of a
+token stream in source order, such as the ontology annotations after the header.
+Each `Annotation( {Annotation} property value )` may carry its own annotations,
+read recursively one level deeper. Properties and IRI values resolve their
+original full/abbreviated spans through the checked table. Node-ID values keep
+their exact label without `_:`. Literal values reuse the proved literal reader,
+so the mandatory rdf:PlainLiteral expansion also applies inside annotations.
+Records retain the original keyword, property and value tokens, their order and
+repetitions. The first non-`Annotation` token and its suffix remain unchanged for
+the axiom stage.
+
+Two caller limits bound the recursion. `depth` is the remaining nesting allowance:
+0 permits no annotation, and 1 permits only unannotated annotations. `count` bounds
+each sequence separately, nested or not. `iri` bounds every final IRI, node label
+and literal datatype; `lexical` bounds final literal lexical forms. Errors report
+the first failing phase in source order: nesting depth, sequence count, `(`, the
+nested sequence, property, value, then `)`. EOF errors use the source length.
+No partial sequence is returned after an error.
+
+FunctionalAnnotationParts proves the one-token syntax step, the property and
+value readers and the property-value-close tail total, with exact result/error
+equivalence to the independent TakeRun, PropertyRun, ValueRun and FinishRun
+derivations. Their fallback branches after a checked token cannot occur.
+FunctionalAnnotations defines the recursive ScanRun grammar and proves the actual
+scanner total by well-founded recursion on the token count: the nested call starts
+after `Annotation(`, and the continuing call starts after the complete annotation.
+Every exact result and first error is equivalent to ScanRun. Success is also
+equivalent to the independent maximal Section grammar with per-sequence count
+bounds. The returned suffix is empty or starts with a non-`Annotation` token,
+top-level records keep their keyword and exact property IRI, and each top-level
+annotation consumes at least five tokens. FunctionalAnnotationSource composes
+original whole-byte prefix parsing, normative table checking and header reading
+with the ontology-annotation contract on precisely those source namespace rows.
+
+This stage assigns no anonymous-individual scopes and constructs no kernel
+`Annotation` values. Axioms, the ontology closing token, complete document/AST
+construction, canonical imports/provenance and concrete datatype validity remain
+pending. Annotation recursion uses the physical stack: the depth limit bounds it,
+while typed memory/stack/cancellation outcomes remain M8 work.
+
+Ten frontend and two public-library regressions cover all three value families,
+exact tokens and source order, three-level nesting, depth and per-sequence count
+limits with their original offsets, every missing or wrong terminal with its EOF
+or token offset, property/value/label/literal budget and resolution failures,
+nested-first priority, absent annotations, preserved suffixes and multibyte
+Unicode offsets. The maintenance-annotations.ofn fixture and the runnable
+functional_annotations example print the nested ontology annotations of a source
+document and the depth-limit diagnostic.
+
+This block adds 27 public theorems and 8 independent definitions: totals are
+586 audited theorems, 492 definitions, 314 Rust regressions and 779 ledger
+obligations. Full M3/M4, all required formats/export laws, normative datatypes,
+SROIQ/query and complete byte-to-answer release proofs remain pending.

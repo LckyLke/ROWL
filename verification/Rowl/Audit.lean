@@ -68,6 +68,9 @@ import Rowl.FunctionalLiteralShape
 import Rowl.FunctionalLiteralValues
 import Rowl.FunctionalLiterals
 import Rowl.FunctionalLiteralSource
+import Rowl.FunctionalAnnotationParts
+import Rowl.FunctionalAnnotations
+import Rowl.FunctionalAnnotationSource
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -628,6 +631,33 @@ import Rowl.FunctionalLiteralSource
 #print axioms Rowl.FunctionalLiterals.literal_token_progress
 #print axioms Rowl.FunctionalLiteralSource.source_prefix_literal_result_iff
 #print axioms Rowl.FunctionalLiteralSource.source_prefix_literal_derivation
+#print axioms Rowl.FunctionalAnnotationParts.value_kind_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.expected_terminal_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.take_expected_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.take_expected_result_iff
+#print axioms Rowl.FunctionalAnnotationParts.take_progress
+#print axioms Rowl.FunctionalAnnotationParts.read_property_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.read_property_result_iff
+#print axioms Rowl.FunctionalAnnotationParts.property_progress
+#print axioms Rowl.FunctionalAnnotationParts.property_source_value
+#print axioms Rowl.FunctionalAnnotationParts.read_value_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.read_value_result_iff
+#print axioms Rowl.FunctionalAnnotationParts.literal_run_progress
+#print axioms Rowl.FunctionalAnnotationParts.value_progress
+#print axioms Rowl.FunctionalAnnotationParts.finish_annotation_total_correct
+#print axioms Rowl.FunctionalAnnotationParts.finish_annotation_result_iff
+#print axioms Rowl.FunctionalAnnotationParts.finish_progress
+#print axioms Rowl.FunctionalAnnotations.scan_remaining_le
+#print axioms Rowl.FunctionalAnnotations.scan_annotations_total_correct
+#print axioms Rowl.FunctionalAnnotations.scan_annotations_result_iff
+#print axioms Rowl.FunctionalAnnotations.read_annotations_total_correct
+#print axioms Rowl.FunctionalAnnotations.read_annotations_result_iff
+#print axioms Rowl.FunctionalAnnotations.read_annotations_accepted_iff
+#print axioms Rowl.FunctionalAnnotations.section_maximal
+#print axioms Rowl.FunctionalAnnotations.section_records
+#print axioms Rowl.FunctionalAnnotations.section_token_count
+#print axioms Rowl.FunctionalAnnotationSource.source_prefix_annotations_result_iff
+#print axioms Rowl.FunctionalAnnotationSource.source_ontology_annotations
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1112,3 +1142,11 @@ import Rowl.FunctionalLiteralSource
 #print axioms Rowl.FunctionalLiterals.WithSuffix
 #print axioms Rowl.FunctionalLiterals.FinishRun
 #print axioms Rowl.FunctionalLiterals.Run
+#print axioms Rowl.FunctionalAnnotationParts.ValueKind
+#print axioms Rowl.FunctionalAnnotationParts.Expected
+#print axioms Rowl.FunctionalAnnotationParts.TakeRun
+#print axioms Rowl.FunctionalAnnotationParts.PropertyRun
+#print axioms Rowl.FunctionalAnnotationParts.ValueRun
+#print axioms Rowl.FunctionalAnnotationParts.FinishRun
+#print axioms Rowl.FunctionalAnnotations.ScanRun
+#print axioms Rowl.FunctionalAnnotations.Section

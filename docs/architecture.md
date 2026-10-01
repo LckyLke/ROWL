@@ -764,3 +764,32 @@ compose on precisely those original namespace rows; the caller still supplies
 the literal position. Full annotation/axiom/document assembly and canonical
 imports/scopes remain pending. Physical memory/stack/cancellation outcomes remain
 outside the mathematical execution model until M8.
+
+
+### Functional Syntax annotations and their limits
+
+The [2012 annotation grammar](https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Annotations)
+is recursive: an annotation can carry annotations. ROWL reads the maximal leading
+`{ Annotation }` sequence with one recursive scanner over the token stream. The
+nested call starts after `Annotation(`, and the continuing call starts after the
+complete annotation. Both calls receive strictly fewer tokens, so termination is
+proved from that measure without fuel.
+
+Diagnostics follow source order, not a separate syntax-only pass. A nested
+annotation is read completely, including its value resolution, before the
+enclosing property is examined. Within one annotation the order is nesting depth,
+sequence count, `(`, nested sequence, property, value, then `)`. Inside its one to
+three tokens, the literal reader keeps its own documented shape-before-payload
+priority.
+
+`AnnotationLimits.depth` bounds nesting, because each level uses the physical
+stack. It is checked at the keyword, before the count. `count` bounds each
+sequence separately; with the lexer's token budget it also bounds the total.
+IRI values, node labels and literal datatypes share the `iri` limit. These are
+operational bounds, not OWL restrictions.
+
+Node IDs keep their label without `_:`. Anonymous-individual scopes belong to the
+canonical import assembler, so the source record keeps the original token and
+does not invent a scope. The stage returns source records, not kernel
+`Annotation` values; the mapping to the raw OWL model belongs with complete
+document construction.

@@ -2714,6 +2714,27 @@ def functional.next_terminal
     functional.extend functional.Terminal.Whitespace bytes position choice81
   functional.extend functional.Terminal.Comment bytes position choice82
 
+/-- [rowl_frontend::functional_literals::SourceLiteralForm]
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 13:0-17:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_literals.SourceLiteralForm where
+| Plain : functional_literals.SourceLiteralForm
+| Language : functional.Token → functional_literals.SourceLiteralForm
+| Typed :
+  functional.Token →
+  functional.Token →
+  functional_literals.SourceLiteralForm
+
+/-- [rowl_frontend::functional_literals::SourceLiteral]
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 18:0-23:1
+    Visibility: public -/
+structure functional_literals.SourceLiteral where
+  quoted : functional.Token
+  form : functional_literals.SourceLiteralForm
+  lexical : alloc.vec.Vec Std.U8
+  datatype : alloc.vec.Vec Std.U8
+
 /-- [rowl_frontend::functional_header::HeaderIri]
     Source: 'crates/rowl-frontend/src/functional_header.rs', lines 10:0-13:1
     Visibility: public -/
@@ -2721,23 +2742,104 @@ structure functional_header.HeaderIri where
   token : functional.Token
   value : alloc.vec.Vec Std.U8
 
-/-- [rowl_frontend::functional_header::SourceOntologyIdentity]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 14:0-20:1
+/-- [rowl_frontend::functional_annotations::SourceAnnotationValue]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 15:0-19:1
     Visibility: public -/
 @[discriminant isize]
-inductive functional_header.SourceOntologyIdentity where
-| Anonymous : functional_header.SourceOntologyIdentity
-| Named :
+inductive functional_annotations.SourceAnnotationValue where
+| Iri :
   functional_header.HeaderIri →
-  Option functional_header.HeaderIri →
-  functional_header.SourceOntologyIdentity
+  functional_annotations.SourceAnnotationValue
+| Anonymous :
+  functional.Token →
+  alloc.vec.Vec Std.U8 →
+  functional_annotations.SourceAnnotationValue
+| Literal :
+  functional_literals.SourceLiteral →
+  functional_annotations.SourceAnnotationValue
 
-/-- [rowl_frontend::functional_header::ImportReference]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 21:0-24:1
+/-- [rowl_frontend::functional_annotations::SourceAnnotation]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 20:0-25:1
     Visibility: public -/
-structure functional_header.ImportReference where
-  keyword : functional.Token
-  target : functional_header.HeaderIri
+inductive functional_annotations.SourceAnnotation where
+| mk :
+  functional.Token →
+  alloc.vec.Vec functional_annotations.SourceAnnotation →
+  functional_header.HeaderIri →
+  functional_annotations.SourceAnnotationValue →
+  functional_annotations.SourceAnnotation
+
+def functional_annotations.SourceAnnotation.keyword (x :
+  functional_annotations.SourceAnnotation) :=
+  match x with | functional_annotations.SourceAnnotation.mk x1 _ _ _ => x1
+
+def functional_annotations.SourceAnnotation.annotations (x :
+  functional_annotations.SourceAnnotation) :=
+  match x with | functional_annotations.SourceAnnotation.mk _ x1 _ _ => x1
+
+def functional_annotations.SourceAnnotation.property (x :
+  functional_annotations.SourceAnnotation) :=
+  match x with | functional_annotations.SourceAnnotation.mk _ _ x1 _ => x1
+
+def functional_annotations.SourceAnnotation.value (x :
+  functional_annotations.SourceAnnotation) :=
+  match x with | functional_annotations.SourceAnnotation.mk _ _ _ x1 => x1
+
+@[simp]
+theorem functional_annotations.SourceAnnotation.keyword._simpLemma_ (keyword :
+  functional.Token) (annotations : alloc.vec.Vec
+  functional_annotations.SourceAnnotation) (property :
+  functional_header.HeaderIri) (value :
+  functional_annotations.SourceAnnotationValue) :
+  (functional_annotations.SourceAnnotation.mk
+    keyword
+    annotations
+    property
+    value).keyword
+    =
+    keyword := by rfl
+
+@[simp]
+theorem functional_annotations.SourceAnnotation.annotations._simpLemma_
+  (keyword : functional.Token) (annotations : alloc.vec.Vec
+  functional_annotations.SourceAnnotation) (property :
+  functional_header.HeaderIri) (value :
+  functional_annotations.SourceAnnotationValue) :
+  (functional_annotations.SourceAnnotation.mk
+    keyword
+    annotations
+    property
+    value).annotations
+    =
+    annotations := by rfl
+
+@[simp]
+theorem functional_annotations.SourceAnnotation.property._simpLemma_ (keyword :
+  functional.Token) (annotations : alloc.vec.Vec
+  functional_annotations.SourceAnnotation) (property :
+  functional_header.HeaderIri) (value :
+  functional_annotations.SourceAnnotationValue) :
+  (functional_annotations.SourceAnnotation.mk
+    keyword
+    annotations
+    property
+    value).property
+    =
+    property := by rfl
+
+@[simp]
+theorem functional_annotations.SourceAnnotation.value._simpLemma_ (keyword :
+  functional.Token) (annotations : alloc.vec.Vec
+  functional_annotations.SourceAnnotation) (property :
+  functional_header.HeaderIri) (value :
+  functional_annotations.SourceAnnotationValue) :
+  (functional_annotations.SourceAnnotation.mk
+    keyword
+    annotations
+    property
+    value).value
+    =
+    value := by rfl
 
 /-- [rowl_frontend::functional_lexer::Tokens]
     Source: 'crates/rowl-frontend/src/functional_lexer.rs', lines 8:0-11:1
@@ -2750,46 +2852,55 @@ inductive functional_lexer.Tokens where
   functional_lexer.Tokens →
   functional_lexer.Tokens
 
-/-- [rowl_frontend::functional_header::HeaderTail]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 25:0-29:1
+/-- [rowl_frontend::functional_annotations::SourceAnnotations]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 26:0-29:1
     Visibility: public -/
-structure functional_header.HeaderTail where
-  identity : functional_header.SourceOntologyIdentity
-  imports : alloc.vec.Vec functional_header.ImportReference
+structure functional_annotations.SourceAnnotations where
+  annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
   remaining : functional_lexer.Tokens
 
-/-- [rowl_frontend::functional_header::HeaderExpected]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 31:0-35:1
+/-- [rowl_frontend::functional_annotations::AnnotationLimits]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 34:0-39:1
+    Visibility: public -/
+structure functional_annotations.AnnotationLimits where
+  depth : Std.Usize
+  count : Std.Usize
+  iri : Std.Usize
+  lexical : Std.Usize
+
+/-- [rowl_frontend::functional_annotations::AnnotationExpected]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 41:0-46:1
     Visibility: public -/
 @[discriminant isize]
-inductive functional_header.HeaderExpected where
-| Open : functional_header.HeaderExpected
-| Iri : functional_header.HeaderExpected
-| Close : functional_header.HeaderExpected
+inductive functional_annotations.AnnotationExpected where
+| Open : functional_annotations.AnnotationExpected
+| Property : functional_annotations.AnnotationExpected
+| Value : functional_annotations.AnnotationExpected
+| Close : functional_annotations.AnnotationExpected
 
-/-- [rowl_frontend::functional_header::{impl core::clone::Clone for rowl_frontend::functional_header::HeaderExpected}::clone]:
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:9-30:14
+/-- [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14
     Visibility: public -/
-def functional_header.HeaderExpected.Insts.CoreCloneClone.clone
-  (self : functional_header.HeaderExpected) :
-  Result functional_header.HeaderExpected
+def functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
+  (self : functional_annotations.AnnotationExpected) :
+  Result functional_annotations.AnnotationExpected
   := do
   ok self
 
-/-- Trait implementation: [rowl_frontend::functional_header::{impl core::clone::Clone for rowl_frontend::functional_header::HeaderExpected}]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:9-30:14 -/
+/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::clone::Clone for rowl_frontend::functional_annotations::AnnotationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:9-40:14 -/
 @[reducible]
-def functional_header.HeaderExpected.Insts.CoreCloneClone : core.clone.Clone
-  functional_header.HeaderExpected := {
-  clone := functional_header.HeaderExpected.Insts.CoreCloneClone.clone
+def functional_annotations.AnnotationExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_annotations.AnnotationExpected := {
+  clone := functional_annotations.AnnotationExpected.Insts.CoreCloneClone.clone
 }
 
-/-- Trait implementation: [rowl_frontend::functional_header::{impl core::marker::Copy for rowl_frontend::functional_header::HeaderExpected}]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:16-30:20 -/
+/-- Trait implementation: [rowl_frontend::functional_annotations::{impl core::marker::Copy for rowl_frontend::functional_annotations::AnnotationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 40:16-40:20 -/
 @[reducible]
-def functional_header.HeaderExpected.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_header.HeaderExpected := {
-  cloneInst := functional_header.HeaderExpected.Insts.CoreCloneClone
+def functional_annotations.AnnotationExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_annotations.AnnotationExpected := {
+  cloneInst := functional_annotations.AnnotationExpected.Insts.CoreCloneClone
 }
 
 /-- [rowl_frontend::functional_names::NameError]
@@ -2800,6 +2911,41 @@ inductive functional_names.NameError where
 | InvalidSpan : Std.Usize → functional_names.NameError
 | InvalidToken : Std.Usize → functional_names.NameError
 | ResourceLimit : Std.Usize → functional_names.NameError
+
+/-- [rowl_frontend::ntriples::ErrorKind]
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 16:0-31:1
+    Visibility: public -/
+@[discriminant isize]
+inductive ntriples.ErrorKind where
+| MalformedUtf8 : ntriples.ErrorKind
+| UnexpectedEnd : ntriples.ErrorKind
+| ExpectedIri : ntriples.ErrorKind
+| ExpectedSubject : ntriples.ErrorKind
+| ExpectedObject : ntriples.ErrorKind
+| ExpectedPeriod : ntriples.ErrorKind
+| ExpectedLineEnd : ntriples.ErrorKind
+| InvalidCharacter : ntriples.ErrorKind
+| InvalidEscape : ntriples.ErrorKind
+| InvalidIri : ntriples.ErrorKind
+| InvalidBlankLabel : ntriples.ErrorKind
+| InvalidLanguageTag : ntriples.ErrorKind
+| InvalidLiteralKind : ntriples.ErrorKind
+| ResourceLimit : ntriples.ErrorKind
+
+/-- [rowl_frontend::ntriples::ReadError]
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 32:0-35:1
+    Visibility: public -/
+structure ntriples.ReadError where
+  kind : ntriples.ErrorKind
+  offset : Std.Usize
+
+/-- [rowl_frontend::functional_literals::LiteralExpected]
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 25:0-28:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_literals.LiteralExpected where
+| Quoted : functional_literals.LiteralExpected
+| Datatype : functional_literals.LiteralExpected
 
 /-- [rowl_frontend::functional_iris::SourceIriError]
     Source: 'crates/rowl-frontend/src/functional_iris.rs', lines 17:0-23:1
@@ -2812,17 +2958,49 @@ inductive functional_iris.SourceIriError where
 | ResourceLimit : Std.Usize → functional_iris.SourceIriError
 | InvalidExpandedIri : Std.Usize → functional_iris.SourceIriError
 
-/-- [rowl_frontend::functional_header::HeaderError]
-    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 36:0-45:1
+/-- [rowl_frontend::functional_literals::SourceLiteralError]
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 29:0-46:1
     Visibility: public -/
 @[discriminant isize]
-inductive functional_header.HeaderError where
+inductive functional_literals.SourceLiteralError where
 | Expected :
-  functional_header.HeaderExpected →
+  functional_literals.LiteralExpected →
   Std.Usize →
-  functional_header.HeaderError
-| Iri : functional_iris.SourceIriError → functional_header.HeaderError
-| ImportLimit : Std.Usize → functional_header.HeaderError
+  functional_literals.SourceLiteralError
+| InvalidSpan : Std.Usize → functional_literals.SourceLiteralError
+| Quoted : ntriples.ReadError → functional_literals.SourceLiteralError
+| Language :
+  functional_names.NameError →
+  functional_literals.SourceLiteralError
+| Datatype :
+  functional_iris.SourceIriError →
+  functional_literals.SourceLiteralError
+| LexicalLimit : Std.Usize → functional_literals.SourceLiteralError
+| DatatypeLimit : Std.Usize → functional_literals.SourceLiteralError
+
+/-- [rowl_frontend::functional_annotations::AnnotationError]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 47:0-62:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_annotations.AnnotationError where
+| Expected :
+  functional_annotations.AnnotationExpected →
+  Std.Usize →
+  functional_annotations.AnnotationError
+| Property :
+  functional_iris.SourceIriError →
+  functional_annotations.AnnotationError
+| Iri :
+  functional_iris.SourceIriError →
+  functional_annotations.AnnotationError
+| Anonymous :
+  functional_names.NameError →
+  functional_annotations.AnnotationError
+| Literal :
+  functional_literals.SourceLiteralError →
+  functional_annotations.AnnotationError
+| DepthLimit : Std.Usize → functional_annotations.AnnotationError
+| CountLimit : Std.Usize → functional_annotations.AnnotationError
 
 /-- [rowl_frontend::functional_iris::SourceIriKind]
     Source: 'crates/rowl-frontend/src/functional_iris.rs', lines 9:0-12:1
@@ -2831,6 +3009,44 @@ inductive functional_header.HeaderError where
 inductive functional_iris.SourceIriKind where
 | Full : functional_iris.SourceIriKind
 | Abbreviated : functional_iris.SourceIriKind
+
+/-- [rowl_frontend::functional_annotations::AnnotationValueKind]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 63:0-67:1 -/
+@[discriminant isize]
+inductive functional_annotations.AnnotationValueKind where
+| Iri :
+  functional_iris.SourceIriKind →
+  functional_annotations.AnnotationValueKind
+| Anonymous : functional_annotations.AnnotationValueKind
+| Literal : functional_annotations.AnnotationValueKind
+
+/-- [rowl_frontend::functional_annotations::value_kind]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 68:0-76:1 -/
+def functional_annotations.value_kind
+  (terminal : functional.Terminal) :
+  Result (Option functional_annotations.AnnotationValueKind)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString =>
+    ok (some functional_annotations.AnnotationValueKind.Literal)
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId =>
+    ok (some functional_annotations.AnnotationValueKind.Anonymous)
+  | functional.Terminal.FullIri =>
+    ok (some (functional_annotations.AnnotationValueKind.Iri
+      functional_iris.SourceIriKind.Full))
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri =>
+    ok (some (functional_annotations.AnnotationValueKind.Iri
+      functional_iris.SourceIriKind.Abbreviated))
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
 
 /-- [rowl_frontend::functional_header::iri_kind]:
     Source: 'crates/rowl-frontend/src/functional_header.rs', lines 46:0-52:1 -/
@@ -2854,6 +3070,73 @@ def functional_header.iri_kind
     ok (some functional_iris.SourceIriKind.Abbreviated)
   | functional.Terminal.Whitespace => ok none
   | functional.Terminal.Comment => ok none
+
+/-- [rowl_frontend::functional_annotations::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 77:0-84:1 -/
+def functional_annotations.expected_terminal
+  (expected : functional_annotations.AnnotationExpected)
+  (terminal : functional.Terminal) :
+  Result Bool
+  := do
+  match expected with
+  | functional_annotations.AnnotationExpected.Open =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok true
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_annotations.AnnotationExpected.Property =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotations.AnnotationExpected.Value =>
+    let o ← functional_annotations.value_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_annotations.AnnotationExpected.Close =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok false
+    | functional.Terminal.Close => ok true
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_annotations::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 85:0-106:1 -/
+def functional_annotations.take_expected
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_annotations.AnnotationExpected) (eof : Std.Usize) :
+  Result (core.result.Result (functional.Token × functional_lexer.Tokens)
+    functional_annotations.AnnotationError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err (functional_annotations.AnnotationError.Expected
+      expected eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_annotations.expected_terminal expected token.terminal
+    if b
+    then ok (core.result.Result.Ok (token, next))
+    else
+      ok (core.result.Result.Err
+        (functional_annotations.AnnotationError.Expected expected token.start))
 
 /-- [rowl_frontend::prefixes::Declaration]
     Source: 'crates/rowl-frontend/src/prefixes.rs', lines 11:0-14:1
@@ -3171,33 +3454,6 @@ def prefixes.expand_parts
     else ok prefixes.Expansion.InvalidLocal
   else ok prefixes.Expansion.InvalidPrefix
 
-/-- [rowl_frontend::ntriples::ErrorKind]
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 16:0-31:1
-    Visibility: public -/
-@[discriminant isize]
-inductive ntriples.ErrorKind where
-| MalformedUtf8 : ntriples.ErrorKind
-| UnexpectedEnd : ntriples.ErrorKind
-| ExpectedIri : ntriples.ErrorKind
-| ExpectedSubject : ntriples.ErrorKind
-| ExpectedObject : ntriples.ErrorKind
-| ExpectedPeriod : ntriples.ErrorKind
-| ExpectedLineEnd : ntriples.ErrorKind
-| InvalidCharacter : ntriples.ErrorKind
-| InvalidEscape : ntriples.ErrorKind
-| InvalidIri : ntriples.ErrorKind
-| InvalidBlankLabel : ntriples.ErrorKind
-| InvalidLanguageTag : ntriples.ErrorKind
-| InvalidLiteralKind : ntriples.ErrorKind
-| ResourceLimit : ntriples.ErrorKind
-
-/-- [rowl_frontend::ntriples::ReadError]
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 32:0-35:1
-    Visibility: public -/
-structure ntriples.ReadError where
-  kind : ntriples.ErrorKind
-  offset : Std.Usize
-
 /-- [rowl_frontend::ntriples::error]:
     Source: 'crates/rowl-frontend/src/ntriples.rs', lines 46:0-48:1 -/
 def ntriples.error
@@ -3463,6 +3719,1032 @@ def functional_iris.resolve_span
         ok (core.result.Result.Err
           (functional_iris.SourceIriError.InvalidExpandedIri start))
     | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::read_property]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 107:0-131:1 -/
+def functional_annotations.read_property
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_header.HeaderIri ×
+    functional_lexer.Tokens) functional_annotations.AnnotationError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_annotations.take_expected tokens
+      functional_annotations.AnnotationExpected.Property i
+  match r with
+  | core.result.Result.Ok value =>
+    let (token, remaining) := value
+    let o ← functional_header.iri_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_annotations.AnnotationError.Expected
+        functional_annotations.AnnotationExpected.Property token.start))
+    | some kind =>
+      let r1 ←
+        functional_iris.resolve_span table kind bytes token.start token.end
+          limit
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        ok (core.result.Result.Ok ({ token, value := value1 }, remaining))
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err
+          (functional_annotations.AnnotationError.Property error))
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_literals::plain_datatype]:
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 145:0-152:1 -/
+def functional_literals.plain_datatype
+  (limit : Std.Usize) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8)
+    functional_literals.SourceLiteralError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 55#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 80#u8, 108#u8, 97#u8,
+        105#u8, 110#u8, 76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+        ]))
+  let value ← prefixes.copy s
+  let i := alloc.vec.Vec.len value
+  if i > limit
+  then
+    ok (core.result.Result.Err
+      (functional_literals.SourceLiteralError.DatatypeLimit offset))
+  else ok (core.result.Result.Ok value)
+
+/-- [rowl_frontend::functional_literals::plain_lexical]:
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 138:0-144:1 -/
+def functional_literals.plain_lexical
+  (payload : alloc.vec.Vec Std.U8) (language : alloc.vec.Vec Std.U8)
+  (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let s ← lift (Array.to_slice (Array.make 1#usize [ 64#u8 ]))
+  let separator ← prefixes.copy s
+  let o ← prefixes.join payload separator limit
+  match o with
+  | none => ok none
+  | some value => prefixes.join value language limit
+
+/-- [rowl_frontend::ntriples::push]:
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 75:0-82:1 -/
+def ntriples.push
+  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
+  Result (Bool × (alloc.vec.Vec Std.U8))
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if i >= limit
+  then ok (false, bytes)
+  else let bytes1 ← alloc.vec.Vec.push bytes byte
+       ok (true, bytes1)
+
+/-- [rowl_frontend::ntriples::append_encoded]:
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 83:0-97:1 -/
+def ntriples.append_encoded
+  (output : alloc.vec.Vec Std.U8) (value : encoding.Encoded)
+  (limit : Std.Usize) :
+  Result (Bool × (alloc.vec.Vec Std.U8))
+  := do
+  match value with
+  | encoding.Encoded.One a => ntriples.push output a limit
+  | encoding.Encoded.Two a b =>
+    let (b1, output1) ← ntriples.push output a limit
+    if b1
+    then ntriples.push output1 b limit
+    else ok (false, output1)
+  | encoding.Encoded.Three a b c =>
+    let (b1, output1) ← ntriples.push output a limit
+    if b1
+    then
+      let (b2, output2) ← ntriples.push output1 b limit
+      if b2
+      then ntriples.push output2 c limit
+      else ok (false, output2)
+    else ok (false, output1)
+  | encoding.Encoded.Four a b c d =>
+    let (b1, output1) ← ntriples.push output a limit
+    if b1
+    then
+      let (b2, output2) ← ntriples.push output1 b limit
+      if b2
+      then
+        let (b3, output3) ← ntriples.push output2 c limit
+        if b3
+        then ntriples.push output3 d limit
+        else ok (false, output3)
+      else ok (false, output2)
+    else ok (false, output1)
+
+/-- [rowl_frontend::ntriples::at]:
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 49:0-55:1 -/
+def ntriples.at
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option (Std.U32 × Std.Usize))
+    ntriples.ReadError)
+  := do
+  let d ← unicode.decode_next bytes position
+  match d with
+  | unicode.Decoded.End => ok (core.result.Result.Ok none)
+  | unicode.Decoded.Scalar codepoint next =>
+    ok (core.result.Result.Ok (some (codepoint, next)))
+  | unicode.Decoded.Error _ =>
+    let re ← ntriples.error ntriples.ErrorKind.MalformedUtf8 position
+    ok (core.result.Result.Err re)
+
+/-- [rowl_frontend::ntriples::required]:
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 56:0-61:1 -/
+def ntriples.required
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none =>
+      let re ← ntriples.error ntriples.ErrorKind.UnexpectedEnd position
+      ok (core.result.Result.Err re)
+    | some unit => ok (core.result.Result.Ok unit)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_frontend::ntriples::expect]:
+    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 62:0-74:1 -/
+def ntriples.expect
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (wanted : Std.U32)
+  (kind : ntriples.ErrorKind) :
+  Result (core.result.Result Std.Usize ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = wanted
+    then ok (core.result.Result.Ok next)
+    else let re ← ntriples.error kind position
+         ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
+
+/-- [rowl_frontend::unicode::xml_character]:
+    Source: 'crates/rowl-frontend/src/unicode.rs', lines 137:0-144:1
+    Visibility: public -/
+def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
+  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
+    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
+    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
+    (codepoint <= 1114111#u32)))
+
+/-- [rowl_frontend::functional_payload::error]:
+    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 9:0-11:1 -/
+def functional_payload.error
+  (kind : ntriples.ErrorKind) (offset : Std.Usize) :
+  Result ntriples.ReadError
+  := do
+  ok { kind, offset }
+
+/-- [rowl_frontend::functional_payload::escape]:
+    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 12:0-19:1 -/
+def functional_payload.escape
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, _) := val
+    if cp = 34#u32
+    then ok (core.result.Result.Ok val)
+    else
+      if cp = 92#u32
+      then ok (core.result.Result.Ok val)
+      else
+        let re ←
+          functional_payload.error ntriples.ErrorKind.InvalidEscape slash
+        ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
+      residual
+
+/-- [rowl_frontend::functional_payload::quoted_item]:
+    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 20:0-28:1 -/
+def functional_payload.quoted_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
+  (next : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
+  := do
+  if cp = 92#u32
+  then functional_payload.escape bytes position next
+  else
+    if cp = 34#u32
+    then
+      let re ←
+        functional_payload.error ntriples.ErrorKind.InvalidCharacter position
+      ok (core.result.Result.Err re)
+    else
+      let b ← unicode.xml_character cp
+      if b
+      then ok (core.result.Result.Ok (cp, next))
+      else
+        let re ←
+          functional_payload.error ntriples.ErrorKind.InvalidCharacter position
+        ok (core.result.Result.Err re)
+
+/-- [rowl_frontend::functional_payload::read_quoted]: loop 0:
+    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 36:4-50:5
+    Visibility: public -/
+@[rust_loop]
+def functional_payload.read_quoted_loop
+  (bytes : alloc.vec.Vec Std.U8) (limit : Std.Usize) (position : Std.Usize)
+  (output : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    ntriples.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = 34#u32
+    then ok (core.result.Result.Ok (output, next))
+    else
+      let r1 ← functional_payload.quoted_item bytes position cp next
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, «end») := val1
+        let o ← encoding.encode value
+        match o with
+        | none =>
+          let re ←
+            functional_payload.error ntriples.ErrorKind.InvalidCharacter
+              position
+          ok (core.result.Result.Err re)
+        | some value1 =>
+          let (b, output1) ← ntriples.append_encoded output value1 limit
+          if b
+          then functional_payload.read_quoted_loop bytes limit «end» output1
+          else
+            let re ←
+              functional_payload.error ntriples.ErrorKind.ResourceLimit
+                position
+            ok (core.result.Result.Err re)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          ntriples.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      ntriples.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_frontend::functional_payload::read_quoted]:
+    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 33:0-51:1
+    Visibility: public -/
+def functional_payload.read_quoted
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    ntriples.ReadError)
+  := do
+  let r ←
+    ntriples.expect bytes start 34#u32 ntriples.ErrorKind.InvalidCharacter
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    functional_payload.read_quoted_loop bytes limit val (alloc.vec.Vec.new
+      Std.U8)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      ntriples.ReadError) residual
+
+/-- [rowl_frontend::functional_literals::string_span]:
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 116:0-137:1 -/
+def functional_literals.string_span
+  (bytes : alloc.vec.Vec Std.U8) (token : functional.Token) (limit : Std.Usize)
+  :
+  Result (core.result.Result (alloc.vec.Vec Std.U8)
+    functional_literals.SourceLiteralError)
+  := do
+  if token.start > token.end
+  then
+    ok (core.result.Result.Err
+      (functional_literals.SourceLiteralError.InvalidSpan token.start))
+  else
+    let i := alloc.vec.Vec.len bytes
+    if token.end > i
+    then
+      ok (core.result.Result.Err
+        (functional_literals.SourceLiteralError.InvalidSpan token.start))
+    else
+      let r ← functional_payload.read_quoted bytes token.start limit
+      match r with
+      | core.result.Result.Ok value =>
+        let (value1, «end») := value
+        if «end» = token.end
+        then ok (core.result.Result.Ok value1)
+        else
+          ok (core.result.Result.Err
+            (functional_literals.SourceLiteralError.InvalidSpan token.start))
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err
+          (functional_literals.SourceLiteralError.Quoted error))
+
+/-- [rowl_frontend::functional_literals::LiteralShape]
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 47:0-51:1 -/
+structure functional_literals.LiteralShape where
+  quoted : functional.Token
+  form : functional_literals.SourceLiteralForm
+  remaining : functional_lexer.Tokens
+
+/-- [rowl_frontend::functional_literals::read_shape]:
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 52:0-115:1 -/
+def functional_literals.read_shape
+  (tokens : functional_lexer.Tokens) (eof : Std.Usize) :
+  Result (core.result.Result functional_literals.LiteralShape
+    functional_literals.SourceLiteralError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err (functional_literals.SourceLiteralError.Expected
+      functional_literals.LiteralExpected.Quoted eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let (t, b) ←
+      match token.terminal with
+      | functional.Terminal.Keyword _ => ok (token.terminal, false)
+      | functional.Terminal.Open => ok (functional.Terminal.Open, false)
+      | functional.Terminal.Close => ok (functional.Terminal.Close, false)
+      | functional.Terminal.Equals => ok (functional.Terminal.Equals, false)
+      | functional.Terminal.DatatypeIndicator =>
+        ok (functional.Terminal.DatatypeIndicator, false)
+      | functional.Terminal.Integer => ok (functional.Terminal.Integer, false)
+      | functional.Terminal.QuotedString =>
+        ok (functional.Terminal.QuotedString, true)
+      | functional.Terminal.LanguageTag =>
+        ok (functional.Terminal.LanguageTag, false)
+      | functional.Terminal.NodeId => ok (functional.Terminal.NodeId, false)
+      | functional.Terminal.FullIri => ok (functional.Terminal.FullIri, false)
+      | functional.Terminal.PrefixName =>
+        ok (functional.Terminal.PrefixName, false)
+      | functional.Terminal.AbbreviatedIri =>
+        ok (functional.Terminal.AbbreviatedIri, false)
+      | functional.Terminal.Whitespace =>
+        ok (functional.Terminal.Whitespace, false)
+      | functional.Terminal.Comment => ok (functional.Terminal.Comment, false)
+    if b
+    then
+      match next with
+      | functional_lexer.Tokens.Empty =>
+        ok (core.result.Result.Ok
+          {
+            quoted := { token with terminal := t },
+            form := functional_literals.SourceLiteralForm.Plain,
+            remaining := functional_lexer.Tokens.Empty
+          })
+      | functional_lexer.Tokens.Cons token1 next1 =>
+        match token1.terminal with
+        | functional.Terminal.Keyword _ =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.Open =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.Close =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.Equals =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.DatatypeIndicator =>
+          match next1 with
+          | functional_lexer.Tokens.Empty =>
+            ok (core.result.Result.Err
+              (functional_literals.SourceLiteralError.Expected
+              functional_literals.LiteralExpected.Datatype eof))
+          | functional_lexer.Tokens.Cons datatype remaining =>
+            let o ← functional_header.iri_kind datatype.terminal
+            let b1 := core.option.Option.is_some o
+            if b1
+            then
+              ok (core.result.Result.Ok
+                {
+                  quoted := { token with terminal := t },
+                  form :=
+                    (functional_literals.SourceLiteralForm.Typed
+                      token1
+                      datatype),
+                  remaining
+                })
+            else
+              ok (core.result.Result.Err
+                (functional_literals.SourceLiteralError.Expected
+                functional_literals.LiteralExpected.Datatype datatype.start))
+        | functional.Terminal.Integer =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.QuotedString =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.LanguageTag =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := (functional_literals.SourceLiteralForm.Language token1),
+              remaining := next1
+            })
+        | functional.Terminal.NodeId =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.FullIri =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.PrefixName =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.AbbreviatedIri =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.Whitespace =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+        | functional.Terminal.Comment =>
+          ok (core.result.Result.Ok
+            {
+              quoted := { token with terminal := t },
+              form := functional_literals.SourceLiteralForm.Plain,
+              remaining := next
+            })
+    else
+      ok (core.result.Result.Err
+        (functional_literals.SourceLiteralError.Expected
+        functional_literals.LiteralExpected.Quoted token.start))
+
+/-- [rowl_frontend::functional_literals::read_literal]:
+    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 160:0-270:1
+    Visibility: public -/
+def functional_literals.read_literal
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (lexical_limit : Std.Usize)
+  (datatype_limit : Std.Usize) :
+  Result (core.result.Result (functional_literals.SourceLiteral ×
+    functional_lexer.Tokens) functional_literals.SourceLiteralError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ← functional_literals.read_shape tokens i
+  match r with
+  | core.result.Result.Ok value =>
+    let r1 ← functional_literals.string_span bytes value.quoted lexical_limit
+    match r1 with
+    | core.result.Result.Ok value1 =>
+      match value.form with
+      | functional_literals.SourceLiteralForm.Plain =>
+        let o ←
+          functional_literals.plain_lexical value1 (alloc.vec.Vec.new Std.U8)
+            lexical_limit
+        match o with
+        | none =>
+          ok (core.result.Result.Err
+            (functional_literals.SourceLiteralError.LexicalLimit
+            value.quoted.start))
+        | some value2 =>
+          let r2 ←
+            functional_literals.plain_datatype datatype_limit
+              value.quoted.start
+          match r2 with
+          | core.result.Result.Ok value3 =>
+            ok (core.result.Result.Ok
+              ({
+                 quoted := value.quoted,
+                 form := functional_literals.SourceLiteralForm.Plain,
+                 lexical := value2,
+                 datatype := value3
+               }, value.remaining))
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | functional_literals.SourceLiteralForm.Language token =>
+        let r2 ←
+          functional_names.read_span functional_names.NameKind.LanguageTag
+            bytes token.start token.end lexical_limit
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let o ←
+            functional_literals.plain_lexical value1 value2 lexical_limit
+          match o with
+          | none =>
+            ok (core.result.Result.Err
+              (functional_literals.SourceLiteralError.LexicalLimit
+              value.quoted.start))
+          | some value3 =>
+            let r3 ←
+              functional_literals.plain_datatype datatype_limit
+                value.quoted.start
+            match r3 with
+            | core.result.Result.Ok value4 =>
+              ok (core.result.Result.Ok
+                ({
+                   quoted := value.quoted,
+                   form := value.form,
+                   lexical := value3,
+                   datatype := value4
+                 }, value.remaining))
+            | core.result.Result.Err error => ok (core.result.Result.Err error)
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_literals.SourceLiteralError.Language error))
+      | functional_literals.SourceLiteralForm.Typed _ datatype =>
+        let o ← functional_header.iri_kind datatype.terminal
+        match o with
+        | none =>
+          ok (core.result.Result.Err
+            (functional_literals.SourceLiteralError.Expected
+            functional_literals.LiteralExpected.Datatype datatype.start))
+        | some kind =>
+          let r2 ←
+            functional_iris.resolve_span table kind bytes datatype.start
+              datatype.end datatype_limit
+          match r2 with
+          | core.result.Result.Ok value2 =>
+            ok (core.result.Result.Ok
+              ({
+                 quoted := value.quoted,
+                 form := value.form,
+                 lexical := value1,
+                 datatype := value2
+               }, value.remaining))
+          | core.result.Result.Err error =>
+            ok (core.result.Result.Err
+              (functional_literals.SourceLiteralError.Datatype error))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::read_value]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 132:0-172:1 -/
+def functional_annotations.read_value
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result (functional_annotations.SourceAnnotationValue ×
+    functional_lexer.Tokens) functional_annotations.AnnotationError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_annotations.take_expected tokens
+      functional_annotations.AnnotationExpected.Value i
+  match r with
+  | core.result.Result.Ok value =>
+    let (token, next) := value
+    let o ← functional_annotations.value_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_annotations.AnnotationError.Expected
+        functional_annotations.AnnotationExpected.Value token.start))
+    | some avk =>
+      match avk with
+      | functional_annotations.AnnotationValueKind.Iri kind =>
+        let r1 ←
+          functional_iris.resolve_span table kind bytes token.start token.end
+            limits.iri
+        match r1 with
+        | core.result.Result.Ok value1 =>
+          ok (core.result.Result.Ok
+            (functional_annotations.SourceAnnotationValue.Iri
+            { token, value := value1 }, next))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotations.AnnotationError.Iri error))
+      | functional_annotations.AnnotationValueKind.Anonymous =>
+        let r1 ←
+          functional_names.read_span functional_names.NameKind.NodeId bytes
+            token.start token.end limits.iri
+        match r1 with
+        | core.result.Result.Ok label =>
+          ok (core.result.Result.Ok
+            (functional_annotations.SourceAnnotationValue.Anonymous token
+            label, next))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotations.AnnotationError.Anonymous error))
+      | functional_annotations.AnnotationValueKind.Literal =>
+        let r1 ←
+          functional_literals.read_literal table bytes
+            (functional_lexer.Tokens.Cons token next) limits.lexical 
+            limits.iri
+        match r1 with
+        | core.result.Result.Ok p =>
+          let (literal, remaining) := p
+          ok (core.result.Result.Ok
+            (functional_annotations.SourceAnnotationValue.Literal literal,
+            remaining))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_annotations.AnnotationError.Literal error))
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::AnnotationTail]
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 173:0-177:1 -/
+structure functional_annotations.AnnotationTail where
+  property : functional_header.HeaderIri
+  value : functional_annotations.SourceAnnotationValue
+  remaining : functional_lexer.Tokens
+
+/-- [rowl_frontend::functional_annotations::finish_annotation]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 178:0-201:1 -/
+def functional_annotations.finish_annotation
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result functional_annotations.AnnotationTail
+    functional_annotations.AnnotationError)
+  := do
+  let r ← functional_annotations.read_property table bytes tokens limits.iri
+  match r with
+  | core.result.Result.Ok value =>
+    let (property, tokens1) := value
+    let r1 ← functional_annotations.read_value table bytes tokens1 limits
+    match r1 with
+    | core.result.Result.Ok value1 =>
+      let (value2, tokens2) := value1
+      let i := alloc.vec.Vec.len bytes
+      let r2 ←
+        functional_annotations.take_expected tokens2
+          functional_annotations.AnnotationExpected.Close i
+      match r2 with
+      | core.result.Result.Ok value3 =>
+        let (_, remaining) := value3
+        ok (core.result.Result.Ok { property, value := value2, remaining })
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_annotations::scan_annotations]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 202:0-256:1 -/
+def functional_annotations.scan_annotations
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (annotations : alloc.vec.Vec functional_annotations.SourceAnnotation)
+  (depth : Std.Usize) (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result functional_annotations.SourceAnnotations
+    functional_annotations.AnnotationError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Ok
+      { annotations, remaining := functional_lexer.Tokens.Empty })
+  | functional_lexer.Tokens.Cons token next =>
+    match token.terminal with
+    | functional.Terminal.Keyword k =>
+      match k with
+      | functional.Keyword.Prefix =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Ontology =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Import =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Declaration =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Class =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Datatype =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.AnnotationProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.NamedIndividual =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.Annotation =>
+        if depth = 0#usize
+        then
+          ok (core.result.Result.Err
+            (functional_annotations.AnnotationError.DepthLimit token.start))
+        else
+          let i := alloc.vec.Vec.len annotations
+          if i >= limits.count
+          then
+            ok (core.result.Result.Err
+              (functional_annotations.AnnotationError.CountLimit token.start))
+          else
+            let i1 := alloc.vec.Vec.len bytes
+            let r ←
+              functional_annotations.take_expected next
+                functional_annotations.AnnotationExpected.Open i1
+            match r with
+            | core.result.Result.Ok value =>
+              let (_, tokens1) := value
+              let i2 ← depth - 1#usize
+              let r1 ←
+                functional_annotations.scan_annotations table bytes tokens1
+                  (alloc.vec.Vec.new functional_annotations.SourceAnnotation)
+                  i2 limits
+              match r1 with
+              | core.result.Result.Ok value1 =>
+                let r2 ←
+                  functional_annotations.finish_annotation table bytes
+                    value1.remaining limits
+                match r2 with
+                | core.result.Result.Ok value2 =>
+                  let annotations1 ←
+                    alloc.vec.Vec.push annotations
+                      (functional_annotations.SourceAnnotation.mk token
+                      value1.annotations value2.property value2.value)
+                  functional_annotations.scan_annotations table bytes
+                    value2.remaining annotations1 depth limits
+                | core.result.Result.Err error =>
+                  ok (core.result.Result.Err error)
+              | core.result.Result.Err _ => ok r1
+            | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | functional.Keyword.AnnotationAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SubAnnotationPropertyOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.AnnotationPropertyDomain =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.AnnotationPropertyRange =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectInverseOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataIntersectionOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataUnionOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataComplementOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataOneOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DatatypeRestriction =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectIntersectionOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectUnionOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectComplementOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectOneOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectSomeValuesFrom =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectAllValuesFrom =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectHasValue =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectHasSelf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectMinCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectMaxCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectExactCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataSomeValuesFrom =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataAllValuesFrom =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataHasValue =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataMinCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataMaxCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataExactCardinality =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SubClassOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.EquivalentClasses =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DisjointClasses =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DisjointUnion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SubObjectPropertyOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectPropertyChain =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.EquivalentObjectProperties =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DisjointObjectProperties =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectPropertyDomain =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectPropertyRange =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.InverseObjectProperties =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.FunctionalObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.InverseFunctionalObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ReflexiveObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.IrreflexiveObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SymmetricObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.AsymmetricObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.TransitiveObjectProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SubDataPropertyOf =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.EquivalentDataProperties =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DisjointDataProperties =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataPropertyDomain =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataPropertyRange =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.FunctionalDataProperty =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DatatypeDefinition =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.HasKey =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.SameIndividual =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DifferentIndividuals =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ClassAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.ObjectPropertyAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.NegativeObjectPropertyAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.DataPropertyAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+      | functional.Keyword.NegativeDataPropertyAssertion =>
+        ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Open =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Close =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Equals =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.DatatypeIndicator =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Integer =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.QuotedString =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.LanguageTag =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.NodeId =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.FullIri =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.PrefixName =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.AbbreviatedIri =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Whitespace =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+    | functional.Terminal.Comment =>
+      ok (core.result.Result.Ok { annotations, remaining := tokens })
+partial_fixpoint
+
+/-- [rowl_frontend::functional_annotations::read_annotations]:
+    Source: 'crates/rowl-frontend/src/functional_annotations.rs', lines 265:0-272:1
+    Visibility: public -/
+def functional_annotations.read_annotations
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result functional_annotations.SourceAnnotations
+    functional_annotations.AnnotationError)
+  := do
+  functional_annotations.scan_annotations table bytes tokens (alloc.vec.Vec.new
+    functional_annotations.SourceAnnotation) limits.depth limits
+
+/-- [rowl_frontend::functional_header::SourceOntologyIdentity]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 14:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_header.SourceOntologyIdentity where
+| Anonymous : functional_header.SourceOntologyIdentity
+| Named :
+  functional_header.HeaderIri →
+  Option functional_header.HeaderIri →
+  functional_header.SourceOntologyIdentity
+
+/-- [rowl_frontend::functional_header::ImportReference]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 21:0-24:1
+    Visibility: public -/
+structure functional_header.ImportReference where
+  keyword : functional.Token
+  target : functional_header.HeaderIri
+
+/-- [rowl_frontend::functional_header::HeaderTail]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 25:0-29:1
+    Visibility: public -/
+structure functional_header.HeaderTail where
+  identity : functional_header.SourceOntologyIdentity
+  imports : alloc.vec.Vec functional_header.ImportReference
+  remaining : functional_lexer.Tokens
+
+/-- [rowl_frontend::functional_header::HeaderExpected]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 31:0-35:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_header.HeaderExpected where
+| Open : functional_header.HeaderExpected
+| Iri : functional_header.HeaderExpected
+| Close : functional_header.HeaderExpected
+
+/-- [rowl_frontend::functional_header::{impl core::clone::Clone for rowl_frontend::functional_header::HeaderExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:9-30:14
+    Visibility: public -/
+def functional_header.HeaderExpected.Insts.CoreCloneClone.clone
+  (self : functional_header.HeaderExpected) :
+  Result functional_header.HeaderExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_header::{impl core::clone::Clone for rowl_frontend::functional_header::HeaderExpected}]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:9-30:14 -/
+@[reducible]
+def functional_header.HeaderExpected.Insts.CoreCloneClone : core.clone.Clone
+  functional_header.HeaderExpected := {
+  clone := functional_header.HeaderExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_header::{impl core::marker::Copy for rowl_frontend::functional_header::HeaderExpected}]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 30:16-30:20 -/
+@[reducible]
+def functional_header.HeaderExpected.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_header.HeaderExpected := {
+  cloneInst := functional_header.HeaderExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_header::HeaderError]
+    Source: 'crates/rowl-frontend/src/functional_header.rs', lines 36:0-45:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_header.HeaderError where
+| Expected :
+  functional_header.HeaderExpected →
+  Std.Usize →
+  functional_header.HeaderError
+| Iri : functional_iris.SourceIriError → functional_header.HeaderError
+| ImportLimit : Std.Usize → functional_header.HeaderError
 
 /-- [rowl_frontend::functional_header::read_optional_iri]:
     Source: 'crates/rowl-frontend/src/functional_header.rs', lines 53:0-69:1 -/
@@ -4093,15 +5375,6 @@ def functional_lexer.scan
       ok (functional_lexer.LexResult.InvalidText error)
 partial_fixpoint
 
-/-- [rowl_frontend::unicode::xml_character]:
-    Source: 'crates/rowl-frontend/src/unicode.rs', lines 137:0-144:1
-    Visibility: public -/
-def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
-  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
-    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
-    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
-    (codepoint <= 1114111#u32)))
-
 /-- [rowl_frontend::unicode::Scalars]
     Source: 'crates/rowl-frontend/src/unicode.rs', lines 18:0-25:1
     Visibility: public -/
@@ -4163,35 +5436,6 @@ def functional_lexer.lex
   | unicode.TextScan.Invalid error =>
     ok (functional_lexer.LexResult.InvalidText error)
 
-/-- [rowl_frontend::functional_literals::SourceLiteralForm]
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 13:0-17:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_literals.SourceLiteralForm where
-| Plain : functional_literals.SourceLiteralForm
-| Language : functional.Token → functional_literals.SourceLiteralForm
-| Typed :
-  functional.Token →
-  functional.Token →
-  functional_literals.SourceLiteralForm
-
-/-- [rowl_frontend::functional_literals::SourceLiteral]
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 18:0-23:1
-    Visibility: public -/
-structure functional_literals.SourceLiteral where
-  quoted : functional.Token
-  form : functional_literals.SourceLiteralForm
-  lexical : alloc.vec.Vec Std.U8
-  datatype : alloc.vec.Vec Std.U8
-
-/-- [rowl_frontend::functional_literals::LiteralExpected]
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 25:0-28:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_literals.LiteralExpected where
-| Quoted : functional_literals.LiteralExpected
-| Datatype : functional_literals.LiteralExpected
-
 /-- [rowl_frontend::functional_literals::{impl core::clone::Clone for rowl_frontend::functional_literals::LiteralExpected}::clone]:
     Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 24:9-24:14
     Visibility: public -/
@@ -4216,598 +5460,6 @@ def functional_literals.LiteralExpected.Insts.CoreMarkerCopy : core.marker.Copy
   functional_literals.LiteralExpected := {
   cloneInst := functional_literals.LiteralExpected.Insts.CoreCloneClone
 }
-
-/-- [rowl_frontend::functional_literals::SourceLiteralError]
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 29:0-46:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_literals.SourceLiteralError where
-| Expected :
-  functional_literals.LiteralExpected →
-  Std.Usize →
-  functional_literals.SourceLiteralError
-| InvalidSpan : Std.Usize → functional_literals.SourceLiteralError
-| Quoted : ntriples.ReadError → functional_literals.SourceLiteralError
-| Language :
-  functional_names.NameError →
-  functional_literals.SourceLiteralError
-| Datatype :
-  functional_iris.SourceIriError →
-  functional_literals.SourceLiteralError
-| LexicalLimit : Std.Usize → functional_literals.SourceLiteralError
-| DatatypeLimit : Std.Usize → functional_literals.SourceLiteralError
-
-/-- [rowl_frontend::functional_literals::LiteralShape]
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 47:0-51:1 -/
-structure functional_literals.LiteralShape where
-  quoted : functional.Token
-  form : functional_literals.SourceLiteralForm
-  remaining : functional_lexer.Tokens
-
-/-- [rowl_frontend::functional_literals::read_shape]:
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 52:0-115:1 -/
-def functional_literals.read_shape
-  (tokens : functional_lexer.Tokens) (eof : Std.Usize) :
-  Result (core.result.Result functional_literals.LiteralShape
-    functional_literals.SourceLiteralError)
-  := do
-  match tokens with
-  | functional_lexer.Tokens.Empty =>
-    ok (core.result.Result.Err (functional_literals.SourceLiteralError.Expected
-      functional_literals.LiteralExpected.Quoted eof))
-  | functional_lexer.Tokens.Cons token next =>
-    let (t, b) ←
-      match token.terminal with
-      | functional.Terminal.Keyword _ => ok (token.terminal, false)
-      | functional.Terminal.Open => ok (functional.Terminal.Open, false)
-      | functional.Terminal.Close => ok (functional.Terminal.Close, false)
-      | functional.Terminal.Equals => ok (functional.Terminal.Equals, false)
-      | functional.Terminal.DatatypeIndicator =>
-        ok (functional.Terminal.DatatypeIndicator, false)
-      | functional.Terminal.Integer => ok (functional.Terminal.Integer, false)
-      | functional.Terminal.QuotedString =>
-        ok (functional.Terminal.QuotedString, true)
-      | functional.Terminal.LanguageTag =>
-        ok (functional.Terminal.LanguageTag, false)
-      | functional.Terminal.NodeId => ok (functional.Terminal.NodeId, false)
-      | functional.Terminal.FullIri => ok (functional.Terminal.FullIri, false)
-      | functional.Terminal.PrefixName =>
-        ok (functional.Terminal.PrefixName, false)
-      | functional.Terminal.AbbreviatedIri =>
-        ok (functional.Terminal.AbbreviatedIri, false)
-      | functional.Terminal.Whitespace =>
-        ok (functional.Terminal.Whitespace, false)
-      | functional.Terminal.Comment => ok (functional.Terminal.Comment, false)
-    if b
-    then
-      match next with
-      | functional_lexer.Tokens.Empty =>
-        ok (core.result.Result.Ok
-          {
-            quoted := { token with terminal := t },
-            form := functional_literals.SourceLiteralForm.Plain,
-            remaining := functional_lexer.Tokens.Empty
-          })
-      | functional_lexer.Tokens.Cons token1 next1 =>
-        match token1.terminal with
-        | functional.Terminal.Keyword _ =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.Open =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.Close =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.Equals =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.DatatypeIndicator =>
-          match next1 with
-          | functional_lexer.Tokens.Empty =>
-            ok (core.result.Result.Err
-              (functional_literals.SourceLiteralError.Expected
-              functional_literals.LiteralExpected.Datatype eof))
-          | functional_lexer.Tokens.Cons datatype remaining =>
-            let o ← functional_header.iri_kind datatype.terminal
-            let b1 := core.option.Option.is_some o
-            if b1
-            then
-              ok (core.result.Result.Ok
-                {
-                  quoted := { token with terminal := t },
-                  form :=
-                    (functional_literals.SourceLiteralForm.Typed
-                      token1
-                      datatype),
-                  remaining
-                })
-            else
-              ok (core.result.Result.Err
-                (functional_literals.SourceLiteralError.Expected
-                functional_literals.LiteralExpected.Datatype datatype.start))
-        | functional.Terminal.Integer =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.QuotedString =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.LanguageTag =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := (functional_literals.SourceLiteralForm.Language token1),
-              remaining := next1
-            })
-        | functional.Terminal.NodeId =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.FullIri =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.PrefixName =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.AbbreviatedIri =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.Whitespace =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-        | functional.Terminal.Comment =>
-          ok (core.result.Result.Ok
-            {
-              quoted := { token with terminal := t },
-              form := functional_literals.SourceLiteralForm.Plain,
-              remaining := next
-            })
-    else
-      ok (core.result.Result.Err
-        (functional_literals.SourceLiteralError.Expected
-        functional_literals.LiteralExpected.Quoted token.start))
-
-/-- [rowl_frontend::ntriples::push]:
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 75:0-82:1 -/
-def ntriples.push
-  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
-  Result (Bool × (alloc.vec.Vec Std.U8))
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if i >= limit
-  then ok (false, bytes)
-  else let bytes1 ← alloc.vec.Vec.push bytes byte
-       ok (true, bytes1)
-
-/-- [rowl_frontend::ntriples::append_encoded]:
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 83:0-97:1 -/
-def ntriples.append_encoded
-  (output : alloc.vec.Vec Std.U8) (value : encoding.Encoded)
-  (limit : Std.Usize) :
-  Result (Bool × (alloc.vec.Vec Std.U8))
-  := do
-  match value with
-  | encoding.Encoded.One a => ntriples.push output a limit
-  | encoding.Encoded.Two a b =>
-    let (b1, output1) ← ntriples.push output a limit
-    if b1
-    then ntriples.push output1 b limit
-    else ok (false, output1)
-  | encoding.Encoded.Three a b c =>
-    let (b1, output1) ← ntriples.push output a limit
-    if b1
-    then
-      let (b2, output2) ← ntriples.push output1 b limit
-      if b2
-      then ntriples.push output2 c limit
-      else ok (false, output2)
-    else ok (false, output1)
-  | encoding.Encoded.Four a b c d =>
-    let (b1, output1) ← ntriples.push output a limit
-    if b1
-    then
-      let (b2, output2) ← ntriples.push output1 b limit
-      if b2
-      then
-        let (b3, output3) ← ntriples.push output2 c limit
-        if b3
-        then ntriples.push output3 d limit
-        else ok (false, output3)
-      else ok (false, output2)
-    else ok (false, output1)
-
-/-- [rowl_frontend::ntriples::at]:
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 49:0-55:1 -/
-def ntriples.at
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Option (Std.U32 × Std.Usize))
-    ntriples.ReadError)
-  := do
-  let d ← unicode.decode_next bytes position
-  match d with
-  | unicode.Decoded.End => ok (core.result.Result.Ok none)
-  | unicode.Decoded.Scalar codepoint next =>
-    ok (core.result.Result.Ok (some (codepoint, next)))
-  | unicode.Decoded.Error _ =>
-    let re ← ntriples.error ntriples.ErrorKind.MalformedUtf8 position
-    ok (core.result.Result.Err re)
-
-/-- [rowl_frontend::ntriples::required]:
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 56:0-61:1 -/
-def ntriples.required
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.at bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    match val with
-    | none =>
-      let re ← ntriples.error ntriples.ErrorKind.UnexpectedEnd position
-      ok (core.result.Result.Err re)
-    | some unit => ok (core.result.Result.Ok unit)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_frontend::ntriples::expect]:
-    Source: 'crates/rowl-frontend/src/ntriples.rs', lines 62:0-74:1 -/
-def ntriples.expect
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (wanted : Std.U32)
-  (kind : ntriples.ErrorKind) :
-  Result (core.result.Result Std.Usize ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, next) := val
-    if cp = wanted
-    then ok (core.result.Result.Ok next)
-    else let re ← ntriples.error kind position
-         ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-
-/-- [rowl_frontend::functional_payload::error]:
-    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 9:0-11:1 -/
-def functional_payload.error
-  (kind : ntriples.ErrorKind) (offset : Std.Usize) :
-  Result ntriples.ReadError
-  := do
-  ok { kind, offset }
-
-/-- [rowl_frontend::functional_payload::escape]:
-    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 12:0-19:1 -/
-def functional_payload.escape
-  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (position : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, _) := val
-    if cp = 34#u32
-    then ok (core.result.Result.Ok val)
-    else
-      if cp = 92#u32
-      then ok (core.result.Result.Ok val)
-      else
-        let re ←
-          functional_payload.error ntriples.ErrorKind.InvalidEscape slash
-        ok (core.result.Result.Err re)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      (Std.U32 × Std.Usize) (core.convert.FromSame ntriples.ReadError)
-      residual
-
-/-- [rowl_frontend::functional_payload::quoted_item]:
-    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 20:0-28:1 -/
-def functional_payload.quoted_item
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
-  (next : Std.Usize) :
-  Result (core.result.Result (Std.U32 × Std.Usize) ntriples.ReadError)
-  := do
-  if cp = 92#u32
-  then functional_payload.escape bytes position next
-  else
-    if cp = 34#u32
-    then
-      let re ←
-        functional_payload.error ntriples.ErrorKind.InvalidCharacter position
-      ok (core.result.Result.Err re)
-    else
-      let b ← unicode.xml_character cp
-      if b
-      then ok (core.result.Result.Ok (cp, next))
-      else
-        let re ←
-          functional_payload.error ntriples.ErrorKind.InvalidCharacter position
-        ok (core.result.Result.Err re)
-
-/-- [rowl_frontend::functional_payload::read_quoted]: loop 0:
-    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 36:4-50:5
-    Visibility: public -/
-@[rust_loop]
-def functional_payload.read_quoted_loop
-  (bytes : alloc.vec.Vec Std.U8) (limit : Std.Usize) (position : Std.Usize)
-  (output : alloc.vec.Vec Std.U8) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    ntriples.ReadError)
-  := do
-  let r ← ntriples.required bytes position
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    let (cp, next) := val
-    if cp = 34#u32
-    then ok (core.result.Result.Ok (output, next))
-    else
-      let r1 ← functional_payload.quoted_item bytes position cp next
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue val1 =>
-        let (value, «end») := val1
-        let o ← encoding.encode value
-        match o with
-        | none =>
-          let re ←
-            functional_payload.error ntriples.ErrorKind.InvalidCharacter
-              position
-          ok (core.result.Result.Err re)
-        | some value1 =>
-          let (b, output1) ← ntriples.append_encoded output value1 limit
-          if b
-          then functional_payload.read_quoted_loop bytes limit «end» output1
-          else
-            let re ←
-              functional_payload.error ntriples.ErrorKind.ResourceLimit
-                position
-            ok (core.result.Result.Err re)
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-          ntriples.ReadError) residual
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      ntriples.ReadError) residual
-partial_fixpoint
-
-/-- [rowl_frontend::functional_payload::read_quoted]:
-    Source: 'crates/rowl-frontend/src/functional_payload.rs', lines 33:0-51:1
-    Visibility: public -/
-def functional_payload.read_quoted
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
-  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
-    ntriples.ReadError)
-  := do
-  let r ←
-    ntriples.expect bytes start 34#u32 ntriples.ErrorKind.InvalidCharacter
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue val =>
-    functional_payload.read_quoted_loop bytes limit val (alloc.vec.Vec.new
-      Std.U8)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
-      ntriples.ReadError) residual
-
-/-- [rowl_frontend::functional_literals::string_span]:
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 116:0-137:1 -/
-def functional_literals.string_span
-  (bytes : alloc.vec.Vec Std.U8) (token : functional.Token) (limit : Std.Usize)
-  :
-  Result (core.result.Result (alloc.vec.Vec Std.U8)
-    functional_literals.SourceLiteralError)
-  := do
-  if token.start > token.end
-  then
-    ok (core.result.Result.Err
-      (functional_literals.SourceLiteralError.InvalidSpan token.start))
-  else
-    let i := alloc.vec.Vec.len bytes
-    if token.end > i
-    then
-      ok (core.result.Result.Err
-        (functional_literals.SourceLiteralError.InvalidSpan token.start))
-    else
-      let r ← functional_payload.read_quoted bytes token.start limit
-      match r with
-      | core.result.Result.Ok value =>
-        let (value1, «end») := value
-        if «end» = token.end
-        then ok (core.result.Result.Ok value1)
-        else
-          ok (core.result.Result.Err
-            (functional_literals.SourceLiteralError.InvalidSpan token.start))
-      | core.result.Result.Err error =>
-        ok (core.result.Result.Err
-          (functional_literals.SourceLiteralError.Quoted error))
-
-/-- [rowl_frontend::functional_literals::plain_lexical]:
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 138:0-144:1 -/
-def functional_literals.plain_lexical
-  (payload : alloc.vec.Vec Std.U8) (language : alloc.vec.Vec Std.U8)
-  (limit : Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.U8))
-  := do
-  let s ← lift (Array.to_slice (Array.make 1#usize [ 64#u8 ]))
-  let separator ← prefixes.copy s
-  let o ← prefixes.join payload separator limit
-  match o with
-  | none => ok none
-  | some value => prefixes.join value language limit
-
-/-- [rowl_frontend::functional_literals::plain_datatype]:
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 145:0-152:1 -/
-def functional_literals.plain_datatype
-  (limit : Std.Usize) (offset : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec Std.U8)
-    functional_literals.SourceLiteralError)
-  := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 55#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 80#u8, 108#u8, 97#u8,
-        105#u8, 110#u8, 76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
-        ]))
-  let value ← prefixes.copy s
-  let i := alloc.vec.Vec.len value
-  if i > limit
-  then
-    ok (core.result.Result.Err
-      (functional_literals.SourceLiteralError.DatatypeLimit offset))
-  else ok (core.result.Result.Ok value)
-
-/-- [rowl_frontend::functional_literals::read_literal]:
-    Source: 'crates/rowl-frontend/src/functional_literals.rs', lines 160:0-270:1
-    Visibility: public -/
-def functional_literals.read_literal
-  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
-  (tokens : functional_lexer.Tokens) (lexical_limit : Std.Usize)
-  (datatype_limit : Std.Usize) :
-  Result (core.result.Result (functional_literals.SourceLiteral ×
-    functional_lexer.Tokens) functional_literals.SourceLiteralError)
-  := do
-  let i := alloc.vec.Vec.len bytes
-  let r ← functional_literals.read_shape tokens i
-  match r with
-  | core.result.Result.Ok value =>
-    let r1 ← functional_literals.string_span bytes value.quoted lexical_limit
-    match r1 with
-    | core.result.Result.Ok value1 =>
-      match value.form with
-      | functional_literals.SourceLiteralForm.Plain =>
-        let o ←
-          functional_literals.plain_lexical value1 (alloc.vec.Vec.new Std.U8)
-            lexical_limit
-        match o with
-        | none =>
-          ok (core.result.Result.Err
-            (functional_literals.SourceLiteralError.LexicalLimit
-            value.quoted.start))
-        | some value2 =>
-          let r2 ←
-            functional_literals.plain_datatype datatype_limit
-              value.quoted.start
-          match r2 with
-          | core.result.Result.Ok value3 =>
-            ok (core.result.Result.Ok
-              ({
-                 quoted := value.quoted,
-                 form := functional_literals.SourceLiteralForm.Plain,
-                 lexical := value2,
-                 datatype := value3
-               }, value.remaining))
-          | core.result.Result.Err error => ok (core.result.Result.Err error)
-      | functional_literals.SourceLiteralForm.Language token =>
-        let r2 ←
-          functional_names.read_span functional_names.NameKind.LanguageTag
-            bytes token.start token.end lexical_limit
-        match r2 with
-        | core.result.Result.Ok value2 =>
-          let o ←
-            functional_literals.plain_lexical value1 value2 lexical_limit
-          match o with
-          | none =>
-            ok (core.result.Result.Err
-              (functional_literals.SourceLiteralError.LexicalLimit
-              value.quoted.start))
-          | some value3 =>
-            let r3 ←
-              functional_literals.plain_datatype datatype_limit
-                value.quoted.start
-            match r3 with
-            | core.result.Result.Ok value4 =>
-              ok (core.result.Result.Ok
-                ({
-                   quoted := value.quoted,
-                   form := value.form,
-                   lexical := value3,
-                   datatype := value4
-                 }, value.remaining))
-            | core.result.Result.Err error => ok (core.result.Result.Err error)
-        | core.result.Result.Err error =>
-          ok (core.result.Result.Err
-            (functional_literals.SourceLiteralError.Language error))
-      | functional_literals.SourceLiteralForm.Typed _ datatype =>
-        let o ← functional_header.iri_kind datatype.terminal
-        match o with
-        | none =>
-          ok (core.result.Result.Err
-            (functional_literals.SourceLiteralError.Expected
-            functional_literals.LiteralExpected.Datatype datatype.start))
-        | some kind =>
-          let r2 ←
-            functional_iris.resolve_span table kind bytes datatype.start
-              datatype.end datatype_limit
-          match r2 with
-          | core.result.Result.Ok value2 =>
-            ok (core.result.Result.Ok
-              ({
-                 quoted := value.quoted,
-                 form := value.form,
-                 lexical := value1,
-                 datatype := value2
-               }, value.remaining))
-          | core.result.Result.Err error =>
-            ok (core.result.Result.Err
-              (functional_literals.SourceLiteralError.Datatype error))
-    | core.result.Result.Err error => ok (core.result.Result.Err error)
-  | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_frontend::functional_names::{impl core::clone::Clone for rowl_frontend::functional_names::NameKind}::clone]:
     Source: 'crates/rowl-frontend/src/functional_names.rs', lines 8:9-8:14
