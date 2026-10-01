@@ -71,6 +71,8 @@ import Rowl.FunctionalLiteralSource
 import Rowl.FunctionalAnnotationParts
 import Rowl.FunctionalAnnotations
 import Rowl.FunctionalAnnotationSource
+import Rowl.FunctionalDeclarations
+import Rowl.FunctionalDeclarationSource
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -652,12 +654,26 @@ import Rowl.FunctionalAnnotationSource
 #print axioms Rowl.FunctionalAnnotations.scan_annotations_result_iff
 #print axioms Rowl.FunctionalAnnotations.read_annotations_total_correct
 #print axioms Rowl.FunctionalAnnotations.read_annotations_result_iff
+#print axioms Rowl.FunctionalAnnotations.scan_section_accepted
 #print axioms Rowl.FunctionalAnnotations.read_annotations_accepted_iff
 #print axioms Rowl.FunctionalAnnotations.section_maximal
 #print axioms Rowl.FunctionalAnnotations.section_records
 #print axioms Rowl.FunctionalAnnotations.section_token_count
 #print axioms Rowl.FunctionalAnnotationSource.source_prefix_annotations_result_iff
 #print axioms Rowl.FunctionalAnnotationSource.source_ontology_annotations
+#print axioms Rowl.FunctionalDeclarations.entity_kind_total_correct
+#print axioms Rowl.FunctionalDeclarations.expected_terminal_total_correct
+#print axioms Rowl.FunctionalDeclarations.take_expected_total_correct
+#print axioms Rowl.FunctionalDeclarations.take_expected_result_iff
+#print axioms Rowl.FunctionalDeclarations.take_progress
+#print axioms Rowl.FunctionalDeclarations.read_entity_total_correct
+#print axioms Rowl.FunctionalDeclarations.read_entity_result_iff
+#print axioms Rowl.FunctionalDeclarations.entity_source_value
+#print axioms Rowl.FunctionalDeclarations.read_declaration_total_correct
+#print axioms Rowl.FunctionalDeclarations.read_declaration_result_iff
+#print axioms Rowl.FunctionalDeclarations.declaration_source_values
+#print axioms Rowl.FunctionalDeclarations.declaration_token_progress
+#print axioms Rowl.FunctionalDeclarationSource.source_prefix_declaration_result_iff
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1150,3 +1166,8 @@ import Rowl.FunctionalAnnotationSource
 #print axioms Rowl.FunctionalAnnotationParts.FinishRun
 #print axioms Rowl.FunctionalAnnotations.ScanRun
 #print axioms Rowl.FunctionalAnnotations.Section
+#print axioms Rowl.FunctionalDeclarations.EntityKindOf
+#print axioms Rowl.FunctionalDeclarations.Expected
+#print axioms Rowl.FunctionalDeclarations.TakeRun
+#print axioms Rowl.FunctionalDeclarations.EntityRun
+#print axioms Rowl.FunctionalDeclarations.DeclarationRun

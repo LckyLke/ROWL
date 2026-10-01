@@ -97,3 +97,5 @@ import Rowl.FunctionalLiteralSource
 import Rowl.FunctionalAnnotationParts
 import Rowl.FunctionalAnnotations
 import Rowl.FunctionalAnnotationSource
+import Rowl.FunctionalDeclarations
+import Rowl.FunctionalDeclarationSource

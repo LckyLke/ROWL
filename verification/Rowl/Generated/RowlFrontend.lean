@@ -4674,6 +4674,487 @@ def functional_annotations.read_annotations
   functional_annotations.scan_annotations table bytes tokens (alloc.vec.Vec.new
     functional_annotations.SourceAnnotation) limits.depth limits
 
+/-- [rowl_frontend::functional_declarations::SourceEntityKind]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 16:0-23:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_declarations.SourceEntityKind where
+| Class : functional_declarations.SourceEntityKind
+| Datatype : functional_declarations.SourceEntityKind
+| ObjectProperty : functional_declarations.SourceEntityKind
+| DataProperty : functional_declarations.SourceEntityKind
+| AnnotationProperty : functional_declarations.SourceEntityKind
+| NamedIndividual : functional_declarations.SourceEntityKind
+
+/-- [rowl_frontend::functional_declarations::{impl core::clone::Clone for rowl_frontend::functional_declarations::SourceEntityKind}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 15:9-15:14
+    Visibility: public -/
+def functional_declarations.SourceEntityKind.Insts.CoreCloneClone.clone
+  (self : functional_declarations.SourceEntityKind) :
+  Result functional_declarations.SourceEntityKind
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_declarations::{impl core::clone::Clone for rowl_frontend::functional_declarations::SourceEntityKind}]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 15:9-15:14 -/
+@[reducible]
+def functional_declarations.SourceEntityKind.Insts.CoreCloneClone :
+  core.clone.Clone functional_declarations.SourceEntityKind := {
+  clone := functional_declarations.SourceEntityKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_declarations::{impl core::marker::Copy for rowl_frontend::functional_declarations::SourceEntityKind}]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 15:16-15:20 -/
+@[reducible]
+def functional_declarations.SourceEntityKind.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_declarations.SourceEntityKind := {
+  cloneInst := functional_declarations.SourceEntityKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_declarations::SourceEntity]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 24:0-28:1
+    Visibility: public -/
+structure functional_declarations.SourceEntity where
+  kind : functional_declarations.SourceEntityKind
+  keyword : functional.Token
+  iri : functional_header.HeaderIri
+
+/-- [rowl_frontend::functional_declarations::SourceDeclaration]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 29:0-33:1
+    Visibility: public -/
+structure functional_declarations.SourceDeclaration where
+  keyword : functional.Token
+  annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
+  entity : functional_declarations.SourceEntity
+
+/-- [rowl_frontend::functional_declarations::DeclarationExpected]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 35:0-41:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_declarations.DeclarationExpected where
+| Declaration : functional_declarations.DeclarationExpected
+| Open : functional_declarations.DeclarationExpected
+| Entity : functional_declarations.DeclarationExpected
+| Iri : functional_declarations.DeclarationExpected
+| Close : functional_declarations.DeclarationExpected
+
+/-- [rowl_frontend::functional_declarations::{impl core::clone::Clone for rowl_frontend::functional_declarations::DeclarationExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 34:9-34:14
+    Visibility: public -/
+def functional_declarations.DeclarationExpected.Insts.CoreCloneClone.clone
+  (self : functional_declarations.DeclarationExpected) :
+  Result functional_declarations.DeclarationExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_declarations::{impl core::clone::Clone for rowl_frontend::functional_declarations::DeclarationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 34:9-34:14 -/
+@[reducible]
+def functional_declarations.DeclarationExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_declarations.DeclarationExpected := {
+  clone :=
+    functional_declarations.DeclarationExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_declarations::{impl core::marker::Copy for rowl_frontend::functional_declarations::DeclarationExpected}]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 34:16-34:20 -/
+@[reducible]
+def functional_declarations.DeclarationExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_declarations.DeclarationExpected := {
+  cloneInst := functional_declarations.DeclarationExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_declarations::DeclarationError]
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 42:0-49:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_declarations.DeclarationError where
+| Expected :
+  functional_declarations.DeclarationExpected →
+  Std.Usize →
+  functional_declarations.DeclarationError
+| Annotation :
+  functional_annotations.AnnotationError →
+  functional_declarations.DeclarationError
+| Iri :
+  functional_iris.SourceIriError →
+  functional_declarations.DeclarationError
+
+/-- [rowl_frontend::functional_declarations::entity_kind]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 50:0-62:1 -/
+def functional_declarations.entity_kind
+  (terminal : functional.Terminal) :
+  Result (Option functional_declarations.SourceEntityKind)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok none
+    | functional.Keyword.Ontology => ok none
+    | functional.Keyword.Import => ok none
+    | functional.Keyword.Declaration => ok none
+    | functional.Keyword.Class =>
+      ok (some functional_declarations.SourceEntityKind.Class)
+    | functional.Keyword.Datatype =>
+      ok (some functional_declarations.SourceEntityKind.Datatype)
+    | functional.Keyword.ObjectProperty =>
+      ok (some functional_declarations.SourceEntityKind.ObjectProperty)
+    | functional.Keyword.DataProperty =>
+      ok (some functional_declarations.SourceEntityKind.DataProperty)
+    | functional.Keyword.AnnotationProperty =>
+      ok (some functional_declarations.SourceEntityKind.AnnotationProperty)
+    | functional.Keyword.NamedIndividual =>
+      ok (some functional_declarations.SourceEntityKind.NamedIndividual)
+    | functional.Keyword.Annotation => ok none
+    | functional.Keyword.AnnotationAssertion => ok none
+    | functional.Keyword.SubAnnotationPropertyOf => ok none
+    | functional.Keyword.AnnotationPropertyDomain => ok none
+    | functional.Keyword.AnnotationPropertyRange => ok none
+    | functional.Keyword.ObjectInverseOf => ok none
+    | functional.Keyword.DataIntersectionOf => ok none
+    | functional.Keyword.DataUnionOf => ok none
+    | functional.Keyword.DataComplementOf => ok none
+    | functional.Keyword.DataOneOf => ok none
+    | functional.Keyword.DatatypeRestriction => ok none
+    | functional.Keyword.ObjectIntersectionOf => ok none
+    | functional.Keyword.ObjectUnionOf => ok none
+    | functional.Keyword.ObjectComplementOf => ok none
+    | functional.Keyword.ObjectOneOf => ok none
+    | functional.Keyword.ObjectSomeValuesFrom => ok none
+    | functional.Keyword.ObjectAllValuesFrom => ok none
+    | functional.Keyword.ObjectHasValue => ok none
+    | functional.Keyword.ObjectHasSelf => ok none
+    | functional.Keyword.ObjectMinCardinality => ok none
+    | functional.Keyword.ObjectMaxCardinality => ok none
+    | functional.Keyword.ObjectExactCardinality => ok none
+    | functional.Keyword.DataSomeValuesFrom => ok none
+    | functional.Keyword.DataAllValuesFrom => ok none
+    | functional.Keyword.DataHasValue => ok none
+    | functional.Keyword.DataMinCardinality => ok none
+    | functional.Keyword.DataMaxCardinality => ok none
+    | functional.Keyword.DataExactCardinality => ok none
+    | functional.Keyword.SubClassOf => ok none
+    | functional.Keyword.EquivalentClasses => ok none
+    | functional.Keyword.DisjointClasses => ok none
+    | functional.Keyword.DisjointUnion => ok none
+    | functional.Keyword.SubObjectPropertyOf => ok none
+    | functional.Keyword.ObjectPropertyChain => ok none
+    | functional.Keyword.EquivalentObjectProperties => ok none
+    | functional.Keyword.DisjointObjectProperties => ok none
+    | functional.Keyword.ObjectPropertyDomain => ok none
+    | functional.Keyword.ObjectPropertyRange => ok none
+    | functional.Keyword.InverseObjectProperties => ok none
+    | functional.Keyword.FunctionalObjectProperty => ok none
+    | functional.Keyword.InverseFunctionalObjectProperty => ok none
+    | functional.Keyword.ReflexiveObjectProperty => ok none
+    | functional.Keyword.IrreflexiveObjectProperty => ok none
+    | functional.Keyword.SymmetricObjectProperty => ok none
+    | functional.Keyword.AsymmetricObjectProperty => ok none
+    | functional.Keyword.TransitiveObjectProperty => ok none
+    | functional.Keyword.SubDataPropertyOf => ok none
+    | functional.Keyword.EquivalentDataProperties => ok none
+    | functional.Keyword.DisjointDataProperties => ok none
+    | functional.Keyword.DataPropertyDomain => ok none
+    | functional.Keyword.DataPropertyRange => ok none
+    | functional.Keyword.FunctionalDataProperty => ok none
+    | functional.Keyword.DatatypeDefinition => ok none
+    | functional.Keyword.HasKey => ok none
+    | functional.Keyword.SameIndividual => ok none
+    | functional.Keyword.DifferentIndividuals => ok none
+    | functional.Keyword.ClassAssertion => ok none
+    | functional.Keyword.ObjectPropertyAssertion => ok none
+    | functional.Keyword.NegativeObjectPropertyAssertion => ok none
+    | functional.Keyword.DataPropertyAssertion => ok none
+    | functional.Keyword.NegativeDataPropertyAssertion => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId => ok none
+  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri => ok none
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_frontend::functional_declarations::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 63:0-73:1 -/
+def functional_declarations.expected_terminal
+  (expected : functional_declarations.DeclarationExpected)
+  (terminal : functional.Terminal) :
+  Result Bool
+  := do
+  match expected with
+  | functional_declarations.DeclarationExpected.Declaration =>
+    match terminal with
+    | functional.Terminal.Keyword k =>
+      match k with
+      | functional.Keyword.Prefix => ok false
+      | functional.Keyword.Ontology => ok false
+      | functional.Keyword.Import => ok false
+      | functional.Keyword.Declaration => ok true
+      | functional.Keyword.Class => ok false
+      | functional.Keyword.Datatype => ok false
+      | functional.Keyword.ObjectProperty => ok false
+      | functional.Keyword.DataProperty => ok false
+      | functional.Keyword.AnnotationProperty => ok false
+      | functional.Keyword.NamedIndividual => ok false
+      | functional.Keyword.Annotation => ok false
+      | functional.Keyword.AnnotationAssertion => ok false
+      | functional.Keyword.SubAnnotationPropertyOf => ok false
+      | functional.Keyword.AnnotationPropertyDomain => ok false
+      | functional.Keyword.AnnotationPropertyRange => ok false
+      | functional.Keyword.ObjectInverseOf => ok false
+      | functional.Keyword.DataIntersectionOf => ok false
+      | functional.Keyword.DataUnionOf => ok false
+      | functional.Keyword.DataComplementOf => ok false
+      | functional.Keyword.DataOneOf => ok false
+      | functional.Keyword.DatatypeRestriction => ok false
+      | functional.Keyword.ObjectIntersectionOf => ok false
+      | functional.Keyword.ObjectUnionOf => ok false
+      | functional.Keyword.ObjectComplementOf => ok false
+      | functional.Keyword.ObjectOneOf => ok false
+      | functional.Keyword.ObjectSomeValuesFrom => ok false
+      | functional.Keyword.ObjectAllValuesFrom => ok false
+      | functional.Keyword.ObjectHasValue => ok false
+      | functional.Keyword.ObjectHasSelf => ok false
+      | functional.Keyword.ObjectMinCardinality => ok false
+      | functional.Keyword.ObjectMaxCardinality => ok false
+      | functional.Keyword.ObjectExactCardinality => ok false
+      | functional.Keyword.DataSomeValuesFrom => ok false
+      | functional.Keyword.DataAllValuesFrom => ok false
+      | functional.Keyword.DataHasValue => ok false
+      | functional.Keyword.DataMinCardinality => ok false
+      | functional.Keyword.DataMaxCardinality => ok false
+      | functional.Keyword.DataExactCardinality => ok false
+      | functional.Keyword.SubClassOf => ok false
+      | functional.Keyword.EquivalentClasses => ok false
+      | functional.Keyword.DisjointClasses => ok false
+      | functional.Keyword.DisjointUnion => ok false
+      | functional.Keyword.SubObjectPropertyOf => ok false
+      | functional.Keyword.ObjectPropertyChain => ok false
+      | functional.Keyword.EquivalentObjectProperties => ok false
+      | functional.Keyword.DisjointObjectProperties => ok false
+      | functional.Keyword.ObjectPropertyDomain => ok false
+      | functional.Keyword.ObjectPropertyRange => ok false
+      | functional.Keyword.InverseObjectProperties => ok false
+      | functional.Keyword.FunctionalObjectProperty => ok false
+      | functional.Keyword.InverseFunctionalObjectProperty => ok false
+      | functional.Keyword.ReflexiveObjectProperty => ok false
+      | functional.Keyword.IrreflexiveObjectProperty => ok false
+      | functional.Keyword.SymmetricObjectProperty => ok false
+      | functional.Keyword.AsymmetricObjectProperty => ok false
+      | functional.Keyword.TransitiveObjectProperty => ok false
+      | functional.Keyword.SubDataPropertyOf => ok false
+      | functional.Keyword.EquivalentDataProperties => ok false
+      | functional.Keyword.DisjointDataProperties => ok false
+      | functional.Keyword.DataPropertyDomain => ok false
+      | functional.Keyword.DataPropertyRange => ok false
+      | functional.Keyword.FunctionalDataProperty => ok false
+      | functional.Keyword.DatatypeDefinition => ok false
+      | functional.Keyword.HasKey => ok false
+      | functional.Keyword.SameIndividual => ok false
+      | functional.Keyword.DifferentIndividuals => ok false
+      | functional.Keyword.ClassAssertion => ok false
+      | functional.Keyword.ObjectPropertyAssertion => ok false
+      | functional.Keyword.NegativeObjectPropertyAssertion => ok false
+      | functional.Keyword.DataPropertyAssertion => ok false
+      | functional.Keyword.NegativeDataPropertyAssertion => ok false
+    | functional.Terminal.Open => ok false
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_declarations.DeclarationExpected.Open =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok true
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_declarations.DeclarationExpected.Entity =>
+    let o ← functional_declarations.entity_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_declarations.DeclarationExpected.Iri =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_declarations.DeclarationExpected.Close =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok false
+    | functional.Terminal.Close => ok true
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_declarations::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 74:0-95:1 -/
+def functional_declarations.take_expected
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_declarations.DeclarationExpected) (eof : Std.Usize) :
+  Result (core.result.Result (functional.Token × functional_lexer.Tokens)
+    functional_declarations.DeclarationError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err
+      (functional_declarations.DeclarationError.Expected expected eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_declarations.expected_terminal expected token.terminal
+    if b
+    then ok (core.result.Result.Ok (token, next))
+    else
+      ok (core.result.Result.Err
+        (functional_declarations.DeclarationError.Expected expected
+        token.start))
+
+/-- [rowl_frontend::functional_declarations::read_entity]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 96:0-148:1 -/
+def functional_declarations.read_entity
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_declarations.SourceEntity ×
+    functional_lexer.Tokens) functional_declarations.DeclarationError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_declarations.take_expected tokens
+      functional_declarations.DeclarationExpected.Entity i
+  match r with
+  | core.result.Result.Ok value =>
+    let (keyword, tokens1) := value
+    let o ← functional_declarations.entity_kind keyword.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_declarations.DeclarationError.Expected
+        functional_declarations.DeclarationExpected.Entity keyword.start))
+    | some kind =>
+      let i1 := alloc.vec.Vec.len bytes
+      let r1 ←
+        functional_declarations.take_expected tokens1
+          functional_declarations.DeclarationExpected.Open i1
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (_, tokens2) := value1
+        let i2 := alloc.vec.Vec.len bytes
+        let r2 ←
+          functional_declarations.take_expected tokens2
+            functional_declarations.DeclarationExpected.Iri i2
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let (token, tokens3) := value2
+          let o1 ← functional_header.iri_kind token.terminal
+          match o1 with
+          | none =>
+            ok (core.result.Result.Err
+              (functional_declarations.DeclarationError.Expected
+              functional_declarations.DeclarationExpected.Iri token.start))
+          | some family =>
+            let r3 ←
+              functional_iris.resolve_span table family bytes token.start
+                token.end limit
+            match r3 with
+            | core.result.Result.Ok value3 =>
+              let i3 := alloc.vec.Vec.len bytes
+              let r4 ←
+                functional_declarations.take_expected tokens3
+                  functional_declarations.DeclarationExpected.Close i3
+              match r4 with
+              | core.result.Result.Ok value4 =>
+                let (_, remaining) := value4
+                ok (core.result.Result.Ok
+                  ({ kind, keyword, iri := { token, value := value3 } },
+                  remaining))
+              | core.result.Result.Err error =>
+                ok (core.result.Result.Err error)
+            | core.result.Result.Err error =>
+              ok (core.result.Result.Err
+                (functional_declarations.DeclarationError.Iri error))
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_declarations::read_declaration]:
+    Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 157:0-192:1
+    Visibility: public -/
+def functional_declarations.read_declaration
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_annotations.AnnotationLimits) :
+  Result (core.result.Result (functional_declarations.SourceDeclaration ×
+    functional_lexer.Tokens) functional_declarations.DeclarationError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_declarations.take_expected tokens
+      functional_declarations.DeclarationExpected.Declaration i
+  match r with
+  | core.result.Result.Ok value =>
+    let (keyword, tokens1) := value
+    let i1 := alloc.vec.Vec.len bytes
+    let r1 ←
+      functional_declarations.take_expected tokens1
+        functional_declarations.DeclarationExpected.Open i1
+    match r1 with
+    | core.result.Result.Ok value1 =>
+      let (_, tokens2) := value1
+      let r2 ←
+        functional_annotations.read_annotations table bytes tokens2 limits
+      match r2 with
+      | core.result.Result.Ok value2 =>
+        let r3 ←
+          functional_declarations.read_entity table bytes value2.remaining
+            limits.iri
+        match r3 with
+        | core.result.Result.Ok value3 =>
+          let (entity, tokens3) := value3
+          let i2 := alloc.vec.Vec.len bytes
+          let r4 ←
+            functional_declarations.take_expected tokens3
+              functional_declarations.DeclarationExpected.Close i2
+          match r4 with
+          | core.result.Result.Ok value4 =>
+            let (_, remaining) := value4
+            ok (core.result.Result.Ok
+              ({ keyword, annotations := value2.annotations, entity },
+              remaining))
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err
+          (functional_declarations.DeclarationError.Annotation error))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
 /-- [rowl_frontend::functional_header::SourceOntologyIdentity]
     Source: 'crates/rowl-frontend/src/functional_header.rs', lines 14:0-20:1
     Visibility: public -/

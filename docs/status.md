@@ -436,15 +436,26 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and header reading compose on precisely the source namespace rows. Anonymous
   scopes, kernel Annotation values, axioms, the closing token and complete document
   construction remain pending.
-- 586 audited public theorems and 492 audited semantic definitions. No full OWL
+- M3 Functional Syntax entity declarations. The actual reader takes one
+  `Declaration( {Annotation} Entity )` axiom at a caller-supplied position, for all
+  six entity kinds. Axiom annotations reuse the proved annotation reader and its
+  limits; the entity IRI resolves its original span through the checked prefix
+  table. Errors report the first failing step in source order with original
+  offsets. Totality and exact result/error equivalence to an independent grammar
+  are proved; success gives the keyword's exact entity kind, a source-linked IRI,
+  the independent annotation section and at least seven consumed tokens. Source
+  composition uses the namespace rows parsed from the same bytes. Declaration
+  typing remains the existing separate kernel check; the axiom loop, the other
+  axiom forms, the closing token and complete document construction remain pending.
+- 600 audited public theorems and 497 audited semantic definitions. No full OWL
   decision procedure is proved yet. See m3-m4-progress.md for the input contracts.
-- 314 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 322 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 779-obligation release ledger and separate checked constructor and built-in inventories.
+- A 793-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -490,9 +501,10 @@ constructor enforces reserved names and duplicates. The composition theorems
 connect that exact source table to IRI value/error contracts. The following
 ontology/version identity and maximal leading imports also have source-derived
 value/error composition proofs. Ontology annotations, including nested ones,
-now have source-derived value/error composition proofs as well. Axioms and
-closing syntax are returned as tokens; complete grammar/AST and canonical
-catalog/import construction remain pending.
+now have source-derived value/error composition proofs as well, and so do single
+entity declarations at a supplied axiom position. The other axioms, the axiom
+loop and closing syntax are returned as tokens; complete grammar/AST and
+canonical catalog/import construction remain pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. The concrete normative OWL map is unimplemented. Semantic

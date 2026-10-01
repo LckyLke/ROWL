@@ -358,6 +358,17 @@ private theorem section_scan {rows : List prefixes.Declaration} {source : List U
       (by simpa using contents) ending (by simp; omega)
     exact .annotation (nested := ⟨nested,middle⟩) annotationKind (by omega) opened nestedRun finish laterRun
 
+/-- A successful top-level sequence derivation is exactly the independent maximal
+    section, within the count limit; later axiom stages use it for their annotations. -/
+theorem scan_section_accepted {rows : List prefixes.Declaration} {source : List U8} {eof : Usize}
+    {count iriLimit lexLimit depth : Nat} {tokens : Tokens} {output : SourceAnnotations}
+    (run : ScanRun rows source eof count iriLimit lexLimit depth tokens [] (.Ok output)) :
+    output.annotations.val.length ≤ count ∧
+      Section rows source eof count iriLimit lexLimit depth tokens output.annotations.val output.remaining := by
+  obtain ⟨bound,annotations,derivation,contents⟩ := scan_section run output rfl (by simp)
+  simp only [List.nil_append] at contents
+  exact ⟨bound,by rw [contents]; exact derivation⟩
+
 /-- Successful public reading is exactly the independent maximal section grammar
     with the top-level count bound; nested bounds are part of the section. -/
 theorem read_annotations_accepted_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
@@ -369,10 +380,8 @@ theorem read_annotations_accepted_iff (table : prefixes.PrefixTable) (bytes : al
   rw [read_annotations_result_iff]
   constructor
   · intro run
-    obtain ⟨bound,annotations,derivation,contents⟩ := scan_section run output rfl (by simp)
-    simp only [List.nil_append] at contents
-    rw [contents]
-    exact ⟨derivation,by simpa [contents] using bound⟩
+    obtain ⟨bound,derivation⟩ := scan_section_accepted run
+    exact ⟨derivation,bound⟩
   · intro accepted
     exact section_scan accepted.1 [] output (by simp) rfl (by simpa using accepted.2)
 

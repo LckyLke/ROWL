@@ -1916,3 +1916,56 @@ This block adds 27 public theorems and 8 independent definitions: totals are
 586 audited theorems, 492 definitions, 314 Rust regressions and 779 ledger
 obligations. Full M3/M4, all required formats/export laws, normative datatypes,
 SROIQ/query and complete byte-to-answer release proofs remain pending.
+
+
+## M3: Functional Syntax entity declarations
+
+`functional_declarations::read_declaration` borrows the checked prefix table and
+original byte buffer and reads exactly one `Declaration( {Annotation} Entity )`
+axiom at a caller-supplied position. The entity is `Class`, `Datatype`,
+`ObjectProperty`, `DataProperty`, `AnnotationProperty` or `NamedIndividual`
+applied to one full or abbreviated IRI. The axiom annotations reuse the proved
+annotation reader with the caller's `AnnotationLimits`; the entity IRI resolves
+its original span through the checked table under the same `iri` limit. The
+record keeps the original `Declaration` and entity keyword tokens, the IRI token
+and its exact value; the suffix after the closing parenthesis stays unchanged.
+
+Errors report the first failing step in source order: the `Declaration` keyword,
+`(`, the axiom annotations, the entity keyword, its `(`, the IRI token, the IRI
+resolution, then both `)` tokens. EOF errors use the source length. As in the
+annotation stage, the IRI is resolved before the closing tokens are checked.
+
+FunctionalDeclarations proves entity-keyword classification and the one-token
+syntax step exact, and the actual entity and declaration readers total, with
+exact result/error equivalence to the independent EntityRun and DeclarationRun
+derivations. The declaration grammar uses the independent annotation ScanRun for
+its axiom annotations. The fallbacks after a checked entity keyword or IRI token
+cannot occur. Success gives the keyword's exact entity kind, a source-linked IRI
+value, axiom annotations equal to the independent maximal annotation Section, and
+at least seven consumed tokens plus five per top-level annotation, the progress
+fact a later axiom loop needs. FunctionalDeclarationSource composes original
+whole-byte prefix parsing and normative table checking with the declaration
+contract. The new public FunctionalAnnotations.scan_section_accepted lemma turns
+any successful top-level annotation derivation into its Section.
+
+The reader constructs source records only. Declaration typing, punning and the
+reserved vocabulary stay the existing separate kernel checks; for example,
+`Declaration(ObjectProperty(owl:Thing))` is read here, and the reserved-vocabulary
+check rejects it once declarations reach the kernel model. That mapping, the axiom
+loop, the other axiom forms, the ontology
+closing token, complete document/AST construction, canonical imports/provenance
+and kernel Declaration values remain pending.
+
+Six frontend and two public-library regressions cover all six entity kinds with
+exact tokens and IRIs, nested and anonymous-valued axiom annotations with their
+depth and count limits, every missing or wrong terminal with its EOF or token
+offset, IRI resolution and budget failures, source-order priority, reserved and
+punned names left to later checks, and multibyte Unicode offsets. The
+maintenance-declarations.ofn fixture and the runnable functional_declarations
+example read all seven declarations of a source document, including one with an
+axiom annotation, and stop at the ontology's closing token.
+
+This block adds 14 public theorems and 5 independent definitions: totals are
+600 audited theorems, 497 definitions, 322 Rust regressions and 793 ledger
+obligations. Full M3/M4, all required formats/export laws, normative datatypes,
+SROIQ/query and complete byte-to-answer release proofs remain pending.

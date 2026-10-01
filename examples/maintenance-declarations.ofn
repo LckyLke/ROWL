@@ -1,0 +1,10 @@
+Prefix(ex:=<https://example.org/maintenance/>)
+Ontology(ex:plant
+ Annotation(rdfs:label "Pump 7"@de)
+ Declaration(Class(ex:Machine))
+ Declaration(Class(ex:FaultyPart))
+ Declaration(ObjectProperty(ex:hasPart))
+ Declaration(DataProperty(ex:faultCode))
+ Declaration(NamedIndividual(ex:pump1))
+ Declaration(Annotation(rdfs:comment "Installed in hall 3") NamedIndividual(ex:motor1))
+ Declaration(AnnotationProperty(ex:inspectedBy)))

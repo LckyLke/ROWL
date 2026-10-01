@@ -1011,6 +1011,7 @@
         "Rowl.FunctionalAnnotations.scan_annotations_result_iff",
         "Rowl.FunctionalAnnotations.read_annotations_total_correct",
         "Rowl.FunctionalAnnotations.read_annotations_result_iff",
+        "Rowl.FunctionalAnnotations.scan_section_accepted",
         "Rowl.FunctionalAnnotations.read_annotations_accepted_iff",
         "Rowl.FunctionalAnnotations.section_maximal",
         "Rowl.FunctionalAnnotations.section_records",
@@ -1023,6 +1024,31 @@
       "theorems": [
         "Rowl.FunctionalAnnotationSource.source_prefix_annotations_result_iff",
         "Rowl.FunctionalAnnotationSource.source_ontology_annotations"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalDeclarations",
+      "namespace": "Rowl.FunctionalDeclarations",
+      "theorems": [
+        "Rowl.FunctionalDeclarations.entity_kind_total_correct",
+        "Rowl.FunctionalDeclarations.expected_terminal_total_correct",
+        "Rowl.FunctionalDeclarations.take_expected_total_correct",
+        "Rowl.FunctionalDeclarations.take_expected_result_iff",
+        "Rowl.FunctionalDeclarations.take_progress",
+        "Rowl.FunctionalDeclarations.read_entity_total_correct",
+        "Rowl.FunctionalDeclarations.read_entity_result_iff",
+        "Rowl.FunctionalDeclarations.entity_source_value",
+        "Rowl.FunctionalDeclarations.read_declaration_total_correct",
+        "Rowl.FunctionalDeclarations.read_declaration_result_iff",
+        "Rowl.FunctionalDeclarations.declaration_source_values",
+        "Rowl.FunctionalDeclarations.declaration_token_progress"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalDeclarationSource",
+      "namespace": "Rowl.FunctionalDeclarationSource",
+      "theorems": [
+        "Rowl.FunctionalDeclarationSource.source_prefix_declaration_result_iff"
       ]
     }
   ],
@@ -1518,6 +1544,11 @@
     "Rowl.FunctionalAnnotationParts.ValueRun",
     "Rowl.FunctionalAnnotationParts.FinishRun",
     "Rowl.FunctionalAnnotations.ScanRun",
-    "Rowl.FunctionalAnnotations.Section"
+    "Rowl.FunctionalAnnotations.Section",
+    "Rowl.FunctionalDeclarations.EntityKindOf",
+    "Rowl.FunctionalDeclarations.Expected",
+    "Rowl.FunctionalDeclarations.TakeRun",
+    "Rowl.FunctionalDeclarations.EntityRun",
+    "Rowl.FunctionalDeclarations.DeclarationRun"
   ]
 }

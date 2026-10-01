@@ -793,3 +793,17 @@ canonical import assembler, so the source record keeps the original token and
 does not invent a scope. The stage returns source records, not kernel
 `Annotation` values; the mapping to the raw OWL model belongs with complete
 document construction.
+
+
+### Functional Syntax declarations
+
+`read_declaration` reads one `Declaration` axiom at a caller-supplied position;
+the axiom loop that dispatches on every axiom keyword is a later stage. Its errors
+follow source order, like the annotation reader: the entity IRI is resolved before
+the two closing parentheses are checked. Axiom annotations take the caller's
+`AnnotationLimits`, and the entity IRI uses the same `iri` limit as every other
+final IRI.
+
+The reader builds source records only. Typing, punning and reserved-vocabulary
+rules belong to the existing kernel checks, which run on the complete axiom
+closure. Checking them per declaration here would miss conflicts between axioms.
