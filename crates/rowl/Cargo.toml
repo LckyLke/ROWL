@@ -1,0 +1,13 @@
+[package]
+name = "rowl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rowl-kernel = { path = "../rowl-kernel" }
+rowl-frontend = { path = "../rowl-frontend" }
+
+[lints]
+workspace = true

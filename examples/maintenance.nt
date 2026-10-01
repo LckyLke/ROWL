@@ -1,0 +1,14 @@
+# Asset inspection graph. N-Triples parsing preserves all these facts; OWL
+# inference from this graph requires the later RDF-to-OWL mapping and reasoner.
+<urn:plant:pump1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:plant:Machine> .
+<urn:plant:pump1> <urn:plant:hasPart> _:motor1 .
+_:motor1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:plant:FaultyPart> .
+_:motor1 <urn:plant:serial> "01"^^<http://www.w3.org/2001/XMLSchema#integer> .
+_:motor1 <http://www.w3.org/2000/01/rdf-schema#label> "Antriebsmotor"@de-DE .
+_:motor1 <http://www.w3.org/2000/01/rdf-schema#label> "Drive motor"@en .
+<urn:plant:pump1> <urn:plant:installedAt> <urn:plant:buildingA> .
+<urn:plant:pump1> <urn:plant:inspectionNote> "Check bearing\nTemperature: 81 °C" .
+<urn:plant:Machine> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<urn:plant:FaultyPart> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<urn:plant:NeedsInspection> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<urn:plant:hasPart> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .

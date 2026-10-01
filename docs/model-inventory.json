@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "scope": "M2 raw structure and declarative semantics, not parsing, DL validation or reasoning",
+  "syntax": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
+  "semantics": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+  "enums": {
+    "Entity": [
+      "Class",
+      "Datatype",
+      "ObjectProperty",
+      "DataProperty",
+      "AnnotationProperty",
+      "NamedIndividual"
+    ],
+    "Individual": [
+      "Named",
+      "Anonymous"
+    ],
+    "ObjectPropertyExpression": [
+      "Property",
+      "Inverse"
+    ],
+    "DataRange": [
+      "Datatype",
+      "Intersection",
+      "Union",
+      "Complement",
+      "OneOf",
+      "Restriction"
+    ],
+    "ClassExpression": [
+      "Class",
+      "ObjectIntersectionOf",
+      "ObjectUnionOf",
+      "ObjectComplementOf",
+      "ObjectOneOf",
+      "ObjectSomeValuesFrom",
+      "ObjectAllValuesFrom",
+      "ObjectHasValue",
+      "ObjectHasSelf",
+      "ObjectMinCardinality",
+      "ObjectMaxCardinality",
+      "ObjectExactCardinality",
+      "DataSomeValuesFrom",
+      "DataAllValuesFrom",
+      "DataHasValue",
+      "DataMinCardinality",
+      "DataMaxCardinality",
+      "DataExactCardinality"
+    ],
+    "Axiom": [
+      "Declaration",
+      "SubClassOf",
+      "EquivalentClasses",
+      "DisjointClasses",
+      "DisjointUnion",
+      "SubObjectPropertyOf",
+      "EquivalentObjectProperties",
+      "DisjointObjectProperties",
+      "InverseObjectProperties",
+      "ObjectPropertyDomain",
+      "ObjectPropertyRange",
+      "FunctionalObjectProperty",
+      "InverseFunctionalObjectProperty",
+      "ReflexiveObjectProperty",
+      "IrreflexiveObjectProperty",
+      "SymmetricObjectProperty",
+      "AsymmetricObjectProperty",
+      "TransitiveObjectProperty",
+      "SubDataPropertyOf",
+      "EquivalentDataProperties",
+      "DisjointDataProperties",
+      "DataPropertyDomain",
+      "DataPropertyRange",
+      "FunctionalDataProperty",
+      "DatatypeDefinition",
+      "HasKey",
+      "SameIndividual",
+      "DifferentIndividuals",
+      "ClassAssertion",
+      "ObjectPropertyAssertion",
+      "NegativeObjectPropertyAssertion",
+      "DataPropertyAssertion",
+      "NegativeDataPropertyAssertion",
+      "AnnotationAssertion",
+      "SubAnnotationPropertyOf",
+      "AnnotationPropertyDomain",
+      "AnnotationPropertyRange"
+    ],
+    "AnnotationSubject": [
+      "Iri",
+      "Anonymous"
+    ],
+    "AnnotationValue": [
+      "Iri",
+      "Anonymous",
+      "Literal"
+    ],
+    "SubObjectPropertyExpression": [
+      "Single",
+      "Chain"
+    ],
+    "OntologyIdentity": [
+      "Anonymous",
+      "Named"
+    ]
+  },
+  "semantic_matches": {
+    "Individual": "individual",
+    "ObjectPropertyExpression": "objectRelation",
+    "DataRange": "dataDenote",
+    "ClassExpression": "classDenote",
+    "Axiom": "satisfies"
+  },
+  "collection_matches": {
+    "Entity": "entityUses",
+    "DataRange": "rangeUses",
+    "ClassExpression": "classUses",
+    "Axiom": "axiomUses"
+  },
+  "anonymous_matches": {
+    "Individual": "Named",
+    "ClassExpression": "ClassAllowed",
+    "Axiom": "AxiomAllowed"
+  }
+}

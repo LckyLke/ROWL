@@ -1,0 +1,16 @@
+[package]
+name = "rowl-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rowl"
+path = "src/main.rs"
+
+[dependencies]
+rowl = { path = "../rowl" }
+
+[lints]
+workspace = true

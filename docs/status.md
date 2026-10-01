@@ -1,0 +1,516 @@
+# Implementation status
+
+M0, M1 feasibility probes and M2 structural representation/independent semantics
+are complete. M3 and M4 have verified components; both milestones remain in
+progress. Full OWL parsing and executable reasoning are still future work.
+
+## Working now
+
+- Four Rust workspace crates; unsafe forbidden, publication disabled.
+- The original two-atom Boolean kernel, with checked soundness, completeness and
+  termination linked to the actual Rust extraction.
+- Four further M1 operations with total-correctness proofs: Vec slot mutation,
+  ASCII digit recognition, recursive immutable opaque-key/byte lookup, and exact
+  unary-natural addition. These are primitives, not a parser or import closure.
+- M2 raw role-typed structures: all 18 standard class forms, six data ranges,
+  37 axiom variants, entities, scoped anonymous individuals, literals, nested
+  annotations, ontology/version headers and import references.
+- Actual Rust property inversion, proved total, involutive and semantically correct.
+- Independent Lean Direct Semantics over extracted Rust types: interpretation,
+  datatype-map/vocabulary conditions, expression and axiom meanings, closure
+  satisfaction, anonymous reinterpretation for models and inference definitions.
+  Domains can be infinite; data domains may extend the datatype map.
+- M3 symbol-indexed catalog closure with termination on cyclic imports, exact
+  reachability, verbatim payload preservation and duplicate/missing-document
+  diagnostics. Import metadata is supplied explicitly; OWL byte parsing is pending.
+- M3 strict RFC 3629 UTF-8 decoding with exact byte offsets and XML character
+  checking. Complete text acceptance is proved in both directions; malformed
+  units and forbidden characters return the first unit offset.
+- M3 composition of indexed closure and reachable-source text checks, retaining
+  verbatim bytes and diagnosing the failing document. This is a UTF-8 text stage,
+  not a grammar parser or support for every XML encoding.
+- M3 raw RDF 1.1 positional terms and datasets, with a default graph and explicit
+  named-graph records, including empty graphs and shared scoped blank identities.
+  Actual graph selection checks unique names, distinguishes missing from empty,
+  and retains the whole dataset. Exact name comparison, total correctness,
+  selection preservation and both acceptance equivalences are proved.
+  Term lexical validity, parser-assigned scopes and serialization remain pending.
+- M3 whole-byte regular-language recognition: exact structural copying,
+  nullable/union/concatenation/Kleene closure laws, derivative preservation,
+  total UTF-8 scanning, sound/complete acceptance and exact malformed-unit
+  diagnostics. Grammar mismatch does not hide a malformed suffix.
+- M3 complete RFC 3987 IRI and IRI-reference lexical recognition from bytes,
+  including IPv6/IPvFuture, all Unicode ranges, percent escapes and query-only
+  private characters. The actual compiled grammar is proved equivalent to the
+  independent ABNF language; bounded repetition is proved exact. IRI includes
+  fragments. Base resolution and ontology integration remain pending; Functional Syntax
+  prefix expansion is separately proved below.
+- M3 canonical fixed-size UTF-8 encoding: total for every u32, None exactly
+  for non-scalars, unique canonical RFC byte grammar, complete encoded-unit
+  acceptance, inverse and composition with
+  the actual strict decoder, including the exact consumed byte offset.
+- M3 full RFC 5646 well-formed language-tag recognition from bytes: compiled
+  grammar equivalence, total Boolean checking and sound/complete acceptance.
+  Grandfathered/private/extension tags and ASCII case-insensitive tokens are
+  included. Registry validity and its duplicate restrictions are separate.
+- M3 actual N-Triples unit, required-character and expected-character readers;
+  maximal comments and both whitespace modes, with exact offsets, first-error
+  diagnostics and acceptance in both directions. UTF-8 unit append budgets,
+  all token character ranges, hex digit values and exact bounded span copying
+  are proved. The complete blank-node token reader composes these stages,
+  preserving the caller scope and exact label bytes and recognizing the
+  maximal label with trailing-dot backtracking. This proof starts at the token's
+  source bytes; it does not yet establish a whole-document graph parser.
+- M3 complete Unicode/short escape payload decoding: exact four/eight hex
+  digits, natural numeric values, all eight ECHAR forms, scalar validation and
+  IRI/string mode restrictions. Totality, complete acceptance, exact first-stage
+  errors and bounded advancing source offsets are proved.
+- M3 complete quoted IRI/string tokens: actual backslashes, raw character
+  restrictions, opening/closing delimiters, canonical UTF-8 output and byte
+  budgets are composed. Total correctness, acceptance iff the independent
+  grammar/budget hold, exact first diagnostics and source progress are proved.
+  IRIREF additionally composes the RFC 3987 absolute-IRI recognizer, preserving
+  exact decoded spelling. Subject construction composes those IRIREF and
+  caller-scoped blank tokens with total correctness and complete acceptance.
+- M3 complete LANGTAG byte tokens: maximal ASCII head/subtag and nonempty
+  hyphen-suffix scanning, exact source spelling/case, bounded copying and the
+  RFC 5646 ABNF recognizer are composed. Totality, complete acceptance,
+  bounded progress and exact first-stage diagnostics are proved.
+- M3 complete N-Triples byte-to-graph reading: literal kind binding, subject/object
+  construction, triple punctuation/line boundaries and the public document loop
+  have totality and complete-acceptance proofs. Exact ordered occurrences,
+  repeated triples, caller-scope blank identities, term/count limits and first
+  original-offset errors are preserved. Every triple strictly advances; no
+  malformed suffix can expose a successful partial graph. Export laws remain pending.
+- N-Triples read and experimental export with strict UTF-8, absolute IRIs, escaped
+  lexical forms, well-formed tags, exact datatype spelling, scoped blank keys,
+  comment/line handling and count/byte budgets. Serialization-isomorphism
+  proofs remain pending. All 68 official W3C syntax
+  cases pass, and positive cases round-trip through the writer with an
+  independent blank-bijection/term-preservation check. See formats.md.
+- M3 exact byte-key symbol table: duplicates reuse their first symbol, new keys
+  receive stable consecutive symbols and count-capacity errors preserve the table.
+  Forward/reverse lookup, unique-key invariants and old-symbol preservation are
+  proved. Raw IRI spellings use the same exact byte-buffer representation, so
+  collection and interning no longer require a Rust-string conversion assumption.
+  The raw AST does not automatically invoke the new IRI byte validator.
+- M4 declaration typing over supplied complete occurrence tables, including
+  allowed punning, required property/class/datatype declarations and optional
+  named-individual declarations. The composed raw-ontology operation now derives
+  the occurrence tables itself and includes implicit built-in roles.
+- M4 explicit entity collection over the full raw OWL AST: all 18 class forms,
+  six data ranges, 37 axiom forms and nested annotations. Exact IRI spellings,
+  roles, order and duplicates are proved; declarations are collected separately.
+  Untyped annotation/header/facet IRIs and anonymous identifiers are excluded.
+- M4 integrated declaration checker: complete raw AST collection, exact IRI
+  interning, all 49 normative built-in declaration roles and the typing check.
+  Lean proves total correctness and acceptance iff declaration constraints hold
+  on the original IRI spellings, for every completed indexing run. No numeric
+  symbol metadata is supplied by callers. Import assembly, lexical and global
+  DL validity remain separate; this is not a full DL-validity result.
+- M4 reserved-vocabulary checking from the actual raw ontology: all four reserved
+  namespaces, exact built-in roles, ontology/version headers and nested ontology
+  annotations. It catches reserved-role misuse that allowed punning does not.
+  Total correctness, exact first-entity diagnostics and acceptance iff these
+  restrictions hold are proved; it is separate from declaration checking.
+- M4 complete anonymous positional checking on all class/axiom forms, including
+  recursively nested enclosing annotations on the four prohibited axiom types.
+  The closure scan is proved total, accepts iff the independent full positional
+  predicate holds and returns the exact original first offending annotated axiom.
+  Other axiom types may retain anonymous annotation values.
+- M4 anonymous assertion-graph forest checking from the actual supplied complete
+  raw closure. Scoped identities compare exact scope/label byte fields. Ordered
+  graph projection and undirected connectivity are proved total; forest acceptance
+  is exactly no self edges and no cyclic walks, with checked tree components.
+  Duplicate endpoint pairs denote one graph edge.
+  The named-boundary condition is proved separately below; canonical scopes from parsing/imports remain pending.
+- M4 anonymous edge-multiplicity checking on the actual raw axiom occurrence
+  vector, with totality and exact acceptance proofs. Equivalent annotated copies
+  count once; distinct properties, inverse forms, orientations and annotations
+  count separately. Failures retain both original annotated axioms.
+- M4 total structural comparisons for literals, values, individuals, properties,
+  recursively nested annotations and positive object assertions. Annotation
+  associations use proved set equivalence, retaining nesting and atomic fields.
+  Raw literal lexical forms are exact byte buffers; valid parameter-map literals
+  satisfy a checked Unicode UTF-8 representation condition. General AST
+  canonicalization, executable lexical validation and normative datatypes remain
+  separate obligations.
+- M4 named-boundary checking over the supplied raw closure: every anonymous
+  graph component has a vertex incident to at most one structurally distinct
+  positive assertion with a named endpoint. Endpoint projections, exact incidence,
+  structural counting, complete component search and original failing
+  endpoint evidence have totality and acceptance proofs. Other anonymous
+  occurrences are isolated and qualify automatically.
+- M4 `check_anonymous` composes all anonymous-individual restrictions: positional
+  checking, forest validity, edge multiplicity and named boundaries. Its totality
+  and exact acceptance are proved, including original diagnostic evidence and
+  positions/forest/multiplicity/boundary priority. Run it before semantic assertion
+  normalization. It still requires the supplied complete standardized-apart
+  closure; byte-derived imports/scopes and other DL restrictions remain pending.
+- M4 total exact structural comparison of all six data-range constructors,
+  recursively unordered range/literal/facet associations and annotated datatype
+  definitions. Range equivalence is proved reflexive, symmetric and transitive;
+  definition equivalence has the same laws on definition axioms. Constructors,
+  nesting, exact IRI/lexical bytes and recursive annotations remain significant.
+  Distinct minimum arities are checked below; full AST canonicalization and
+  datatype value/facet validation remain separate.
+- M4 datatype-definition availability and uniqueness over the actual supplied
+  complete axiom closure, deriving every explicit occurrence from the full raw
+  AST collector. Custom datatypes require one structurally distinct annotated
+  definition; predefined names permit no redefinition. The actual operation is
+  proved total with exact acceptance and original missing/conflicting evidence.
+  Dependency acyclicity and defined-datatype positions are proved separately and
+  composed below. Normative lexical/facet/value spaces and complete DL validation
+  remain pending.
+- M4 complete datatype-definition dependency-order checking from actual raw
+  range occurrences, including literal datatypes and excluding enclosing metadata.
+  Exact directed reachability is proved total on cyclic/repeated inputs and
+  restores the owned graph. Graph acceptance is equivalent to the normative
+  strict partial order on the actual datatype carrier. Rejections retain an
+  original dependency with a reverse path and prove no permitted order exists.
+- M4 `check_definition_rules` composes availability/uniqueness and the full
+  dependency-order restriction, with totality, exact acceptance, original failure
+  evidence and availability-before-cycle diagnostic priority proved. Cycles are
+  distinct from missing or multiple definitions. Positional restrictions are
+  proved separately below; normative lexical/facet/value validation and other
+  DL restrictions remain pending.
+- M4 complete defined-datatype positional validation from actual closure
+  definitions: every range/class/axiom form, optional fillers and recursive
+  annotations. Named ranges may use defined datatypes; literal datatypes and
+  restriction bases may not. Totality, exact first original failures and exact
+  acceptance are proved. Supplied ontology annotations are also checked before
+  axiom positions; imported annotations require the same complete definition closure.
+- M4 `check_structural_datatypes` composes definition availability/uniqueness,
+  dependency order and all supplied positional restrictions. Totality, exact
+  conjunction acceptance, original diagnostics and definition/order/ontology-
+  annotation/axiom-position priority are proved. Concrete lexical/facet/value
+  validation, import assembly and remaining DL constraints stay separate.
+- M4 top-data-property occurrence checking: the only allowed typed occurrence
+  is the superproperty of SubDataPropertyOf. The full raw AST traversal catches
+  nested restrictions, key members, declarations and data assertions. The
+  supplied complete axiom scan is proved total, returns the original first
+  violating annotated axiom and accepts iff its independent restriction holds.
+  Annotation IRI references retain their separate role.
+- M4 complete raw role-fact preprocessing: all typed object-property names and
+  both orientations, inverse-closed hierarchy edges, composite seeds, every
+  nested cardinality/self requirement and the restricted property-axiom uses,
+  plus original ordered chain references. Full axiom/closure traversal and
+  exact AllOPE membership, hierarchy-edge membership and composite-root membership are proved. Independent simplicity and regularity predicates are defined. Simplicity and non-simple closure propagation are proved separately below;
+  the property-chain regularity decision is proved separately below.
+- M4 actual cyclic/duplicate-tolerant composite reachability and the complete
+  raw-axiom simple-role checker. Totality and exact non-simple membership are
+  proved; the raw collector supplies every reached node. The checker accepts
+  iff the independent simple-role restriction holds, preserves the first
+  forbidden required role and has no reachable missing-node outcome. This is
+  one DL restriction; the separate regularity decision is described next.
+- M4 full property-hierarchy regularity decision over the supplied raw closure.
+  The actual chain compiler preserves the five normative alternatives, the
+  finite pair worklist computes the least transitive/inverse-source relation,
+  and reverse-hierarchy checks decide existence of a permitted strict order.
+  Totality, success iff the independent regularity predicate, a concrete order
+  on success and unavoidable conflict evidence on rejection are proved. Both
+  missing-universe outcomes are excluded for raw syntax. This certifies this
+  restriction; full DL validation and byte-derived import closure remain pending.
+- M4 exact semantic preprocessing: inverse positive/negative assertion
+  canonicalization, universal subclass constraints and annotation preservation,
+  with anonymous-assignment model equivalence. Ordered batch preparation now
+  preserves every occurrence, its caller-supplied origin tags and annotations,
+  with model equivalence for the entire batch.
+- M4 complete class-expression structural comparison: all 18 forms, recursively
+  unordered members, exact unbounded cardinalities and normative defaults for
+  omitted qualifiers. The actual Rust comparison is proved total and exact;
+  the independent relation is proved reflexive, symmetric and transitive.
+  This retains nesting and constructor kinds; logical simplification, canonical
+  output remain separate; distinct-minimum-arity checking is proved below.
+- M4 nonempty key-property checking from supplied raw axioms: a HasKey must have
+  an object or data key member. Totality, exact acceptance and the first original
+  annotated failing axiom are proved. This does not yet implement key inference.
+- M4 full structural arity checking over the actual supplied raw closure: all
+  class/data/axiom forms, nested fillers, recursive equivalence-class minimum
+  counts and the nonempty-key rule. Pairwise duplicate-disjointness validation
+  implements the explicitly documented compatibility decision before dropping
+  occurrences; ordinary repeated members require two distinct classes and
+  ordered chains retain repetitions. Totality, exact acceptance and the first
+  original annotated failure are proved. This does not supply canonical output,
+  the RDF self-disjointness conversion, lexical/value validity or full DL validation.
+- M4 full annotated-axiom structural comparison over all 37 forms. Body and
+  complete annotated relations are total, exact, reflexive, symmetric and
+  transitive. Unordered associations and nested metadata ignore equivalent
+  repetitions; chains and separate inverse-property fields retain their order.
+  Keys have separate object/data sets; atomic identity and qualifier defaults
+  remain exact. Compatibility with the existing assertion/definition checkers is
+  proved. Canonical output and model-preserving whole-AST canonicalization remain pending.
+- M4 full structural semantic congruence against the independent OWL Direct
+  Semantics: all data, class and axiom forms, including cardinality defaults.
+  Those defaults require normative interpretation conditions; disjoint/different
+  associations require original occurrence-distinctness, supplied by actual
+  arity checks. Actual comparison plus arity acceptance certifies satisfaction
+  equivalence. Structurally matching arity-valid supplied closures preserve
+  anonymous-assignment models, full models, consistency and entailment for each
+  fixed datatype map and vocabulary on finite or infinite domains. Checked
+  counterexamples establish why these premises cannot be omitted. This is a
+  preservation theorem, not an implemented whole-AST canonicalizer or reasoner.
+- M4 actual validated outer axiom-set construction. All original arities are
+  checked before grouping complete annotated structural classes. Stable first
+  representatives, every original document/ordinal record and an exact
+  per-occurrence mapping remain accessible through immutable borrowed views.
+  Constructor/accessor totality, minimum representatives, ordered unique classes,
+  coverage and idempotence are proved. The selected closure preserves full
+  models, consistency and entailment under each fixed datatype map/vocabulary.
+  Origins and anonymous scopes are still caller supplied; duplicate-free nested
+  AST materialization, parser provenance and full DL validation remain pending.
+- M3 complete Functional Syntax name recognition from bytes: prefix names,
+  local names, abbreviated IRIs and node IDs use the referenced SPARQL 2008
+  grammar. Actual grammar equivalence, totality, exact acceptance and malformed
+  UTF-8 diagnostics are proved; broader Turtle/SPARQL 1.1 escapes are separate.
+- M3 actual immutable prefix-table checking and expansion. Every declaration is
+  validated, including unused ones; reserved and duplicate names are rejected
+  with exact original evidence. The four implicit namespaces, exact lookup,
+  preservation of all declaration bytes and complete construction invariant are
+  proved. Expansion rechecks both supplied byte parts, bounds the mathematical
+  output byte length and validates the final absolute IRI. Exact concatenation,
+  all diagnostic phases, termination and acceptance iff the independent grammar,
+  lookup, budget and IRI conditions hold are proved. Document punctuation/source
+  provenance and full Functional Syntax parsing remain pending.
+- M3 generic greedy regular-language prefix recognition at an actual source
+  byte position. Exact canonical UTF-8 segments define all eligible endpoints;
+  the operation is proved to return their mathematical maximum, with no match
+  distinct from an accepted empty prefix. Complete suffix UTF-8 checking,
+  first malformed-unit evidence, totality, complete endpoint acceptance and
+  source endpoint bounds are proved. The terminal and stream layers are now
+  proved separately below.
+- M3 complete 2012 Functional Syntax terminal grammars: all 71 keywords, four
+  punctuation, seven variable and two special classes. Actual compilation equals
+  independent Unicode languages. Quoted strings permit exactly the two OWL
+  escapes and retain multiline XML text; language tags use the explicitly named
+  RFC 5646 langtag subproduction. Whole-byte recognition and longest matching
+  are total and exact. Every eligible token is nonempty and advances within
+  source bounds. The actual combined selector visits all 84 classes, returns a
+  token iff a valid UTF-8 suffix has a candidate, and chooses a greatest endpoint
+  across all candidates. Invalid UTF-8 retains exact first-unit errors. Derived
+  keyword/terminal copying is proved exact. The terminal inventory is checked
+  against both compiler/specification and full model constructor names. Pairwise
+  token-language disjointness and priority-free greatest matching are now proved
+  below; separators/trivia are also composed. Other payload
+  kinds and full document parsing remain pending. Quoted-string payload
+  reading is proved separately below. This stage constructs no
+  OWL ontology and executes no OWL inference.
+- M3 actual complete quoted-string payload reading. Opening/closing punctuation,
+  raw multiline XML text, exactly the two OWL escapes, canonical UTF-8 unit
+  concatenation and decoded-output byte budgets have composed totality and
+  exact acceptance proofs. Failures preserve first original-unit offsets for
+  malformed/truncated input, forbidden XML characters, foreign escapes and
+  exceeded budgets. Both directions connect the decoded byte grammar to the
+  independent complete quoted-string terminal language; every matching segment
+  has a payload, and a fitting budget guarantees the actual exact payload/end
+  result. This token reader stops at the closing quote; suffix validation remains
+  the separate selector's responsibility. The complete stream lexer is proved
+  below. Full document parsing, import composition and OWL validation/reasoning
+  remain pending.
+- M3 actual whole-source Functional Syntax token streams. Initial strict UTF-8/XML
+  checking, complete greatest-token selection with exact inventory priority,
+  all seven delimiter characters, greedy discarded whitespace/comments,
+  Unicode final-codepoint reading, emitted-token budgets and the whole-document
+  loop are composed. Total correctness, complete acceptance in both directions,
+  first original source diagnostics and no successful partial stream after a
+  later error are proved. Every emitted span is nonempty, ordered, bounded and
+  in its independent terminal language; special tokens consume no token budget.
+  InvalidSpan is unreachable from the public byte entry point. The separately
+  normative assertion that distinct terminal languages never tie is now proved
+  below; step-6 special-token prose interpretation is recorded in architecture.md.
+  This produces source tokens, not an OWL AST or inference result. Full document
+  parsing, other payload construction, import scopes and operational M8 limits
+  remain pending.
+- M3 complete terminal-language disjointness and priority-free standard selection.
+  All 71 keyword spellings are injective, and no two distinct terminal kinds
+  accept the same arbitrary Unicode word. Canonical UTF-8 spans with equal byte
+  endpoints have equal words, establishing the normative no-ties claim from
+  actual source candidates. A greatest-token contract without inventory priority
+  is equivalent to the actual selector in both directions and uniquely determines
+  kind/start/end. The implemented priority cannot alter any grammar-valid result.
+  Proof-only head/colon/final-codepoint classification is derived from independent
+  grammars. This closes the disjointness obligation, not full OWL document parsing.
+- M3 exact nonnegative decimal payload values from original source spans. The
+  actual Rust reader has totality, exact positional-value and both-direction
+  acceptance proofs, with first invalid-byte diagnostics and explicit empty/range
+  errors. Leading zeroes are accepted; the mathematical Natural value has no
+  machine-integer cap. Canonical ASCII spans preserve original byte values;
+  complete Functional Syntax integer candidates coincide with valid decimal
+  spans. Actual greatest-selected integers and every integer in a successful
+  whole-source token stream have the exact value of their source word. This
+  constructs integer payloads, not complete cardinality expressions or an OWL
+  document. Nonquoted name payloads are proved below; full parsing/import
+  integration remains pending.
+  Unary values are a research representation; efficient arithmetic, physical
+  stack/memory limits and cancellation remain M8 obligations.
+- M3 exact nonquoted name payloads from original source spans. Full IRI angle
+  markers, node-ID `_:` and language-tag `@` markers are removed; prefix and
+  abbreviated names retain their complete original spelling. The actual reader
+  revalidates every full terminal span and checks the payload byte budget. Total
+  correctness, exact value/acceptance and all error phases in both directions are
+  proved. Invalid tokens identify their entire source span start; budget errors
+  identify the payload start. Canonical UTF-8 segment/copy equivalence, source
+  splitting and the actual returned value grammars are proved, including absolute
+  IRIs. Actual greatest-selected names and all five name families in accepted
+  complete token streams supply their exact fitting values. No case/percent or
+  Unicode normalization occurs. This reader retains abbreviated spelling; the
+  source-derived resolver below constructs its expanded IRI. Leading prefix
+  declarations and the ontology opening are proved below; remaining header/body
+  parsing, roles, scopes and complete AST construction remain pending.
+- M3 source-derived full/abbreviated IRI resolution. The actual UTF-8 scan finds
+  the syntax colon and constructs exact unchanged prefix/local bytes. Their
+  independent grammatical partition is proved unique. Splitting and resolution
+  have totality, exact value/acceptance and every error phase in both directions
+  proved; internal InvalidParts fallbacks are unreachable. Resolution composes
+  exact immutable namespace lookup, final-output budgets and complete absolute
+  IRI revalidation. Final limits count returned IRI bytes, so a long source prefix
+  can expand under a shorter final limit. Full-IRI budget errors retain the
+  payload start; abbreviated expansion errors retain the original token start.
+  No spelling normalization occurs. The resolver accepts a checked prefix table;
+  the source-derived table stage and composition are proved below. Remaining
+  header/body parsing, scopes, full document construction and
+  byte-derived imports/provenance remain pending.
+- M3 original-byte leading prefix declarations and exact ontology opening.
+  The public reader lexes the whole source before syntax/count/value checks,
+  reads every leading `Prefix(name=<namespace>)` in source order and returns
+  the original `Ontology`/`(` tokens and untouched remaining stream. Declaration
+  body shape and payload readers, repeated scanning and the byte entry point
+  are proved total. Exact values, full successful acceptance and all syntax,
+  declaration-count and payload error phases/offsets are proved in both directions.
+  Lexical errors retain the lexer contract; InvalidSpan is unreachable. EOF
+  errors retain the original source length; wrong terminals retain their start.
+  Count limits precede declaration syntax, then all body syntax precedes prefix
+  and namespace payload budgets. Raw duplicate/reserved rows remain present and
+  must pass the separately proved normative table constructor. The checked table
+  retains exactly the parsed vector; source parsing/checking/IRI resolution have
+  composed correctness, exact value and exact error proofs. This is a partial
+  parser stage: `Ontology(` may succeed without an ontology body/closing token.
+  Ontology/version IRIs and leading imports are proved below. Annotations,
+  axioms, scopes and full AST/import assembly remain pending.
+- M3 source ontology identity, version and maximal leading-import reading after
+  the exact ontology opening. Optional readers consume zero/one/two full or
+  abbreviated IRI tokens, retaining original token fields and exact resolved
+  values. A version is represented only together with its ontology IRI. Import
+  bodies check all three syntax tokens before target resolution; each keyword
+  checks the import-count limit before its body. Repeated reading is proved total
+  by exact four-token progress and retains source order, repetitions, keyword/IRI
+  tokens and the untouched first non-Import or empty suffix. Exact values/suffixes
+  and every syntax/resolution/count first error are proved equivalent to independent
+  source derivations. Accepted header IRIs satisfy the complete absolute-IRI grammar.
+  EOF errors retain original source length, and all other diagnostics retain their
+  established source offsets. Actual whole-byte prefix parsing, normative table
+  checking and header reading compose using precisely the source-derived namespace
+  rows, with checked identity/import values and bounded import count. The low-level
+  reader itself receives tokens and a checked table. Unexpected trailing tokens,
+  annotations, axioms and final closing syntax remain unparsed, so this is still a
+  partial stage. Canonical catalog/closure assembly and scopes/provenance remain
+  pending; the existing indexed resolver still receives supplied dependency metadata.
+- M3 complete one-literal Functional Syntax source reading. Shapes consume exactly
+  one/two/three terminals, preserve every original form token and unchanged suffix,
+  and check all written syntax before quote decoding. Arbitrary supplied source
+  spans are revalidated. Explicitly typed literals retain exact decoded lexical
+  bytes and resolve their original full/abbreviated datatype IRI. Both plain-string
+  shortcuts obligatorily expand to rdf:PlainLiteral: payload + '@' + the exact
+  language spelling, empty for an untagged string. Final budgets include the added
+  separator and the entire constant datatype IRI. Actual source reading is proved
+  total; every exact value/suffix and syntax/span/quote/tag/IRI/final-budget error
+  is equivalent to an independent first-phase derivation. Quote errors also have
+  the complete reverse implication. Exact expansion/spelling laws, both final
+  bounds, original quote progress and strict token consumption are checked.
+  Whole-byte prefix parsing and normative table checking compose on precisely the
+  source namespace rows; the caller still supplies the literal position. Concrete
+  datatype lexical/value/facet validation, annotation/axiom grammar, document AST,
+  canonical import/scopes and full reasoning remain pending. RDF 1.1 literals keep
+  their separately specified representation and syntax conventions.
+- 559 audited public theorems and 484 audited semantic definitions. No full OWL
+  decision procedure is proved yet. See m3-m4-progress.md for the input contracts.
+- 302 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+  maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
+- Exact-source linkage covering Rust, proof sources and audit/inventory gates.
+  Extraction rejects unknown external axioms/opaque declarations. Every public
+  project theorem is audited; allowed logical axioms remain only propext,
+  Classical.choice and Quot.sound.
+- A 752-obligation release ledger and separate checked constructor and built-in inventories.
+  M2 representation entries and narrow M3/M4 proof obligations are covered;
+  broad frontend/validation/reasoning requirements remain pending.
+
+The maintenance example constructs four raw axioms: machines with a faulty part
+need inspection; pump1 is a machine; pump1 hasPart motor1; motor1 is faulty.
+Rowl.Owl.maintenance_follows proves the consequence for any interpretation
+satisfying those premises. The executable constructs the ontology and describes
+that theorem. It also actually checks the declarations, demonstrating the missing
+FaultyPart diagnostic and a successful repair, then rejects reusing `owl:Thing`
+as an object property despite its allowed generic class/property punning. It
+does not automatically perform OWL inference. It also accepts faultCode as a
+subproperty of owl:topDataProperty, then detects trying to make that top property
+functional using the proved occurrence checker. The simple-role example rejects
+a cardinality restriction on transitive hasPart and accepts after transitivity
+is removed. The chain example finds a valid order for hasPart/hasPart-to-nestedPart,
+then rejects adding the reverse nestedPart-to-hasPart hierarchy edge. Both run
+the Rust validators, rather than merely describing a semantic consequence.
+
+## Proof boundary
+
+M1 and the new M3/M4 component proofs connect actual Rust operations to
+mathematical specifications. M2 supplies the full declarative specification and
+checked laws. The UTF-8/XML character component is proved from bytes. Catalog/import
+and typing metadata has not yet been fully derived/assembled from serialized
+OWL/RDF bytes; the new Functional Syntax stage derives identity/import IRI
+references, while full document parsing and catalog composition remain pending. The
+symbol table and raw-ontology checker operate directly on byte-buffer IRIs,
+without an unproved String conversion, but do not invoke lexical validation; a separate IRI byte entry point is now
+proved sound/complete against RFC 3987. The UTF-8 encoder and complete language-tag recognizer are also proved.
+The N-Triples token subpipeline now includes composed byte-to-blank-token
+correctness and complete acceptance, exact trivia/span-copy proofs and full
+quoted-token, IRIREF, language/literal/object/triple and bounded whole-document
+composition. Public reading is proved from bytes to exact raw graph occurrences
+under its stated term/count limits. The writer, canonical import scope assignment,
+RDF-to-OWL mapping and full byte-to-ontology pipeline remain unproved. Correspondence to W3C prose/tables is
+a reviewed specification choice, not a mechanical proof of English. See
+m2-semantics.md for the mapping.
+
+Functional Syntax now also has a source-derived leading-prefix/ontology-opening
+stage with complete byte acceptance and exact source payloads. Raw declaration
+syntax alone does not establish a valid namespace table: the separate checked
+constructor enforces reserved names and duplicates. The composition theorems
+connect that exact source table to IRI value/error contracts. The following
+ontology/version identity and maximal leading imports also have source-derived
+value/error composition proofs. Ontology annotations/axioms and closing syntax
+are returned as tokens; complete grammar/AST and canonical catalog/import
+construction remain pending.
+
+Datatype maps are explicit parameters with their stated laws, not an assumed
+external solver. The concrete normative OWL map is unimplemented. Semantic
+predicates extend to raw terms; release callers must first establish lexical
+validity, vocabulary membership, canonical structure and DL restrictions.
+No ValidatedOntology or definitive OWL-query entry point exists yet.
+
+No sorry, admitted project claim or custom semantic axiom is accepted. Pinned
+compiler/translation tools, primitive library models, Lean and its normal logical
+axioms remain the documented trusted computing base. Physical memory/stack
+exhaustion is not eliminated by mathematical termination; typed resource and
+cancellation outcomes remain M8 work.
+
+Local verification covers formatting, Clippy with warnings denied, all Rust
+tests, actual-source regeneration/comparison, Lean builds and axiom audits.
+The expanded CI workflow exists locally; no hosted CI run is claimed.
+
+## Next milestones
+
+1. M3: verified Functional Syntax and standard RDF graph/dataset parsing, export
+   laws and canonical mapping (see `formats.md`);
+   connect the proved indexed closure to document IRIs, headers, declarations,
+   RDF includes, anonymous scopes and provenance.
+2. M4: finish structural/global DL
+   validation, normalization and role preprocessing, then compose the components.
+3. M5–M7: normative datatypes, SROIQ tableau and full OWL integration.
+4. M8–M9: queries, replayable evidence, operational outcomes and byte-to-answer
+   composition before the full OWL 2 DL v0.1 release.
+
+The maintenance example also runs the composed anonymous checker. An unknown
+assembly attached to two named pumps passes when its anonymous motor has no
+named attachment and supplies a qualifying component root. Attaching that motor
+to both pumps leaves no root and returns NoBoundaryRoot. This demonstrates the
+literal normative boundary condition; the informative example discrepancy is
+recorded in architecture.md. The combined checker completes the anonymous
+restrictions block, not the whole M4 milestone.

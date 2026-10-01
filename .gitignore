@@ -1,0 +1,5 @@
+/.tools/
+/target/
+/verification/.lake/
+/verification/generated/*.llbc
+**/__pycache__/

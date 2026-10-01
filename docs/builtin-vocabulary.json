@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Entity_Declarations_and_Typing",
+  "scope": "Implicit entity declaration roles from Table 5, the normative OWL 2 datatype map names in section 4, and annotation properties in section 5.5. This does not implement datatype lexical/value/facet semantics.",
+  "entities": [
+    {
+      "iri": "http://www.w3.org/2002/07/owl#Thing",
+      "kind": "Class"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#Nothing",
+      "kind": "Class"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#topObjectProperty",
+      "kind": "ObjectProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#bottomObjectProperty",
+      "kind": "ObjectProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#topDataProperty",
+      "kind": "DataProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#bottomDataProperty",
+      "kind": "DataProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#Literal",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#real",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#rational",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#decimal",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#integer",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#positiveInteger",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#negativeInteger",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#long",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#int",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#short",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#byte",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#unsignedLong",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#unsignedInt",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#unsignedShort",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#unsignedByte",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#double",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#float",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#string",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#normalizedString",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#token",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#language",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#Name",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#NCName",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#NMTOKEN",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#boolean",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#hexBinary",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#base64Binary",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#anyURI",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#dateTime",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2001/XMLSchema#dateTimeStamp",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral",
+      "kind": "Datatype"
+    },
+    {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#label",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#comment",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#seeAlso",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2000/01/rdf-schema#isDefinedBy",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#deprecated",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#versionInfo",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#priorVersion",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#backwardCompatibleWith",
+      "kind": "AnnotationProperty"
+    },
+    {
+      "iri": "http://www.w3.org/2002/07/owl#incompatibleWith",
+      "kind": "AnnotationProperty"
+    }
+  ],
+  "reserved_prefixes": [
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "http://www.w3.org/2000/01/rdf-schema#",
+    "http://www.w3.org/2001/XMLSchema#",
+    "http://www.w3.org/2002/07/owl#"
+  ]
+}
