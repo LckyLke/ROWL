@@ -56,3 +56,5 @@ pub mod axiom_equality;
 pub mod axiom_set;
 
 pub mod decimal;
+
+pub mod nnf;

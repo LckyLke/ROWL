@@ -523,6 +523,7 @@
         "Rowl.ClassEquality.same_natural_total_correct",
         "Rowl.ClassEquality.same_natural_value_total_correct",
         "Rowl.ClassEquality.is_thing_total_correct",
+        "Rowl.ClassEquality.is_nothing_total_correct",
         "Rowl.ClassEquality.is_literal_total_correct",
         "Rowl.ClassEquality.same_optional_range_total_correct",
         "Rowl.ClassEquality.same_individual_set_total_correct",
@@ -1082,6 +1083,18 @@
       "theorems": [
         "Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff"
       ]
+    },
+    {
+      "module": "Rowl.Nnf",
+      "namespace": "Rowl.Nnf",
+      "theorems": [
+        "Rowl.Nnf.fixes_of_interpretation",
+        "Rowl.Nnf.copy_iri_identity",
+        "Rowl.Nnf.nnf_total_correct",
+        "Rowl.Nnf.nnf_supported_iff",
+        "Rowl.Nnf.nnf_meaning",
+        "Rowl.Nnf.nnf_instances"
+      ]
     }
   ],
   "specifications": [
@@ -1590,6 +1603,17 @@
     "Rowl.FunctionalAnnotationAxioms.SubjectRun",
     "Rowl.FunctionalAnnotationAxioms.BodyKind",
     "Rowl.FunctionalAnnotationAxioms.BodyRun",
-    "Rowl.FunctionalAnnotationAxioms.AxiomRun"
+    "Rowl.FunctionalAnnotationAxioms.AxiomRun",
+    "Rowl.ClassEquality.NothingBytes",
+    "Rowl.ClassEquality.IsNothing",
+    "Rowl.Nnf.conceptDenote",
+    "Rowl.Nnf.InAlc",
+    "Rowl.Nnf.Polar",
+    "Rowl.Nnf.Fixes",
+    "Rowl.Nnf.Agrees",
+    "Rowl.Nnf.Correct",
+    "Rowl.Nnf.Every",
+    "Rowl.Nnf.Gather",
+    "Rowl.Nnf.Quantified"
   ]
 }

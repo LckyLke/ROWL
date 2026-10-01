@@ -46,6 +46,7 @@ pub mod experimental {
     pub use rowl_kernel::indexing;
     pub use rowl_kernel::keys;
     pub use rowl_kernel::model;
+    pub use rowl_kernel::nnf;
     pub use rowl_kernel::prepare;
     pub use rowl_kernel::probes::Natural;
     pub use rowl_kernel::prototype::{decide, evaluate, Atom, Decision, Formula, Valuation};

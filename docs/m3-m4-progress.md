@@ -2019,3 +2019,48 @@ This block adds 20 public theorems and 9 independent definitions: totals are
 620 audited theorems, 506 definitions, 328 Rust regressions and 813 ledger
 obligations. Full M3/M4, all required formats/export laws, normative datatypes,
 SROIQ/query and complete byte-to-answer release proofs remain pending.
+
+
+## Reasoner track: negation normal form for the ALC fragment
+
+`nnf::nnf` translates an OWL class expression (positive polarity) or its
+complement (negative polarity) into `NnfConcept`, the input language of the
+coming tableau. The concept type has top, bottom, named classes, negated named
+classes, binary conjunction and disjunction, and existential and universal
+restrictions on named object properties, so negation can only occur on named
+classes. The supported fragment is ALC: named classes, intersections, unions,
+complements and existential/universal restrictions on named properties. Every
+other form, including inverse properties, enumerations, value and self
+restrictions, cardinalities and data restrictions, returns `None`; later
+reasoner stages extend the fragment.
+
+De Morgan's laws and quantifier duality move negation inward; double negation
+cancels. `owl:Thing` and `owl:Nothing` become top and bottom by exact IRI, using
+the existing `is_thing` check and the new matching `is_nothing`. Other class and
+property IRIs are copied exactly. Intersection and union members are joined
+left-nested in source order, each translated once, so no subexpression is
+duplicated.
+
+Nnf proves the translation total on all 18 class forms by well-founded recursion
+on expression size, through the mutually recursive member fold and restriction
+helpers. It returns a result exactly on the independent InAlc fragment, and the
+result means the expression (or its complement) under the independent Direct
+Semantics in every interpretation that fixes owl:Thing and owl:Nothing. Every OWL
+interpretation does so (fixes_of_interpretation), and the statement holds for
+object and data domains of any universe, as the later completeness proof needs.
+Consequently a translated concept has instances exactly when the class
+expression does (nnf_instances), which reduces OWL class satisfiability in this
+fragment to concept satisfiability.
+
+Six kernel regressions check exact output shapes, left-nested member order,
+top/bottom handling and near-miss built-in spellings, exact IRI copies,
+rejection of every unsupported form even when nested, and a brute-force semantic
+comparison: ten expressions in both polarities on all 256 interpretations over a
+two-element domain, against an independently written evaluator. The runnable nnf
+example prints the normal form of maintenance expressions.
+
+This block adds 7 public theorems and 11 independent definitions: totals are
+627 audited theorems, 517 definitions, 334 Rust regressions and 820 ledger
+obligations. The tableau, TBox reasoning and blocking, the remaining
+constructors, normative datatypes, query reductions and full OWL decisions remain
+pending.

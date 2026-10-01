@@ -36,6 +36,15 @@ pub fn is_thing(value: &ClassExpression) -> bool {
         _ => false,
     }
 }
+/// Only the exact named built-in empty class; the tableau reads it as bottom.
+pub fn is_nothing(value: &ClassExpression) -> bool {
+    match value {
+        ClassExpression::Class(c) => {
+            same_pattern(&c.iri.spelling, b"http://www.w3.org/2002/07/owl#Nothing")
+        }
+        _ => false,
+    }
+}
 /// Only the exact named top data range qualifies as the omitted data filler.
 pub fn is_literal(value: &DataRange) -> bool {
     match value {

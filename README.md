@@ -99,6 +99,10 @@ The four annotation axioms (`AnnotationAssertion`, `SubAnnotationPropertyOf`,
 `AnnotationPropertyDomain`, `AnnotationPropertyRange`) are read the same way, so
 every non-logical axiom now has a proved reader. The logical axioms, the axiom
 loop and complete document construction remain pending.
+The reasoner track has started: class expressions in the ALC fragment translate
+to negation normal form, proved to keep their meaning under the independent
+Direct Semantics in every OWL interpretation. The tableau that decides these
+concepts is the next stage.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -122,6 +126,7 @@ cargo run -p rowl --example functional_literals # exact text/language/type value
 cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
 cargo run -p rowl --example functional_declarations # entity declarations with axiom annotations from original source
 cargo run -p rowl --example functional_annotation_axioms # declarations and annotation axioms of a vocabulary ontology
+cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
 python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
 ```
 
@@ -132,7 +137,7 @@ does not entail membership in A. Search must consider every interpretation.
 
 | Path | Responsibility |
 | --- | --- |
-| `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks and ordered semantic preparation |
+| `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation and ALC negation normal form |
 | `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |

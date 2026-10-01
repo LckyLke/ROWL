@@ -5376,6 +5376,17 @@
       "implementation_scope": "Actual raw class expressions: all 18 constructors, recursive unordered class/individual associations, exact atomic identities, all six data ranges via their checked comparator, and all six cardinalities with owl:Thing/rdfs:Literal omission defaults. The independent recursive relation preserves constructors, nesting, inverse orientation, exact IRI/literal bytes and caller-provided blank scopes. Totality, exact comparison and equivalence laws are proved. This does not perform logical simplification, produce a canonical AST, validate lexical forms/arity/import scopes or give complete OWL DL validation or reasoning."
     },
     {
+      "id": "m4.ClassEquality.is_nothing_total_correct",
+      "requirement": "Total exact class-structure comparison and equivalence law: is_nothing_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Structural_Specification",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::class_equality::is_nothing",
+      "theorem": "Rowl.ClassEquality.is_nothing_total_correct",
+      "regression": "crates/rowl-kernel/tests/nnf.rs::builtin_thing_and_nothing_become_top_and_bottom_exactly",
+      "implementation_scope": "Actual raw class expressions: all 18 constructors, recursive unordered class/individual associations, exact atomic identities, all six data ranges via their checked comparator, and all six cardinalities with owl:Thing/rdfs:Literal omission defaults. The independent recursive relation preserves constructors, nesting, inverse orientation, exact IRI/literal bytes and caller-provided blank scopes. Totality, exact comparison and equivalence laws are proved. This does not perform logical simplification, produce a canonical AST, validate lexical forms/arity/import scopes or give complete OWL DL validation or reasoning."
+    },
+    {
       "id": "m4.Keys.axiom_allowed_total_correct",
       "requirement": "Nonempty OWL key-property restriction: axiom_allowed_total_correct",
       "owner": "rowl-kernel",
@@ -8861,6 +8872,72 @@
       "theorem": "Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff",
       "regression": "crates/rowl-frontend/tests/functional_annotation_axioms.rs; crates/rowl/tests/functional_annotation_axioms.rs",
       "implementation_scope": "Actual Functional Syntax annotation-axiom reading is total and has complete exact result/error equivalence. It reads exactly one AnnotationAssertion, SubAnnotationPropertyOf, AnnotationPropertyDomain or AnnotationPropertyRange axiom at a caller-supplied position. Axiom annotations use the proved annotation reader with its nesting and count limits; every property, subject and domain/range IRI resolves its original span through the checked prefix table under the IRI limit; node-ID subjects keep their exact label without the _: marker; assertion values use the proved annotation value reader, including literals with mandatory rdf:PlainLiteral expansion. Errors return the first failing step in source order: the axiom keyword, the opening parenthesis, the axiom annotations, the body positions and the closing parenthesis, with original offsets; EOF errors use the source length. Fallbacks after a checked keyword, IRI or subject token are unreachable. Successful reading yields a body whose kind matches the keyword, axiom annotations equal to the independent maximal annotation section, and at least five consumed tokens plus five per top-level axiom annotation. Original-byte prefix parsing and normative checked-table construction compose with the annotation-axiom contract using precisely those source namespace rows; the caller still supplies the axiom position. Node IDs are not yet assigned anonymous-individual scopes and no kernel annotation-axiom values are constructed. The axiom loop, the logical axiom forms, the ontology closing token, complete document/AST construction, canonical imports/provenance and full M3/M4 integration remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.fixes_of_interpretation",
+      "requirement": "Negation normal form of ALC class expressions: fixes_of_interpretation",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::nnf",
+      "theorem": "Rowl.Nnf.fixes_of_interpretation",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.copy_iri_identity",
+      "requirement": "Negation normal form of ALC class expressions: copy_iri_identity",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::copy_iri",
+      "theorem": "Rowl.Nnf.copy_iri_identity",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.nnf_total_correct",
+      "requirement": "Negation normal form of ALC class expressions: nnf_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::nnf",
+      "theorem": "Rowl.Nnf.nnf_total_correct",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.nnf_supported_iff",
+      "requirement": "Negation normal form of ALC class expressions: nnf_supported_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::nnf",
+      "theorem": "Rowl.Nnf.nnf_supported_iff",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.nnf_meaning",
+      "requirement": "Negation normal form of ALC class expressions: nnf_meaning",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::nnf",
+      "theorem": "Rowl.Nnf.nnf_meaning",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m4.Nnf.nnf_instances",
+      "requirement": "Negation normal form of ALC class expressions: nnf_instances",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::nnf::nnf",
+      "theorem": "Rowl.Nnf.nnf_instances",
+      "regression": "crates/rowl-kernel/tests/nnf.rs; crates/rowl/examples/nnf.rs",
+      "implementation_scope": "Actual negation-normal-form translation of OWL class expressions for the tableau's ALC fragment: named classes, intersections, unions, complements, and existential and universal restrictions on named object properties. It is total on all 18 class-expression forms and returns no result exactly outside that fragment (inverse properties, enumerations, value and self restrictions, cardinalities and data restrictions). Negation is pushed inward by De Morgan's laws and quantifier duality, so the result type admits negation only on named classes; owl:Thing and owl:Nothing become the top and bottom concepts, and all other class and property IRIs are copied exactly. Members of intersections and unions are joined left-nested in source order. For either polarity, the result means exactly the expression or its complement under the independent Direct Semantics in every interpretation that fixes owl:Thing and owl:Nothing, which every OWL interpretation does, for object and data domains of any universe; concept instances therefore coincide with class instances. This is the first reasoner stage: the tableau, TBox reasoning, blocking, the remaining constructors, datatypes and query reductions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     }
   ]
 }

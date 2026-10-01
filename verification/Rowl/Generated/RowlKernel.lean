@@ -2184,7 +2184,7 @@ def arity.has_two_ranges
   else ok true
 
 /-- [rowl_kernel::class_equality::individual_contains_from]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 67:0-74:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 76:0-83:1 -/
 def class_equality.individual_contains_from
   (values : alloc.vec.Vec model.Individual) (sought : model.Individual)
   (index : Std.Usize) :
@@ -2206,7 +2206,7 @@ def class_equality.individual_contains_from
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::individual_member]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 75:0-78:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 84:0-87:1 -/
 def class_equality.individual_member
   (sought : model.Individual) (values : model.NonEmpty model.Individual) :
   Result Bool
@@ -2217,7 +2217,7 @@ def class_equality.individual_member
   else class_equality.individual_contains_from values.rest sought 0#usize
 
 /-- [rowl_kernel::class_equality::individual_subset_from]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 79:0-89:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 88:0-98:1 -/
 def class_equality.individual_subset_from
   (left : alloc.vec.Vec model.Individual)
   (right : model.NonEmpty model.Individual) (index : Std.Usize) :
@@ -2239,7 +2239,7 @@ def class_equality.individual_subset_from
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::individual_subset]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 90:0-92:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 99:0-101:1 -/
 def class_equality.individual_subset
   (left : model.NonEmpty model.Individual)
   (right : model.NonEmpty model.Individual) :
@@ -2251,7 +2251,7 @@ def class_equality.individual_subset
   else ok false
 
 /-- [rowl_kernel::class_equality::same_individual_set]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 93:0-95:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 102:0-104:1
     Visibility: public -/
 def class_equality.same_individual_set
   (left : model.NonEmpty model.Individual)
@@ -2294,7 +2294,7 @@ def class_equality.same_pattern
   else ok false
 
 /-- [rowl_kernel::class_equality::is_literal]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 40:0-48:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 49:0-57:1
     Visibility: public -/
 def class_equality.is_literal (value : model.DataRange) : Result Bool := do
   match value with
@@ -2316,7 +2316,7 @@ def class_equality.is_literal (value : model.DataRange) : Result Bool := do
   | model.DataRange.Restriction _ _ => ok false
 
 /-- [rowl_kernel::class_equality::same_optional_range]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 49:0-55:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 58:0-64:1
     Visibility: public -/
 def class_equality.same_optional_range
   (left : Option model.DataRange) (right : Option model.DataRange) :
@@ -2384,7 +2384,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::class_equality::same_optional_class]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 56:0-65:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 65:0-74:1
     Visibility: public -/
 def class_equality.same_optional_class
   (left : Option model.ClassExpression) (right : Option model.ClassExpression)
@@ -2403,7 +2403,7 @@ def class_equality.same_optional_class
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::class_contains_from]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 96:0-106:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 105:0-115:1 -/
 def class_equality.class_contains_from
   (values : alloc.vec.Vec model.ClassExpression)
   (sought : model.ClassExpression) (index : Std.Usize) :
@@ -2425,7 +2425,7 @@ def class_equality.class_contains_from
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::class_member]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 107:0-111:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 116:0-120:1 -/
 def class_equality.class_member
   (sought : model.ClassExpression)
   (values : model.AtLeastTwo model.ClassExpression) :
@@ -2442,7 +2442,7 @@ def class_equality.class_member
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::class_subset_from]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 112:0-122:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 121:0-131:1 -/
 def class_equality.class_subset_from
   (left : alloc.vec.Vec model.ClassExpression)
   (right : model.AtLeastTwo model.ClassExpression) (index : Std.Usize) :
@@ -2464,7 +2464,7 @@ def class_equality.class_subset_from
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::class_subset]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 123:0-127:1 -/
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 132:0-136:1 -/
 def class_equality.class_subset
   (left : model.AtLeastTwo model.ClassExpression)
   (right : model.AtLeastTwo model.ClassExpression) :
@@ -2481,7 +2481,7 @@ def class_equality.class_subset
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::same_class_set]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 128:0-133:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 137:0-142:1
     Visibility: public -/
 def class_equality.same_class_set
   (left : model.AtLeastTwo model.ClassExpression)
@@ -2495,7 +2495,7 @@ def class_equality.same_class_set
 partial_fixpoint
 
 /-- [rowl_kernel::class_equality::same_class]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 136:0-210:1
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 145:0-219:1
     Visibility: public -/
 def class_equality.same_class
   (left : model.ClassExpression) (right : model.ClassExpression) :
@@ -6853,6 +6853,41 @@ def builtins.builtin_kind
     | some _ => ok o1
   | some _ => ok o
 
+/-- [rowl_kernel::class_equality::is_nothing]:
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 40:0-47:1
+    Visibility: public -/
+def class_equality.is_nothing
+  (value : model.ClassExpression) : Result Bool := do
+  match value with
+  | model.ClassExpression.Class c =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8, 104#u8, 105#u8, 110#u8,
+          103#u8
+          ]))
+    class_equality.same_pattern c.iri.spelling s
+  | model.ClassExpression.ObjectIntersectionOf _ => ok false
+  | model.ClassExpression.ObjectUnionOf _ => ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue _ _ => ok false
+  | model.ClassExpression.ObjectHasSelf _ => ok false
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok false
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
+
 /-- [rowl_kernel::collection::EntityUses]
     Source: 'crates/rowl-kernel/src/collection.rs', lines 12:0-19:1
     Visibility: public -/
@@ -9174,6 +9209,180 @@ def model.invert
     ok (model.ObjectPropertyExpression.Inverse p)
   | model.ObjectPropertyExpression.Inverse p =>
     ok (model.ObjectPropertyExpression.Property p)
+
+/-- [rowl_kernel::nnf::NnfConcept]
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 15:0-24:1
+    Visibility: public -/
+@[discriminant isize]
+inductive nnf.NnfConcept where
+| Top : nnf.NnfConcept
+| Bottom : nnf.NnfConcept
+| Atom : model.Class → nnf.NnfConcept
+| NotAtom : model.Class → nnf.NnfConcept
+| And : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
+| Or : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
+| Exists : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
+| Forall : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
+
+/-- [rowl_kernel::nnf::copy_from]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 26:0-33:1 -/
+def nnf.copy_from
+  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (target : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len source
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
+        index
+    let target1 ← alloc.vec.Vec.push target i1
+    let i2 ← index + 1#usize
+    nnf.copy_from source i2 target1
+  else ok target
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::copy_iri]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 34:0-38:1 -/
+def nnf.copy_iri (iri : model.Iri) : Result model.Iri := do
+  let v ← nnf.copy_from iri.spelling 0#usize (alloc.vec.Vec.new Std.U8)
+  ok { spelling := v }
+
+/-- [rowl_kernel::nnf::named]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 40:0-63:1 -/
+def nnf.named
+  (expression : model.ClassExpression) («class» : model.Class)
+  (positive : Bool) :
+  Result nnf.NnfConcept
+  := do
+  let b ← class_equality.is_thing expression
+  if b
+  then if positive
+       then ok nnf.NnfConcept.Top
+       else ok nnf.NnfConcept.Bottom
+  else
+    let b1 ← class_equality.is_nothing expression
+    if b1
+    then if positive
+         then ok nnf.NnfConcept.Bottom
+         else ok nnf.NnfConcept.Top
+    else
+      let i ← nnf.copy_iri «class».iri
+      if positive
+      then ok (nnf.NnfConcept.Atom { iri := i })
+      else ok (nnf.NnfConcept.NotAtom { iri := i })
+
+/-- [rowl_kernel::nnf::join]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 64:0-70:1 -/
+def nnf.join
+  (conjunctive : Bool) (left : nnf.NnfConcept) (right : nnf.NnfConcept) :
+  Result nnf.NnfConcept
+  := do
+  if conjunctive
+  then ok (nnf.NnfConcept.And left right)
+  else ok (nnf.NnfConcept.Or left right)
+
+mutual
+
+/-- [rowl_kernel::nnf::fold_from]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 72:0-94:1 -/
+def nnf.fold_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (positive : Bool) (conjunctive : Bool) (joined : nnf.NnfConcept) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← nnf.nnf ce positive
+    match o with
+    | none => ok none
+    | some next =>
+      let i1 ← index + 1#usize
+      let nc ← nnf.join conjunctive joined next
+      nnf.fold_from values i1 positive conjunctive nc
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::connect]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 96:0-116:1 -/
+def nnf.connect
+  (members : model.AtLeastTwo model.ClassExpression) (positive : Bool)
+  (conjunctive : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let o ← nnf.nnf members.first positive
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← nnf.nnf members.second positive
+    match o1 with
+    | none => ok none
+    | some second =>
+      let nc ← nnf.join conjunctive first second
+      nnf.fold_from members.rest 0#usize positive conjunctive nc
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::restriction]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 118:0-139:1 -/
+def nnf.restriction
+  (property : model.ObjectPropertyExpression) (filler : model.ClassExpression)
+  (positive : Bool) (existential : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
+  match property with
+  | model.ObjectPropertyExpression.Property p =>
+    let i ← nnf.copy_iri p.iri
+    let o ← nnf.nnf filler positive
+    match o with
+    | none => ok none
+    | some inner =>
+      if existential
+      then ok (some (nnf.NnfConcept.Exists { iri := i } inner))
+      else ok (some (nnf.NnfConcept.Forall { iri := i } inner))
+  | model.ObjectPropertyExpression.Inverse _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::nnf]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 144:0-158:1
+    Visibility: public -/
+def nnf.nnf
+  (expression : model.ClassExpression) (positive : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
+  match expression with
+  | model.ClassExpression.Class «class» =>
+    let nc ← nnf.named expression «class» positive
+    ok (some nc)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    nnf.connect members positive positive
+  | model.ClassExpression.ObjectUnionOf members =>
+    nnf.connect members positive (¬ positive)
+  | model.ClassExpression.ObjectComplementOf inner =>
+    nnf.nnf inner (¬ positive)
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom property filler =>
+    nnf.restriction property filler positive positive
+  | model.ClassExpression.ObjectAllValuesFrom property filler =>
+    nnf.restriction property filler positive (¬ positive)
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
+partial_fixpoint
+
+end
 
 /-- [rowl_kernel::probes::replace_slot]:
     Source: 'crates/rowl-kernel/src/probes.rs', lines 22:0-29:1

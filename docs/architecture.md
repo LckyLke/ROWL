@@ -807,3 +807,19 @@ final IRI.
 The reader builds source records only. Typing, punning and reserved-vocabulary
 rules belong to the existing kernel checks, which run on the complete axiom
 closure. Checking them per declaration here would miss conflicts between axioms.
+
+
+### Reasoner track: concept language and fragments
+
+The tableau decides concepts in negation normal form, not raw class expressions.
+`NnfConcept` admits negation only on named classes and refers to classes and
+properties by their exact model values, so its meaning (`conceptDenote`) is
+stated directly over OWL interpretations. The translation is proved against the
+independent Direct Semantics, so tableau results transfer to OWL class
+satisfiability without an intermediate semantics.
+
+The reasoner grows by fragments. ALC comes first. Each later stage adds
+constructors to `NnfConcept` and the translation (inverse roles, number
+restrictions, nominals, then the remaining SROIQ features and datatypes) and
+re-proves the affected cases. Expressions outside the current fragment have no
+translation, so no answer is ever given for an unsupported input.

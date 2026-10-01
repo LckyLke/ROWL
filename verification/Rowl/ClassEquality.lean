@@ -46,6 +46,12 @@ def IsThing (value : ClassExpression) : Prop :=
   match value with
   | .Class c => c.iri.spelling.val = ThingBytes
   | _ => False
+def NothingBytes : List U8 := [104#u8,116#u8,116#u8,112#u8,58#u8,47#u8,47#u8,119#u8,119#u8,119#u8,46#u8,119#u8,51#u8,46#u8,111#u8,114#u8,103#u8,47#u8,50#u8,48#u8,48#u8,50#u8,47#u8,48#u8,55#u8,47#u8,111#u8,119#u8,108#u8,35#u8,78#u8,111#u8,116#u8,104#u8,105#u8,110#u8,103#u8]
+/-- Only the named built-in empty class, which the tableau reads as bottom. -/
+def IsNothing (value : ClassExpression) : Prop :=
+  match value with
+  | .Class c => c.iri.spelling.val = NothingBytes
+  | _ => False
 /-- Only the named default data range, retaining exact IRI identity. -/
 def IsLiteral (value : DataRange) : Prop :=
   match value with
@@ -180,6 +186,10 @@ private theorem same_pattern_total (key : alloc.vec.Vec U8) (pattern : Slice U8)
 theorem is_thing_total_correct (value : ClassExpression) :
     is_thing value = .ok (decide (IsThing value)) := by
   cases value <;> simp [is_thing,IsThing,same_pattern_total,ThingBytes,Array.to_slice,Array.make,lift]
+/-- Exact built-in empty-class recognition, without logical equivalence. -/
+theorem is_nothing_total_correct (value : ClassExpression) :
+    is_nothing value = .ok (decide (IsNothing value)) := by
+  cases value <;> simp [is_nothing,IsNothing,same_pattern_total,NothingBytes,Array.to_slice,Array.make,lift]
 /-- Exact built-in data filler recognition. -/
 theorem is_literal_total_correct (value : DataRange) :
     is_literal value = .ok (decide (IsLiteral value)) := by

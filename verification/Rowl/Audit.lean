@@ -75,6 +75,7 @@ import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
+import Rowl.Nnf
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -372,6 +373,7 @@ import Rowl.FunctionalAnnotationAxiomSource
 #print axioms Rowl.ClassEquality.same_natural_total_correct
 #print axioms Rowl.ClassEquality.same_natural_value_total_correct
 #print axioms Rowl.ClassEquality.is_thing_total_correct
+#print axioms Rowl.ClassEquality.is_nothing_total_correct
 #print axioms Rowl.ClassEquality.is_literal_total_correct
 #print axioms Rowl.ClassEquality.same_optional_range_total_correct
 #print axioms Rowl.ClassEquality.same_individual_set_total_correct
@@ -696,6 +698,12 @@ import Rowl.FunctionalAnnotationAxiomSource
 #print axioms Rowl.FunctionalAnnotationAxioms.read_annotation_axiom_result_iff
 #print axioms Rowl.FunctionalAnnotationAxioms.annotation_axiom_source_values
 #print axioms Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff
+#print axioms Rowl.Nnf.fixes_of_interpretation
+#print axioms Rowl.Nnf.copy_iri_identity
+#print axioms Rowl.Nnf.nnf_total_correct
+#print axioms Rowl.Nnf.nnf_supported_iff
+#print axioms Rowl.Nnf.nnf_meaning
+#print axioms Rowl.Nnf.nnf_instances
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1202,3 +1210,14 @@ import Rowl.FunctionalAnnotationAxiomSource
 #print axioms Rowl.FunctionalAnnotationAxioms.BodyKind
 #print axioms Rowl.FunctionalAnnotationAxioms.BodyRun
 #print axioms Rowl.FunctionalAnnotationAxioms.AxiomRun
+#print axioms Rowl.ClassEquality.NothingBytes
+#print axioms Rowl.ClassEquality.IsNothing
+#print axioms Rowl.Nnf.conceptDenote
+#print axioms Rowl.Nnf.InAlc
+#print axioms Rowl.Nnf.Polar
+#print axioms Rowl.Nnf.Fixes
+#print axioms Rowl.Nnf.Agrees
+#print axioms Rowl.Nnf.Correct
+#print axioms Rowl.Nnf.Every
+#print axioms Rowl.Nnf.Gather
+#print axioms Rowl.Nnf.Quantified

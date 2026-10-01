@@ -458,15 +458,25 @@ progress. Full OWL parsing and executable reasoning are still future work.
   section and at least five consumed tokens. With declarations, this covers every
   non-logical axiom; the logical axioms, the axiom loop, the closing token and
   complete document construction remain pending.
-- 620 audited public theorems and 506 audited semantic definitions. No full OWL
+- Reasoner track, first stage: negation normal form for the ALC fragment. The
+  actual kernel translation maps named classes, intersections, unions,
+  complements and existential/universal restrictions on named object properties
+  to a concept type that admits negation only on named classes; owl:Thing and
+  owl:Nothing become top and bottom. It is proved total on all 18 class forms,
+  returns no result exactly outside the fragment, and preserves the meaning of the
+  expression (or its complement) under the independent Direct Semantics in every
+  OWL interpretation, for domains of any universe. The tableau that decides these
+  concepts, TBox reasoning and blocking, the other constructors, datatypes and
+  query reductions remain pending.
+- 627 audited public theorems and 517 audited semantic definitions. No full OWL
   decision procedure is proved yet. See m3-m4-progress.md for the input contracts.
-- 328 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 334 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 813-obligation release ledger and separate checked constructor and built-in inventories.
+- A 820-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
