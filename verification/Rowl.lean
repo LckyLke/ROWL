@@ -109,6 +109,7 @@ import Rowl.FunctionalDocument
 import Rowl.FunctionalModel
 import Rowl.Nnf
 import Rowl.Tableau
+import Rowl.RoleBox
 import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.AboxTableau

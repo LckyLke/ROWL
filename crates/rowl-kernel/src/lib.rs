@@ -66,6 +66,8 @@ pub mod nnf;
 
 pub mod tableau;
 
+pub mod role_box;
+
 pub mod tbox;
 
 pub mod abox;

@@ -1128,9 +1128,12 @@
       "module": "Rowl.Hintikka",
       "namespace": "Rowl.Hintikka",
       "theorems": [
+        "Rowl.Hintikka.universalItems_mem",
+        "Rowl.Hintikka.roleFillers_mem",
         "Rowl.Hintikka.sat_mono",
         "Rowl.Hintikka.sat_literal",
         "Rowl.Hintikka.family_truth",
+        "Rowl.Hintikka.family_respects",
         "Rowl.Hintikka.model_of_family"
       ]
     },
@@ -1138,22 +1141,39 @@
       "module": "Rowl.TboxTableau",
       "namespace": "Rowl.TboxTableau",
       "theorems": [
+        "Rowl.TboxTableau.itemsList_fromConcepts",
         "Rowl.TboxTableau.subconcepts_self",
         "Rowl.TboxTableau.subconcepts_closed",
         "Rowl.TboxTableau.closed_append",
         "Rowl.TboxTableau.history_bound",
+        "Rowl.TboxTableau.withThroughs_mem",
+        "Rowl.TboxTableau.withThroughs_base",
+        "Rowl.TboxTableau.withThroughs_closed",
+        "Rowl.TboxTableau.withThroughs_throughs",
+        "Rowl.TboxTableau.duplicate_correct",
         "Rowl.TboxTableau.duplicate_history_correct",
         "Rowl.TboxTableau.same_concept_correct",
+        "Rowl.TboxTableau.contains_atom_correct",
+        "Rowl.TboxTableau.has_clash_correct",
+        "Rowl.TboxTableau.universal_is_correct",
         "Rowl.TboxTableau.contains_concept_correct",
+        "Rowl.TboxTableau.contains_universal_correct",
         "Rowl.TboxTableau.subset_correct",
         "Rowl.TboxTableau.blocked_correct",
+        "Rowl.TboxTableau.transitive_from_correct",
+        "Rowl.TboxTableau.universal_correct",
+        "Rowl.TboxTableau.role_fillers_correct",
         "Rowl.TboxTableau.expand_correct",
+        "Rowl.TboxTableau.satisfiable_with_correct",
+        "Rowl.TboxTableau.listSubconcepts_closed",
+        "Rowl.TboxTableau.listSubconcepts_self",
+        "Rowl.TboxTableau.satisfiable_items_correct",
+        "Rowl.TboxTableau.no_roles_correct",
         "Rowl.TboxTableau.satisfiable_in_correct",
         "Rowl.TboxTableau.rejected_empty_in_models",
         "Rowl.TboxTableau.class_instances_accepted_in",
         "Rowl.TboxTableau.rejected_class_empty_in",
-        "Rowl.TboxTableau.listSubconcepts_closed",
-        "Rowl.TboxTableau.listSubconcepts_self",
+        "Rowl.TboxTableau.items_of_correct",
         "Rowl.TboxTableau.satisfiable_all_correct"
       ]
     },
@@ -1410,6 +1430,17 @@
         "Rowl.AboxTableau.decides_of_extra",
         "Rowl.AboxTableau.complete_correct",
         "Rowl.AboxTableau.abox_satisfiable_correct"
+      ]
+    },
+    {
+      "module": "Rowl.RoleBox",
+      "namespace": "Rowl.RoleBox",
+      "theorems": [
+        "Rowl.RoleBox.below_refl",
+        "Rowl.RoleBox.respects_below",
+        "Rowl.RoleBox.below_correct",
+        "Rowl.RoleBox.closed_of_empty",
+        "Rowl.RoleBox.respects_of_empty"
       ]
     }
   ],
@@ -2043,6 +2074,18 @@
     "Rowl.AlcOntology.EdgeOf",
     "Rowl.AlcOntology.DeniedOf",
     "Rowl.AlcOntology.Answerable",
-    "Rowl.AlcOntology.Placement"
+    "Rowl.AlcOntology.Placement",
+    "Rowl.RoleBox.inclusionList",
+    "Rowl.RoleBox.transitives",
+    "Rowl.RoleBox.Below",
+    "Rowl.RoleBox.Closed",
+    "Rowl.RoleBox.Respects",
+    "Rowl.Hintikka.universalItems",
+    "Rowl.Hintikka.roleFillers",
+    "Rowl.TboxTableau.itemsList",
+    "Rowl.TboxTableau.fromConcepts",
+    "Rowl.TboxTableau.forallFiller",
+    "Rowl.TboxTableau.withThroughs",
+    "Rowl.TboxTableau.Throughs"
   ]
 }

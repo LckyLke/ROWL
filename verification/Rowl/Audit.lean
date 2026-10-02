@@ -83,6 +83,7 @@ import Rowl.FunctionalDocument
 import Rowl.FunctionalModel
 import Rowl.Nnf
 import Rowl.Tableau
+import Rowl.RoleBox
 import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.AboxTableau
@@ -739,26 +740,46 @@ import Rowl.SourceReasoning
 #print axioms Rowl.Tableau.satisfiable_correct
 #print axioms Rowl.Tableau.class_instances_accepted
 #print axioms Rowl.Tableau.rejected_class_empty
+#print axioms Rowl.Hintikka.universalItems_mem
+#print axioms Rowl.Hintikka.roleFillers_mem
 #print axioms Rowl.Hintikka.sat_mono
 #print axioms Rowl.Hintikka.sat_literal
 #print axioms Rowl.Hintikka.family_truth
+#print axioms Rowl.Hintikka.family_respects
 #print axioms Rowl.Hintikka.model_of_family
+#print axioms Rowl.TboxTableau.itemsList_fromConcepts
 #print axioms Rowl.TboxTableau.subconcepts_self
 #print axioms Rowl.TboxTableau.subconcepts_closed
 #print axioms Rowl.TboxTableau.closed_append
 #print axioms Rowl.TboxTableau.history_bound
+#print axioms Rowl.TboxTableau.withThroughs_mem
+#print axioms Rowl.TboxTableau.withThroughs_base
+#print axioms Rowl.TboxTableau.withThroughs_closed
+#print axioms Rowl.TboxTableau.withThroughs_throughs
+#print axioms Rowl.TboxTableau.duplicate_correct
 #print axioms Rowl.TboxTableau.duplicate_history_correct
 #print axioms Rowl.TboxTableau.same_concept_correct
+#print axioms Rowl.TboxTableau.contains_atom_correct
+#print axioms Rowl.TboxTableau.has_clash_correct
+#print axioms Rowl.TboxTableau.universal_is_correct
 #print axioms Rowl.TboxTableau.contains_concept_correct
+#print axioms Rowl.TboxTableau.contains_universal_correct
 #print axioms Rowl.TboxTableau.subset_correct
 #print axioms Rowl.TboxTableau.blocked_correct
+#print axioms Rowl.TboxTableau.transitive_from_correct
+#print axioms Rowl.TboxTableau.universal_correct
+#print axioms Rowl.TboxTableau.role_fillers_correct
 #print axioms Rowl.TboxTableau.expand_correct
+#print axioms Rowl.TboxTableau.satisfiable_with_correct
+#print axioms Rowl.TboxTableau.listSubconcepts_closed
+#print axioms Rowl.TboxTableau.listSubconcepts_self
+#print axioms Rowl.TboxTableau.satisfiable_items_correct
+#print axioms Rowl.TboxTableau.no_roles_correct
 #print axioms Rowl.TboxTableau.satisfiable_in_correct
 #print axioms Rowl.TboxTableau.rejected_empty_in_models
 #print axioms Rowl.TboxTableau.class_instances_accepted_in
 #print axioms Rowl.TboxTableau.rejected_class_empty_in
-#print axioms Rowl.TboxTableau.listSubconcepts_closed
-#print axioms Rowl.TboxTableau.listSubconcepts_self
+#print axioms Rowl.TboxTableau.items_of_correct
 #print axioms Rowl.TboxTableau.satisfiable_all_correct
 #print axioms Rowl.Internalization.all_equal_iff
 #print axioms Rowl.Internalization.pairwise_disjoint_iff
@@ -955,6 +976,11 @@ import Rowl.SourceReasoning
 #print axioms Rowl.AboxTableau.decides_of_extra
 #print axioms Rowl.AboxTableau.complete_correct
 #print axioms Rowl.AboxTableau.abox_satisfiable_correct
+#print axioms Rowl.RoleBox.below_refl
+#print axioms Rowl.RoleBox.respects_below
+#print axioms Rowl.RoleBox.below_correct
+#print axioms Rowl.RoleBox.closed_of_empty
+#print axioms Rowl.RoleBox.respects_of_empty
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1585,3 +1611,15 @@ import Rowl.SourceReasoning
 #print axioms Rowl.AlcOntology.DeniedOf
 #print axioms Rowl.AlcOntology.Answerable
 #print axioms Rowl.AlcOntology.Placement
+#print axioms Rowl.RoleBox.inclusionList
+#print axioms Rowl.RoleBox.transitives
+#print axioms Rowl.RoleBox.Below
+#print axioms Rowl.RoleBox.Closed
+#print axioms Rowl.RoleBox.Respects
+#print axioms Rowl.Hintikka.universalItems
+#print axioms Rowl.Hintikka.roleFillers
+#print axioms Rowl.TboxTableau.itemsList
+#print axioms Rowl.TboxTableau.fromConcepts
+#print axioms Rowl.TboxTableau.forallFiller
+#print axioms Rowl.TboxTableau.withThroughs
+#print axioms Rowl.TboxTableau.Throughs

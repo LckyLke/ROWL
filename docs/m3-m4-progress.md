@@ -2635,3 +2635,50 @@ This block adds 35 public theorems and 12 independent definitions. Totals are
 865 audited theorems, 630 definitions, 373 Rust regressions and 1058 ledger
 obligations. `SameIndividual`, `DifferentIndividuals`, data assertions, the
 other axiom forms, inverse roles and number restrictions remain pending.
+
+
+## Reasoner: role inclusions and transitive roles (SH)
+
+`tbox::satisfiable_with(concept, axioms, roles)` extends the TBox tableau to the
+logic SH. A `role_box::RoleBox` lists inclusions `sub ⊑ sup` between named object
+properties, which must include their compositions, and transitive named object
+properties. `role_box::below` tests inclusion: equality or a listed inclusion,
+comparing properties by exact spelling.
+
+The tableau now works on item lists. An item is a concept of the input or a
+`Through` item, the universal restriction `∀t.D` of a transitive property `t` on
+a filler `D` of the input. When a successor along `s` is created, every universal
+restriction `∀r.D` at the node, as a concept or a `Through` item, with `s` below
+`r` requires `D`. For every transitive `t` with `s` below `t` and `t` below `r`,
+it also requires the item `∀t.D`. Blocking compares items as the concepts they
+stand for.
+
+RoleBox defines what a role box means, independently of the Rust code: Respects
+says that every listed inclusion and every listed transitivity holds. It proves
+`below` exact. Hintikka now witnesses each existential with everything the
+universal restrictions require along its role (roleFillers). Its model relates
+two sets along a property when the second satisfies everything the first
+requires along it. family_respects proves that this model satisfies every
+listed transitivity, and every listed inclusion when the inclusions include
+their compositions. TboxTableau proves every helper exact and `expand` total and
+correct as before. The finite closure now also contains `∀t.D` for every
+transitive `t` and every universal filler `D`.
+
+satisfiable_with_correct and satisfiable_items_correct state the results. For a
+role box closed under composition, every acceptance comes with a model of the
+role axioms and the TBox concept with an instance. Every such model, in any
+universe, forces acceptance. satisfiable_in and satisfiable_all run the same
+procedure with no role axioms, and their theorems keep their statements.
+
+Four new regressions cover:
+
+- universal restrictions along included properties;
+- paths along transitive properties and their sub-properties;
+- blocked nodes that keep the restrictions of transitive properties;
+- 300 pseudo-random concept and TBox pairs over two properties (`s` included in
+  a transitive `t`), checked against every model of at most three elements.
+
+This block adds 25 public theorems and 12 independent definitions. Totals are
+890 audited theorems, 642 definitions, 377 Rust regressions and 1083 ledger
+obligations. Reading role axioms from ontologies and source text, and using them
+with named individuals, are the next steps.

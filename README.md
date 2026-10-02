@@ -122,7 +122,8 @@ interpretation. A second tableau decides them under a TBox concept that must hol
 at every element, blocking a node whose literals all occur at an ancestor. It is
 proved total, sound (through a Hintikka-family model) and complete, so a rejection
 proves a class empty in every OWL interpretation where the TBox class expression
-holds everywhere. On top of these, the kernel now answers consistency, class
+holds everywhere. It now also takes role inclusions and transitive roles (SH),
+proved the same way against every model of those role axioms. On top of these, the kernel now answers consistency, class
 satisfiability and subsumption for whole axiom closures whose logical axioms are
 ALC class, domain and range axioms. Each answer is proved equal to the
 independent Direct Semantics definition, and each acceptance comes with an

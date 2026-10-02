@@ -538,7 +538,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   class expression empty in every OWL interpretation where the TBox class
   expression holds at every element, which justifies unsatisfiability and
   subsumption answers under ALC general concept inclusions written as that
-  expression. The remaining SROIQ constructors and role axioms, datatypes and
+  expression. Role inclusions and transitive roles are added in the eighth stage
+  below; the remaining SROIQ constructors and role axioms, datatypes and
   performance remain pending.
 - Reasoner track, fourth stage: verified ontology-level ALC queries. The actual
   kernel internalizes an axiom closure into one TBox concept: SubClassOf,
@@ -607,14 +608,29 @@ progress. Full OWL parsing and executable reasoning are still future work.
   is None outside the fragment, for an assertion on a built-in object property,
   or beyond usize::MAX - 2 individuals. SameIndividual, DifferentIndividuals and
   data assertions remain pending.
-- 865 audited public theorems and 630 audited semantic definitions. Consistency,
+- Reasoner track, eighth stage: role inclusions and transitive roles in the TBox
+  tableau (SH). The actual kernel procedure satisfiable_with also takes a role
+  box: inclusions between named object properties, which must include their
+  compositions, and transitive named object properties. A successor along a
+  property receives the filler of every universal restriction on a property
+  that includes it and, for every transitive property in between, the same
+  universal restriction on that transitive property, so elements reached in
+  several steps satisfy the filler too. It is proved total (the finite closure
+  gains these restrictions), sound (for a role box closed under composition, the
+  Hintikka-family model satisfies every listed inclusion and transitivity) and
+  complete (every model of the role box, in any universe, forces acceptance).
+  The ALC entry points run the same procedure without role axioms and keep
+  their theorems. Reading role axioms from ontologies and source text and using
+  them with named individuals remain pending, as do inverse roles, number
+  restrictions, nominals and property chains.
+- 890 audited public theorems and 642 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALC class, domain and range axioms and class and object property assertions,
   also directly from Functional Syntax source bytes; no full OWL decision
   procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 373 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 377 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -623,7 +639,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1058-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1083-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

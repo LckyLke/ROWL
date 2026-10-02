@@ -933,6 +933,22 @@ still follows any model. Blocking compares concepts by exact structural equality
 so the ancestor search is quadratic in the label sizes; performance work belongs
 to a later stage.
 
+Role inclusions and transitive roles (SH) fit the same recursive shape, because
+without inverse roles nothing below a node can affect it. The role box is a list
+of inclusions, closed under composition by its producer, and a list of
+transitive properties. A successor along `s` takes the filler of every universal
+restriction `∀r.D` with `s ⊑ r`. For each transitive `t` with `s ⊑ t ⊑ r` it
+also takes the restriction `∀t.D` itself, so that `D` reaches every element along
+a `t`-path. Such a restriction is not a subconcept of the input, so the tableau's
+lists hold items: a reference to an input concept, or a `Through` item pairing a
+transitive property with an input filler. Blocking compares items as the
+concepts they stand for, and the finite closure gains `∀t.D` for every
+transitive `t` and every universal filler `D`. The Hintikka model relates two
+sets along a property exactly when the second satisfies everything the first
+requires along it. That relation is automatically transitive for transitive
+properties and, for a closed role box, monotone along inclusions, so the model
+needs no separate transitive closure.
+
 Ontology-level queries sit on top of the TBox tableau. Each supported axiom is
 internalized into a concept that holds at every element exactly when the axiom
 holds, reusing the NNF translation for every class expression, and the closure's
