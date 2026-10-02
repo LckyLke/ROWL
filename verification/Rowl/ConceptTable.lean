@@ -4,14 +4,15 @@ import Rowl.Hierarchy
 The concept table of the completion graph tableau: every concept is interned
 once, as an entry whose parts are the indices of earlier entries. Interning is
 proved exact: entries are only appended, every part comes before its entry
-(`WellFormed`), and the table rebuilds every interned concept (`meaning`).
+(`WellFormed`), the table rebuilds every interned concept (`meaning`), and every
+maximum restriction records the complement of its filler (`Complements`).
 Closing the table adds `∀t.d` for every universal restriction `∀q.d` and every
 transitive role `t` included in `q`, the restrictions that the tableau passes
 along transitive roles.
 -/
 namespace Rowl.ConceptTable
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
-open Rowl.Concepts (copy_role_identity same_role_correct)
+open Rowl.Concepts (copy_role_identity same_role_correct copy_concept_identity negate_correct)
 open Rowl.Hierarchy (Below Closed transitives below_correct)
 open Rowl.Tableau (class_eq_iff)
 open Rowl.Nnf (copy_iri_identity)
@@ -27,6 +28,8 @@ def parts : concept_table.Entry → List Nat
   | .Or a b => [a.val,b.val]
   | .Exists _ c => [c.val]
   | .Forall _ c => [c.val]
+  | .AtLeast _ _ c => [c.val]
+  | .AtMost _ _ c d => [c.val,d.val]
   | _ => []
 
 /-- Every entry's parts come before it. -/
@@ -52,6 +55,8 @@ def meaning (entries : List concept_table.Entry) (i : Nat) : concepts.Concept :=
     else .Top
   | some (.Exists r c) => if _inner : c.val < i then .Exists r (meaning entries c.val) else .Top
   | some (.Forall r c) => if _inner : c.val < i then .Forall r (meaning entries c.val) else .Top
+  | some (.AtLeast n r c) => if _inner : c.val < i then .AtLeast n r (meaning entries c.val) else .Top
+  | some (.AtMost n r c _) => if _inner : c.val < i then .AtMost n r (meaning entries c.val) else .Top
   | none => .Top
 termination_by i
 
@@ -65,6 +70,8 @@ def rebuild (entries : List concept_table.Entry) : concept_table.Entry → conce
   | .Or a b => .Or (meaning entries a.val) (meaning entries b.val)
   | .Exists r c => .Exists r (meaning entries c.val)
   | .Forall r c => .Forall r (meaning entries c.val)
+  | .AtLeast n r c => .AtLeast n r (meaning entries c.val)
+  | .AtMost n r c _ => .AtMost n r (meaning entries c.val)
 
 /-- In a well-formed table, an index means its entry with the parts rebuilt. -/
 theorem meaning_at (entries : List concept_table.Entry) (wf : WellFormed entries) (k : Nat)
@@ -84,6 +91,12 @@ theorem meaning_at (entries : List concept_table.Entry) (wf : WellFormed entries
     have inner : c.val < k := below c.val (by simp [parts])
     simp only [dif_pos inner,rebuild]
   | Forall r c =>
+    have inner : c.val < k := below c.val (by simp [parts])
+    simp only [dif_pos inner,rebuild]
+  | AtLeast n r c =>
+    have inner : c.val < k := below c.val (by simp [parts])
+    simp only [dif_pos inner,rebuild]
+  | AtMost n r c d =>
     have inner : c.val < k := below c.val (by simp [parts])
     simp only [dif_pos inner,rebuild]
   | Top | Bottom | Atom _ | NotAtom _ => rfl
@@ -117,6 +130,14 @@ theorem meaning_append (entries more : List concept_table.Entry) (wf : WellForme
         simp only [dif_pos inner]
         rw [ih c.val inner (by omega)]
       | Forall r c =>
+        have inner : c.val < i := below c.val (by simp [parts])
+        simp only [dif_pos inner]
+        rw [ih c.val inner (by omega)]
+      | AtLeast n r c =>
+        have inner : c.val < i := below c.val (by simp [parts])
+        simp only [dif_pos inner]
+        rw [ih c.val inner (by omega)]
+      | AtMost n r c d =>
         have inner : c.val < i := below c.val (by simp [parts])
         simp only [dif_pos inner]
         rw [ih c.val inner (by omega)]
@@ -188,6 +209,31 @@ theorem same_entry_correct (a b : concept_table.Entry) : concept_table.same_entr
       by_cases first : c1 = c2
       · subst first; simp [same_role_correct]
       · simp [first]
+    | _ => rw [concept_table.same_entry]; simp
+  | AtLeast n1 r1 c1 =>
+    cases b with
+    | AtLeast n2 r2 c2 =>
+      rw [concept_table.same_entry]
+      by_cases bound : n1 = n2
+      · subst bound
+        by_cases first : c1 = c2
+        · subst first; simp [same_role_correct]
+        · simp [first]
+      · simp [bound]
+    | _ => rw [concept_table.same_entry]; simp
+  | AtMost n1 r1 c1 d1 =>
+    cases b with
+    | AtMost n2 r2 c2 d2 =>
+      rw [concept_table.same_entry]
+      by_cases bound : n1 = n2
+      · subst bound
+        by_cases first : c1 = c2
+        · subst first
+          by_cases second : d1 = d2
+          · subst second; simp [same_role_correct]
+          · simp [second]
+        · simp [first]
+      · simp [bound]
     | _ => rw [concept_table.same_entry]; simp
   | Top => cases b <;> rw [concept_table.same_entry] <;> simp
   | Bottom => cases b <;> rw [concept_table.same_entry] <;> simp
@@ -275,131 +321,342 @@ theorem add_wellFormed (entries : alloc.vec.Vec concept_table.Entry) (entry : co
   · exact ⟨[],by simp [same']⟩
   · exact ⟨[entry],appended⟩
 
+/-- Every maximum restriction of the table records the complement of its
+    filler: the index that rebuilds the filler's negation. -/
+def Complements (entries : List concept_table.Entry) : Prop :=
+  ∀ (i : Nat) n r c d, entries[i]? = some (concept_table.Entry.AtMost n r c d) →
+    concepts.negate (meaning entries c.val) = .ok (some (meaning entries d.val))
+
+/-- Appending entries keeps the complements of a well-formed table, provided the
+    new maximum restrictions record theirs. -/
+theorem complements_append (entries more : List concept_table.Entry) (wf : WellFormed entries)
+    (old : Complements entries)
+    (fresh : ∀ (j : Nat) n r c d, more[j]? = some (concept_table.Entry.AtMost n r c d) →
+      concepts.negate (meaning (entries ++ more) c.val) = .ok (some (meaning (entries ++ more) d.val))) :
+    Complements (entries ++ more) := by
+  intro i n r c d at_i
+  by_cases inside : i < entries.length
+  · rw [List.getElem?_append_left inside] at at_i
+    have below := wf i _ at_i
+    have first : c.val < i := below c.val (by simp [parts])
+    have second : d.val < i := below d.val (by simp [parts])
+    rw [meaning_append entries more wf c.val (by omega),meaning_append entries more wf d.val (by omega)]
+    exact old i n r c d at_i
+  · rw [List.getElem?_append_right (by omega)] at at_i
+    exact fresh _ n r c d at_i
+
+/-- The number of constructors of a concept, ignoring roles and bounds; a
+    complement is no larger. -/
+def size : concepts.Concept → Nat
+  | .And a b | .Or a b => size a + size b + 1
+  | .Exists _ c | .Forall _ c | .AtLeast _ _ c | .AtMost _ _ c => size c + 1
+  | _ => 1
+
+theorem negate_size (c : concepts.Concept) : ∀ c', concepts.negate c = .ok (some c') → size c' ≤ size c := by
+  induction c with
+  | Top | Bottom =>
+    intro c' run
+    rw [concepts.negate] at run
+    cases Result.ok_injective run
+    simp [size]
+  | Atom k | NotAtom k =>
+    intro c' run
+    rw [concepts.negate] at run
+    cases k
+    simp only [copy_iri_identity,bind_ok,Result.ok.injEq,Option.some.injEq] at run
+    subst run
+    simp [size]
+  | And a b ihA ihB | Or a b ihA ihB =>
+    intro c' run
+    rw [concepts.negate,concepts.negate_pair] at run
+    obtain ⟨ra,runA,_⟩ := negate_correct.{0,0} a
+    obtain ⟨rb,runB,_⟩ := negate_correct.{0,0} b
+    cases ra with
+    | none => simp [runA] at run
+    | some a' =>
+      cases rb with
+      | none => simp [runA,runB] at run
+      | some b' =>
+        simp only [runA,runB,bind_ok,concepts.join,Bool.false_eq_true,↓reduceIte,Result.ok.injEq,
+          Option.some.injEq] at run
+        subst run
+        have one := ihA a' runA
+        have two := ihB b' runB
+        simp only [size]
+        omega
+  | Exists r c ih | Forall r c ih =>
+    intro c' run
+    rw [concepts.negate] at run
+    obtain ⟨rc,runC,_⟩ := negate_correct.{0,0} c
+    cases rc with
+    | none => simp [runC] at run
+    | some inner =>
+      simp only [runC,bind_ok,copy_role_identity,Result.ok.injEq,Option.some.injEq] at run
+      subst run
+      have := ih inner runC
+      simp only [size]
+      omega
+  | AtLeast n r c _ =>
+    intro c' run
+    rw [concepts.negate] at run
+    by_cases zero : n = 0#usize
+    · simp only [zero,↓reduceIte,Result.ok.injEq,Option.some.injEq] at run
+      subst run
+      simp [size]
+    · obtain ⟨m,lower,_⟩ := WP.spec_imp_exists (Usize.sub_spec (x := n) (y := 1#usize) (by
+        have : n.val ≠ 0 := fun same => zero (UScalar.eq_of_val_eq (by simpa using same))
+        scalar_tac))
+      simp only [zero,↓reduceIte,lower,bind_ok,copy_role_identity,copy_concept_identity,Result.ok.injEq,
+        Option.some.injEq] at run
+      subst run
+      simp [size]
+  | AtMost n r c _ =>
+    intro c' run
+    rw [concepts.negate] at run
+    by_cases less : n < core.num.Usize.MAX
+    · obtain ⟨m,higher,_⟩ := WP.spec_imp_exists (Usize.add_spec (x := n) (y := 1#usize) (by
+        rw [UScalar.lt_equiv] at less; simp [core.num.Usize.MAX] at less; scalar_tac))
+      simp only [less,↓reduceIte,higher,bind_ok,copy_role_identity,copy_concept_identity,Result.ok.injEq,
+        Option.some.injEq] at run
+      subst run
+      simp [size]
+    · simp [less] at run
+
+/-- Adding an entry keeps the complements, provided a maximum restriction
+    records the complement of its filler. -/
+private theorem add_complements (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry)
+    (wf : WellFormed entries.val) (old : Complements entries.val)
+    (fresh : ∀ n r c d, entry = .AtMost n r c d → concepts.negate (meaning (entries.val ++ [entry]) c.val) =
+      .ok (some (meaning (entries.val ++ [entry]) d.val)))
+    (result : Option (alloc.vec.Vec concept_table.Entry × Usize)) (run : concept_table.add entries entry = .ok result) :
+    ∀ t k, result = some (t,k) → Complements t.val := by
+  obtain ⟨result',run',spec⟩ := add_correct entries entry
+  rw [run] at run'
+  cases Result.ok_injective run'
+  intro t k same
+  rcases (spec t k same).1 with kept | appended
+  · rw [kept]; exact old
+  · rw [appended]
+    refine complements_append entries.val [entry] wf old ?_
+    intro j n r c d at_j
+    have : j = 0 := by
+      have := (List.getElem?_eq_some_iff.mp at_j).1
+      simp at this; omega
+    subst this
+    simp only [List.getElem?_cons_zero,Option.some.injEq] at at_j
+    exact fresh n r c d at_j
+
 /-- Interning terminates; when there is room, it appends to a well-formed table,
-    keeps it well formed, and returns an index that rebuilds the concept
-    exactly. -/
+    keeps it well formed, returns an index that rebuilds the concept exactly,
+    and keeps the complements of the table's maximum restrictions. -/
 theorem intern_correct (concept : concepts.Concept) (entries : alloc.vec.Vec concept_table.Entry)
     (wf : WellFormed entries.val) :
     ∃ result, concept_table.intern entries concept = .ok result ∧ ∀ t k, result = some (t,k) →
       WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ k.val < t.val.length ∧
-        meaning t.val k.val = concept := by
-  induction concept generalizing entries with
+        meaning t.val k.val = concept ∧ (Complements entries.val → Complements t.val) := by
+  -- A leaf: the entry is added as it is.
+  have leaf : ∀ (entry : concept_table.Entry), parts entry = [] → (∀ n r c d, entry ≠ .AtMost n r c d) →
+      ∃ result, concept_table.add entries entry = .ok result ∧ ∀ t k, result = some (t,k) →
+        WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ k.val < t.val.length ∧
+          meaning t.val k.val = rebuild t.val entry ∧ (Complements entries.val → Complements t.val) := by
+    intro entry noParts notMost
+    obtain ⟨result,run,spec⟩ := add_wellFormed entries entry wf (by simp [noParts])
+    refine ⟨result,run,?_⟩
+    intro t k same
+    obtain ⟨wf',grows,inside,_,rebuilt⟩ := spec t k same
+    exact ⟨wf',grows,inside,rebuilt,fun old => add_complements entries entry wf old
+      (fun n r c d isMost => absurd isMost (notMost n r c d)) result run t k same⟩
+  cases concept with
   | Top =>
-    obtain ⟨result,run,spec⟩ := add_wellFormed entries .Top wf (by simp [parts])
+    obtain ⟨result,run,spec⟩ := leaf .Top rfl (by intro n r c d impossible; cases impossible)
     refine ⟨result,by rw [concept_table.intern]; exact run,?_⟩
     intro t k same
-    obtain ⟨wf',grows,inside,_,rebuilt⟩ := spec t k same
-    exact ⟨wf',grows,inside,by rw [rebuilt]; rfl⟩
+    obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+    exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
   | Bottom =>
-    obtain ⟨result,run,spec⟩ := add_wellFormed entries .Bottom wf (by simp [parts])
+    obtain ⟨result,run,spec⟩ := leaf .Bottom rfl (by intro n r c d impossible; cases impossible)
     refine ⟨result,by rw [concept_table.intern]; exact run,?_⟩
     intro t k same
-    obtain ⟨wf',grows,inside,_,rebuilt⟩ := spec t k same
-    exact ⟨wf',grows,inside,by rw [rebuilt]; rfl⟩
+    obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+    exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
   | Atom c =>
-    obtain ⟨result,run,spec⟩ := add_wellFormed entries (.Atom c) wf (by simp [parts])
+    obtain ⟨result,run,spec⟩ := leaf (.Atom c) rfl (by intro n r c d impossible; cases impossible)
     refine ⟨result,?_,?_⟩
     · cases c
       rw [concept_table.intern]
       simp only [copy_iri_identity,bind_ok]
       exact run
     · intro t k same
-      obtain ⟨wf',grows,inside,_,rebuilt⟩ := spec t k same
-      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl⟩
+      obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
   | NotAtom c =>
-    obtain ⟨result,run,spec⟩ := add_wellFormed entries (.NotAtom c) wf (by simp [parts])
+    obtain ⟨result,run,spec⟩ := leaf (.NotAtom c) rfl (by intro n r c d impossible; cases impossible)
     refine ⟨result,?_,?_⟩
     · cases c
       rw [concept_table.intern]
       simp only [copy_iri_identity,bind_ok]
       exact run
     · intro t k same
-      obtain ⟨wf',grows,inside,_,rebuilt⟩ := spec t k same
-      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl⟩
-  | And a b iha ihb =>
+      obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
+  | And a b =>
     rw [concept_table.intern,concept_table.intern_pair]
-    obtain ⟨first,firstRun,firstSpec⟩ := iha entries wf
+    obtain ⟨first,firstRun,firstSpec⟩ := intern_correct a entries wf
     cases first with
     | none => exact ⟨none,by simp [firstRun],by simp⟩
     | some pair =>
       obtain ⟨t1,i1⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1⟩ := firstSpec t1 i1 rfl
-      obtain ⟨second,secondRun,secondSpec⟩ := ihb t1 wf1
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := firstSpec t1 i1 rfl
+      obtain ⟨second,secondRun,secondSpec⟩ := intern_correct b t1 wf1
       cases second with
       | none => exact ⟨none,by simp [firstRun,secondRun],by simp⟩
       | some pair =>
         obtain ⟨t2,i2⟩ := pair
-        obtain ⟨wf2,⟨more2,grows2⟩,inside2,meaning2⟩ := secondSpec t2 i2 rfl
+        obtain ⟨wf2,⟨more2,grows2⟩,inside2,meaning2,keeps2⟩ := secondSpec t2 i2 rfl
+        have one : ∀ more, meaning (t2.val ++ more) i1.val = a := by
+          intro more
+          rw [grows2,List.append_assoc,meaning_append t1.val (more2 ++ more) wf1 i1.val inside1,meaning1]
+        have two : ∀ more, meaning (t2.val ++ more) i2.val = b := by
+          intro more
+          rw [meaning_append t2.val more wf2 i2.val inside2,meaning2]
         obtain ⟨result,run,spec⟩ := add_wellFormed t2 (.And i1 i2) wf2
           (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p (rfl | rfl) <;>
               simp only [grows2,List.length_append] at * <;> omega)
         refine ⟨result,by simp [firstRun,secondRun,run],?_⟩
         intro t k same
         obtain ⟨wf',⟨more3,grows3⟩,inside,_,rebuilt⟩ := spec t k same
-        refine ⟨wf',⟨more1 ++ more2 ++ more3,by simp [grows3,grows2,grows1]⟩,inside,?_⟩
-        rw [rebuilt,rebuild]
-        have one : meaning t.val i1.val = a := by
-          rw [grows3,grows2,List.append_assoc,meaning_append t1.val (more2 ++ more3) wf1 i1.val inside1,meaning1]
-        have two : meaning t.val i2.val = b := by
-          rw [grows3,meaning_append t2.val more3 wf2 i2.val inside2,meaning2]
-        rw [one,two]
-  | Or a b iha ihb =>
+        refine ⟨wf',⟨more1 ++ more2 ++ more3,by simp [grows3,grows2,grows1]⟩,inside,?_,?_⟩
+        · rw [rebuilt,rebuild,grows3,one,two]
+        · exact fun old => add_complements t2 _ wf2 (keeps2 (keeps1 old))
+            (fun n r c d impossible => by cases impossible) result run t k same
+  | Or a b =>
     rw [concept_table.intern,concept_table.intern_pair]
-    obtain ⟨first,firstRun,firstSpec⟩ := iha entries wf
+    obtain ⟨first,firstRun,firstSpec⟩ := intern_correct a entries wf
     cases first with
     | none => exact ⟨none,by simp [firstRun],by simp⟩
     | some pair =>
       obtain ⟨t1,i1⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1⟩ := firstSpec t1 i1 rfl
-      obtain ⟨second,secondRun,secondSpec⟩ := ihb t1 wf1
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := firstSpec t1 i1 rfl
+      obtain ⟨second,secondRun,secondSpec⟩ := intern_correct b t1 wf1
       cases second with
       | none => exact ⟨none,by simp [firstRun,secondRun],by simp⟩
       | some pair =>
         obtain ⟨t2,i2⟩ := pair
-        obtain ⟨wf2,⟨more2,grows2⟩,inside2,meaning2⟩ := secondSpec t2 i2 rfl
+        obtain ⟨wf2,⟨more2,grows2⟩,inside2,meaning2,keeps2⟩ := secondSpec t2 i2 rfl
+        have one : ∀ more, meaning (t2.val ++ more) i1.val = a := by
+          intro more
+          rw [grows2,List.append_assoc,meaning_append t1.val (more2 ++ more) wf1 i1.val inside1,meaning1]
+        have two : ∀ more, meaning (t2.val ++ more) i2.val = b := by
+          intro more
+          rw [meaning_append t2.val more wf2 i2.val inside2,meaning2]
         obtain ⟨result,run,spec⟩ := add_wellFormed t2 (.Or i1 i2) wf2
           (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p (rfl | rfl) <;>
               simp only [grows2,List.length_append] at * <;> omega)
         refine ⟨result,by simp [firstRun,secondRun,run],?_⟩
         intro t k same
         obtain ⟨wf',⟨more3,grows3⟩,inside,_,rebuilt⟩ := spec t k same
-        refine ⟨wf',⟨more1 ++ more2 ++ more3,by simp [grows3,grows2,grows1]⟩,inside,?_⟩
-        rw [rebuilt,rebuild]
-        have one : meaning t.val i1.val = a := by
-          rw [grows3,grows2,List.append_assoc,meaning_append t1.val (more2 ++ more3) wf1 i1.val inside1,meaning1]
-        have two : meaning t.val i2.val = b := by
-          rw [grows3,meaning_append t2.val more3 wf2 i2.val inside2,meaning2]
-        rw [one,two]
-  | Exists r c ih =>
+        refine ⟨wf',⟨more1 ++ more2 ++ more3,by simp [grows3,grows2,grows1]⟩,inside,?_,?_⟩
+        · rw [rebuilt,rebuild,grows3,one,two]
+        · exact fun old => add_complements t2 _ wf2 (keeps2 (keeps1 old))
+            (fun n r c d impossible => by cases impossible) result run t k same
+  | Exists r c =>
     rw [concept_table.intern,concept_table.intern_restriction]
-    obtain ⟨inner,innerRun,innerSpec⟩ := ih entries wf
+    obtain ⟨inner,innerRun,innerSpec⟩ := intern_correct c entries wf
     cases inner with
     | none => exact ⟨none,by simp [innerRun],by simp⟩
     | some pair =>
       obtain ⟨t1,i1⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1⟩ := innerSpec t1 i1 rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := innerSpec t1 i1 rfl
+      have one : ∀ more, meaning (t1.val ++ more) i1.val = c := by
+        intro more
+        rw [meaning_append t1.val more wf1 i1.val inside1,meaning1]
       obtain ⟨result,run,spec⟩ := add_wellFormed t1 (.Exists r i1) wf1
         (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p rfl; exact inside1)
       refine ⟨result,by simp [innerRun,copy_role_identity,run],?_⟩
       intro t k same
       obtain ⟨wf',⟨more2,grows2⟩,inside,_,rebuilt⟩ := spec t k same
-      refine ⟨wf',⟨more1 ++ more2,by simp [grows2,grows1]⟩,inside,?_⟩
-      rw [rebuilt,rebuild,grows2,meaning_append t1.val more2 wf1 i1.val inside1,meaning1]
-  | Forall r c ih =>
+      refine ⟨wf',⟨more1 ++ more2,by simp [grows2,grows1]⟩,inside,by rw [rebuilt,rebuild,grows2,one],?_⟩
+      exact fun old => add_complements t1 _ wf1 (keeps1 old)
+        (fun n r c d impossible => by cases impossible) result run t k same
+  | Forall r c =>
     rw [concept_table.intern,concept_table.intern_restriction]
-    obtain ⟨inner,innerRun,innerSpec⟩ := ih entries wf
+    obtain ⟨inner,innerRun,innerSpec⟩ := intern_correct c entries wf
     cases inner with
     | none => exact ⟨none,by simp [innerRun],by simp⟩
     | some pair =>
       obtain ⟨t1,i1⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1⟩ := innerSpec t1 i1 rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := innerSpec t1 i1 rfl
+      have one : ∀ more, meaning (t1.val ++ more) i1.val = c := by
+        intro more
+        rw [meaning_append t1.val more wf1 i1.val inside1,meaning1]
       obtain ⟨result,run,spec⟩ := add_wellFormed t1 (.Forall r i1) wf1
         (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p rfl; exact inside1)
       refine ⟨result,by simp [innerRun,copy_role_identity,run],?_⟩
       intro t k same
       obtain ⟨wf',⟨more2,grows2⟩,inside,_,rebuilt⟩ := spec t k same
-      refine ⟨wf',⟨more1 ++ more2,by simp [grows2,grows1]⟩,inside,?_⟩
-      rw [rebuilt,rebuild,grows2,meaning_append t1.val more2 wf1 i1.val inside1,meaning1]
+      refine ⟨wf',⟨more1 ++ more2,by simp [grows2,grows1]⟩,inside,by rw [rebuilt,rebuild,grows2,one],?_⟩
+      exact fun old => add_complements t1 _ wf1 (keeps1 old)
+        (fun n r c d impossible => by cases impossible) result run t k same
+  | AtLeast n r c =>
+    rw [concept_table.intern,concept_table.intern_at_least]
+    obtain ⟨inner,innerRun,innerSpec⟩ := intern_correct c entries wf
+    cases inner with
+    | none => exact ⟨none,by simp [innerRun],by simp⟩
+    | some pair =>
+      obtain ⟨t1,i1⟩ := pair
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := innerSpec t1 i1 rfl
+      have one : ∀ more, meaning (t1.val ++ more) i1.val = c := by
+        intro more
+        rw [meaning_append t1.val more wf1 i1.val inside1,meaning1]
+      obtain ⟨result,run,spec⟩ := add_wellFormed t1 (.AtLeast n r i1) wf1
+        (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p rfl; exact inside1)
+      refine ⟨result,by simp [innerRun,copy_role_identity,run],?_⟩
+      intro t k same
+      obtain ⟨wf',⟨more2,grows2⟩,inside,_,rebuilt⟩ := spec t k same
+      refine ⟨wf',⟨more1 ++ more2,by simp [grows2,grows1]⟩,inside,by rw [rebuilt,rebuild,grows2,one],?_⟩
+      exact fun old => add_complements t1 _ wf1 (keeps1 old)
+        (fun n r c d impossible => by cases impossible) result run t k same
+  | AtMost n r c =>
+    rw [concept_table.intern,concept_table.intern_at_most]
+    obtain ⟨inner,innerRun,innerSpec⟩ := intern_correct c entries wf
+    cases inner with
+    | none => exact ⟨none,by simp [innerRun],by simp⟩
+    | some pair =>
+      obtain ⟨t1,i1⟩ := pair
+      obtain ⟨wf1,⟨more1,grows1⟩,inside1,meaning1,keeps1⟩ := innerSpec t1 i1 rfl
+      obtain ⟨negated,negRun,_⟩ := negate_correct.{0,0} c
+      cases negated with
+      | none => exact ⟨none,by simp [innerRun,negRun],by simp⟩
+      | some c' =>
+        have smaller := negate_size c c' negRun
+        obtain ⟨other,otherRun,otherSpec⟩ := intern_correct c' t1 wf1
+        cases other with
+        | none => exact ⟨none,by simp [innerRun,negRun,otherRun],by simp⟩
+        | some pair =>
+          obtain ⟨t2,i2⟩ := pair
+          obtain ⟨wf2,⟨more2,grows2⟩,inside2,meaning2,keeps2⟩ := otherSpec t2 i2 rfl
+          have one : ∀ more, meaning (t2.val ++ more) i1.val = c := by
+            intro more
+            rw [grows2,List.append_assoc,meaning_append t1.val (more2 ++ more) wf1 i1.val inside1,meaning1]
+          have two : ∀ more, meaning (t2.val ++ more) i2.val = c' := by
+            intro more
+            rw [meaning_append t2.val more wf2 i2.val inside2,meaning2]
+          obtain ⟨result,run,spec⟩ := add_wellFormed t2 (.AtMost n r i1 i2) wf2
+            (by simp only [parts,List.mem_cons,List.not_mem_nil,or_false]; rintro p (rfl | rfl) <;>
+                simp only [grows2,List.length_append] at * <;> omega)
+          refine ⟨result,by simp [innerRun,negRun,otherRun,copy_role_identity,run],?_⟩
+          intro t k same
+          obtain ⟨wf',⟨more3,grows3⟩,inside,_,rebuilt⟩ := spec t k same
+          refine ⟨wf',⟨more1 ++ more2 ++ more3,by simp [grows3,grows2,grows1]⟩,inside,
+            by rw [rebuilt,rebuild,grows3,one],?_⟩
+          refine fun old => add_complements t2 _ wf2 (keeps2 (keeps1 old)) ?_ result run t k same
+          intro n' r' c'' d'' isMost
+          simp only [concept_table.Entry.AtMost.injEq] at isMost
+          obtain ⟨_,_,rfl,rfl⟩ := isMost
+          rw [one,two]
+          exact negRun
+termination_by size concept
+decreasing_by all_goals simp only [size] at *; omega
 
 /-- The transitive restrictions of `∀sup.filler` that the closure adds: `∀t.filler`
     for every transitive role `t` included in `sup`. -/
@@ -593,6 +850,8 @@ private theorem close_from_correct (h : hierarchy.RoleHierarchy) (original : Lis
     | And a b => exact rest (.And a b) entry (by intro q d impossible; cases impossible)
     | Or a b => exact rest (.Or a b) entry (by intro q d impossible; cases impossible)
     | Exists r c => exact rest (.Exists r c) entry (by intro q d impossible; cases impossible)
+    | AtLeast n r c => exact rest (.AtLeast n r c) entry (by intro q d impossible; cases impossible)
+    | AtMost n r c d' => exact rest (.AtMost n r c d') entry (by intro q d impossible; cases impossible)
   · refine ⟨some entries,?_,?_⟩
     · rw [concept_table.close_from]
       simp [UScalar.lt_equiv,more]

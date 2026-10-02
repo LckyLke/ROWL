@@ -358,6 +358,18 @@ fn holds(i: &Finite, c: &Concept, x: usize) -> bool {
         Concept::Or(a, b) => holds(i, a, x) || holds(i, b, x),
         Concept::Exists(r, c) => (0..i.size).any(|y| edge(r, x, y) && holds(i, c, y)),
         Concept::Forall(r, c) => (0..i.size).all(|y| !edge(r, x, y) || holds(i, c, y)),
+        Concept::AtLeast(n, r, c) => {
+            (0..i.size)
+                .filter(|&y| edge(r, x, y) && holds(i, c, y))
+                .count()
+                >= *n
+        }
+        Concept::AtMost(n, r, c) => {
+            (0..i.size)
+                .filter(|&y| edge(r, x, y) && holds(i, c, y))
+                .count()
+                <= *n
+        }
     }
 }
 fn small_model_exists(c: &Concept, tbox: &Concept) -> bool {
@@ -400,4 +412,16 @@ fn every_concept_with_a_small_model_is_accepted_and_inverse_roles_reject() {
         "the sample must exercise satisfiable inputs"
     );
     assert!(rejected > 20, "the sample must exercise rejections");
+}
+
+#[test]
+fn cardinality_restrictions_are_not_answered() {
+    // This tableau does not count: a cardinality restriction it would add to a
+    // label gives no answer.
+    let c = Concept::AtMost(1, named(b"r"), Box::new(atom(b"A")));
+    assert_eq!(concept_sat(c, &Concept::Top, &none()), None);
+    let c = and(atom(b"A"), no(b"A"));
+    let tbox = Concept::AtLeast(2, named(b"r"), Box::new(Concept::Top));
+    // A clash found before the restriction is added still answers.
+    assert_eq!(concept_sat(c, &tbox, &none()), Some(false));
 }

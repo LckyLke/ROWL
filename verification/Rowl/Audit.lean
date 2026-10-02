@@ -1064,6 +1064,10 @@ import Rowl.ShiOntology
 #print axioms Rowl.Concepts.copy_role_identity
 #print axioms Rowl.Concepts.inverse_correct
 #print axioms Rowl.Concepts.same_role_correct
+#print axioms Rowl.Concepts.copy_concept_identity
+#print axioms Rowl.Concepts.atLeast_zero
+#print axioms Rowl.Concepts.atLeast_congr
+#print axioms Rowl.Concepts.negate_correct
 #print axioms Rowl.Concepts.translate_total_correct
 #print axioms Rowl.Concepts.translate_supported_iff
 #print axioms Rowl.Concepts.translate_meaning
@@ -1080,6 +1084,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ConceptTable.same_entry_correct
 #print axioms Rowl.ConceptTable.add_correct
 #print axioms Rowl.ConceptTable.add_wellFormed
+#print axioms Rowl.ConceptTable.complements_append
+#print axioms Rowl.ConceptTable.negate_size
 #print axioms Rowl.ConceptTable.intern_correct
 #print axioms Rowl.ConceptTable.close_correct
 #print axioms Rowl.ConceptTable.universal_is_correct
@@ -1931,7 +1937,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.AlcOntology.Negative
 #print axioms Rowl.Concepts.denote
 #print axioms Rowl.Concepts.inv
-#print axioms Rowl.Concepts.InAlci
+#print axioms Rowl.Concepts.InAlciq
 #print axioms Rowl.Concepts.Agrees
 #print axioms Rowl.Concepts.Correct
 #print axioms Rowl.Hierarchy.inclusionList
@@ -2002,3 +2008,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.Completion.FreshNodes
 #print axioms Rowl.Completion.Near
 #print axioms Rowl.ShiOntology.PreparedData
+#print axioms Rowl.Concepts.FillerHolds
+#print axioms Rowl.Concepts.Counted
+#print axioms Rowl.Concepts.Bounded
+#print axioms Rowl.ConceptTable.Complements
+#print axioms Rowl.ConceptTable.size

@@ -2,11 +2,12 @@
 //!
 //! Every concept is stored once, as an entry whose parts are the indices of
 //! earlier entries, so equal subconcepts share an index and the tableau's labels
-//! are lists of indices. `close` adds the universal restriction `∀t.d` for every
+//! are lists of indices. An entry `≤n r.C` also records the index of the
+//! complement of `C`, which the tableau needs to decide `C` at each neighbour. `close` adds the universal restriction `∀t.d` for every
 //! universal restriction `∀q.d` in the table and every transitive role `t`
 //! included in `q`: the restrictions that transitive roles pass along a path.
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::collapsible_match)] // Indexed operations and explicit branches for the pinned extraction subset.
-use crate::concepts::{copy_role, same_role, Concept};
+use crate::concepts::{copy_role, negate, same_role, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
 use crate::model::{Class, ObjectPropertyExpression};
 use crate::nnf::copy_iri;
@@ -22,6 +23,11 @@ pub enum Entry {
     Or(usize, usize),
     Exists(ObjectPropertyExpression, usize),
     Forall(ObjectPropertyExpression, usize),
+    /// At least `n` neighbours along the role satisfy the filler.
+    AtLeast(usize, ObjectPropertyExpression, usize),
+    /// At most `n` neighbours along the role satisfy the filler; the last index
+    /// is the complement of the filler.
+    AtMost(usize, ObjectPropertyExpression, usize, usize),
 }
 
 /// Structural equality of entries: classes and roles by exact spelling, parts
@@ -43,6 +49,20 @@ pub(crate) fn same_entry(left: &Entry, right: &Entry) -> bool {
         }
         (Entry::Forall(r1, c1), Entry::Forall(r2, c2)) => {
             if *c1 == *c2 {
+                same_role(r1, r2)
+            } else {
+                false
+            }
+        }
+        (Entry::AtLeast(n1, r1, c1), Entry::AtLeast(n2, r2, c2)) => {
+            if *n1 == *n2 && *c1 == *c2 {
+                same_role(r1, r2)
+            } else {
+                false
+            }
+        }
+        (Entry::AtMost(n1, r1, c1, d1), Entry::AtMost(n2, r2, c2, d2)) => {
+            if *n1 == *n2 && *c1 == *c2 && *d1 == *d2 {
                 same_role(r1, r2)
             } else {
                 false
@@ -120,8 +140,41 @@ fn intern_restriction(
         add(entries, Entry::Forall(copy_role(role), inner))
     }
 }
-/// The table with the concept and all its subconcepts, and the concept's index;
-/// `None` when there is no room.
+fn intern_at_least(
+    entries: Vec<Entry>,
+    n: usize,
+    role: &ObjectPropertyExpression,
+    filler: &Concept,
+) -> Option<(Vec<Entry>, usize)> {
+    let (entries, inner) = match intern(entries, filler) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    add(entries, Entry::AtLeast(n, copy_role(role), inner))
+}
+fn intern_at_most(
+    entries: Vec<Entry>,
+    n: usize,
+    role: &ObjectPropertyExpression,
+    filler: &Concept,
+) -> Option<(Vec<Entry>, usize)> {
+    let (entries, inner) = match intern(entries, filler) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let complement = match negate(filler) {
+        Some(complement) => complement,
+        None => return None,
+    };
+    let (entries, other) = match intern(entries, &complement) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    add(entries, Entry::AtMost(n, copy_role(role), inner, other))
+}
+/// The table with the concept and all its subconcepts (and the complements of
+/// the fillers of maximum restrictions), and the concept's index; `None` when
+/// there is no room.
 pub fn intern(entries: Vec<Entry>, concept: &Concept) -> Option<(Vec<Entry>, usize)> {
     match concept {
         Concept::Top => add(entries, Entry::Top),
@@ -142,6 +195,8 @@ pub fn intern(entries: Vec<Entry>, concept: &Concept) -> Option<(Vec<Entry>, usi
         Concept::Or(left, right) => intern_pair(entries, left, right, false),
         Concept::Exists(role, filler) => intern_restriction(entries, role, filler, true),
         Concept::Forall(role, filler) => intern_restriction(entries, role, filler, false),
+        Concept::AtLeast(n, role, filler) => intern_at_least(entries, *n, role, filler),
+        Concept::AtMost(n, role, filler) => intern_at_most(entries, *n, role, filler),
     }
 }
 /// The table with `∀t.filler` for every transitive role `t` of

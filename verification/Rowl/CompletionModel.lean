@@ -69,7 +69,7 @@ theorem holds_same (entries : List concept_table.Entry) (L L' : List Usize) (sam
           · rw [dif_pos first,dif_neg second,dif_pos first,dif_neg second]
         · rw [dif_neg first,dif_neg first]
       | Top | Bottom => rfl
-      | Atom _ | NotAtom _ | Exists _ _ | Forall _ _ =>
+      | Atom _ | NotAtom _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ | AtMost _ _ _ _ =>
         simp only
         constructor
         · rintro ⟨i,member,value⟩; exact ⟨i,(same i).mp member,value⟩
@@ -581,6 +581,16 @@ theorem truth (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Na
                 (below_refl h t)
               exact ⟨holds,through t transitive (below_refl h t) (below_refl h t) ⟨j.val,at_j⟩⟩
           exact (along y steps).1
+      | AtLeast m r f | AtMost m r f _ =>
+        -- Labels list only literals, and a cardinality restriction is none.
+        exfalso
+        obtain ⟨i,member,value⟩ := holds
+        obtain ⟨y,labelIs,_⟩ := lab_node x
+        rw [labelIs] at member
+        obtain ⟨e',at_i,literal⟩ := shape.literals y i member
+        rw [value,at_c] at at_i
+        cases at_i
+        exact literal
 
 theorem lab_in {count : Nat} {nodes : List completion.Node} (countIn : count ≤ nodes.length) (x : Element count nodes) :
     ∃ y, y < nodes.length ∧ lab x = labelOf nodes y := by

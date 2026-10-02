@@ -705,7 +705,17 @@ progress. Full OWL parsing and executable reasoning are still future work.
   never declines a document the reader accepts; source_prepared prepares its
   axioms, proved to give a prepared closure of the bytes' raw OWL ontology. The
   medication-safety example reads its document once for all five questions.
-- 1158 audited public theorems and 742 audited semantic definitions. Consistency,
+- Reasoner track, eleventh stage (in progress): number restrictions. The
+  concepts and the concept table now have cardinality restrictions:
+  concepts::translate covers ALCIQ (minimum, maximum and exact cardinalities,
+  qualified or not, below `usize::MAX`), proved total and exact for the Direct
+  Semantics with the OWL counting definitions, and concepts::negate is proved
+  to build exact complements. A maximum restriction in the table records the
+  complement of its filler; interning is proved to keep that record. The
+  completion graph tableau and the ontology queries give no answer when a
+  cardinality restriction occurs, so their answers are unchanged. The
+  completion forest that counts and merges nodes is the next step.
+- 1164 audited public theorems and 747 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -713,7 +723,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   property expressions (SHI), also directly from Functional Syntax source
   bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 411 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 415 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -726,7 +736,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1351-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1357-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -1,6 +1,7 @@
-use rowl_kernel::concepts::{inverse, same_role, translate, Concept};
+use rowl_kernel::concepts::{inverse, negate, same_role, translate, Concept};
 use rowl_kernel::hierarchy::{below, is_transitive, Inclusion, RoleHierarchy};
 use rowl_kernel::model::*;
+use rowl_kernel::probes::Natural;
 
 const THING: &[u8] = b"http://www.w3.org/2002/07/owl#Thing";
 
@@ -57,7 +58,14 @@ fn show(c: &Concept) -> String {
         Concept::Or(a, b) => format!("({} ⊔ {})", show(a), show(b)),
         Concept::Exists(r, c) => format!("∃{}.{}", role_name(r), show(c)),
         Concept::Forall(r, c) => format!("∀{}.{}", role_name(r), show(c)),
+        Concept::AtLeast(n, r, c) => format!("≥{n}{}.{}", role_name(r), show(c)),
+        Concept::AtMost(n, r, c) => format!("≤{n}{}.{}", role_name(r), show(c)),
     }
+}
+fn natural(n: usize) -> Natural {
+    (0..n).fold(Natural::Zero, |previous, _| {
+        Natural::Succ(Box::new(previous))
+    })
 }
 fn translated(e: &ClassExpression, positive: bool) -> String {
     show(&translate(e, positive).expect("inside the ALCI fragment"))
@@ -120,4 +128,70 @@ fn hierarchies_list_inclusions_and_transitive_roles() {
     ));
     assert!(is_transitive(&roles, &inverted(b"hasPart")));
     assert!(!is_transitive(&roles, &named(b"hasComponent")));
+}
+
+#[test]
+fn cardinality_restrictions_are_translated_with_their_bounds() {
+    let at_least = |n, filler: Option<ClassExpression>| {
+        ClassExpression::ObjectMinCardinality(natural(n), named(b"hasPart"), filler.map(Box::new))
+    };
+    let at_most = |n, filler: Option<ClassExpression>| {
+        ClassExpression::ObjectMaxCardinality(natural(n), inverted(b"partOf"), filler.map(Box::new))
+    };
+    let exactly = |n| {
+        ClassExpression::ObjectExactCardinality(
+            natural(n),
+            named(b"hasPart"),
+            Some(Box::new(class(b"Valve"))),
+        )
+    };
+    assert_eq!(
+        translated(&at_least(2, Some(class(b"Valve"))), true),
+        "≥2hasPart.Valve"
+    );
+    // The complement of ≥n is ≤(n-1), and of ≥0 nothing at all.
+    assert_eq!(
+        translated(&at_least(2, Some(class(b"Valve"))), false),
+        "≤1hasPart.Valve"
+    );
+    assert_eq!(translated(&at_least(0, None), false), "⊥");
+    // A missing filler is owl:Thing; the complement of ≤n is ≥(n+1).
+    assert_eq!(translated(&at_most(1, None), true), "≤1partOf⁻.⊤");
+    assert_eq!(translated(&at_most(1, None), false), "≥2partOf⁻.⊤");
+    assert_eq!(
+        translated(&exactly(1), true),
+        "(≥1hasPart.Valve ⊓ ≤1hasPart.Valve)"
+    );
+    assert_eq!(
+        translated(&exactly(1), false),
+        "(≤0hasPart.Valve ⊔ ≥2hasPart.Valve)"
+    );
+    // The filler keeps its polarity under the complement of the restriction.
+    let nested = not(at_most(0, Some(not(class(b"Pump")))));
+    assert_eq!(translated(&nested, true), "≥1partOf⁻.¬Pump");
+    // A filler outside the fragment has no translation.
+    let unsupported = at_least(1, Some(ClassExpression::ObjectHasSelf(named(b"hasPart"))));
+    assert!(translate(&unsupported, true).is_none());
+}
+
+#[test]
+fn complements_are_in_negation_normal_form() {
+    let concept = translate(
+        &and(
+            some(named(b"hasPart"), class(b"Valve")),
+            ClassExpression::ObjectMaxCardinality(natural(2), named(b"hasPart"), None),
+        ),
+        true,
+    )
+    .expect("inside the fragment");
+    let complement = negate(&concept).expect("bounds below usize::MAX");
+    assert_eq!(show(&complement), "(∀hasPart.¬Valve ⊔ ≥3hasPart.⊤)");
+    assert_eq!(
+        show(&negate(&complement).expect("bounds below usize::MAX")),
+        "(∃hasPart.Valve ⊓ ≤2hasPart.⊤)"
+    );
+    let at_least = Concept::AtLeast(0, named(b"hasPart"), Box::new(Concept::Top));
+    assert_eq!(show(&negate(&at_least).expect("no bound")), "⊥");
+    let unbounded = Concept::AtMost(usize::MAX, named(b"hasPart"), Box::new(Concept::Top));
+    assert!(negate(&unbounded).is_none());
 }

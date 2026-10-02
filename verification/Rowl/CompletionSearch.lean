@@ -125,6 +125,16 @@ theorem holds_correct (entries : alloc.vec.Vec concept_table.Entry) (label : all
           lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
         congr 1
         exact decide_eq_decide.mpr (mem_index_iff label.val c)
+      | AtLeast m r d =>
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
+        congr 1
+        exact decide_eq_decide.mpr (mem_index_iff label.val c)
+      | AtMost m r d d' =>
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
+        congr 1
+        exact decide_eq_decide.mpr (mem_index_iff label.val c)
       | And a b =>
         by_cases first : a.val < c.val
         · by_cases second : b.val < c.val

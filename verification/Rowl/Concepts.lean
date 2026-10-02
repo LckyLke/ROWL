@@ -1,17 +1,19 @@
 import Rowl.Tableau
 
 /-!
-Concepts with inverse roles for the completion graph tableau, and their
-translation from class expressions, proved against the independent OWL 2 Direct
-Semantics. Roles are object property expressions read with `objectRelation`, so
-an inverse role relates the pairs of its property in reverse. The translation
-keeps the meaning of every supported class expression (or of its complement) in
-every interpretation that gives owl:Thing and owl:Nothing their fixed OWL
-meaning.
+Concepts with inverse roles and cardinality restrictions for the completion
+graph tableau, and their translation from class expressions, proved against the
+independent OWL 2 Direct Semantics. Roles are object property expressions read
+with `objectRelation`, so an inverse role relates the pairs of its property in
+reverse, and cardinality restrictions count with the OWL definitions `AtLeast`
+and `AtMost`. The translation keeps the meaning of every supported class
+expression (or of its complement) in every interpretation that gives owl:Thing
+and owl:Nothing their fixed OWL meaning, and `negate` builds the complement of
+a concept.
 -/
 namespace Rowl.Concepts
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
-open Rowl.Owl (Interpretation classDenote objectRelation thing nothing)
+open Rowl.Owl (Interpretation classDenote objectRelation thing nothing AtLeast AtMost)
 open Rowl.ClassEquality (IsThing IsNothing ThingBytes NothingBytes is_thing_total_correct is_nothing_total_correct)
 open Rowl.Nnf (Polar Fixes Every Gather Quantified copy_iri_identity)
 open Rowl.Tableau (property_eq_iff)
@@ -33,6 +35,8 @@ def denote (I : Interpretation Object Value) : concepts.Concept → Object → P
   | .Or a b, x => denote I a x ∨ denote I b x
   | .Exists r c, x => ∃ y, objectRelation I r x y ∧ denote I c y
   | .Forall r c, x => ∀ y, objectRelation I r x y → denote I c y
+  | .AtLeast n r c, x => AtLeast n.val (fun y => objectRelation I r x y ∧ denote I c y)
+  | .AtMost n r c, x => AtMost n.val (fun y => objectRelation I r x y ∧ denote I c y)
 
 /-- The inverse of an object property expression. -/
 def inv : ObjectPropertyExpression → ObjectPropertyExpression
@@ -78,6 +82,128 @@ theorem same_role_correct (left right : ObjectPropertyExpression) :
         rw [ObjectPropertyExpression.Inverse.injEq,property_eq_iff]
       simp only [same]
 
+/-- Copying a concept reproduces it exactly. -/
+theorem copy_concept_identity (c : concepts.Concept) : concepts.copy_concept c = .ok c := by
+  induction c with
+  | Top | Bottom => rw [concepts.copy_concept]
+  | Atom k | NotAtom k => cases k; rw [concepts.copy_concept]; simp [copy_iri_identity]
+  | And a b ihA ihB | Or a b ihA ihB => rw [concepts.copy_concept]; simp [ihA,ihB]
+  | Exists r c ih | Forall r c ih | AtLeast n r c ih | AtMost n r c ih =>
+    rw [concepts.copy_concept]; simp [copy_role_identity,ih]
+
+/-- Zero neighbours always exist. -/
+theorem atLeast_zero {α : Type u} (P : α → Prop) : AtLeast 0 P :=
+  ⟨Fin.elim0,fun i => i.elim0,fun i => i.elim0⟩
+
+/-- The count only depends on what the property says. -/
+theorem atLeast_congr {α : Type u} (n : Nat) {P Q : α → Prop} (same : ∀ y, P y ↔ Q y) :
+    AtLeast n P ↔ AtLeast n Q := by
+  rw [show P = Q from funext (fun y => propext (same y))]
+
+/-- The actual complement terminates; a result means exactly the complement of
+    the concept in every interpretation. No result means that a maximum
+    restriction has the bound `usize::MAX`. -/
+theorem negate_correct (c : concepts.Concept) :
+    ∃ r, concepts.negate c = .ok r ∧ ∀ c', r = some c' →
+      ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) x,
+        denote I c' x ↔ ¬ denote I c x := by
+  induction c with
+  | Top => exact ⟨some .Bottom,by rw [concepts.negate],by intro c' same; cases same; simp [denote]⟩
+  | Bottom => exact ⟨some .Top,by rw [concepts.negate],by intro c' same; cases same; simp [denote]⟩
+  | Atom k =>
+    exact ⟨some (.NotAtom k),by rw [concepts.negate]; cases k; simp [copy_iri_identity],
+      by intro c' same; cases same; simp [denote]⟩
+  | NotAtom k =>
+    exact ⟨some (.Atom k),by rw [concepts.negate]; cases k; simp [copy_iri_identity],
+      by intro c' same; cases same; simp [denote]⟩
+  | And a b ihA ihB | Or a b ihA ihB =>
+    obtain ⟨ra,runA,meanA⟩ := ihA
+    obtain ⟨rb,runB,meanB⟩ := ihB
+    cases ra with
+    | none => exact ⟨none,by rw [concepts.negate,concepts.negate_pair]; simp [runA],by simp⟩
+    | some a' =>
+      cases rb with
+      | none => exact ⟨none,by rw [concepts.negate,concepts.negate_pair]; simp [runA,runB],by simp⟩
+      | some b' =>
+        first
+        | exact ⟨some (.Or a' b'),by rw [concepts.negate,concepts.negate_pair]; simp [runA,runB,concepts.join],
+            by
+              intro c' same Object Value I x
+              cases same
+              simp only [denote,meanA a' rfl Object Value I x,meanB b' rfl Object Value I x]
+              tauto⟩
+        | exact ⟨some (.And a' b'),by rw [concepts.negate,concepts.negate_pair]; simp [runA,runB,concepts.join],
+            by
+              intro c' same Object Value I x
+              cases same
+              simp only [denote,meanA a' rfl Object Value I x,meanB b' rfl Object Value I x]
+              tauto⟩
+  | Exists r c ih =>
+    obtain ⟨rc,runC,meanC⟩ := ih
+    cases rc with
+    | none => exact ⟨none,by rw [concepts.negate]; simp [runC],by simp⟩
+    | some c' =>
+      refine ⟨some (.Forall r c'),by rw [concepts.negate]; simp [runC,copy_role_identity],?_⟩
+      intro d same Object Value I x
+      cases same
+      simp only [denote,meanC c' rfl Object Value I]
+      constructor
+      · rintro all ⟨y,related,holds⟩
+        exact all y related holds
+      · intro none y related holds
+        exact none ⟨y,related,holds⟩
+  | Forall r c ih =>
+    obtain ⟨rc,runC,meanC⟩ := ih
+    cases rc with
+    | none => exact ⟨none,by rw [concepts.negate]; simp [runC],by simp⟩
+    | some c' =>
+      refine ⟨some (.Exists r c'),by rw [concepts.negate]; simp [runC,copy_role_identity],?_⟩
+      intro d same Object Value I x
+      cases same
+      simp only [denote,meanC c' rfl Object Value I]
+      constructor
+      · rintro ⟨y,related,fails⟩ all
+        exact fails (all y related)
+      · intro notAll
+        by_contra none
+        apply notAll
+        intro y related
+        by_contra fails
+        exact none ⟨y,related,fails⟩
+  | AtLeast n r c _ =>
+    by_cases zero : n = 0#usize
+    · refine ⟨some .Bottom,by rw [concepts.negate]; simp [zero],?_⟩
+      intro d same Object Value I x
+      cases same
+      subst zero
+      have value : (0#usize).val = 0 := rfl
+      simp only [denote,value,false_iff,not_not]
+      exact atLeast_zero _
+    · have positive : 0 < n.val := by
+        have : n.val ≠ 0 := fun same => zero (UScalar.eq_of_val_eq (by simpa using same))
+        omega
+      obtain ⟨m,lower,lowerValue⟩ := WP.spec_imp_exists (Usize.sub_spec (x := n) (y := 1#usize) (by scalar_tac))
+      refine ⟨some (.AtMost m r c),by rw [concepts.negate]; simp [zero,lower,copy_role_identity,
+        copy_concept_identity],?_⟩
+      intro d same Object Value I x
+      cases same
+      have succ : m.val + 1 = n.val := by simp at lowerValue; omega
+      simp only [denote,AtMost,succ]
+  | AtMost n r c _ =>
+    by_cases room : n.val < Usize.max
+    · obtain ⟨m,higher,higherValue⟩ := WP.spec_imp_exists (Usize.add_spec (x := n) (y := 1#usize) (by scalar_tac))
+      have less : n < core.num.Usize.MAX := by
+        rw [UScalar.lt_equiv]; simpa [core.num.Usize.MAX] using room
+      refine ⟨some (.AtLeast m r c),by rw [concepts.negate]; simp [less,higher,copy_role_identity,
+        copy_concept_identity],?_⟩
+      intro d same Object Value I x
+      cases same
+      have succ : m.val = n.val + 1 := by simpa using higherValue
+      simp only [denote,AtMost,succ,not_not]
+    · have notLess : ¬ n < core.num.Usize.MAX := by
+        rw [UScalar.lt_equiv]; simpa [core.num.Usize.MAX] using room
+      exact ⟨none,by rw [concepts.negate]; simp [notLess],by simp⟩
+
 private theorem listN_mem_size {α : Type} [SizeOf α] {n : Nat}
     (xs : Aeneas.Data.ListN.ListN α n) {x : α} (h : x ∈ xs.toList) : sizeOf x < sizeOf xs := by
   induction xs with
@@ -109,17 +235,22 @@ private theorem member_size (xs : AtLeastTwo ClassExpression) (child : ClassExpr
     have := rest_size xs
     omega
 
-/-- The supported ALCI fragment: named classes, intersections, unions,
-    complements, and existential/universal restrictions on object property
-    expressions, named or inverse. -/
-def InAlci (expression : ClassExpression) : Prop :=
+/-- The supported ALCIQ fragment: named classes, intersections, unions,
+    complements, existential/universal restrictions, and minimum, maximum and
+    exact cardinality restrictions with cardinalities below `usize::MAX`, on
+    object property expressions, named or inverse. -/
+def InAlciq (expression : ClassExpression) : Prop :=
   match expression with
   | .Class _ => True
-  | .ObjectIntersectionOf xs => InAlci xs.first ∧ InAlci xs.second ∧ ∀ e ∈ xs.rest.val, InAlci e
-  | .ObjectUnionOf xs => InAlci xs.first ∧ InAlci xs.second ∧ ∀ e ∈ xs.rest.val, InAlci e
-  | .ObjectComplementOf e => InAlci e
-  | .ObjectSomeValuesFrom _ e => InAlci e
-  | .ObjectAllValuesFrom _ e => InAlci e
+  | .ObjectIntersectionOf xs => InAlciq xs.first ∧ InAlciq xs.second ∧ ∀ e ∈ xs.rest.val, InAlciq e
+  | .ObjectUnionOf xs => InAlciq xs.first ∧ InAlciq xs.second ∧ ∀ e ∈ xs.rest.val, InAlciq e
+  | .ObjectComplementOf e => InAlciq e
+  | .ObjectSomeValuesFrom _ e => InAlciq e
+  | .ObjectAllValuesFrom _ e => InAlciq e
+  | .ObjectMinCardinality n _ none | .ObjectMaxCardinality n _ none | .ObjectExactCardinality n _ none =>
+    Rowl.Probes.naturalValue n < Usize.max
+  | .ObjectMinCardinality n _ (some e) | .ObjectMaxCardinality n _ (some e)
+  | .ObjectExactCardinality n _ (some e) => Rowl.Probes.naturalValue n < Usize.max ∧ InAlciq e
   | _ => False
 termination_by sizeOf expression
 decreasing_by
@@ -136,8 +267,8 @@ def Agrees (expression : ClassExpression) (positive : Bool) (concept : concepts.
 /-- Independent translation contract: outside the fragment there is no result;
     inside it, the result agrees with the expression under the polarity. -/
 def Correct (expression : ClassExpression) (positive : Bool) : Option concepts.Concept → Prop
-  | none => ¬ InAlci expression
-  | some concept => InAlci expression ∧ Agrees.{u,v} expression positive concept
+  | none => ¬ InAlciq expression
+  | some concept => InAlciq expression ∧ Agrees.{u,v} expression positive concept
 
 private theorem thing_identity (c : Class) (top : IsThing (.Class c)) : c = thing := by
   cases c with | mk i => cases i with | mk bytes =>
@@ -193,7 +324,7 @@ private theorem fold_from_correct (values : alloc.vec.Vec ClassExpression) (posi
       Correct.{u,v} e polarity result)
     (index : Usize) (joined : concepts.Concept) :
     ∃ result, concepts.fold_from values index positive conjunctive joined = .ok result ∧
-      (result.isSome ↔ ∀ e ∈ values.val.drop index.val, InAlci e) ∧
+      (result.isSome ↔ ∀ e ∈ values.val.drop index.val, InAlciq e) ∧
       ∀ concept, result = some concept →
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x,
           (denote I concept x ↔ Gather conjunctive (denote I joined x) (values.val.drop index.val)
@@ -250,7 +381,7 @@ private theorem connect_correct (members : AtLeastTwo ClassExpression) (positive
     (child : ∀ e ∈ members.elements, ∀ polarity, ∃ result, concepts.translate e polarity = .ok result ∧
       Correct.{u,v} e polarity result) :
     ∃ result, concepts.connect members positive conjunctive = .ok result ∧
-      (result.isSome ↔ ∀ e ∈ members.elements, InAlci e) ∧
+      (result.isSome ↔ ∀ e ∈ members.elements, InAlciq e) ∧
       ∀ concept, result = some concept →
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x,
           (denote I concept x ↔ Every conjunctive members.elements (fun e => Polar positive (classDenote I e x))) := by
@@ -295,7 +426,7 @@ private theorem restriction_correct (property : ObjectPropertyExpression) (fille
     (positive existential : Bool)
     (child : ∀ polarity, ∃ result, concepts.translate filler polarity = .ok result ∧ Correct.{u,v} filler polarity result) :
     ∃ result, concepts.restriction property filler positive existential = .ok result ∧
-      (result.isSome ↔ InAlci filler) ∧
+      (result.isSome ↔ InAlciq filler) ∧
       ∀ concept, result = some concept →
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x,
           (denote I concept x ↔ Quantified existential (objectRelation I property x)
@@ -315,6 +446,203 @@ private theorem restriction_correct (property : ObjectPropertyExpression) (fille
       have agrees := fun y => innerCorrect.2 Object Value I fixes y
       cases existential <;> simp [denote,Quantified,agrees]
 
+private theorem bound_correct (n : probes.Natural) :
+    ∃ r, concepts.bound n = .ok r ∧ (r.isSome ↔ Rowl.Probes.naturalValue n < Usize.max) ∧
+      ∀ k, r = some k → k.val = Rowl.Probes.naturalValue n := by
+  induction n with
+  | Zero =>
+    refine ⟨some 0#usize,by rw [concepts.bound],?_,?_⟩
+    · simp [Rowl.Probes.naturalValue]; scalar_tac
+    · intro k same; cases same; rfl
+  | Succ m ih =>
+    obtain ⟨r,run,support,value⟩ := ih
+    obtain ⟨d,limit,dValue⟩ := WP.spec_imp_exists (Usize.sub_spec (x := core.num.Usize.MAX) (y := 1#usize)
+      (by simp [core.num.Usize.MAX]; scalar_tac))
+    have dIs : d.val = Usize.max - 1 := by simp [core.num.Usize.MAX] at dValue; omega
+    cases r with
+    | none =>
+      refine ⟨none,by rw [concepts.bound]; simp [run],?_,by simp⟩
+      simp only [Option.isSome_none,Bool.false_eq_true,false_iff,Rowl.Probes.naturalValue,not_lt]
+      have := support.not.mp (by simp)
+      omega
+    | some v =>
+      have vValue := value v rfl
+      by_cases fits : v.val < Usize.max - 1
+      · obtain ⟨w,add,wValue⟩ := WP.spec_imp_exists (Usize.add_spec (x := v) (y := 1#usize) (by scalar_tac))
+        have less : v.val < d.val := by omega
+        refine ⟨some w,by rw [concepts.bound]; simp [run,limit,less,add],?_,?_⟩
+        · simp [Rowl.Probes.naturalValue]; omega
+        · intro k same; cases same; simp [Rowl.Probes.naturalValue] at wValue ⊢; omega
+      · have notLess : ¬ v.val < d.val := by omega
+        refine ⟨none,by rw [concepts.bound]; simp [run,limit,notLess],?_,by simp⟩
+        simp [Rowl.Probes.naturalValue]; omega
+
+/-- An element satisfies the filler of a cardinality restriction: any element
+    when there is none. -/
+def FillerHolds (I : Interpretation Object Value) (filler : Option ClassExpression) (y : Object) : Prop :=
+  match filler with
+  | none => True
+  | some c => classDenote I c y
+
+/-- What a cardinality restriction counts: neighbours along the property that
+    satisfy the filler. -/
+def Counted (I : Interpretation Object Value) (property : ObjectPropertyExpression)
+    (filler : Option ClassExpression) (x y : Object) : Prop :=
+  objectRelation I property x y ∧ FillerHolds I filler y
+
+private theorem counted_none (I : Interpretation Object Value) (property : ObjectPropertyExpression) (x : Object) :
+    Counted I property none x = fun y => objectRelation I property x y := by
+  funext y; simp [Counted,FillerHolds]
+private theorem counted_some (I : Interpretation Object Value) (property : ObjectPropertyExpression)
+    (c : ClassExpression) (x : Object) :
+    Counted I property (some c) x = fun y => objectRelation I property x y ∧ classDenote I c y := by
+  funext y; simp [Counted,FillerHolds]
+
+/-- A lower (`minimum`) or upper bound on the counted neighbours. -/
+def Bounded (minimum : Bool) (n : Nat) {α : Type u} (P : α → Prop) : Prop :=
+  if minimum then AtLeast n P else AtMost n P
+
+private theorem cardinality_filler_correct (filler : Option ClassExpression)
+    (child : ∀ inner, filler = some inner →
+      ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result) :
+    ∃ result, concepts.cardinality_filler filler = .ok result ∧
+      (result.isSome ↔ ∀ inner, filler = some inner → InAlciq inner) ∧
+      ∀ concept, result = some concept →
+        ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ y,
+          (denote I concept y ↔ FillerHolds I filler y) := by
+  cases filler with
+  | none =>
+    refine ⟨some .Top,by rw [concepts.cardinality_filler],by simp,?_⟩
+    intro concept same Object Value I fixes y
+    cases same
+    simp [denote,FillerHolds]
+  | some inner =>
+    obtain ⟨result,run,correct⟩ := child inner rfl
+    refine ⟨result,by rw [concepts.cardinality_filler]; exact run,?_,?_⟩
+    · cases result with
+      | none => simpa [Correct] using correct
+      | some _ => simpa using correct.1
+    · intro concept same Object Value I fixes y
+      subst same
+      simpa [Polar,FillerHolds] using correct.2 Object Value I fixes y
+
+private theorem cardinality_correct (n : probes.Natural) (property : ObjectPropertyExpression)
+    (filler : Option ClassExpression) (positive minimum : Bool)
+    (child : ∀ inner, filler = some inner →
+      ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result) :
+    ∃ result, concepts.cardinality n property filler positive minimum = .ok result ∧
+      (result.isSome ↔ Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner) ∧
+      ∀ concept, result = some concept →
+        ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x,
+          (denote I concept x ↔
+            Polar positive (Bounded minimum (Rowl.Probes.naturalValue n) (Counted I property filler x))) := by
+  obtain ⟨bounded,boundRun,boundSupport,boundValue⟩ := bound_correct n
+  obtain ⟨inner,innerRun,innerSupport,innerMeaning⟩ := cardinality_filler_correct.{u,v} filler child
+  cases bounded with
+  | none =>
+    refine ⟨none,by rw [concepts.cardinality]; simp [boundRun],?_,by simp⟩
+    simp only [Option.isSome_none,Bool.false_eq_true,false_iff,not_and]
+    intro fits
+    exact absurd (boundSupport.mpr fits) (by simp)
+  | some k =>
+    have kValue := boundValue k rfl
+    have fits : k.val < Usize.max := by rw [kValue]; exact boundSupport.mp rfl
+    cases inner with
+    | none =>
+      refine ⟨none,by rw [concepts.cardinality]; simp [boundRun,innerRun],?_,by simp⟩
+      simp only [Option.isSome_none,Bool.false_eq_true,false_iff,not_and]
+      intro _ supported
+      exact absurd (innerSupport.mpr supported) (by simp)
+    | some concept =>
+      have support : Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner :=
+        ⟨by rw [← kValue]; exact fits,innerSupport.mp rfl⟩
+      have counted : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x y,
+          (objectRelation I property x y ∧ denote I concept y) ↔ Counted I property filler x y := by
+        intro Object Value I fixes x y
+        rw [innerMeaning concept rfl Object Value I fixes y]
+        rfl
+      cases minimum with
+      | true =>
+        cases positive with
+        | true =>
+          refine ⟨some (.AtLeast k property concept),by rw [concepts.cardinality]; simp [boundRun,innerRun,
+            copy_role_identity],by simpa using support,?_⟩
+          intro c same Object Value I fixes x
+          cases same
+          simp only [denote,Polar,Bounded,if_pos,kValue]
+          exact atLeast_congr _ (counted Object Value I fixes x)
+        | false =>
+          by_cases zero : k = 0#usize
+          · refine ⟨some .Bottom,by rw [concepts.cardinality]; simp [boundRun,innerRun,zero],by simpa using support,?_⟩
+            intro c same Object Value I fixes x
+            cases same
+            have : Rowl.Probes.naturalValue n = 0 := by rw [← kValue,zero]; rfl
+            simp only [denote,Polar,Bounded,if_pos,this,false_iff,not_not]
+            exact atLeast_zero _
+          · obtain ⟨m,lower,lowerValue⟩ := WP.spec_imp_exists (Usize.sub_spec (x := k) (y := 1#usize) (by
+              have : k.val ≠ 0 := fun same => zero (UScalar.eq_of_val_eq (by simpa using same))
+              scalar_tac))
+            refine ⟨some (.AtMost m property concept),by rw [concepts.cardinality]; simp [boundRun,innerRun,zero,
+              lower,copy_role_identity],by simpa using support,?_⟩
+            intro c same Object Value I fixes x
+            cases same
+            have succ : m.val + 1 = Rowl.Probes.naturalValue n := by
+              have : k.val ≠ 0 := fun same => zero (UScalar.eq_of_val_eq (by simpa using same))
+              simp at lowerValue; omega
+            simp only [denote,Polar,Bounded,if_pos,AtMost,succ]
+            exact not_congr (atLeast_congr _ (counted Object Value I fixes x))
+      | false =>
+        cases positive with
+        | true =>
+          refine ⟨some (.AtMost k property concept),by rw [concepts.cardinality]; simp [boundRun,innerRun,
+            copy_role_identity],by simpa using support,?_⟩
+          intro c same Object Value I fixes x
+          cases same
+          simp only [denote,Polar,Bounded,Bool.false_eq_true,if_false,AtMost,kValue]
+          exact not_congr (atLeast_congr _ (counted Object Value I fixes x))
+        | false =>
+          have less : k < core.num.Usize.MAX := by
+            rw [UScalar.lt_equiv]; simpa [core.num.Usize.MAX] using fits
+          obtain ⟨m,higher,higherValue⟩ := WP.spec_imp_exists (Usize.add_spec (x := k) (y := 1#usize) (by scalar_tac))
+          refine ⟨some (.AtLeast m property concept),by rw [concepts.cardinality]; simp [boundRun,innerRun,less,
+            higher,copy_role_identity,fits],by simpa using support,?_⟩
+          intro c same Object Value I fixes x
+          cases same
+          have succ : m.val = Rowl.Probes.naturalValue n + 1 := by simp at higherValue; omega
+          simp only [denote,Polar,Bounded,Bool.false_eq_true,if_false,AtMost,succ,not_not]
+          exact atLeast_congr _ (counted Object Value I fixes x)
+
+private theorem exactly_correct (n : probes.Natural) (property : ObjectPropertyExpression)
+    (filler : Option ClassExpression) (positive : Bool)
+    (child : ∀ inner, filler = some inner →
+      ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result) :
+    ∃ result, concepts.exactly n property filler positive = .ok result ∧
+      (result.isSome ↔ Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner) ∧
+      ∀ concept, result = some concept →
+        ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I → ∀ x,
+          (denote I concept x ↔
+            Polar positive (Rowl.Owl.Exactly (Rowl.Probes.naturalValue n) (Counted I property filler x))) := by
+  obtain ⟨low,lowRun,lowSupport,lowMeaning⟩ := cardinality_correct.{u,v} n property filler positive true child
+  obtain ⟨high,highRun,highSupport,highMeaning⟩ := cardinality_correct.{u,v} n property filler positive false child
+  cases low with
+  | none => exact ⟨none,by rw [concepts.exactly]; simp [lowRun],by simpa using lowSupport,by simp⟩
+  | some low =>
+    cases high with
+    | none => exact ⟨none,by rw [concepts.exactly]; simp [lowRun,highRun],by simpa using highSupport,by simp⟩
+    | some high =>
+      refine ⟨some (if positive then .And low high else .Or low high),by rw [concepts.exactly]; simp [lowRun,
+        highRun,join_correct],by simpa using lowSupport,?_⟩
+      intro concept same Object Value I fixes x
+      cases same
+      rw [join_denote,lowMeaning low rfl Object Value I fixes x,highMeaning high rfl Object Value I fixes x]
+      cases positive with
+      | true =>
+        simp only [Polar,Bounded,Rowl.Owl.Exactly,if_pos]
+        tauto
+      | false =>
+        simp only [Polar,Bounded,Rowl.Owl.Exactly,if_pos,Bool.false_eq_true,if_false]
+        tauto
+
 private theorem intersection_every (I : Interpretation Object Value) (xs : AtLeastTwo ClassExpression) (x : Object) :
     Every true xs.elements (fun e => classDenote I e x) ↔ classDenote I (.ObjectIntersectionOf xs) x := by
   simp [Every,classDenote,AtLeastTwo.elements]
@@ -329,14 +657,14 @@ private theorem every_false_not (members : List ClassExpression) (holds : ClassE
   simp [Every]
 
 /-- The actual translation terminates on every class expression; outside the
-    ALCI fragment it returns `None`, and inside it the result means exactly the
+    ALCIQ fragment it returns `None`, and inside it the result means exactly the
     expression (positive polarity) or its complement (negative polarity). -/
 theorem translate_total_correct (expression : ClassExpression) (positive : Bool) :
     ∃ result, concepts.translate expression positive = .ok result ∧ Correct.{u,v} expression positive result := by
   cases h : expression with
   | Class c =>
     obtain ⟨concept,executed,meaning⟩ := named_correct.{u,v} c positive
-    refine ⟨some concept,by rw [concepts.translate]; simp [executed],by simp [InAlci],?_⟩
+    refine ⟨some concept,by rw [concepts.translate]; simp [executed],by simp [InAlciq],?_⟩
     intro Object Value I fixes x
     rw [meaning Object Value I fixes x]
     simp [classDenote]
@@ -346,8 +674,8 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
         have := member_size xs e mem
         translate_total_correct e polarity)
     refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
-    have fragment : InAlci (.ObjectIntersectionOf xs) ↔ ∀ e ∈ xs.elements, InAlci e := by
-      simp [InAlci,AtLeastTwo.elements]
+    have fragment : InAlciq (.ObjectIntersectionOf xs) ↔ ∀ e ∈ xs.elements, InAlciq e := by
+      simp [InAlciq,AtLeastTwo.elements]
     cases result with
     | none => simpa [Correct,fragment] using support
     | some concept =>
@@ -365,8 +693,8 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
         have := member_size xs e mem
         translate_total_correct e polarity)
     refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
-    have fragment : InAlci (.ObjectUnionOf xs) ↔ ∀ e ∈ xs.elements, InAlci e := by
-      simp [InAlci,AtLeastTwo.elements]
+    have fragment : InAlciq (.ObjectUnionOf xs) ↔ ∀ e ∈ xs.elements, InAlciq e := by
+      simp [InAlciq,AtLeastTwo.elements]
     cases result with
     | none => simpa [Correct,fragment] using support
     | some concept =>
@@ -382,9 +710,9 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
     obtain ⟨result,executed,correct⟩ := translate_total_correct inner (decide ¬ positive = true)
     refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
     cases result with
-    | none => simpa [Correct,InAlci] using correct
+    | none => simpa [Correct,InAlciq] using correct
     | some concept =>
-      refine ⟨by simpa [InAlci] using correct.1,?_⟩
+      refine ⟨by simpa [InAlciq] using correct.1,?_⟩
       intro Object Value I fixes x
       rw [correct.2 Object Value I fixes x]
       cases positive <;> simp [Polar,classDenote]
@@ -393,9 +721,9 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
       (fun polarity => translate_total_correct filler polarity)
     refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
     cases result with
-    | none => simpa [Correct,InAlci] using support
+    | none => simpa [Correct,InAlciq] using support
     | some concept =>
-      refine ⟨by simpa [InAlci] using support,?_⟩
+      refine ⟨by simpa [InAlciq] using support,?_⟩
       intro Object Value I fixes x
       rw [meaning concept rfl Object Value I fixes x]
       cases positive <;> simp [Quantified,Polar,classDenote]
@@ -404,27 +732,82 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
       (decide ¬ positive = true) (fun polarity => translate_total_correct filler polarity)
     refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
     cases result with
-    | none => simpa [Correct,InAlci] using support
+    | none => simpa [Correct,InAlciq] using support
     | some concept =>
-      refine ⟨by simpa [InAlci] using support,?_⟩
+      refine ⟨by simpa [InAlciq] using support,?_⟩
       intro Object Value I fixes x
       rw [meaning concept rfl Object Value I fixes x]
       cases positive <;> simp [Quantified,Polar,classDenote]
-  | ObjectOneOf _ | ObjectHasValue _ _ | ObjectHasSelf _ | ObjectMinCardinality _ _ _
-  | ObjectMaxCardinality _ _ _ | ObjectExactCardinality _ _ _ | DataSomeValuesFrom _ _
+  | ObjectMinCardinality n property filler =>
+    have child : ∀ inner, filler = some inner →
+        ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result := by
+      cases filler with
+      | none => intro inner impossible; cases impossible
+      | some inner => intro other same; cases same; exact translate_total_correct inner true
+    obtain ⟨result,executed,support,meaning⟩ := cardinality_correct.{u,v} n property filler positive true child
+    refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
+    have fragment : InAlciq (.ObjectMinCardinality n property filler) ↔
+        Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner := by
+      cases filler <;> simp [InAlciq]
+    cases result with
+    | none => simpa [Correct,fragment] using support
+    | some concept =>
+      refine ⟨fragment.mpr (support.mp rfl),?_⟩
+      intro Object Value I fixes x
+      rw [meaning concept rfl Object Value I fixes x]
+      cases filler <;> simp [Bounded,counted_none,counted_some,classDenote]
+  | ObjectMaxCardinality n property filler =>
+    have child : ∀ inner, filler = some inner →
+        ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result := by
+      cases filler with
+      | none => intro inner impossible; cases impossible
+      | some inner => intro other same; cases same; exact translate_total_correct inner true
+    obtain ⟨result,executed,support,meaning⟩ := cardinality_correct.{u,v} n property filler positive false child
+    refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
+    have fragment : InAlciq (.ObjectMaxCardinality n property filler) ↔
+        Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner := by
+      cases filler <;> simp [InAlciq]
+    cases result with
+    | none => simpa [Correct,fragment] using support
+    | some concept =>
+      refine ⟨fragment.mpr (support.mp rfl),?_⟩
+      intro Object Value I fixes x
+      rw [meaning concept rfl Object Value I fixes x]
+      cases filler <;> simp [Bounded,counted_none,counted_some,classDenote]
+  | ObjectExactCardinality n property filler =>
+    have child : ∀ inner, filler = some inner →
+        ∃ result, concepts.translate inner true = .ok result ∧ Correct.{u,v} inner true result := by
+      cases filler with
+      | none => intro inner impossible; cases impossible
+      | some inner => intro other same; cases same; exact translate_total_correct inner true
+    obtain ⟨result,executed,support,meaning⟩ := exactly_correct.{u,v} n property filler positive child
+    refine ⟨result,by rw [concepts.translate]; exact executed,?_⟩
+    have fragment : InAlciq (.ObjectExactCardinality n property filler) ↔
+        Rowl.Probes.naturalValue n < Usize.max ∧ ∀ inner, filler = some inner → InAlciq inner := by
+      cases filler <;> simp [InAlciq]
+    cases result with
+    | none => simpa [Correct,fragment] using support
+    | some concept =>
+      refine ⟨fragment.mpr (support.mp rfl),?_⟩
+      intro Object Value I fixes x
+      rw [meaning concept rfl Object Value I fixes x]
+      cases filler <;> simp [counted_none,counted_some,classDenote]
+  | ObjectOneOf _ | ObjectHasValue _ _ | ObjectHasSelf _ | DataSomeValuesFrom _ _
   | DataAllValuesFrom _ _ | DataHasValue _ _ | DataMinCardinality _ _ _ | DataMaxCardinality _ _ _
   | DataExactCardinality _ _ _ =>
-    exact ⟨none,by rw [concepts.translate],by simp [Correct,InAlci]⟩
+    exact ⟨none,by rw [concepts.translate],by simp [Correct,InAlciq]⟩
 termination_by sizeOf expression
 decreasing_by
   all_goals simp only [h,ClassExpression.ObjectIntersectionOf.sizeOf_spec,ClassExpression.ObjectUnionOf.sizeOf_spec,
     ClassExpression.ObjectComplementOf.sizeOf_spec,ClassExpression.ObjectSomeValuesFrom.sizeOf_spec,
-    ClassExpression.ObjectAllValuesFrom.sizeOf_spec]
+    ClassExpression.ObjectAllValuesFrom.sizeOf_spec,ClassExpression.ObjectMinCardinality.sizeOf_spec,
+    ClassExpression.ObjectMaxCardinality.sizeOf_spec,ClassExpression.ObjectExactCardinality.sizeOf_spec,
+    Option.some.sizeOf_spec]
   all_goals omega
 
-/-- The translation succeeds exactly on the ALCI fragment. -/
+/-- The translation succeeds exactly on the ALCIQ fragment. -/
 theorem translate_supported_iff (expression : ClassExpression) (positive : Bool) :
-    (∃ concept, concepts.translate expression positive = .ok (some concept)) ↔ InAlci expression := by
+    (∃ concept, concepts.translate expression positive = .ok (some concept)) ↔ InAlciq expression := by
   obtain ⟨result,executed,correct⟩ := translate_total_correct.{0,0} expression positive
   rw [executed]
   cases result with

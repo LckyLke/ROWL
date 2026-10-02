@@ -1531,6 +1531,10 @@
         "Rowl.Concepts.copy_role_identity",
         "Rowl.Concepts.inverse_correct",
         "Rowl.Concepts.same_role_correct",
+        "Rowl.Concepts.copy_concept_identity",
+        "Rowl.Concepts.atLeast_zero",
+        "Rowl.Concepts.atLeast_congr",
+        "Rowl.Concepts.negate_correct",
         "Rowl.Concepts.translate_total_correct",
         "Rowl.Concepts.translate_supported_iff",
         "Rowl.Concepts.translate_meaning"
@@ -1559,6 +1563,8 @@
         "Rowl.ConceptTable.same_entry_correct",
         "Rowl.ConceptTable.add_correct",
         "Rowl.ConceptTable.add_wellFormed",
+        "Rowl.ConceptTable.complements_append",
+        "Rowl.ConceptTable.negate_size",
         "Rowl.ConceptTable.intern_correct",
         "Rowl.ConceptTable.close_correct",
         "Rowl.ConceptTable.universal_is_correct",
@@ -2450,7 +2456,7 @@
     "Rowl.AlcOntology.Negative",
     "Rowl.Concepts.denote",
     "Rowl.Concepts.inv",
-    "Rowl.Concepts.InAlci",
+    "Rowl.Concepts.InAlciq",
     "Rowl.Concepts.Agrees",
     "Rowl.Concepts.Correct",
     "Rowl.Hierarchy.inclusionList",
@@ -2520,6 +2526,11 @@
     "Rowl.Completion.Sub",
     "Rowl.Completion.FreshNodes",
     "Rowl.Completion.Near",
-    "Rowl.ShiOntology.PreparedData"
+    "Rowl.ShiOntology.PreparedData",
+    "Rowl.Concepts.FillerHolds",
+    "Rowl.Concepts.Counted",
+    "Rowl.Concepts.Bounded",
+    "Rowl.ConceptTable.Complements",
+    "Rowl.ConceptTable.size"
   ]
 }

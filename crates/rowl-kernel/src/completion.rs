@@ -27,7 +27,8 @@
 //! its node. When the left disjunct of a branch fails without depending on the
 //! branch point, the right disjunct would fail the same way and is skipped;
 //! otherwise it is tried with the points the failure depended on. `None` means
-//! that a structure would exceed the `usize` range.
+//! that a structure would exceed the `usize` range, or that a cardinality
+//! restriction would be added to a label: this tableau does not count.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -1007,6 +1008,8 @@ fn add(
                     Entry::Or(left, right) => branch(
                         problem, roles, nodes, node, *left, *right, next, deps, depth,
                     ),
+                    Entry::AtLeast(_, _, _) => None,
+                    Entry::AtMost(_, _, _, _) => None,
                     _ => add_literal(problem, roles, nodes, node, concept, next, deps, depth),
                 }
             } else {

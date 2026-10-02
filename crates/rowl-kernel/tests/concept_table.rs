@@ -45,6 +45,13 @@ fn show(entries: &[Entry], index: usize) -> String {
         Entry::Or(a, b) => format!("({} ⊔ {})", show(entries, *a), show(entries, *b)),
         Entry::Exists(r, c) => format!("∃{}.{}", role(r), show(entries, *c)),
         Entry::Forall(r, c) => format!("∀{}.{}", role(r), show(entries, *c)),
+        Entry::AtLeast(n, r, c) => format!("≥{n}{}.{}", role(r), show(entries, *c)),
+        Entry::AtMost(n, r, c, d) => format!(
+            "≤{n}{}.{} (complement {})",
+            role(r),
+            show(entries, *c),
+            show(entries, *d)
+        ),
     }
 }
 
@@ -98,4 +105,23 @@ fn closing_adds_the_restrictions_of_transitive_roles() {
     // A role that is not transitive adds nothing.
     let missing = universal_from(&entries, &named(b"contains"), 2, 0);
     assert_eq!(missing, entries.len());
+}
+
+#[test]
+fn maximum_restrictions_record_the_complement_of_their_filler() {
+    let filler = and(atom(b"Valve"), some(named(b"hasPart"), atom(b"Seal")));
+    let concept = Concept::AtMost(1, inverted(b"partOf"), Box::new(filler));
+    let (entries, index) = intern(Vec::new(), &concept).expect("room");
+    assert_eq!(
+        show(&entries, index),
+        "≤1partOf⁻.(Valve ⊓ ∃hasPart.Seal) (complement (¬Valve ⊔ ∀hasPart.¬Seal))"
+    );
+    let at_least = Concept::AtLeast(2, named(b"hasPart"), Box::new(atom(b"Valve")));
+    let (entries, other) = intern(entries, &at_least).expect("room");
+    assert_eq!(show(&entries, other), "≥2hasPart.Valve");
+    // Valve was interned with the maximum restriction and is shared.
+    let (entries, valve) = intern(entries, &atom(b"Valve")).expect("room");
+    let count = entries.len();
+    let (entries, again) = intern(entries, &atom(b"Valve")).expect("room");
+    assert_eq!((entries.len(), again), (count, valve));
 }

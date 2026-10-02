@@ -652,6 +652,12 @@ theorem holds_denote (entries : List concept_table.Entry) (wf : WellFormed entri
       | Forall r f =>
         have := listed holds
         rwa [meaning_at entries wf c _ at_c] at this
+      | AtLeast m r f =>
+        have := listed holds
+        rwa [meaning_at entries wf c _ at_c] at this
+      | AtMost m r f f' =>
+        have := listed holds
+        rwa [meaning_at entries wf c _ at_c] at this
 
 /-- An entry that a label requires along an edge holds at the target of that
     edge, in every interpretation respecting the hierarchy where the label holds
@@ -784,7 +790,7 @@ theorem holds_mono (entries : List concept_table.Entry) (L L' : List Usize) (sub
           · exact holds.elim
         · exact holds.elim
       | Top | Bottom => exact holds
-      | Atom _ | NotAtom _ | Exists _ _ | Forall _ _ =>
+      | Atom _ | NotAtom _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ | AtMost _ _ _ _ =>
         obtain ⟨i,member,value⟩ := holds
         exact ⟨i,sub i member,value⟩
 
@@ -1712,6 +1718,15 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           have here := extras (fun k member => member) c (List.mem_cons_self ..)
           rw [meaning_at P.entries.val wf c.val _ at_c,entry] at here
           exact here
+      | AtLeast m r f =>
+        -- This tableau does not count: no answer.
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [completion.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+      | AtMost m r f f' =>
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [completion.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
       | And a b =>
         rw [entry] at below
         have aBelow : a.val < c.val := below a.val (by simp [parts])
@@ -2126,7 +2141,7 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun]
     | some pair =>
       obtain ⟨t1,k⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means⟩ := internSpec t1 k rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,_⟩ := internSpec t1 k rfl
       by_cases room : out.val.length < Usize.max
       · obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists
           (alloc.vec.Vec.push_spec out ⟨facts.val[index.val].node,k⟩ room)
@@ -2192,7 +2207,7 @@ theorem intern_definitions_correct (definitions : alloc.vec.Vec completion.Defin
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun]
     | some pair =>
       obtain ⟨t1,k⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means⟩ := internSpec t1 k rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,_⟩ := internSpec t1 k rfl
       by_cases room : out.val.length < Usize.max
       · obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists
           (alloc.vec.Vec.push_spec out ⟨definitions.val[index.val].class,k⟩ room)
@@ -2301,7 +2316,7 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0],by simp,by simp⟩
   | some pair0 =>
   obtain ⟨t0,ax⟩ := pair0
-  obtain ⟨wf0,_,axIn,axMeaning⟩ := spec0 t0 ax rfl
+  obtain ⟨wf0,_,axIn,axMeaning,_⟩ := spec0 t0 ax rfl
   obtain ⟨rq,runq,specq⟩ := intern_facts_correct query 0#usize t0 (alloc.vec.Vec.new completion.Requirement) []
     wf0 (by simp) (by simp [Corresponds])
   cases rq with

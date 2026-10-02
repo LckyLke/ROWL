@@ -2823,7 +2823,7 @@ expressions to it, with the same structure as `nnf::nnf`, except that existentia
 and universal restrictions keep `ObjectInverseOf`. Concepts states the meaning
 `denote`, reading roles with `objectRelation`, and proves
 translate_total_correct: the translation terminates on every class expression,
-returns `None` exactly outside ALCI (InAlci), and otherwise means the expression
+returns `None` exactly outside ALCI (InAlci, since extended to InAlciq), and otherwise means the expression
 (or its complement) in every interpretation fixing owl:Thing and owl:Nothing.
 relation_inv shows that `inv r` relates exactly the reversed pairs of `r`.
 
@@ -3111,3 +3111,42 @@ and the `AnswerData` definition are replaced by `prepared_supported`,
 `prepared_sound`, `prepared_complete` and `PreparedData`. Totals are 1158
 audited theorems, 742 definitions, 411 Rust regressions and 1351 ledger
 obligations.
+
+## Reasoner: cardinality restrictions in concepts
+
+The number restrictions stage starts with the input language. `concepts::Concept`
+gains `AtLeast(n, r, C)` and `AtMost(n, r, C)`, which Concepts reads with the
+independent OWL definitions: `AtLeast n P` is an injection of `n` elements
+satisfying `P`, and `AtMost n P` is the absence of `n + 1` of them.
+`concepts::translate` now covers ALCIQ (InAlciq): ObjectMinCardinality,
+ObjectMaxCardinality and ObjectExactCardinality, with or without a filler, and
+with cardinalities below `usize::MAX`, so that one more always fits. The
+complement of a minimum `n` is a maximum `n - 1` (nothing for `n = 0`), the
+complement of a maximum `n` is a minimum `n + 1`, and an exact cardinality is
+the intersection of both bounds, or the union of their complements. The filler
+keeps its polarity. translate_total_correct covers the new cases with the same
+contract as before. `concepts::negate` builds the complement of any concept in
+negation normal form; negate_correct proves that it means exactly the negation
+in every interpretation.
+
+`concept_table::Entry` gains the same two forms. A maximum restriction also
+records the index of its filler's complement, interned with `negate`, because
+the tableau must decide the filler at every neighbour that a maximum
+restriction counts. The complement is not a part of the concept, so
+intern_correct now recurses on the number of constructors (`size`), which a
+complement does not increase (negate_size). intern_correct also proves that
+interning keeps every maximum restriction recording its filler's complement
+(Complements), which appending to a well-formed table preserves
+(complements_append).
+
+The completion graph tableau does not count: `completion::add` gives no answer
+when a cardinality restriction would enter a label, and its theorems are
+unchanged. The ontology queries decline concepts with cardinality restrictions
+(`Proper`), so their answers and theorems are unchanged; the translation
+fragment in their statements is now InAlciq. The completion forest that counts
+comes next.
+
+This block adds 6 public theorems and 5 independent definitions. Totals are
+1164 audited theorems, 747 definitions, 415 Rust regressions and 1357 ledger
+obligations.
+

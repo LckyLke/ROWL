@@ -12658,6 +12658,50 @@
       "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
+      "id": "m6.Concepts.copy_concept_identity",
+      "requirement": "Verified ALCIQ concepts with cardinality restrictions: copy_concept_identity",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::copy_concept",
+      "theorem": "Rowl.Concepts.copy_concept_identity",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concepts of the completion graph tableau: concepts::Concept has at-least and at-most restrictions on object property expressions, read with the independent OWL definitions AtLeast (an injection of n elements) and AtMost. concepts::translate now covers ALCIQ: ObjectMinCardinality, ObjectMaxCardinality and ObjectExactCardinality, qualified or not, with cardinalities below usize::MAX; it is proved total, returns no result exactly outside ALCIQ (InAlciq), and keeps the meaning of the expression (or its complement) in every interpretation fixing owl:Thing and owl:Nothing: the complement of a minimum n is a maximum n-1 (nothing for n = 0), of a maximum n a minimum n+1, and of an exact cardinality their union. concepts::negate builds the complement of a concept in negation normal form and is proved to mean exactly its negation in every interpretation; concepts::copy_concept is proved to copy exactly. The completion graph tableau and the ontology queries do not count yet: they give no answer when a cardinality restriction occurs."
+    },
+    {
+      "id": "m6.Concepts.atLeast_zero",
+      "requirement": "Verified ALCIQ concepts with cardinality restrictions: atLeast_zero",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::negate",
+      "theorem": "Rowl.Concepts.atLeast_zero",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concepts of the completion graph tableau: concepts::Concept has at-least and at-most restrictions on object property expressions, read with the independent OWL definitions AtLeast (an injection of n elements) and AtMost. concepts::translate now covers ALCIQ: ObjectMinCardinality, ObjectMaxCardinality and ObjectExactCardinality, qualified or not, with cardinalities below usize::MAX; it is proved total, returns no result exactly outside ALCIQ (InAlciq), and keeps the meaning of the expression (or its complement) in every interpretation fixing owl:Thing and owl:Nothing: the complement of a minimum n is a maximum n-1 (nothing for n = 0), of a maximum n a minimum n+1, and of an exact cardinality their union. concepts::negate builds the complement of a concept in negation normal form and is proved to mean exactly its negation in every interpretation; concepts::copy_concept is proved to copy exactly. The completion graph tableau and the ontology queries do not count yet: they give no answer when a cardinality restriction occurs."
+    },
+    {
+      "id": "m6.Concepts.atLeast_congr",
+      "requirement": "Verified ALCIQ concepts with cardinality restrictions: atLeast_congr",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::translate",
+      "theorem": "Rowl.Concepts.atLeast_congr",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concepts of the completion graph tableau: concepts::Concept has at-least and at-most restrictions on object property expressions, read with the independent OWL definitions AtLeast (an injection of n elements) and AtMost. concepts::translate now covers ALCIQ: ObjectMinCardinality, ObjectMaxCardinality and ObjectExactCardinality, qualified or not, with cardinalities below usize::MAX; it is proved total, returns no result exactly outside ALCIQ (InAlciq), and keeps the meaning of the expression (or its complement) in every interpretation fixing owl:Thing and owl:Nothing: the complement of a minimum n is a maximum n-1 (nothing for n = 0), of a maximum n a minimum n+1, and of an exact cardinality their union. concepts::negate builds the complement of a concept in negation normal form and is proved to mean exactly its negation in every interpretation; concepts::copy_concept is proved to copy exactly. The completion graph tableau and the ontology queries do not count yet: they give no answer when a cardinality restriction occurs."
+    },
+    {
+      "id": "m6.Concepts.negate_correct",
+      "requirement": "Verified ALCIQ concepts with cardinality restrictions: negate_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::negate",
+      "theorem": "Rowl.Concepts.negate_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concepts of the completion graph tableau: concepts::Concept has at-least and at-most restrictions on object property expressions, read with the independent OWL definitions AtLeast (an injection of n elements) and AtMost. concepts::translate now covers ALCIQ: ObjectMinCardinality, ObjectMaxCardinality and ObjectExactCardinality, qualified or not, with cardinalities below usize::MAX; it is proved total, returns no result exactly outside ALCIQ (InAlciq), and keeps the meaning of the expression (or its complement) in every interpretation fixing owl:Thing and owl:Nothing: the complement of a minimum n is a maximum n-1 (nothing for n = 0), of a maximum n a minimum n+1, and of an exact cardinality their union. concepts::negate builds the complement of a concept in negation normal form and is proved to mean exactly its negation in every interpretation; concepts::copy_concept is proved to copy exactly. The completion graph tableau and the ontology queries do not count yet: they give no answer when a cardinality restriction occurs."
+    },
+    {
       "id": "m6.Hierarchy.below_refl",
       "requirement": "Verified role hierarchies with inverse roles: below_refl",
       "owner": "rowl-kernel",
@@ -12854,6 +12898,28 @@
       "theorem": "Rowl.ConceptTable.universal_found",
       "regression": "crates/rowl-kernel/tests/concept_table.rs",
       "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.complements_append",
+      "requirement": "Verified concept table with cardinality restrictions: complements_append",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::intern",
+      "theorem": "Rowl.ConceptTable.complements_append",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concept table: concept_table::Entry has at-least restrictions and at-most restrictions that also record the index of the complement of their filler, which the tableau needs to decide the filler at each neighbour. concept_table::intern interns the filler's complement with concepts::negate; interning is proved to terminate by recursion on the size of the concept, which a complement does not increase (negate_size), to keep the table well formed and appended to, to rebuild every concept exactly, and to keep every maximum restriction recording the complement of its filler (Complements), which appending to a well-formed table preserves (complements_append)."
+    },
+    {
+      "id": "m6.ConceptTable.negate_size",
+      "requirement": "Verified concept table with cardinality restrictions: negate_size",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::intern_at_most",
+      "theorem": "Rowl.ConceptTable.negate_size",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual cardinality restrictions in the concept table: concept_table::Entry has at-least restrictions and at-most restrictions that also record the index of the complement of their filler, which the tableau needs to decide the filler at each neighbour. concept_table::intern interns the filler's complement with concepts::negate; interning is proved to terminate by recursion on the size of the concept, which a complement does not increase (negate_size), to keep the table well formed and appended to, to rebuild every concept exactly, and to keep every maximum restriction recording the complement of its filler (Complements), which appending to a well-formed table preserves (complements_append)."
     },
     {
       "id": "m6.CompletionSearch.contains_correct",

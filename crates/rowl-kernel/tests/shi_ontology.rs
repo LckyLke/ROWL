@@ -487,6 +487,18 @@ fn holds(i: &Finite, c: &Concept, x: usize) -> bool {
         Concept::Or(a, b) => holds(i, a, x) || holds(i, b, x),
         Concept::Exists(r, c) => (0..i.size).any(|y| edge(i, r, x, y) && holds(i, c, y)),
         Concept::Forall(r, c) => (0..i.size).all(|y| !edge(i, r, x, y) || holds(i, c, y)),
+        Concept::AtLeast(n, r, c) => {
+            (0..i.size)
+                .filter(|&y| edge(i, r, x, y) && holds(i, c, y))
+                .count()
+                >= *n
+        }
+        Concept::AtMost(n, r, c) => {
+            (0..i.size)
+                .filter(|&y| edge(i, r, x, y) && holds(i, c, y))
+                .count()
+                <= *n
+        }
     }
 }
 fn interpretations() -> Vec<Finite> {

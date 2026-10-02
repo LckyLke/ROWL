@@ -68,7 +68,9 @@ pub struct Parts {
 }
 
 /// Whether no built-in class occurs as a named class and no built-in object
-/// property as a role, so the tableau reads every name as an ordinary one.
+/// property as a role, so the tableau reads every name as an ordinary one, and
+/// no cardinality restriction occurs, which the completion graph tableau does
+/// not count.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -79,6 +81,8 @@ fn proper(concept: &Concept) -> bool {
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),
         Concept::Forall(role, filler) => role_proper(role) && proper(filler),
+        Concept::AtLeast(_, _, _) => false,
+        Concept::AtMost(_, _, _) => false,
     }
 }
 /// Whether every definition in `definitions[index..]` defines an ordinary class
