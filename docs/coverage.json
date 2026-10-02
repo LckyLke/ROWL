@@ -12546,6 +12546,171 @@
       "theorem": "Rowl.OntologyRoles.role_box_correct",
       "regression": "crates/rowl-kernel/tests/alc_ontology.rs; crates/rowl-kernel/tests/source_reasoning.rs; crates/rowl/examples/source_roles.rs",
       "implementation_scope": "Actual ontology-level reasoning in the kernel for ALC with assertions about individuals and role axioms (SH): consistency, class satisfiability, subsumption and instance checking with respect to an axiom closure. Every supported class axiom is internalized into a negation-normal-form concept that holds at every element exactly when the axiom holds: SubClassOf(C D) becomes the union of the complement of C with D, EquivalentClasses holds all members together or none, DisjointClasses excludes every two member occurrences, DisjointUnion also equates the class with the union of its members, ObjectPropertyDomain and ObjectPropertyRange on a named object property restrict its sources or targets, and declarations, annotation axioms, assertions and role axioms impose nothing; the closure's TBox concept is their conjunction, proved to hold at every element exactly when an interpretation fixing owl:Thing and owl:Nothing satisfies every axiom that is neither an assertion nor a role axiom. SubObjectPropertyOf with a single named sub-property and a named super-property, EquivalentObjectProperties of named properties and TransitiveObjectProperty of a named property form a role box whose inclusions are closed under composition (each new inclusion adds every inclusion it composes with), proved to be respected by an interpretation exactly when it satisfies these role axioms. Every individual that an assertion mentions gets a node, interned by exact structural equality, and node 0 stands for one further element. ClassAssertion becomes the translated concept at its individual's node, ObjectPropertyAssertion an edge along its named property (an inverse property reverses it), and a NegativeObjectPropertyAssertion contradicts the closure exactly when the same edge is asserted; together with role axioms a negative assertion has no answer yet. The queries add their concepts at node 0 or at the queried individual's node and decide with the verified completion for named individuals under that role box. They answer exactly when the internalization, the role box and all translations succeed, no translated concept uses a built-in object property as a role or a built-in class as an ordinary named class, no assertion or role axiom uses a built-in object property, no negative property assertion occurs together with role axioms, and there is room for the nodes, placed concepts and role box. Each answer is proved to equal the independent Direct Semantics definitions of Consistent, ClassSatisfiable, Subsumed and InstanceOf for any valid vocabulary: every acceptance is turned into an actual OWL model of the closure, built from the completion's model with every individual at its node and every other object property read as there, so that the role axioms hold, the built-in classes and object and data properties fixed and data values, datatypes, literals and facets taken from the datatype map, and every OWL model, in any universe and with any reinterpretation of its anonymous individuals, forces acceptance. SameIndividual, DifferentIndividuals, data assertions, negative property assertions together with role axioms, inverse properties and property chains in role axioms, disjoint and inverse property axioms, the other property characteristics, the other axiom forms, the remaining SROIQ constructors, datatypes, query answering and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.inv_inv",
+      "requirement": "Verified ALCI concepts with inverse roles: inv_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::inverse",
+      "theorem": "Rowl.Concepts.inv_inv",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.relation_inv",
+      "requirement": "Verified ALCI concepts with inverse roles: relation_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::inverse",
+      "theorem": "Rowl.Concepts.relation_inv",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.copy_role_identity",
+      "requirement": "Verified ALCI concepts with inverse roles: copy_role_identity",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::copy_role",
+      "theorem": "Rowl.Concepts.copy_role_identity",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.inverse_correct",
+      "requirement": "Verified ALCI concepts with inverse roles: inverse_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::inverse",
+      "theorem": "Rowl.Concepts.inverse_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.same_role_correct",
+      "requirement": "Verified ALCI concepts with inverse roles: same_role_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::same_role",
+      "theorem": "Rowl.Concepts.same_role_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.translate_total_correct",
+      "requirement": "Verified ALCI concepts with inverse roles: translate_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::translate",
+      "theorem": "Rowl.Concepts.translate_total_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.translate_supported_iff",
+      "requirement": "Verified ALCI concepts with inverse roles: translate_supported_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::translate",
+      "theorem": "Rowl.Concepts.translate_supported_iff",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Concepts.translate_meaning",
+      "requirement": "Verified ALCI concepts with inverse roles: translate_meaning",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concepts::translate",
+      "theorem": "Rowl.Concepts.translate_meaning",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.below_refl",
+      "requirement": "Verified role hierarchies with inverse roles: below_refl",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.below_refl",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.respects_below",
+      "requirement": "Verified role hierarchies with inverse roles: respects_below",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.respects_below",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.below_correct",
+      "requirement": "Verified role hierarchies with inverse roles: below_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.below_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.is_transitive_correct",
+      "requirement": "Verified role hierarchies with inverse roles: is_transitive_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::is_transitive",
+      "theorem": "Rowl.Hierarchy.is_transitive_correct",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.respects_inv",
+      "requirement": "Verified role hierarchies with inverse roles: respects_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.respects_inv",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.closed_of_empty",
+      "requirement": "Verified role hierarchies with inverse roles: closed_of_empty",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.closed_of_empty",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.Hierarchy.respects_of_empty",
+      "requirement": "Verified role hierarchies with inverse roles: respects_of_empty",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Object_Property_Expression_Axioms",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::hierarchy::below",
+      "theorem": "Rowl.Hierarchy.respects_of_empty",
+      "regression": "crates/rowl-kernel/tests/concepts.rs",
+      "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     }
   ]
 }

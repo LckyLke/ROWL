@@ -92,6 +92,8 @@ import Rowl.Internalization
 import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
+import Rowl.Concepts
+import Rowl.Hierarchy
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -1048,6 +1050,21 @@ import Rowl.SourceReasoning
 #print axioms Rowl.OntologyRoles.add_equivalent_correct
 #print axioms Rowl.OntologyRoles.role_box_from_correct
 #print axioms Rowl.OntologyRoles.role_box_correct
+#print axioms Rowl.Concepts.inv_inv
+#print axioms Rowl.Concepts.relation_inv
+#print axioms Rowl.Concepts.copy_role_identity
+#print axioms Rowl.Concepts.inverse_correct
+#print axioms Rowl.Concepts.same_role_correct
+#print axioms Rowl.Concepts.translate_total_correct
+#print axioms Rowl.Concepts.translate_supported_iff
+#print axioms Rowl.Concepts.translate_meaning
+#print axioms Rowl.Hierarchy.below_refl
+#print axioms Rowl.Hierarchy.respects_below
+#print axioms Rowl.Hierarchy.below_correct
+#print axioms Rowl.Hierarchy.is_transitive_correct
+#print axioms Rowl.Hierarchy.respects_inv
+#print axioms Rowl.Hierarchy.closed_of_empty
+#print axioms Rowl.Hierarchy.respects_of_empty
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1717,3 +1734,13 @@ import Rowl.SourceReasoning
 #print axioms Rowl.OntologyRoles.RolesHold
 #print axioms Rowl.Internalization.RoleAxiom
 #print axioms Rowl.AlcOntology.Negative
+#print axioms Rowl.Concepts.denote
+#print axioms Rowl.Concepts.inv
+#print axioms Rowl.Concepts.InAlci
+#print axioms Rowl.Concepts.Agrees
+#print axioms Rowl.Concepts.Correct
+#print axioms Rowl.Hierarchy.inclusionList
+#print axioms Rowl.Hierarchy.transitives
+#print axioms Rowl.Hierarchy.Below
+#print axioms Rowl.Hierarchy.Closed
+#print axioms Rowl.Hierarchy.Respects

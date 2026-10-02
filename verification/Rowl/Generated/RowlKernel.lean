@@ -10384,6 +10384,211 @@ def collection.axiom_closure_entities
       collection.EntityUses.Empty
   ok { declarations, uses }
 
+/-- [rowl_kernel::concepts::Concept]
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 19:0-28:1
+    Visibility: public -/
+@[discriminant isize]
+inductive concepts.Concept where
+| Top : concepts.Concept
+| Bottom : concepts.Concept
+| Atom : model.Class → concepts.Concept
+| NotAtom : model.Class → concepts.Concept
+| And : concepts.Concept → concepts.Concept → concepts.Concept
+| Or : concepts.Concept → concepts.Concept → concepts.Concept
+| Exists :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+| Forall :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+
+/-- [rowl_kernel::concepts::copy_role]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 31:0-44:1 -/
+def concepts.copy_role
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+
+/-- [rowl_kernel::concepts::inverse]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 46:0-59:1
+    Visibility: public -/
+def concepts.inverse
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+
+/-- [rowl_kernel::concepts::same_role]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 61:0-71:1
+    Visibility: public -/
+def concepts.same_role
+  (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  match left with
+  | model.ObjectPropertyExpression.Property a =>
+    match right with
+    | model.ObjectPropertyExpression.Property b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | model.ObjectPropertyExpression.Inverse _ => ok false
+  | model.ObjectPropertyExpression.Inverse a =>
+    match right with
+    | model.ObjectPropertyExpression.Property _ => ok false
+    | model.ObjectPropertyExpression.Inverse b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+
+/-- [rowl_kernel::concepts::named]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 73:0-96:1 -/
+def concepts.named
+  (expression : model.ClassExpression) («class» : model.Class)
+  (positive : Bool) :
+  Result concepts.Concept
+  := do
+  let b ← class_equality.is_thing expression
+  if b
+  then if positive
+       then ok concepts.Concept.Top
+       else ok concepts.Concept.Bottom
+  else
+    let b1 ← class_equality.is_nothing expression
+    if b1
+    then
+      if positive
+      then ok concepts.Concept.Bottom
+      else ok concepts.Concept.Top
+    else
+      let i ← nnf.copy_iri «class».iri
+      if positive
+      then ok (concepts.Concept.Atom { iri := i })
+      else ok (concepts.Concept.NotAtom { iri := i })
+
+/-- [rowl_kernel::concepts::join]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 97:0-103:1 -/
+def concepts.join
+  (conjunctive : Bool) (left : concepts.Concept) (right : concepts.Concept) :
+  Result concepts.Concept
+  := do
+  if conjunctive
+  then ok (concepts.Concept.And left right)
+  else ok (concepts.Concept.Or left right)
+
+mutual
+
+/-- [rowl_kernel::concepts::fold_from]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 105:0-127:1 -/
+def concepts.fold_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (positive : Bool) (conjunctive : Bool) (joined : concepts.Concept) :
+  Result (Option concepts.Concept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce positive
+    match o with
+    | none => ok none
+    | some next =>
+      let i1 ← index + 1#usize
+      let c ← concepts.join conjunctive joined next
+      concepts.fold_from values i1 positive conjunctive c
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::connect]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 129:0-149:1 -/
+def concepts.connect
+  (members : model.AtLeastTwo model.ClassExpression) (positive : Bool)
+  (conjunctive : Bool) :
+  Result (Option concepts.Concept)
+  := do
+  let o ← concepts.translate members.first positive
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← concepts.translate members.second positive
+    match o1 with
+    | none => ok none
+    | some second =>
+      let c ← concepts.join conjunctive first second
+      concepts.fold_from members.rest 0#usize positive conjunctive c
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::restriction]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 151:0-166:1 -/
+def concepts.restriction
+  (property : model.ObjectPropertyExpression) (filler : model.ClassExpression)
+  (positive : Bool) (existential : Bool) :
+  Result (Option concepts.Concept)
+  := do
+  let o ← concepts.translate filler positive
+  match o with
+  | none => ok none
+  | some inner =>
+    if existential
+    then
+      let ope ← concepts.copy_role property
+      ok (some (concepts.Concept.Exists ope inner))
+    else
+      let ope ← concepts.copy_role property
+      ok (some (concepts.Concept.Forall ope inner))
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::translate]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 171:0-185:1
+    Visibility: public -/
+def concepts.translate
+  (expression : model.ClassExpression) (positive : Bool) :
+  Result (Option concepts.Concept)
+  := do
+  match expression with
+  | model.ClassExpression.Class «class» =>
+    let c ← concepts.named expression «class» positive
+    ok (some c)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    concepts.connect members positive positive
+  | model.ClassExpression.ObjectUnionOf members =>
+    concepts.connect members positive (¬ positive)
+  | model.ClassExpression.ObjectComplementOf inner =>
+    concepts.translate inner (¬ positive)
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom property filler =>
+    concepts.restriction property filler positive positive
+  | model.ClassExpression.ObjectAllValuesFrom property filler =>
+    concepts.restriction property filler positive (¬ positive)
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
+partial_fixpoint
+
+end
+
 /-- [rowl_kernel::datatype_definitions::DefinitionCheck]
     Source: 'crates/rowl-kernel/src/datatype_definitions.rs', lines 11:0-19:1
     Visibility: public -/
@@ -22665,6 +22870,92 @@ def functional_property_axioms.AxiomForm.Insts.CoreMarkerCopy :
   core.marker.Copy functional_property_axioms.AxiomForm := {
   cloneInst := functional_property_axioms.AxiomForm.Insts.CoreCloneClone
 }
+
+/-- [rowl_kernel::hierarchy::Inclusion]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 13:0-16:1
+    Visibility: public -/
+structure hierarchy.Inclusion where
+  sub : model.ObjectPropertyExpression
+  sup : model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::RoleHierarchy]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 19:0-22:1
+    Visibility: public -/
+structure hierarchy.RoleHierarchy where
+  inclusions : alloc.vec.Vec hierarchy.Inclusion
+  transitive : alloc.vec.Vec model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::listed_from]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 25:0-41:1 -/
+def hierarchy.listed_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role inclusion.sub sub
+    if b
+    then
+      let b1 ← concepts.same_role inclusion.sup sup
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        hierarchy.listed_from inclusions i1 sub sup
+    else let i1 ← index + 1#usize
+         hierarchy.listed_from inclusions i1 sub sup
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::below]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 44:0-50:1
+    Visibility: public -/
+def hierarchy.below
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← concepts.same_role sub sup
+  if b
+  then ok true
+  else hierarchy.listed_from roles.inclusions 0#usize sub sup
+
+/-- [rowl_kernel::hierarchy::transitive_from]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 52:0-66:1 -/
+def hierarchy.transitive_from
+  (transitive : alloc.vec.Vec model.ObjectPropertyExpression)
+  (index : Std.Usize) (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) transitive index
+    let b ← concepts.same_role ope role
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      hierarchy.transitive_from transitive i1 role
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::is_transitive]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 68:0-70:1
+    Visibility: public -/
+def hierarchy.is_transitive
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  hierarchy.transitive_from roles.transitive 0#usize role
 
 /-- [rowl_kernel::imports::DocumentIds]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 8:0-11:1

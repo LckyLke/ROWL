@@ -118,3 +118,5 @@ import Rowl.Internalization
 import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
+import Rowl.Concepts
+import Rowl.Hierarchy

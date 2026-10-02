@@ -2809,3 +2809,36 @@ This block adds 26 public theorems and 3 independent definitions. Totals are
 955 audited theorems, 669 definitions, 386 Rust regressions and 1148 ledger
 obligations. Inverse properties, property chains, negative assertions next to
 role axioms and the other property characteristics remain pending.
+
+
+## Reasoner: concepts and role hierarchies with inverse roles
+
+The inverse-roles stage replaces the recursive tableaux by a completion graph
+tableau, which inverse roles need because a successor can constrain its
+predecessor. Its first part adds the input language.
+
+`concepts::Concept` is a concept in negation normal form whose roles are object
+property expressions, named or inverse. `concepts::translate` maps ALCI class
+expressions to it, with the same structure as `nnf::nnf`, except that existential
+and universal restrictions keep `ObjectInverseOf`. Concepts states the meaning
+`denote`, reading roles with `objectRelation`, and proves
+translate_total_correct: the translation terminates on every class expression,
+returns `None` exactly outside ALCI (InAlci), and otherwise means the expression
+(or its complement) in every interpretation fixing owl:Thing and owl:Nothing.
+relation_inv shows that `inv r` relates exactly the reversed pairs of `r`.
+
+`hierarchy::RoleHierarchy` lists inclusions between object property expressions
+and transitive object property expressions. Hierarchy proves `below` and
+`is_transitive` exact (below_correct, is_transitive_correct) and states
+Respects, what the role axioms mean, and Closed: the inclusions include their
+compositions and the inverse of every inclusion, and the transitive roles include
+their inverses. The tableau will rely on Closed.
+
+Three regressions cover inverse restrictions under De Morgan, role comparison by
+orientation and spelling, and hierarchy tests.
+
+This block adds 15 public theorems and 10 independent definitions. Totals are
+970 audited theorems, 679 definitions, 390 Rust regressions and 1163 ledger
+obligations. The concept table, the completion graph tableau with lazy unfolding
+and clash detection on insertion, and the ontology queries with inverse roles
+are next.

@@ -74,6 +74,10 @@ pub mod abox;
 
 pub mod alc_ontology;
 
+pub mod concepts;
+
+pub mod hierarchy;
+
 pub mod source_reasoning;
 
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.

@@ -1519,6 +1519,33 @@
         "Rowl.OntologyRoles.role_box_from_correct",
         "Rowl.OntologyRoles.role_box_correct"
       ]
+    },
+    {
+      "module": "Rowl.Concepts",
+      "namespace": "Rowl.Concepts",
+      "theorems": [
+        "Rowl.Concepts.inv_inv",
+        "Rowl.Concepts.relation_inv",
+        "Rowl.Concepts.copy_role_identity",
+        "Rowl.Concepts.inverse_correct",
+        "Rowl.Concepts.same_role_correct",
+        "Rowl.Concepts.translate_total_correct",
+        "Rowl.Concepts.translate_supported_iff",
+        "Rowl.Concepts.translate_meaning"
+      ]
+    },
+    {
+      "module": "Rowl.Hierarchy",
+      "namespace": "Rowl.Hierarchy",
+      "theorems": [
+        "Rowl.Hierarchy.below_refl",
+        "Rowl.Hierarchy.respects_below",
+        "Rowl.Hierarchy.below_correct",
+        "Rowl.Hierarchy.is_transitive_correct",
+        "Rowl.Hierarchy.respects_inv",
+        "Rowl.Hierarchy.closed_of_empty",
+        "Rowl.Hierarchy.respects_of_empty"
+      ]
     }
   ],
   "specifications": [
@@ -2190,6 +2217,16 @@
     "Rowl.FunctionalModel.ShapedProperty",
     "Rowl.OntologyRoles.RolesHold",
     "Rowl.Internalization.RoleAxiom",
-    "Rowl.AlcOntology.Negative"
+    "Rowl.AlcOntology.Negative",
+    "Rowl.Concepts.denote",
+    "Rowl.Concepts.inv",
+    "Rowl.Concepts.InAlci",
+    "Rowl.Concepts.Agrees",
+    "Rowl.Concepts.Correct",
+    "Rowl.Hierarchy.inclusionList",
+    "Rowl.Hierarchy.transitives",
+    "Rowl.Hierarchy.Below",
+    "Rowl.Hierarchy.Closed",
+    "Rowl.Hierarchy.Respects"
   ]
 }

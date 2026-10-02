@@ -1005,3 +1005,31 @@ reason as from concepts: their meaning is fixed and the completion does not know
 it. With role axioms, a negative property assertion would have to be compared
 with the entailed edges (paths along transitive properties) rather than the
 asserted ones; until that check exists, such closures get no answer.
+
+Inverse roles end the recursive shape. With `∀r⁻.C` a successor can require
+something of its predecessor, so a node can no longer be decided before its
+successors. The inverse-roles stage therefore moves to a completion graph:
+named individuals and tree nodes in one structure, rules applied until none is
+left, and branching by copying the graph. The design keeps the proofs modular:
+
+- Concepts are interned once into a table of entries with child indices, so
+  labels are lists of indices, item equality is index equality, and the
+  restrictions `∀t.C` that transitive roles add are ordinary table entries. The
+  finite table bounds every label.
+- A tree node is blocked when the labels on its path to its named root repeat
+  (equality blocking, which inverse roles need instead of subset blocking).
+  Unblocked paths therefore have pairwise distinct labels, which bounds the
+  depth by 2^|table|; termination follows from a measure that weights each node
+  by that bound minus its depth, so creating a successor for an unsatisfied
+  existential always decreases it.
+- Soundness reads the final graph as a Hintikka structure, as before, with one
+  change: two labels are related along `r` when each satisfies what the other
+  requires along `r` and `inv(r)` respectively. Named individuals stay separate
+  elements related only along their edges, so negative property assertions keep
+  their exact check.
+- Performance is part of the design from the start: a clash is found when the
+  literal that causes it is inserted, and an axiom `A ⊑ C` with a named class on
+  the left is applied only at nodes whose label contains `A` (lazy unfolding)
+  instead of adding `¬A ⊔ C` everywhere. Domain axioms become universal
+  restrictions on the inverse role, so they no longer branch either.
+  Backjumping and reuse across queries follow as a separate stage.
