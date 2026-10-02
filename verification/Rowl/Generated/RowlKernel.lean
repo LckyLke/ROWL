@@ -18813,6 +18813,457 @@ def functional_literals.LiteralExpected.Insts.CoreMarkerCopy : core.marker.Copy
   cloneInst := functional_literals.LiteralExpected.Insts.CoreCloneClone
 }
 
+/-- [rowl_kernel::functional_model::copy_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 24:0-31:1 -/
+def functional_model.copy_from
+  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (target : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len source
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
+        index
+    let target1 ← alloc.vec.Vec.push target i1
+    let i2 ← index + 1#usize
+    functional_model.copy_from source i2 target1
+  else ok target
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::copy_bytes]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 32:0-34:1 -/
+def functional_model.copy_bytes
+  (source : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  functional_model.copy_from source 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::functional_model::iri]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 35:0-39:1 -/
+def functional_model.iri
+  (source : functional_header.HeaderIri) : Result model.Iri := do
+  let v ← functional_model.copy_bytes source.value
+  ok { spelling := v }
+
+/-- [rowl_kernel::functional_model::anonymous]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 40:0-45:1 -/
+def functional_model.anonymous
+  (label : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
+  Result model.AnonymousIndividual
+  := do
+  let v ← functional_model.copy_bytes scope
+  let v1 ← functional_model.copy_bytes label
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::functional_model::literal]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 46:0-55:1 -/
+def functional_model.literal
+  (source : functional_literals.SourceLiteral) : Result model.Literal := do
+  let v ← functional_model.copy_bytes source.lexical
+  let v1 ← functional_model.copy_bytes source.datatype
+  ok { lexical := v, datatype := { iri := { spelling := v1 } } }
+
+/-- [rowl_kernel::functional_model::annotation_value]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 56:0-64:1 -/
+def functional_model.annotation_value
+  (source : functional_annotations.SourceAnnotationValue)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result model.AnnotationValue
+  := do
+  match source with
+  | functional_annotations.SourceAnnotationValue.Iri value =>
+    let i ← functional_model.iri value
+    ok (model.AnnotationValue.Iri i)
+  | functional_annotations.SourceAnnotationValue.Anonymous _ label =>
+    let ai ← functional_model.anonymous label scope
+    ok (model.AnnotationValue.Anonymous ai)
+  | functional_annotations.SourceAnnotationValue.Literal value =>
+    let l ← functional_model.literal value
+    ok (model.AnnotationValue.Literal l)
+
+mutual
+
+/-- [rowl_kernel::functional_model::annotation]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 65:0-73:1 -/
+def functional_model.annotation
+  (source : functional_annotations.SourceAnnotation)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result model.Annotation
+  := do
+  let v ←
+    functional_model.annotations_from source.annotations 0#usize
+      (alloc.vec.Vec.new model.Annotation) scope
+  let i ← functional_model.iri source.property
+  let av ← functional_model.annotation_value source.value scope
+  ok (model.Annotation.mk v { iri := i } av)
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::annotations_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 74:0-86:1 -/
+def functional_model.annotations_from
+  (values : alloc.vec.Vec functional_annotations.SourceAnnotation)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Annotation)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec model.Annotation)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let sa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_annotations.SourceAnnotation) values index
+    let a ← functional_model.annotation sa scope
+    let out1 ← alloc.vec.Vec.push out a
+    let i1 ← index + 1#usize
+    functional_model.annotations_from values i1 out1 scope
+  else ok out
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::functional_model::property]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 87:0-96:1 -/
+def functional_model.property
+  (source : functional_classes.SourceObjectProperty) :
+  Result model.ObjectPropertyExpression
+  := do
+  match source with
+  | functional_classes.SourceObjectProperty.Named «name» =>
+    let i ← functional_model.iri «name»
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+  | functional_classes.SourceObjectProperty.Inverse _ property =>
+    let i ← functional_model.iri property
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+
+mutual
+
+/-- [rowl_kernel::functional_model::class]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 97:0-131:1 -/
+def functional_model.class
+  (source : functional_classes.SourceClass) :
+  Result (Option model.ClassExpression)
+  := do
+  match source with
+  | functional_classes.SourceClass.Named «name» =>
+    let i ← functional_model.iri «name»
+    ok (some (model.ClassExpression.Class { iri := i }))
+  | functional_classes.SourceClass.IntersectionOf _ members =>
+    let o ← functional_model.members_of members
+    match o with
+    | none => ok none
+    | some members1 =>
+      ok (some (model.ClassExpression.ObjectIntersectionOf members1))
+  | functional_classes.SourceClass.UnionOf _ members =>
+    let o ← functional_model.members_of members
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.ClassExpression.ObjectUnionOf members1))
+  | functional_classes.SourceClass.ComplementOf _ operand =>
+    let o ← functional_model.class operand
+    match o with
+    | none => ok none
+    | some operand1 =>
+      ok (some (model.ClassExpression.ObjectComplementOf operand1))
+  | functional_classes.SourceClass.SomeValuesFrom _ property filler =>
+    let o ← functional_model.class filler
+    match o with
+    | none => ok none
+    | some filler1 =>
+      let ope ← functional_model.property property
+      ok (some (model.ClassExpression.ObjectSomeValuesFrom ope filler1))
+  | functional_classes.SourceClass.AllValuesFrom _ property filler =>
+    let o ← functional_model.class filler
+    match o with
+    | none => ok none
+    | some filler1 =>
+      let ope ← functional_model.property property
+      ok (some (model.ClassExpression.ObjectAllValuesFrom ope filler1))
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::rest_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 132:0-148:1 -/
+def functional_model.rest_from
+  (values : alloc.vec.Vec functional_classes.SourceClass) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.ClassExpression))
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let sc ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_classes.SourceClass) values index
+    let o ← functional_model.class sc
+    match o with
+    | none => ok none
+    | some value =>
+      let out1 ← alloc.vec.Vec.push out value
+      let i1 ← index + 1#usize
+      functional_model.rest_from values i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::members_of]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 149:0-169:1 -/
+def functional_model.members_of
+  (values : alloc.vec.Vec functional_classes.SourceClass) :
+  Result (Option (model.AtLeastTwo model.ClassExpression))
+  := do
+  let i := alloc.vec.Vec.len values
+  if i < 2#usize
+  then ok none
+  else
+    let sc ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_classes.SourceClass) values 0#usize
+    let o ← functional_model.class sc
+    match o with
+    | none => ok none
+    | some first =>
+      let sc1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          functional_classes.SourceClass) values 1#usize
+      let o1 ← functional_model.class sc1
+      match o1 with
+      | none => ok none
+      | some second =>
+        let o2 ←
+          functional_model.rest_from values 2#usize (alloc.vec.Vec.new
+            model.ClassExpression)
+        match o2 with
+        | none => ok none
+        | some rest => ok (some { first, second, rest })
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::functional_model::entity]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 170:0-182:1 -/
+def functional_model.entity
+  (source : functional_declarations.SourceEntity) : Result model.Entity := do
+  let «name» ← functional_model.iri source.iri
+  match source.kind with
+  | functional_declarations.SourceEntityKind.Class =>
+    ok (model.Entity.Class { iri := «name» })
+  | functional_declarations.SourceEntityKind.Datatype =>
+    ok (model.Entity.Datatype { iri := «name» })
+  | functional_declarations.SourceEntityKind.ObjectProperty =>
+    ok (model.Entity.ObjectProperty { iri := «name» })
+  | functional_declarations.SourceEntityKind.DataProperty =>
+    ok (model.Entity.DataProperty { iri := «name» })
+  | functional_declarations.SourceEntityKind.AnnotationProperty =>
+    ok (model.Entity.AnnotationProperty { iri := «name» })
+  | functional_declarations.SourceEntityKind.NamedIndividual =>
+    ok (model.Entity.NamedIndividual { iri := «name» })
+
+/-- [rowl_kernel::functional_model::subject]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 183:0-190:1 -/
+def functional_model.subject
+  (source : functional_annotation_axioms.SourceAnnotationSubject)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result model.AnnotationSubject
+  := do
+  match source with
+  | functional_annotation_axioms.SourceAnnotationSubject.Iri value =>
+    let i ← functional_model.iri value
+    ok (model.AnnotationSubject.Iri i)
+  | functional_annotation_axioms.SourceAnnotationSubject.Anonymous _ label =>
+    let ai ← functional_model.anonymous label scope
+    ok (model.AnnotationSubject.Anonymous ai)
+
+/-- [rowl_kernel::functional_model::annotation_axiom]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 191:0-220:1 -/
+def functional_model.annotation_axiom
+  (source : functional_annotation_axioms.SourceAnnotationAxiomBody)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result model.Axiom
+  := do
+  match source with
+  | functional_annotation_axioms.SourceAnnotationAxiomBody.Assertion property
+    subject value =>
+    let i ← functional_model.iri property
+    let «as» ← functional_model.subject subject scope
+    let av ← functional_model.annotation_value value scope
+    ok (model.Axiom.AnnotationAssertion { iri := i } «as» av)
+  | functional_annotation_axioms.SourceAnnotationAxiomBody.SubProperty
+    sub_property super_property =>
+    let i ← functional_model.iri sub_property
+    let i1 ← functional_model.iri super_property
+    ok (model.Axiom.SubAnnotationPropertyOf { iri := i } { iri := i1 })
+  | functional_annotation_axioms.SourceAnnotationAxiomBody.Domain property
+    domain =>
+    let i ← functional_model.iri property
+    let i1 ← functional_model.iri domain
+    ok (model.Axiom.AnnotationPropertyDomain { iri := i } i1)
+  | functional_annotation_axioms.SourceAnnotationAxiomBody.Range property range
+    =>
+    let i ← functional_model.iri property
+    let i1 ← functional_model.iri range
+    ok (model.Axiom.AnnotationPropertyRange { iri := i } i1)
+
+/-- [rowl_kernel::functional_model::class_axiom]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 221:0-260:1 -/
+def functional_model.class_axiom
+  (source : functional_class_axioms.SourceClassAxiomBody) :
+  Result (Option model.Axiom)
+  := do
+  match source with
+  | functional_class_axioms.SourceClassAxiomBody.SubClassOf sub sup =>
+    let o ← functional_model.class sub
+    match o with
+    | none => ok none
+    | some sub1 =>
+      let o1 ← functional_model.class sup
+      match o1 with
+      | none => ok none
+      | some sup1 => ok (some (model.Axiom.SubClassOf sub1 sup1))
+  | functional_class_axioms.SourceClassAxiomBody.EquivalentClasses members =>
+    let o ← functional_model.members_of members
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.Axiom.EquivalentClasses members1))
+  | functional_class_axioms.SourceClassAxiomBody.DisjointClasses members =>
+    let o ← functional_model.members_of members
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.Axiom.DisjointClasses members1))
+  | functional_class_axioms.SourceClassAxiomBody.DisjointUnion «name» members
+    =>
+    let o ← functional_model.members_of members
+    match o with
+    | none => ok none
+    | some members1 =>
+      let i ← functional_model.iri «name»
+      ok (some (model.Axiom.DisjointUnion { iri := i } members1))
+  | functional_class_axioms.SourceClassAxiomBody.ObjectPropertyDomain property
+    domain =>
+    let o ← functional_model.class domain
+    match o with
+    | none => ok none
+    | some domain1 =>
+      let ope ← functional_model.property property
+      ok (some (model.Axiom.ObjectPropertyDomain ope domain1))
+  | functional_class_axioms.SourceClassAxiomBody.ObjectPropertyRange property
+    range =>
+    let o ← functional_model.class range
+    match o with
+    | none => ok none
+    | some range1 =>
+      let ope ← functional_model.property property
+      ok (some (model.Axiom.ObjectPropertyRange ope range1))
+
+/-- [rowl_kernel::functional_model::axiom]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 261:0-279:1 -/
+def functional_model.axiom
+  (source : functional_document.SourceAxiom) (scope : alloc.vec.Vec Std.U8) :
+  Result (Option model.AnnotatedAxiom)
+  := do
+  match source with
+  | functional_document.SourceAxiom.Declaration declaration =>
+    let v ←
+      functional_model.annotations_from declaration.annotations 0#usize
+        (alloc.vec.Vec.new model.Annotation) scope
+    let e ← functional_model.entity declaration.entity
+    ok (some { annotations := v, «axiom» := (model.Axiom.Declaration e) })
+  | functional_document.SourceAxiom.Annotation record =>
+    let v ←
+      functional_model.annotations_from record.annotations 0#usize
+        (alloc.vec.Vec.new model.Annotation) scope
+    let a ← functional_model.annotation_axiom record.body scope
+    ok (some { annotations := v, «axiom» := a })
+  | functional_document.SourceAxiom.Class record =>
+    let o ← functional_model.class_axiom record.body
+    match o with
+    | none => ok none
+    | some «axiom» =>
+      let v ←
+        functional_model.annotations_from record.annotations 0#usize
+          (alloc.vec.Vec.new model.Annotation) scope
+      ok (some { annotations := v, «axiom» })
+
+/-- [rowl_kernel::functional_model::axioms_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 280:0-297:1 -/
+def functional_model.axioms_from
+  (values : alloc.vec.Vec functional_document.SourceAxiom) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) (scope : alloc.vec.Vec Std.U8) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let sa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_document.SourceAxiom) values index
+    let o ← functional_model.axiom sa scope
+    match o with
+    | none => ok none
+    | some value =>
+      let out1 ← alloc.vec.Vec.push out value
+      let i1 ← index + 1#usize
+      functional_model.axioms_from values i1 out1 scope
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::imports_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 298:0-305:1 -/
+def functional_model.imports_from
+  (values : alloc.vec.Vec functional_header.ImportReference)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Iri) :
+  Result (alloc.vec.Vec model.Iri)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ir ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_header.ImportReference) values index
+    let i1 ← functional_model.iri ir.target
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    functional_model.imports_from values i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::identity]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 306:0-317:1 -/
+def functional_model.identity
+  (source : functional_header.SourceOntologyIdentity) :
+  Result model.OntologyIdentity
+  := do
+  match source with
+  | functional_header.SourceOntologyIdentity.Anonymous =>
+    ok model.OntologyIdentity.Anonymous
+  | functional_header.SourceOntologyIdentity.Named ontology version =>
+    let i ← functional_model.iri ontology
+    match version with
+    | none => ok (model.OntologyIdentity.Named i none)
+    | some version1 =>
+      let i1 ← functional_model.iri version1
+      ok (model.OntologyIdentity.Named i (some i1))
+
+/-- [rowl_kernel::functional_model::document_ontology]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 321:0-331:1
+    Visibility: public -/
+def functional_model.document_ontology
+  (document : functional_document.SourceDocument)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (Option model.RawOntology)
+  := do
+  let o ←
+    functional_model.axioms_from document.tail.axioms 0#usize
+      (alloc.vec.Vec.new model.AnnotatedAxiom) scope
+  match o with
+  | none => ok none
+  | some axioms =>
+    let oi ← functional_model.identity document.tail.identity
+    let v ←
+      functional_model.imports_from document.tail.imports 0#usize
+        (alloc.vec.Vec.new model.Iri)
+    let v1 ←
+      functional_model.annotations_from document.tail.annotations 0#usize
+        (alloc.vec.Vec.new model.Annotation) scope
+    ok (some { identity := oi, imports := v, annotations := v1, axioms })
+
 /-- [rowl_kernel::functional_names::{impl core::clone::Clone for rowl_kernel::functional_names::NameKind}::clone]:
     Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:9-8:14
     Visibility: public -/
@@ -23397,6 +23848,64 @@ def snapshot.resolve_texts
     ok (snapshot.TextResolution.MissingDocument key)
   | imports.Resolution.DuplicateDocument key =>
     ok (snapshot.TextResolution.DuplicateDocument key)
+
+/-- [rowl_kernel::source_reasoning::source_consistent]:
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 14:0-27:1
+    Visibility: public -/
+def source_reasoning.source_consistent
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result (Option Bool) functional_document.DocumentError)
+  := do
+  let r ← functional_document.read_document bytes limits
+  match r with
+  | core.result.Result.Ok document =>
+    let o ← functional_model.document_ontology document scope
+    match o with
+    | none => ok (core.result.Result.Ok none)
+    | some ontology =>
+      let o1 ← alc_ontology.consistent ontology.axioms
+      ok (core.result.Result.Ok o1)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_kernel::source_reasoning::source_class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 29:0-43:1
+    Visibility: public -/
+def source_reasoning.source_class_satisfiable
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  (scope : alloc.vec.Vec Std.U8) («class» : model.ClassExpression) :
+  Result (core.result.Result (Option Bool) functional_document.DocumentError)
+  := do
+  let r ← functional_document.read_document bytes limits
+  match r with
+  | core.result.Result.Ok document =>
+    let o ← functional_model.document_ontology document scope
+    match o with
+    | none => ok (core.result.Result.Ok none)
+    | some ontology =>
+      let o1 ← alc_ontology.class_satisfiable ontology.axioms «class»
+      ok (core.result.Result.Ok o1)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_kernel::source_reasoning::source_subsumed]:
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 46:0-61:1
+    Visibility: public -/
+def source_reasoning.source_subsumed
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  (scope : alloc.vec.Vec Std.U8) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (core.result.Result (Option Bool) functional_document.DocumentError)
+  := do
+  let r ← functional_document.read_document bytes limits
+  match r with
+  | core.result.Result.Ok document =>
+    let o ← functional_model.document_ontology document scope
+    match o with
+    | none => ok (core.result.Result.Ok none)
+    | some ontology =>
+      let o1 ← alc_ontology.subsumed ontology.axioms sub sup
+      ok (core.result.Result.Ok o1)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 mutual
 

@@ -2344,16 +2344,15 @@ The regressions cover:
 - all six axiom forms and axiom annotations;
 - the maintenance class ontology, read axiom by axiom in source order.
 
-The runnable functional_class_axioms example reads that ontology from source.
-It converts the records into the kernel's ontology model with example code and
-asks the verified reasoner whether the ontology is consistent and about
-subsumption and satisfiability. Each reading step is proved against the grammar
-and each answer against the Direct Semantics. The conversion between them, the
-axiom loop and document construction are not yet verified steps.
+The runnable functional_class_axioms example reads that ontology from source
+and asks the verified reasoner whether it is consistent and about subsumption
+and satisfiability. It now uses the verified end-to-end functions (see "From
+source bytes to verified answers" below); its earlier hand-written conversion
+into the kernel's model is gone.
 
-The other logical axioms and class-expression forms, data ranges, individuals,
-the axiom loop, the closing token, complete document construction and the
-mapping into the kernel's model remain pending.
+The other logical axioms and class-expression forms, data ranges and individuals
+remain pending. The axiom loop, the closing token, document construction and the
+mapping into the kernel's model are proved in the later stages below.
 
 This block adds 41 public theorems and 17 independent definitions. Totals are
 724 audited theorems, 565 definitions, 359 Rust regressions and 917 ledger
@@ -2423,5 +2422,73 @@ document reader.
 
 This block adds 17 public theorems and 6 independent definitions. Totals are
 741 audited theorems, 571 definitions, 362 Rust regressions and 934 ledger
-obligations. The mapping into the kernel's raw model and end-to-end answers are
-the next step.
+obligations. The mapping into the kernel's raw model and end-to-end answers
+follow in the next section.
+
+
+## M3/M6: From source bytes to verified answers
+
+`functional_model::document_ontology` maps a read document into the kernel's raw
+OWL ontology:
+
+- the ontology identity, with its version;
+- the import targets, in order;
+- the ontology annotations, with nested annotations;
+- every axiom with its axiom annotations, in source order.
+
+IRI and literal bytes are copied exactly; `copy_bytes` is proved to return its
+input. A node ID becomes an anonymous individual whose scope is the caller's
+`scope` bytes and whose label is the node ID's exact label. Declarations keep
+their entity kind. The four annotation axioms keep their subjects and values.
+The six class axioms keep their class expressions, object properties and
+inverses. Original tokens are dropped.
+
+FunctionalModel gives the independent correspondence as relations:
+AnnotationModel and AnnotationsModel, ClassModel, MembersModel and RestModel,
+ClassAxiomModel, AxiomModel and OntologyModel. Every mapping is proved total by
+well-founded recursion on the size of the source records, and every result
+satisfies its relation. The mapping returns no ontology only for a member list
+with fewer than two members. The Shaped predicates record that minimum. The
+mapping theorems prove that shaped records always map. The grammar theorems,
+from class_run_shaped to tail_run_shaped, prove by structural recursion over the
+derivations that the document grammar accepts only shaped records.
+
+`source_reasoning::source_consistent`, `source_class_satisfiable` and
+`source_subsumed` run the document reader, the mapping and the ontology-level
+ALC query on the original bytes. SourceReasoning proves:
+
+- read_document_read: every accepted document is read from the bytes. Its prefix
+  header is parsed from the same bytes, the normative checker accepts its table,
+  and the independent document grammar derives the rest with exactly those
+  namespace rows;
+- read_document_maps: every accepted document maps to a raw OWL ontology of the
+  bytes (SourceOntology);
+- the three `_correct` theorems: every call terminates; an error is exactly the
+  reader's first error; every other result is the kernel's query on a raw OWL
+  ontology of the bytes; and an answer equals Consistent, ClassSatisfiable or
+  Subsumed of its axioms for any valid vocabulary;
+- source_consistent_complete, source_class_satisfiable_complete and
+  source_subsumed_sound: completeness, and soundness of a positive subsumption
+  answer, in every universe.
+
+No answer therefore means the axioms or the query are outside the supported ALC
+fragment; the pipeline itself never declines a read document.
+
+Three regressions in `crates/rowl-kernel/tests/source_reasoning.rs` cover:
+
+- the five maintenance questions, answered from the original bytes;
+- the model of a fixture that uses every record kind: identity with version, an
+  import, a nested ontology annotation, plain-literal normalization, a
+  declaration, a node-ID subject with its scope, an annotated `SubClassOf` with a
+  three-member intersection in order, and the domain of an inverse property;
+- a reader error passing through, an inverse-property domain giving no answer,
+  and an unsatisfiable class in a consistent document.
+
+The functional_class_axioms example now answers its questions with these
+functions.
+
+This block adds 38 public theorems and 22 independent definitions. Totals are
+779 audited theorems, 593 definitions, 365 Rust regressions and 972 ledger
+obligations. Individuals and assertions, the other axiom forms, anonymous scopes
+across an import closure, the remaining constructors, datatypes and performance
+remain pending.

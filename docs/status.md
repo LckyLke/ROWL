@@ -419,8 +419,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   bounds, original quote progress and strict token consumption are checked.
   Whole-byte prefix parsing and normative table checking compose on precisely the
   source namespace rows; the caller still supplies the literal position. Concrete
-  datatype lexical/value/facet validation, annotation/axiom grammar, document AST,
-  canonical import/scopes and full reasoning remain pending. RDF 1.1 literals keep
+  datatype lexical/value/facet validation, canonical import/scopes and full
+  reasoning remain pending; annotations, axioms and the document model are read by
+  the later stages. RDF 1.1 literals keep
   their separately specified representation and syntax conventions.
 - M3 Functional Syntax annotations with recursive nesting. The actual reader takes
   the maximal leading `{ Annotation }` sequence in source order, such as the
@@ -434,8 +435,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   equivalent to an independent recursive grammar, and success is equivalent to an
   independent maximal section grammar. Whole-byte prefix parsing, table checking
   and header reading compose on precisely the source namespace rows. Anonymous
-  scopes, kernel Annotation values, axioms, the closing token and complete document
-  construction remain pending.
+  scopes across an import closure remain pending; kernel Annotation values, axioms,
+  the closing token and the document model are proved in later stages.
 - M3 Functional Syntax entity declarations. The actual reader takes one
   `Declaration( {Annotation} Entity )` axiom at a caller-supplied position, for all
   six entity kinds. Axiom annotations reuse the proved annotation reader and its
@@ -445,8 +446,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   are proved; success gives the keyword's exact entity kind, a source-linked IRI,
   the independent annotation section and at least seven consumed tokens. Source
   composition uses the namespace rows parsed from the same bytes. Declaration
-  typing remains the existing separate kernel check; the axiom loop, the other
-  axiom forms, the closing token and complete document construction remain pending.
+  typing remains the existing separate kernel check; the other axiom forms remain
+  pending.
 - M3 Functional Syntax annotation axioms. The actual reader takes one
   `AnnotationAssertion`, `SubAnnotationPropertyOf`, `AnnotationPropertyDomain` or
   `AnnotationPropertyRange` axiom at a caller-supplied position. Axiom annotations
@@ -456,8 +457,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   offsets. Totality and exact result/error equivalence to an independent grammar
   are proved; success gives a body matching the keyword, the independent annotation
   section and at least five consumed tokens. With declarations, this covers every
-  non-logical axiom; the logical axioms, the axiom loop, the closing token and
-  complete document construction remain pending.
+  non-logical axiom; the other logical axioms remain pending.
 - M3 Functional Syntax class expressions and class axioms. The actual readers
   take one class expression of the reasoner's ALC fragment (named classes,
   intersections, unions, complements, and existential and universal restrictions
@@ -470,8 +470,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   proved total by well-founded recursion on the token count, and both readers
   have exact result/error equivalence to an independent grammar. Source
   composition uses the namespace rows parsed from the same bytes. The other
-  logical axioms, the axiom loop, the closing token, complete document
-  construction and the mapping into the kernel's ontology model remain pending.
+  logical axioms remain pending.
 - M3 Functional Syntax documents. The actual reader takes the original bytes of a
   whole document. It reads the prefix declarations with the proved prefix-header
   reader and checks them with the normative table checker. It then reads the
@@ -482,8 +481,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   keyword, and has an axiom count limit. Errors report the first failing stage
   with original offsets. The loop is proved total by token count from each
   reader's minimum consumption, with exact result/error equivalence to an
-  independent grammar. The mapping into the kernel's raw model, canonical
-  imports and the other axiom forms remain pending.
+  independent grammar. Canonical imports and the other axiom forms remain pending.
+- M3 the raw OWL model of read documents. The actual kernel mapping turns a read
+  document into the raw OWL ontology: the identity, import targets, ontology
+  annotations and axioms with their annotations, in source order. IRIs and
+  literals keep their exact bytes, node IDs become anonymous individuals of a
+  caller-supplied scope, and original tokens are dropped. Every mapping is proved
+  total, and every result corresponds to its source records under an independent
+  structural correspondence. The mapping declines only a member list with fewer
+  than two members. Independent grammar invariants prove that every list in an
+  accepted document has at least two members, so every read document maps.
+  Anonymous scopes across an import closure and the other axiom forms remain
+  pending.
 - Reasoner track, first stage: negation normal form for the ALC fragment. The
   actual kernel translation maps named classes, intersections, unions,
   complements and existential/universal restrictions on named object properties
@@ -537,14 +546,30 @@ progress. Full OWL parsing and executable reasoning are still future work.
   properties, and data values from the datatype map. Every OWL model, in any
   universe and for any vocabulary, forces acceptance, and a positive subsumption
   answer holds in every such model. Individuals and assertions, the other axiom forms,
-  the remaining SROIQ constructors, datatypes, the frontend's reading of logical
-  axioms, query answering and performance remain pending.
-- 741 audited public theorems and 571 audited semantic definitions. Consistency,
+  the remaining SROIQ constructors, datatypes, query answering and performance
+  remain pending.
+- Reasoner track, fifth stage: answers from source bytes. The actual kernel
+  functions source_consistent, source_class_satisfiable and source_subsumed read
+  a Functional Syntax document from its original bytes, map it into the raw
+  model and run the ontology-level query, as one extracted unit. Every call
+  terminates. An error is exactly the reader's first error. Every document the
+  reader accepts reaches the query: its prefix header is parsed from the same
+  bytes, its namespace table passes the normative checker, the independent
+  document grammar derives the rest, and its model corresponds to those records.
+  The result is the kernel's query on that model's axioms. No answer therefore
+  means the axioms or the query are outside the supported fragment. An answer is
+  proved equal to Consistent, ClassSatisfiable or Subsumed of the read axioms for
+  any valid vocabulary, complete in every universe, and a positive subsumption
+  answer holds in every model. Individuals and assertions, the other axiom
+  forms, imports, the remaining SROIQ constructors, datatypes and performance
+  remain pending.
+- 779 audited public theorems and 593 audited semantic definitions. Consistency,
   class satisfiability and subsumption are decided, with proofs against the OWL
   definitions, for axiom closures whose logical axioms are ALC class, domain and
-  range axioms; no full OWL decision procedure is proved yet. See
+  range axioms, also directly from Functional Syntax source bytes; no full OWL
+  decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 362 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 365 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -553,7 +578,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 934-obligation release ledger and separate checked constructor and built-in inventories.
+- A 972-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -602,9 +627,10 @@ value/error composition proofs. Ontology annotations, including nested ones,
 now have source-derived value/error composition proofs as well, and so do single
 entity declarations, annotation axioms, ALC class expressions and class, domain
 and range axioms, and whole documents of those axioms with their closing syntax
-and end of source. The other logical axioms are reported as unsupported; the
-mapping into the raw model and canonical catalog/import construction remain
-pending.
+and end of source. The other logical axioms are reported as unsupported. Read
+documents map into the raw model with a proved exact correspondence, and the ALC
+queries compose with the reader and the mapping from the original bytes;
+canonical catalog/import construction remains pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. The concrete normative OWL map is unimplemented. Semantic

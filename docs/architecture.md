@@ -843,8 +843,8 @@ bounds each member list.
 The six class axioms compose the annotation reader, the class reader and the
 object property reader. Their member lists reuse the member sequence followed by
 the same two-member minimum as intersections. Like declarations, they produce
-source records. The mapping into the kernel's ontology model belongs to complete
-document construction, together with the axiom loop.
+source records. The mapping into the kernel's ontology model is a separate stage
+over whole documents (below).
 
 
 ### Functional Syntax documents
@@ -861,6 +861,40 @@ The prefix stage and the table check keep their own proved contracts. The exact
 document theorem is therefore stated relative to the declarations parsed from
 the same bytes and the table they produce, like the earlier source-composition
 theorems. Everything after `Ontology(` has an independent grammar.
+
+
+### From source records to the raw OWL model
+
+Readers produce source records, which keep original tokens for diagnostics. The
+kernel reasons over the raw OWL model, which has no tokens. `document_ontology`
+maps one into the other. It copies IRI and literal bytes exactly, gives node IDs
+the caller's scope and drops tokens. The scope is a parameter because node IDs
+are local to a document: an import closure must give each document its own
+scope, and that assignment belongs to import assembly.
+
+The model's member lists have at least two members by construction
+(`AtLeastTwo`), while source records use plain vectors. The mapping therefore
+returns `Option`, declining a list with fewer than two members, rather than
+inventing members. The two-member minimum is a grammar fact, not a mapping fact.
+The proof keeps them apart: a `Shaped` predicate records the minimum, the
+mapping is proved to succeed on shaped records, and the grammar derivations are
+proved, by structural recursion over the derivations, to accept only shaped
+records. A read document therefore always maps, and nothing needs to be assumed
+about the reader's output.
+
+The correspondence is a set of independent relations, one per record kind, not
+functions that rebuild vectors. A relation states the source-order and
+element-by-element correspondence directly. The mapping's index loops are proved
+against it with an invariant over the prefix already copied.
+
+`source_consistent`, `source_class_satisfiable` and `source_subsumed` compose the
+document reader, the mapping and the ontology-level queries in the kernel crate.
+Because the frontend and the kernel are one extraction, the composition is an
+ordinary Lean function, and its theorem chains the stage theorems without
+assumptions: an error is exactly the reader's first error, a read document always
+reaches the query, and an answer is exact for the Direct Semantics of the read
+axioms. The functions take the source bytes rather than a parsed document, so the
+theorem covers everything from the original bytes to the answer.
 
 
 ### Reasoner track: concept language and fragments

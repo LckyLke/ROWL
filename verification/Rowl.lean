@@ -105,9 +105,11 @@ import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
 import Rowl.FunctionalDocument
+import Rowl.FunctionalModel
 import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.Internalization
 import Rowl.AlcOntology
+import Rowl.SourceReasoning

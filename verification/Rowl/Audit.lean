@@ -79,12 +79,14 @@ import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
 import Rowl.FunctionalDocument
+import Rowl.FunctionalModel
 import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.Internalization
 import Rowl.AlcOntology
+import Rowl.SourceReasoning
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -827,6 +829,44 @@ import Rowl.AlcOntology
 #print axioms Rowl.FunctionalDocument.read_document_prefix_error
 #print axioms Rowl.FunctionalDocument.read_document_table_error
 #print axioms Rowl.FunctionalDocument.read_document_result_iff
+#print axioms Rowl.FunctionalModel.copy_bytes_correct
+#print axioms Rowl.FunctionalModel.iri_correct
+#print axioms Rowl.FunctionalModel.anonymous_correct
+#print axioms Rowl.FunctionalModel.literal_correct
+#print axioms Rowl.FunctionalModel.annotation_value_correct
+#print axioms Rowl.FunctionalModel.subject_correct
+#print axioms Rowl.FunctionalModel.property_correct
+#print axioms Rowl.FunctionalModel.entity_correct
+#print axioms Rowl.FunctionalModel.annotation_axiom_correct
+#print axioms Rowl.FunctionalModel.identity_correct
+#print axioms Rowl.FunctionalModel.annotation_correct
+#print axioms Rowl.FunctionalModel.annotations_from_correct
+#print axioms Rowl.FunctionalModel.class_correct
+#print axioms Rowl.FunctionalModel.rest_from_correct
+#print axioms Rowl.FunctionalModel.members_of_correct
+#print axioms Rowl.FunctionalModel.class_axiom_correct
+#print axioms Rowl.FunctionalModel.axiom_correct
+#print axioms Rowl.FunctionalModel.axioms_from_correct
+#print axioms Rowl.FunctionalModel.imports_from_correct
+#print axioms Rowl.FunctionalModel.document_ontology_correct
+#print axioms Rowl.FunctionalModel.class_run_shaped
+#print axioms Rowl.FunctionalModel.connective_run_shaped
+#print axioms Rowl.FunctionalModel.members_run_shaped
+#print axioms Rowl.FunctionalModel.class_step_shaped
+#print axioms Rowl.FunctionalModel.list_run_shaped
+#print axioms Rowl.FunctionalModel.body_run_shaped
+#print axioms Rowl.FunctionalModel.class_axiom_run_shaped
+#print axioms Rowl.FunctionalModel.axiom_step_shaped
+#print axioms Rowl.FunctionalModel.axioms_run_shaped
+#print axioms Rowl.FunctionalModel.tail_run_shaped
+#print axioms Rowl.SourceReasoning.read_document_read
+#print axioms Rowl.SourceReasoning.read_document_maps
+#print axioms Rowl.SourceReasoning.source_consistent_correct
+#print axioms Rowl.SourceReasoning.source_consistent_complete
+#print axioms Rowl.SourceReasoning.source_class_satisfiable_correct
+#print axioms Rowl.SourceReasoning.source_class_satisfiable_complete
+#print axioms Rowl.SourceReasoning.source_subsumed_correct
+#print axioms Rowl.SourceReasoning.source_subsumed_sound
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1398,3 +1438,25 @@ import Rowl.AlcOntology
 #print axioms Rowl.FunctionalDocument.TailRun
 #print axioms Rowl.FunctionalDocument.TableErrorOf
 #print axioms Rowl.FunctionalDocument.WithPrefixes
+#print axioms Rowl.FunctionalModel.IriOf
+#print axioms Rowl.FunctionalModel.AnonymousOf
+#print axioms Rowl.FunctionalModel.LiteralOf
+#print axioms Rowl.FunctionalModel.ValueOf
+#print axioms Rowl.FunctionalModel.SubjectOf
+#print axioms Rowl.FunctionalModel.PropertyOf
+#print axioms Rowl.FunctionalModel.EntityOf
+#print axioms Rowl.FunctionalModel.AnnotationAxiomOf
+#print axioms Rowl.FunctionalModel.IdentityOf
+#print axioms Rowl.FunctionalModel.AnnotationModel
+#print axioms Rowl.FunctionalModel.AnnotationsModel
+#print axioms Rowl.FunctionalModel.ClassModel
+#print axioms Rowl.FunctionalModel.MembersModel
+#print axioms Rowl.FunctionalModel.RestModel
+#print axioms Rowl.FunctionalModel.ClassAxiomModel
+#print axioms Rowl.FunctionalModel.AxiomModel
+#print axioms Rowl.FunctionalModel.OntologyModel
+#print axioms Rowl.FunctionalModel.Shaped
+#print axioms Rowl.FunctionalModel.ShapedAxiom
+#print axioms Rowl.FunctionalModel.ShapedSource
+#print axioms Rowl.SourceReasoning.Read
+#print axioms Rowl.SourceReasoning.SourceOntology

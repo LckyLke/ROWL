@@ -18,6 +18,7 @@ pub use rowl_kernel::functional_header;
 pub use rowl_kernel::functional_iris;
 pub use rowl_kernel::functional_lexer;
 pub use rowl_kernel::functional_literals;
+pub use rowl_kernel::functional_model;
 pub use rowl_kernel::functional_names;
 pub use rowl_kernel::functional_payload;
 pub use rowl_kernel::functional_prefixes;

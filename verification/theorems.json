@@ -1263,6 +1263,56 @@
         "Rowl.FunctionalDocument.read_document_table_error",
         "Rowl.FunctionalDocument.read_document_result_iff"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalModel",
+      "namespace": "Rowl.FunctionalModel",
+      "theorems": [
+        "Rowl.FunctionalModel.copy_bytes_correct",
+        "Rowl.FunctionalModel.iri_correct",
+        "Rowl.FunctionalModel.anonymous_correct",
+        "Rowl.FunctionalModel.literal_correct",
+        "Rowl.FunctionalModel.annotation_value_correct",
+        "Rowl.FunctionalModel.subject_correct",
+        "Rowl.FunctionalModel.property_correct",
+        "Rowl.FunctionalModel.entity_correct",
+        "Rowl.FunctionalModel.annotation_axiom_correct",
+        "Rowl.FunctionalModel.identity_correct",
+        "Rowl.FunctionalModel.annotation_correct",
+        "Rowl.FunctionalModel.annotations_from_correct",
+        "Rowl.FunctionalModel.class_correct",
+        "Rowl.FunctionalModel.rest_from_correct",
+        "Rowl.FunctionalModel.members_of_correct",
+        "Rowl.FunctionalModel.class_axiom_correct",
+        "Rowl.FunctionalModel.axiom_correct",
+        "Rowl.FunctionalModel.axioms_from_correct",
+        "Rowl.FunctionalModel.imports_from_correct",
+        "Rowl.FunctionalModel.document_ontology_correct",
+        "Rowl.FunctionalModel.class_run_shaped",
+        "Rowl.FunctionalModel.connective_run_shaped",
+        "Rowl.FunctionalModel.members_run_shaped",
+        "Rowl.FunctionalModel.class_step_shaped",
+        "Rowl.FunctionalModel.list_run_shaped",
+        "Rowl.FunctionalModel.body_run_shaped",
+        "Rowl.FunctionalModel.class_axiom_run_shaped",
+        "Rowl.FunctionalModel.axiom_step_shaped",
+        "Rowl.FunctionalModel.axioms_run_shaped",
+        "Rowl.FunctionalModel.tail_run_shaped"
+      ]
+    },
+    {
+      "module": "Rowl.SourceReasoning",
+      "namespace": "Rowl.SourceReasoning",
+      "theorems": [
+        "Rowl.SourceReasoning.read_document_read",
+        "Rowl.SourceReasoning.read_document_maps",
+        "Rowl.SourceReasoning.source_consistent_correct",
+        "Rowl.SourceReasoning.source_consistent_complete",
+        "Rowl.SourceReasoning.source_class_satisfiable_correct",
+        "Rowl.SourceReasoning.source_class_satisfiable_complete",
+        "Rowl.SourceReasoning.source_subsumed_correct",
+        "Rowl.SourceReasoning.source_subsumed_sound"
+      ]
     }
   ],
   "specifications": [
@@ -1836,6 +1886,28 @@
     "Rowl.FunctionalDocument.AxiomsRun",
     "Rowl.FunctionalDocument.TailRun",
     "Rowl.FunctionalDocument.TableErrorOf",
-    "Rowl.FunctionalDocument.WithPrefixes"
+    "Rowl.FunctionalDocument.WithPrefixes",
+    "Rowl.FunctionalModel.IriOf",
+    "Rowl.FunctionalModel.AnonymousOf",
+    "Rowl.FunctionalModel.LiteralOf",
+    "Rowl.FunctionalModel.ValueOf",
+    "Rowl.FunctionalModel.SubjectOf",
+    "Rowl.FunctionalModel.PropertyOf",
+    "Rowl.FunctionalModel.EntityOf",
+    "Rowl.FunctionalModel.AnnotationAxiomOf",
+    "Rowl.FunctionalModel.IdentityOf",
+    "Rowl.FunctionalModel.AnnotationModel",
+    "Rowl.FunctionalModel.AnnotationsModel",
+    "Rowl.FunctionalModel.ClassModel",
+    "Rowl.FunctionalModel.MembersModel",
+    "Rowl.FunctionalModel.RestModel",
+    "Rowl.FunctionalModel.ClassAxiomModel",
+    "Rowl.FunctionalModel.AxiomModel",
+    "Rowl.FunctionalModel.OntologyModel",
+    "Rowl.FunctionalModel.Shaped",
+    "Rowl.FunctionalModel.ShapedAxiom",
+    "Rowl.FunctionalModel.ShapedSource",
+    "Rowl.SourceReasoning.Read",
+    "Rowl.SourceReasoning.SourceOntology"
   ]
 }

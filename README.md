@@ -6,8 +6,10 @@ Charon and Aeneas. Intended license: MIT OR Apache-2.0.
 
 **Current status: M1/M2 complete; verified components of M3/M4 are working.**
 The Rust model represents all standard OWL 2 DL constructs; Lean defines their
-independent meaning and checks semantic laws. The executable reasoner currently
-decides Boolean expressions over exactly two atomic classes. New verified stages
+independent meaning and checks semantic laws. The verified reasoner decides
+consistency, class satisfiability and subsumption for ALC class, domain and range
+axioms, directly from Functional Syntax source text; the CLI demo still decides
+Boolean expressions over exactly two atomic classes. New verified stages
 resolve a supplied document-import graph, collect explicit entities across the
 full raw OWL AST, intern exact byte IRIs into stable symbols, inject implicit
 built-in declaration roles and check declarations directly from a raw ontology,
@@ -38,7 +40,8 @@ whole-source lexer composes XML validation, separators, trivia removal, token
 budgets and first-offset diagnostics with totality and complete-acceptance proofs.
 Its emitted source spans are ordered, bounded and grammar-valid. Complete terminal
 language disjointness is also proved, so greatest matching uniquely determines
-each token without relying on implementation priority. Document assembly remains pending. The
+each token without relying on implementation priority. Document assembly is proved
+in the later document and model stages. The
 quoted-string payload reader now has composed exact decoding, byte-budget,
 first-offset and source-grammar equivalence proofs, preserving multiline text.
 The exact decimal reader now supplies nonnegative integer payload values from
@@ -69,9 +72,9 @@ and maximal leading-import stage is now also proved: exact source values,
 original reference tokens, ordered repeated imports, unchanged suffixes and
 every first syntax/resolution/count error. Its type permits a version only with
 an ontology IRI. Source prefix/table/header composition uses the declarations
-from the same original bytes. Annotations are read by the separate stage below;
-axioms, scopes, complete document construction and canonical import assembly
-remain pending.
+from the same original bytes. Annotations and axioms are read by the separate
+stages below; canonical import assembly and anonymous scopes across an import
+closure remain pending.
 One-literal Functional Syntax reading now also has totality, exact source
 value/error equivalence, original quote/form tokens, intact suffixes and exact
 one/two/three-terminal progress proofs. Explicit types preserve decoded lexical
@@ -80,8 +83,8 @@ expand to rdf:PlainLiteral (`"Pump"` becomes lexical `Pump@`; `"Pump"@de`
 becomes `Pump@de`), preserving original language case. Final lexical/type budgets
 include the separator and the entire datatype IRI. Source prefix/table composition
 uses precisely the original parsed namespaces; literal positions still come from
-the caller. Concrete datatype lexical/value/facet validity and complete ontology
-axiom/AST parsing remain pending.
+the caller. Concrete datatype lexical/value/facet validity and the other axiom
+forms remain pending.
 Functional Syntax annotations, including recursively nested ones, are now read
 as the maximal leading `Annotation` sequence, for example the ontology annotations
 after the header. Properties and IRI values resolve through the checked prefix
@@ -89,12 +92,11 @@ table, node IDs keep their exact label and literals use the proved literal reade
 Caller limits bound the nesting depth and each sequence's count. Totality, exact
 result/error equivalence and an independent success grammar are proved, and the
 source composition uses the namespaces parsed from the same bytes. Anonymous
-scopes, axioms, the closing token and complete document construction remain pending.
+scopes across an import closure remain pending.
 Entity declarations, `Declaration( {Annotation} Class(IRI) )` and the five other
 entity kinds, are now read one axiom at a time with the same proof guarantees.
 Axiom annotations reuse the annotation reader; the entity IRI resolves through the
-checked prefix table. Declaration typing stays the existing kernel check, and the
-axiom loop and the other axiom forms remain pending.
+checked prefix table. Declaration typing stays the existing kernel check.
 The four annotation axioms (`AnnotationAssertion`, `SubAnnotationPropertyOf`,
 `AnnotationPropertyDomain`, `AnnotationPropertyRange`) are read the same way, so
 every non-logical axiom now has a proved reader. Class expressions of the
@@ -104,8 +106,10 @@ and range axioms (`SubClassOf`, `EquivalentClasses`, `DisjointClasses`,
 readers as well. Whole documents are now read by a verified axiom loop: the
 prefix table, the ontology header and annotations, every axiom up to the closing
 parenthesis, and the end of the source. The other logical axioms are reported as
-unsupported. The other logical axioms and class-expression forms and the mapping
-of documents into the kernel's raw model remain pending.
+unsupported. Every read document then maps into the kernel's raw OWL model with
+exact IRI and literal bytes, node IDs as anonymous individuals of a caller-supplied
+scope, and source order, proved against an independent correspondence. The other
+logical axioms and class-expression forms remain pending.
 The reasoner track has started: class expressions in the ALC fragment translate
 to negation normal form, proved to keep their meaning under the independent
 Direct Semantics in every OWL interpretation. A verified ALC tableau now decides
@@ -119,8 +123,12 @@ holds everywhere. On top of these, the kernel now answers consistency, class
 satisfiability and subsumption for whole axiom closures whose logical axioms are
 ALC class, domain and range axioms. Each answer is proved equal to the
 independent Direct Semantics definition, and each acceptance comes with an
-actual OWL model. Individuals, the other axiom forms and reading logical axioms
-from source text are later stages.
+actual OWL model. The same answers now come straight from source text:
+`source_consistent`, `source_class_satisfiable` and `source_subsumed` read a
+Functional Syntax document, map it into the raw model and query the reasoner as
+one extracted unit. Every read document reaches the reasoner, and each answer is
+proved exact for the Direct Semantics of the read axioms. Individuals and the
+other axiom forms are later stages.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -144,7 +152,7 @@ cargo run -p rowl --example functional_literals # exact text/language/type value
 cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
 cargo run -p rowl --example functional_declarations # entity declarations with axiom annotations from original source
 cargo run -p rowl --example functional_annotation_axioms # declarations and annotation axioms of a vocabulary ontology
-cargo run -p rowl --example functional_class_axioms # class axioms read from source, answered by the verified reasoner
+cargo run -p rowl --example functional_class_axioms # questions about source text, answered end to end by the verified pipeline
 cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
 cargo run -p rowl --example tableau     # verified ALC satisfiability and subsumption answers
 cargo run -p rowl --example tbox        # verified answers under maintenance axioms, with blocking

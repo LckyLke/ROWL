@@ -70,6 +70,8 @@ pub mod tbox;
 
 pub mod alc_ontology;
 
+pub mod source_reasoning;
+
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.
 pub mod encoding;
 pub mod functional;
@@ -83,6 +85,7 @@ pub mod functional_header;
 pub mod functional_iris;
 pub mod functional_lexer;
 pub mod functional_literals;
+pub mod functional_model;
 pub mod functional_names;
 pub mod functional_payload;
 pub mod functional_prefixes;
