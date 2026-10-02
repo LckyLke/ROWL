@@ -1069,7 +1069,7 @@ def abox.abox_satisfiable
   abox.abox_satisfiable_with count facts edges axioms roles
 
 /-- [rowl_kernel::alc_ontology::equal_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 44:0-50:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 53:0-59:1 -/
 def alc_ontology.equal_from
   (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
   Result Bool
@@ -1089,7 +1089,7 @@ def alc_ontology.equal_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::same_pattern]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 51:0-53:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 60:0-62:1 -/
 def alc_ontology.same_pattern
   (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len key
@@ -1099,7 +1099,7 @@ def alc_ontology.same_pattern
   else ok false
 
 /-- [rowl_kernel::alc_ontology::builtin_class]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 55:0-61:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 64:0-70:1 -/
 def alc_ontology.builtin_class («class» : model.Class) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -1125,7 +1125,7 @@ def alc_ontology.builtin_class («class» : model.Class) : Result Bool := do
     alc_ontology.same_pattern «class».iri.spelling s1
 
 /-- [rowl_kernel::alc_ontology::builtin_role]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 63:0-71:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 72:0-80:1 -/
 def alc_ontology.builtin_role (role : model.ObjectProperty) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -1154,7 +1154,7 @@ def alc_ontology.builtin_role (role : model.ObjectProperty) : Result Bool := do
     alc_ontology.same_pattern role.iri.spelling s1
 
 /-- [rowl_kernel::alc_ontology::proper]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 74:0-85:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 83:0-94:1 -/
 def alc_ontology.proper (concept : nnf.NnfConcept) : Result Bool := do
   match concept with
   | nnf.NnfConcept.Top => ok true
@@ -1612,7 +1612,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::alc_ontology::apart_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 89:0-116:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 98:0-125:1 -/
 def alc_ontology.apart_from
   (member : model.ClassExpression)
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -1640,7 +1640,7 @@ def alc_ontology.apart_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::pairwise_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 118:0-131:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 127:0-140:1 -/
 def alc_ontology.pairwise_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (joined : nnf.NnfConcept) :
@@ -1661,7 +1661,7 @@ def alc_ontology.pairwise_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::pairwise]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 133:0-156:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 142:0-165:1 -/
 def alc_ontology.pairwise
   (members : model.AtLeastTwo model.ClassExpression) :
   Result (Option nnf.NnfConcept)
@@ -1686,6 +1686,49 @@ def alc_ontology.pairwise
         | none => ok none
         | some joined1 =>
           alc_ontology.pairwise_from members.rest 0#usize joined1
+
+/-- [rowl_kernel::alc_ontology::is_named]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 166:0-171:1 -/
+def alc_ontology.is_named
+  (property : model.ObjectPropertyExpression) : Result Bool := do
+  match property with
+  | model.ObjectPropertyExpression.Property _ => ok true
+  | model.ObjectPropertyExpression.Inverse _ => ok false
+
+/-- [rowl_kernel::alc_ontology::named_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 173:0-179:1 -/
+def alc_ontology.named_from
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let b ← alc_ontology.is_named ope
+    if b
+    then let i1 ← index + 1#usize
+         alc_ontology.named_from values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::named_members]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 181:0-183:1 -/
+def alc_ontology.named_members
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← alc_ontology.is_named members.first
+  if b
+  then
+    let b1 ← alc_ontology.is_named members.second
+    if b1
+    then alc_ontology.named_from members.rest 0#usize
+    else ok false
+  else ok false
 
 /-- [rowl_kernel::model::SubObjectPropertyExpression]
     Source: 'crates/rowl-kernel/src/model.rs', lines 157:0-160:1
@@ -1835,7 +1878,7 @@ inductive model.Axiom where
   model.Axiom
 
 /-- [rowl_kernel::alc_ontology::axiom_concept]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 159:0-255:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 186:0-296:1 -/
 def alc_ontology.axiom_concept
   («axiom» : model.Axiom) : Result (Option nnf.NnfConcept) := do
   match «axiom» with
@@ -1884,8 +1927,22 @@ def alc_ontology.axiom_concept
               ok (some (nnf.NnfConcept.And (nnf.NnfConcept.And
                 (nnf.NnfConcept.Or outside some1) (nnf.NnfConcept.Or inside
                 none1)) disjoint))
-  | model.Axiom.SubObjectPropertyOf _ _ => ok none
-  | model.Axiom.EquivalentObjectProperties _ => ok none
+  | model.Axiom.SubObjectPropertyOf sope ope =>
+    match sope with
+    | model.SubObjectPropertyExpression.Single ope1 =>
+      match ope with
+      | model.ObjectPropertyExpression.Property _ =>
+        match ope1 with
+        | model.ObjectPropertyExpression.Property _ =>
+          ok (some nnf.NnfConcept.Top)
+        | model.ObjectPropertyExpression.Inverse _ => ok none
+      | model.ObjectPropertyExpression.Inverse _ => ok none
+    | model.SubObjectPropertyExpression.Chain _ => ok none
+  | model.Axiom.EquivalentObjectProperties members =>
+    let b ← alc_ontology.named_members members
+    if b
+    then ok (some nnf.NnfConcept.Top)
+    else ok none
   | model.Axiom.DisjointObjectProperties _ => ok none
   | model.Axiom.InverseObjectProperties _ _ => ok none
   | model.Axiom.ObjectPropertyDomain property «class» =>
@@ -1915,7 +1972,10 @@ def alc_ontology.axiom_concept
   | model.Axiom.IrreflexiveObjectProperty _ => ok none
   | model.Axiom.SymmetricObjectProperty _ => ok none
   | model.Axiom.AsymmetricObjectProperty _ => ok none
-  | model.Axiom.TransitiveObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty ope =>
+    match ope with
+    | model.ObjectPropertyExpression.Property _ => ok (some nnf.NnfConcept.Top)
+    | model.ObjectPropertyExpression.Inverse _ => ok none
   | model.Axiom.SubDataPropertyOf _ _ => ok none
   | model.Axiom.EquivalentDataProperties _ => ok none
   | model.Axiom.DisjointDataProperties _ => ok none
@@ -1984,7 +2044,7 @@ structure model.AnnotatedAxiom where
   «axiom» : model.Axiom
 
 /-- [rowl_kernel::alc_ontology::internalize_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 257:0-274:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 298:0-315:1 -/
 def alc_ontology.internalize_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (joined : nnf.NnfConcept) :
@@ -2007,7 +2067,7 @@ def alc_ontology.internalize_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::internalize]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 278:0-280:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 319:0-321:1
     Visibility: public -/
 def alc_ontology.internalize
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -2015,15 +2075,485 @@ def alc_ontology.internalize
   := do
   alc_ontology.internalize_from items 0#usize nnf.NnfConcept.Top
 
+/-- [rowl_kernel::alc_ontology::copy_property]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 322:0-326:1 -/
+def alc_ontology.copy_property
+  (property : model.ObjectProperty) : Result model.ObjectProperty := do
+  let i ← nnf.copy_iri property.iri
+  ok { iri := i }
+
+/-- [rowl_kernel::alc_ontology::subs_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 329:0-349:1 -/
+def alc_ontology.subs_from
+  (inclusions : alloc.vec.Vec role_box.RoleInclusion) (index : Std.Usize)
+  (sup : model.ObjectProperty) (found : alloc.vec.Vec model.ObjectProperty) :
+  Result (Option (alloc.vec.Vec model.ObjectProperty))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let ri ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_box.RoleInclusion) inclusions index
+    let b ← symbols.same_spelling ri.sup.iri.spelling sup.iri.spelling
+    if b
+    then
+      let i1 := alloc.vec.Vec.len found
+      if i1 < core.num.Usize.MAX
+      then
+        let op ← alc_ontology.copy_property ri.sub
+        let found1 ← alloc.vec.Vec.push found op
+        let i2 ← index + 1#usize
+        alc_ontology.subs_from inclusions i2 sup found1
+      else ok none
+    else
+      let i1 ← index + 1#usize
+      alc_ontology.subs_from inclusions i1 sup found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::sups_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 352:0-372:1 -/
+def alc_ontology.sups_from
+  (inclusions : alloc.vec.Vec role_box.RoleInclusion) (index : Std.Usize)
+  (sub : model.ObjectProperty) (found : alloc.vec.Vec model.ObjectProperty) :
+  Result (Option (alloc.vec.Vec model.ObjectProperty))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let ri ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_box.RoleInclusion) inclusions index
+    let b ← symbols.same_spelling ri.sub.iri.spelling sub.iri.spelling
+    if b
+    then
+      let i1 := alloc.vec.Vec.len found
+      if i1 < core.num.Usize.MAX
+      then
+        let op ← alc_ontology.copy_property ri.sup
+        let found1 ← alloc.vec.Vec.push found op
+        let i2 ← index + 1#usize
+        alc_ontology.sups_from inclusions i2 sub found1
+      else ok none
+    else
+      let i1 ← index + 1#usize
+      alc_ontology.sups_from inclusions i1 sub found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::row_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 374:0-393:1 -/
+def alc_ontology.row_from
+  (sub : model.ObjectProperty) (above : alloc.vec.Vec model.ObjectProperty)
+  (index : Std.Usize) (out : alloc.vec.Vec role_box.RoleInclusion) :
+  Result (Option (alloc.vec.Vec role_box.RoleInclusion))
+  := do
+  let i := alloc.vec.Vec.len above
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let op ← alc_ontology.copy_property sub
+      let op1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectProperty) above index
+      let op2 ← alc_ontology.copy_property op1
+      let out1 ←
+        alloc.vec.Vec.push out ({ sub := op, sup := op2 } :
+          role_box.RoleInclusion)
+      let i2 ← index + 1#usize
+      alc_ontology.row_from sub above i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::pairs_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 395:0-409:1 -/
+def alc_ontology.pairs_from
+  (below : alloc.vec.Vec model.ObjectProperty) (index : Std.Usize)
+  (above : alloc.vec.Vec model.ObjectProperty)
+  (out : alloc.vec.Vec role_box.RoleInclusion) :
+  Result (Option (alloc.vec.Vec role_box.RoleInclusion))
+  := do
+  let i := alloc.vec.Vec.len below
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) below index
+    let o ← alc_ontology.row_from op above 0#usize out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← index + 1#usize
+      alc_ontology.pairs_from below i1 above out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::add_inclusion]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 414:0-434:1 -/
+def alc_ontology.add_inclusion
+  (roles : role_box.RoleBox) (sub : model.ObjectProperty)
+  (sup : model.ObjectProperty) :
+  Result (Option role_box.RoleBox)
+  := do
+  let op ← alc_ontology.copy_property sub
+  let start ← alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectProperty) op
+  let o ← alc_ontology.subs_from roles.inclusions 0#usize sub start
+  match o with
+  | none => ok none
+  | some below =>
+    let op1 ← alc_ontology.copy_property sup
+    let «end» ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectProperty) op1
+    let o1 ← alc_ontology.sups_from roles.inclusions 0#usize sup «end»
+    match o1 with
+    | none => ok none
+    | some above =>
+      let o2 ← alc_ontology.pairs_from below 0#usize above roles.inclusions
+      match o2 with
+      | none => ok none
+      | some inclusions => ok (some { roles with inclusions })
+
+/-- [rowl_kernel::alc_ontology::add_transitive]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 435:0-442:1 -/
+def alc_ontology.add_transitive
+  (roles : role_box.RoleBox) (role : model.ObjectProperty) :
+  Result (Option role_box.RoleBox)
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if i < core.num.Usize.MAX
+  then
+    let op ← alc_ontology.copy_property role
+    let v ← alloc.vec.Vec.push roles.transitive op
+    ok (some { roles with transitive := v })
+  else ok none
+
+/-- [rowl_kernel::alc_ontology::rest_roles]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 456:0-476:1 -/
+def alc_ontology.rest_roles
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : alloc.vec.Vec model.ObjectProperty) :
+  Result (Option (alloc.vec.Vec model.ObjectProperty))
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    match ope with
+    | model.ObjectPropertyExpression.Property role =>
+      let i1 := alloc.vec.Vec.len roles
+      if i1 < core.num.Usize.MAX
+      then
+        let op ← alc_ontology.copy_property role
+        let roles1 ← alloc.vec.Vec.push roles op
+        let i2 ← index + 1#usize
+        alc_ontology.rest_roles values i2 roles1
+      else ok none
+    | model.ObjectPropertyExpression.Inverse _ => ok none
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::member_roles]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 444:0-455:1 -/
+def alc_ontology.member_roles
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectProperty))
+  := do
+  match members.first with
+  | model.ObjectPropertyExpression.Property role =>
+    let op ← alc_ontology.copy_property role
+    let roles ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectProperty) op
+    match members.second with
+    | model.ObjectPropertyExpression.Property role1 =>
+      let op1 ← alc_ontology.copy_property role1
+      let roles1 ← alloc.vec.Vec.push roles op1
+      alc_ontology.rest_roles members.rest 0#usize roles1
+    | model.ObjectPropertyExpression.Inverse _ => ok none
+  | model.ObjectPropertyExpression.Inverse _ => ok none
+
+/-- [rowl_kernel::alc_ontology::includes_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 478:0-492:1 -/
+def alc_ontology.includes_from
+  (roles : role_box.RoleBox) (member : model.ObjectProperty)
+  (members : alloc.vec.Vec model.ObjectProperty) (index : Std.Usize) :
+  Result (Option role_box.RoleBox)
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) members index
+    let o ← alc_ontology.add_inclusion roles member op
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      alc_ontology.includes_from roles1 member members i1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::equivalent_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 494:0-503:1 -/
+def alc_ontology.equivalent_from
+  (roles : role_box.RoleBox) (members : alloc.vec.Vec model.ObjectProperty)
+  (index : Std.Usize) :
+  Result (Option role_box.RoleBox)
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) members index
+    let o ← alc_ontology.includes_from roles op members 0#usize
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      alc_ontology.equivalent_from roles1 members i1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::add_equivalent]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 506:0-514:1 -/
+def alc_ontology.add_equivalent
+  (roles : role_box.RoleBox)
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option role_box.RoleBox)
+  := do
+  let o ← alc_ontology.member_roles members
+  match o with
+  | none => ok none
+  | some members1 => alc_ontology.equivalent_from roles members1 0#usize
+
+/-- [rowl_kernel::alc_ontology::role_box_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 517:0-537:1 -/
+def alc_ontology.role_box_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (roles : role_box.RoleBox) :
+  Result (Option role_box.RoleBox)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let roles1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some roles)
+      | model.Axiom.SubClassOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentClasses _ => ok (some roles)
+      | model.Axiom.DisjointClasses _ => ok (some roles)
+      | model.Axiom.DisjointUnion _ _ => ok (some roles)
+      | model.Axiom.SubObjectPropertyOf sope ope =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single ope1 =>
+          match ope with
+          | model.ObjectPropertyExpression.Property sup =>
+            match ope1 with
+            | model.ObjectPropertyExpression.Property sub =>
+              alc_ontology.add_inclusion roles sub sup
+            | model.ObjectPropertyExpression.Inverse _ => ok (some roles)
+          | model.ObjectPropertyExpression.Inverse _ => ok (some roles)
+        | model.SubObjectPropertyExpression.Chain _ => ok (some roles)
+      | model.Axiom.EquivalentObjectProperties members =>
+        alc_ontology.add_equivalent roles members
+      | model.Axiom.DisjointObjectProperties _ => ok (some roles)
+      | model.Axiom.InverseObjectProperties _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some roles)
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some roles)
+      | model.Axiom.TransitiveObjectProperty ope =>
+        match ope with
+        | model.ObjectPropertyExpression.Property role =>
+          alc_ontology.add_transitive roles role
+        | model.ObjectPropertyExpression.Inverse _ => ok (some roles)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
+      | model.Axiom.DisjointDataProperties _ => ok (some roles)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
+      | model.Axiom.HasKey _ _ _ => ok (some roles)
+      | model.Axiom.SameIndividual _ => ok (some roles)
+      | model.Axiom.DifferentIndividuals _ => ok (some roles)
+      | model.Axiom.ClassAssertion _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
+    match roles1 with
+    | none => ok none
+    | some roles2 =>
+      let i1 ← index + 1#usize
+      alc_ontology.role_box_from items i1 roles2
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::role_box]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 539:0-548:1 -/
+def alc_ontology.role_box
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option role_box.RoleBox)
+  := do
+  alc_ontology.role_box_from items 0#usize
+    {
+      inclusions := (alloc.vec.Vec.new role_box.RoleInclusion),
+      transitive := (alloc.vec.Vec.new model.ObjectProperty)
+    }
+
+/-- [rowl_kernel::alc_ontology::has_negative]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 550:0-559:1 -/
+def alc_ontology.has_negative
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok true
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      alc_ontology.has_negative items i1
+  else ok false
+partial_fixpoint
+
 /-- [rowl_kernel::alc_ontology::Placed]
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 282:0-285:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 561:0-564:1
     Visibility: public -/
 structure alc_ontology.Placed where
   node : Std.Usize
   concept : nnf.NnfConcept
 
 /-- [rowl_kernel::alc_ontology::copy_individual]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 286:0-296:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 565:0-575:1 -/
 def alc_ontology.copy_individual
   (individual : model.Individual) : Result model.Individual := do
   match individual with
@@ -2064,7 +2594,7 @@ def assertion_equality.same_individual_value
     | model.Individual.Anonymous b => anonymous_graph.same_individual a b
 
 /-- [rowl_kernel::alc_ontology::position]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 299:0-309:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 578:0-588:1 -/
 def alc_ontology.position
   (nodes : alloc.vec.Vec model.Individual) (individual : model.Individual)
   (index : Std.Usize) :
@@ -2085,7 +2615,7 @@ def alc_ontology.position
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::intern]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 312:0-321:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 591:0-600:1 -/
 def alc_ontology.intern
   (nodes : alloc.vec.Vec model.Individual) (individual : model.Individual) :
   Result (Option (alloc.vec.Vec model.Individual))
@@ -2104,7 +2634,7 @@ def alc_ontology.intern
     else ok none
 
 /-- [rowl_kernel::alc_ontology::intern_pair]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 322:0-331:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 601:0-610:1 -/
 def alc_ontology.intern_pair
   (nodes : alloc.vec.Vec model.Individual) (source : model.Individual)
   (target : model.Individual) :
@@ -2116,7 +2646,7 @@ def alc_ontology.intern_pair
   | some nodes1 => alc_ontology.intern nodes1 target
 
 /-- [rowl_kernel::alc_ontology::individuals_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 334:0-355:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 613:0-634:1 -/
 def alc_ontology.individuals_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (nodes : alloc.vec.Vec model.Individual) :
@@ -2178,7 +2708,7 @@ def alc_ontology.individuals_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::assertions_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 359:0-386:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 638:0-665:1 -/
 def alc_ontology.assertions_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -2319,7 +2849,7 @@ def alc_ontology.assertions_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::placed_proper]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 388:0-394:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 667:0-673:1 -/
 def alc_ontology.placed_proper
   (placed : alloc.vec.Vec alc_ontology.Placed) (index : Std.Usize) :
   Result Bool
@@ -2339,7 +2869,7 @@ def alc_ontology.placed_proper
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::named_property]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 395:0-400:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 674:0-679:1 -/
 def alc_ontology.named_property
   (property : model.ObjectPropertyExpression) :
   Result model.ObjectProperty
@@ -2348,8 +2878,64 @@ def alc_ontology.named_property
   | model.ObjectPropertyExpression.Property role => ok role
   | model.ObjectPropertyExpression.Inverse role => ok role
 
+/-- [rowl_kernel::alc_ontology::role_proper]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 689:0-691:1 -/
+def alc_ontology.role_proper
+  (property : model.ObjectPropertyExpression) : Result Bool := do
+  let op ← alc_ontology.named_property property
+  let b ← alc_ontology.builtin_role op
+  ok (¬ b)
+
+/-- [rowl_kernel::alc_ontology::rest_proper]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 681:0-688:1 -/
+def alc_ontology.rest_proper
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let here ← alc_ontology.role_proper ope
+    if here
+    then let i1 ← index + 1#usize
+         alc_ontology.rest_proper values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::members_proper]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 693:0-697:1 -/
+def alc_ontology.members_proper
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let first ← alc_ontology.role_proper members.first
+  let second ← alc_ontology.role_proper members.second
+  if first
+  then
+    if second
+    then alc_ontology.rest_proper members.rest 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::alc_ontology::pair_proper]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 699:0-703:1 -/
+def alc_ontology.pair_proper
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let below ← alc_ontology.role_proper sub
+  let above ← alc_ontology.role_proper sup
+  if below
+  then ok above
+  else ok false
+
 /-- [rowl_kernel::alc_ontology::roles_proper]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 403:0-418:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 706:0-726:1 -/
 def alc_ontology.roles_proper
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -2367,8 +2953,13 @@ def alc_ontology.roles_proper
       | model.Axiom.EquivalentClasses _ => ok true
       | model.Axiom.DisjointClasses _ => ok true
       | model.Axiom.DisjointUnion _ _ => ok true
-      | model.Axiom.SubObjectPropertyOf _ _ => ok true
-      | model.Axiom.EquivalentObjectProperties _ => ok true
+      | model.Axiom.SubObjectPropertyOf sope sup =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single sub =>
+          alc_ontology.pair_proper sub sup
+        | model.SubObjectPropertyExpression.Chain _ => ok true
+      | model.Axiom.EquivalentObjectProperties members =>
+        alc_ontology.members_proper members
       | model.Axiom.DisjointObjectProperties _ => ok true
       | model.Axiom.InverseObjectProperties _ _ => ok true
       | model.Axiom.ObjectPropertyDomain _ _ => ok true
@@ -2379,7 +2970,8 @@ def alc_ontology.roles_proper
       | model.Axiom.IrreflexiveObjectProperty _ => ok true
       | model.Axiom.SymmetricObjectProperty _ => ok true
       | model.Axiom.AsymmetricObjectProperty _ => ok true
-      | model.Axiom.TransitiveObjectProperty _ => ok true
+      | model.Axiom.TransitiveObjectProperty property =>
+        alc_ontology.role_proper property
       | model.Axiom.SubDataPropertyOf _ _ => ok true
       | model.Axiom.EquivalentDataProperties _ => ok true
       | model.Axiom.DisjointDataProperties _ => ok true
@@ -2415,7 +3007,7 @@ def alc_ontology.roles_proper
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::edges_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 421:0-455:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 729:0-763:1 -/
 def alc_ontology.edges_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -2487,7 +3079,7 @@ def alc_ontology.edges_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::has_edge]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 457:0-486:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 765:0-794:1 -/
 def alc_ontology.has_edge
   (edges : abox.Edges) (role : model.ObjectProperty) (source : Std.Usize)
   (target : Std.Usize) :
@@ -2515,7 +3107,7 @@ def alc_ontology.has_edge
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::denied_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 489:0-524:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 797:0-832:1 -/
 def alc_ontology.denied_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -2587,7 +3179,7 @@ def alc_ontology.denied_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::facts_from]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 526:0-540:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 834:0-848:1 -/
 def alc_ontology.facts_from
   (placed : alloc.vec.Vec alc_ontology.Placed) (index : Std.Usize)
   (facts : abox.Facts) :
@@ -2605,7 +3197,7 @@ def alc_ontology.facts_from
 partial_fixpoint
 
 /-- [rowl_kernel::alc_ontology::closure_satisfiable]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 544:0-571:1 -/
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 852:0-887:1 -/
 def alc_ontology.closure_satisfiable
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual)
@@ -2620,33 +3212,66 @@ def alc_ontology.closure_satisfiable
     match o1 with
     | none => ok none
     | some placed =>
-      let b ← alc_ontology.proper axioms
-      if b
-      then
-        let b1 ← alc_ontology.placed_proper placed 0#usize
-        if b1
+      let o2 ← alc_ontology.role_box items
+      match o2 with
+      | none => ok none
+      | some roles =>
+        let b ← alc_ontology.proper axioms
+        if b
         then
-          let b2 ← alc_ontology.roles_proper items 0#usize
-          if b2
+          let b1 ← alc_ontology.placed_proper placed 0#usize
+          if b1
           then
-            let edges ←
-              alc_ontology.edges_from items nodes 0#usize abox.Edges.Empty
-            let (denied, edges1) ←
-              alc_ontology.denied_from items nodes 0#usize edges
-            if denied
-            then ok (some false)
-            else
-              let i := alloc.vec.Vec.len nodes
-              let i1 ← i + 1#usize
-              let f ← alc_ontology.facts_from placed 0#usize abox.Facts.Empty
-              let b3 ← abox.abox_satisfiable i1 f edges1 axioms
-              ok (some b3)
+            let b2 ← alc_ontology.roles_proper items 0#usize
+            if b2
+            then
+              let b3 ← alc_ontology.has_negative items 0#usize
+              if b3
+              then
+                let i := alloc.vec.Vec.len roles.inclusions
+                if i = 0#usize
+                then
+                  let i1 := alloc.vec.Vec.len roles.transitive
+                  if i1 = 0#usize
+                  then
+                    let edges ←
+                      alc_ontology.edges_from items nodes 0#usize
+                        abox.Edges.Empty
+                    let (denied, edges1) ←
+                      alc_ontology.denied_from items nodes 0#usize edges
+                    if denied
+                    then ok (some false)
+                    else
+                      let i2 := alloc.vec.Vec.len nodes
+                      let i3 ← i2 + 1#usize
+                      let f ←
+                        alc_ontology.facts_from placed 0#usize abox.Facts.Empty
+                      let b4 ←
+                        abox.abox_satisfiable_with i3 f edges1 axioms roles
+                      ok (some b4)
+                  else ok none
+                else ok none
+              else
+                let edges ←
+                  alc_ontology.edges_from items nodes 0#usize abox.Edges.Empty
+                let (denied, edges1) ←
+                  alc_ontology.denied_from items nodes 0#usize edges
+                if denied
+                then ok (some false)
+                else
+                  let i := alloc.vec.Vec.len nodes
+                  let i1 ← i + 1#usize
+                  let f ←
+                    alc_ontology.facts_from placed 0#usize abox.Facts.Empty
+                  let b4 ←
+                    abox.abox_satisfiable_with i1 f edges1 axioms roles
+                  ok (some b4)
+            else ok none
           else ok none
         else ok none
-      else ok none
 
 /-- [rowl_kernel::alc_ontology::consistent]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 573:0-579:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 889:0-895:1
     Visibility: public -/
 def alc_ontology.consistent
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
@@ -2660,7 +3285,7 @@ def alc_ontology.consistent
       alc_ontology.Placed)
 
 /-- [rowl_kernel::alc_ontology::class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 581:0-593:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 897:0-909:1
     Visibility: public -/
 def alc_ontology.class_satisfiable
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -2683,7 +3308,7 @@ def alc_ontology.class_satisfiable
       alc_ontology.closure_satisfiable items nodes extra
 
 /-- [rowl_kernel::alc_ontology::subsumed]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 595:0-625:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 911:0-941:1
     Visibility: public -/
 def alc_ontology.subsumed
   (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
@@ -2716,7 +3341,7 @@ def alc_ontology.subsumed
         | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::alc_ontology::instance_of]:
-    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 628:0-653:1
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 944:0-969:1
     Visibility: public -/
 def alc_ontology.instance_of
   (items : alloc.vec.Vec model.AnnotatedAxiom)

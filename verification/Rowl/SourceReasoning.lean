@@ -3,9 +3,9 @@ import Rowl.AlcOntology
 
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
-document reader, the proved mapping into the raw OWL model and the proved ALC
-queries, including assertions about named and anonymous individuals, compose
-into one extracted function from the original bytes to an answer. An error is
+document reader, the proved mapping into the raw OWL model and the proved
+queries for ALC with assertions about named and anonymous individuals and role
+axioms (SH) compose into one extracted function from the original bytes to an answer. An error is
 exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then
 the kernel's query on those axioms: no answer means the axioms or the query are

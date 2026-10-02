@@ -553,7 +553,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   expression holds at every element, which justifies unsatisfiability and
   subsumption answers under ALC general concept inclusions written as that
   expression. Role inclusions and transitive roles are added in the eighth stage
-  below; the remaining SROIQ constructors and role axioms, datatypes and
+  below; the remaining SROIQ constructors, the other role axioms, datatypes and
   performance remain pending.
 - Reasoner track, fourth stage: verified ontology-level ALC queries. The actual
   kernel internalizes an axiom closure into one TBox concept: SubClassOf,
@@ -572,8 +572,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   properties, and data values from the datatype map. Every OWL model, in any
   universe and for any vocabulary, forces acceptance, and a positive subsumption
   answer holds in every such model. Assertions about individuals are added in the
-  seventh stage below; the other axiom forms, the remaining SROIQ constructors,
-  datatypes, query answering and performance remain pending.
+  seventh stage and role axioms in the eighth stage below; the other axiom forms,
+  the remaining SROIQ constructors, datatypes, query answering and performance
+  remain pending.
 - Reasoner track, fifth stage: answers from source bytes. The actual kernel
   functions source_consistent, source_class_satisfiable, source_subsumed and
   (since the seventh stage) source_instance_of read
@@ -638,17 +639,27 @@ progress. Full OWL parsing and executable reasoning are still future work.
   a universal restriction reaches the target of every edge whose property it
   includes, together with its restrictions on the transitive properties in
   between, and the accepting model relates node elements exactly as the edges
-  and role axioms entail. Reading role axioms from ontologies and source text
-  remains pending, as do inverse roles, number restrictions, nominals and
-  property chains.
-- 929 audited public theorems and 666 audited semantic definitions. Consistency,
+  and role axioms entail. The ontology queries, also from source bytes, read
+  SubObjectPropertyOf between named properties, EquivalentObjectProperties of
+  named properties and TransitiveObjectProperty of a named property into a role
+  box closed under composition. An interpretation is proved to respect that
+  role box exactly when it satisfies those axioms, and the queries decide with
+  it. Every answer is proved equal to the Direct Semantics definitions: the OWL
+  model of an acceptance reads every other property as the completion's model
+  does, so the role axioms hold in it. Role axioms on built-in properties,
+  inverse properties or chains in role axioms, the other property axioms and
+  negative property assertions together with role axioms get no answer.
+  Inverse roles, number restrictions, nominals and property chains remain
+  pending.
+- 955 audited public theorems and 669 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
-  ALC class, domain and range axioms and class and object property assertions,
+  ALC class, domain and range axioms, class and object property assertions, and
+  inclusions, equivalences and transitivity of named object properties (SH),
   also directly from Functional Syntax source bytes; no full OWL decision
   procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 383 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 386 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -657,7 +668,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1122-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1148-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -994,3 +994,14 @@ negative object property assertion is the one assertion that the facts and
 edges cannot express; the completion's models relate node elements only along
 the asserted edges, so it holds exactly when the same edge is not asserted,
 and a cheap check before the completion decides it.
+
+Role axioms of an ontology become the role box of that completion. The
+completion needs a role box closed under composition, so the kernel closes it
+while reading: inserting `s ⊑ r` adds `x ⊑ y` for every `x` already below `s`
+and every `y` already above `r`, which keeps a closed role box closed and adds
+only consequences of the axioms. An equivalence is a mutual inclusion of its
+members. Built-in object properties are excluded from role axioms for the same
+reason as from concepts: their meaning is fixed and the completion does not know
+it. With role axioms, a negative property assertion would have to be compared
+with the entailed edges (paths along transitive properties) rather than the
+asserted ones; until that check exists, such closures get no answer.

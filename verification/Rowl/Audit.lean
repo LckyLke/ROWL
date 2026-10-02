@@ -89,6 +89,7 @@ import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.AboxTableau
 import Rowl.Internalization
+import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
 
@@ -783,6 +784,8 @@ import Rowl.SourceReasoning
 #print axioms Rowl.Internalization.all_equal_iff
 #print axioms Rowl.Internalization.pairwise_disjoint_iff
 #print axioms Rowl.Internalization.pairwise_correct
+#print axioms Rowl.Internalization.is_named_correct
+#print axioms Rowl.Internalization.named_members_correct
 #print axioms Rowl.Internalization.axiom_concept_correct
 #print axioms Rowl.Internalization.internalize_correct
 #print axioms Rowl.AlcOntology.builtin_class_correct
@@ -805,7 +808,11 @@ import Rowl.SourceReasoning
 #print axioms Rowl.AlcOntology.assertions_from_correct
 #print axioms Rowl.AlcOntology.placed_proper_correct
 #print axioms Rowl.AlcOntology.named_property_correct
+#print axioms Rowl.AlcOntology.role_proper_correct
+#print axioms Rowl.AlcOntology.members_proper_correct
+#print axioms Rowl.AlcOntology.pair_proper_correct
 #print axioms Rowl.AlcOntology.roles_proper_correct
+#print axioms Rowl.AlcOntology.has_negative_correct
 #print axioms Rowl.AlcOntology.facts_from_correct
 #print axioms Rowl.AlcOntology.edges_from_correct
 #print axioms Rowl.AlcOntology.has_edge_correct
@@ -815,6 +822,7 @@ import Rowl.SourceReasoning
 #print axioms Rowl.AlcOntology.edge_individuals
 #print axioms Rowl.AlcOntology.denied_individuals
 #print axioms Rowl.AlcOntology.assertion_of_individual
+#print axioms Rowl.AlcOntology.entailed_of_empty
 #print axioms Rowl.AlcOntology.closure_satisfiable_total
 #print axioms Rowl.AlcOntology.closure_satisfiable_sound
 #print axioms Rowl.AlcOntology.closure_satisfiable_complete
@@ -1021,6 +1029,25 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalPropertyAxioms.read_property_axiom_total_correct
 #print axioms Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff
 #print axioms Rowl.FunctionalPropertyAxioms.property_axiom_progress
+#print axioms Rowl.OntologyRoles.copy_property_identity
+#print axioms Rowl.OntologyRoles.subs_from_correct
+#print axioms Rowl.OntologyRoles.sups_from_correct
+#print axioms Rowl.OntologyRoles.row_from_correct
+#print axioms Rowl.OntologyRoles.pairs_from_correct
+#print axioms Rowl.OntologyRoles.add_inclusion_correct
+#print axioms Rowl.OntologyRoles.below_added
+#print axioms Rowl.OntologyRoles.closed_added
+#print axioms Rowl.OntologyRoles.respects_added
+#print axioms Rowl.OntologyRoles.add_transitive_correct
+#print axioms Rowl.OntologyRoles.respects_transitive_added
+#print axioms Rowl.OntologyRoles.rest_roles_correct
+#print axioms Rowl.OntologyRoles.member_roles_correct
+#print axioms Rowl.OntologyRoles.includes_from_correct
+#print axioms Rowl.OntologyRoles.equivalent_from_correct
+#print axioms Rowl.OntologyRoles.equal_iff_included
+#print axioms Rowl.OntologyRoles.add_equivalent_correct
+#print axioms Rowl.OntologyRoles.role_box_from_correct
+#print axioms Rowl.OntologyRoles.role_box_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1687,3 +1714,6 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.PropertyAxiomModel
 #print axioms Rowl.FunctionalModel.ShapedSub
 #print axioms Rowl.FunctionalModel.ShapedProperty
+#print axioms Rowl.OntologyRoles.RolesHold
+#print axioms Rowl.Internalization.RoleAxiom
+#print axioms Rowl.AlcOntology.Negative

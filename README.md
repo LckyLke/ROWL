@@ -84,6 +84,12 @@ follow ("false"), since nothing says pump2 has a faulty part. Each answer comes
 from code proved to compute exactly the Direct Semantics of the bytes in that
 file.
 
+Role axioms work the same way: in
+[`examples/maintenance-roles.ofn`](examples/maintenance-roles.ofn), `hasPart` is
+transitive and `hasComponent` is one of its sub-properties, so a faulty bearing
+in a motor in pump1 makes pump1 need inspection
+(`cargo run -p rowl --example source_roles`).
+
 ## Status
 
 The Rust model represents every OWL 2 DL construct, and the Lean semantics gives
@@ -92,7 +98,7 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
 | **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
-| **Logic** | ALC (and, or, not, some, only) with named individuals; inside the reasoner also role hierarchies and transitive roles (SH) | SH straight from files; then inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
+| **Logic** | ALC (and, or, not, some, only) with named individuals, role hierarchies and transitive roles (SH) | inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
 | **Focus** | correctness | performance |
 

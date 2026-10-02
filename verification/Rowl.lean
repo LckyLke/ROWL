@@ -115,5 +115,6 @@ import Rowl.Hintikka
 import Rowl.TboxTableau
 import Rowl.AboxTableau
 import Rowl.Internalization
+import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning

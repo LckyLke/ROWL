@@ -1,12 +1,14 @@
-import Rowl.Internalization
+import Rowl.OntologyRoles
 import Rowl.AboxTableau
 
 /-!
-Ontology-level answers for ALC axiom closures with assertions about individuals,
-proved against the independent Direct Semantics: consistency, class
-satisfiability, subsumption and instance checking. The class axioms become the
-TBox concept, the assertions become the facts and edges of the completion for
-named individuals, and every answer the kernel gives is exact for the OWL
+Ontology-level answers for ALC axiom closures with role axioms and assertions
+about individuals, proved against the independent Direct Semantics:
+consistency, class satisfiability, subsumption and instance checking. The class
+axioms become the TBox concept, the inclusions, equivalences and transitivity of
+named object properties become the role box, the assertions become the facts and
+edges of the completion for named individuals, and every answer the kernel
+gives is exact for the OWL
 definitions: an acceptance comes with an actual OWL model of the closure (built
 from the completion's model, with every individual at its node, the built-in
 classes and properties and the datatype map fixed as OWL requires), and every
@@ -18,8 +20,11 @@ open Rowl.Owl (Interpretation classDenote thing nothing topObject bottomObject t
   literalDatatype DatatypeMap ValueEmbedding Vocabulary IsVocabulary IsInterpretation Model Consistent
   ClassSatisfiable Subsumed InstanceOf withAnonymous)
 open Rowl.Nnf (conceptDenote Fixes Polar nnf_total_correct nnf_meaning fixes_of_interpretation)
-open Rowl.Internalization (internalize_correct TBoxPart Assertion)
-open Rowl.AboxTableau (factsList edgesList AboxModel ExactEdges abox_satisfiable_correct)
+open Rowl.Internalization (internalize_correct TBoxPart Assertion RoleAxiom)
+open Rowl.AboxTableau (factsList edgesList AboxModel ExactEdges RoleModel EntailedEdges Entailed EdgeStep
+  abox_satisfiable_with_correct)
+open Rowl.RoleBox (Respects transitives inclusionList)
+open Rowl.OntologyRoles (RolesHold role_box_correct)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
@@ -533,13 +538,84 @@ decreasing_by omega
 def RoleOf : ObjectPropertyExpression → ObjectProperty
   | .Property r => r
   | .Inverse r => r
-/-- An object property assertion that does not use a built-in object property. -/
+/-- An object property assertion or role axiom that does not use a built-in
+    object property. -/
 def RoleProper : Axiom → Prop
   | .ObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
   | .NegativeObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  | .SubObjectPropertyOf (.Single sub) sup => (RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject) ∧
+      (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject)
+  | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  | .TransitiveObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
   | _ => True
 theorem named_property_correct (p : ObjectPropertyExpression) : alc_ontology.named_property p = .ok (RoleOf p) := by
   cases p <;> rfl
+theorem role_proper_correct (p : ObjectPropertyExpression) :
+    alc_ontology.role_proper p = .ok (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) := by
+  rw [alc_ontology.role_proper]
+  by_cases top : RoleOf p = topObject <;> by_cases bottom : RoleOf p = bottomObject <;>
+    simp [named_property_correct,builtin_role_correct,top,bottom]
+private theorem rest_proper_correct (values : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
+    alc_ontology.rest_proper values index =
+      .ok (decide (∀ p ∈ values.val.drop index.val, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) := by
+  rw [alc_ontology.rest_proper]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : values.val.drop index.val = values.val[index.val] :: values.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := rest_proper_correct values next
+    rw [nextIndex] at rest
+    rw [split]
+    by_cases here : RoleOf values.val[index.val] ≠ topObject ∧ RoleOf values.val[index.val] ≠ bottomObject
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,role_proper_correct,advance,rest,List.forall_mem_cons]
+      rw [decide_eq_true here]
+      simp only [↓reduceIte]
+      congr 1
+      exact decide_eq_decide.mpr ⟨fun later => ⟨here,later⟩,fun both => both.2⟩
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,role_proper_correct,List.forall_mem_cons]
+      rw [decide_eq_false here]
+      simp [here]
+  · have empty : values.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by values.val.length - index.val
+decreasing_by omega
+theorem members_proper_correct (members : AtLeastTwo ObjectPropertyExpression) :
+    alc_ontology.members_proper members =
+      .ok (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) := by
+  rw [alc_ontology.members_proper]
+  have rest := rest_proper_correct members.rest 0#usize
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at rest
+  by_cases first : RoleOf members.first ≠ topObject ∧ RoleOf members.first ≠ bottomObject
+  · by_cases second : RoleOf members.second ≠ topObject ∧ RoleOf members.second ≠ bottomObject
+    · simp only [role_proper_correct,bind_ok]
+      rw [decide_eq_true first,decide_eq_true second]
+      simp only [↓reduceIte,rest,AtLeastTwo.elements,List.forall_mem_cons]
+      simp [first,second]
+    · simp only [role_proper_correct,bind_ok]
+      rw [decide_eq_true first,decide_eq_false second]
+      simp only [↓reduceIte,Bool.false_eq_true,AtLeastTwo.elements,List.forall_mem_cons]
+      simp [second]
+  · simp only [role_proper_correct,bind_ok]
+    rw [decide_eq_false first]
+    simp only [↓reduceIte,Bool.false_eq_true,AtLeastTwo.elements,List.forall_mem_cons]
+    simp [first]
+theorem pair_proper_correct (sub sup : ObjectPropertyExpression) :
+    alc_ontology.pair_proper sub sup = .ok (decide ((RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject) ∧
+      (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject))) := by
+  rw [alc_ontology.pair_proper]
+  by_cases first : RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject
+  · simp only [role_proper_correct,bind_ok]
+    rw [decide_eq_true first]
+    simp [first]
+  · simp only [role_proper_correct,bind_ok]
+    rw [decide_eq_false first]
+    simp [first]
 /-- The role check over the assertions is exact. -/
 theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) :
     alc_ontology.roles_proper items index = .ok (decide (∀ item ∈ items.val.drop index.val, RoleProper item.axiom)) := by
@@ -569,7 +645,86 @@ theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usi
       · by_cases bottom : RoleOf p = bottomObject
         · simp [more,lookup,item,named_property_correct,builtin_role_correct,top,bottom,RoleProper]
         · simp [more,lookup,item,named_property_correct,builtin_role_correct,top,bottom,RoleProper,advance,rest]
+    | SubObjectPropertyOf sub sup =>
+      cases sub with
+      | Single p =>
+        by_cases both : (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
+            (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject)
+        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok,item,pair_proper_correct]
+          rw [decide_eq_true both]
+          simp [RoleProper,both,advance,rest]
+        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok,item,pair_proper_correct]
+          rw [decide_eq_false both]
+          simp only [RoleProper]
+          simp [both]
+      | Chain c => simp [more,lookup,item,RoleProper,advance,rest]
+    | EquivalentObjectProperties members =>
+      by_cases all : ∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+      · have proper : RoleProper (.EquivalentObjectProperties members) := all
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,item,members_proper_correct]
+        rw [decide_eq_true all]
+        simp only [↓reduceIte,advance,rest,bind_ok]
+        congr 1
+        exact decide_eq_decide.mpr ⟨fun later => ⟨proper,later⟩,fun both => both.2⟩
+      · have improper : ¬ RoleProper (.EquivalentObjectProperties members) := all
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,item,members_proper_correct]
+        rw [decide_eq_false all]
+        simp only [Bool.false_eq_true,↓reduceIte]
+        rw [decide_eq_false (fun both => improper both.1)]
+    | TransitiveObjectProperty p =>
+      by_cases here : RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,item,role_proper_correct]
+        rw [decide_eq_true here]
+        simp [RoleProper,here,advance,rest]
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,item,role_proper_correct]
+        rw [decide_eq_false here]
+        simp only [RoleProper]
+        simp [here]
     | _ => simp [more,lookup,item,RoleProper,advance,rest]
+  · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [more,empty]
+termination_by items.val.length - index.val
+decreasing_by all_goals omega
+
+/-- A negative object property assertion. -/
+def Negative : Axiom → Prop
+  | .NegativeObjectPropertyAssertion _ _ _ => True
+  | _ => False
+/-- The check for negative object property assertions is exact. -/
+theorem has_negative_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) :
+    alc_ontology.has_negative items index = .ok (decide (∃ item ∈ items.val.drop index.val, Negative item.axiom)) := by
+  rw [alc_ontology.has_negative]
+  by_cases more : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : items.val.drop index.val = items.val[index.val] :: items.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := has_negative_correct items next
+    rw [nextIndex] at rest
+    have unfold : (∃ item ∈ items.val.drop index.val, Negative item.axiom) ↔
+        Negative items.val[index.val].axiom ∨ ∃ item ∈ items.val.drop (index.val+1), Negative item.axiom := by
+      rw [split]
+      constructor
+      · rintro ⟨item,member,negative⟩
+        rcases List.mem_cons.mp member with rfl | later
+        · exact .inl negative
+        · exact .inr ⟨item,later,negative⟩
+      · rintro (negative | ⟨item,later,negative⟩)
+        · exact ⟨_,List.mem_cons_self ..,negative⟩
+        · exact ⟨item,List.mem_cons_of_mem _ later,negative⟩
+    simp only [unfold]
+    cases item : items.val[index.val].axiom with
+    | NegativeObjectPropertyAssertion p a b => simp [more,lookup,item,Negative]
+    | _ => simp [more,lookup,item,Negative,advance,rest]
   · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     simp [more,empty]
 termination_by items.val.length - index.val
@@ -815,9 +970,11 @@ theorem assertion_of_individual {statement : Axiom} {a : Individual} (mentioned 
     and every translated concept and asserted object property is proper. -/
 def Answerable (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
     (extra : alloc.vec.Vec alc_ontology.Placed) : Prop :=
-  ∃ axioms placed, alc_ontology.internalize items = .ok (some axioms) ∧
+  ∃ axioms placed rb, alc_ontology.internalize items = .ok (some axioms) ∧
     alc_ontology.assertions_from items nodes 0#usize extra = .ok (some placed) ∧
-    Proper axioms ∧ (∀ q ∈ placed.val, Proper q.concept) ∧ ∀ item ∈ items.val, RoleProper item.axiom
+    alc_ontology.role_box items = .ok (some rb) ∧
+    Proper axioms ∧ (∀ q ∈ placed.val, Proper q.concept) ∧ (∀ item ∈ items.val, RoleProper item.axiom) ∧
+    ((∃ item ∈ items.val, Negative item.axiom) → rb.inclusions.val = [] ∧ rb.transitive.val = [])
 
 /-- Every node the facts and edges use is a node of the closure check. -/
 private theorem nodes_below (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
@@ -830,106 +987,78 @@ private theorem nodes_below (items : alloc.vec.Vec AnnotatedAxiom) (nodes : allo
   · exact extraIn q given
   · rw [node]; exact positionOf_le _ _
 
-/-- The closure check terminates and answers exactly when the closure is answerable. -/
-theorem closure_satisfiable_total (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra : alloc.vec.Vec alc_ontology.Placed) (room : nodes.val.length ≤ Usize.max-1)
-    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length) :
-    ∃ result, alc_ontology.closure_satisfiable items nodes extra = .ok result ∧
-      (result.isSome ↔ Answerable items nodes extra) := by
-  rw [alc_ontology.closure_satisfiable]
-  obtain ⟨internal,internalRead,_,_⟩ := internalize_correct.{0,0} items
-  cases internal with
-  | none => exact ⟨none,by simp [internalRead],by simp [Answerable,internalRead]⟩
-  | some axioms =>
-    obtain ⟨assertions,assertionsRun,assertionsSpec⟩ := assertions_from_correct items nodes 0#usize extra
-    cases assertions with
-    | none => exact ⟨none,by simp [internalRead,assertionsRun],by simp [Answerable,internalRead,assertionsRun]⟩
-    | some placed =>
-      obtain ⟨origin,_,_⟩ := assertionsSpec placed rfl
-      have placedProper := placed_proper_correct placed 0#usize
-      have rolesProper := roles_proper_correct items 0#usize
-      have zero : (0#usize).val = 0 := rfl
-      rw [zero,List.drop_zero] at placedProper rolesProper
-      by_cases properAxioms : Proper axioms
-      · by_cases properPlaced : ∀ q ∈ placed.val, Proper q.concept
-        · by_cases properRoles : ∀ item ∈ items.val, RoleProper item.axiom
-          · have answerable : Answerable items nodes extra :=
-              ⟨axioms,placed,internalRead,assertionsRun,properAxioms,properPlaced,properRoles⟩
-            obtain ⟨edges,edgesRun,edgesSpec⟩ := edges_from_correct items nodes 0#usize .Empty
-            obtain ⟨denied,deniedRun,_⟩ := denied_from_correct items nodes 0#usize edges
-            cases denied with
-            | true =>
-              refine ⟨some false,?_,by simpa using answerable⟩
-              simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,rolesProper,edgesRun,
-                deniedRun]
-              rw [if_pos properPlaced,if_pos properRoles]
-            | false =>
-              obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
-                (Usize.add_spec (x := nodes.len) (y := 1#usize) (by have := room; scalar_tac))
-              have countIs : count.val = nodes.val.length+1 := by simpa using countValue
-              obtain ⟨facts,factsRun,factsSpec⟩ := facts_from_correct placed 0#usize .Empty
-              have below := nodes_below items nodes extra placed extraIn (by simpa using origin)
-              obtain ⟨accepted,acceptedRun,_,_⟩ := abox_satisfiable_correct.{0,0} count (by omega) facts edges axioms
-                (by
-                  intro p member
-                  rcases (factsSpec p).mp member with none | ⟨q,qIn,rfl⟩
-                  · simp [factsList] at none
-                  · have := below q (by simpa using qIn); simp only; omega)
-                (by
-                  intro e member
-                  rcases (edgesSpec e).mp member with none | ⟨item,_,edge⟩
-                  · simp [edgesList] at none
-                  · have := edge_individuals edge; omega)
-              refine ⟨some accepted,?_,by simpa using answerable⟩
-              simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,rolesProper,edgesRun,
-                deniedRun,countRun,factsRun,acceptedRun]
-              rw [if_pos properPlaced,if_pos properRoles]
-          · refine ⟨none,by simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,properPlaced,
-              rolesProper,properRoles],?_⟩
-            simp only [Option.isSome_none,Bool.false_eq_true,false_iff]
-            rintro ⟨_,_,internalRead',_,_,_,roles⟩
-            exact properRoles roles
-        · refine ⟨none,by simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,properPlaced],?_⟩
-          simp only [Option.isSome_none,Bool.false_eq_true,false_iff]
-          rintro ⟨axioms',placed',internalRead',assertionsRun',_,proper',_⟩
-          rw [internalRead] at internalRead'
-          rw [assertionsRun] at assertionsRun'
-          cases Result.ok_injective assertionsRun'
-          exact properPlaced proper'
-      · refine ⟨none,by simp [internalRead,assertionsRun,proper_correct,properAxioms],?_⟩
-        simp only [Option.isSome_none,Bool.false_eq_true,false_iff]
-        rintro ⟨axioms',placed',internalRead',_,proper',_⟩
-        rw [internalRead] at internalRead'
-        cases Result.ok_injective internalRead'
-        exact properAxioms proper'
+/-- Without listed inclusions or transitive properties, the edges and role
+    axioms entail exactly the asserted edges. -/
+theorem entailed_of_empty (rb : role_box.RoleBox) (noInclusions : rb.inclusions.val = [])
+    (noTransitive : rb.transitive.val = []) (edges : List (ObjectProperty × Nat × Nat)) (r : ObjectProperty)
+    (n m : Nat) (entailed : Entailed rb edges r n m) : (r,n,m) ∈ edges := by
+  rcases entailed with ⟨s,below,edge⟩ | ⟨t,transitive,_,_⟩
+  · rcases below with rfl | listed
+    · exact edge
+    · simp [inclusionList,noInclusions] at listed
+  · simp [transitives,noTransitive] at transitive
 
 /-- In the answerable case the closure check is the denial check followed by
-    the completion over the placed facts and the asserted edges. -/
+    the completion over the placed facts, the asserted edges and the role box. -/
 private theorem closure_answer (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra placed : alloc.vec.Vec alc_ontology.Placed) (axioms : nnf.NnfConcept)
+    (extra placed : alloc.vec.Vec alc_ontology.Placed) (axioms : nnf.NnfConcept) (rb : role_box.RoleBox)
     (room : nodes.val.length ≤ Usize.max-1)
     (internalRead : alc_ontology.internalize items = .ok (some axioms))
     (assertionsRun : alc_ontology.assertions_from items nodes 0#usize extra = .ok (some placed))
+    (rolesRun : alc_ontology.role_box items = .ok (some rb))
     (properAxioms : Proper axioms) (properPlaced : ∀ q ∈ placed.val, Proper q.concept)
-    (properRoles : ∀ item ∈ items.val, RoleProper item.axiom) :
+    (properRoles : ∀ item ∈ items.val, RoleProper item.axiom)
+    (negativeOk : (∃ item ∈ items.val, Negative item.axiom) → rb.inclusions.val = [] ∧ rb.transitive.val = []) :
     ∃ (edges : abox.Edges) (denied : Bool) (count : Usize) (facts : abox.Facts),
       (∀ e, e ∈ edgesList edges ↔ ∃ item ∈ items.val, EdgeOf nodes.val item.axiom = some e) ∧
       (denied = true ↔ ∃ item ∈ items.val, ∃ e, DeniedOf nodes.val item.axiom = some e ∧ e ∈ edgesList edges) ∧
       count.val = nodes.val.length+1 ∧
       (∀ p, p ∈ factsList facts ↔ ∃ q ∈ placed.val, p = (q.node.val,q.concept)) ∧
       (denied = true → alc_ontology.closure_satisfiable items nodes extra = .ok (some false)) ∧
-      (denied = false → ∀ b, abox.abox_satisfiable count facts edges axioms = .ok b →
+      (denied = false → ∀ b, abox.abox_satisfiable_with count facts edges axioms rb = .ok b →
         alc_ontology.closure_satisfiable items nodes extra = .ok (some b)) := by
   have zero : (0#usize).val = 0 := rfl
   have placedProper := placed_proper_correct placed 0#usize
   have rolesProper := roles_proper_correct items 0#usize
-  rw [zero,List.drop_zero] at placedProper rolesProper
+  have negativeCheck := has_negative_correct items 0#usize
+  rw [zero,List.drop_zero] at placedProper rolesProper negativeCheck
+  have checkAxioms : alc_ontology.proper axioms = .ok true := by rw [proper_correct,decide_eq_true properAxioms]
+  have checkPlaced : alc_ontology.placed_proper placed 0#usize = .ok true := by
+    rw [placedProper,decide_eq_true properPlaced]
+  have checkRoles : alc_ontology.roles_proper items 0#usize = .ok true := by
+    rw [rolesProper,decide_eq_true properRoles]
   obtain ⟨edges,edgesRun,edgesSpec⟩ := edges_from_correct items nodes 0#usize .Empty
   obtain ⟨denied,deniedRun,deniedSpec⟩ := denied_from_correct items nodes 0#usize edges
   obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
     (Usize.add_spec (x := nodes.len) (y := 1#usize) (by have := room; scalar_tac))
   have countIs : count.val = nodes.val.length+1 := by simpa using countValue
   obtain ⟨facts,factsRun,factsSpec⟩ := facts_from_correct placed 0#usize .Empty
+  -- The checks in front of the edges pass, whether or not there are negative assertions.
+  have passes : ∀ (rest : Result (Option Bool)),
+      alc_ontology.closure_satisfiable items nodes extra = rest ↔
+        (do
+          let edges ← alc_ontology.edges_from items nodes 0#usize abox.Edges.Empty
+          let (denied,edges1) ← alc_ontology.denied_from items nodes 0#usize edges
+          if denied then ok (some false)
+          else
+            let i ← alloc.vec.Vec.len nodes + 1#usize
+            let f ← alc_ontology.facts_from placed 0#usize abox.Facts.Empty
+            let b4 ← abox.abox_satisfiable_with i f edges1 axioms rb
+            ok (some b4)) = rest := by
+    intro rest
+    rw [alc_ontology.closure_satisfiable]
+    by_cases negative : ∃ item ∈ items.val, Negative item.axiom
+    · obtain ⟨noInclusions,noTransitive⟩ := negativeOk negative
+      have inclusionsLen : alloc.vec.Vec.len rb.inclusions = 0#usize := UScalar.eq_of_val_eq (by simp [noInclusions])
+      have transitiveLen : alloc.vec.Vec.len rb.transitive = 0#usize := UScalar.eq_of_val_eq (by simp [noTransitive])
+      have checkNegative : alc_ontology.has_negative items 0#usize = .ok true := by
+        rw [negativeCheck,decide_eq_true negative]
+      simp only [internalRead,assertionsRun,rolesRun,bind_ok,checkAxioms,checkPlaced,checkRoles,checkNegative,
+        inclusionsLen,transitiveLen,↓reduceIte]
+    · have checkNegative : alc_ontology.has_negative items 0#usize = .ok false := by
+        rw [negativeCheck,decide_eq_false negative]
+      simp only [internalRead,assertionsRun,rolesRun,bind_ok,checkAxioms,checkPlaced,checkRoles,checkNegative,
+        Bool.false_eq_true,↓reduceIte]
   refine ⟨edges,denied,count,facts,?_,?_,countIs,?_,?_,?_⟩
   · intro e
     rw [edgesSpec,zero,List.drop_zero]
@@ -940,15 +1069,123 @@ private theorem closure_answer (items : alloc.vec.Vec AnnotatedAxiom) (nodes : a
     simp [factsList]
   · intro deniedTrue
     subst deniedTrue
-    rw [alc_ontology.closure_satisfiable]
-    simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,rolesProper,edgesRun,deniedRun]
-    rw [if_pos properPlaced,if_pos properRoles]
+    rw [passes]
+    simp [edgesRun,deniedRun]
   · intro deniedFalse b acceptedRun
     subst deniedFalse
-    rw [alc_ontology.closure_satisfiable]
-    simp [internalRead,assertionsRun,proper_correct,properAxioms,placedProper,rolesProper,edgesRun,deniedRun,
-      countRun,factsRun,acceptedRun]
-    rw [if_pos properPlaced,if_pos properRoles]
+    rw [passes]
+    simp [edgesRun,deniedRun,countRun,factsRun,acceptedRun]
+
+/-- The closure check terminates and answers exactly when the closure is answerable. -/
+theorem closure_satisfiable_total (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
+    (extra : alloc.vec.Vec alc_ontology.Placed) (room : nodes.val.length ≤ Usize.max-1)
+    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length) :
+    ∃ result, alc_ontology.closure_satisfiable items nodes extra = .ok result ∧
+      (result.isSome ↔ Answerable items nodes extra) := by
+  obtain ⟨internal,internalRead,_,_⟩ := internalize_correct.{0,0} items
+  cases internal with
+  | none =>
+    refine ⟨none,by rw [alc_ontology.closure_satisfiable]; simp [internalRead],?_⟩
+    simp [Answerable,internalRead]
+  | some axioms =>
+    obtain ⟨assertions,assertionsRun,assertionsSpec⟩ := assertions_from_correct items nodes 0#usize extra
+    cases assertions with
+    | none =>
+      refine ⟨none,by rw [alc_ontology.closure_satisfiable]; simp [internalRead,assertionsRun],?_⟩
+      simp [Answerable,internalRead,assertionsRun]
+    | some placed =>
+      obtain ⟨roles,rolesRun,_⟩ := role_box_correct.{0,0} items
+      cases roles with
+      | none =>
+        refine ⟨none,by rw [alc_ontology.closure_satisfiable]; simp [internalRead,assertionsRun,rolesRun],?_⟩
+        simp [Answerable,internalRead,assertionsRun,rolesRun]
+      | some rb =>
+        obtain ⟨origin,_,_⟩ := assertionsSpec placed rfl
+        have zero : (0#usize).val = 0 := rfl
+        have placedProper := placed_proper_correct placed 0#usize
+        have rolesProper := roles_proper_correct items 0#usize
+        have negativeCheck := has_negative_correct items 0#usize
+        rw [zero,List.drop_zero] at placedProper rolesProper negativeCheck
+        have unanswerable : ¬ (Proper axioms ∧ (∀ q ∈ placed.val, Proper q.concept) ∧
+            (∀ item ∈ items.val, RoleProper item.axiom) ∧
+            ((∃ item ∈ items.val, Negative item.axiom) → rb.inclusions.val = [] ∧ rb.transitive.val = [])) →
+            ¬ Answerable items nodes extra := by
+          rintro failed ⟨axioms',placed',rb',internalRead',assertionsRun',rolesRun',rest⟩
+          rw [internalRead] at internalRead'
+          rw [assertionsRun] at assertionsRun'
+          rw [rolesRun] at rolesRun'
+          cases Result.ok_injective internalRead'
+          cases Result.ok_injective assertionsRun'
+          cases Result.ok_injective rolesRun'
+          exact failed rest
+        by_cases properAxioms : Proper axioms
+        · by_cases properPlaced : ∀ q ∈ placed.val, Proper q.concept
+          · by_cases properRoles : ∀ item ∈ items.val, RoleProper item.axiom
+            · by_cases negativeOk : (∃ item ∈ items.val, Negative item.axiom) →
+                  rb.inclusions.val = [] ∧ rb.transitive.val = []
+              · have answerable : Answerable items nodes extra :=
+                  ⟨axioms,placed,rb,internalRead,assertionsRun,rolesRun,properAxioms,properPlaced,properRoles,negativeOk⟩
+                obtain ⟨edges,denied,count,facts,edgesSpec,_,countIs,factsSpec,whenDenied,whenAllowed⟩ :=
+                  closure_answer items nodes extra placed axioms rb room internalRead assertionsRun rolesRun
+                    properAxioms properPlaced properRoles negativeOk
+                cases denied with
+                | true => exact ⟨some false,whenDenied rfl,by simpa using answerable⟩
+                | false =>
+                  have below := nodes_below items nodes extra placed extraIn (by simpa using origin)
+                  obtain ⟨accepted,acceptedRun,_,_⟩ :=
+                    abox_satisfiable_with_correct.{0,0} count (by omega) facts edges axioms rb
+                      (by
+                        intro p member
+                        obtain ⟨q,qIn,rfl⟩ := (factsSpec p).mp member
+                        have := below q qIn; simp only; omega)
+                      (by
+                        intro e member
+                        obtain ⟨item,_,edge⟩ := (edgesSpec e).mp member
+                        have := edge_individuals edge; omega)
+                  exact ⟨some accepted,whenAllowed rfl accepted acceptedRun,by simpa using answerable⟩
+              · refine ⟨none,?_,by simpa using unanswerable (fun ⟨_,_,_,ok⟩ => negativeOk ok)⟩
+                obtain ⟨negative,nonempty⟩ : (∃ item ∈ items.val, Negative item.axiom) ∧
+                    ¬ (rb.inclusions.val = [] ∧ rb.transitive.val = []) := by
+                  by_contra contrary
+                  apply negativeOk
+                  intro negative
+                  by_contra empty
+                  exact contrary ⟨negative,empty⟩
+                have checkNegative : alc_ontology.has_negative items 0#usize = .ok true := by
+                  rw [negativeCheck,decide_eq_true negative]
+                rw [alc_ontology.closure_satisfiable]
+                simp only [internalRead,assertionsRun,rolesRun,bind_ok,proper_correct,decide_eq_true properAxioms,
+                  placedProper,decide_eq_true properPlaced,rolesProper,decide_eq_true properRoles,checkNegative,
+                  ↓reduceIte]
+                by_cases noInclusions : rb.inclusions.val = []
+                · have transitiveNonempty : rb.transitive.val ≠ [] := fun empty => nonempty ⟨noInclusions,empty⟩
+                  have inclusionsLen : alloc.vec.Vec.len rb.inclusions = 0#usize :=
+                    UScalar.eq_of_val_eq (by simp [noInclusions])
+                  have transitiveLen : ¬ alloc.vec.Vec.len rb.transitive = 0#usize := by
+                    intro same
+                    have := congrArg UScalar.val same
+                    simp at this
+                    exact transitiveNonempty this
+                  simp [inclusionsLen,transitiveLen]
+                · have inclusionsLen : ¬ alloc.vec.Vec.len rb.inclusions = 0#usize := by
+                    intro same
+                    have := congrArg UScalar.val same
+                    simp at this
+                    exact noInclusions this
+                  simp [inclusionsLen]
+            · refine ⟨none,?_,by simpa using unanswerable (fun ⟨_,_,roles,_⟩ => properRoles roles)⟩
+              rw [alc_ontology.closure_satisfiable]
+              simp only [internalRead,assertionsRun,rolesRun,bind_ok,proper_correct,decide_eq_true properAxioms,
+                placedProper,decide_eq_true properPlaced,rolesProper,decide_eq_false properRoles,Bool.false_eq_true,
+                ↓reduceIte]
+          · refine ⟨none,?_,by simpa using unanswerable (fun ⟨_,placedOk,_⟩ => properPlaced placedOk)⟩
+            rw [alc_ontology.closure_satisfiable]
+            simp only [internalRead,assertionsRun,rolesRun,bind_ok,proper_correct,decide_eq_true properAxioms,
+              placedProper,decide_eq_false properPlaced,Bool.false_eq_true,↓reduceIte]
+        · refine ⟨none,?_,by simpa using unanswerable (fun ⟨axiomsOk,_⟩ => properAxioms axiomsOk)⟩
+          rw [alc_ontology.closure_satisfiable]
+          simp only [internalRead,assertionsRun,rolesRun,bind_ok,proper_correct,decide_eq_false properAxioms,
+            Bool.false_eq_true,↓reduceIte]
 
 private theorem individual_owl_model {Object : Type} (J : Interpretation Object Unit) (root : Object)
     (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Individual) :
@@ -972,6 +1209,58 @@ private theorem denied_exists (nodes : List Individual) (p : ObjectPropertyExpre
     ∃ e, DeniedOf nodes (.NegativeObjectPropertyAssertion p s t) = some e := by
   cases p <;> exact ⟨_,rfl⟩
 
+/-- A role axiom without built-in properties that holds in the tableau model
+    holds in its OWL interpretation, which reads every other property the same
+    way. -/
+private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Axiom) (role : RoleAxiom a)
+    (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
+  have relation : ∀ r x y, r ≠ topObject → r ≠ bottomObject →
+      ((owlModel.{u,v,w} J root place D).objectProperties r x y ↔ J.objectProperties r x.down y.down) := by
+    intro r x y top bottom
+    simp [owlModel,top,bottom]
+  cases a with
+  | SubObjectPropertyOf sub sup =>
+    cases sub with
+    | Single p =>
+      cases p with
+      | Property s =>
+        cases sup with
+        | Property r =>
+          simp only [RoleProper,RoleOf] at proper
+          simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation,Rowl.Owl.objectRelation] at holds ⊢
+          intro x y edge
+          exact (relation r x y proper.2.1 proper.2.2).mpr
+            (holds x.down y.down ((relation s x y proper.1.1 proper.1.2).mp edge))
+        | Inverse r => simp [RoleAxiom] at role
+      | Inverse s => cases sup <;> simp [RoleAxiom] at role
+    | Chain c => simp [RoleAxiom] at role
+  | EquivalentObjectProperties members =>
+    simp only [RoleAxiom] at role
+    simp only [RoleProper] at proper
+    simp only [Rowl.Owl.satisfies,Rowl.Owl.allEqual] at holds ⊢
+    intro a aIn b bIn
+    obtain ⟨p,rfl⟩ := role a aIn
+    obtain ⟨q,rfl⟩ := role b bIn
+    have pProper := proper _ aIn
+    have qProper := proper _ bIn
+    simp only [RoleOf] at pProper qProper
+    have equal := holds _ aIn _ bIn
+    simp only [Rowl.Owl.objectRelation] at equal ⊢
+    funext x y
+    rw [propext (relation p x y pProper.1 pProper.2),propext (relation q x y qProper.1 qProper.2),equal]
+  | TransitiveObjectProperty p =>
+    cases p with
+    | Property r =>
+      simp only [RoleProper,RoleOf] at proper
+      simp only [Rowl.Owl.satisfies,Rowl.Owl.objectRelation] at holds ⊢
+      intro x y z first second
+      exact (relation r x z proper.1 proper.2).mpr (holds x.down y.down z.down
+        ((relation r x y proper.1 proper.2).mp first) ((relation r y z proper.1 proper.2).mp second))
+    | Inverse r => simp [RoleAxiom] at role
+  | _ => simp [RoleAxiom] at role
+
 /-- An accepting closure check yields an OWL model of the closure in which every
     individual sits at the element of its node and every extra concept holds at
     the element of its node. -/
@@ -986,20 +1275,26 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
   obtain ⟨result,run,answerIff⟩ := closure_satisfiable_total items nodes extra room extraIn
   rw [accepted] at run
   cases Result.ok_injective run
-  obtain ⟨axioms,placed,internalRead,assertionsRun,properAxioms,properPlaced,properRoles⟩ := answerIff.mp rfl
+  obtain ⟨axioms,placed,rb,internalRead,assertionsRun,rolesRun,properAxioms,properPlaced,properRoles,negativeOk⟩ :=
+    answerIff.mp rfl
   obtain ⟨assertions,assertionsExecuted,assertionsSpec⟩ := assertions_from_correct items nodes 0#usize extra
   rw [assertionsRun] at assertionsExecuted
   cases Result.ok_injective assertionsExecuted
   obtain ⟨origin,kept,covered⟩ := assertionsSpec placed rfl
   have below := nodes_below items nodes extra placed extraIn origin
+  obtain ⟨roleResult,roleRun,roleSpec⟩ := role_box_correct.{0,0} items
+  rw [rolesRun] at roleRun
+  cases Result.ok_injective roleRun
+  obtain ⟨closed,respectsIff⟩ := roleSpec rb rfl
   obtain ⟨edges,denied,count,facts,edgesSpec,deniedSpec,countIs,factsSpec,whenDenied,whenAllowed⟩ :=
-    closure_answer items nodes extra placed axioms room internalRead assertionsRun properAxioms properPlaced properRoles
+    closure_answer items nodes extra placed axioms rb room internalRead assertionsRun rolesRun properAxioms properPlaced
+      properRoles negativeOk
   cases denied with
   | true =>
     rw [whenDenied rfl] at accepted
     cases Result.ok_injective accepted
   | false =>
-    obtain ⟨answer,answerRun,sound,_⟩ := abox_satisfiable_correct.{0,0} count (by omega) facts edges axioms
+    obtain ⟨answer,answerRun,sound,_⟩ := abox_satisfiable_with_correct.{0,0} count (by omega) facts edges axioms rb
       (by
         intro p member
         obtain ⟨q,qIn,rfl⟩ := (factsSpec p).mp member
@@ -1010,7 +1305,8 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
         have := edge_individuals edge; omega)
     rw [whenAllowed rfl answer answerRun] at accepted
     have answerTrue : answer = true := by simpa using Result.ok_injective accepted
-    obtain ⟨Obj,J,f,model,exact⟩ := sound answerTrue
+    obtain ⟨Obj,J,f,⟨respects,model⟩,entailed⟩ := sound answerTrue closed
+    have rolesHold := (respectsIff Obj Unit J).mp respects
     let place := fun a => f (PositionOf nodes.val a)
     have valid := owl_model_valid.{u,v,w} J (f 0) place D V
     have fixes := fixes_of_interpretation valid
@@ -1062,15 +1358,20 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
           rw [statement] at proper
           simp only [RoleProper] at proper
           rw [← role] at proper
+          obtain ⟨noInclusions,noTransitive⟩ := negativeOk ⟨item,member,by rw [statement]; trivial⟩
           apply (denied_meaning _ nodes.val (fun n => ULift.up (f n)) _ e edge (placedAt _)).mpr
           intro related
           have inJ := (relation e.1 _ _ proper.1 proper.2).mp related
           have bounds := denied_individuals edge
-          have inEdges := exact e.1 e.2.1 e.2.2 (by omega) (by omega) inJ
+          have inEdges := entailed_of_empty rb noInclusions noTransitive _ e.1 e.2.1 e.2.2
+            (entailed e.1 e.2.1 e.2.2 (by omega) (by omega) inJ)
           have deniedTrue := deniedSpec.mpr ⟨item,member,e,by rw [statement]; exact edge,inEdges⟩
           cases deniedTrue
         | _ => simp [statement,Assertion] at assertion
-      · exact (tbox item member).resolve_left assertion
+      · by_cases role : RoleAxiom item.axiom
+        · exact owl_model_role_axiom J (f 0) place D item.axiom role (properRoles item member)
+            (rolesHold item member role)
+        · exact ((tbox item member).resolve_left assertion).resolve_left role
     · intro q member
       have holds := model.2.1 (q.node.val,q.concept) ((factsSpec _).mpr ⟨q,kept q member,rfl⟩)
       exact (agrees q.concept (properPlaced q (kept q member)) (ULift.up (f q.node.val))).mpr holds
@@ -1092,14 +1393,20 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
   obtain ⟨result,run,answerIff⟩ := closure_satisfiable_total items nodes extra room extraIn
   rw [answered] at run
   cases Result.ok_injective run
-  obtain ⟨axioms,placed,internalRead,assertionsRun,properAxioms,properPlaced,properRoles⟩ := answerIff.mp rfl
+  obtain ⟨axioms,placed,rb,internalRead,assertionsRun,rolesRun,properAxioms,properPlaced,properRoles,negativeOk⟩ :=
+    answerIff.mp rfl
   obtain ⟨assertions,assertionsExecuted,assertionsSpec⟩ := assertions_from_correct items nodes 0#usize extra
   rw [assertionsRun] at assertionsExecuted
   cases Result.ok_injective assertionsExecuted
   obtain ⟨origin,_,_⟩ := assertionsSpec placed rfl
   have below := nodes_below items nodes extra placed extraIn origin
+  obtain ⟨roleResult,roleRun,roleSpec⟩ := role_box_correct.{u,v} items
+  rw [rolesRun] at roleRun
+  cases Result.ok_injective roleRun
+  obtain ⟨_,respectsIff⟩ := roleSpec rb rfl
   obtain ⟨edges,denied,count,facts,edgesSpec,deniedSpec,countIs,factsSpec,whenDenied,whenAllowed⟩ :=
-    closure_answer items nodes extra placed axioms room internalRead assertionsRun properAxioms properPlaced properRoles
+    closure_answer items nodes extra placed axioms rb room internalRead assertionsRun rolesRun properAxioms properPlaced
+      properRoles negativeOk
   have fixes : Fixes (withAnonymous I g) := fixes_of_interpretation valid
   have mentionedAt : ∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom,
       f (PositionOf nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a :=
@@ -1114,15 +1421,16 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
     exact absurd (edgeHolds e inEdges)
       ((denied_meaning _ nodes.val f _ e edge (mentionedAt item itemIn)).mp (satisfied item itemIn))
   | false =>
-    obtain ⟨accepted,acceptedRun,_,complete⟩ := abox_satisfiable_correct.{u,v} count (by omega) facts edges axioms
-      (by
-        intro p member
-        obtain ⟨q,qIn,rfl⟩ := (factsSpec p).mp member
-        have := below q qIn; simp only; omega)
-      (by
-        intro e member
-        obtain ⟨item,_,edge⟩ := (edgesSpec e).mp member
-        have := edge_individuals edge; omega)
+    obtain ⟨accepted,acceptedRun,_,complete⟩ :=
+      abox_satisfiable_with_correct.{u,v} count (by omega) facts edges axioms rb
+        (by
+          intro p member
+          obtain ⟨q,qIn,rfl⟩ := (factsSpec p).mp member
+          have := below q qIn; simp only; omega)
+        (by
+          intro e member
+          obtain ⟨item,_,edge⟩ := (edgesSpec e).mp member
+          have := edge_individuals edge; omega)
     rw [whenAllowed rfl accepted acceptedRun] at answered
     have same : accepted = answer := by simpa using Result.ok_injective answered
     rw [← same]
@@ -1130,8 +1438,9 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
     obtain ⟨internal,internalExecuted,_,meaning⟩ := internalize_correct.{u,v} items
     rw [internalRead] at internalExecuted
     cases Result.ok_injective internalExecuted
-    refine ⟨Object,Value,withAnonymous I g,f,?_,?_,edgeHolds⟩
-    · exact (meaning axioms rfl _ _ _ fixes).mp (fun item member => .inr (satisfied item member))
+    refine ⟨Object,Value,withAnonymous I g,f,
+      (respectsIff Object Value (withAnonymous I g)).mpr (fun item member _ => satisfied item member),?_,?_,edgeHolds⟩
+    · exact (meaning axioms rfl _ _ _ fixes).mp (fun item member => .inr (.inr (satisfied item member)))
     · intro p member
       obtain ⟨q,qIn,rfl⟩ := (factsSpec p).mp member
       rcases origin q qIn with given | ⟨item,itemIn,C,m,statement,qNode,qRead⟩

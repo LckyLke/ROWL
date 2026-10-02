@@ -235,8 +235,8 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         source_consistent(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
-    // Object property axioms are read, but the ALC queries do not answer them.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)"
+    // Object property axioms outside the supported role axioms are read but not answered.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n InverseObjectProperties(:p :q)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
@@ -306,5 +306,39 @@ fn individuals_are_reasoned_about_from_the_original_bytes() {
             &named("Machine")
         )),
         Some(true)
+    );
+}
+
+#[test]
+fn role_axioms_are_reasoned_about_from_the_original_bytes() {
+    let bytes = include_bytes!("../../../examples/maintenance-roles.ofn").to_vec();
+    let scope = b"plant".to_vec();
+    let individual = |name: &str| NamedIndividual {
+        iri: iri(&format!("{EX}{name}")),
+    };
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    // bearing1 is a component of a component of pump1, so a part of it.
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("pump1"),
+            &named("NeedsInspection")
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("motor1"),
+            &named("NeedsInspection")
+        )),
+        Some(false)
     );
 }

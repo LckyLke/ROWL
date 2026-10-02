@@ -2760,3 +2760,52 @@ This block adds 28 public theorems and 16 independent definitions. Totals are
 929 audited theorems, 666 definitions, 383 Rust regressions and 1122 ledger
 obligations. Reasoning with these role axioms from source text is next.
 
+
+## Reasoner: role axioms from ontologies and source text
+
+The ontology queries now read role axioms. `alc_ontology::role_box` collects
+`SubObjectPropertyOf` with a single named sub-property and a named
+super-property, `EquivalentObjectProperties` of named properties and
+`TransitiveObjectProperty` of a named property into a `RoleBox`. The completion
+needs a role box closed under composition, so `add_inclusion` closes it while
+inserting: `sub ⊑ sup` adds `x ⊑ y` for `x` equal to `sub` or listed below it
+and `y` equal to `sup` or listed above it. An equivalence adds every member
+below every member, and a transitivity appends its property.
+
+The role axioms impose nothing on the TBox concept: Internalization supports
+them, and the concept now holds everywhere exactly when every axiom that is
+neither an assertion nor a role axiom (RoleAxiom) holds. OntologyRoles proves
+every helper exact and states the result in role_box_correct: `role_box` always
+terminates, its role box is closed under composition, and an interpretation
+respects it exactly when it satisfies every role axiom of the closure
+(RolesHold). The steps are closed_added (an insertion keeps a closed role box
+closed), respects_added (the new role box is respected exactly when the old one
+is and `sub` is included in `sup`) and equal_iff_included (equal relations are
+mutual inclusions).
+
+`closure_satisfiable` then runs `abox::abox_satisfiable_with` with this role
+box. `roles_proper` also rejects built-in properties in role axioms, and a
+negative property assertion next to a nonempty role box has no answer
+(`has_negative`): it would have to be compared with the entailed edges rather
+than the asserted ones. AlcOntology restates totality, soundness and
+completeness. Soundness gets the role axioms back from the completion's model
+through role_box_correct and carries them into the OWL model, which reads every
+property other than the built-in ones as the completion's model does.
+entailed_of_empty shows that without role axioms the entailed edges are the
+asserted ones, so the denial check stays exact. Completeness obtains the
+respected role box from any OWL model. The query theorems (consistent_correct to
+instance_of_sound) and the source theorems in SourceReasoning keep their
+statements and now cover role axioms.
+
+Regressions cover parts of parts: pump1 needs inspection only when
+`hasComponent ⊑ hasPart` and `hasPart` is transitive (or the two properties are
+equivalent and `hasPart` transitive), and the matching subsumption holds only
+with both role axioms. Property chains, inverse properties, built-in properties
+in role axioms, `FunctionalObjectProperty` and negative assertions next to role
+axioms get no answer. `maintenance-roles.ofn` is answered from its bytes, and
+the `source_roles` example shows the answers.
+
+This block adds 26 public theorems and 3 independent definitions. Totals are
+955 audited theorems, 669 definitions, 386 Rust regressions and 1148 ledger
+obligations. Inverse properties, property chains, negative assertions next to
+role axioms and the other property characteristics remain pending.

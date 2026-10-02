@@ -21,7 +21,9 @@ universe u v
 
 /-- The supported axioms: declarations and annotation axioms, which impose
     nothing, class, domain and range axioms over ALC class expressions and named
-    object properties, and assertions, which the TBox concept leaves to the
+    object properties, inclusions and equivalences between named object
+    properties and transitivity of a named object property, which the TBox
+    concept leaves to the role box, and assertions, which it leaves to the
     completion for individuals. -/
 def SupportedAxiom : Axiom → Prop
   | .Declaration _ => True
@@ -31,6 +33,9 @@ def SupportedAxiom : Axiom → Prop
   | .DisjointUnion _ xs => ∀ e ∈ xs.elements, InAlc e
   | .ObjectPropertyDomain p e => (∃ q, p = .Property q) ∧ InAlc e
   | .ObjectPropertyRange p e => (∃ q, p = .Property q) ∧ InAlc e
+  | .SubObjectPropertyOf (.Single (.Property _)) (.Property _) => True
+  | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, ∃ q, p = .Property q
+  | .TransitiveObjectProperty (.Property _) => True
   | .AnnotationAssertion _ _ _ => True
   | .SubAnnotationPropertyOf _ _ => True
   | .AnnotationPropertyDomain _ _ => True
@@ -47,11 +52,20 @@ def Assertion : Axiom → Prop
   | .NegativeObjectPropertyAssertion _ _ _ => True
   | _ => False
 
+/-- The role axioms the role box reads: inclusions and equivalences between
+    named object properties and transitivity of a named object property. -/
+def RoleAxiom : Axiom → Prop
+  | .SubObjectPropertyOf (.Single (.Property _)) (.Property _) => True
+  | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, ∃ q, p = .Property q
+  | .TransitiveObjectProperty (.Property _) => True
+  | _ => False
+
 variable {Object : Type u} {Value : Type v}
 
-/-- What an axiom requires of every element: nothing for an assertion, the axiom
-    itself otherwise. -/
-def TBoxPart (I : Interpretation Object Value) (a : Axiom) : Prop := Assertion a ∨ Rowl.Owl.satisfies I a
+/-- What an axiom requires of every element: nothing for an assertion or a role
+    axiom, the axiom itself otherwise. -/
+def TBoxPart (I : Interpretation Object Value) (a : Axiom) : Prop :=
+  Assertion a ∨ RoleAxiom a ∨ Rowl.Owl.satisfies I a
 
 /-- Equivalent classes hold at each element all together or not at all. -/
 theorem all_equal_iff (I : Interpretation Object Value) (xs : List ClassExpression) :
@@ -263,6 +277,46 @@ theorem pairwise_correct (members : AtLeastTwo ClassExpression) :
 
 /-- One axiom: support exactly as specified, and a concept holding at every
     element exactly when the axiom holds. -/
+theorem is_named_correct (p : ObjectPropertyExpression) :
+    alc_ontology.is_named p = .ok (decide (∃ q, p = .Property q)) := by
+  cases p <;> simp [alc_ontology.is_named]
+private theorem named_from_correct (values : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
+    alc_ontology.named_from values index = .ok (decide (∀ p ∈ values.val.drop index.val, ∃ q, p = .Property q)) := by
+  rw [alc_ontology.named_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : values.val.drop index.val = values.val[index.val] :: values.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := named_from_correct values next
+    rw [nextIndex] at rest
+    rw [split]
+    by_cases here : ∃ q, values.val[index.val] = .Property q
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,is_named_correct,here,decide_true,advance,rest,List.forall_mem_cons,true_and]
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,is_named_correct,here,decide_false,Bool.false_eq_true,List.forall_mem_cons,false_and]
+  · have empty : values.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by values.val.length - index.val
+decreasing_by omega
+/-- The member check of an equivalence decides whether every member is a named
+    object property. -/
+theorem named_members_correct (members : AtLeastTwo ObjectPropertyExpression) :
+    alc_ontology.named_members members =
+      .ok (decide (∀ p ∈ members.elements, ∃ q, p = .Property q)) := by
+  rw [alc_ontology.named_members]
+  have rest := named_from_correct members.rest 0#usize
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at rest
+  by_cases first : ∃ q, members.first = .Property q
+  · by_cases second : ∃ q, members.second = .Property q
+    · simp [is_named_correct,first,second,rest,AtLeastTwo.elements]
+    · simp [is_named_correct,first,second,AtLeastTwo.elements]
+  · simp [is_named_correct,first,AtLeastTwo.elements]
+
 theorem axiom_concept_correct (statement : Axiom) :
     ∃ result, alc_ontology.axiom_concept statement = .ok result ∧
       (result.isSome ↔ SupportedAxiom statement) ∧
@@ -275,7 +329,7 @@ theorem axiom_concept_correct (statement : Axiom) :
   | Declaration _ =>
     refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
     intro concept same Object Value I fixes
-    simp only [TBoxPart,Assertion,false_or]
+    simp only [TBoxPart,Assertion,RoleAxiom,false_or]
     cases same
     simp [Rowl.Owl.satisfies,conceptDenote]
   | SubClassOf a b =>
@@ -296,7 +350,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Or outside inside),by simp [alc_ontology.axiom_concept,outsideRead,insideRead],?_,?_⟩
         · simp [SupportedAxiom,outsideSupport.mp rfl,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
-          simp only [TBoxPart,Assertion,false_or]
+          simp only [TBoxPart,Assertion,RoleAxiom,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,conceptDenote,outsideMeaning outside rfl Object Value I fixes,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -323,7 +377,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Or every absent),by simp [alc_ontology.axiom_concept,everyRead,absentRead],?_,?_⟩
         · simpa [SupportedAxiom] using everySupport
         · intro concept same Object Value I fixes
-          simp only [TBoxPart,Assertion,false_or]
+          simp only [TBoxPart,Assertion,RoleAxiom,false_or]
           cases same
           simp only [Rowl.Owl.satisfies]
           rw [all_equal_iff]
@@ -334,7 +388,7 @@ theorem axiom_concept_correct (statement : Axiom) :
     refine ⟨result,by simp only [alc_ontology.axiom_concept]; exact executed,
       by simpa [SupportedAxiom] using support,?_⟩
     intro concept same Object Value I fixes
-    simp only [TBoxPart,Assertion,false_or]
+    simp only [TBoxPart,Assertion,RoleAxiom,false_or]
     simp only [Rowl.Owl.satisfies]
     rw [pairwise_disjoint_iff]
     exact forall_congr' fun x => (meaning concept same Object Value I fixes x).symm
@@ -373,7 +427,7 @@ theorem axiom_concept_correct (statement : Axiom) :
             by simp [alc_ontology.axiom_concept,copy_iri_identity,outsideRead,insideRead,foundRead,absentRead,
               disjointRead],by simpa [SupportedAxiom] using foundSupport,?_⟩
           intro concept same Object Value I fixes
-          simp only [TBoxPart,Assertion,false_or]
+          simp only [TBoxPart,Assertion,RoleAxiom,false_or]
           cases same
           have outsideMeaning := nnf_meaning (.Class ⟨ci⟩) false outside outsideRead I fixes
           have insideMeaning := nnf_meaning (.Class ⟨ci⟩) true inside insideRead I fixes
@@ -411,7 +465,7 @@ theorem axiom_concept_correct (statement : Axiom) :
           by simp [alc_ontology.axiom_concept,insideRead,copy_iri_identity],?_,?_⟩
         · simp [SupportedAxiom,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
-          simp only [TBoxPart,Assertion,false_or]
+          simp only [TBoxPart,Assertion,RoleAxiom,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,Rowl.Owl.objectRelation,conceptDenote,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -438,7 +492,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Forall ⟨ri⟩ inside),by simp [alc_ontology.axiom_concept,insideRead,copy_iri_identity],?_,?_⟩
         · simp [SupportedAxiom,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
-          simp only [TBoxPart,Assertion,false_or]
+          simp only [TBoxPart,Assertion,RoleAxiom,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,Rowl.Owl.objectRelation,conceptDenote,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -446,7 +500,7 @@ theorem axiom_concept_correct (statement : Axiom) :
   | AnnotationPropertyRange _ _ =>
     refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
     intro concept same Object Value I fixes
-    simp only [TBoxPart,Assertion,false_or]
+    simp only [TBoxPart,Assertion,RoleAxiom,false_or]
     cases same
     simp [Rowl.Owl.satisfies,conceptDenote]
   | ClassAssertion _ _ | ObjectPropertyAssertion _ _ _ | NegativeObjectPropertyAssertion _ _ _ =>
@@ -454,6 +508,40 @@ theorem axiom_concept_correct (statement : Axiom) :
     intro concept same Object Value I fixes
     cases same
     simp [TBoxPart,Assertion,conceptDenote]
+  | SubObjectPropertyOf sub sup =>
+    cases sub with
+    | Single p =>
+      cases p with
+      | Property r =>
+        cases sup with
+        | Property q =>
+          refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
+          intro concept same Object Value I fixes
+          cases same
+          simp [TBoxPart,RoleAxiom,conceptDenote]
+        | Inverse q => exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
+      | Inverse r =>
+        cases sup <;> exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
+    | Chain c => exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
+  | EquivalentObjectProperties members =>
+    by_cases named : ∀ p ∈ members.elements, ∃ q, p = .Property q
+    · have decided : decide (∀ p ∈ members.elements, ∃ q, p = .Property q) = true := decide_eq_true named
+      refine ⟨some .Top,by simp only [alc_ontology.axiom_concept,named_members_correct,decided,bind_ok,↓reduceIte],
+        by simp only [SupportedAxiom,Option.isSome_some,true_iff]; exact named,?_⟩
+      intro concept same Object Value I fixes
+      cases same
+      simp only [TBoxPart,Assertion,RoleAxiom,false_or,conceptDenote]
+      exact iff_of_true (.inl named) (fun _ => trivial)
+    · exact ⟨none,by simp [alc_ontology.axiom_concept,named_members_correct,named],by simp [SupportedAxiom,named],
+        by simp⟩
+  | TransitiveObjectProperty p =>
+    cases p with
+    | Property r =>
+      refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
+      intro concept same Object Value I fixes
+      cases same
+      simp [TBoxPart,RoleAxiom,conceptDenote]
+    | Inverse r => exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
   | _ => exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
 
 private theorem internalize_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize)

@@ -1182,6 +1182,8 @@
         "Rowl.Internalization.all_equal_iff",
         "Rowl.Internalization.pairwise_disjoint_iff",
         "Rowl.Internalization.pairwise_correct",
+        "Rowl.Internalization.is_named_correct",
+        "Rowl.Internalization.named_members_correct",
         "Rowl.Internalization.axiom_concept_correct",
         "Rowl.Internalization.internalize_correct"
       ]
@@ -1210,7 +1212,11 @@
         "Rowl.AlcOntology.assertions_from_correct",
         "Rowl.AlcOntology.placed_proper_correct",
         "Rowl.AlcOntology.named_property_correct",
+        "Rowl.AlcOntology.role_proper_correct",
+        "Rowl.AlcOntology.members_proper_correct",
+        "Rowl.AlcOntology.pair_proper_correct",
         "Rowl.AlcOntology.roles_proper_correct",
+        "Rowl.AlcOntology.has_negative_correct",
         "Rowl.AlcOntology.facts_from_correct",
         "Rowl.AlcOntology.edges_from_correct",
         "Rowl.AlcOntology.has_edge_correct",
@@ -1220,6 +1226,7 @@
         "Rowl.AlcOntology.edge_individuals",
         "Rowl.AlcOntology.denied_individuals",
         "Rowl.AlcOntology.assertion_of_individual",
+        "Rowl.AlcOntology.entailed_of_empty",
         "Rowl.AlcOntology.closure_satisfiable_total",
         "Rowl.AlcOntology.closure_satisfiable_sound",
         "Rowl.AlcOntology.closure_satisfiable_complete",
@@ -1486,6 +1493,31 @@
         "Rowl.FunctionalPropertyAxioms.read_property_axiom_total_correct",
         "Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff",
         "Rowl.FunctionalPropertyAxioms.property_axiom_progress"
+      ]
+    },
+    {
+      "module": "Rowl.OntologyRoles",
+      "namespace": "Rowl.OntologyRoles",
+      "theorems": [
+        "Rowl.OntologyRoles.copy_property_identity",
+        "Rowl.OntologyRoles.subs_from_correct",
+        "Rowl.OntologyRoles.sups_from_correct",
+        "Rowl.OntologyRoles.row_from_correct",
+        "Rowl.OntologyRoles.pairs_from_correct",
+        "Rowl.OntologyRoles.add_inclusion_correct",
+        "Rowl.OntologyRoles.below_added",
+        "Rowl.OntologyRoles.closed_added",
+        "Rowl.OntologyRoles.respects_added",
+        "Rowl.OntologyRoles.add_transitive_correct",
+        "Rowl.OntologyRoles.respects_transitive_added",
+        "Rowl.OntologyRoles.rest_roles_correct",
+        "Rowl.OntologyRoles.member_roles_correct",
+        "Rowl.OntologyRoles.includes_from_correct",
+        "Rowl.OntologyRoles.equivalent_from_correct",
+        "Rowl.OntologyRoles.equal_iff_included",
+        "Rowl.OntologyRoles.add_equivalent_correct",
+        "Rowl.OntologyRoles.role_box_from_correct",
+        "Rowl.OntologyRoles.role_box_correct"
       ]
     }
   ],
@@ -2155,6 +2187,9 @@
     "Rowl.FunctionalModel.CharacteristicOf",
     "Rowl.FunctionalModel.PropertyAxiomModel",
     "Rowl.FunctionalModel.ShapedSub",
-    "Rowl.FunctionalModel.ShapedProperty"
+    "Rowl.FunctionalModel.ShapedProperty",
+    "Rowl.OntologyRoles.RolesHold",
+    "Rowl.Internalization.RoleAxiom",
+    "Rowl.AlcOntology.Negative"
   ]
 }

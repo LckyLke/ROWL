@@ -537,3 +537,114 @@ fn assertions_about_individuals() {
     let builtin = vec![related(TOP_OBJECT, named(b"a"), named(b"b"))];
     assert_eq!(consistent(&builtin), None);
 }
+
+fn included(sub: &[u8], sup: &[u8]) -> AnnotatedAxiom {
+    axiom(Axiom::SubObjectPropertyOf(
+        SubObjectPropertyExpression::Single(property(sub)),
+        property(sup),
+    ))
+}
+fn transitive(role: &[u8]) -> AnnotatedAxiom {
+    axiom(Axiom::TransitiveObjectProperty(property(role)))
+}
+
+/// Machines with a faulty part need inspection; pump1 has the component motor1,
+/// which has the faulty component bearing1.
+fn plant() -> Vec<AnnotatedAxiom> {
+    vec![
+        sub(
+            and(class(b"Machine"), some(b"hasPart", class(b"FaultyPart"))),
+            class(b"NeedsInspection"),
+        ),
+        asserted(class(b"Machine"), named(b"pump1")),
+        related(b"hasComponent", named(b"pump1"), named(b"motor1")),
+        related(b"hasComponent", named(b"motor1"), named(b"bearing1")),
+        asserted(class(b"FaultyPart"), named(b"bearing1")),
+    ]
+}
+
+#[test]
+fn role_axioms_reach_parts_of_parts() {
+    let pump = NamedIndividual { iri: iri(b"pump1") };
+    let inspected = class(b"NeedsInspection");
+    // Without role axioms a component is no part.
+    assert_eq!(instance_of(&plant(), &pump, &inspected), Some(false));
+    // A component is a part, but bearing1 is a component of a component.
+    let mut hierarchy = plant();
+    hierarchy.push(included(b"hasComponent", b"hasPart"));
+    assert_eq!(instance_of(&hierarchy, &pump, &inspected), Some(false));
+    // With a transitive part relation, it is a part of pump1.
+    let mut both = hierarchy;
+    both.push(transitive(b"hasPart"));
+    assert_eq!(consistent(&both), Some(true));
+    assert_eq!(instance_of(&both, &pump, &inspected), Some(true));
+    // Transitivity alone does not make components parts.
+    let mut alone = plant();
+    alone.push(transitive(b"hasPart"));
+    assert_eq!(instance_of(&alone, &pump, &inspected), Some(false));
+    // Equivalent properties include each other.
+    let mut equivalent = plant();
+    equivalent.push(axiom(Axiom::EquivalentObjectProperties(two(
+        property(b"hasComponent"),
+        property(b"hasPart"),
+        Vec::new(),
+    ))));
+    equivalent.push(transitive(b"hasPart"));
+    assert_eq!(instance_of(&equivalent, &pump, &inspected), Some(true));
+    // Subsumption under the role axioms: something with a component that has a
+    // faulty component has a faulty part.
+    let mut roles = vec![
+        included(b"hasComponent", b"hasPart"),
+        transitive(b"hasPart"),
+    ];
+    assert_eq!(
+        subsumed(
+            &roles,
+            &some(b"hasComponent", some(b"hasComponent", class(b"FaultyPart"))),
+            &some(b"hasPart", class(b"FaultyPart"))
+        ),
+        Some(true)
+    );
+    roles.pop();
+    assert_eq!(
+        subsumed(
+            &roles,
+            &some(b"hasComponent", some(b"hasComponent", class(b"FaultyPart"))),
+            &some(b"hasPart", class(b"FaultyPart"))
+        ),
+        Some(false)
+    );
+}
+
+#[test]
+fn unsupported_role_axioms_have_no_answer() {
+    // A property chain, an inverse property, a built-in property and negative
+    // assertions next to role axioms are outside the supported fragment.
+    let chain = vec![axiom(Axiom::SubObjectPropertyOf(
+        SubObjectPropertyExpression::Chain(two(
+            property(b"hasPart"),
+            property(b"hasPart"),
+            Vec::new(),
+        )),
+        property(b"hasPart"),
+    ))];
+    assert_eq!(consistent(&chain), None);
+    let inverse = vec![axiom(Axiom::TransitiveObjectProperty(
+        ObjectPropertyExpression::Inverse(ObjectProperty {
+            iri: iri(b"hasPart"),
+        }),
+    ))];
+    assert_eq!(consistent(&inverse), None);
+    let builtin = vec![included(b"hasPart", TOP_OBJECT)];
+    assert_eq!(consistent(&builtin), None);
+    let mut negative = plant();
+    negative.push(transitive(b"hasPart"));
+    negative.push(axiom(Axiom::NegativeObjectPropertyAssertion(
+        property(b"hasPart"),
+        named(b"pump1"),
+        named(b"bearing1"),
+    )));
+    assert_eq!(consistent(&negative), None);
+    let functional = vec![axiom(Axiom::FunctionalObjectProperty(property(b"hasPart")))];
+    assert_eq!(consistent(&functional), None);
+}
