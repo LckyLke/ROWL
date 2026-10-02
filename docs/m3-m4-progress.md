@@ -2682,3 +2682,41 @@ This block adds 25 public theorems and 12 independent definitions. Totals are
 890 audited theorems, 642 definitions, 377 Rust regressions and 1083 ledger
 obligations. Reading role axioms from ontologies and source text, and using them
 with named individuals, are the next steps.
+
+
+## Reasoner: named individuals under role axioms
+
+`abox::abox_satisfiable_with(count, facts, edges, axioms, roles)` runs the
+completion for named individuals under a role box. Facts can now also be
+`Through` facts, the universal restriction of a transitive property on a filler.
+A universal restriction `∀q.D` at a node, as a concept or a `Through` fact,
+reaches every edge `s(node, m)` whose property `s` is included in `q`. The target
+`m` receives `D` and, for every transitive `t` between `s` and `q`, the fact
+`∀t.D`. Each existential obligation is decided by the SH TBox tableau with
+everything the universal restrictions at its node require along its role.
+`abox_satisfiable` is the same procedure with no role axioms.
+
+AboxTableau proves every helper exact and the completion total, as before. The
+model of an acceptance has one element per node and a disjoint copy of a
+successor model per obligation. A role relates two elements when one step along
+an included property does, or a path of steps along the properties included in
+a transitive property that it includes. roleModel_respects proves that this
+model satisfies the closed role axioms without any assumption on the successor
+models. node_truth follows a path along a transitive `t`: every element on it
+has the filler and `∀t.D`, as a fact at a node or as truth in a successor
+model. roleModel_entailed proves that node elements are related exactly as the
+edges entail (Entailed: an edge along an included property, or a path of such
+edges along a transitive property), which the check for negative property
+assertions will use. abox_satisfiable_with_correct states the result, and
+abox_satisfiable_correct keeps its ALC statement.
+
+Three regressions cover universal restrictions along included properties,
+transitive paths through named and anonymous parts, and 300 pseudo-random
+two-node fact sets with edges, checked against every model of at most two
+elements in which `s` is included in a transitive `t`.
+
+This block adds 14 public theorems and 11 independent definitions, and retires
+the concept-list entry point `tbox::satisfiable_all` (now `satisfiable_items`).
+Totals are 901 audited theorems, 650 definitions, 380 Rust regressions and 1094
+ledger obligations. Reading role axioms from ontologies and source text is the
+next step.

@@ -620,17 +620,21 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Hintikka-family model satisfies every listed inclusion and transitivity) and
   complete (every model of the role box, in any universe, forces acceptance).
   The ALC entry points run the same procedure without role axioms and keep
-  their theorems. Reading role axioms from ontologies and source text and using
-  them with named individuals remain pending, as do inverse roles, number
-  restrictions, nominals and property chains.
-- 890 audited public theorems and 642 audited semantic definitions. Consistency,
+  their theorems. The completion for named individuals takes the same role box:
+  a universal restriction reaches the target of every edge whose property it
+  includes, together with its restrictions on the transitive properties in
+  between, and the accepting model relates node elements exactly as the edges
+  and role axioms entail. Reading role axioms from ontologies and source text
+  remains pending, as do inverse roles, number restrictions, nominals and
+  property chains.
+- 901 audited public theorems and 650 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALC class, domain and range axioms and class and object property assertions,
   also directly from Functional Syntax source bytes; no full OWL decision
   procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 377 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 380 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -639,7 +643,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1083-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1094-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

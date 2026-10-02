@@ -975,6 +975,15 @@ That is why the soundness proof can reuse the TBox tableau's theorem as a black
 box. Termination needs no blocking at the node level, because the facts are
 drawn from a finite set of node and closure pairs and are never added twice.
 
+Role axioms keep this shape. A universal restriction also travels along edges
+of included properties and leaves its restrictions on the transitive properties
+in between as `Through` facts, which reach anonymous successors through the
+obligations. In the model, a role relates two elements when a step along an
+included property does, or a path along a transitive property it includes; that
+definition satisfies the role axioms by construction. Because successor models
+never lead back to the nodes, node elements are related exactly as the edges
+and role axioms entail, which a negative property assertion has to respect.
+
 The ontology queries hand assertions to that completion. Individuals are
 interned by exact structural equality, so all occurrences of a named individual,
 or of a node ID in one scope, share a node, and node 0 stands for one more

@@ -18,7 +18,6 @@ use crate::model::{Class, ObjectProperty};
 use crate::nnf::NnfConcept;
 use crate::role_box::{below, RoleBox};
 use crate::symbols::same_spelling;
-use crate::tableau::Concepts;
 
 /// Concepts that must all hold at one element. `Through` stands for the
 /// universal restriction `∀role.filler` on a transitive property, which the
@@ -174,7 +173,11 @@ fn has_clash<'a>(all: Items<'a>, cursor: Items<'a>) -> (bool, Items<'a>) {
     }
 }
 /// Whether the concept is the universal restriction `∀role.filler`.
-fn universal_is(role: &ObjectProperty, filler: &NnfConcept, concept: &NnfConcept) -> bool {
+pub(crate) fn universal_is(
+    role: &ObjectProperty,
+    filler: &NnfConcept,
+    concept: &NnfConcept,
+) -> bool {
     match concept {
         NnfConcept::Forall(other, inner) => {
             same_spelling(&role.iri.spelling, &other.iri.spelling) && same_concept(filler, inner)
@@ -331,7 +334,7 @@ fn transitive_from<'a>(
 /// What the universal restriction `∀sup.filler` requires of an element reached
 /// along `sub`, in front of `tail`: nothing unless `sub` is included in `sup`;
 /// otherwise the filler and `∀t.filler` for every transitive `t` between them.
-fn universal<'a>(
+pub(crate) fn universal<'a>(
     roles: &'a RoleBox,
     sub: &ObjectProperty,
     sup: &ObjectProperty,
@@ -557,7 +560,7 @@ pub(crate) fn satisfiable_items<'a>(
     )
 }
 /// No role axioms: plain ALC.
-fn no_roles() -> RoleBox {
+pub(crate) fn no_roles() -> RoleBox {
     RoleBox {
         inclusions: Vec::new(),
         transitive: Vec::new(),
@@ -567,19 +570,4 @@ fn no_roles() -> RoleBox {
 /// has an element in `concept`.
 pub fn satisfiable_in(concept: &NnfConcept, axioms: &NnfConcept) -> bool {
     satisfiable_with(concept, axioms, &no_roles())
-}
-fn items_of(list: Concepts<'_>) -> Items<'_> {
-    match list {
-        Concepts::Empty => Items::Empty,
-        Concepts::Entry { concept, next } => Items::Concept {
-            concept,
-            next: Box::new(items_of(*next)),
-        },
-    }
-}
-/// Decide whether some interpretation in which every element satisfies `axioms`
-/// has an element satisfying every concept of `concepts`.
-pub(crate) fn satisfiable_all<'a>(concepts: Concepts<'a>, axioms: &'a NnfConcept) -> bool {
-    let roles = no_roles();
-    satisfiable_items(items_of(concepts), axioms, &roles)
 }

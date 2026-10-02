@@ -52,15 +52,21 @@ inductive nnf.NnfConcept where
 | Forall : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
 
 /-- [rowl_kernel::abox::Facts]
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 22:0-29:1
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 27:0-40:1
     Visibility: public -/
 @[discriminant isize]
 inductive abox.Facts where
 | Empty : abox.Facts
 | Entry : Std.Usize → nnf.NnfConcept → abox.Facts → abox.Facts
+| Through :
+  Std.Usize →
+  model.ObjectProperty →
+  nnf.NnfConcept →
+  abox.Facts →
+  abox.Facts
 
 /-- [rowl_kernel::abox::Edges]
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 31:0-39:1
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 42:0-50:1
     Visibility: public -/
 @[discriminant isize]
 inductive abox.Edges where
@@ -73,7 +79,7 @@ inductive abox.Edges where
   abox.Edges
 
 /-- [rowl_kernel::abox::duplicate_facts]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 41:0-64:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 52:0-97:1 -/
 def abox.duplicate_facts
   (list : abox.Facts) : Result (abox.Facts × abox.Facts) := do
   match list with
@@ -82,10 +88,14 @@ def abox.duplicate_facts
     let (left, right) ← abox.duplicate_facts next
     ok (abox.Facts.Entry node concept left, abox.Facts.Entry node concept
       right)
+  | abox.Facts.Through node role filler next =>
+    let (left, right) ← abox.duplicate_facts next
+    ok (abox.Facts.Through node role filler left, abox.Facts.Through node role
+      filler right)
 partial_fixpoint
 
 /-- [rowl_kernel::abox::duplicate_edges]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 65:0-91:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 98:0-124:1 -/
 def abox.duplicate_edges
   (list : abox.Edges) : Result (abox.Edges × abox.Edges) := do
   match list with
@@ -133,7 +143,7 @@ def symbols.same_spelling
   else ok false
 
 /-- [rowl_kernel::tbox::same_concept]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 101:0-125:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 100:0-124:1 -/
 def tbox.same_concept
   (left : nnf.NnfConcept) (right : nnf.NnfConcept) : Result Bool := do
   match left with
@@ -237,8 +247,29 @@ def tbox.same_concept
       else ok false
 partial_fixpoint
 
+/-- [rowl_kernel::tbox::universal_is]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 176:0-187:1 -/
+def tbox.universal_is
+  (role : model.ObjectProperty) (filler : nnf.NnfConcept)
+  (concept : nnf.NnfConcept) :
+  Result Bool
+  := do
+  match concept with
+  | nnf.NnfConcept.Top => ok false
+  | nnf.NnfConcept.Bottom => ok false
+  | nnf.NnfConcept.Atom _ => ok false
+  | nnf.NnfConcept.NotAtom _ => ok false
+  | nnf.NnfConcept.And _ _ => ok false
+  | nnf.NnfConcept.Or _ _ => ok false
+  | nnf.NnfConcept.Exists _ _ => ok false
+  | nnf.NnfConcept.Forall other inner =>
+    let b ← symbols.same_spelling role.iri.spelling other.iri.spelling
+    if b
+    then tbox.same_concept filler inner
+    else ok false
+
 /-- [rowl_kernel::abox::contains_fact]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 93:0-113:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 127:0-165:1 -/
 def abox.contains_fact
   (list : abox.Facts) (node : Std.Usize) (sought : nnf.NnfConcept) :
   Result (Bool × abox.Facts)
@@ -255,32 +286,203 @@ def abox.contains_fact
               then ok true
               else ok later
     ok (b, abox.Facts.Entry other concept rest)
+  | abox.Facts.Through other role filler next =>
+    let here ←
+      if other = node
+      then tbox.universal_is role filler sought
+      else ok false
+    let (later, rest) ← abox.contains_fact next node sought
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, abox.Facts.Through other role filler rest)
 partial_fixpoint
 
+/-- [rowl_kernel::abox::contains_through]:
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 168:0-213:1 -/
+def abox.contains_through
+  (list : abox.Facts) (node : Std.Usize) (role : model.ObjectProperty)
+  (filler : nnf.NnfConcept) :
+  Result (Bool × abox.Facts)
+  := do
+  match list with
+  | abox.Facts.Empty => ok (false, abox.Facts.Empty)
+  | abox.Facts.Entry other concept next =>
+    let here ←
+      if other = node
+      then tbox.universal_is role filler concept
+      else ok false
+    let (later, rest) ← abox.contains_through next node role filler
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, abox.Facts.Entry other concept rest)
+  | abox.Facts.Through other other_role other_filler next =>
+    let (other_role1, role1, here) ←
+      if other = node
+      then
+        do
+        let b ←
+          symbols.same_spelling role.iri.spelling other_role.iri.spelling
+        let b1 ←
+          if b
+          then tbox.same_concept filler other_filler
+          else ok false
+        ok (other_role, role, b1)
+      else ok (other_role, role, false)
+    let (later, rest) ← abox.contains_through next node role1 filler
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, abox.Facts.Through other other_role1 other_filler rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::Items]
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 25:0-36:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tbox.Items where
+| Empty : tbox.Items
+| Concept : nnf.NnfConcept → tbox.Items → tbox.Items
+| Through :
+  model.ObjectProperty →
+  nnf.NnfConcept →
+  tbox.Items →
+  tbox.Items
+
+/-- [rowl_kernel::abox::place]:
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 215:0-230:1 -/
+def abox.place
+  (node : Std.Usize) (items : tbox.Items) (tail : abox.Facts) :
+  Result abox.Facts
+  := do
+  match items with
+  | tbox.Items.Empty => ok tail
+  | tbox.Items.Concept concept next =>
+    let f ← abox.place node next tail
+    ok (abox.Facts.Entry node concept f)
+  | tbox.Items.Through role filler next =>
+    let f ← abox.place node next tail
+    ok (abox.Facts.Through node role filler f)
+partial_fixpoint
+
+/-- [rowl_kernel::role_box::RoleInclusion]
+    Source: 'crates/rowl-kernel/src/role_box.rs', lines 12:0-15:1
+    Visibility: public -/
+structure role_box.RoleInclusion where
+  sub : model.ObjectProperty
+  sup : model.ObjectProperty
+
+/-- [rowl_kernel::role_box::included_from]:
+    Source: 'crates/rowl-kernel/src/role_box.rs', lines 24:0-42:1 -/
+def role_box.included_from
+  (inclusions : alloc.vec.Vec role_box.RoleInclusion) (index : Std.Usize)
+  (sub : model.ObjectProperty) (sup : model.ObjectProperty) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_box.RoleInclusion) inclusions index
+    let b ← symbols.same_spelling inclusion.sub.iri.spelling sub.iri.spelling
+    if b
+    then
+      let b1 ←
+        symbols.same_spelling inclusion.sup.iri.spelling sup.iri.spelling
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        role_box.included_from inclusions i1 sub sup
+    else
+      let i1 ← index + 1#usize
+      role_box.included_from inclusions i1 sub sup
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_box::RoleBox]
+    Source: 'crates/rowl-kernel/src/role_box.rs', lines 18:0-21:1
+    Visibility: public -/
+structure role_box.RoleBox where
+  inclusions : alloc.vec.Vec role_box.RoleInclusion
+  transitive : alloc.vec.Vec model.ObjectProperty
+
+/-- [rowl_kernel::role_box::below]:
+    Source: 'crates/rowl-kernel/src/role_box.rs', lines 45:0-48:1
+    Visibility: public -/
+def role_box.below
+  (roles : role_box.RoleBox) (sub : model.ObjectProperty)
+  (sup : model.ObjectProperty) :
+  Result Bool
+  := do
+  let b ← symbols.same_spelling sub.iri.spelling sup.iri.spelling
+  if b
+  then ok true
+  else role_box.included_from roles.inclusions 0#usize sub sup
+
+/-- [rowl_kernel::tbox::transitive_from]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 310:0-333:1 -/
+def tbox.transitive_from
+  (roles : role_box.RoleBox) (index : Std.Usize) (sub : model.ObjectProperty)
+  (sup : model.ObjectProperty) (filler : nnf.NnfConcept) (tail : tbox.Items) :
+  Result tbox.Items
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let role ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) roles.transitive index
+    let i1 ← index + 1#usize
+    let rest ← tbox.transitive_from roles i1 sub sup filler tail
+    let b ← role_box.below roles sub role
+    if b
+    then
+      let b1 ← role_box.below roles role sup
+      if b1
+      then ok (tbox.Items.Through role filler rest)
+      else ok rest
+    else ok rest
+  else ok tail
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::universal]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 337:0-352:1 -/
+def tbox.universal
+  (roles : role_box.RoleBox) (sub : model.ObjectProperty)
+  (sup : model.ObjectProperty) (filler : nnf.NnfConcept) (tail : tbox.Items) :
+  Result tbox.Items
+  := do
+  let b ← role_box.below roles sub sup
+  if b
+  then
+    let i ← tbox.transitive_from roles 0#usize sub sup filler tail
+    ok (tbox.Items.Concept filler i)
+  else ok tail
+
 /-- [rowl_kernel::abox::propagate]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 116:0-152:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 233:0-264:1 -/
 def abox.propagate
   (edges : abox.Edges) (node : Std.Usize) (role : model.ObjectProperty)
-  (filler : nnf.NnfConcept) (pending : abox.Facts) :
+  (filler : nnf.NnfConcept) (pending : abox.Facts) (roles : role_box.RoleBox) :
   Result (abox.Facts × abox.Edges)
   := do
   match edges with
   | abox.Edges.Empty => ok (pending, abox.Edges.Empty)
   | abox.Edges.Entry other source target next =>
-    let (pending1, rest) ← abox.propagate next node role filler pending
+    let (pending1, rest) ← abox.propagate next node role filler pending roles
     if source = node
     then
-      let b ← symbols.same_spelling other.iri.spelling role.iri.spelling
-      if b
-      then
-        ok (abox.Facts.Entry target filler pending1, abox.Edges.Entry other
-          source target rest)
-      else ok (pending1, abox.Edges.Entry other source target rest)
+      let required ← tbox.universal roles other role filler tbox.Items.Empty
+      let f ← abox.place target required pending1
+      ok (f, abox.Edges.Entry other source target rest)
     else ok (pending1, abox.Edges.Entry other source target rest)
 partial_fixpoint
 
 /-- [rowl_kernel::abox::has_atom]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 154:0-179:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 266:0-308:1 -/
 def abox.has_atom
   (list : abox.Facts) (node : Std.Usize) («class» : model.Class) :
   Result (Bool × abox.Facts)
@@ -313,10 +515,13 @@ def abox.has_atom
               then ok true
               else ok later
     ok (b, abox.Facts.Entry other concept1 rest)
+  | abox.Facts.Through other role filler next =>
+    let (later, rest) ← abox.has_atom next node «class»
+    ok (later, abox.Facts.Through other role filler rest)
 partial_fixpoint
 
 /-- [rowl_kernel::abox::has_clash]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 182:0-198:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 311:0-333:1 -/
 def abox.has_clash
   (all : abox.Facts) (cursor : abox.Facts) : Result (Bool × abox.Facts) := do
   match cursor with
@@ -336,26 +541,20 @@ def abox.has_clash
     if here
     then ok (true, all2)
     else ok (later, all2)
+  | abox.Facts.Through _ _ _ next => abox.has_clash all next
 partial_fixpoint
 
-/-- [rowl_kernel::tableau::Concepts]
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 19:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive tableau.Concepts where
-| Empty : tableau.Concepts
-| Entry : nnf.NnfConcept → tableau.Concepts → tableau.Concepts
-
 /-- [rowl_kernel::abox::node_fillers]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 201:0-237:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 336:0-386:1 -/
 def abox.node_fillers
-  (list : abox.Facts) (node : Std.Usize) (role : model.ObjectProperty) :
-  Result (tableau.Concepts × abox.Facts)
+  (list : abox.Facts) (node : Std.Usize) (role : model.ObjectProperty)
+  (roles : role_box.RoleBox) :
+  Result (tbox.Items × abox.Facts)
   := do
   match list with
-  | abox.Facts.Empty => ok (tableau.Concepts.Empty, abox.Facts.Empty)
+  | abox.Facts.Empty => ok (tbox.Items.Empty, abox.Facts.Empty)
   | abox.Facts.Entry other concept next =>
-    let (fillers, rest) ← abox.node_fillers next node role
+    let (fillers, rest) ← abox.node_fillers next node role roles
     match concept with
     | nnf.NnfConcept.Top =>
       ok (fillers, abox.Facts.Entry other nnf.NnfConcept.Top rest)
@@ -371,148 +570,23 @@ def abox.node_fillers
       ok (fillers, abox.Facts.Entry other concept rest)
     | nnf.NnfConcept.Exists _ _ =>
       ok (fillers, abox.Facts.Entry other concept rest)
-    | nnf.NnfConcept.Forall r filler =>
+    | nnf.NnfConcept.Forall sup filler =>
       if other = node
       then
-        let b ← symbols.same_spelling r.iri.spelling role.iri.spelling
-        if b
-        then
-          ok (tableau.Concepts.Entry filler fillers, abox.Facts.Entry other
-            concept rest)
-        else ok (fillers, abox.Facts.Entry other concept rest)
+        let i ← tbox.universal roles role sup filler fillers
+        ok (i, abox.Facts.Entry other concept rest)
       else ok (fillers, abox.Facts.Entry other concept rest)
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::Items]
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 26:0-37:1
-    Visibility: public -/
-@[discriminant isize]
-inductive tbox.Items where
-| Empty : tbox.Items
-| Concept : nnf.NnfConcept → tbox.Items → tbox.Items
-| Through :
-  model.ObjectProperty →
-  nnf.NnfConcept →
-  tbox.Items →
-  tbox.Items
-
-/-- [rowl_kernel::tbox::items_of]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 571:0-579:1 -/
-def tbox.items_of (list : tableau.Concepts) : Result tbox.Items := do
-  match list with
-  | tableau.Concepts.Empty => ok tbox.Items.Empty
-  | tableau.Concepts.Entry concept next =>
-    let i ← tbox.items_of next
-    ok (tbox.Items.Concept concept i)
-partial_fixpoint
-
-/-- [rowl_kernel::role_box::RoleInclusion]
-    Source: 'crates/rowl-kernel/src/role_box.rs', lines 12:0-15:1
-    Visibility: public -/
-structure role_box.RoleInclusion where
-  sub : model.ObjectProperty
-  sup : model.ObjectProperty
-
-/-- [rowl_kernel::role_box::RoleBox]
-    Source: 'crates/rowl-kernel/src/role_box.rs', lines 18:0-21:1
-    Visibility: public -/
-structure role_box.RoleBox where
-  inclusions : alloc.vec.Vec role_box.RoleInclusion
-  transitive : alloc.vec.Vec model.ObjectProperty
-
-/-- [rowl_kernel::tbox::no_roles]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 560:0-565:1 -/
-def tbox.no_roles : Result role_box.RoleBox := do
-  ok
-    {
-      inclusions := (alloc.vec.Vec.new role_box.RoleInclusion),
-      transitive := (alloc.vec.Vec.new model.ObjectProperty)
-    }
-
-/-- [rowl_kernel::role_box::included_from]:
-    Source: 'crates/rowl-kernel/src/role_box.rs', lines 24:0-42:1 -/
-def role_box.included_from
-  (inclusions : alloc.vec.Vec role_box.RoleInclusion) (index : Std.Usize)
-  (sub : model.ObjectProperty) (sup : model.ObjectProperty) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len inclusions
-  if index < i
-  then
-    let inclusion ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_box.RoleInclusion) inclusions index
-    let b ← symbols.same_spelling inclusion.sub.iri.spelling sub.iri.spelling
-    if b
+  | abox.Facts.Through other sup filler next =>
+    let (fillers, rest) ← abox.node_fillers next node role roles
+    if other = node
     then
-      let b1 ←
-        symbols.same_spelling inclusion.sup.iri.spelling sup.iri.spelling
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        role_box.included_from inclusions i1 sub sup
-    else
-      let i1 ← index + 1#usize
-      role_box.included_from inclusions i1 sub sup
-  else ok false
+      let i ← tbox.universal roles role sup filler fillers
+      ok (i, abox.Facts.Through other sup filler rest)
+    else ok (fillers, abox.Facts.Through other sup filler rest)
 partial_fixpoint
-
-/-- [rowl_kernel::role_box::below]:
-    Source: 'crates/rowl-kernel/src/role_box.rs', lines 45:0-48:1
-    Visibility: public -/
-def role_box.below
-  (roles : role_box.RoleBox) (sub : model.ObjectProperty)
-  (sup : model.ObjectProperty) :
-  Result Bool
-  := do
-  let b ← symbols.same_spelling sub.iri.spelling sup.iri.spelling
-  if b
-  then ok true
-  else role_box.included_from roles.inclusions 0#usize sub sup
-
-/-- [rowl_kernel::tbox::transitive_from]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 307:0-330:1 -/
-def tbox.transitive_from
-  (roles : role_box.RoleBox) (index : Std.Usize) (sub : model.ObjectProperty)
-  (sup : model.ObjectProperty) (filler : nnf.NnfConcept) (tail : tbox.Items) :
-  Result tbox.Items
-  := do
-  let i := alloc.vec.Vec.len roles.transitive
-  if index < i
-  then
-    let role ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectProperty) roles.transitive index
-    let i1 ← index + 1#usize
-    let rest ← tbox.transitive_from roles i1 sub sup filler tail
-    let b ← role_box.below roles sub role
-    if b
-    then
-      let b1 ← role_box.below roles role sup
-      if b1
-      then ok (tbox.Items.Through role filler rest)
-      else ok rest
-    else ok rest
-  else ok tail
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::universal]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 334:0-349:1 -/
-def tbox.universal
-  (roles : role_box.RoleBox) (sub : model.ObjectProperty)
-  (sup : model.ObjectProperty) (filler : nnf.NnfConcept) (tail : tbox.Items) :
-  Result tbox.Items
-  := do
-  let b ← role_box.below roles sub sup
-  if b
-  then
-    let i ← tbox.transitive_from roles 0#usize sub sup filler tail
-    ok (tbox.Items.Concept filler i)
-  else ok tail
 
 /-- [rowl_kernel::tbox::role_fillers]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 352:0-388:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 355:0-391:1 -/
 def tbox.role_fillers
   (list : tbox.Items) (role : model.ObjectProperty) (roles : role_box.RoleBox)
   :
@@ -542,29 +616,8 @@ def tbox.role_fillers
     ok (i, tbox.Items.Through other filler rest)
 partial_fixpoint
 
-/-- [rowl_kernel::tbox::universal_is]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 177:0-184:1 -/
-def tbox.universal_is
-  (role : model.ObjectProperty) (filler : nnf.NnfConcept)
-  (concept : nnf.NnfConcept) :
-  Result Bool
-  := do
-  match concept with
-  | nnf.NnfConcept.Top => ok false
-  | nnf.NnfConcept.Bottom => ok false
-  | nnf.NnfConcept.Atom _ => ok false
-  | nnf.NnfConcept.NotAtom _ => ok false
-  | nnf.NnfConcept.And _ _ => ok false
-  | nnf.NnfConcept.Or _ _ => ok false
-  | nnf.NnfConcept.Exists _ _ => ok false
-  | nnf.NnfConcept.Forall other inner =>
-    let b ← symbols.same_spelling role.iri.spelling other.iri.spelling
-    if b
-    then tbox.same_concept filler inner
-    else ok false
-
 /-- [rowl_kernel::tbox::contains_universal]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 216:0-252:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 219:0-255:1 -/
 def tbox.contains_universal
   (list : tbox.Items) (role : model.ObjectProperty) (filler : nnf.NnfConcept) :
   Result (Bool × tbox.Items)
@@ -591,7 +644,7 @@ def tbox.contains_universal
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::contains_concept]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 187:0-214:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 190:0-217:1 -/
 def tbox.contains_concept
   (list : tbox.Items) (sought : nnf.NnfConcept) :
   Result (Bool × tbox.Items)
@@ -615,7 +668,7 @@ def tbox.contains_concept
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::subset]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 254:0-283:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 257:0-286:1 -/
 def tbox.subset
   (small : tbox.Items) (large : tbox.Items) :
   Result (Bool × tbox.Items × tbox.Items)
@@ -639,7 +692,7 @@ def tbox.subset
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::History]
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 40:0-46:1
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 39:0-45:1
     Visibility: public -/
 @[discriminant isize]
 inductive tbox.History where
@@ -647,7 +700,7 @@ inductive tbox.History where
 | Entry : tbox.Items → tbox.History → tbox.History
 
 /-- [rowl_kernel::tbox::blocked]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 285:0-304:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 288:0-307:1 -/
 def tbox.blocked
   (label : tbox.Items) (history : tbox.History) :
   Result (Bool × tbox.Items × tbox.History)
@@ -664,7 +717,7 @@ def tbox.blocked
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::contains_atom]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 127:0-156:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 126:0-155:1 -/
 def tbox.contains_atom
   (list : tbox.Items) («class» : model.Class) :
   Result (Bool × tbox.Items)
@@ -697,7 +750,7 @@ def tbox.contains_atom
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::has_clash]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 158:0-175:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 157:0-174:1 -/
 def tbox.has_clash
   (all : tbox.Items) (cursor : tbox.Items) : Result (Bool × tbox.Items) := do
   match cursor with
@@ -721,7 +774,7 @@ def tbox.has_clash
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::duplicate]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 48:0-80:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 47:0-79:1 -/
 def tbox.duplicate
   (list : tbox.Items) : Result (tbox.Items × tbox.Items) := do
   match list with
@@ -736,7 +789,7 @@ def tbox.duplicate
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::duplicate_history]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 81:0-99:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 80:0-98:1 -/
 def tbox.duplicate_history
   (history : tbox.History) : Result (tbox.History × tbox.History) := do
   match history with
@@ -751,7 +804,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::tbox::expand]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 391:0-480:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 394:0-483:1 -/
 def tbox.expand
   (pending : tbox.Items) (literals : tbox.Items) (history : tbox.History)
   (axioms : nnf.NnfConcept) (roles : role_box.RoleBox) :
@@ -811,7 +864,7 @@ def tbox.expand
 partial_fixpoint
 
 /-- [rowl_kernel::tbox::existentials_hold]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 484:0-521:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 487:0-524:1 -/
 def tbox.existentials_hold
   (all : tbox.Items) (cursor : tbox.Items) (history : tbox.History)
   (axioms : nnf.NnfConcept) (roles : role_box.RoleBox) :
@@ -853,7 +906,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::tbox::satisfiable_items]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 543:0-558:1 -/
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 546:0-561:1 -/
 def tbox.satisfiable_items
   (items : tbox.Items) (axioms : nnf.NnfConcept) (roles : role_box.RoleBox) :
   Result Bool
@@ -861,18 +914,24 @@ def tbox.satisfiable_items
   tbox.expand (tbox.Items.Concept axioms items) tbox.Items.Empty
     tbox.History.Empty axioms roles
 
-/-- [rowl_kernel::tbox::satisfiable_all]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 582:0-585:1 -/
-def tbox.satisfiable_all
-  (concepts : tableau.Concepts) (axioms : nnf.NnfConcept) : Result Bool := do
-  let roles ← tbox.no_roles
-  let i ← tbox.items_of concepts
-  tbox.satisfiable_items i axioms roles
+/-- [rowl_kernel::abox::obligation_holds]:
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 390:0-404:1 -/
+def abox.obligation_holds
+  (all : abox.Facts) (node : Std.Usize) (role : model.ObjectProperty)
+  (filler : nnf.NnfConcept) (axioms : nnf.NnfConcept)
+  (roles : role_box.RoleBox) :
+  Result (Bool × abox.Facts)
+  := do
+  let (fillers, all1) ← abox.node_fillers all node role roles
+  let b ←
+    tbox.satisfiable_items (tbox.Items.Concept filler fillers) axioms roles
+  ok (b, all1)
 
 /-- [rowl_kernel::abox::obligations_hold]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 241:0-273:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 408:0-437:1 -/
 def abox.obligations_hold
-  (all : abox.Facts) (cursor : abox.Facts) (axioms : nnf.NnfConcept) :
+  (all : abox.Facts) (cursor : abox.Facts) (axioms : nnf.NnfConcept)
+  (roles : role_box.RoleBox) :
   Result (Bool × abox.Facts)
   := do
   match cursor with
@@ -887,23 +946,21 @@ def abox.obligations_hold
       | nnf.NnfConcept.And _ _ => ok (true, all)
       | nnf.NnfConcept.Or _ _ => ok (true, all)
       | nnf.NnfConcept.Exists role filler =>
-        do
-        let (fillers, all2) ← abox.node_fillers all node role
-        let b ←
-          tbox.satisfiable_all (tableau.Concepts.Entry filler fillers) axioms
-        ok (b, all2)
+        abox.obligation_holds all node role filler axioms roles
       | nnf.NnfConcept.Forall _ _ => ok (true, all)
-    let (later, all2) ← abox.obligations_hold all1 next axioms
+    let (later, all2) ← abox.obligations_hold all1 next axioms roles
     if here
     then ok (later, all2)
     else ok (false, all2)
+  | abox.Facts.Through _ _ _ next =>
+    abox.obligations_hold all next axioms roles
 partial_fixpoint
 
 /-- [rowl_kernel::abox::complete]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 276:0-354:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 440:0-541:1 -/
 def abox.complete
   (pending : abox.Facts) (facts : abox.Facts) (edges : abox.Edges)
-  (axioms : nnf.NnfConcept) :
+  (axioms : nnf.NnfConcept) (roles : role_box.RoleBox) :
   Result Bool
   := do
   match pending with
@@ -914,25 +971,27 @@ def abox.complete
     then ok false
     else
       let (cursor1, facts3) ← abox.duplicate_facts facts2
-      let (b, _) ← abox.obligations_hold facts3 cursor1 axioms
+      let (b, _) ← abox.obligations_hold facts3 cursor1 axioms roles
       ok b
   | abox.Facts.Entry node concept next =>
     let (present, facts1) ← abox.contains_fact facts node concept
     if present
-    then abox.complete next facts1 edges axioms
+    then abox.complete next facts1 edges axioms roles
     else
       match concept with
       | nnf.NnfConcept.Top =>
         abox.complete next (abox.Facts.Entry node nnf.NnfConcept.Top facts1)
-          edges axioms
+          edges axioms roles
       | nnf.NnfConcept.Bottom => ok false
       | nnf.NnfConcept.Atom _ =>
         abox.complete next (abox.Facts.Entry node concept facts1) edges axioms
+          roles
       | nnf.NnfConcept.NotAtom _ =>
         abox.complete next (abox.Facts.Entry node concept facts1) edges axioms
+          roles
       | nnf.NnfConcept.And left right =>
         abox.complete (abox.Facts.Entry node left (abox.Facts.Entry node right
-          next)) (abox.Facts.Entry node concept facts1) edges axioms
+          next)) (abox.Facts.Entry node concept facts1) edges axioms roles
       | nnf.NnfConcept.Or left right =>
         let (next1, other_pending) ← abox.duplicate_facts next
         let (facts2, other_facts) ←
@@ -940,21 +999,33 @@ def abox.complete
         let (edges1, other_edges) ← abox.duplicate_edges edges
         let b ←
           abox.complete (abox.Facts.Entry node left next1) facts2 edges1 axioms
+            roles
         if b
         then ok true
         else
           abox.complete (abox.Facts.Entry node right other_pending) other_facts
-            other_edges axioms
+            other_edges axioms roles
       | nnf.NnfConcept.Exists _ _ =>
         abox.complete next (abox.Facts.Entry node concept facts1) edges axioms
+          roles
       | nnf.NnfConcept.Forall role filler =>
-        let (pending1, edges1) ← abox.propagate edges node role filler next
+        let (pending1, edges1) ←
+          abox.propagate edges node role filler next roles
         abox.complete pending1 (abox.Facts.Entry node concept facts1) edges1
-          axioms
+          axioms roles
+  | abox.Facts.Through node role filler next =>
+    let (present, facts1) ← abox.contains_through facts node role filler
+    if present
+    then abox.complete next facts1 edges axioms roles
+    else
+      let (pending1, edges1) ←
+        abox.propagate edges node role filler next roles
+      abox.complete pending1 (abox.Facts.Through node role filler facts1)
+        edges1 axioms roles
 partial_fixpoint
 
 /-- [rowl_kernel::abox::with_axioms]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 356:0-370:1 -/
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 543:0-557:1 -/
 def abox.with_axioms
   (count : Std.Usize) (pending : abox.Facts) (axioms : nnf.NnfConcept) :
   Result abox.Facts
@@ -966,16 +1037,36 @@ def abox.with_axioms
     abox.with_axioms i (abox.Facts.Entry i axioms pending) axioms
 partial_fixpoint
 
+/-- [rowl_kernel::abox::abox_satisfiable_with]:
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 564:0-578:1
+    Visibility: public -/
+def abox.abox_satisfiable_with
+  (count : Std.Usize) (facts : abox.Facts) (edges : abox.Edges)
+  (axioms : nnf.NnfConcept) (roles : role_box.RoleBox) :
+  Result Bool
+  := do
+  let f ← abox.with_axioms count facts axioms
+  abox.complete f abox.Facts.Empty edges axioms roles
+
+/-- [rowl_kernel::tbox::no_roles]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 563:0-568:1 -/
+def tbox.no_roles : Result role_box.RoleBox := do
+  ok
+    {
+      inclusions := (alloc.vec.Vec.new role_box.RoleInclusion),
+      transitive := (alloc.vec.Vec.new model.ObjectProperty)
+    }
+
 /-- [rowl_kernel::abox::abox_satisfiable]:
-    Source: 'crates/rowl-kernel/src/abox.rs', lines 375:0-387:1
+    Source: 'crates/rowl-kernel/src/abox.rs', lines 583:0-591:1
     Visibility: public -/
 def abox.abox_satisfiable
   (count : Std.Usize) (facts : abox.Facts) (edges : abox.Edges)
   (axioms : nnf.NnfConcept) :
   Result Bool
   := do
-  let f ← abox.with_axioms count facts axioms
-  abox.complete f abox.Facts.Empty edges axioms
+  let roles ← tbox.no_roles
+  abox.abox_satisfiable_with count facts edges axioms roles
 
 /-- [rowl_kernel::alc_ontology::equal_from]:
     Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 44:0-50:1 -/
@@ -25680,6 +25771,14 @@ def source_reasoning.source_instance_of
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
+/-- [rowl_kernel::tableau::Concepts]
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 19:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tableau.Concepts where
+| Empty : tableau.Concepts
+| Entry : nnf.NnfConcept → tableau.Concepts → tableau.Concepts
+
 /-- [rowl_kernel::tableau::duplicate]:
     Source: 'crates/rowl-kernel/src/tableau.rs', lines 27:0-44:1 -/
 def tableau.duplicate
@@ -25867,7 +25966,7 @@ def tableau.satisfiable (concept : nnf.NnfConcept) : Result Bool := do
     tableau.Concepts.Empty
 
 /-- [rowl_kernel::tbox::satisfiable_with]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 525:0-539:1
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 528:0-542:1
     Visibility: public -/
 def tbox.satisfiable_with
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept)
@@ -25878,7 +25977,7 @@ def tbox.satisfiable_with
     tbox.Items.Empty)) tbox.Items.Empty tbox.History.Empty axioms roles
 
 /-- [rowl_kernel::tbox::satisfiable_in]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 568:0-570:1
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 571:0-573:1
     Visibility: public -/
 def tbox.satisfiable_in
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do

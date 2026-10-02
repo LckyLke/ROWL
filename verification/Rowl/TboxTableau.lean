@@ -1146,29 +1146,4 @@ theorem rejected_class_empty_in (e t : ClassExpression) (c axioms : nnf.NnfConce
   rw [rejected] at accepted
   cases Result.ok_injective accepted
 
-theorem items_of_correct (list : tableau.Concepts) : tbox.items_of list = .ok (fromConcepts (toList list)) := by
-  induction list with
-  | Empty => rw [tbox.items_of]; rfl
-  | Entry c next ih => rw [tbox.items_of]; simp [ih,toList,fromConcepts]
-
-/-- The procedure for a list of concepts terminates; every acceptance comes with
-    a model in which the TBox concept holds everywhere and one element is in
-    every concept of the list; and every such model, in any universe, forces
-    acceptance. -/
-theorem satisfiable_all_correct (concepts : tableau.Concepts) (axioms : nnf.NnfConcept) :
-    ∃ result, tbox.satisfiable_all concepts axioms = .ok result ∧
-      (result = true → ∃ (Object : Type) (I : Interpretation Object Unit),
-        (∀ y, conceptDenote I axioms y) ∧ ∃ x, Holds I x (toList concepts)) ∧
-      ((∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
-        (∀ y, conceptDenote I axioms y) ∧ ∃ x, Holds I x (toList concepts)) → result = true) := by
-  obtain ⟨rb,noRun,noInclusions,noTransitive⟩ := no_roles_correct
-  obtain ⟨result,executed,sound,complete⟩ :=
-    satisfiable_items_correct.{u,v} (fromConcepts (toList concepts)) axioms rb
-  rw [itemsList_fromConcepts] at sound complete
-  refine ⟨result,by simp only [tbox.satisfiable_all,noRun,items_of_correct,bind_ok,executed],?_,?_⟩
-  · intro accepted
-    obtain ⟨Object,I,_,everywhere,x,holds⟩ := sound accepted (closed_of_empty rb noInclusions)
-    exact ⟨Object,I,everywhere,x,holds⟩
-  · rintro ⟨Object,Value,I,everywhere,x,holds⟩
-    exact complete ⟨Object,Value,I,respects_of_empty I rb noInclusions noTransitive,everywhere,x,holds⟩
 end Rowl.TboxTableau
