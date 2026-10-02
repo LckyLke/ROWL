@@ -1,253 +1,134 @@
 # ROWL
 
-A correctness-first Rust research project targeting **full OWL 2 DL under the
-OWL 2 Direct Semantics**, with Lean proofs connected to the implementation by
-Charon and Aeneas. Intended license: MIT OR Apache-2.0.
+**An OWL 2 reasoner in Rust whose answers come with a machine-checked proof,
+from the bytes of the ontology file to the final yes or no.**
 
-**Current status: M1/M2 complete; verified components of M3/M4 are working.**
-The Rust model represents all standard OWL 2 DL constructs; Lean defines their
-independent meaning and checks semantic laws. The verified reasoner decides
-consistency, class satisfiability, subsumption and instance checking for ALC
-class, domain and range axioms with class and object property assertions,
-directly from Functional Syntax source text; the CLI demo still decides
-Boolean expressions over exactly two atomic classes. New verified stages
-resolve a supplied document-import graph, collect explicit entities across the
-full raw OWL AST, intern exact byte IRIs into stable symbols, inject implicit
-built-in declaration roles and check declarations directly from a raw ontology,
-decode strict UTF-8/XML-character text, validate complete RFC 3987 IRIs and
-IRI references from bytes, select one explicit graph while retaining
-the complete raw RDF dataset, check reserved entity/header vocabulary,
-check forbidden anonymous individuals throughout nested expressions/axioms,
-collect complete raw role-preprocessing facts with exact inverse orientations,
-hierarchy edges, composite seeds, nested simplicity requirements and ordered chains,
-classify non-simple properties through cyclic hierarchies and check the entire
-simple-role restriction with an exact first-violation diagnostic,
-decide the complete property-hierarchy regularity condition with a concrete
-permitted ordering or an unavoidable hierarchy conflict,
-canonicalize inverse assertions and
-prepare ordered annotated axiom batches with model equivalence. UTF-8 encoding
-and full language-tag grammar are also proved. N-Triples trivia and complete
-blank-node token parsing now have soundness, completeness and termination
-proofs with exact source offsets and identity preservation. Unicode/short escape
-payloads also have exact value, acceptance, termination and progress proofs.
-The public bounded N-Triples reader now has composed byte-to-graph totality and
-complete-acceptance proofs, preserving exact ordered triples and first source
-diagnostics. Functional Syntax prefix/local/abbreviated/node name grammars and
-immutable prefix-table checking and expansion are also proved. Expansion keeps
-exact namespace/local spelling and checks output byte limits and the final IRI.
-Complete Functional Syntax terminal grammars and selection across all 84 terminal
-classes now have exact acceptance, maximum-endpoint and progress proofs. The
-whole-source lexer composes XML validation, separators, trivia removal, token
-budgets and first-offset diagnostics with totality and complete-acceptance proofs.
-Its emitted source spans are ordered, bounded and grammar-valid. Complete terminal
-language disjointness is also proved, so greatest matching uniquely determines
-each token without relying on implementation priority. Document assembly is proved
-in the later document and model stages. The
-quoted-string payload reader now has composed exact decoding, byte-budget,
-first-offset and source-grammar equivalence proofs, preserving multiline text.
-The exact decimal reader now supplies nonnegative integer payload values from
-original source spans, accepting leading zeroes without a machine-integer cap.
-Totality, both-direction source/grammar acceptance, positional values and first
-invalid-byte offsets are proved. Actual selected integers and every integer in
-a successful whole-source token stream have their exact source values. Unary
-arithmetic remains a research representation; full document parsing and physical
-resource/cancellation control remain pending.
-Nonquoted name values now also have source-linked totality, exact spelling,
-value-grammar, complete acceptance and exact phase/offset rejection proofs.
-Full IRIs, prefixes, abbreviated names, blank labels and language tags preserve
-their original spelling while removing only the specified syntax markers.
-Canonical source segments/copies are proved equivalent for arbitrary Unicode;
-actual selected names and complete lexer streams supply their exact fitting
-values. Source-derived abbreviated-IRI splitting and full/abbreviated IRI
-resolution now compose the immutable prefix table, exact namespace/local bytes,
-final output budgets and absolute-IRI validation. Exact parts are uniquely
-determined; totality, value/acceptance and all error phases in both directions
-are proved, and internal splitting fallbacks are unreachable. Leading prefix
-declarations and the exact `Ontology(` opening are now read from the original
-bytes, with totality, complete value acceptance, exact syntax/count/payload
-errors and untouched remaining tokens proved. The checked table preserves
-precisely those source declarations; parsing, table checking and source IRI
-resolution have composed correctness and exact value/error proofs. This partial
-stage does not validate ontology contents. The following ontology/version IRI
-and maximal leading-import stage is now also proved: exact source values,
-original reference tokens, ordered repeated imports, unchanged suffixes and
-every first syntax/resolution/count error. Its type permits a version only with
-an ontology IRI. Source prefix/table/header composition uses the declarations
-from the same original bytes. Annotations and axioms are read by the separate
-stages below; canonical import assembly and anonymous scopes across an import
-closure remain pending.
-One-literal Functional Syntax reading now also has totality, exact source
-value/error equivalence, original quote/form tokens, intact suffixes and exact
-one/two/three-terminal progress proofs. Explicit types preserve decoded lexical
-spelling and resolve their original datatype IRI. Plain strings obligatorily
-expand to rdf:PlainLiteral (`"Pump"` becomes lexical `Pump@`; `"Pump"@de`
-becomes `Pump@de`), preserving original language case. Final lexical/type budgets
-include the separator and the entire datatype IRI. Source prefix/table composition
-uses precisely the original parsed namespaces; literal positions still come from
-the caller. Concrete datatype lexical/value/facet validity and the other axiom
-forms remain pending.
-Functional Syntax annotations, including recursively nested ones, are now read
-as the maximal leading `Annotation` sequence, for example the ontology annotations
-after the header. Properties and IRI values resolve through the checked prefix
-table, node IDs keep their exact label and literals use the proved literal reader.
-Caller limits bound the nesting depth and each sequence's count. Totality, exact
-result/error equivalence and an independent success grammar are proved, and the
-source composition uses the namespaces parsed from the same bytes. Anonymous
-scopes across an import closure remain pending.
-Entity declarations, `Declaration( {Annotation} Class(IRI) )` and the five other
-entity kinds, are now read one axiom at a time with the same proof guarantees.
-Axiom annotations reuse the annotation reader; the entity IRI resolves through the
-checked prefix table. Declaration typing stays the existing kernel check.
-The four annotation axioms (`AnnotationAssertion`, `SubAnnotationPropertyOf`,
-`AnnotationPropertyDomain`, `AnnotationPropertyRange`) are read the same way, so
-every non-logical axiom now has a proved reader. Class expressions of the
-reasoner's ALC fragment (with inverse object properties) and the class, domain
-and range axioms (`SubClassOf`, `EquivalentClasses`, `DisjointClasses`,
-`DisjointUnion`, `ObjectPropertyDomain`, `ObjectPropertyRange`) have proved
-readers as well, and so do class assertions and positive and negative object
-property assertions, whose individuals are IRIs or node IDs. Whole documents
-are now read by a verified axiom loop: the
-prefix table, the ontology header and annotations, every axiom up to the closing
-parenthesis, and the end of the source. The other logical axioms are reported as
-unsupported. Every read document then maps into the kernel's raw OWL model with
-exact IRI and literal bytes, node IDs as anonymous individuals of a caller-supplied
-scope, and source order, proved against an independent correspondence. The other
-logical axioms and class-expression forms remain pending.
-The reasoner track has started: class expressions in the ALC fragment translate
-to negation normal form, proved to keep their meaning under the independent
-Direct Semantics in every OWL interpretation. A verified ALC tableau now decides
-these concepts without a TBox: it is proved total, sound (with an explicit tree
-model) and complete, so a rejection proves a class empty in every OWL
-interpretation. A second tableau decides them under a TBox concept that must hold
-at every element, blocking a node whose literals all occur at an ancestor. It is
-proved total, sound (through a Hintikka-family model) and complete, so a rejection
-proves a class empty in every OWL interpretation where the TBox class expression
-holds everywhere. It now also takes role inclusions and transitive roles (SH),
-proved the same way against every model of those role axioms. On top of these, the kernel now answers consistency, class
-satisfiability and subsumption for whole axiom closures whose logical axioms are
-ALC class, domain and range axioms. Each answer is proved equal to the
-independent Direct Semantics definition, and each acceptance comes with an
-actual OWL model. The same answers now come straight from source text:
-`source_consistent`, `source_class_satisfiable` and `source_subsumed` read a
-Functional Syntax document, map it into the raw model and query the reasoner as
-one extracted unit. Every read document reaches the reasoner, and each answer is
-proved exact for the Direct Semantics of the read axioms. A verified completion
-for named individuals decides concepts at nodes related by named object
-properties under the TBox, with an explicit model for every acceptance. On top
-of it the queries now take class assertions and positive and negative object
-property assertions, and `instance_of` (from source text, `source_instance_of`)
-checks whether a named individual belongs to a class in every model: in the
-maintenance example, pump1 needs inspection because it has a faulty part.
-`SameIndividual`, `DifferentIndividuals`, data assertions and the other axiom
-forms are later stages.
-All 68 W3C N-Triples syntax cases pass. Export laws, the other required
-serializations, canonical OWL imports, DL validation and reasoning remain future work;
-version 0.1 is not ready for release.
+> Research project, work in progress. The proofs cover a growing part of OWL
+> today (see [Status](#status)); full OWL 2 DL is the goal, not yet the present.
 
-```sh
-python3 scripts/bootstrap.py       # Python 3.12+; pinned Linux x86_64 tools
-export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace
-cargo run -p rowl-cli -- demo
-cargo run -p rowl-cli -- check-nt examples/maintenance.nt # experimental RDF parser
-cargo run -p rowl-cli -- export-nt examples/maintenance.nt # RDF bytes on stdout
-cargo run -p rowl --example maintenance # constructs a raw OWL ontology
-cargo run -p rowl --example symbols     # exact byte identities and capacity outcomes
-cargo run -p rowl --example iri         # complete IRI and reference lexical checks
-cargo run -p rowl --example prefixes    # exact maintenance vocabulary name expansion
-cargo run -p rowl --example functional  # maintenance tokens, quoted text and exact cardinality number payloads
-cargo run -p rowl --example functional_iris # original source names become exact absolute IRIs
-cargo run -p rowl --example functional_prefixes # read source declarations, check the table and resolve source IRIs
-cargo run -p rowl --example functional_header # source ontology/version identity and import targets with original offsets
-cargo run -p rowl --example functional_literals # exact text/language/type values from original maintenance source
-cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
-cargo run -p rowl --example functional_declarations # entity declarations with axiom annotations from original source
-cargo run -p rowl --example functional_annotation_axioms # declarations and annotation axioms of a vocabulary ontology
-cargo run -p rowl --example functional_class_axioms # questions about source text, answered end to end by the verified pipeline
-cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
-cargo run -p rowl --example tableau     # verified ALC satisfiability and subsumption answers
-cargo run -p rowl --example tbox        # verified answers under maintenance axioms, with blocking
-cargo run -p rowl --example alc_ontology # verified consistency/satisfiability/subsumption/instance answers for an ALC ontology
-cargo run -p rowl --example source_individuals # instance checks on named individuals, from original source text
-python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
+## Why
+
+Ontologies written in [OWL](https://www.w3.org/TR/owl2-overview/) record what a
+field knows: diseases and drugs, genes, the parts of a machine. A *reasoner*
+draws the conclusions: it finds contradictions, builds class hierarchies and
+answers questions such as *"which pumps need inspection?"*
+
+Reasoners are large, heavily optimised programs. When one is wrong, the wrong
+answer looks exactly like a right one; all that stands behind it is trust in the
+code. That is a weak foundation for conclusions that feed medicine, safety
+reviews or further automated decisions.
+
+ROWL takes the other route: **don't trust the code, check it.**
+
+| | Typical reasoner | ROWL |
+| --- | --- | --- |
+| Why believe an answer? | The code was tested | A theorem about the code was machine-checked |
+| What you have to trust | The whole optimised reasoner | Lean's small proof kernel, the Rust compiler and translation tools, and the written-down semantics |
+
+## How
+
+The reasoner is ordinary Rust. Charon and Aeneas translate that exact code into
+the proof assistant [Lean 4](https://lean-lang.org). There it is proved correct
+against a formalisation of the W3C OWL 2 Direct Semantics that is written
+independently of the code.
+
+```mermaid
+flowchart TB
+    subgraph runs ["What runs"]
+        direction LR
+        F["📄 ontology file"] -->|bytes| P["parser"] --> R["reasoner"] --> A["✅ answer"]
+    end
+    runs -->|"Charon + Aeneas translate<br/>the exact Rust code"| L["the same functions,<br/>now in Lean 4"]
+    W["W3C OWL 2<br/>Direct Semantics,<br/>written independently<br/>in Lean 4"] --> T
+    L --> T{{"machine-checked theorem:<br/>it always terminates, and<br/>its answer is exactly<br/>what the semantics says"}}
+    style T fill:#dff5e1,stroke:#2e7d32,color:#000
 ```
 
-The demo finds an element in B but not A, demonstrating why membership in A ∪ B
-does not entail membership in A. Search must consider every interpretation.
+Concretely, the theorems say:
 
-## Layout
+- **It terminates.** Every verified function is proved to terminate on every
+  input.
+- **The parser is exact.** A document is accepted exactly when an independent
+  grammar derives it, and errors report the first failing position.
+- **The answers are exact.** Each yes or no equals the W3C definition of
+  consistency, satisfiability, subsumption or instance checking, over all
+  models, however large. Outside the supported fragment there is no answer
+  rather than a wrong one.
+- **No shortcuts.** No `sorry`, no admitted lemmas, no custom axioms: all 900+
+  public theorems are audited to depend only on Lean's three standard axioms.
 
-| Path | Responsibility |
+## Example
+
+[`examples/maintenance-individuals.ofn`](examples/maintenance-individuals.ofn) says,
+in OWL Functional Syntax (abridged):
+
+```text
+SubClassOf(ex:Pump ex:Machine)
+SubClassOf(ObjectIntersectionOf(ex:Machine ObjectSomeValuesFrom(ex:hasPart ex:FaultyPart))
+           ex:NeedsInspection)
+ClassAssertion(ex:Pump ex:pump1)
+ObjectPropertyAssertion(ex:hasPart ex:pump1 ex:motor1)
+ClassAssertion(ex:FaultyPart ex:motor1)
+```
+
+```console
+$ cargo run -p rowl --example source_individuals
+The fleet's axioms are consistent: true
+pump1 needs inspection: true
+pump2 needs inspection: false
+pump2 is a machine: true
+```
+
+pump1 needs inspection in every model of the file. For pump2 this does not
+follow ("false"), since nothing says pump2 has a faulty part. Each answer comes
+from code proved to compute exactly the Direct Semantics of the bytes in that
+file.
+
+## Status
+
+The Rust model represents every OWL 2 DL construct, and the Lean semantics gives
+every one of them its meaning. The verified reasoner covers a growing fragment:
+
+| | ✅ Proved today | 🔜 Next |
+| --- | --- | --- |
+| **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class axioms, assertions); N-Triples, passing all 68 W3C syntax tests | role axioms from files; RDF/XML, Turtle and the other required formats |
+| **Logic** | ALC (and, or, not, some, only) with named individuals; inside the reasoner also role hierarchies and transitive roles (SH) | inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
+| **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
+| **Focus** | correctness | performance |
+
+There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
+and proofs from bytes to answers. [`docs/status.md`](docs/status.md) states
+exactly what is proved and what is not.
+
+## Quick start
+
+```sh
+python3 scripts/bootstrap.py        # hash-pinned Rust, Lean and Aeneas (Linux x86_64, Python 3.12+)
+export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
+cargo test --workspace              # regression tests
+cargo run -p rowl --example source_individuals
+python3 scripts/verify.py           # re-translate the Rust code and re-check every proof
+```
+
+[`crates/rowl/examples`](crates/rowl/examples) has one runnable example per
+stage, from IRI checks to the `tbox` and `alc_ontology` reasoners.
+
+## Repository
+
+| Path | Contents |
 | --- | --- |
-| `crates/rowl-kernel` | The verified core, extracted to Lean as one unit. Kernel: Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form, the verified ALC tableaux without and with a TBox, and verified ontology-level ALC queries. Frontend stages: indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom/class-expression/class-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
-| `crates/rowl-frontend` | Re-exports the frontend stages of `rowl-kernel` under their historical paths; frontend regression tests |
-| `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
-| `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |
-| `verification` | Actual generated Rust translation, independent semantics, Lean proofs |
-| `docs/coverage.json` | Requirement inventory; planned obligations are not proof claims |
-| `docs/architecture.md` | Accepted scope, semantic pitfalls, milestones and release gates |
-| `verification/toolchain.json` | Pinned tools, translation boundary and trusted assumptions |
-| `docs/status.md` | Completed milestones and precise proof boundary |
-| `docs/m2-semantics.md` | Standard-to-formal-specification mapping and semantic examples |
-| `docs/m3-m4-progress.md` | Current frontend, declaration/vocabulary and preparation proofs and their precise input contracts |
-| `docs/formats.md` | Accepted graph/dataset read/export scope and planned correctness contracts |
+| `crates/rowl-kernel` | The verified code, parser and reasoner, translated to Lean as one unit |
+| `verification/` | The generated Lean translation, the OWL 2 semantics, the proofs and the theorem registry |
+| `crates/rowl`, `crates/rowl-cli` | Examples and a thin command-line tool |
+| [`docs/status.md`](docs/status.md) | The precise proof boundary |
+| [`docs/architecture.md`](docs/architecture.md) | Design decisions, semantic pitfalls, milestones and release gates |
+| [`docs/m3-m4-progress.md`](docs/m3-m4-progress.md) | Each verified stage and its input contract |
 
-The Rust maintenance example represents a pump with a faulty motor and the rule
-that machines with faulty parts need inspection. Lean checks that these premises
-imply the pump needs inspection. Its actual Rust declaration checker reports an
-omitted `FaultyPart` declaration, then accepts after adding it. It derives its
-symbol tables from the raw AST and includes implicit built-ins. Automatic
-full-OWL inference is a later milestone. The example then demonstrates why a
-separate reserved-vocabulary check rejects retyping `owl:Thing` as a property.
-It also demonstrates the proved top-data-property occurrence check: faultCode
-may be a subproperty of owl:topDataProperty, while declaring that top property
-functional is rejected. The simple-role checker then rejects a cardinality
-restriction on transitive hasPart and accepts after transitivity is removed.
-It also checks a hasPart/hasPart-to-nestedPart chain, then rejects adding
-a reverse nestedPart-to-hasPart hierarchy edge.
+## Fine print
 
-The symbol example assigns stable numeric identifiers to exact byte spellings,
-reuses an identifier when its spelling repeats and preserves the table when its
-configured symbol-count budget is full. Raw `Iri.spelling` now uses `Vec<u8>`;
-the symbol table operates directly on this representation. Lexical validity and
-a verified byte parser remain separate obligations.
+- "Proved" means the answer follows from the ontology as written. Whether its
+  statements are true in the world is a different question.
+- Answers assume enough time and memory. Typed outcomes for exhausted resources
+  and cancellation are planned work.
 
-The raw dataset API requires an explicit default or named graph choice. A successful
-selection borrows the original dataset, retaining every other graph, empty named
-graphs, raw literal forms and shared blank-node identities. Missing graphs and
-duplicate graph names are separate errors. The reserved-vocabulary check separately
-rejects using `owl:Thing` as an object property, even though generic declaration
-typing allows class/property punning. These operations do not certify lexical
-validity, parser-assigned scopes or complete OWL DL validity.
-
-## Release contract
-
-The first release requires the entire chosen OWL 2 DL language, a complete
-normative datatype map, and mechanically checked soundness, completeness and
-termination from input bytes through queries. Accepted format coverage also
-includes RDF/XML, Turtle, N-Triples, N-Quads, TriG and JSON-LD read/export, and
-RDFa read. Datasets require explicit graph
-selection while preserving other graphs. N-Triples has source-linked proofs
-for its bounded public byte-to-graph reader; its writer remains experimental.
-Canonical import scope assignment and OWL RDF mapping remain pending, as do the
-other required parsers.
-Internal fragment experiments are allowed; a fragment implementation does not
-qualify as v0.1.
-
-Definitive answers remain conditional on valid input and sufficient machine
-resources. Cancellation and exhaustion must produce typed operational outcomes.
-Logical correctness means consequences of the supplied ontology; it cannot
-establish that the supplied facts are true in the world. Rust memory safety and
-exhaustive enum matches alone do not establish logical correctness.
-
-The supplied raw axiom closure also has a proved anonymous assertion-graph
-forest checker. It detects self edges and undirected cycles using exact scoped
-byte identity. Repeated endpoint pairs are one graph edge. A separate proved assertion-set
-multiplicity checker counts distinct annotated assertions and accepts equivalent
-copies, using recursive unordered annotation equivalence. The named-boundary
-checker proves complete component-wide search, including isolated vertices.
-`experimental::anonymous_restrictions::check_anonymous` composes all anonymous
-restrictions with exact acceptance and diagnostic-priority proofs. Its input is
-still a caller-supplied complete standardized-apart closure. The positional checker
-includes nested annotations on prohibited axiom types. These are experimental
-components, not a complete OWL DL validator or reasoner.
+Intended license: MIT OR Apache-2.0.
