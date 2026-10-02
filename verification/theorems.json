@@ -1340,6 +1340,11 @@
         "Rowl.FunctionalModel.members_of_correct",
         "Rowl.FunctionalModel.class_axiom_correct",
         "Rowl.FunctionalModel.assertion_correct",
+        "Rowl.FunctionalModel.properties_from_correct",
+        "Rowl.FunctionalModel.property_members_correct",
+        "Rowl.FunctionalModel.sub_property_correct",
+        "Rowl.FunctionalModel.characteristic_axiom_correct",
+        "Rowl.FunctionalModel.property_axiom_correct",
         "Rowl.FunctionalModel.axiom_correct",
         "Rowl.FunctionalModel.axioms_from_correct",
         "Rowl.FunctionalModel.imports_from_correct",
@@ -1353,6 +1358,8 @@
         "Rowl.FunctionalModel.class_axiom_run_shaped",
         "Rowl.FunctionalModel.assertion_body_run_shaped",
         "Rowl.FunctionalModel.assertion_run_shaped",
+        "Rowl.FunctionalModel.property_body_run_shaped",
+        "Rowl.FunctionalModel.property_axiom_run_shaped",
         "Rowl.FunctionalModel.axiom_step_shaped",
         "Rowl.FunctionalModel.axioms_run_shaped",
         "Rowl.FunctionalModel.tail_run_shaped"
@@ -1452,6 +1459,33 @@
         "Rowl.RoleBox.below_correct",
         "Rowl.RoleBox.closed_of_empty",
         "Rowl.RoleBox.respects_of_empty"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalPropertyAxioms",
+      "namespace": "Rowl.FunctionalPropertyAxioms",
+      "theorems": [
+        "Rowl.FunctionalPropertyAxioms.axiom_form_total_correct",
+        "Rowl.FunctionalPropertyAxioms.closes_total_correct",
+        "Rowl.FunctionalPropertyAxioms.starts_chain_total_correct",
+        "Rowl.FunctionalPropertyAxioms.expected_terminal_total_correct",
+        "Rowl.FunctionalPropertyAxioms.take_expected_total_correct",
+        "Rowl.FunctionalPropertyAxioms.take_expected_result_iff",
+        "Rowl.FunctionalPropertyAxioms.take_progress",
+        "Rowl.FunctionalPropertyAxioms.read_property_total_correct",
+        "Rowl.FunctionalPropertyAxioms.read_property_result_iff",
+        "Rowl.FunctionalPropertyAxioms.property_step_progress",
+        "Rowl.FunctionalPropertyAxioms.read_properties_total_correct",
+        "Rowl.FunctionalPropertyAxioms.properties_execution",
+        "Rowl.FunctionalPropertyAxioms.read_list_total_correct",
+        "Rowl.FunctionalPropertyAxioms.read_list_result_iff",
+        "Rowl.FunctionalPropertyAxioms.read_sub_total_correct",
+        "Rowl.FunctionalPropertyAxioms.read_sub_result_iff",
+        "Rowl.FunctionalPropertyAxioms.read_body_total_correct",
+        "Rowl.FunctionalPropertyAxioms.read_body_result_iff",
+        "Rowl.FunctionalPropertyAxioms.read_property_axiom_total_correct",
+        "Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff",
+        "Rowl.FunctionalPropertyAxioms.property_axiom_progress"
       ]
     }
   ],
@@ -2105,6 +2139,22 @@
     "Rowl.AboxTableau.baseStep",
     "Rowl.AboxTableau.underStep",
     "Rowl.AboxTableau.roleModel",
-    "Rowl.AboxTableau.Required"
+    "Rowl.AboxTableau.Required",
+    "Rowl.FunctionalPropertyAxioms.FormOf",
+    "Rowl.FunctionalPropertyAxioms.Expected",
+    "Rowl.FunctionalPropertyAxioms.StartsChain",
+    "Rowl.FunctionalPropertyAxioms.TakeRun",
+    "Rowl.FunctionalPropertyAxioms.PropertyStep",
+    "Rowl.FunctionalPropertyAxioms.PropertiesRun",
+    "Rowl.FunctionalPropertyAxioms.ListRun",
+    "Rowl.FunctionalPropertyAxioms.SubRun",
+    "Rowl.FunctionalPropertyAxioms.BodyRun",
+    "Rowl.FunctionalPropertyAxioms.AxiomRun",
+    "Rowl.FunctionalModel.PropertyMembersModel",
+    "Rowl.FunctionalModel.SubPropertyModel",
+    "Rowl.FunctionalModel.CharacteristicOf",
+    "Rowl.FunctionalModel.PropertyAxiomModel",
+    "Rowl.FunctionalModel.ShapedSub",
+    "Rowl.FunctionalModel.ShapedProperty"
   ]
 }

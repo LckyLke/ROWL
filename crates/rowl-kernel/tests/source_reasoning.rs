@@ -228,13 +228,18 @@ fn the_model_keeps_every_source_record() {
 fn errors_and_unsupported_axioms_give_no_answer() {
     let scope = b"s".to_vec();
     // A document error is the reader's first error.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(
         source_consistent(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
+    // Object property axioms are read, but the ALC queries do not answer them.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
     // A read axiom outside the ALC fragment gives no answer.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n)"
         .as_bytes()

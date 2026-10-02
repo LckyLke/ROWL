@@ -23,6 +23,7 @@ pub use rowl_kernel::functional_model;
 pub use rowl_kernel::functional_names;
 pub use rowl_kernel::functional_payload;
 pub use rowl_kernel::functional_prefixes;
+pub use rowl_kernel::functional_property_axioms;
 pub use rowl_kernel::imports;
 pub use rowl_kernel::iri;
 pub use rowl_kernel::langtag;

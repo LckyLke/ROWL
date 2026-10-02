@@ -1,5 +1,6 @@
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalAssertions
+import Rowl.FunctionalPropertyAxioms
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalDeclarations
 import Rowl.FunctionalHeader
@@ -9,9 +10,9 @@ import Rowl.FunctionalPrefixes
 Whole Functional Syntax documents, proved total and exact against an
 independent grammar that composes the proved stage grammars: the ontology
 header, the ontology annotations, the axiom loop (declarations, annotation
-axioms, the class, domain and range axioms and the class and object property
-assertions; the other logical axioms are reported as unsupported), the closing
-parenthesis and the end of the source.
+axioms, the class, domain and range axioms, the object property axioms and the
+class and object property assertions; the other logical axioms are reported as
+unsupported), the closing parenthesis and the end of the source.
 The prefix declarations and their normative table check compose with it through
 their own proved readers.
 -/
@@ -25,6 +26,7 @@ open RowlRust.functional_declarations (SourceDeclaration DeclarationError)
 open RowlRust.functional_annotation_axioms (SourceAnnotationAxiom AnnotationAxiomError)
 open RowlRust.functional_class_axioms (SourceClassAxiom ClassAxiomError)
 open RowlRust.functional_assertions (SourceAssertion AssertionError)
+open RowlRust.functional_property_axioms (SourcePropertyAxiom PropertyAxiomError)
 open RowlRust.functional_header (HeaderTail)
 open RowlRust.functional_prefixes (read_prefix_header PrefixHeader PrefixReadError)
 open Rowl.FunctionalLexer (TokenCount)
@@ -33,8 +35,9 @@ set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
 /-- The 37 axiom keywords by family: declarations, the four annotation axioms,
-    the six class, domain and range axioms and the three class and object
-    property assertions read here, and the other logical axiom forms. -/
+    the six class, domain and range axioms, the eleven object property axioms
+    and the three class and object property assertions read here, and the other
+    logical axiom forms. -/
 def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .Declaration => some .Declaration
   | .Keyword .AnnotationAssertion => some .Annotation
@@ -47,17 +50,17 @@ def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .DisjointUnion => some .Class
   | .Keyword .ObjectPropertyDomain => some .Class
   | .Keyword .ObjectPropertyRange => some .Class
-  | .Keyword .SubObjectPropertyOf => some .Unsupported
-  | .Keyword .EquivalentObjectProperties => some .Unsupported
-  | .Keyword .DisjointObjectProperties => some .Unsupported
-  | .Keyword .InverseObjectProperties => some .Unsupported
-  | .Keyword .FunctionalObjectProperty => some .Unsupported
-  | .Keyword .InverseFunctionalObjectProperty => some .Unsupported
-  | .Keyword .ReflexiveObjectProperty => some .Unsupported
-  | .Keyword .IrreflexiveObjectProperty => some .Unsupported
-  | .Keyword .SymmetricObjectProperty => some .Unsupported
-  | .Keyword .AsymmetricObjectProperty => some .Unsupported
-  | .Keyword .TransitiveObjectProperty => some .Unsupported
+  | .Keyword .SubObjectPropertyOf => some .Property
+  | .Keyword .EquivalentObjectProperties => some .Property
+  | .Keyword .DisjointObjectProperties => some .Property
+  | .Keyword .InverseObjectProperties => some .Property
+  | .Keyword .FunctionalObjectProperty => some .Property
+  | .Keyword .InverseFunctionalObjectProperty => some .Property
+  | .Keyword .ReflexiveObjectProperty => some .Property
+  | .Keyword .IrreflexiveObjectProperty => some .Property
+  | .Keyword .SymmetricObjectProperty => some .Property
+  | .Keyword .AsymmetricObjectProperty => some .Property
+  | .Keyword .TransitiveObjectProperty => some .Property
   | .Keyword .SubDataPropertyOf => some .Unsupported
   | .Keyword .EquivalentDataProperties => some .Unsupported
   | .Keyword .DisjointDataProperties => some .Unsupported
@@ -205,6 +208,16 @@ inductive AxiomStep (rows : List prefixes.Declaration) (source : List U8) (eof :
         annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
         classDepth .Class tokens offset (.Ok (.Class record,rest))
+  | propertyError {tokens : Tokens} {offset : Usize} {error : PropertyAxiomError}
+      (run : Rowl.FunctionalPropertyAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri tokens (.Err error)) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Property tokens offset (.Err (.PropertyAxiom error))
+  | property {tokens rest : Tokens} {offset : Usize} {record : SourcePropertyAxiom}
+      (run : Rowl.FunctionalPropertyAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri tokens (.Ok (record,rest))) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Property tokens offset (.Ok (.Property record,rest))
   | assertionError {tokens : Tokens} {offset : Usize} {error : AssertionError}
       (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri classDepth tokens (.Err error)) :
@@ -251,6 +264,15 @@ theorem read_axiom_total_correct (table : prefixes.PrefixTable) (bytes : alloc.v
     | Ok pair =>
       obtain ⟨record,rest⟩ := pair
       exact ⟨.Ok (.Class record,rest),by simp [executed],.«class» correct⟩
+  | Property =>
+    obtain ⟨result,executed,correct⟩ :=
+      Rowl.FunctionalPropertyAxioms.read_property_axiom_total_correct table bytes tokens limits.annotations
+        limits.classes
+    cases result with
+    | Err error => exact ⟨.Err (.PropertyAxiom error),by simp [executed],.propertyError correct⟩
+    | Ok pair =>
+      obtain ⟨record,rest⟩ := pair
+      exact ⟨.Ok (.Property record,rest),by simp [executed],.property correct⟩
   | Assertion =>
     obtain ⟨result,executed,correct⟩ :=
       Rowl.FunctionalAssertions.read_assertion_total_correct table bytes tokens limits.annotations limits.classes
@@ -291,6 +313,12 @@ theorem read_axiom_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.
     | «class» run =>
       simp [(Rowl.FunctionalClassAxioms.read_class_axiom_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
+    | propertyError run =>
+      simp [(Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
+    | property run =>
+      simp [(Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
     | assertionError run =>
       simp [(Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
@@ -320,13 +348,20 @@ theorem axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
       limits.classes _).mpr run
     have := class_axiom_progress table bytes tokens _ limits.annotations limits.classes _ read
     omega
+  | property run =>
+    injection outputEq with same; injection same with _ restSame; subst restSame
+    have read := (Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff table bytes tokens limits.annotations
+      limits.classes _).mpr run
+    have := Rowl.FunctionalPropertyAxioms.property_axiom_progress table bytes tokens _ limits.annotations
+      limits.classes _ read
+    omega
   | assertion run =>
     injection outputEq with same; injection same with _ restSame; subst restSame
     have read := (Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
       limits.classes _).mpr run
     have := Rowl.FunctionalAssertions.assertion_progress table bytes tokens _ limits.annotations limits.classes _ read
     omega
-  | declarationError | annotationError | classError | assertionError | unsupported => cases outputEq
+  | declarationError | annotationError | classError | propertyError | assertionError | unsupported => cases outputEq
 
 /-- Independent axiom loop: it stops before `)`; any other token must start an
     axiom of one of the 37 forms, after the axiom count is checked, and is read

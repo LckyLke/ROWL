@@ -2720,3 +2720,43 @@ the concept-list entry point `tbox::satisfiable_all` (now `satisfiable_items`).
 Totals are 901 audited theorems, 650 definitions, 380 Rust regressions and 1094
 ledger obligations. Reading role axioms from ontologies and source text is the
 next step.
+
+
+## M3: Functional Syntax object property axioms
+
+`functional_property_axioms::read_property_axiom` reads one object property axiom
+with its axiom annotations at a caller-supplied position:
+
+- `SubObjectPropertyOf`, whose sub-property is an object property expression or
+  `ObjectPropertyChain( P1 P2 ... )` with at least two members;
+- `EquivalentObjectProperties` and `DisjointObjectProperties`, with at least two
+  members;
+- `InverseObjectProperties`, with two properties;
+- the seven characteristics `FunctionalObjectProperty`,
+  `InverseFunctionalObjectProperty`, `ReflexiveObjectProperty`,
+  `IrreflexiveObjectProperty`, `SymmetricObjectProperty`,
+  `AsymmetricObjectProperty` and `TransitiveObjectProperty`, with one property.
+
+Object property expressions, including `ObjectInverseOf`, use the proved reader.
+Member lists stop before `)` and are bounded by the class limits' count; a list
+or chain with fewer than two members is reported where the next member belongs.
+FunctionalPropertyAxioms proves the reader total with exact result/error
+equivalence to an independent grammar (PropertiesRun, ListRun, SubRun, BodyRun,
+AxiomRun), and property_axiom_progress proves that every accepted axiom consumes
+at least its keyword and its closing parenthesis.
+
+The document loop now reads the eleven keywords instead of reporting them as
+unsupported, and FunctionalDocument extends its grammar and proofs. The model
+mapping turns the records into the raw OWL axioms of the same name, keeping each
+chain and member list in source order. FunctionalModel proves the mapping exact
+against PropertyAxiomModel and extends the shape invariants, so every read
+document still maps. The ALC queries give no answer for these axioms yet.
+
+New regressions read every form, the suffix after an axiom and each first error;
+`maintenance-roles.ofn`, which declares a transitive `hasPart` with the
+sub-property `hasComponent`, reads completely.
+
+This block adds 28 public theorems and 16 independent definitions. Totals are
+929 audited theorems, 666 definitions, 383 Rust regressions and 1122 ledger
+obligations. Reasoning with these role axioms from source text is next.
+

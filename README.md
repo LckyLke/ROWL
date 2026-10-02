@@ -91,8 +91,8 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
-| **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class axioms, assertions); N-Triples, passing all 68 W3C syntax tests | role axioms from files; RDF/XML, Turtle and the other required formats |
-| **Logic** | ALC (and, or, not, some, only) with named individuals; inside the reasoner also role hierarchies and transitive roles (SH) | inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
+| **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
+| **Logic** | ALC (and, or, not, some, only) with named individuals; inside the reasoner also role hierarchies and transitive roles (SH) | SH straight from files; then inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
 | **Focus** | correctness | performance |
 

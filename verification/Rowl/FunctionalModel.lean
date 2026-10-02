@@ -6,9 +6,9 @@ an independent structural correspondence. Every mapping terminates; whenever it
 succeeds, each model value corresponds to its source record: exact IRI and
 literal bytes, node IDs as anonymous individuals of the caller's scope, and
 nested annotations, member lists and axioms in source order. The mapping
-declines only a member list with fewer than two members, and every axiom the
-independent document grammar accepts has at least two members in each list, so
-every read document maps.
+declines only a member list or property chain with fewer than two members, and
+every axiom the independent document grammar accepts has at least two members in
+each, so every read document maps.
 -/
 namespace Rowl.FunctionalModel
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
@@ -18,6 +18,7 @@ open RowlRust.functional_annotation_axioms (SourceAnnotationAxiomBody SourceAnno
 open RowlRust.functional_assertions (SourceAssertionBody SourceIndividual)
 open RowlRust.functional_classes (SourceClass SourceObjectProperty)
 open RowlRust.functional_class_axioms (SourceClassAxiomBody)
+open RowlRust.functional_property_axioms (SourcePropertyAxiomBody SourceSubProperty PropertyCharacteristic)
 open RowlRust.functional_declarations (SourceDeclaration SourceEntity SourceEntityKind)
 open RowlRust.functional_document (SourceAxiom SourceDocument SourceDocumentTail)
 open RowlRust.functional_header (HeaderIri ImportReference SourceOntologyIdentity)
@@ -154,6 +155,46 @@ inductive AssertionModel (scope : alloc.vec.Vec U8) : SourceAssertionBody → mo
       AssertionModel scope (.NegativeObjectPropertyAssertion property subject object)
         (.NegativeObjectPropertyAssertion (PropertyOf property) (IndividualOf scope subject)
           (IndividualOf scope object))
+/-- A model member list corresponds to a source list of at least two object
+    property expressions: their models, in source order. -/
+inductive PropertyMembersModel : List SourceObjectProperty → model.AtLeastTwo model.ObjectPropertyExpression → Prop
+  | members {first second : SourceObjectProperty} {rest : List SourceObjectProperty}
+      {target : model.AtLeastTwo model.ObjectPropertyExpression}
+      (firstIs : target.first = PropertyOf first) (secondIs : target.second = PropertyOf second)
+      (restIs : target.rest.val = rest.map PropertyOf) :
+      PropertyMembersModel (first :: second :: rest) target
+/-- The model of a sub-property: one property, or the chain of its members. -/
+inductive SubPropertyModel : SourceSubProperty → model.SubObjectPropertyExpression → Prop
+  | single {property : SourceObjectProperty} : SubPropertyModel (.Single property) (.Single (PropertyOf property))
+  | chain {keyword : functional.Token} {members : alloc.vec.Vec SourceObjectProperty}
+      {target : model.AtLeastTwo model.ObjectPropertyExpression} (inner : PropertyMembersModel members.val target) :
+      SubPropertyModel (.Chain keyword members) (.Chain target)
+/-- The model axiom of a property characteristic. -/
+def CharacteristicOf : PropertyCharacteristic → model.ObjectPropertyExpression → model.Axiom
+  | .Functional, property => .FunctionalObjectProperty property
+  | .InverseFunctional, property => .InverseFunctionalObjectProperty property
+  | .Reflexive, property => .ReflexiveObjectProperty property
+  | .Irreflexive, property => .IrreflexiveObjectProperty property
+  | .Symmetric, property => .SymmetricObjectProperty property
+  | .Asymmetric, property => .AsymmetricObjectProperty property
+  | .Transitive, property => .TransitiveObjectProperty property
+/-- A model property axiom corresponds to a source property axiom of the same
+    form, with the models of its properties in source order. -/
+inductive PropertyAxiomModel : SourcePropertyAxiomBody → model.Axiom → Prop
+  | sub {sub : SourceSubProperty} {sup : SourceObjectProperty} {target : model.SubObjectPropertyExpression}
+      (inner : SubPropertyModel sub target) :
+      PropertyAxiomModel (.SubObjectPropertyOf sub sup) (.SubObjectPropertyOf target (PropertyOf sup))
+  | equivalent {members : alloc.vec.Vec SourceObjectProperty} {target : model.AtLeastTwo model.ObjectPropertyExpression}
+      (inner : PropertyMembersModel members.val target) :
+      PropertyAxiomModel (.EquivalentObjectProperties members) (.EquivalentObjectProperties target)
+  | disjoint {members : alloc.vec.Vec SourceObjectProperty} {target : model.AtLeastTwo model.ObjectPropertyExpression}
+      (inner : PropertyMembersModel members.val target) :
+      PropertyAxiomModel (.DisjointObjectProperties members) (.DisjointObjectProperties target)
+  | inverse {first second : SourceObjectProperty} :
+      PropertyAxiomModel (.InverseObjectProperties first second)
+        (.InverseObjectProperties (PropertyOf first) (PropertyOf second))
+  | characteristic {characteristic : PropertyCharacteristic} {property : SourceObjectProperty} :
+      PropertyAxiomModel (.Characteristic characteristic property) (CharacteristicOf characteristic (PropertyOf property))
 /-- A model axiom corresponds to a source axiom: the same axiom and the models
     of its axiom annotations in order. -/
 inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.AnnotatedAxiom → Prop
@@ -168,6 +209,11 @@ inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.Annotate
       {target : model.Axiom}
       (inner : AnnotationsModel scope record.annotations.val annotations.val) (body : ClassAxiomModel record.body target) :
       AxiomModel scope (.Class record) ⟨annotations,target⟩
+  | property {record : functional_property_axioms.SourcePropertyAxiom} {annotations : alloc.vec.Vec model.Annotation}
+      {target : model.Axiom}
+      (inner : AnnotationsModel scope record.annotations.val annotations.val)
+      (body : PropertyAxiomModel record.body target) :
+      AxiomModel scope (.Property record) ⟨annotations,target⟩
   | assertion {record : functional_assertions.SourceAssertion} {annotations : alloc.vec.Vec model.Annotation}
       {target : model.Axiom}
       (inner : AnnotationsModel scope record.annotations.val annotations.val)
@@ -210,9 +256,20 @@ def ShapedAxiom : SourceClassAxiomBody → Prop
 def ShapedAssertion : SourceAssertionBody → Prop
   | .ClassAssertion expression _ => Shaped expression
   | _ => True
+/-- A sub-property whose chain, if any, has at least two members. -/
+def ShapedSub : SourceSubProperty → Prop
+  | .Single _ => True
+  | .Chain _ members => 2 ≤ members.val.length
+/-- A property axiom whose member lists and chains have at least two members. -/
+def ShapedProperty : SourcePropertyAxiomBody → Prop
+  | .SubObjectPropertyOf sub _ => ShapedSub sub
+  | .EquivalentObjectProperties members => 2 ≤ members.val.length
+  | .DisjointObjectProperties members => 2 ≤ members.val.length
+  | _ => True
 /-- A source axiom of the shape the document grammar accepts. -/
 def ShapedSource : SourceAxiom → Prop
   | .Class record => ShapedAxiom record.body
+  | .Property record => ShapedProperty record.body
   | .Assertion record => ShapedAssertion record.body
   | _ => True
 
@@ -647,6 +704,140 @@ theorem assertion_correct (source : SourceAssertionBody) (scope : alloc.vec.Vec 
       (IndividualOf scope object)),by simp [property_correct,individual_correct],
       (by intro target same; cases same; exact .negativeAssertion),fun _ => rfl⟩
 
+/-- The remaining members of a property list map one by one after the models
+    already collected. -/
+theorem properties_from_correct (values : alloc.vec.Vec SourceObjectProperty) (index : Usize)
+    (out : alloc.vec.Vec model.ObjectPropertyExpression) (start : 2 ≤ index.val)
+    (collected : out.val = ((values.val.drop 2).take (index.val-2)).map PropertyOf)
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, properties_from values index out = .ok result ∧ result.val = (values.val.drop 2).map PropertyOf := by
+  rw [properties_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-2 := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (PropertyOf values.val[index.val]) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop 2).take (next.val-2) =
+        (values.val.drop 2).take (index.val-2) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-2 = (index.val-2)+1 by omega]
+      have bound : index.val-2 < (values.val.drop 2).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show 2+(index.val-2) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := properties_from_correct values next appended (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,property_correct,push,advance,finalRead],finalList⟩
+  · have full : (values.val.drop 2).take (index.val-2) = values.val.drop 2 :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+/-- A property list maps exactly when it has two members, to its
+    corresponding model member list. -/
+theorem property_members_correct (values : alloc.vec.Vec SourceObjectProperty) :
+    ∃ result, property_members values = .ok result ∧
+      (∀ target, result = some target → PropertyMembersModel values.val target) ∧
+      (2 ≤ values.val.length → result.isSome) := by
+  rw [property_members]
+  by_cases few : values.val.length < 2
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,Nat.lt_succ_iff.mp few],
+      (by intro target impossible; cases impossible),fun enough => absurd enough (by omega)⟩
+  · have enough : 2 ≤ values.val.length := by omega
+    have zero : 0 < values.val.length := by omega
+    have one : 1 < values.val.length := by omega
+    have first : values.index_usize 0#usize = .ok values.val[0] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+    have second : values.index_usize 1#usize = .ok values.val[1] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+    obtain ⟨rest,restRead,restList⟩ := properties_from_correct values 2#usize
+      (alloc.vec.Vec.new model.ObjectPropertyExpression) (by simp) (by simp) (by simpa using enough)
+    refine ⟨some ⟨PropertyOf values.val[0],PropertyOf values.val[1],rest⟩,by simp [alloc.vec.Vec.len_val,
+      UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,second,property_correct,restRead],?_,
+      fun _ => rfl⟩
+    intro target same
+    cases same
+    obtain ⟨a,b,r,shape⟩ : ∃ a b r, values.val = a :: b :: r := by
+      rcases hv : values.val with _ | ⟨a,_ | ⟨b,r⟩⟩
+      · rw [hv] at enough; simp at enough
+      · rw [hv] at enough; simp at enough
+      · exact ⟨a,b,r,rfl⟩
+    have e0 : values.val[0] = a := by simp [shape]
+    have e1 : values.val[1] = b := by simp [shape]
+    have member : PropertyMembersModel (a :: b :: r) ⟨PropertyOf values.val[0],PropertyOf values.val[1],rest⟩ :=
+      .members (by simp [e0]) (by simp [e1]) (by simpa [shape] using restList)
+    rw [← shape] at member
+    exact member
+/-- A sub-property maps, when it maps, to its corresponding model; a chain maps
+    when it has two members. -/
+theorem sub_property_correct (source : SourceSubProperty) :
+    ∃ result, sub_property source = .ok result ∧
+      (∀ target, result = some target → SubPropertyModel source target) ∧ (ShapedSub source → result.isSome) := by
+  rw [sub_property.eq_def]
+  cases source with
+  | Single value =>
+    exact ⟨some (.Single (PropertyOf value)),by simp [property_correct],
+      (by intro target same; cases same; exact .single),fun _ => rfl⟩
+  | Chain keyword members =>
+    obtain ⟨result,read,correct,total⟩ := property_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.Chain target),by simp [read],(by intro target' same; cases same; exact .chain (correct target rfl)),
+        fun _ => rfl⟩
+theorem characteristic_axiom_correct (characteristic : PropertyCharacteristic) (value : model.ObjectPropertyExpression) :
+    characteristic_axiom characteristic value = .ok (CharacteristicOf characteristic value) := by
+  cases characteristic <;> rfl
+/-- Every property axiom maps, when it maps, to its corresponding model axiom;
+    every shaped property axiom maps. -/
+theorem property_axiom_correct (source : SourcePropertyAxiomBody) :
+    ∃ result, property_axiom source = .ok result ∧
+      (∀ target, result = some target → PropertyAxiomModel source target) ∧ (ShapedProperty source → result.isSome) := by
+  rw [property_axiom.eq_def]
+  cases source with
+  | SubObjectPropertyOf sub sup =>
+    obtain ⟨result,read,correct,total⟩ := sub_property_correct sub
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.SubObjectPropertyOf target (PropertyOf sup)),by simp [read,property_correct],
+        (by intro target' same; cases same; exact .sub (correct target rfl)),fun _ => rfl⟩
+  | EquivalentObjectProperties members =>
+    obtain ⟨result,read,correct,total⟩ := property_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.EquivalentObjectProperties target),by simp [read],
+        (by intro target' same; cases same; exact .equivalent (correct target rfl)),fun _ => rfl⟩
+  | DisjointObjectProperties members =>
+    obtain ⟨result,read,correct,total⟩ := property_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DisjointObjectProperties target),by simp [read],
+        (by intro target' same; cases same; exact .disjoint (correct target rfl)),fun _ => rfl⟩
+  | InverseObjectProperties first second =>
+    exact ⟨some (.InverseObjectProperties (PropertyOf first) (PropertyOf second)),by simp [property_correct],
+      (by intro target same; cases same; exact .inverse),fun _ => rfl⟩
+  | Characteristic characteristic value =>
+    exact ⟨some (CharacteristicOf characteristic (PropertyOf value)),
+      by simp [property_correct,characteristic_axiom_correct],
+      (by intro target same; cases same; exact .characteristic),fun _ => rfl⟩
+
 private theorem axiom_annotations (values : alloc.vec.Vec SourceAnnotation) (scope : alloc.vec.Vec U8) :
     ∃ targets, annotations_from values 0#usize (alloc.vec.Vec.new model.Annotation) scope = .ok targets ∧
       AnnotationsModel scope values.val targets.val :=
@@ -677,6 +868,16 @@ theorem axiom_correct (source : SourceAxiom) (scope : alloc.vec.Vec U8) :
       obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
       exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
         (by intro target same; cases same; exact .«class» annotationsModel (correct body rfl)),fun _ => rfl⟩
+  | Property record =>
+    obtain ⟨result,read,correct,total⟩ := property_axiom_correct record.body
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some body =>
+      obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
+      exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
+        (by intro target same; cases same; exact .property annotationsModel (correct body rfl)),fun _ => rfl⟩
   | Assertion record =>
     obtain ⟨result,read,correct,total⟩ := assertion_correct record.body scope
     cases result with
@@ -930,6 +1131,42 @@ theorem assertion_run_shaped {annotationCount annotationIri annotationLexical an
   cases run with
   | ready _ _ _ bodyRun _ => cases same; exact assertion_body_run_shaped bodyRun rfl
   | _ => cases same
+/-- Every property axiom body the property axiom grammar accepts is shaped. -/
+theorem property_body_run_shaped {count limit : Nat} {form : functional_property_axioms.AxiomForm}
+    {tokens rest : Tokens} {body : SourcePropertyAxiomBody}
+    {result : core.result.Result (SourcePropertyAxiomBody × Tokens) functional_property_axioms.PropertyAxiomError}
+    (run : Rowl.FunctionalPropertyAxioms.BodyRun rows source eof count limit form tokens result)
+    (same : result = .Ok (body,rest)) : ShapedProperty body := by
+  cases run with
+  | subProperty subRun _ =>
+    cases same
+    cases subRun with
+    | single _ _ => exact trivial
+    | chain _ _ listRun _ =>
+      cases listRun with
+      | ok _ enough => exact enough
+  | equivalent listRun =>
+    cases same
+    cases listRun with
+    | ok _ enough => exact enough
+  | disjoint listRun =>
+    cases same
+    cases listRun with
+    | ok _ enough => exact enough
+  | inverse _ _ => cases same; exact trivial
+  | characteristic _ => cases same; exact trivial
+  | _ => cases same
+/-- Every property axiom the property axiom grammar accepts is shaped. -/
+theorem property_axiom_run_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount
+      classIri : Nat} {tokens rest : Tokens} {record : functional_property_axioms.SourcePropertyAxiom}
+    {result : core.result.Result (functional_property_axioms.SourcePropertyAxiom × Tokens)
+      functional_property_axioms.PropertyAxiomError}
+    (run : Rowl.FunctionalPropertyAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+      annotationDepth classCount classIri tokens result) (same : result = .Ok (record,rest)) :
+    ShapedProperty record.body := by
+  cases run with
+  | ready _ _ _ bodyRun _ => cases same; exact property_body_run_shaped bodyRun rfl
+  | _ => cases same
 /-- Every axiom the document grammar reads is shaped. -/
 theorem axiom_step_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
       classDepth : Nat} {family : AxiomFamily} {tokens rest : Tokens} {offset : Usize} {item : SourceAxiom}
@@ -941,6 +1178,7 @@ theorem axiom_step_shaped {annotationCount annotationIri annotationLexical annot
   | declaration _ => cases same; exact trivial
   | annotation _ => cases same; exact trivial
   | «class» run => cases same; exact class_axiom_run_shaped run rfl
+  | property run => cases same; exact property_axiom_run_shaped run rfl
   | assertion run => cases same; exact assertion_run_shaped run rfl
   | _ => cases same
 /-- Every axiom sequence the document grammar reads extends the shaped axioms

@@ -3,8 +3,9 @@
 //! source.
 //!
 //! The axiom loop dispatches on the axiom keyword to the proved declaration,
-//! annotation-axiom, class-axiom and assertion readers. The other logical axiom
-//! forms are reported as unsupported at their keyword; later stages read them.
+//! annotation-axiom, class-axiom, object-property-axiom and assertion readers.
+//! The other logical axiom forms are reported as unsupported at their keyword;
+//! later stages read them.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal};
 use crate::functional_annotation_axioms::{
@@ -22,6 +23,9 @@ use crate::functional_header::{
 };
 use crate::functional_lexer::Tokens;
 use crate::functional_prefixes::{read_prefix_header, PrefixReadError};
+use crate::functional_property_axioms::{
+    read_property_axiom, PropertyAxiomError, SourcePropertyAxiom,
+};
 use crate::prefixes::{check, Check, Declaration, PrefixTable};
 
 /// One axiom of the forms this stage reads.
@@ -29,6 +33,7 @@ pub enum SourceAxiom {
     Declaration(SourceDeclaration),
     Annotation(SourceAnnotationAxiom),
     Class(SourceClassAxiom),
+    Property(SourcePropertyAxiom),
     Assertion(SourceAssertion),
 }
 /// Everything after `Ontology(`: the identity, the imports, the ontology
@@ -82,6 +87,7 @@ pub enum DocumentError {
     Declaration(DeclarationError),
     AnnotationAxiom(AnnotationAxiomError),
     ClassAxiom(ClassAxiomError),
+    PropertyAxiom(PropertyAxiomError),
     Assertion(AssertionError),
     /// An axiom form that this stage does not read yet.
     UnsupportedAxiom {
@@ -100,6 +106,7 @@ enum AxiomFamily {
     Declaration,
     Annotation,
     Class,
+    Property,
     Assertion,
     Unsupported,
 }
@@ -116,19 +123,17 @@ fn axiom_family(terminal: Terminal) -> Option<AxiomFamily> {
         Terminal::Keyword(Keyword::DisjointUnion) => Some(AxiomFamily::Class),
         Terminal::Keyword(Keyword::ObjectPropertyDomain) => Some(AxiomFamily::Class),
         Terminal::Keyword(Keyword::ObjectPropertyRange) => Some(AxiomFamily::Class),
-        Terminal::Keyword(Keyword::SubObjectPropertyOf) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::EquivalentObjectProperties) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::DisjointObjectProperties) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::InverseObjectProperties) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::FunctionalObjectProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::InverseFunctionalObjectProperty) => {
-            Some(AxiomFamily::Unsupported)
-        }
-        Terminal::Keyword(Keyword::ReflexiveObjectProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::IrreflexiveObjectProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::SymmetricObjectProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::AsymmetricObjectProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::TransitiveObjectProperty) => Some(AxiomFamily::Unsupported),
+        Terminal::Keyword(Keyword::SubObjectPropertyOf) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::EquivalentObjectProperties) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::DisjointObjectProperties) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::InverseObjectProperties) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::FunctionalObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::InverseFunctionalObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::ReflexiveObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::IrreflexiveObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::SymmetricObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::AsymmetricObjectProperty) => Some(AxiomFamily::Property),
+        Terminal::Keyword(Keyword::TransitiveObjectProperty) => Some(AxiomFamily::Property),
         Terminal::Keyword(Keyword::SubDataPropertyOf) => Some(AxiomFamily::Unsupported),
         Terminal::Keyword(Keyword::EquivalentDataProperties) => Some(AxiomFamily::Unsupported),
         Terminal::Keyword(Keyword::DisjointDataProperties) => Some(AxiomFamily::Unsupported),
@@ -176,6 +181,12 @@ fn read_axiom(
             match read_class_axiom(table, bytes, tokens, &limits.annotations, &limits.classes) {
                 Ok((axiom, rest)) => Ok((SourceAxiom::Class(axiom), rest)),
                 Err(error) => Err(DocumentError::ClassAxiom(error)),
+            }
+        }
+        AxiomFamily::Property => {
+            match read_property_axiom(table, bytes, tokens, &limits.annotations, &limits.classes) {
+                Ok((axiom, rest)) => Ok((SourceAxiom::Property(axiom), rest)),
+                Err(error) => Err(DocumentError::PropertyAxiom(error)),
             }
         }
         AxiomFamily::Assertion => {

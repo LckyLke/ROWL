@@ -15,11 +15,14 @@ use crate::functional_declarations::{SourceEntity, SourceEntityKind};
 use crate::functional_document::{SourceAxiom, SourceDocument};
 use crate::functional_header::{HeaderIri, ImportReference, SourceOntologyIdentity};
 use crate::functional_literals::SourceLiteral;
+use crate::functional_property_axioms::{
+    PropertyCharacteristic, SourcePropertyAxiomBody, SourceSubProperty,
+};
 use crate::model::{
     AnnotatedAxiom, Annotation, AnnotationProperty, AnnotationSubject, AnnotationValue,
     AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, Datatype, Entity,
     Individual, Iri, Literal, NamedIndividual, ObjectProperty, ObjectPropertyExpression,
-    OntologyIdentity, RawOntology,
+    OntologyIdentity, RawOntology, SubObjectPropertyExpression,
 };
 
 fn copy_from(source: &Vec<u8>, index: usize, mut target: Vec<u8>) -> Vec<u8> {
@@ -259,6 +262,84 @@ fn class_axiom(source: &SourceClassAxiomBody) -> Option<Axiom> {
         },
     }
 }
+/// The model of `values[index..]` after `out`.
+fn properties_from(
+    values: &Vec<SourceObjectProperty>,
+    index: usize,
+    mut out: Vec<ObjectPropertyExpression>,
+) -> Vec<ObjectPropertyExpression> {
+    if index < values.len() && out.len() < values.len() {
+        out.push(property(&values[index]));
+        properties_from(values, index + 1, out)
+    } else {
+        out
+    }
+}
+/// A member list of at least two object property expressions.
+fn property_members(
+    values: &Vec<SourceObjectProperty>,
+) -> Option<AtLeastTwo<ObjectPropertyExpression>> {
+    if values.len() < 2 {
+        return None;
+    }
+    Some(AtLeastTwo {
+        first: property(&values[0]),
+        second: property(&values[1]),
+        rest: properties_from(values, 2, Vec::new()),
+    })
+}
+fn sub_property(source: &SourceSubProperty) -> Option<SubObjectPropertyExpression> {
+    match source {
+        SourceSubProperty::Single(value) => {
+            Some(SubObjectPropertyExpression::Single(property(value)))
+        }
+        SourceSubProperty::Chain { members, .. } => match property_members(members) {
+            Some(members) => Some(SubObjectPropertyExpression::Chain(members)),
+            None => None,
+        },
+    }
+}
+fn characteristic_axiom(
+    characteristic: PropertyCharacteristic,
+    value: ObjectPropertyExpression,
+) -> Axiom {
+    match characteristic {
+        PropertyCharacteristic::Functional => Axiom::FunctionalObjectProperty(value),
+        PropertyCharacteristic::InverseFunctional => Axiom::InverseFunctionalObjectProperty(value),
+        PropertyCharacteristic::Reflexive => Axiom::ReflexiveObjectProperty(value),
+        PropertyCharacteristic::Irreflexive => Axiom::IrreflexiveObjectProperty(value),
+        PropertyCharacteristic::Symmetric => Axiom::SymmetricObjectProperty(value),
+        PropertyCharacteristic::Asymmetric => Axiom::AsymmetricObjectProperty(value),
+        PropertyCharacteristic::Transitive => Axiom::TransitiveObjectProperty(value),
+    }
+}
+fn property_axiom(source: &SourcePropertyAxiomBody) -> Option<Axiom> {
+    match source {
+        SourcePropertyAxiomBody::SubObjectPropertyOf { sub, sup } => match sub_property(sub) {
+            Some(sub) => Some(Axiom::SubObjectPropertyOf(sub, property(sup))),
+            None => None,
+        },
+        SourcePropertyAxiomBody::EquivalentObjectProperties(members) => {
+            match property_members(members) {
+                Some(members) => Some(Axiom::EquivalentObjectProperties(members)),
+                None => None,
+            }
+        }
+        SourcePropertyAxiomBody::DisjointObjectProperties(members) => {
+            match property_members(members) {
+                Some(members) => Some(Axiom::DisjointObjectProperties(members)),
+                None => None,
+            }
+        }
+        SourcePropertyAxiomBody::InverseObjectProperties { first, second } => Some(
+            Axiom::InverseObjectProperties(property(first), property(second)),
+        ),
+        SourcePropertyAxiomBody::Characteristic {
+            characteristic,
+            property: value,
+        } => Some(characteristic_axiom(*characteristic, property(value))),
+    }
+}
 fn individual(source: &SourceIndividual, scope: &Vec<u8>) -> Individual {
     match source {
         SourceIndividual::Named(name) => Individual::Named(NamedIndividual { iri: iri(name) }),
@@ -305,6 +386,13 @@ fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
             axiom: annotation_axiom(&record.body, scope),
         }),
         SourceAxiom::Class(record) => match class_axiom(&record.body) {
+            Some(axiom) => Some(AnnotatedAxiom {
+                annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
+                axiom,
+            }),
+            None => None,
+        },
+        SourceAxiom::Property(record) => match property_axiom(&record.body) {
             Some(axiom) => Some(AnnotatedAxiom {
                 annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
                 axiom,

@@ -41,6 +41,7 @@ fn families(document: &SourceDocument) -> Vec<&'static str> {
             SourceAxiom::Declaration(_) => "declaration",
             SourceAxiom::Annotation(_) => "annotation",
             SourceAxiom::Class(_) => "class",
+            SourceAxiom::Property(_) => "property",
             SourceAxiom::Assertion(_) => "assertion",
         })
         .collect()
@@ -53,7 +54,7 @@ fn offset(bytes: &[u8], needle: &str) -> usize {
 
 #[test]
 fn every_example_document_reads_completely() {
-    let cases: [(&[u8], usize); 6] = [
+    let cases: [(&[u8], usize); 7] = [
         (
             include_bytes!("../../../examples/maintenance-annotations.ofn"),
             2,
@@ -78,6 +79,10 @@ fn every_example_document_reads_completely() {
             include_bytes!("../../../examples/maintenance-individuals.ofn"),
             16,
         ),
+        (
+            include_bytes!("../../../examples/maintenance-roles.ofn"),
+            17,
+        ),
     ];
     for (bytes, count) in cases {
         let document = read_document(&bytes.to_vec(), &limits(100))
@@ -90,13 +95,20 @@ fn every_example_document_reads_completely() {
 #[test]
 fn axioms_keep_their_family_and_order() {
     let (_, result) = read(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n Annotation(rdfs:label \"o\")\n Declaration(Class(:A))\n SubClassOf(:A :B)\n AnnotationAssertion(rdfs:label :A \"A\")\n DisjointClasses(:A :C)\n)\n",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n Annotation(rdfs:label \"o\")\n Declaration(Class(:A))\n SubClassOf(:A :B)\n AnnotationAssertion(rdfs:label :A \"A\")\n TransitiveObjectProperty(:p)\n DisjointClasses(:A :C)\n SubObjectPropertyOf(ObjectPropertyChain(:p :q) :r)\n)\n",
         10,
     );
     let document = result.unwrap_or_else(|_| panic!("fixture document"));
     assert_eq!(
         families(&document),
-        ["declaration", "class", "annotation", "class"]
+        [
+            "declaration",
+            "class",
+            "annotation",
+            "property",
+            "class",
+            "property"
+        ]
     );
     assert_eq!(document.tail.annotations.len(), 1);
 }
@@ -105,12 +117,12 @@ fn axioms_keep_their_family_and_order() {
 fn errors_report_the_first_failing_stage() {
     // An axiom form this stage does not read yet.
     let (bytes, result) = read(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n)",
         10,
     );
     match result {
         Err(DocumentError::UnsupportedAxiom { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "SubObjectPropertyOf"))
+            assert_eq!(at, offset(&bytes, "SameIndividual"))
         }
         _ => panic!("the other logical axioms are reported as unsupported"),
     }
@@ -182,4 +194,9 @@ fn errors_report_the_first_failing_stage() {
         10,
     );
     assert!(matches!(result, Err(DocumentError::ClassAxiom(_))));
+    let (_, result) = read(
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n EquivalentObjectProperties(:p)\n)",
+        10,
+    );
+    assert!(matches!(result, Err(DocumentError::PropertyAxiom(_))));
 }

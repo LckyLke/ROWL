@@ -79,6 +79,7 @@ import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
 import Rowl.FunctionalAssertions
+import Rowl.FunctionalPropertyAxioms
 import Rowl.FunctionalDocument
 import Rowl.FunctionalModel
 import Rowl.Nnf
@@ -904,6 +905,11 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.members_of_correct
 #print axioms Rowl.FunctionalModel.class_axiom_correct
 #print axioms Rowl.FunctionalModel.assertion_correct
+#print axioms Rowl.FunctionalModel.properties_from_correct
+#print axioms Rowl.FunctionalModel.property_members_correct
+#print axioms Rowl.FunctionalModel.sub_property_correct
+#print axioms Rowl.FunctionalModel.characteristic_axiom_correct
+#print axioms Rowl.FunctionalModel.property_axiom_correct
 #print axioms Rowl.FunctionalModel.axiom_correct
 #print axioms Rowl.FunctionalModel.axioms_from_correct
 #print axioms Rowl.FunctionalModel.imports_from_correct
@@ -917,6 +923,8 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.class_axiom_run_shaped
 #print axioms Rowl.FunctionalModel.assertion_body_run_shaped
 #print axioms Rowl.FunctionalModel.assertion_run_shaped
+#print axioms Rowl.FunctionalModel.property_body_run_shaped
+#print axioms Rowl.FunctionalModel.property_axiom_run_shaped
 #print axioms Rowl.FunctionalModel.axiom_step_shaped
 #print axioms Rowl.FunctionalModel.axioms_run_shaped
 #print axioms Rowl.FunctionalModel.tail_run_shaped
@@ -992,6 +1000,27 @@ import Rowl.SourceReasoning
 #print axioms Rowl.RoleBox.below_correct
 #print axioms Rowl.RoleBox.closed_of_empty
 #print axioms Rowl.RoleBox.respects_of_empty
+#print axioms Rowl.FunctionalPropertyAxioms.axiom_form_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.closes_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.starts_chain_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.expected_terminal_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.take_expected_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.take_expected_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.take_progress
+#print axioms Rowl.FunctionalPropertyAxioms.read_property_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.read_property_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.property_step_progress
+#print axioms Rowl.FunctionalPropertyAxioms.read_properties_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.properties_execution
+#print axioms Rowl.FunctionalPropertyAxioms.read_list_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.read_list_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.read_sub_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.read_sub_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.read_body_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.read_body_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.read_property_axiom_total_correct
+#print axioms Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff
+#print axioms Rowl.FunctionalPropertyAxioms.property_axiom_progress
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1642,3 +1671,19 @@ import Rowl.SourceReasoning
 #print axioms Rowl.AboxTableau.underStep
 #print axioms Rowl.AboxTableau.roleModel
 #print axioms Rowl.AboxTableau.Required
+#print axioms Rowl.FunctionalPropertyAxioms.FormOf
+#print axioms Rowl.FunctionalPropertyAxioms.Expected
+#print axioms Rowl.FunctionalPropertyAxioms.StartsChain
+#print axioms Rowl.FunctionalPropertyAxioms.TakeRun
+#print axioms Rowl.FunctionalPropertyAxioms.PropertyStep
+#print axioms Rowl.FunctionalPropertyAxioms.PropertiesRun
+#print axioms Rowl.FunctionalPropertyAxioms.ListRun
+#print axioms Rowl.FunctionalPropertyAxioms.SubRun
+#print axioms Rowl.FunctionalPropertyAxioms.BodyRun
+#print axioms Rowl.FunctionalPropertyAxioms.AxiomRun
+#print axioms Rowl.FunctionalModel.PropertyMembersModel
+#print axioms Rowl.FunctionalModel.SubPropertyModel
+#print axioms Rowl.FunctionalModel.CharacteristicOf
+#print axioms Rowl.FunctionalModel.PropertyAxiomModel
+#print axioms Rowl.FunctionalModel.ShapedSub
+#print axioms Rowl.FunctionalModel.ShapedProperty
