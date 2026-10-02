@@ -103,3 +103,5 @@ import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.Nnf
 import Rowl.Tableau
+import Rowl.Hintikka
+import Rowl.TboxTableau

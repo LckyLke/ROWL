@@ -11140,6 +11140,281 @@ def tableau.satisfiable (concept : nnf.NnfConcept) : Result Bool := do
   tableau.expand (tableau.Concepts.Entry concept tableau.Concepts.Empty)
     tableau.Concepts.Empty
 
+/-- [rowl_kernel::tbox::History]
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 16:0-22:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tbox.History where
+| Empty : tbox.History
+| Entry : tableau.Concepts → tbox.History → tbox.History
+
+/-- [rowl_kernel::tbox::duplicate_history]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 24:0-42:1 -/
+def tbox.duplicate_history
+  (history : tbox.History) : Result (tbox.History × tbox.History) := do
+  match history with
+  | tbox.History.Empty => ok (tbox.History.Empty, tbox.History.Empty)
+  | tbox.History.Entry label next =>
+    let (left_label, right_label) ← tableau.duplicate label
+    let (left, right) ← tbox.duplicate_history next
+    ok (tbox.History.Entry left_label left, tbox.History.Entry right_label
+      right)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::same_concept]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 44:0-68:1 -/
+def tbox.same_concept
+  (left : nnf.NnfConcept) (right : nnf.NnfConcept) : Result Bool := do
+  match left with
+  | nnf.NnfConcept.Top =>
+    match right with
+    | nnf.NnfConcept.Top => ok true
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Bottom =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok true
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Atom a =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.NotAtom a =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.And a1 b1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And a2 b2 =>
+      let b ← tbox.same_concept a1 a2
+      if b
+      then tbox.same_concept b1 b2
+      else ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Or a1 b1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or a2 b2 =>
+      let b ← tbox.same_concept a1 a2
+      if b
+      then tbox.same_concept b1 b2
+      else ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Exists r1 c1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists r2 c2 =>
+      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
+      if b
+      then tbox.same_concept c1 c2
+      else ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Forall r1 c1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall r2 c2 =>
+      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
+      if b
+      then tbox.same_concept c1 c2
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::contains_concept]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 70:0-85:1 -/
+def tbox.contains_concept
+  (list : tableau.Concepts) (sought : nnf.NnfConcept) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let here ← tbox.same_concept concept sought
+    let (later, rest) ← tbox.contains_concept next sought
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, tableau.Concepts.Entry concept rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::subset]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 87:0-103:1 -/
+def tbox.subset
+  (small : tableau.Concepts) (large : tableau.Concepts) :
+  Result (Bool × tableau.Concepts × tableau.Concepts)
+  := do
+  match small with
+  | tableau.Concepts.Empty => ok (true, tableau.Concepts.Empty, large)
+  | tableau.Concepts.Entry concept next =>
+    let (here, large1) ← tbox.contains_concept large concept
+    let (later, rest, large2) ← tbox.subset next large1
+    let b ← if here
+              then ok later
+              else ok false
+    ok (b, tableau.Concepts.Entry concept rest, large2)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::blocked]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 105:0-124:1 -/
+def tbox.blocked
+  (label : tableau.Concepts) (history : tbox.History) :
+  Result (Bool × tableau.Concepts × tbox.History)
+  := do
+  match history with
+  | tbox.History.Empty => ok (false, label, tbox.History.Empty)
+  | tbox.History.Entry ancestor next =>
+    let (here, label1, ancestor1) ← tbox.subset label ancestor
+    let (later, label2, rest) ← tbox.blocked label1 next
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, label2, tbox.History.Entry ancestor1 rest)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::tbox::expand]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 127:0-200:1 -/
+def tbox.expand
+  (pending : tableau.Concepts) (literals : tableau.Concepts)
+  (history : tbox.History) (axioms : nnf.NnfConcept) :
+  Result Bool
+  := do
+  match pending with
+  | tableau.Concepts.Empty =>
+    let (cursor, literals1) ← tableau.duplicate literals
+    let (clash, literals2) ← tableau.has_clash literals1 cursor
+    if clash
+    then ok false
+    else
+      let (is_blocked, literals3, history1) ← tbox.blocked literals2 history
+      if is_blocked
+      then ok true
+      else
+        let (label, literals4) ← tableau.duplicate literals3
+        let (cursor1, literals5) ← tableau.duplicate literals4
+        let (b, _, _) ←
+          tbox.existentials_hold literals5 cursor1 (tbox.History.Entry label
+            history1) axioms
+        ok b
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tbox.expand next literals history axioms
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.NotAtom _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.And left right =>
+      tbox.expand (tableau.Concepts.Entry left (tableau.Concepts.Entry right
+        next)) literals history axioms
+    | nnf.NnfConcept.Or left right =>
+      let (next1, other_pending) ← tableau.duplicate next
+      let (literals1, other_literals) ← tableau.duplicate literals
+      let (history1, other_history) ← tbox.duplicate_history history
+      let b ←
+        tbox.expand (tableau.Concepts.Entry left next1) literals1 history1
+          axioms
+      if b
+      then ok true
+      else
+        tbox.expand (tableau.Concepts.Entry right other_pending) other_literals
+          other_history axioms
+    | nnf.NnfConcept.Exists _ _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.Forall _ _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::existentials_hold]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 204:0-234:1 -/
+def tbox.existentials_hold
+  (all : tableau.Concepts) (cursor : tableau.Concepts) (history : tbox.History)
+  (axioms : nnf.NnfConcept) :
+  Result (Bool × tableau.Concepts × tbox.History)
+  := do
+  match cursor with
+  | tableau.Concepts.Empty => ok (true, all, history)
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Bottom => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Atom _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.NotAtom _ =>
+      tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.And _ _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Or _ _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Exists role filler =>
+      let (fillers, all1) ← tableau.universal_fillers all role
+      let (successor_history, history1) ← tbox.duplicate_history history
+      let here ←
+        tbox.expand (tableau.Concepts.Entry filler (tableau.Concepts.Entry
+          axioms fillers)) tableau.Concepts.Empty successor_history axioms
+      let (later, all2, history2) ←
+        tbox.existentials_hold all1 next history1 axioms
+      if here
+      then ok (later, all2, history2)
+      else ok (false, all2, history2)
+    | nnf.NnfConcept.Forall _ _ =>
+      tbox.existentials_hold all next history axioms
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::tbox::satisfiable_in]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 237:0-250:1
+    Visibility: public -/
+def tbox.satisfiable_in
+  (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
+  tbox.expand (tableau.Concepts.Entry concept (tableau.Concepts.Entry axioms
+    tableau.Concepts.Empty)) tableau.Concepts.Empty tbox.History.Empty axioms
+
 /-- [rowl_kernel::topdata::equal_from]:
     Source: 'crates/rowl-kernel/src/topdata.rs', lines 12:0-18:1 -/
 def topdata.equal_from

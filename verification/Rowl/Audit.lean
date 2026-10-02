@@ -77,6 +77,8 @@ import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.Nnf
 import Rowl.Tableau
+import Rowl.Hintikka
+import Rowl.TboxTableau
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -725,6 +727,24 @@ import Rowl.Tableau
 #print axioms Rowl.Tableau.satisfiable_correct
 #print axioms Rowl.Tableau.class_instances_accepted
 #print axioms Rowl.Tableau.rejected_class_empty
+#print axioms Rowl.Hintikka.sat_mono
+#print axioms Rowl.Hintikka.sat_literal
+#print axioms Rowl.Hintikka.family_truth
+#print axioms Rowl.Hintikka.model_of_family
+#print axioms Rowl.TboxTableau.subconcepts_self
+#print axioms Rowl.TboxTableau.subconcepts_closed
+#print axioms Rowl.TboxTableau.closed_append
+#print axioms Rowl.TboxTableau.history_bound
+#print axioms Rowl.TboxTableau.duplicate_history_correct
+#print axioms Rowl.TboxTableau.same_concept_correct
+#print axioms Rowl.TboxTableau.contains_concept_correct
+#print axioms Rowl.TboxTableau.subset_correct
+#print axioms Rowl.TboxTableau.blocked_correct
+#print axioms Rowl.TboxTableau.expand_correct
+#print axioms Rowl.TboxTableau.satisfiable_in_correct
+#print axioms Rowl.TboxTableau.rejected_empty_in_models
+#print axioms Rowl.TboxTableau.class_instances_accepted_in
+#print axioms Rowl.TboxTableau.rejected_class_empty_in
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1256,3 +1276,16 @@ import Rowl.Tableau
 #print axioms Rowl.Tableau.Decides
 #print axioms Rowl.Tableau.emptyModel
 #print axioms Rowl.Tableau.tree
+#print axioms Rowl.Hintikka.Sat
+#print axioms Rowl.Hintikka.SatAll
+#print axioms Rowl.Hintikka.ClashFree
+#print axioms Rowl.Hintikka.Witnessed
+#print axioms Rowl.Hintikka.Coherent
+#print axioms Rowl.Hintikka.familyModel
+#print axioms Rowl.TboxTableau.historyList
+#print axioms Rowl.TboxTableau.subconcepts
+#print axioms Rowl.TboxTableau.Closed
+#print axioms Rowl.TboxTableau.Accepts
+#print axioms Rowl.TboxTableau.ModelSat
+#print axioms Rowl.TboxTableau.Decides
+#print axioms Rowl.TboxTableau.Invariant

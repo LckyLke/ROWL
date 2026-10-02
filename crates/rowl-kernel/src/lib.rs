@@ -60,3 +60,5 @@ pub mod decimal;
 pub mod nnf;
 
 pub mod tableau;
+
+pub mod tbox;

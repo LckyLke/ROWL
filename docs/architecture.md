@@ -827,6 +827,18 @@ translation, so no answer is ever given for an unsupported input.
 The first decision procedure is the ALC tableau without a TBox. It is a
 recursive procedure over lists of concepts rather than a completion graph: with
 no axioms, each existential successor can be decided independently, which keeps
-the termination, soundness and completeness proofs small. A TBox requires
-completion graphs with blocking. That stage will reuse the concept language, its
-meaning and the tree-model construction, but it needs a new termination argument.
+the termination, soundness and completeness proofs small.
+
+With a TBox, the procedure keeps the same recursive shape with two changes:
+every successor also receives the TBox concept, and each call carries the literal
+sets of its ancestors, so a node whose literal set is contained in an ancestor's
+is blocked and accepted. Termination comes from the finite subconcept closure:
+the unblocked nodes of a branch carry pairwise distinct subsets of it, so the
+measure 2^|closure| - |ancestors| shrinks at every successor. A tree model no
+longer suffices for soundness, because a blocked node must reuse its ancestor.
+The proof instead collects the literal sets of the accepted nodes into a
+Hintikka family (clash-free, satisfying the TBox concept, every existential
+witnessed inside the family), whose own interpretation is the model. Completeness
+still follows any model. Blocking compares concepts by exact structural equality,
+so the ancestor search is quadratic in the label sizes; performance work belongs
+to a later stage.

@@ -6,7 +6,7 @@
 //! recursively decides every existential restriction together with the
 //! universal restrictions on the same property. Every step shrinks the total
 //! size of the concepts still to decide, so it always terminates. General
-//! concept inclusions (a TBox) need blocking and are a later stage.
+//! concept inclusions (a TBox) need blocking; see `tbox`.
 //!
 //! Lists are passed by value and handed back, as elsewhere in the kernel's
 //! extraction subset.
@@ -24,7 +24,7 @@ pub enum Concepts<'a> {
     },
 }
 
-fn duplicate(list: Concepts<'_>) -> (Concepts<'_>, Concepts<'_>) {
+pub(crate) fn duplicate(list: Concepts<'_>) -> (Concepts<'_>, Concepts<'_>) {
     match list {
         Concepts::Empty => (Concepts::Empty, Concepts::Empty),
         Concepts::Entry { concept, next } => {
@@ -43,7 +43,7 @@ fn duplicate(list: Concepts<'_>) -> (Concepts<'_>, Concepts<'_>) {
     }
 }
 /// Whether the named class occurs positively in the list.
-fn contains_atom<'a>(list: Concepts<'a>, class: &Class) -> (bool, Concepts<'a>) {
+pub(crate) fn contains_atom<'a>(list: Concepts<'a>, class: &Class) -> (bool, Concepts<'a>) {
     match list {
         Concepts::Empty => (false, Concepts::Empty),
         Concepts::Entry { concept, next } => {
@@ -63,7 +63,7 @@ fn contains_atom<'a>(list: Concepts<'a>, class: &Class) -> (bool, Concepts<'a>) 
     }
 }
 /// Whether some negated class in `cursor` also occurs positively in `all`.
-fn has_clash<'a>(all: Concepts<'a>, cursor: Concepts<'a>) -> (bool, Concepts<'a>) {
+pub(crate) fn has_clash<'a>(all: Concepts<'a>, cursor: Concepts<'a>) -> (bool, Concepts<'a>) {
     match cursor {
         Concepts::Empty => (false, all),
         Concepts::Entry { concept, next } => {
@@ -78,7 +78,7 @@ fn has_clash<'a>(all: Concepts<'a>, cursor: Concepts<'a>) -> (bool, Concepts<'a>
 }
 /// The fillers of every universal restriction on `role`, in list order, and
 /// the unchanged list.
-fn universal_fillers<'a>(
+pub(crate) fn universal_fillers<'a>(
     list: Concepts<'a>,
     role: &ObjectProperty,
 ) -> (Concepts<'a>, Concepts<'a>) {

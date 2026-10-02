@@ -465,8 +465,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   owl:Nothing become top and bottom. It is proved total on all 18 class forms,
   returns no result exactly outside the fragment, and preserves the meaning of the
   expression (or its complement) under the independent Direct Semantics in every
-  OWL interpretation, for domains of any universe. TBox reasoning and blocking,
-  the other constructors, datatypes and query reductions remain pending.
+  OWL interpretation, for domains of any universe. Reading ontology axioms into a
+  TBox, the other constructors, datatypes and query reductions remain pending.
 - Reasoner track, second stage: a verified ALC tableau for concept
   satisfiability without a TBox. The actual kernel procedure expands conjunctions,
   branches on disjunctions, detects clashes between a named class and its
@@ -477,18 +477,36 @@ progress. Full OWL parsing and executable reasoning are still future work.
   OWL class expression empty in every OWL interpretation, which justifies
   unsatisfiability and subsumption answers for ALC. This is the first verified
   reasoning procedure in the project and an internal fragment experiment toward
-  M6: TBox axioms and blocking, the remaining SROIQ constructors, datatypes,
-  ontology-level queries and performance remain pending.
-- 647 audited public theorems and 531 audited semantic definitions. Only the ALC
-  concept fragment (without a TBox) has a proved decision procedure; no full OWL
-  decision procedure is proved yet. See m3-m4-progress.md for the input contracts.
-- 339 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+  M6: the remaining SROIQ constructors, datatypes, ontology-level queries and
+  performance remain pending.
+- Reasoner track, third stage: a verified ALC tableau with a TBox and blocking.
+  The actual kernel procedure decides whether some interpretation in which a TBox
+  concept holds at every element has an element in a concept. It adds the TBox
+  concept at the root and at every successor, and blocks (accepts) a node whose
+  literals all occur among the literals of an ancestor. It is proved total (each
+  unblocked node adds a new subset of the finite subconcept closure to its branch,
+  so branches are bounded by 2^|closure|), sound (every acceptance yields a finite
+  Hintikka family of clash-free literal sets whose own interpretation is a model
+  of the TBox concept with an instance of the input) and complete (a model in any
+  universe forces acceptance). With the NNF stage, every rejection proves an OWL
+  class expression empty in every OWL interpretation where the TBox class
+  expression holds at every element, which justifies unsatisfiability and
+  subsumption answers under ALC general concept inclusions written as that
+  expression. Reading SubClassOf and the other class axioms of an ontology into
+  the TBox expression, the OWL-level model fixing owl:Thing and owl:Nothing, the
+  remaining SROIQ constructors and role axioms, datatypes, ontology-level queries
+  and performance remain pending.
+- 665 audited public theorems and 544 audited semantic definitions. Only the ALC
+  concept fragment, with or without a TBox concept, has a proved decision
+  procedure; no full OWL decision procedure is proved yet. See m3-m4-progress.md
+  for the input contracts.
+- 343 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 840-obligation release ledger and separate checked constructor and built-in inventories.
+- A 858-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

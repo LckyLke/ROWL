@@ -2112,3 +2112,79 @@ This block adds 20 public theorems and 14 independent definitions: totals are
 647 audited theorems, 531 definitions, 339 Rust regressions and 840 ledger
 obligations. Full OWL reasoning, ontology-level queries and byte-to-answer
 release proofs remain pending.
+
+
+## Reasoner track: verified ALC tableau with a TBox and blocking
+
+`tbox::satisfiable_in` decides whether some interpretation in which a TBox
+concept holds at every element has an element in a concept; both are in negation
+normal form. The TBox is one concept, for example the negation normal form of the
+conjunction of `¬C ⊔ D` for general concept inclusions `C ⊑ D`. `expand` keeps
+the plain tableau's rules over pending concepts and literals and adds a third
+list, the history: the literal sets of the node's ancestors, nearest first. When
+nothing is pending and there is no clash, a node whose literals all occur in one
+ancestor's literal set is blocked and accepted. Otherwise its literal set joins
+the history, and every existential restriction `∃r.C` is decided as the list `C`,
+the TBox concept and the fillers of the universal restrictions `∀r.D` on the same
+property, below the extended history. Concepts are compared structurally, with
+classes and properties compared by exact IRI spelling.
+
+Hintikka, which is independent of the Rust code, defines syntactic satisfaction
+of a concept by a literal set, clash-freedom, witnessed existentials and coherent
+families. Every set of a coherent family is clash-free, satisfies the TBox
+concept, and has each existential restriction witnessed by a set in the family
+(or among given ancestors) that satisfies the TBox concept, the filler and every
+matching universal filler. Its truth lemma takes the interpretation whose
+elements are the sets of a coherent family, with an edge from one set to another
+along a property when the second satisfies every universal filler of the first on
+that property, and proves every concept true wherever it is syntactically
+satisfied. A coherent family with a set satisfying a concept therefore yields a
+model of the TBox concept with an instance of the concept.
+
+TboxTableau proves every helper exact: history duplication, structural concept
+equality, membership, subset and blocking. The main theorem proves `expand` total
+and correct under invariants: all concepts stay inside the subconcept closure of
+the input and TBox concepts, the ancestors' literal sets are pairwise distinct,
+the literal list holds only literals, and satisfying the current concepts entails
+the node's goals, which include the TBox concept. Termination is well-founded on
+the lexicographic triple (2^|closure| - |history|, total concept size, pending
+concept size). A counting lemma bounds pairwise distinct subsets of the closure by
+2^|closure|, and an unblocked node's literal set differs from every ancestor's,
+so each successor call shrinks the first component. Soundness is relative to the
+ancestors: an acceptance yields a family, coherent with respect to the ancestors,
+in which some set or some ancestor satisfies all current concepts. A blocked node
+is covered by the ancestor containing its literals; an expanded node adds its own
+literal set to the merged families of its successors. At the root there are no
+ancestors, so the family is coherent and yields the model. Completeness follows
+any model, in any universe, in which the TBox concept holds everywhere. Such a
+model has no clash, satisfies one operand of every disjunction, and supplies for
+every existential a successor that satisfies the TBox concept and all matching
+universal fillers; blocking only ever accepts.
+
+satisfiable_in_correct states the result. Every acceptance comes with a model in
+which the TBox concept holds at every element and the concept has an instance,
+and every such model, in any universe, forces acceptance. A rejection therefore
+proves the concept empty in all of them (rejected_empty_in_models). Composed with
+the NNF stage, the procedure never rejects an OWL class expression with an
+instance in an OWL interpretation where the TBox class expression holds at every
+element (class_instances_accepted_in). So a rejection proves the expression
+empty in all such interpretations (rejected_class_empty_in), which justifies
+unsatisfiability and subsumption answers under ALC general concept inclusions
+expressed as that class expression. Reading SubClassOf and the other class axioms
+of an ontology into it, the OWL-level model fixing owl:Thing and owl:Nothing, the
+remaining SROIQ constructors and role axioms, datatypes, ontology-level queries
+and performance remain pending. This is an internal fragment experiment toward
+M6.
+
+Four kernel regressions check that cyclic axioms terminate through blocking, that
+axioms propagate to every element (including a clashing cycle and a universal
+axiom acting as a range), and that a top TBox agrees with the plain tableau on
+1000 pseudo-random concepts. The fourth draws 600 pseudo-random concept and TBox
+pairs and checks that every pair with a model of at most three elements is
+accepted. The runnable tbox example answers maintenance questions under four
+axioms, one of them cyclic.
+
+This block adds 18 public theorems and 13 independent definitions: totals are
+665 audited theorems, 544 definitions, 343 Rust regressions and 858 ledger
+obligations. Full OWL reasoning, ontology-level queries and byte-to-answer
+release proofs remain pending.

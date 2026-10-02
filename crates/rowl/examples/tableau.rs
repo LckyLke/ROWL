@@ -73,5 +73,5 @@ fn main() {
         subsumed(class(NOTHING), class("Machine"))
     );
     println!("Satisfiable answers (and failed subsumptions) come with a tree model of the concept; unsatisfiable answers (and subsumptions) are proved to hold in every OWL interpretation.");
-    println!("Ontology axioms (a TBox, such as 'machines with faulty parts need inspection') need blocking and are the next reasoner stage.");
+    println!("Ontology axioms (a TBox, such as 'machines with faulty parts need inspection') need blocking; the tbox example answers questions under them.");
 }

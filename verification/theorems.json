@@ -1121,6 +1121,36 @@
         "Rowl.Tableau.class_instances_accepted",
         "Rowl.Tableau.rejected_class_empty"
       ]
+    },
+    {
+      "module": "Rowl.Hintikka",
+      "namespace": "Rowl.Hintikka",
+      "theorems": [
+        "Rowl.Hintikka.sat_mono",
+        "Rowl.Hintikka.sat_literal",
+        "Rowl.Hintikka.family_truth",
+        "Rowl.Hintikka.model_of_family"
+      ]
+    },
+    {
+      "module": "Rowl.TboxTableau",
+      "namespace": "Rowl.TboxTableau",
+      "theorems": [
+        "Rowl.TboxTableau.subconcepts_self",
+        "Rowl.TboxTableau.subconcepts_closed",
+        "Rowl.TboxTableau.closed_append",
+        "Rowl.TboxTableau.history_bound",
+        "Rowl.TboxTableau.duplicate_history_correct",
+        "Rowl.TboxTableau.same_concept_correct",
+        "Rowl.TboxTableau.contains_concept_correct",
+        "Rowl.TboxTableau.subset_correct",
+        "Rowl.TboxTableau.blocked_correct",
+        "Rowl.TboxTableau.expand_correct",
+        "Rowl.TboxTableau.satisfiable_in_correct",
+        "Rowl.TboxTableau.rejected_empty_in_models",
+        "Rowl.TboxTableau.class_instances_accepted_in",
+        "Rowl.TboxTableau.rejected_class_empty_in"
+      ]
     }
   ],
   "specifications": [
@@ -1654,6 +1684,19 @@
     "Rowl.Tableau.TreeSatisfiable",
     "Rowl.Tableau.Decides",
     "Rowl.Tableau.emptyModel",
-    "Rowl.Tableau.tree"
+    "Rowl.Tableau.tree",
+    "Rowl.Hintikka.Sat",
+    "Rowl.Hintikka.SatAll",
+    "Rowl.Hintikka.ClashFree",
+    "Rowl.Hintikka.Witnessed",
+    "Rowl.Hintikka.Coherent",
+    "Rowl.Hintikka.familyModel",
+    "Rowl.TboxTableau.historyList",
+    "Rowl.TboxTableau.subconcepts",
+    "Rowl.TboxTableau.Closed",
+    "Rowl.TboxTableau.Accepts",
+    "Rowl.TboxTableau.ModelSat",
+    "Rowl.TboxTableau.Decides",
+    "Rowl.TboxTableau.Invariant"
   ]
 }
