@@ -5247,6 +5247,1293 @@ def functional_annotations.AnnotationExpected.Insts.CoreMarkerCopy :
   cloneInst := functional_annotations.AnnotationExpected.Insts.CoreCloneClone
 }
 
+/-- [rowl_frontend::functional_classes::SourceObjectProperty]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 17:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_classes.SourceObjectProperty where
+| Named :
+  functional_header.HeaderIri →
+  functional_classes.SourceObjectProperty
+| Inverse :
+  functional.Token →
+  functional_header.HeaderIri →
+  functional_classes.SourceObjectProperty
+
+/-- [rowl_frontend::functional_classes::SourceClass]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 23:0-47:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_classes.SourceClass where
+| Named : functional_header.HeaderIri → functional_classes.SourceClass
+| IntersectionOf :
+  functional.Token →
+  alloc.vec.Vec functional_classes.SourceClass →
+  functional_classes.SourceClass
+| UnionOf :
+  functional.Token →
+  alloc.vec.Vec functional_classes.SourceClass →
+  functional_classes.SourceClass
+| ComplementOf :
+  functional.Token →
+  functional_classes.SourceClass →
+  functional_classes.SourceClass
+| SomeValuesFrom :
+  functional.Token →
+  functional_classes.SourceObjectProperty →
+  functional_classes.SourceClass →
+  functional_classes.SourceClass
+| AllValuesFrom :
+  functional.Token →
+  functional_classes.SourceObjectProperty →
+  functional_classes.SourceClass →
+  functional_classes.SourceClass
+
+/-- [rowl_frontend::functional_class_axioms::SourceClassAxiomBody]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 24:0-43:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_class_axioms.SourceClassAxiomBody where
+| SubClassOf :
+  functional_classes.SourceClass →
+  functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+| EquivalentClasses :
+  alloc.vec.Vec functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+| DisjointClasses :
+  alloc.vec.Vec functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+| DisjointUnion :
+  functional_header.HeaderIri →
+  alloc.vec.Vec functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+| ObjectPropertyDomain :
+  functional_classes.SourceObjectProperty →
+  functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+| ObjectPropertyRange :
+  functional_classes.SourceObjectProperty →
+  functional_classes.SourceClass →
+  functional_class_axioms.SourceClassAxiomBody
+
+/-- [rowl_frontend::functional_class_axioms::SourceClassAxiom]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 44:0-48:1
+    Visibility: public -/
+structure functional_class_axioms.SourceClassAxiom where
+  keyword : functional.Token
+  annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
+  body : functional_class_axioms.SourceClassAxiomBody
+
+/-- [rowl_frontend::functional_class_axioms::ClassAxiomExpected]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 50:0-55:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_class_axioms.ClassAxiomExpected where
+| Axiom : functional_class_axioms.ClassAxiomExpected
+| Open : functional_class_axioms.ClassAxiomExpected
+| Iri : functional_class_axioms.ClassAxiomExpected
+| Close : functional_class_axioms.ClassAxiomExpected
+
+/-- [rowl_frontend::functional_class_axioms::{impl core::clone::Clone for rowl_frontend::functional_class_axioms::ClassAxiomExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 49:9-49:14
+    Visibility: public -/
+def functional_class_axioms.ClassAxiomExpected.Insts.CoreCloneClone.clone
+  (self : functional_class_axioms.ClassAxiomExpected) :
+  Result functional_class_axioms.ClassAxiomExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_class_axioms::{impl core::clone::Clone for rowl_frontend::functional_class_axioms::ClassAxiomExpected}]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 49:9-49:14 -/
+@[reducible]
+def functional_class_axioms.ClassAxiomExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_class_axioms.ClassAxiomExpected := {
+  clone :=
+    functional_class_axioms.ClassAxiomExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_class_axioms::{impl core::marker::Copy for rowl_frontend::functional_class_axioms::ClassAxiomExpected}]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 49:16-49:20 -/
+@[reducible]
+def functional_class_axioms.ClassAxiomExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_class_axioms.ClassAxiomExpected := {
+  cloneInst := functional_class_axioms.ClassAxiomExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_classes::ClassExpected]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 57:0-63:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_classes.ClassExpected where
+| Class : functional_classes.ClassExpected
+| Open : functional_classes.ClassExpected
+| Property : functional_classes.ClassExpected
+| Iri : functional_classes.ClassExpected
+| Close : functional_classes.ClassExpected
+
+/-- [rowl_frontend::functional_classes::ClassError]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 64:0-80:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_classes.ClassError where
+| Expected :
+  functional_classes.ClassExpected →
+  Std.Usize →
+  functional_classes.ClassError
+| Iri : functional_iris.SourceIriError → functional_classes.ClassError
+| Unsupported : Std.Usize → functional_classes.ClassError
+| DepthLimit : Std.Usize → functional_classes.ClassError
+| CountLimit : Std.Usize → functional_classes.ClassError
+
+/-- [rowl_frontend::functional_class_axioms::ClassAxiomError]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 56:0-64:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_class_axioms.ClassAxiomError where
+| Expected :
+  functional_class_axioms.ClassAxiomExpected →
+  Std.Usize →
+  functional_class_axioms.ClassAxiomError
+| Annotation :
+  functional_annotations.AnnotationError →
+  functional_class_axioms.ClassAxiomError
+| Class :
+  functional_classes.ClassError →
+  functional_class_axioms.ClassAxiomError
+| Iri :
+  functional_iris.SourceIriError →
+  functional_class_axioms.ClassAxiomError
+
+/-- [rowl_frontend::functional_class_axioms::AxiomForm]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 66:0-73:1 -/
+@[discriminant isize]
+inductive functional_class_axioms.AxiomForm where
+| SubClassOf : functional_class_axioms.AxiomForm
+| EquivalentClasses : functional_class_axioms.AxiomForm
+| DisjointClasses : functional_class_axioms.AxiomForm
+| DisjointUnion : functional_class_axioms.AxiomForm
+| ObjectPropertyDomain : functional_class_axioms.AxiomForm
+| ObjectPropertyRange : functional_class_axioms.AxiomForm
+
+/-- [rowl_frontend::functional_class_axioms::{impl core::clone::Clone for rowl_frontend::functional_class_axioms::AxiomForm}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 65:9-65:14
+    Visibility: public -/
+def functional_class_axioms.AxiomForm.Insts.CoreCloneClone.clone
+  (self : functional_class_axioms.AxiomForm) :
+  Result functional_class_axioms.AxiomForm
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_class_axioms::{impl core::clone::Clone for rowl_frontend::functional_class_axioms::AxiomForm}]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 65:9-65:14 -/
+@[reducible]
+def functional_class_axioms.AxiomForm.Insts.CoreCloneClone : core.clone.Clone
+  functional_class_axioms.AxiomForm := {
+  clone := functional_class_axioms.AxiomForm.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_class_axioms::{impl core::marker::Copy for rowl_frontend::functional_class_axioms::AxiomForm}]
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 65:16-65:20 -/
+@[reducible]
+def functional_class_axioms.AxiomForm.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_class_axioms.AxiomForm := {
+  cloneInst := functional_class_axioms.AxiomForm.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_class_axioms::axiom_form]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 74:0-84:1 -/
+def functional_class_axioms.axiom_form
+  (terminal : functional.Terminal) :
+  Result (Option functional_class_axioms.AxiomForm)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok none
+    | functional.Keyword.Ontology => ok none
+    | functional.Keyword.Import => ok none
+    | functional.Keyword.Declaration => ok none
+    | functional.Keyword.Class => ok none
+    | functional.Keyword.Datatype => ok none
+    | functional.Keyword.ObjectProperty => ok none
+    | functional.Keyword.DataProperty => ok none
+    | functional.Keyword.AnnotationProperty => ok none
+    | functional.Keyword.NamedIndividual => ok none
+    | functional.Keyword.Annotation => ok none
+    | functional.Keyword.AnnotationAssertion => ok none
+    | functional.Keyword.SubAnnotationPropertyOf => ok none
+    | functional.Keyword.AnnotationPropertyDomain => ok none
+    | functional.Keyword.AnnotationPropertyRange => ok none
+    | functional.Keyword.ObjectInverseOf => ok none
+    | functional.Keyword.DataIntersectionOf => ok none
+    | functional.Keyword.DataUnionOf => ok none
+    | functional.Keyword.DataComplementOf => ok none
+    | functional.Keyword.DataOneOf => ok none
+    | functional.Keyword.DatatypeRestriction => ok none
+    | functional.Keyword.ObjectIntersectionOf => ok none
+    | functional.Keyword.ObjectUnionOf => ok none
+    | functional.Keyword.ObjectComplementOf => ok none
+    | functional.Keyword.ObjectOneOf => ok none
+    | functional.Keyword.ObjectSomeValuesFrom => ok none
+    | functional.Keyword.ObjectAllValuesFrom => ok none
+    | functional.Keyword.ObjectHasValue => ok none
+    | functional.Keyword.ObjectHasSelf => ok none
+    | functional.Keyword.ObjectMinCardinality => ok none
+    | functional.Keyword.ObjectMaxCardinality => ok none
+    | functional.Keyword.ObjectExactCardinality => ok none
+    | functional.Keyword.DataSomeValuesFrom => ok none
+    | functional.Keyword.DataAllValuesFrom => ok none
+    | functional.Keyword.DataHasValue => ok none
+    | functional.Keyword.DataMinCardinality => ok none
+    | functional.Keyword.DataMaxCardinality => ok none
+    | functional.Keyword.DataExactCardinality => ok none
+    | functional.Keyword.SubClassOf =>
+      ok (some functional_class_axioms.AxiomForm.SubClassOf)
+    | functional.Keyword.EquivalentClasses =>
+      ok (some functional_class_axioms.AxiomForm.EquivalentClasses)
+    | functional.Keyword.DisjointClasses =>
+      ok (some functional_class_axioms.AxiomForm.DisjointClasses)
+    | functional.Keyword.DisjointUnion =>
+      ok (some functional_class_axioms.AxiomForm.DisjointUnion)
+    | functional.Keyword.SubObjectPropertyOf => ok none
+    | functional.Keyword.ObjectPropertyChain => ok none
+    | functional.Keyword.EquivalentObjectProperties => ok none
+    | functional.Keyword.DisjointObjectProperties => ok none
+    | functional.Keyword.ObjectPropertyDomain =>
+      ok (some functional_class_axioms.AxiomForm.ObjectPropertyDomain)
+    | functional.Keyword.ObjectPropertyRange =>
+      ok (some functional_class_axioms.AxiomForm.ObjectPropertyRange)
+    | functional.Keyword.InverseObjectProperties => ok none
+    | functional.Keyword.FunctionalObjectProperty => ok none
+    | functional.Keyword.InverseFunctionalObjectProperty => ok none
+    | functional.Keyword.ReflexiveObjectProperty => ok none
+    | functional.Keyword.IrreflexiveObjectProperty => ok none
+    | functional.Keyword.SymmetricObjectProperty => ok none
+    | functional.Keyword.AsymmetricObjectProperty => ok none
+    | functional.Keyword.TransitiveObjectProperty => ok none
+    | functional.Keyword.SubDataPropertyOf => ok none
+    | functional.Keyword.EquivalentDataProperties => ok none
+    | functional.Keyword.DisjointDataProperties => ok none
+    | functional.Keyword.DataPropertyDomain => ok none
+    | functional.Keyword.DataPropertyRange => ok none
+    | functional.Keyword.FunctionalDataProperty => ok none
+    | functional.Keyword.DatatypeDefinition => ok none
+    | functional.Keyword.HasKey => ok none
+    | functional.Keyword.SameIndividual => ok none
+    | functional.Keyword.DifferentIndividuals => ok none
+    | functional.Keyword.ClassAssertion => ok none
+    | functional.Keyword.ObjectPropertyAssertion => ok none
+    | functional.Keyword.NegativeObjectPropertyAssertion => ok none
+    | functional.Keyword.DataPropertyAssertion => ok none
+    | functional.Keyword.NegativeDataPropertyAssertion => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId => ok none
+  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri => ok none
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_frontend::functional_class_axioms::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 85:0-92:1 -/
+def functional_class_axioms.expected_terminal
+  (expected : functional_class_axioms.ClassAxiomExpected)
+  (terminal : functional.Terminal) :
+  Result Bool
+  := do
+  match expected with
+  | functional_class_axioms.ClassAxiomExpected.Axiom =>
+    let o ← functional_class_axioms.axiom_form terminal
+    ok (core.option.Option.is_some o)
+  | functional_class_axioms.ClassAxiomExpected.Open =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok true
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_class_axioms.ClassAxiomExpected.Iri =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_class_axioms.ClassAxiomExpected.Close =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok false
+    | functional.Terminal.Close => ok true
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_class_axioms::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 93:0-114:1 -/
+def functional_class_axioms.take_expected
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_class_axioms.ClassAxiomExpected) (eof : Std.Usize) :
+  Result (core.result.Result (functional.Token × functional_lexer.Tokens)
+    functional_class_axioms.ClassAxiomError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err
+      (functional_class_axioms.ClassAxiomError.Expected expected eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_class_axioms.expected_terminal expected token.terminal
+    if b
+    then ok (core.result.Result.Ok (token, next))
+    else
+      ok (core.result.Result.Err
+        (functional_class_axioms.ClassAxiomError.Expected expected
+        token.start))
+
+/-- [rowl_frontend::functional_classes::resolve]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 175:0-192:1 -/
+def functional_classes.resolve
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (token : functional.Token) (expected : functional_classes.ClassExpected)
+  (limit : Std.Usize) :
+  Result (core.result.Result functional_header.HeaderIri
+    functional_classes.ClassError)
+  := do
+  let o ← functional_header.iri_kind token.terminal
+  match o with
+  | none =>
+    ok (core.result.Result.Err (functional_classes.ClassError.Expected expected
+      token.start))
+  | some family =>
+    let r ←
+      functional_iris.resolve_span table family bytes token.start token.end
+        limit
+    match r with
+    | core.result.Result.Ok value =>
+      ok (core.result.Result.Ok { token, value })
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_classes.ClassError.Iri error))
+
+/-- [rowl_frontend::functional_classes::closes]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 129:0-131:1 -/
+def functional_classes.closes
+  (terminal : functional.Terminal) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok false
+  | functional.Terminal.Open => ok false
+  | functional.Terminal.Close => ok true
+  | functional.Terminal.Equals => ok false
+  | functional.Terminal.DatatypeIndicator => ok false
+  | functional.Terminal.Integer => ok false
+  | functional.Terminal.QuotedString => ok false
+  | functional.Terminal.LanguageTag => ok false
+  | functional.Terminal.NodeId => ok false
+  | functional.Terminal.FullIri => ok false
+  | functional.Terminal.PrefixName => ok false
+  | functional.Terminal.AbbreviatedIri => ok false
+  | functional.Terminal.Whitespace => ok false
+  | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_classes::inverse_keyword]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 126:0-128:1 -/
+def functional_classes.inverse_keyword
+  (terminal : functional.Terminal) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok false
+    | functional.Keyword.Ontology => ok false
+    | functional.Keyword.Import => ok false
+    | functional.Keyword.Declaration => ok false
+    | functional.Keyword.Class => ok false
+    | functional.Keyword.Datatype => ok false
+    | functional.Keyword.ObjectProperty => ok false
+    | functional.Keyword.DataProperty => ok false
+    | functional.Keyword.AnnotationProperty => ok false
+    | functional.Keyword.NamedIndividual => ok false
+    | functional.Keyword.Annotation => ok false
+    | functional.Keyword.AnnotationAssertion => ok false
+    | functional.Keyword.SubAnnotationPropertyOf => ok false
+    | functional.Keyword.AnnotationPropertyDomain => ok false
+    | functional.Keyword.AnnotationPropertyRange => ok false
+    | functional.Keyword.ObjectInverseOf => ok true
+    | functional.Keyword.DataIntersectionOf => ok false
+    | functional.Keyword.DataUnionOf => ok false
+    | functional.Keyword.DataComplementOf => ok false
+    | functional.Keyword.DataOneOf => ok false
+    | functional.Keyword.DatatypeRestriction => ok false
+    | functional.Keyword.ObjectIntersectionOf => ok false
+    | functional.Keyword.ObjectUnionOf => ok false
+    | functional.Keyword.ObjectComplementOf => ok false
+    | functional.Keyword.ObjectOneOf => ok false
+    | functional.Keyword.ObjectSomeValuesFrom => ok false
+    | functional.Keyword.ObjectAllValuesFrom => ok false
+    | functional.Keyword.ObjectHasValue => ok false
+    | functional.Keyword.ObjectHasSelf => ok false
+    | functional.Keyword.ObjectMinCardinality => ok false
+    | functional.Keyword.ObjectMaxCardinality => ok false
+    | functional.Keyword.ObjectExactCardinality => ok false
+    | functional.Keyword.DataSomeValuesFrom => ok false
+    | functional.Keyword.DataAllValuesFrom => ok false
+    | functional.Keyword.DataHasValue => ok false
+    | functional.Keyword.DataMinCardinality => ok false
+    | functional.Keyword.DataMaxCardinality => ok false
+    | functional.Keyword.DataExactCardinality => ok false
+    | functional.Keyword.SubClassOf => ok false
+    | functional.Keyword.EquivalentClasses => ok false
+    | functional.Keyword.DisjointClasses => ok false
+    | functional.Keyword.DisjointUnion => ok false
+    | functional.Keyword.SubObjectPropertyOf => ok false
+    | functional.Keyword.ObjectPropertyChain => ok false
+    | functional.Keyword.EquivalentObjectProperties => ok false
+    | functional.Keyword.DisjointObjectProperties => ok false
+    | functional.Keyword.ObjectPropertyDomain => ok false
+    | functional.Keyword.ObjectPropertyRange => ok false
+    | functional.Keyword.InverseObjectProperties => ok false
+    | functional.Keyword.FunctionalObjectProperty => ok false
+    | functional.Keyword.InverseFunctionalObjectProperty => ok false
+    | functional.Keyword.ReflexiveObjectProperty => ok false
+    | functional.Keyword.IrreflexiveObjectProperty => ok false
+    | functional.Keyword.SymmetricObjectProperty => ok false
+    | functional.Keyword.AsymmetricObjectProperty => ok false
+    | functional.Keyword.TransitiveObjectProperty => ok false
+    | functional.Keyword.SubDataPropertyOf => ok false
+    | functional.Keyword.EquivalentDataProperties => ok false
+    | functional.Keyword.DisjointDataProperties => ok false
+    | functional.Keyword.DataPropertyDomain => ok false
+    | functional.Keyword.DataPropertyRange => ok false
+    | functional.Keyword.FunctionalDataProperty => ok false
+    | functional.Keyword.DatatypeDefinition => ok false
+    | functional.Keyword.HasKey => ok false
+    | functional.Keyword.SameIndividual => ok false
+    | functional.Keyword.DifferentIndividuals => ok false
+    | functional.Keyword.ClassAssertion => ok false
+    | functional.Keyword.ObjectPropertyAssertion => ok false
+    | functional.Keyword.NegativeObjectPropertyAssertion => ok false
+    | functional.Keyword.DataPropertyAssertion => ok false
+    | functional.Keyword.NegativeDataPropertyAssertion => ok false
+  | functional.Terminal.Open => ok false
+  | functional.Terminal.Close => ok false
+  | functional.Terminal.Equals => ok false
+  | functional.Terminal.DatatypeIndicator => ok false
+  | functional.Terminal.Integer => ok false
+  | functional.Terminal.QuotedString => ok false
+  | functional.Terminal.LanguageTag => ok false
+  | functional.Terminal.NodeId => ok false
+  | functional.Terminal.FullIri => ok false
+  | functional.Terminal.PrefixName => ok false
+  | functional.Terminal.AbbreviatedIri => ok false
+  | functional.Terminal.Whitespace => ok false
+  | functional.Terminal.Comment => ok false
+
+/-- [rowl_frontend::functional_classes::ClassForm]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 84:0-88:1 -/
+@[discriminant isize]
+inductive functional_classes.ClassForm where
+| Junction : Bool → functional_classes.ClassForm
+| Complement : functional_classes.ClassForm
+| Restriction : Bool → functional_classes.ClassForm
+
+/-- [rowl_frontend::functional_classes::ClassKeyword]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 89:0-93:1 -/
+@[discriminant isize]
+inductive functional_classes.ClassKeyword where
+| Connective : functional_classes.ClassForm → functional_classes.ClassKeyword
+| Unsupported : functional_classes.ClassKeyword
+| Other : functional_classes.ClassKeyword
+
+/-- [rowl_frontend::functional_classes::class_keyword]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 94:0-125:1 -/
+def functional_classes.class_keyword
+  (terminal : functional.Terminal) :
+  Result functional_classes.ClassKeyword
+  := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Ontology => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Import => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Declaration =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Class => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Datatype => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.AnnotationProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.NamedIndividual =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.Annotation => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.AnnotationAssertion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.SubAnnotationPropertyOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.AnnotationPropertyDomain =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.AnnotationPropertyRange =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectInverseOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataIntersectionOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataUnionOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataComplementOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataOneOf => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DatatypeRestriction =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectIntersectionOf =>
+      ok (functional_classes.ClassKeyword.Connective
+        (functional_classes.ClassForm.Junction true))
+    | functional.Keyword.ObjectUnionOf =>
+      ok (functional_classes.ClassKeyword.Connective
+        (functional_classes.ClassForm.Junction false))
+    | functional.Keyword.ObjectComplementOf =>
+      ok (functional_classes.ClassKeyword.Connective
+        functional_classes.ClassForm.Complement)
+    | functional.Keyword.ObjectOneOf =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.ObjectSomeValuesFrom =>
+      ok (functional_classes.ClassKeyword.Connective
+        (functional_classes.ClassForm.Restriction true))
+    | functional.Keyword.ObjectAllValuesFrom =>
+      ok (functional_classes.ClassKeyword.Connective
+        (functional_classes.ClassForm.Restriction false))
+    | functional.Keyword.ObjectHasValue =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.ObjectHasSelf =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.ObjectMinCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.ObjectMaxCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.ObjectExactCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataSomeValuesFrom =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataAllValuesFrom =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataHasValue =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataMinCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataMaxCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.DataExactCardinality =>
+      ok functional_classes.ClassKeyword.Unsupported
+    | functional.Keyword.SubClassOf => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.EquivalentClasses =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DisjointClasses =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DisjointUnion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.SubObjectPropertyOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectPropertyChain =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.EquivalentObjectProperties =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DisjointObjectProperties =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectPropertyDomain =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectPropertyRange =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.InverseObjectProperties =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.FunctionalObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.InverseFunctionalObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ReflexiveObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.IrreflexiveObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.SymmetricObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.AsymmetricObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.TransitiveObjectProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.SubDataPropertyOf =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.EquivalentDataProperties =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DisjointDataProperties =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataPropertyDomain =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataPropertyRange =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.FunctionalDataProperty =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DatatypeDefinition =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.HasKey => ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.SameIndividual =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DifferentIndividuals =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ClassAssertion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.ObjectPropertyAssertion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.NegativeObjectPropertyAssertion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.DataPropertyAssertion =>
+      ok functional_classes.ClassKeyword.Other
+    | functional.Keyword.NegativeDataPropertyAssertion =>
+      ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Open => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Close => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Equals => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.DatatypeIndicator =>
+    ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Integer => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.QuotedString =>
+    ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.LanguageTag => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.NodeId => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.FullIri => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.PrefixName => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.AbbreviatedIri =>
+    ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Whitespace => ok functional_classes.ClassKeyword.Other
+  | functional.Terminal.Comment => ok functional_classes.ClassKeyword.Other
+
+/-- [rowl_frontend::functional_classes::expected_terminal]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 132:0-143:1 -/
+def functional_classes.expected_terminal
+  (expected : functional_classes.ClassExpected)
+  (terminal : functional.Terminal) :
+  Result Bool
+  := do
+  match expected with
+  | functional_classes.ClassExpected.Class =>
+    let ck ← functional_classes.class_keyword terminal
+    match ck with
+    | functional_classes.ClassKeyword.Connective _ => ok true
+    | functional_classes.ClassKeyword.Unsupported => ok true
+    | functional_classes.ClassKeyword.Other =>
+      let o ← functional_header.iri_kind terminal
+      ok (core.option.Option.is_some o)
+  | functional_classes.ClassExpected.Open =>
+    match terminal with
+    | functional.Terminal.Keyword _ => ok false
+    | functional.Terminal.Open => ok true
+    | functional.Terminal.Close => ok false
+    | functional.Terminal.Equals => ok false
+    | functional.Terminal.DatatypeIndicator => ok false
+    | functional.Terminal.Integer => ok false
+    | functional.Terminal.QuotedString => ok false
+    | functional.Terminal.LanguageTag => ok false
+    | functional.Terminal.NodeId => ok false
+    | functional.Terminal.FullIri => ok false
+    | functional.Terminal.PrefixName => ok false
+    | functional.Terminal.AbbreviatedIri => ok false
+    | functional.Terminal.Whitespace => ok false
+    | functional.Terminal.Comment => ok false
+  | functional_classes.ClassExpected.Property =>
+    let b ← functional_classes.inverse_keyword terminal
+    if b
+    then ok true
+    else
+      let o ← functional_header.iri_kind terminal
+      ok (core.option.Option.is_some o)
+  | functional_classes.ClassExpected.Iri =>
+    let o ← functional_header.iri_kind terminal
+    ok (core.option.Option.is_some o)
+  | functional_classes.ClassExpected.Close =>
+    functional_classes.closes terminal
+
+/-- [rowl_frontend::functional_classes::take_expected]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 144:0-165:1 -/
+def functional_classes.take_expected
+  (tokens : functional_lexer.Tokens)
+  (expected : functional_classes.ClassExpected) (eof : Std.Usize) :
+  Result (core.result.Result (functional.Token × functional_lexer.Tokens)
+    functional_classes.ClassError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Err (functional_classes.ClassError.Expected expected
+      eof))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_classes.expected_terminal expected token.terminal
+    if b
+    then ok (core.result.Result.Ok (token, next))
+    else
+      ok (core.result.Result.Err (functional_classes.ClassError.Expected
+        expected token.start))
+
+/-- [rowl_frontend::functional_classes::read_object_property]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 195:0-240:1
+    Visibility: public -/
+def functional_classes.read_object_property
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_classes.SourceObjectProperty ×
+    functional_lexer.Tokens) functional_classes.ClassError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    let i := alloc.vec.Vec.len bytes
+    ok (core.result.Result.Err (functional_classes.ClassError.Expected
+      functional_classes.ClassExpected.Property i))
+  | functional_lexer.Tokens.Cons token next =>
+    let b ← functional_classes.inverse_keyword token.terminal
+    if b
+    then
+      let i := alloc.vec.Vec.len bytes
+      let r ←
+        functional_classes.take_expected next
+          functional_classes.ClassExpected.Open i
+      match r with
+      | core.result.Result.Ok value =>
+        let (_, tokens1) := value
+        let i1 := alloc.vec.Vec.len bytes
+        let r1 ←
+          functional_classes.take_expected tokens1
+            functional_classes.ClassExpected.Iri i1
+        match r1 with
+        | core.result.Result.Ok value1 =>
+          let (named, tokens2) := value1
+          let r2 ←
+            functional_classes.resolve table bytes named
+              functional_classes.ClassExpected.Iri limit
+          match r2 with
+          | core.result.Result.Ok property =>
+            let i2 := alloc.vec.Vec.len bytes
+            let r3 ←
+              functional_classes.take_expected tokens2
+                functional_classes.ClassExpected.Close i2
+            match r3 with
+            | core.result.Result.Ok value2 =>
+              let (_, remaining) := value2
+              ok (core.result.Result.Ok
+                (functional_classes.SourceObjectProperty.Inverse token
+                property, remaining))
+            | core.result.Result.Err error => ok (core.result.Result.Err error)
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    else
+      let r ←
+        functional_classes.resolve table bytes token
+          functional_classes.ClassExpected.Property limit
+      match r with
+      | core.result.Result.Ok property =>
+        ok (core.result.Result.Ok
+          (functional_classes.SourceObjectProperty.Named property, next))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_classes::offset_of]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 167:0-172:1 -/
+def functional_classes.offset_of
+  (tokens : functional_lexer.Tokens) (eof : Std.Usize) : Result Std.Usize := do
+  match tokens with
+  | functional_lexer.Tokens.Empty => ok eof
+  | functional_lexer.Tokens.Cons token _ => ok token.start
+
+/-- [rowl_frontend::functional_classes::ClassLimits]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 51:0-55:1
+    Visibility: public -/
+structure functional_classes.ClassLimits where
+  depth : Std.Usize
+  count : Std.Usize
+  iri : Std.Usize
+
+mutual
+
+/-- [rowl_frontend::functional_classes::read_class]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 241:0-277:1 -/
+def functional_classes.read_class
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (depth : Std.Usize)
+  (limits : functional_classes.ClassLimits) :
+  Result (core.result.Result (functional_classes.SourceClass ×
+    functional_lexer.Tokens) functional_classes.ClassError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    let i := alloc.vec.Vec.len bytes
+    ok (core.result.Result.Err (functional_classes.ClassError.Expected
+      functional_classes.ClassExpected.Class i))
+  | functional_lexer.Tokens.Cons token next =>
+    let ck ← functional_classes.class_keyword token.terminal
+    match ck with
+    | functional_classes.ClassKeyword.Connective form =>
+      if depth = 0#usize
+      then
+        ok (core.result.Result.Err (functional_classes.ClassError.DepthLimit
+          token.start))
+      else
+        let i := alloc.vec.Vec.len bytes
+        let r ←
+          functional_classes.take_expected next
+            functional_classes.ClassExpected.Open i
+        match r with
+        | core.result.Result.Ok value =>
+          let (_, inner) := value
+          let i1 ← depth - 1#usize
+          functional_classes.read_connective table bytes token form inner i1
+            limits
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | functional_classes.ClassKeyword.Unsupported =>
+      ok (core.result.Result.Err (functional_classes.ClassError.Unsupported
+        token.start))
+    | functional_classes.ClassKeyword.Other =>
+      let r ←
+        functional_classes.resolve table bytes token
+          functional_classes.ClassExpected.Class limits.iri
+      match r with
+      | core.result.Result.Ok iri =>
+        ok (core.result.Result.Ok (functional_classes.SourceClass.Named iri,
+          next))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+partial_fixpoint
+
+/-- [rowl_frontend::functional_classes::read_connective]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 279:0-362:1 -/
+def functional_classes.read_connective
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (keyword : functional.Token) (form : functional_classes.ClassForm)
+  (tokens : functional_lexer.Tokens) (depth : Std.Usize)
+  (limits : functional_classes.ClassLimits) :
+  Result (core.result.Result (functional_classes.SourceClass ×
+    functional_lexer.Tokens) functional_classes.ClassError)
+  := do
+  match form with
+  | functional_classes.ClassForm.Junction conjunctive =>
+    let r ←
+      functional_classes.read_members table bytes tokens (alloc.vec.Vec.new
+        functional_classes.SourceClass) depth limits
+    match r with
+    | core.result.Result.Ok value =>
+      let (members, tokens1) := value
+      let i := alloc.vec.Vec.len members
+      if i < 2#usize
+      then
+        let i1 := alloc.vec.Vec.len bytes
+        let i2 ← functional_classes.offset_of tokens1 i1
+        ok (core.result.Result.Err (functional_classes.ClassError.Expected
+          functional_classes.ClassExpected.Class i2))
+      else
+        let i1 := alloc.vec.Vec.len bytes
+        let r1 ←
+          functional_classes.take_expected tokens1
+            functional_classes.ClassExpected.Close i1
+        match r1 with
+        | core.result.Result.Ok value1 =>
+          let (_, remaining) := value1
+          if conjunctive
+          then
+            ok (core.result.Result.Ok
+              (functional_classes.SourceClass.IntersectionOf keyword members,
+              remaining))
+          else
+            ok (core.result.Result.Ok (functional_classes.SourceClass.UnionOf
+              keyword members, remaining))
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_classes.ClassForm.Complement =>
+    let r ← functional_classes.read_class table bytes tokens depth limits
+    match r with
+    | core.result.Result.Ok value =>
+      let (operand, tokens1) := value
+      let i := alloc.vec.Vec.len bytes
+      let r1 ←
+        functional_classes.take_expected tokens1
+          functional_classes.ClassExpected.Close i
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (_, remaining) := value1
+        ok (core.result.Result.Ok (functional_classes.SourceClass.ComplementOf
+          keyword operand, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err _ => ok r
+  | functional_classes.ClassForm.Restriction existential =>
+    let r ←
+      functional_classes.read_object_property table bytes tokens limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let (property, tokens1) := value
+      let r1 ← functional_classes.read_class table bytes tokens1 depth limits
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (filler, tokens2) := value1
+        let i := alloc.vec.Vec.len bytes
+        let r2 ←
+          functional_classes.take_expected tokens2
+            functional_classes.ClassExpected.Close i
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let (_, remaining) := value2
+          if existential
+          then
+            ok (core.result.Result.Ok
+              (functional_classes.SourceClass.SomeValuesFrom keyword property
+              filler, remaining))
+          else
+            ok (core.result.Result.Ok
+              (functional_classes.SourceClass.AllValuesFrom keyword property
+              filler, remaining))
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | core.result.Result.Err _ => ok r1
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+partial_fixpoint
+
+/-- [rowl_frontend::functional_classes::read_members]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 364:0-392:1 -/
+def functional_classes.read_members
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (members : alloc.vec.Vec functional_classes.SourceClass) (depth : Std.Usize)
+  (limits : functional_classes.ClassLimits) :
+  Result (core.result.Result ((alloc.vec.Vec functional_classes.SourceClass) ×
+    functional_lexer.Tokens) functional_classes.ClassError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Ok (members, functional_lexer.Tokens.Empty))
+  | functional_lexer.Tokens.Cons token _ =>
+    let b ← functional_classes.closes token.terminal
+    if b
+    then ok (core.result.Result.Ok (members, tokens))
+    else
+      let i := alloc.vec.Vec.len members
+      if i >= limits.count
+      then
+        ok (core.result.Result.Err (functional_classes.ClassError.CountLimit
+          token.start))
+      else
+        let r ← functional_classes.read_class table bytes tokens depth limits
+        match r with
+        | core.result.Result.Ok value =>
+          let (member, remaining) := value
+          let members1 ← alloc.vec.Vec.push members member
+          functional_classes.read_members table bytes remaining members1 depth
+            limits
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+partial_fixpoint
+
+end
+
+/-- [rowl_frontend::functional_classes::read_class_expression]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 401:0-408:1
+    Visibility: public -/
+def functional_classes.read_class_expression
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
+  :
+  Result (core.result.Result (functional_classes.SourceClass ×
+    functional_lexer.Tokens) functional_classes.ClassError)
+  := do
+  functional_classes.read_class table bytes tokens limits.depth limits
+
+/-- [rowl_frontend::functional_class_axioms::read_class]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 115:0-125:1 -/
+def functional_class_axioms.read_class
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
+  :
+  Result (core.result.Result (functional_classes.SourceClass ×
+    functional_lexer.Tokens) functional_class_axioms.ClassAxiomError)
+  := do
+  let r ← functional_classes.read_class_expression table bytes tokens limits
+  match r with
+  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Class
+      error))
+
+/-- [rowl_frontend::functional_class_axioms::read_list]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 127:0-145:1 -/
+def functional_class_axioms.read_list
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
+  :
+  Result (core.result.Result ((alloc.vec.Vec functional_classes.SourceClass) ×
+    functional_lexer.Tokens) functional_class_axioms.ClassAxiomError)
+  := do
+  let r ←
+    functional_classes.read_members table bytes tokens (alloc.vec.Vec.new
+      functional_classes.SourceClass) limits.depth limits
+  match r with
+  | core.result.Result.Ok value =>
+    let (members, rest) := value
+    let i := alloc.vec.Vec.len members
+    if i < 2#usize
+    then
+      let i1 := alloc.vec.Vec.len bytes
+      let i2 ← functional_classes.offset_of rest i1
+      ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Class
+        (functional_classes.ClassError.Expected
+        functional_classes.ClassExpected.Class i2)))
+    else ok (core.result.Result.Ok value)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Class
+      error))
+
+/-- [rowl_frontend::functional_class_axioms::read_named]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 147:0-170:1 -/
+def functional_class_axioms.read_named
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_header.HeaderIri ×
+    functional_lexer.Tokens) functional_class_axioms.ClassAxiomError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_class_axioms.take_expected tokens
+      functional_class_axioms.ClassAxiomExpected.Iri i
+  match r with
+  | core.result.Result.Ok value =>
+    let (token, rest) := value
+    let o ← functional_header.iri_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_class_axioms.ClassAxiomError.Expected
+        functional_class_axioms.ClassAxiomExpected.Iri token.start))
+    | some family =>
+      let r1 ←
+        functional_iris.resolve_span table family bytes token.start token.end
+          limit
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        ok (core.result.Result.Ok ({ token, value := value1 }, rest))
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Iri
+          error))
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_class_axioms::read_body]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 171:0-244:1 -/
+def functional_class_axioms.read_body
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (form : functional_class_axioms.AxiomForm) (tokens : functional_lexer.Tokens)
+  (limits : functional_classes.ClassLimits) :
+  Result (core.result.Result (functional_class_axioms.SourceClassAxiomBody ×
+    functional_lexer.Tokens) functional_class_axioms.ClassAxiomError)
+  := do
+  match form with
+  | functional_class_axioms.AxiomForm.SubClassOf =>
+    let r ← functional_class_axioms.read_class table bytes tokens limits
+    match r with
+    | core.result.Result.Ok value =>
+      let (sub, tokens1) := value
+      let r1 ← functional_class_axioms.read_class table bytes tokens1 limits
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (sup, remaining) := value1
+        ok (core.result.Result.Ok
+          (functional_class_axioms.SourceClassAxiomBody.SubClassOf sub sup,
+          remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_class_axioms.AxiomForm.EquivalentClasses =>
+    let r ← functional_class_axioms.read_list table bytes tokens limits
+    match r with
+    | core.result.Result.Ok p =>
+      let (members, remaining) := p
+      ok (core.result.Result.Ok
+        (functional_class_axioms.SourceClassAxiomBody.EquivalentClasses
+        members, remaining))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_class_axioms.AxiomForm.DisjointClasses =>
+    let r ← functional_class_axioms.read_list table bytes tokens limits
+    match r with
+    | core.result.Result.Ok p =>
+      let (members, remaining) := p
+      ok (core.result.Result.Ok
+        (functional_class_axioms.SourceClassAxiomBody.DisjointClasses members,
+        remaining))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_class_axioms.AxiomForm.DisjointUnion =>
+    let r ← functional_class_axioms.read_named table bytes tokens limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let («class», tokens1) := value
+      let r1 ← functional_class_axioms.read_list table bytes tokens1 limits
+      match r1 with
+      | core.result.Result.Ok p =>
+        let (members, remaining) := p
+        ok (core.result.Result.Ok
+          (functional_class_axioms.SourceClassAxiomBody.DisjointUnion «class»
+          members, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_class_axioms.AxiomForm.ObjectPropertyDomain =>
+    let r ←
+      functional_classes.read_object_property table bytes tokens limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let (property, tokens1) := value
+      let r1 ← functional_class_axioms.read_class table bytes tokens1 limits
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (domain, remaining) := value1
+        ok (core.result.Result.Ok
+          (functional_class_axioms.SourceClassAxiomBody.ObjectPropertyDomain
+          property domain, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Class
+        error))
+  | functional_class_axioms.AxiomForm.ObjectPropertyRange =>
+    let r ←
+      functional_classes.read_object_property table bytes tokens limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let (property, tokens1) := value
+      let r1 ← functional_class_axioms.read_class table bytes tokens1 limits
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (range, remaining) := value1
+        ok (core.result.Result.Ok
+          (functional_class_axioms.SourceClassAxiomBody.ObjectPropertyRange
+          property range, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_class_axioms.ClassAxiomError.Class
+        error))
+
+/-- [rowl_frontend::functional_class_axioms::read_class_axiom]:
+    Source: 'crates/rowl-frontend/src/functional_class_axioms.rs', lines 255:0-299:1
+    Visibility: public -/
+def functional_class_axioms.read_class_axiom
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (annotations : functional_annotations.AnnotationLimits)
+  (classes : functional_classes.ClassLimits) :
+  Result (core.result.Result (functional_class_axioms.SourceClassAxiom ×
+    functional_lexer.Tokens) functional_class_axioms.ClassAxiomError)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  let r ←
+    functional_class_axioms.take_expected tokens
+      functional_class_axioms.ClassAxiomExpected.Axiom i
+  match r with
+  | core.result.Result.Ok value =>
+    let (keyword, tokens1) := value
+    let o ← functional_class_axioms.axiom_form keyword.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_class_axioms.ClassAxiomError.Expected
+        functional_class_axioms.ClassAxiomExpected.Axiom keyword.start))
+    | some form =>
+      let i1 := alloc.vec.Vec.len bytes
+      let r1 ←
+        functional_class_axioms.take_expected tokens1
+          functional_class_axioms.ClassAxiomExpected.Open i1
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (_, tokens2) := value1
+        let r2 ←
+          functional_annotations.read_annotations table bytes tokens2
+            annotations
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let r3 ←
+            functional_class_axioms.read_body table bytes form value2.remaining
+              classes
+          match r3 with
+          | core.result.Result.Ok value3 =>
+            let (body, tokens3) := value3
+            let i2 := alloc.vec.Vec.len bytes
+            let r4 ←
+              functional_class_axioms.take_expected tokens3
+                functional_class_axioms.ClassAxiomExpected.Close i2
+            match r4 with
+            | core.result.Result.Ok value4 =>
+              let (_, remaining) := value4
+              ok (core.result.Result.Ok
+                ({ keyword, annotations := value2.annotations, body },
+                remaining))
+            | core.result.Result.Err error => ok (core.result.Result.Err error)
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_class_axioms.ClassAxiomError.Annotation error))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_frontend::functional_classes::{impl core::clone::Clone for rowl_frontend::functional_classes::ClassExpected}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 56:9-56:14
+    Visibility: public -/
+def functional_classes.ClassExpected.Insts.CoreCloneClone.clone
+  (self : functional_classes.ClassExpected) :
+  Result functional_classes.ClassExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_classes::{impl core::clone::Clone for rowl_frontend::functional_classes::ClassExpected}]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 56:9-56:14 -/
+@[reducible]
+def functional_classes.ClassExpected.Insts.CoreCloneClone : core.clone.Clone
+  functional_classes.ClassExpected := {
+  clone := functional_classes.ClassExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_classes::{impl core::marker::Copy for rowl_frontend::functional_classes::ClassExpected}]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 56:16-56:20 -/
+@[reducible]
+def functional_classes.ClassExpected.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_classes.ClassExpected := {
+  cloneInst := functional_classes.ClassExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_frontend::functional_classes::{impl core::clone::Clone for rowl_frontend::functional_classes::ClassForm}::clone]:
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 83:9-83:14
+    Visibility: public -/
+def functional_classes.ClassForm.Insts.CoreCloneClone.clone
+  (self : functional_classes.ClassForm) :
+  Result functional_classes.ClassForm
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_frontend::functional_classes::{impl core::clone::Clone for rowl_frontend::functional_classes::ClassForm}]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 83:9-83:14 -/
+@[reducible]
+def functional_classes.ClassForm.Insts.CoreCloneClone : core.clone.Clone
+  functional_classes.ClassForm := {
+  clone := functional_classes.ClassForm.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_frontend::functional_classes::{impl core::marker::Copy for rowl_frontend::functional_classes::ClassForm}]
+    Source: 'crates/rowl-frontend/src/functional_classes.rs', lines 83:16-83:20 -/
+@[reducible]
+def functional_classes.ClassForm.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_classes.ClassForm := {
+  cloneInst := functional_classes.ClassForm.Insts.CoreCloneClone
+}
+
 /-- [rowl_frontend::functional_declarations::SourceEntityKind]
     Source: 'crates/rowl-frontend/src/functional_declarations.rs', lines 16:0-23:1
     Visibility: public -/

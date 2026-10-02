@@ -1181,6 +1181,65 @@
         "Rowl.AlcOntology.class_satisfiable_complete",
         "Rowl.AlcOntology.subsumed_sound"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalClasses",
+      "namespace": "Rowl.FunctionalClasses",
+      "theorems": [
+        "Rowl.FunctionalClasses.class_keyword_total_correct",
+        "Rowl.FunctionalClasses.inverse_keyword_total_correct",
+        "Rowl.FunctionalClasses.closes_total_correct",
+        "Rowl.FunctionalClasses.offset_of_total_correct",
+        "Rowl.FunctionalClasses.expected_terminal_total_correct",
+        "Rowl.FunctionalClasses.take_expected_total_correct",
+        "Rowl.FunctionalClasses.take_expected_result_iff",
+        "Rowl.FunctionalClasses.take_progress",
+        "Rowl.FunctionalClasses.resolve_total_correct",
+        "Rowl.FunctionalClasses.resolve_result_iff",
+        "Rowl.FunctionalClasses.read_object_property_total_correct",
+        "Rowl.FunctionalClasses.read_object_property_result_iff",
+        "Rowl.FunctionalClasses.property_progress",
+        "Rowl.FunctionalClasses.read_class_total_correct",
+        "Rowl.FunctionalClasses.read_connective_total_correct",
+        "Rowl.FunctionalClasses.read_members_total_correct",
+        "Rowl.FunctionalClasses.class_execution",
+        "Rowl.FunctionalClasses.connective_execution",
+        "Rowl.FunctionalClasses.members_execution",
+        "Rowl.FunctionalClasses.read_class_result_iff",
+        "Rowl.FunctionalClasses.read_class_expression_result_iff",
+        "Rowl.FunctionalClasses.read_members_result_iff",
+        "Rowl.FunctionalClasses.class_progress",
+        "Rowl.FunctionalClasses.read_class_expression_total_correct"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalClassAxioms",
+      "namespace": "Rowl.FunctionalClassAxioms",
+      "theorems": [
+        "Rowl.FunctionalClassAxioms.axiom_form_total_correct",
+        "Rowl.FunctionalClassAxioms.expected_terminal_total_correct",
+        "Rowl.FunctionalClassAxioms.take_expected_total_correct",
+        "Rowl.FunctionalClassAxioms.take_expected_result_iff",
+        "Rowl.FunctionalClassAxioms.take_progress",
+        "Rowl.FunctionalClassAxioms.read_class_total_correct",
+        "Rowl.FunctionalClassAxioms.read_class_result_iff",
+        "Rowl.FunctionalClassAxioms.read_list_total_correct",
+        "Rowl.FunctionalClassAxioms.read_list_result_iff",
+        "Rowl.FunctionalClassAxioms.read_named_total_correct",
+        "Rowl.FunctionalClassAxioms.read_named_result_iff",
+        "Rowl.FunctionalClassAxioms.read_body_total_correct",
+        "Rowl.FunctionalClassAxioms.read_body_result_iff",
+        "Rowl.FunctionalClassAxioms.read_class_axiom_total_correct",
+        "Rowl.FunctionalClassAxioms.read_class_axiom_result_iff"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalClassSource",
+      "namespace": "Rowl.FunctionalClassSource",
+      "theorems": [
+        "Rowl.FunctionalClassSource.source_prefix_class_result_iff",
+        "Rowl.FunctionalClassSource.source_prefix_class_axiom_result_iff"
+      ]
     }
   ],
   "specifications": [
@@ -1731,6 +1790,23 @@
     "Rowl.Internalization.SupportedAxiom",
     "Rowl.AlcOntology.Proper",
     "Rowl.AlcOntology.embedding",
-    "Rowl.AlcOntology.owlModel"
+    "Rowl.AlcOntology.owlModel",
+    "Rowl.FunctionalClasses.KeywordOf",
+    "Rowl.FunctionalClasses.Expected",
+    "Rowl.FunctionalClasses.Position",
+    "Rowl.FunctionalClasses.TakeRun",
+    "Rowl.FunctionalClasses.ResolveRun",
+    "Rowl.FunctionalClasses.PropertyRun",
+    "Rowl.FunctionalClasses.ClassRun",
+    "Rowl.FunctionalClasses.ConnectiveRun",
+    "Rowl.FunctionalClasses.MembersRun",
+    "Rowl.FunctionalClassAxioms.FormOf",
+    "Rowl.FunctionalClassAxioms.Expected",
+    "Rowl.FunctionalClassAxioms.TakeRun",
+    "Rowl.FunctionalClassAxioms.ClassStep",
+    "Rowl.FunctionalClassAxioms.ListRun",
+    "Rowl.FunctionalClassAxioms.NamedRun",
+    "Rowl.FunctionalClassAxioms.BodyRun",
+    "Rowl.FunctionalClassAxioms.AxiomRun"
   ]
 }

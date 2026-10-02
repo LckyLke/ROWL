@@ -97,7 +97,11 @@ checked prefix table. Declaration typing stays the existing kernel check, and th
 axiom loop and the other axiom forms remain pending.
 The four annotation axioms (`AnnotationAssertion`, `SubAnnotationPropertyOf`,
 `AnnotationPropertyDomain`, `AnnotationPropertyRange`) are read the same way, so
-every non-logical axiom now has a proved reader. The logical axioms, the axiom
+every non-logical axiom now has a proved reader. Class expressions of the
+reasoner's ALC fragment (with inverse object properties) and the class, domain
+and range axioms (`SubClassOf`, `EquivalentClasses`, `DisjointClasses`,
+`DisjointUnion`, `ObjectPropertyDomain`, `ObjectPropertyRange`) have proved
+readers as well. The other logical axioms and class-expression forms, the axiom
 loop and complete document construction remain pending.
 The reasoner track has started: class expressions in the ALC fragment translate
 to negation normal form, proved to keep their meaning under the independent
@@ -137,6 +141,7 @@ cargo run -p rowl --example functional_literals # exact text/language/type value
 cargo run -p rowl --example functional_annotations # nested ontology annotations from original maintenance source
 cargo run -p rowl --example functional_declarations # entity declarations with axiom annotations from original source
 cargo run -p rowl --example functional_annotation_axioms # declarations and annotation axioms of a vocabulary ontology
+cargo run -p rowl --example functional_class_axioms # class axioms read from source, answered by the verified reasoner
 cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
 cargo run -p rowl --example tableau     # verified ALC satisfiability and subsumption answers
 cargo run -p rowl --example tbox        # verified answers under maintenance axioms, with blocking
@@ -152,7 +157,7 @@ does not entail membership in A. Search must consider every interpretation.
 | Path | Responsibility |
 | --- | --- |
 | `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form, the verified ALC tableaux without and with a TBox, and verified ontology-level ALC queries |
-| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
+| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom/class-expression/class-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |
 | `verification` | Actual generated Rust translation, independent semantics, Lean proofs |

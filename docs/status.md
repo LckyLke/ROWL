@@ -458,6 +458,20 @@ progress. Full OWL parsing and executable reasoning are still future work.
   section and at least five consumed tokens. With declarations, this covers every
   non-logical axiom; the logical axioms, the axiom loop, the closing token and
   complete document construction remain pending.
+- M3 Functional Syntax class expressions and class axioms. The actual readers
+  take one class expression of the reasoner's ALC fragment (named classes,
+  intersections, unions, complements, and existential and universal restrictions
+  on an object property or its `ObjectInverseOf`), or one `SubClassOf`,
+  `EquivalentClasses`, `DisjointClasses`, `DisjointUnion`, `ObjectPropertyDomain`
+  or `ObjectPropertyRange` axiom with its annotations, at a caller-supplied
+  position. The other twelve class-expression forms are reported as unsupported.
+  Nesting depth and member counts have explicit limits. Errors report the first
+  failing step in source order with original offsets. The recursive reader is
+  proved total by well-founded recursion on the token count, and both readers
+  have exact result/error equivalence to an independent grammar. Source
+  composition uses the namespace rows parsed from the same bytes. The other
+  logical axioms, the axiom loop, the closing token, complete document
+  construction and the mapping into the kernel's ontology model remain pending.
 - Reasoner track, first stage: negation normal form for the ALC fragment. The
   actual kernel translation maps named classes, intersections, unions,
   complements and existential/universal restrictions on named object properties
@@ -513,18 +527,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   answer holds in every such model. Individuals and assertions, the other axiom forms,
   the remaining SROIQ constructors, datatypes, the frontend's reading of logical
   axioms, query answering and performance remain pending.
-- 683 audited public theorems and 548 audited semantic definitions. Consistency,
+- 724 audited public theorems and 565 audited semantic definitions. Consistency,
   class satisfiability and subsumption are decided, with proofs against the OWL
   definitions, for axiom closures whose logical axioms are ALC class, domain and
   range axioms; no full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 349 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 359 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 876-obligation release ledger and separate checked constructor and built-in inventories.
+- A 917-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -571,9 +585,10 @@ connect that exact source table to IRI value/error contracts. The following
 ontology/version identity and maximal leading imports also have source-derived
 value/error composition proofs. Ontology annotations, including nested ones,
 now have source-derived value/error composition proofs as well, and so do single
-entity declarations and annotation axioms at a supplied axiom position. The
-logical axioms, the axiom loop and closing syntax are returned as tokens; complete
-grammar/AST and canonical catalog/import construction remain pending.
+entity declarations, annotation axioms, ALC class expressions and class, domain
+and range axioms at a supplied position. The other logical axioms, the axiom loop
+and closing syntax are returned as tokens; complete grammar/AST and canonical
+catalog/import construction remain pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. The concrete normative OWL map is unimplemented. Semantic

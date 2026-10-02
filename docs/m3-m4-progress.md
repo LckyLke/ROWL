@@ -2283,3 +2283,78 @@ This block adds 18 public theorems (17 new, and the NNF member-join lemma made
 public) and 4 independent definitions. Totals are 683 audited theorems, 548
 definitions, 349 Rust regressions and 876 ledger obligations. Full OWL
 reasoning and byte-to-answer release proofs remain pending.
+
+
+## M3: Functional Syntax class expressions and class axioms
+
+`functional_classes::read_class_expression` reads one class expression at a
+caller-supplied position:
+
+- a named class IRI;
+- `ObjectIntersectionOf` and `ObjectUnionOf` with at least two members;
+- `ObjectComplementOf`;
+- `ObjectSomeValuesFrom` and `ObjectAllValuesFrom` over an object property
+  expression. That expression is an IRI or `ObjectInverseOf( IRI )`, read by
+  `read_object_property`.
+
+The other twelve class-expression forms are reported as `Unsupported` at their
+keyword. Every IRI resolves its original span through the checked prefix table
+under the `iri` limit. Records keep the original keyword and IRI tokens.
+
+Errors report the first failing step in source order with original offsets, and
+EOF errors use the source length. At a connective keyword the order is:
+
+1. the nesting depth;
+2. `(`;
+3. the operands in order, each member of an intersection or union after the
+   member-count check;
+4. the two-member minimum;
+5. `)`.
+
+The reader is three mutually recursive functions: `read_class`,
+`read_connective` and `read_members`. FunctionalClasses gives the independent
+grammar as three mutually inductive derivations (ClassRun, ConnectiveRun and
+MembersRun), with PropertyRun and ResolveRun for the non-recursive parts. The
+totality theorems prove the reader terminates on every token stream by
+well-founded recursion on (token count, rank). They also prove progress: an
+accepted expression consumes at least one token. The execution theorems prove
+the converse with the same measure: every derivation is the actual result. The
+`_result_iff` theorems combine both directions.
+
+`functional_class_axioms::read_class_axiom` reads one `SubClassOf`,
+`EquivalentClasses`, `DisjointClasses`, `DisjointUnion`,
+`ObjectPropertyDomain` or `ObjectPropertyRange` axiom. In source order it reads
+the keyword, `(`, the axiom annotations with the proved annotation reader, the
+body, then `)`. Bodies read class expressions at the full nesting allowance and
+object property expressions with the same readers. Member lists reuse the
+member sequence followed by the two-member minimum. The disjoint union's class
+IRI resolves through the checked prefix table. FunctionalClassAxioms composes
+the proved grammars into AxiomRun and proves totality and exact result/error
+equivalence. FunctionalClassSource composes both readers with the namespace
+rows parsed from the same original bytes.
+
+The regressions cover:
+
+- nested shapes with exact tokens and IRIs;
+- inverse properties;
+- every error point in source order, including unsupported forms and
+  undeclared prefixes;
+- depth and count limits;
+- 120 printed pseudo-random expressions that must read back to their shape;
+- all six axiom forms and axiom annotations;
+- the maintenance class ontology, read axiom by axiom in source order.
+
+The runnable functional_class_axioms example reads that ontology from source.
+It converts the records into the kernel's ontology model with example code and
+asks the verified reasoner whether the ontology is consistent and about
+subsumption and satisfiability. Each reading step is proved against the grammar
+and each answer against the Direct Semantics. The conversion between them, the
+axiom loop and document construction are not yet verified steps.
+
+The other logical axioms and class-expression forms, data ranges, individuals,
+the axiom loop, the closing token, complete document construction and the
+mapping into the kernel's model remain pending.
+
+This block adds 41 public theorems and 17 independent definitions. Totals are
+724 audited theorems, 565 definitions, 359 Rust regressions and 917 ledger
+obligations. Full M3/M4 parsing and byte-to-answer release proofs remain pending.

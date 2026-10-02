@@ -809,6 +809,36 @@ rules belong to the existing kernel checks, which run on the complete axiom
 closure. Checking them per declaration here would miss conflicts between axioms.
 
 
+### Functional Syntax class expressions and class axioms
+
+Class expressions are recursive, so the reader is three mutually recursive
+functions: one class expression, one connective body after its `(`, and the
+maximal member sequence of an intersection or union. Each call either consumes a
+token or hands the same tokens to a function of lower rank, so termination is
+proved from the lexicographic pair (token count, rank) without fuel. The
+independent grammar mirrors that structure as three mutually inductive
+derivations. Totality carries a progress fact: a class expression consumes at
+least one token, and a member sequence never returns more tokens than it was
+given. The converse, that every derivation is the actual result, uses the same
+measure.
+
+The reader covers the forms the reasoner can decide: named classes,
+intersections, unions, complements and existential and universal restrictions.
+Object property expressions include `ObjectInverseOf`, which the reasoner does
+not support yet; the frontend reads it anyway, because reading is independent of
+the reasoning fragment. The other twelve class-expression forms are reported as
+`Unsupported` at their keyword rather than as a syntax error, so a later stage can
+extend the reader without changing earlier diagnostics. `ClassLimits.depth`
+bounds connective nesting, because each level uses the physical stack. `count`
+bounds each member list.
+
+The six class axioms compose the annotation reader, the class reader and the
+object property reader. Their member lists reuse the member sequence followed by
+the same two-member minimum as intersections. Like declarations, they produce
+source records. The mapping into the kernel's ontology model belongs to complete
+document construction, together with the axiom loop.
+
+
 ### Reasoner track: concept language and fragments
 
 The tableau decides concepts in negation normal form, not raw class expressions.

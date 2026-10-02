@@ -75,6 +75,9 @@ import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
+import Rowl.FunctionalClasses
+import Rowl.FunctionalClassAxioms
+import Rowl.FunctionalClassSource
 import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
@@ -765,6 +768,47 @@ import Rowl.AlcOntology
 #print axioms Rowl.AlcOntology.consistent_complete
 #print axioms Rowl.AlcOntology.class_satisfiable_complete
 #print axioms Rowl.AlcOntology.subsumed_sound
+#print axioms Rowl.FunctionalClasses.class_keyword_total_correct
+#print axioms Rowl.FunctionalClasses.inverse_keyword_total_correct
+#print axioms Rowl.FunctionalClasses.closes_total_correct
+#print axioms Rowl.FunctionalClasses.offset_of_total_correct
+#print axioms Rowl.FunctionalClasses.expected_terminal_total_correct
+#print axioms Rowl.FunctionalClasses.take_expected_total_correct
+#print axioms Rowl.FunctionalClasses.take_expected_result_iff
+#print axioms Rowl.FunctionalClasses.take_progress
+#print axioms Rowl.FunctionalClasses.resolve_total_correct
+#print axioms Rowl.FunctionalClasses.resolve_result_iff
+#print axioms Rowl.FunctionalClasses.read_object_property_total_correct
+#print axioms Rowl.FunctionalClasses.read_object_property_result_iff
+#print axioms Rowl.FunctionalClasses.property_progress
+#print axioms Rowl.FunctionalClasses.read_class_total_correct
+#print axioms Rowl.FunctionalClasses.read_connective_total_correct
+#print axioms Rowl.FunctionalClasses.read_members_total_correct
+#print axioms Rowl.FunctionalClasses.class_execution
+#print axioms Rowl.FunctionalClasses.connective_execution
+#print axioms Rowl.FunctionalClasses.members_execution
+#print axioms Rowl.FunctionalClasses.read_class_result_iff
+#print axioms Rowl.FunctionalClasses.read_class_expression_result_iff
+#print axioms Rowl.FunctionalClasses.read_members_result_iff
+#print axioms Rowl.FunctionalClasses.class_progress
+#print axioms Rowl.FunctionalClasses.read_class_expression_total_correct
+#print axioms Rowl.FunctionalClassAxioms.axiom_form_total_correct
+#print axioms Rowl.FunctionalClassAxioms.expected_terminal_total_correct
+#print axioms Rowl.FunctionalClassAxioms.take_expected_total_correct
+#print axioms Rowl.FunctionalClassAxioms.take_expected_result_iff
+#print axioms Rowl.FunctionalClassAxioms.take_progress
+#print axioms Rowl.FunctionalClassAxioms.read_class_total_correct
+#print axioms Rowl.FunctionalClassAxioms.read_class_result_iff
+#print axioms Rowl.FunctionalClassAxioms.read_list_total_correct
+#print axioms Rowl.FunctionalClassAxioms.read_list_result_iff
+#print axioms Rowl.FunctionalClassAxioms.read_named_total_correct
+#print axioms Rowl.FunctionalClassAxioms.read_named_result_iff
+#print axioms Rowl.FunctionalClassAxioms.read_body_total_correct
+#print axioms Rowl.FunctionalClassAxioms.read_body_result_iff
+#print axioms Rowl.FunctionalClassAxioms.read_class_axiom_total_correct
+#print axioms Rowl.FunctionalClassAxioms.read_class_axiom_result_iff
+#print axioms Rowl.FunctionalClassSource.source_prefix_class_result_iff
+#print axioms Rowl.FunctionalClassSource.source_prefix_class_axiom_result_iff
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1313,3 +1357,20 @@ import Rowl.AlcOntology
 #print axioms Rowl.AlcOntology.Proper
 #print axioms Rowl.AlcOntology.embedding
 #print axioms Rowl.AlcOntology.owlModel
+#print axioms Rowl.FunctionalClasses.KeywordOf
+#print axioms Rowl.FunctionalClasses.Expected
+#print axioms Rowl.FunctionalClasses.Position
+#print axioms Rowl.FunctionalClasses.TakeRun
+#print axioms Rowl.FunctionalClasses.ResolveRun
+#print axioms Rowl.FunctionalClasses.PropertyRun
+#print axioms Rowl.FunctionalClasses.ClassRun
+#print axioms Rowl.FunctionalClasses.ConnectiveRun
+#print axioms Rowl.FunctionalClasses.MembersRun
+#print axioms Rowl.FunctionalClassAxioms.FormOf
+#print axioms Rowl.FunctionalClassAxioms.Expected
+#print axioms Rowl.FunctionalClassAxioms.TakeRun
+#print axioms Rowl.FunctionalClassAxioms.ClassStep
+#print axioms Rowl.FunctionalClassAxioms.ListRun
+#print axioms Rowl.FunctionalClassAxioms.NamedRun
+#print axioms Rowl.FunctionalClassAxioms.BodyRun
+#print axioms Rowl.FunctionalClassAxioms.AxiomRun
