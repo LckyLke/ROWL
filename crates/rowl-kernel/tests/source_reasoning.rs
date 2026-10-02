@@ -236,15 +236,23 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Object property axioms outside the supported role axioms are read but not answered.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n InverseObjectProperties(:p :q)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n FunctionalObjectProperty(:p)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
-    // A read axiom outside the ALC fragment gives no answer.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n)"
+    // A negative property assertion next to a role axiom gives no answer.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SymmetricObjectProperty(:p)\n NegativeObjectPropertyAssertion(:p :a :b)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
+    // Domains of inverse properties and inverse role axioms are answered.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n InverseObjectProperties(:p :q)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
     // A consistent document with an unsatisfiable class: E ⊑ D ⊑ B ⊑ A ⊑ ¬A.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A ObjectComplementOf(:A))\n EquivalentClasses(:A ObjectUnionOf(:B :C))\n SubClassOf(:B :A)\n DisjointUnion(:D :B :E)\n SubClassOf(:D :B)\n SubClassOf(:E :D)\n)"
         .as_bytes()
@@ -379,5 +387,93 @@ fn medication_alerts_are_derived_from_the_original_bytes() {
             &alert
         )),
         Some(false)
+    );
+    // Azithromycin is a macrolide, and macrolides are no penicillins.
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &patient("carol"),
+            &alert
+        )),
+        Some(false)
+    );
+    let ingredient = ObjectPropertyExpression::Property(ObjectProperty {
+        iri: iri(&format!("{medication}hasActiveIngredient")),
+    });
+    let penicillin = ClassExpression::Class(Class {
+        iri: iri(&format!("{medication}Penicillin")),
+    });
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &patient("tablet"),
+            &ClassExpression::ObjectSomeValuesFrom(
+                ingredient,
+                Box::new(ClassExpression::ObjectComplementOf(Box::new(penicillin)))
+            )
+        )),
+        Some(true)
+    );
+}
+
+#[test]
+fn inverse_properties_are_reasoned_about_from_the_original_bytes() {
+    let bytes = "Prefix(:=<https://example.org/family/>)\nOntology(<https://example.org/family>\n InverseObjectProperties(:hasParent :hasChild)\n SubClassOf(ObjectSomeValuesFrom(ObjectInverseOf(:hasChild) :Person) :Child)\n SymmetricObjectProperty(:hasSibling)\n ClassAssertion(:Person :ada)\n ObjectPropertyAssertion(:hasChild :ada :ben)\n ObjectPropertyAssertion(:hasSibling :cy :ben)\n)"
+        .as_bytes()
+        .to_vec();
+    let scope = b"family".to_vec();
+    let person = |name: &str| NamedIndividual {
+        iri: iri(&format!("https://example.org/family/{name}")),
+    };
+    let child = ClassExpression::Class(Class {
+        iri: iri("https://example.org/family/Child"),
+    });
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    // ben's parent ada is recorded only as having ben as a child.
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &person("ben"),
+            &child
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &person("ada"),
+            &child
+        )),
+        Some(false)
+    );
+    // ben's sibling is recorded only from cy's side.
+    let sibling = ClassExpression::ObjectSomeValuesFrom(
+        ObjectPropertyExpression::Property(ObjectProperty {
+            iri: iri("https://example.org/family/hasSibling"),
+        }),
+        Box::new(ClassExpression::Class(Class {
+            iri: iri("http://www.w3.org/2002/07/owl#Thing"),
+        })),
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &person("ben"),
+            &sibling
+        )),
+        Some(true)
     );
 }

@@ -3018,3 +3018,27 @@ for it.
 This block adds 61 public theorems and 11 independent definitions. Totals are
 1139 audited theorems, 738 definitions, 407 Rust regressions and 1332 ledger
 obligations. Answering from source bytes with these queries is next.
+
+## Reasoner: SHI answers from source bytes
+
+`source_reasoning` now runs the SHI queries: `source_consistent`,
+`source_class_satisfiable`, `source_subsumed` and `source_instance_of` read the
+document, map it into the raw model and call `shi_ontology`, as one extracted
+unit. The document reader already reads `ObjectInverseOf` in restrictions and
+the inverse, symmetric and other object property axioms, so SHI documents are
+answered from their bytes. SourceReasoning's theorems keep their statements with
+the SHI queries in place of the ALC ones: an error is exactly the reader's first
+error, every accepted document reaches the query, and an answer is exact for
+the Direct Semantics of the read axioms, complete in every universe.
+
+The medication-safety example is the full one again: carol has the same allergy
+as alice but receives a tablet with azithromycin, a macrolide, and macrolides
+are disjoint from penicillins. The alert follows for alice only, and the
+tablet's active ingredient is proved to be no penicillin. Absorption makes the
+alert rule a definition on PenicillinAllergy, so the tableau branches only at
+the two patients with that allergy. A new regression answers inverse,
+symmetric and inverse-restriction questions from source bytes, and the stage's
+example (`shi_ontology`) shows inverse, symmetric and transitive properties.
+
+The theorem and definition totals are unchanged (1139 and 738); 408 Rust
+regressions and 1332 ledger obligations.

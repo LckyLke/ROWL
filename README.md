@@ -57,7 +57,7 @@ Concretely, the theorems say:
   consistency, satisfiability, subsumption or instance checking, over all
   models, however large. Outside the supported fragment there is no answer
   rather than a wrong one.
-- **No shortcuts.** No `sorry`, no admitted lemmas, no custom axioms: all 900+
+- **No shortcuts.** No `sorry`, no admitted lemmas, no custom axioms: all 1100+
   public theorems are audited to depend only on Lean's three standard axioms.
 
 ## Example
@@ -69,6 +69,8 @@ OWL Functional Syntax (abridged):
 TransitiveObjectProperty(ex:contains)
 SubObjectPropertyOf(ex:hasActiveIngredient ex:contains)
 SubClassOf(ex:Amoxicillin ex:Penicillin)
+SubClassOf(ex:Azithromycin ex:Macrolide)
+DisjointClasses(ex:Penicillin ex:Macrolide)
 SubClassOf(ObjectIntersectionOf(ObjectSomeValuesFrom(ex:hasAllergy ex:PenicillinAllergy)
                                 ObjectSomeValuesFrom(ex:receives
                                   ObjectSomeValuesFrom(ex:contains ex:Penicillin)))
@@ -78,6 +80,9 @@ ObjectPropertyAssertion(ex:receives ex:alice ex:comboPack)
 ObjectPropertyAssertion(ex:receives ex:bob ex:comboPack)
 ObjectPropertyAssertion(ex:contains ex:comboPack ex:capsule)
 ClassAssertion(ObjectSomeValuesFrom(ex:hasActiveIngredient ex:Amoxicillin) ex:capsule)
+ClassAssertion(ObjectSomeValuesFrom(ex:hasAllergy ex:PenicillinAllergy) ex:carol)
+ObjectPropertyAssertion(ex:receives ex:carol ex:tablet)
+ClassAssertion(ObjectSomeValuesFrom(ex:hasActiveIngredient ex:Azithromycin) ex:tablet)
 ```
 
 ```console
@@ -85,6 +90,8 @@ $ cargo run -p rowl --example medication_safety
 The records are consistent: true
 alice needs an allergy alert: true
 bob needs an allergy alert: false
+carol needs an allergy alert: false
+carol's tablet has an active ingredient that is no penicillin: true
 ```
 
 alice is allergic to penicillins. Her combination pack contains a capsule
@@ -92,10 +99,13 @@ whose active ingredient is amoxicillin, which is a penicillin. The penicillin
 is two levels down, where a check that looks only at the pack would miss it.
 Because `contains` is transitive and every active ingredient is contained, the
 alert follows in every model of the records. bob receives the same pack, but no
-allergy is recorded, so his alert does not follow. "false" means *not entailed
-by the records*, not *proved safe*. Each answer comes from code proved to
-compute exactly the Direct Semantics of the bytes in that file. (An
-illustration, not clinical guidance.)
+allergy is recorded. carol has the same allergy, but her tablet's active
+ingredient is azithromycin, a macrolide, and macrolides are disjoint from
+penicillins, so the records prove that this ingredient is no penicillin. For bob
+and carol the alert does not follow. "false" means *not entailed by the
+records*, not *proved safe*. Each answer comes from code proved to compute
+exactly the Direct Semantics of the bytes in that file. (An illustration, not
+clinical guidance.)
 
 ## Status
 
@@ -105,9 +115,9 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
 | **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
-| **Logic** | ALC (and, or, not, some, only) with named individuals, role hierarchies and transitive roles (SH) | inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
+| **Logic** | ALC (and, or, not, some, only) with named individuals, inverse roles, role hierarchies and transitive roles (SHI) | number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
-| **Scale** | small ontologies: the procedures are correct but unoptimised | performance: lazy unfolding, early clash detection, backjumping |
+| **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection and equality blocking | backjumping, caching across queries |
 
 There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
 and proofs from bytes to answers. [`docs/status.md`](docs/status.md) states
@@ -124,7 +134,7 @@ python3 scripts/verify.py           # re-translate the Rust code and re-check ev
 ```
 
 [`crates/rowl/examples`](crates/rowl/examples) has one runnable example per
-stage, from IRI checks to the `tbox` and `alc_ontology` reasoners.
+stage, from IRI checks to the `tbox`, `alc_ontology` and `shi_ontology` reasoners.
 
 ## Repository
 

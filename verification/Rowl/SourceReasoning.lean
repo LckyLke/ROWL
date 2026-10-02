@@ -1,16 +1,17 @@
 import Rowl.FunctionalModel
-import Rowl.AlcOntology
+import Rowl.ShiOntology
 
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
 document reader, the proved mapping into the raw OWL model and the proved
-queries for ALC with assertions about named and anonymous individuals and role
-axioms (SH) compose into one extracted function from the original bytes to an answer. An error is
+queries for SHI with assertions about named and anonymous individuals, inverse
+properties and role axioms, decided by the completion graph tableau, compose
+into one extracted function from the original bytes to an answer. An error is
 exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then
 the kernel's query on those axioms: no answer means the axioms or the query are
-outside the supported fragment, and an answer is exact for the OWL 2 Direct
-Semantics of the axioms.
+outside the supported fragment or a `usize` limit was reached, and an answer is
+exact for the OWL 2 Direct Semantics of the axioms.
 -/
 namespace Rowl.SourceReasoning
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -104,7 +105,7 @@ theorem source_consistent_correct (bytes : alloc.vec.Vec U8) (limits : DocumentL
     ∃ result, source_reasoning.source_consistent bytes limits scope = .ok result ∧
       (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
       (∀ answer, result = .Ok answer → ∃ ontology, SourceOntology bytes limits scope ontology ∧
-        alc_ontology.consistent ontology.axioms = .ok answer) ∧
+        shi_ontology.consistent ontology.axioms = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
           (answer = true ↔ Consistent.{u, max w v, w} D V ontology.axioms.val) := by
@@ -113,7 +114,7 @@ theorem source_consistent_correct (bytes : alloc.vec.Vec U8) (limits : DocumentL
     · intro other; simp [readRun]
     · intro answer impossible; cases impossible
     · intro answer impossible; cases impossible
-  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.AlcOntology.consistent_correct.{u,v,w} ontology.axioms
+  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.ShiOntology.consistent_correct.{u,v,w} ontology.axioms
     refine ⟨.Ok answered,by simp [source_reasoning.source_consistent,readRun,mappedRun,answeredRun],?_,?_,?_⟩
     · intro error; simp [readRun]
     · intro answer same
@@ -132,11 +133,11 @@ theorem source_consistent_complete (bytes : alloc.vec.Vec U8) (limits : Document
         Consistent.{u,v,w} D V ontology.axioms.val → answer = true := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · simp [source_reasoning.source_consistent,readRun] at answered
-  · obtain ⟨result,resultRun,_,_⟩ := Rowl.AlcOntology.consistent_correct.{0,0,0} ontology.axioms
+  · obtain ⟨result,resultRun,_,_⟩ := Rowl.ShiOntology.consistent_correct.{0,0,0} ontology.axioms
     simp [source_reasoning.source_consistent,readRun,mappedRun,resultRun] at answered
     subst answered
     exact ⟨ontology,source,
-      fun D V consistent => Rowl.AlcOntology.consistent_complete.{u,v,w} ontology.axioms answer resultRun D V consistent⟩
+      fun D V consistent => Rowl.ShiOntology.consistent_complete.{u,v,w} ontology.axioms answer resultRun D V consistent⟩
 
 /-- Class satisfiability from source bytes always terminates. An error is
     exactly the reader's first error; otherwise the result is the kernel's
@@ -148,7 +149,7 @@ theorem source_class_satisfiable_correct (bytes : alloc.vec.Vec U8) (limits : Do
     ∃ result, source_reasoning.source_class_satisfiable bytes limits scope e = .ok result ∧
       (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
       (∀ answer, result = .Ok answer → ∃ ontology, SourceOntology bytes limits scope ontology ∧
-        alc_ontology.class_satisfiable ontology.axioms e = .ok answer) ∧
+        shi_ontology.class_satisfiable ontology.axioms e = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
           (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V ontology.axioms.val e) := by
@@ -157,7 +158,7 @@ theorem source_class_satisfiable_correct (bytes : alloc.vec.Vec U8) (limits : Do
     · intro other; simp [readRun]
     · intro answer impossible; cases impossible
     · intro answer impossible; cases impossible
-  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.AlcOntology.class_satisfiable_correct.{u,v,w} ontology.axioms e
+  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.ShiOntology.class_satisfiable_correct.{u,v,w} ontology.axioms e
     refine ⟨.Ok answered,by simp [source_reasoning.source_class_satisfiable,readRun,mappedRun,answeredRun],
       ?_,?_,?_⟩
     · intro error; simp [readRun]
@@ -178,11 +179,11 @@ theorem source_class_satisfiable_complete (bytes : alloc.vec.Vec U8) (limits : D
         ClassSatisfiable.{u,v,w} D V ontology.axioms.val e → answer = true := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · simp [source_reasoning.source_class_satisfiable,readRun] at answered
-  · obtain ⟨result,resultRun,_,_⟩ := Rowl.AlcOntology.class_satisfiable_correct.{0,0,0} ontology.axioms e
+  · obtain ⟨result,resultRun,_,_⟩ := Rowl.ShiOntology.class_satisfiable_correct.{0,0,0} ontology.axioms e
     simp [source_reasoning.source_class_satisfiable,readRun,mappedRun,resultRun] at answered
     subst answered
     exact ⟨ontology,source,fun D V satisfiable =>
-      Rowl.AlcOntology.class_satisfiable_complete.{u,v,w} ontology.axioms e answer resultRun D V satisfiable⟩
+      Rowl.ShiOntology.class_satisfiable_complete.{u,v,w} ontology.axioms e answer resultRun D V satisfiable⟩
 
 /-- Subsumption from source bytes always terminates. An error is exactly the
     reader's first error; otherwise the result is the kernel's subsumption query
@@ -193,7 +194,7 @@ theorem source_subsumed_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLim
     ∃ result, source_reasoning.source_subsumed bytes limits scope sub sup = .ok result ∧
       (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
       (∀ answer, result = .Ok answer → ∃ ontology, SourceOntology bytes limits scope ontology ∧
-        alc_ontology.subsumed ontology.axioms sub sup = .ok answer) ∧
+        shi_ontology.subsumed ontology.axioms sub sup = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
           (answer = true ↔ Subsumed.{u, max w v, w} D V ontology.axioms.val sub sup) := by
@@ -202,7 +203,7 @@ theorem source_subsumed_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLim
     · intro other; simp [readRun]
     · intro answer impossible; cases impossible
     · intro answer impossible; cases impossible
-  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.AlcOntology.subsumed_correct.{u,v,w} ontology.axioms sub sup
+  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.ShiOntology.subsumed_correct.{u,v,w} ontology.axioms sub sup
     refine ⟨.Ok answered,by simp [source_reasoning.source_subsumed,readRun,mappedRun,answeredRun],?_,?_,?_⟩
     · intro error; simp [readRun]
     · intro answer same
@@ -220,11 +221,11 @@ theorem source_subsumed_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLimit
       ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), Subsumed.{u,v,w} D V ontology.axioms.val sub sup := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · simp [source_reasoning.source_subsumed,readRun] at answered
-  · obtain ⟨result,resultRun,_,_⟩ := Rowl.AlcOntology.subsumed_correct.{0,0,0} ontology.axioms sub sup
+  · obtain ⟨result,resultRun,_,_⟩ := Rowl.ShiOntology.subsumed_correct.{0,0,0} ontology.axioms sub sup
     simp [source_reasoning.source_subsumed,readRun,mappedRun,resultRun] at answered
     subst answered
     exact ⟨ontology,source,
-      fun D V => Rowl.AlcOntology.subsumed_sound.{u,v,w} ontology.axioms sub sup resultRun D V⟩
+      fun D V => Rowl.ShiOntology.subsumed_sound.{u,v,w} ontology.axioms sub sup resultRun D V⟩
 
 /-- Instance checking from source bytes always terminates. An error is exactly
     the reader's first error; otherwise the result is the kernel's instance
@@ -236,7 +237,7 @@ theorem source_instance_of_correct (bytes : alloc.vec.Vec U8) (limits : Document
     ∃ result, source_reasoning.source_instance_of bytes limits scope a e = .ok result ∧
       (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
       (∀ answer, result = .Ok answer → ∃ ontology, SourceOntology bytes limits scope ontology ∧
-        alc_ontology.instance_of ontology.axioms a e = .ok answer) ∧
+        shi_ontology.instance_of ontology.axioms a e = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
           (answer = true ↔ InstanceOf.{u, max w v, w} D V ontology.axioms.val a e) := by
@@ -245,7 +246,7 @@ theorem source_instance_of_correct (bytes : alloc.vec.Vec U8) (limits : Document
     · intro other; simp [readRun]
     · intro answer impossible; cases impossible
     · intro answer impossible; cases impossible
-  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.AlcOntology.instance_of_correct.{u,v,w} ontology.axioms a e
+  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.ShiOntology.instance_of_correct.{u,v,w} ontology.axioms a e
     refine ⟨.Ok answered,by simp [source_reasoning.source_instance_of,readRun,mappedRun,answeredRun],?_,?_,?_⟩
     · intro error; simp [readRun]
     · intro answer same
@@ -263,9 +264,9 @@ theorem source_instance_of_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLi
       ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), InstanceOf.{u,v,w} D V ontology.axioms.val a e := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · simp [source_reasoning.source_instance_of,readRun] at answered
-  · obtain ⟨result,resultRun,_,_⟩ := Rowl.AlcOntology.instance_of_correct.{0,0,0} ontology.axioms a e
+  · obtain ⟨result,resultRun,_,_⟩ := Rowl.ShiOntology.instance_of_correct.{0,0,0} ontology.axioms a e
     simp [source_reasoning.source_instance_of,readRun,mappedRun,resultRun] at answered
     subst answered
     exact ⟨ontology,source,
-      fun D V => Rowl.AlcOntology.instance_of_sound.{u,v,w} ontology.axioms a e resultRun D V⟩
+      fun D V => Rowl.ShiOntology.instance_of_sound.{u,v,w} ontology.axioms a e resultRun D V⟩
 end Rowl.SourceReasoning

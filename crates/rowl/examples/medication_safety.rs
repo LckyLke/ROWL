@@ -3,8 +3,10 @@
 //! penicillins and receives a combination pack; a capsule in the pack has
 //! amoxicillin, a penicillin, as an active ingredient. The alert follows because
 //! `contains` is transitive and every active ingredient is contained. bob
-//! receives the same pack without a recorded allergy. An illustration of allergy
-//! checking, not clinical guidance.
+//! receives the same pack without a recorded allergy. carol has the same allergy
+//! and receives a tablet with azithromycin, a macrolide; macrolides and
+//! penicillins are disjoint, so the tablet's active ingredient is provably no
+//! penicillin. An illustration of allergy checking, not clinical guidance.
 use rowl::experimental::functional_annotations::AnnotationLimits;
 use rowl::experimental::functional_classes::ClassLimits;
 use rowl::experimental::functional_document::{DocumentError, DocumentLimits};
@@ -57,7 +59,7 @@ fn main() {
         "The records are consistent",
         source_consistent(&bytes, &limits, &scope),
     );
-    for patient in ["alice", "bob"] {
+    for patient in ["alice", "bob", "carol"] {
         show(
             &format!("{patient} needs an allergy alert"),
             source_instance_of(
@@ -69,5 +71,23 @@ fn main() {
             ),
         );
     }
-    println!("alice's alert follows in every model of the records: the amoxicillin sits in a capsule inside the pack, and contains is transitive. bob has no recorded allergy, so for him the alert does not follow; false means not entailed by the records, not proved safe. Each answer is proved end to end against the OWL 2 Direct Semantics of the read axioms.");
+    let no_penicillin = ClassExpression::ObjectSomeValuesFrom(
+        ObjectPropertyExpression::Property(ObjectProperty {
+            iri: iri("hasActiveIngredient"),
+        }),
+        Box::new(ClassExpression::ObjectComplementOf(Box::new(class(
+            "Penicillin",
+        )))),
+    );
+    show(
+        "carol's tablet has an active ingredient that is no penicillin",
+        source_instance_of(
+            &bytes,
+            &limits,
+            &scope,
+            &individual("tablet"),
+            &no_penicillin,
+        ),
+    );
+    println!("alice's alert follows in every model of the records: the amoxicillin sits in a capsule inside the pack, and contains is transitive. bob has no recorded allergy, and carol's azithromycin is a macrolide, which is no penicillin; for them the alert does not follow. false means not entailed by the records, not proved safe. Each answer is proved end to end against the OWL 2 Direct Semantics of the read axioms.");
 }

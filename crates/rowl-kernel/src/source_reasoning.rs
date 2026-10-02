@@ -1,14 +1,15 @@
 //! Answers for Functional Syntax source bytes: the verified document reader,
-//! the mapping into the raw OWL model, and the verified ALC queries.
+//! the mapping into the raw OWL model, and the verified SHI queries on the
+//! completion graph tableau.
 //!
 //! A document error is returned as `Err`. Every document the reader accepts
 //! maps into the model, so `Ok(None)` means the document's axioms or the query
 //! are outside the reasoner's supported fragment.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
-use crate::alc_ontology::{class_satisfiable, consistent, instance_of, subsumed};
 use crate::functional_document::{read_document, DocumentError, DocumentLimits};
 use crate::functional_model::document_ontology;
 use crate::model::{ClassExpression, NamedIndividual};
+use crate::shi_ontology::{class_satisfiable, consistent, instance_of, subsumed};
 
 /// Whether the document's axioms have a model.
 pub fn source_consistent(

@@ -584,8 +584,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   reader accepts reaches the query: its prefix header is parsed from the same
   bytes, its namespace table passes the normative checker, the independent
   document grammar derives the rest, and its model corresponds to those records.
-  The result is the kernel's query on that model's axioms. No answer therefore
-  means the axioms or the query are outside the supported fragment. An answer is
+  The result is the kernel's query on that model's axioms (since the ninth
+  stage the SHI queries on the completion graph tableau). No answer therefore
+  means the axioms or the query are outside the supported fragment or a `usize`
+  limit was reached. An answer is
   proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf of the
   read axioms for any valid vocabulary, complete in every universe, and a
   positive subsumption or instance answer holds in every model. The other axiom
@@ -651,7 +653,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   negative property assertions together with role axioms get no answer.
   Inverse roles, number restrictions, nominals and property chains remain
   pending.
-- Reasoner track, ninth stage (in progress): inverse roles. The actual kernel
+- Reasoner track, ninth stage: inverse roles. The actual kernel
   translation concepts::translate maps ALCI class expressions, whose
   restrictions may use ObjectInverseOf, to concepts in negation normal form
   whose roles are object property expressions. It is proved total, returns no
@@ -681,17 +683,17 @@ progress. Full OWL parsing and executable reasoning are still future work.
   satisfiability, subsumption and instance checking are proved exact for the
   Direct Semantics in any universes. Negative object property assertions next
   to role axioms, built-in object properties and other constructors get no
-  answer. Answering from source bytes with these queries is the last step of
-  this stage.
+  answer. The source-byte queries now run on them, so SHI documents, including
+  the full medication-safety example, are answered end to end from their bytes.
 - 1139 audited public theorems and 738 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
   and inclusions, equivalences, inverses, symmetry and transitivity of object
-  property expressions (SHI); for the SH fragment also directly from Functional
-  Syntax source bytes. No full OWL decision procedure is proved yet. See
+  property expressions (SHI), also directly from Functional Syntax source
+  bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 407 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 408 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion and equality

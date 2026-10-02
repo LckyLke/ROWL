@@ -30858,7 +30858,7 @@ def snapshot.resolve_texts
     ok (snapshot.TextResolution.DuplicateDocument key)
 
 /-- [rowl_kernel::source_reasoning::source_consistent]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 14:0-27:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 15:0-28:1
     Visibility: public -/
 def source_reasoning.source_consistent
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -30872,12 +30872,12 @@ def source_reasoning.source_consistent
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← alc_ontology.consistent ontology.axioms
+      let o1 ← shi_ontology.consistent ontology.axioms
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 29:0-43:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 30:0-44:1
     Visibility: public -/
 def source_reasoning.source_class_satisfiable
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -30891,12 +30891,12 @@ def source_reasoning.source_class_satisfiable
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← alc_ontology.class_satisfiable ontology.axioms «class»
+      let o1 ← shi_ontology.class_satisfiable ontology.axioms «class»
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_subsumed]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 46:0-61:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 47:0-62:1
     Visibility: public -/
 def source_reasoning.source_subsumed
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -30911,12 +30911,12 @@ def source_reasoning.source_subsumed
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← alc_ontology.subsumed ontology.axioms sub sup
+      let o1 ← shi_ontology.subsumed ontology.axioms sub sup
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_instance_of]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 64:0-79:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 65:0-80:1
     Visibility: public -/
 def source_reasoning.source_instance_of
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -30931,7 +30931,7 @@ def source_reasoning.source_instance_of
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← alc_ontology.instance_of ontology.axioms individual «class»
+      let o1 ← shi_ontology.instance_of ontology.axioms individual «class»
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
