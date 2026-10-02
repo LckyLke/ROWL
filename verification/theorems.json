@@ -1090,6 +1090,7 @@
       "theorems": [
         "Rowl.Nnf.fixes_of_interpretation",
         "Rowl.Nnf.copy_iri_identity",
+        "Rowl.Nnf.connect_correct",
         "Rowl.Nnf.nnf_total_correct",
         "Rowl.Nnf.nnf_supported_iff",
         "Rowl.Nnf.nnf_meaning",
@@ -1150,6 +1151,35 @@
         "Rowl.TboxTableau.rejected_empty_in_models",
         "Rowl.TboxTableau.class_instances_accepted_in",
         "Rowl.TboxTableau.rejected_class_empty_in"
+      ]
+    },
+    {
+      "module": "Rowl.Internalization",
+      "namespace": "Rowl.Internalization",
+      "theorems": [
+        "Rowl.Internalization.all_equal_iff",
+        "Rowl.Internalization.pairwise_disjoint_iff",
+        "Rowl.Internalization.pairwise_correct",
+        "Rowl.Internalization.axiom_concept_correct",
+        "Rowl.Internalization.internalize_correct"
+      ]
+    },
+    {
+      "module": "Rowl.AlcOntology",
+      "namespace": "Rowl.AlcOntology",
+      "theorems": [
+        "Rowl.AlcOntology.builtin_class_correct",
+        "Rowl.AlcOntology.builtin_role_correct",
+        "Rowl.AlcOntology.proper_correct",
+        "Rowl.AlcOntology.concept_with_anonymous",
+        "Rowl.AlcOntology.owl_model_valid",
+        "Rowl.AlcOntology.owl_model_agrees",
+        "Rowl.AlcOntology.consistent_correct",
+        "Rowl.AlcOntology.class_satisfiable_correct",
+        "Rowl.AlcOntology.subsumed_correct",
+        "Rowl.AlcOntology.consistent_complete",
+        "Rowl.AlcOntology.class_satisfiable_complete",
+        "Rowl.AlcOntology.subsumed_sound"
       ]
     }
   ],
@@ -1697,6 +1727,10 @@
     "Rowl.TboxTableau.Accepts",
     "Rowl.TboxTableau.ModelSat",
     "Rowl.TboxTableau.Decides",
-    "Rowl.TboxTableau.Invariant"
+    "Rowl.TboxTableau.Invariant",
+    "Rowl.Internalization.SupportedAxiom",
+    "Rowl.AlcOntology.Proper",
+    "Rowl.AlcOntology.embedding",
+    "Rowl.AlcOntology.owlModel"
   ]
 }

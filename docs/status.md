@@ -465,8 +465,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   owl:Nothing become top and bottom. It is proved total on all 18 class forms,
   returns no result exactly outside the fragment, and preserves the meaning of the
   expression (or its complement) under the independent Direct Semantics in every
-  OWL interpretation, for domains of any universe. Reading ontology axioms into a
-  TBox, the other constructors, datatypes and query reductions remain pending.
+  OWL interpretation, for domains of any universe. The other constructors,
+  datatypes and the remaining query reductions remain pending.
 - Reasoner track, second stage: a verified ALC tableau for concept
   satisfiability without a TBox. The actual kernel procedure expands conjunctions,
   branches on disjunctions, detects clashes between a named class and its
@@ -492,21 +492,39 @@ progress. Full OWL parsing and executable reasoning are still future work.
   class expression empty in every OWL interpretation where the TBox class
   expression holds at every element, which justifies unsatisfiability and
   subsumption answers under ALC general concept inclusions written as that
-  expression. Reading SubClassOf and the other class axioms of an ontology into
-  the TBox expression, the OWL-level model fixing owl:Thing and owl:Nothing, the
-  remaining SROIQ constructors and role axioms, datatypes, ontology-level queries
-  and performance remain pending.
-- 665 audited public theorems and 544 audited semantic definitions. Only the ALC
-  concept fragment, with or without a TBox concept, has a proved decision
-  procedure; no full OWL decision procedure is proved yet. See m3-m4-progress.md
-  for the input contracts.
-- 343 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+  expression. The remaining SROIQ constructors and role axioms, datatypes and
+  performance remain pending.
+- Reasoner track, fourth stage: verified ontology-level ALC queries. The actual
+  kernel internalizes an axiom closure into one TBox concept: SubClassOf,
+  EquivalentClasses, DisjointClasses, DisjointUnion, and ObjectPropertyDomain and
+  ObjectPropertyRange on named object properties, each over ALC class
+  expressions; declarations and annotation axioms impose nothing. The
+  internalization succeeds exactly on these axioms, and its concept is proved to
+  hold at every element exactly when an interpretation fixing owl:Thing and
+  owl:Nothing satisfies the whole closure. The queries consistent,
+  class_satisfiable and subsumed answer exactly when, in addition, no translated
+  concept uses a built-in object property as a role or a built-in class as an
+  ordinary named class. Each answer is proved equal to the independent Direct
+  Semantics definitions Consistent, ClassSatisfiable and Subsumed for any valid
+  vocabulary. Acceptance yields an actual OWL model of the closure: the
+  tableau's model gets the fixed built-in classes and object and data
+  properties, and data values from the datatype map. Every OWL model, in any
+  universe and for any vocabulary, forces acceptance, and a positive subsumption
+  answer holds in every such model. Individuals and assertions, the other axiom forms,
+  the remaining SROIQ constructors, datatypes, the frontend's reading of logical
+  axioms, query answering and performance remain pending.
+- 683 audited public theorems and 548 audited semantic definitions. Consistency,
+  class satisfiability and subsumption are decided, with proofs against the OWL
+  definitions, for axiom closures whose logical axioms are ALC class, domain and
+  range axioms; no full OWL decision procedure is proved yet. See
+  m3-m4-progress.md for the input contracts.
+- 349 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 858-obligation release ledger and separate checked constructor and built-in inventories.
+- A 876-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

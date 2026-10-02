@@ -62,3 +62,5 @@ pub mod nnf;
 pub mod tableau;
 
 pub mod tbox;
+
+pub mod alc_ontology;

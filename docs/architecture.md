@@ -842,3 +842,17 @@ witnessed inside the family), whose own interpretation is the model. Completenes
 still follows any model. Blocking compares concepts by exact structural equality,
 so the ancestor search is quadratic in the label sizes; performance work belongs
 to a later stage.
+
+Ontology-level queries sit on top of the TBox tableau. Each supported axiom is
+internalized into a concept that holds at every element exactly when the axiom
+holds, reusing the NNF translation for every class expression, and the closure's
+concept is their conjunction. Answers are stated against the independent OWL
+definitions (Consistent, ClassSatisfiable, Subsumed) rather than against concept
+meaning. That needs an OWL model for every acceptance: the tableau's model is
+lifted into the required universes, the built-in classes and object and data
+properties get their fixed meaning, and data values, datatypes, literals and
+facets come from the datatype map. This preserves every concept that uses no
+built-in class as an ordinary named class and no built-in object property as a
+role. The kernel checks that condition before it answers, because the tableau
+treats every role as an ordinary one, while owl:topObjectProperty relates all
+elements.

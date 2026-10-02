@@ -19,11 +19,199 @@ set_option maxRecDepth 2048
 
 namespace RowlRust
 
+/-- [rowl_kernel::alc_ontology::equal_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 25:0-31:1 -/
+def alc_ontology.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         alc_ontology.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::same_pattern]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 32:0-34:1 -/
+def alc_ontology.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then alc_ontology.equal_from key pattern 0#usize
+  else ok false
+
 /-- [rowl_kernel::model::Iri]
     Source: 'crates/rowl-kernel/src/model.rs', lines 13:0-15:1
     Visibility: public -/
 structure model.Iri where
   spelling : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::model::Class]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 17:0-19:1
+    Visibility: public -/
+structure model.Class where
+  iri : model.Iri
+
+/-- [rowl_kernel::alc_ontology::builtin_class]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 36:0-42:1 -/
+def alc_ontology.builtin_class («class» : model.Class) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  let b ← alc_ontology.same_pattern «class».iri.spelling s
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8, 104#u8, 105#u8, 110#u8,
+          103#u8
+          ]))
+    alc_ontology.same_pattern «class».iri.spelling s1
+
+/-- [rowl_kernel::model::ObjectProperty]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 23:0-25:1
+    Visibility: public -/
+structure model.ObjectProperty where
+  iri : model.Iri
+
+/-- [rowl_kernel::alc_ontology::builtin_role]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 44:0-52:1 -/
+def alc_ontology.builtin_role (role : model.ObjectProperty) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  let b ← alc_ontology.same_pattern role.iri.spelling s
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 50#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8,
+          79#u8, 98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8,
+          112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+          ]))
+    alc_ontology.same_pattern role.iri.spelling s1
+
+/-- [rowl_kernel::nnf::NnfConcept]
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 15:0-24:1
+    Visibility: public -/
+@[discriminant isize]
+inductive nnf.NnfConcept where
+| Top : nnf.NnfConcept
+| Bottom : nnf.NnfConcept
+| Atom : model.Class → nnf.NnfConcept
+| NotAtom : model.Class → nnf.NnfConcept
+| And : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
+| Or : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
+| Exists : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
+| Forall : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
+
+/-- [rowl_kernel::alc_ontology::proper]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 55:0-66:1 -/
+def alc_ontology.proper (concept : nnf.NnfConcept) : Result Bool := do
+  match concept with
+  | nnf.NnfConcept.Top => ok true
+  | nnf.NnfConcept.Bottom => ok true
+  | nnf.NnfConcept.Atom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | nnf.NnfConcept.NotAtom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | nnf.NnfConcept.And left right =>
+    let b ← alc_ontology.proper left
+    if b
+    then alc_ontology.proper right
+    else ok false
+  | nnf.NnfConcept.Or left right =>
+    let b ← alc_ontology.proper left
+    if b
+    then alc_ontology.proper right
+    else ok false
+  | nnf.NnfConcept.Exists role filler =>
+    let b ← alc_ontology.builtin_role role
+    if b
+    then ok false
+    else alc_ontology.proper filler
+  | nnf.NnfConcept.Forall role filler =>
+    let b ← alc_ontology.builtin_role role
+    if b
+    then ok false
+    else alc_ontology.proper filler
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::join]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 64:0-70:1 -/
+def nnf.join
+  (conjunctive : Bool) (left : nnf.NnfConcept) (right : nnf.NnfConcept) :
+  Result nnf.NnfConcept
+  := do
+  if conjunctive
+  then ok (nnf.NnfConcept.And left right)
+  else ok (nnf.NnfConcept.Or left right)
+
+/-- [rowl_kernel::nnf::copy_from]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 26:0-33:1 -/
+def nnf.copy_from
+  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (target : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len source
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
+        index
+    let target1 ← alloc.vec.Vec.push target i1
+    let i2 ← index + 1#usize
+    nnf.copy_from source i2 target1
+  else ok target
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::copy_iri]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 34:0-38:1 -/
+def nnf.copy_iri (iri : model.Iri) : Result model.Iri := do
+  let v ← nnf.copy_from iri.spelling 0#usize (alloc.vec.Vec.new Std.U8)
+  ok { spelling := v }
+
+/-- [rowl_kernel::probes::Natural]
+    Source: 'crates/rowl-kernel/src/probes.rs', lines 6:0-9:1
+    Visibility: public -/
+@[discriminant isize]
+inductive probes.Natural where
+| Zero : probes.Natural
+| Succ : probes.Natural → probes.Natural
 
 /-- [rowl_kernel::model::Datatype]
     Source: 'crates/rowl-kernel/src/model.rs', lines 20:0-22:1
@@ -37,153 +225,6 @@ structure model.Datatype where
 structure model.Literal where
   lexical : alloc.vec.Vec Std.U8
   datatype : model.Datatype
-
-/-- [rowl_kernel::model::AnonymousIndividual]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 40:0-43:1
-    Visibility: public -/
-structure model.AnonymousIndividual where
-  scope : alloc.vec.Vec Std.U8
-  label : alloc.vec.Vec Std.U8
-
-/-- [rowl_kernel::model::AnnotationValue]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 145:0-149:1
-    Visibility: public -/
-@[discriminant isize]
-inductive model.AnnotationValue where
-| Iri : model.Iri → model.AnnotationValue
-| Anonymous : model.AnonymousIndividual → model.AnnotationValue
-| Literal : model.Literal → model.AnnotationValue
-
-/-- [rowl_kernel::model::AnnotationProperty]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 29:0-31:1
-    Visibility: public -/
-structure model.AnnotationProperty where
-  iri : model.Iri
-
-/-- [rowl_kernel::model::Annotation]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 151:0-155:1
-    Visibility: public -/
-inductive model.Annotation where
-| mk :
-  alloc.vec.Vec model.Annotation →
-  model.AnnotationProperty →
-  model.AnnotationValue →
-  model.Annotation
-
-def model.Annotation.annotations (x : model.Annotation) :=
-  match x with | model.Annotation.mk x1 _ _ => x1
-
-def model.Annotation.property (x : model.Annotation) :=
-  match x with | model.Annotation.mk _ x1 _ => x1
-
-def model.Annotation.value (x : model.Annotation) :=
-  match x with | model.Annotation.mk _ _ x1 => x1
-
-@[simp]
-theorem model.Annotation.annotations._simpLemma_ (annotations : alloc.vec.Vec
-  model.Annotation) (property : model.AnnotationProperty) (value :
-  model.AnnotationValue) :
-  (model.Annotation.mk annotations property value).annotations = annotations :=
-  by rfl
-
-@[simp]
-theorem model.Annotation.property._simpLemma_ (annotations : alloc.vec.Vec
-  model.Annotation) (property : model.AnnotationProperty) (value :
-  model.AnnotationValue) :
-  (model.Annotation.mk annotations property value).property = property :=
-  by rfl
-
-@[simp]
-theorem model.Annotation.value._simpLemma_ (annotations : alloc.vec.Vec
-  model.Annotation) (property : model.AnnotationProperty) (value :
-  model.AnnotationValue) :
-  (model.Annotation.mk annotations property value).value = value := by rfl
-
-mutual
-
-/-- [rowl_kernel::anonymous::annotations_from]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 11:0-21:1 -/
-def anonymous.annotations_from
-  (values : alloc.vec.Vec model.Annotation) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let a ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Annotation) values index
-    let b ← anonymous.annotation_has_no_anonymous a
-    if b
-    then let i1 ← index + 1#usize
-         anonymous.annotations_from values i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::anonymous::annotation_has_no_anonymous]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 24:0-31:1
-    Visibility: public -/
-def anonymous.annotation_has_no_anonymous
-  (annotation : model.Annotation) : Result Bool := do
-  match annotation.value with
-  | model.AnnotationValue.Iri _ =>
-    anonymous.annotations_from annotation.annotations 0#usize
-  | model.AnnotationValue.Anonymous _ => ok false
-  | model.AnnotationValue.Literal _ =>
-    anonymous.annotations_from annotation.annotations 0#usize
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::model::NamedIndividual]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 32:0-34:1
-    Visibility: public -/
-structure model.NamedIndividual where
-  iri : model.Iri
-
-/-- [rowl_kernel::model::Individual]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 45:0-48:1
-    Visibility: public -/
-@[discriminant isize]
-inductive model.Individual where
-| Named : model.NamedIndividual → model.Individual
-| Anonymous : model.AnonymousIndividual → model.Individual
-
-/-- [rowl_kernel::anonymous::named]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 33:0-38:1 -/
-def anonymous.named (individual : model.Individual) : Result Bool := do
-  match individual with
-  | model.Individual.Named _ => ok true
-  | model.Individual.Anonymous _ => ok false
-
-/-- [rowl_kernel::anonymous::individuals_from]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 39:0-49:1 -/
-def anonymous.individuals_from
-  (values : alloc.vec.Vec model.Individual) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) values index
-    let b ← anonymous.named i1
-    if b
-    then let i2 ← index + 1#usize
-         anonymous.individuals_from values i2
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::probes::Natural]
-    Source: 'crates/rowl-kernel/src/probes.rs', lines 6:0-9:1
-    Visibility: public -/
-@[discriminant isize]
-inductive probes.Natural where
-| Zero : probes.Natural
-| Succ : probes.Natural → probes.Natural
 
 /-- [rowl_kernel::model::FacetRestriction]
     Source: 'crates/rowl-kernel/src/model.rs', lines 91:0-94:1
@@ -222,12 +263,6 @@ inductive model.DataRange where
   model.NonEmpty model.FacetRestriction →
   model.DataRange
 
-/-- [rowl_kernel::model::ObjectProperty]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 23:0-25:1
-    Visibility: public -/
-structure model.ObjectProperty where
-  iri : model.Iri
-
 /-- [rowl_kernel::model::ObjectPropertyExpression]
     Source: 'crates/rowl-kernel/src/model.rs', lines 78:0-81:1
     Visibility: public -/
@@ -236,16 +271,31 @@ inductive model.ObjectPropertyExpression where
 | Property : model.ObjectProperty → model.ObjectPropertyExpression
 | Inverse : model.ObjectProperty → model.ObjectPropertyExpression
 
+/-- [rowl_kernel::model::AnonymousIndividual]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 40:0-43:1
+    Visibility: public -/
+structure model.AnonymousIndividual where
+  scope : alloc.vec.Vec Std.U8
+  label : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::model::NamedIndividual]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 32:0-34:1
+    Visibility: public -/
+structure model.NamedIndividual where
+  iri : model.Iri
+
+/-- [rowl_kernel::model::Individual]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 45:0-48:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.Individual where
+| Named : model.NamedIndividual → model.Individual
+| Anonymous : model.AnonymousIndividual → model.Individual
+
 /-- [rowl_kernel::model::DataProperty]
     Source: 'crates/rowl-kernel/src/model.rs', lines 26:0-28:1
     Visibility: public -/
 structure model.DataProperty where
-  iri : model.Iri
-
-/-- [rowl_kernel::model::Class]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 17:0-19:1
-    Visibility: public -/
-structure model.Class where
   iri : model.Iri
 
 /-- [rowl_kernel::model::ClassExpression]
@@ -315,13 +365,136 @@ inductive model.ClassExpression where
   Option model.DataRange →
   model.ClassExpression
 
+/-- [rowl_kernel::class_equality::equal_from]:
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 12:0-18:1 -/
+def class_equality.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         class_equality.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::class_equality::same_pattern]:
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 19:0-21:1 -/
+def class_equality.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then class_equality.equal_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::class_equality::is_nothing]:
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 40:0-47:1
+    Visibility: public -/
+def class_equality.is_nothing
+  (value : model.ClassExpression) : Result Bool := do
+  match value with
+  | model.ClassExpression.Class c =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8, 104#u8, 105#u8, 110#u8,
+          103#u8
+          ]))
+    class_equality.same_pattern c.iri.spelling s
+  | model.ClassExpression.ObjectIntersectionOf _ => ok false
+  | model.ClassExpression.ObjectUnionOf _ => ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue _ _ => ok false
+  | model.ClassExpression.ObjectHasSelf _ => ok false
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok false
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
+
+/-- [rowl_kernel::class_equality::is_thing]:
+    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 31:0-38:1
+    Visibility: public -/
+def class_equality.is_thing (value : model.ClassExpression) : Result Bool := do
+  match value with
+  | model.ClassExpression.Class c =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 35#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+          ]))
+    class_equality.same_pattern c.iri.spelling s
+  | model.ClassExpression.ObjectIntersectionOf _ => ok false
+  | model.ClassExpression.ObjectUnionOf _ => ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue _ _ => ok false
+  | model.ClassExpression.ObjectHasSelf _ => ok false
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok false
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
+
+/-- [rowl_kernel::nnf::named]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 40:0-63:1 -/
+def nnf.named
+  (expression : model.ClassExpression) («class» : model.Class)
+  (positive : Bool) :
+  Result nnf.NnfConcept
+  := do
+  let b ← class_equality.is_thing expression
+  if b
+  then if positive
+       then ok nnf.NnfConcept.Top
+       else ok nnf.NnfConcept.Bottom
+  else
+    let b1 ← class_equality.is_nothing expression
+    if b1
+    then if positive
+         then ok nnf.NnfConcept.Bottom
+         else ok nnf.NnfConcept.Top
+    else
+      let i ← nnf.copy_iri «class».iri
+      if positive
+      then ok (nnf.NnfConcept.Atom { iri := i })
+      else ok (nnf.NnfConcept.NotAtom { iri := i })
+
 mutual
 
-/-- [rowl_kernel::anonymous::classes_from]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 50:0-60:1 -/
-def anonymous.classes_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
-  Result Bool
+/-- [rowl_kernel::nnf::fold_from]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 72:0-94:1 -/
+def nnf.fold_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (positive : Bool) (conjunctive : Bool) (joined : nnf.NnfConcept) :
+  Result (Option nnf.NnfConcept)
   := do
   let i := alloc.vec.Vec.len values
   if index < i
@@ -329,74 +502,167 @@ def anonymous.classes_from
     let ce ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
         model.ClassExpression) values index
-    let b ← anonymous.class_positions_allowed ce
-    if b
-    then let i1 ← index + 1#usize
-         anonymous.classes_from values i1
-    else ok false
-  else ok true
+    let o ← nnf.nnf ce positive
+    match o with
+    | none => ok none
+    | some next =>
+      let i1 ← index + 1#usize
+      let nc ← nnf.join conjunctive joined next
+      nnf.fold_from values i1 positive conjunctive nc
+  else ok (some joined)
 partial_fixpoint
 
-/-- [rowl_kernel::anonymous::class_positions_allowed]:
-    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 63:0-92:1
+/-- [rowl_kernel::nnf::connect]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 96:0-116:1 -/
+def nnf.connect
+  (members : model.AtLeastTwo model.ClassExpression) (positive : Bool)
+  (conjunctive : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let o ← nnf.nnf members.first positive
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← nnf.nnf members.second positive
+    match o1 with
+    | none => ok none
+    | some second =>
+      let nc ← nnf.join conjunctive first second
+      nnf.fold_from members.rest 0#usize positive conjunctive nc
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::restriction]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 118:0-139:1 -/
+def nnf.restriction
+  (property : model.ObjectPropertyExpression) (filler : model.ClassExpression)
+  (positive : Bool) (existential : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
+  match property with
+  | model.ObjectPropertyExpression.Property p =>
+    let i ← nnf.copy_iri p.iri
+    let o ← nnf.nnf filler positive
+    match o with
+    | none => ok none
+    | some inner =>
+      if existential
+      then ok (some (nnf.NnfConcept.Exists { iri := i } inner))
+      else ok (some (nnf.NnfConcept.Forall { iri := i } inner))
+  | model.ObjectPropertyExpression.Inverse _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::nnf::nnf]:
+    Source: 'crates/rowl-kernel/src/nnf.rs', lines 144:0-158:1
     Visibility: public -/
-def anonymous.class_positions_allowed
-  (expression : model.ClassExpression) : Result Bool := do
+def nnf.nnf
+  (expression : model.ClassExpression) (positive : Bool) :
+  Result (Option nnf.NnfConcept)
+  := do
   match expression with
-  | model.ClassExpression.Class _ => ok true
-  | model.ClassExpression.ObjectIntersectionOf values =>
-    let b ← anonymous.class_positions_allowed values.first
-    if b
-    then
-      let b1 ← anonymous.class_positions_allowed values.second
-      if b1
-      then anonymous.classes_from values.rest 0#usize
-      else ok false
-    else ok false
-  | model.ClassExpression.ObjectUnionOf values =>
-    let b ← anonymous.class_positions_allowed values.first
-    if b
-    then
-      let b1 ← anonymous.class_positions_allowed values.second
-      if b1
-      then anonymous.classes_from values.rest 0#usize
-      else ok false
-    else ok false
+  | model.ClassExpression.Class «class» =>
+    let nc ← nnf.named expression «class» positive
+    ok (some nc)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    nnf.connect members positive positive
+  | model.ClassExpression.ObjectUnionOf members =>
+    nnf.connect members positive (¬ positive)
   | model.ClassExpression.ObjectComplementOf inner =>
-    anonymous.class_positions_allowed inner
-  | model.ClassExpression.ObjectOneOf values =>
-    let b ← anonymous.named values.first
-    if b
-    then anonymous.individuals_from values.rest 0#usize
-    else ok false
-  | model.ClassExpression.ObjectSomeValuesFrom _ inner =>
-    anonymous.class_positions_allowed inner
-  | model.ClassExpression.ObjectAllValuesFrom _ inner =>
-    anonymous.class_positions_allowed inner
-  | model.ClassExpression.ObjectHasValue _ individual =>
-    anonymous.named individual
-  | model.ClassExpression.ObjectHasSelf _ => ok true
-  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
-    match filler with
-    | none => ok true
-    | some inner => anonymous.class_positions_allowed inner
-  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
-    match filler with
-    | none => ok true
-    | some inner => anonymous.class_positions_allowed inner
-  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
-    match filler with
-    | none => ok true
-    | some inner => anonymous.class_positions_allowed inner
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok true
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok true
-  | model.ClassExpression.DataHasValue _ _ => ok true
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok true
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok true
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok true
+    nnf.nnf inner (¬ positive)
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom property filler =>
+    nnf.restriction property filler positive positive
+  | model.ClassExpression.ObjectAllValuesFrom property filler =>
+    nnf.restriction property filler positive (¬ positive)
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
 partial_fixpoint
 
 end
+
+/-- [rowl_kernel::alc_ontology::apart_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 70:0-97:1 -/
+def alc_ontology.apart_from
+  (member : model.ClassExpression)
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : nnf.NnfConcept) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let o ← nnf.nnf member false
+    match o with
+    | none => ok none
+    | some left =>
+      let ce ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ClassExpression) values index
+      let o1 ← nnf.nnf ce false
+      match o1 with
+      | none => ok none
+      | some right =>
+        let i1 ← index + 1#usize
+        alc_ontology.apart_from member values i1 (nnf.NnfConcept.And joined
+          (nnf.NnfConcept.Or left right))
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::pairwise_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 99:0-112:1 -/
+def alc_ontology.pairwise_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : nnf.NnfConcept) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let i1 ← index + 1#usize
+    let o ← alc_ontology.apart_from ce values i1 joined
+    match o with
+    | none => ok none
+    | some joined1 => alc_ontology.pairwise_from values i1 joined1
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::pairwise]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 114:0-137:1 -/
+def alc_ontology.pairwise
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let o ← nnf.nnf members.first false
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← nnf.nnf members.second false
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        alc_ontology.apart_from members.first members.rest 0#usize
+          (nnf.NnfConcept.Or first second)
+      match o2 with
+      | none => ok none
+      | some joined =>
+        let o3 ←
+          alc_ontology.apart_from members.second members.rest 0#usize joined
+        match o3 with
+        | none => ok none
+        | some joined1 =>
+          alc_ontology.pairwise_from members.rest 0#usize joined1
 
 /-- [rowl_kernel::model::SubObjectPropertyExpression]
     Source: 'crates/rowl-kernel/src/model.rs', lines 157:0-160:1
@@ -408,6 +674,15 @@ inductive model.SubObjectPropertyExpression where
   model.AtLeastTwo model.ObjectPropertyExpression →
   model.SubObjectPropertyExpression
 
+/-- [rowl_kernel::model::AnnotationValue]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 145:0-149:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.AnnotationValue where
+| Iri : model.Iri → model.AnnotationValue
+| Anonymous : model.AnonymousIndividual → model.AnnotationValue
+| Literal : model.Literal → model.AnnotationValue
+
 /-- [rowl_kernel::model::AnnotationSubject]
     Source: 'crates/rowl-kernel/src/model.rs', lines 140:0-143:1
     Visibility: public -/
@@ -415,6 +690,12 @@ inductive model.SubObjectPropertyExpression where
 inductive model.AnnotationSubject where
 | Iri : model.Iri → model.AnnotationSubject
 | Anonymous : model.AnonymousIndividual → model.AnnotationSubject
+
+/-- [rowl_kernel::model::AnnotationProperty]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 29:0-31:1
+    Visibility: public -/
+structure model.AnnotationProperty where
+  iri : model.Iri
 
 /-- [rowl_kernel::model::Entity]
     Source: 'crates/rowl-kernel/src/model.rs', lines 69:0-76:1
@@ -530,6 +811,830 @@ inductive model.Axiom where
   model.Iri →
   model.Axiom
 
+/-- [rowl_kernel::alc_ontology::axiom_concept]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 140:0-233:1 -/
+def alc_ontology.axiom_concept
+  («axiom» : model.Axiom) : Result (Option nnf.NnfConcept) := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some nnf.NnfConcept.Top)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← nnf.nnf sub false
+    match o with
+    | none => ok none
+    | some outside =>
+      let o1 ← nnf.nnf sup true
+      match o1 with
+      | none => ok none
+      | some inside => ok (some (nnf.NnfConcept.Or outside inside))
+  | model.Axiom.EquivalentClasses members =>
+    let o ← nnf.connect members true true
+    match o with
+    | none => ok none
+    | some all =>
+      let o1 ← nnf.connect members false true
+      match o1 with
+      | none => ok none
+      | some none1 => ok (some (nnf.NnfConcept.Or all none1))
+  | model.Axiom.DisjointClasses members => alc_ontology.pairwise members
+  | model.Axiom.DisjointUnion «class» members =>
+    let i ← nnf.copy_iri «class».iri
+    let o ← nnf.nnf (model.ClassExpression.Class { iri := i }) false
+    match o with
+    | none => ok none
+    | some outside =>
+      let o1 ← nnf.nnf (model.ClassExpression.Class { iri := i }) true
+      match o1 with
+      | none => ok none
+      | some inside =>
+        let o2 ← nnf.connect members true false
+        match o2 with
+        | none => ok none
+        | some some1 =>
+          let o3 ← nnf.connect members false true
+          match o3 with
+          | none => ok none
+          | some none1 =>
+            let o4 ← alc_ontology.pairwise members
+            match o4 with
+            | none => ok none
+            | some disjoint =>
+              ok (some (nnf.NnfConcept.And (nnf.NnfConcept.And
+                (nnf.NnfConcept.Or outside some1) (nnf.NnfConcept.Or inside
+                none1)) disjoint))
+  | model.Axiom.SubObjectPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentObjectProperties _ => ok none
+  | model.Axiom.DisjointObjectProperties _ => ok none
+  | model.Axiom.InverseObjectProperties _ _ => ok none
+  | model.Axiom.ObjectPropertyDomain property «class» =>
+    match property with
+    | model.ObjectPropertyExpression.Property role =>
+      let o ← nnf.nnf «class» true
+      match o with
+      | none => ok none
+      | some inside =>
+        let i ← nnf.copy_iri role.iri
+        ok (some (nnf.NnfConcept.Or (nnf.NnfConcept.Forall { iri := i }
+          nnf.NnfConcept.Bottom) inside))
+    | model.ObjectPropertyExpression.Inverse _ => ok none
+  | model.Axiom.ObjectPropertyRange property «class» =>
+    match property with
+    | model.ObjectPropertyExpression.Property role =>
+      let o ← nnf.nnf «class» true
+      match o with
+      | none => ok none
+      | some inside =>
+        let i ← nnf.copy_iri role.iri
+        ok (some (nnf.NnfConcept.Forall { iri := i } inside))
+    | model.ObjectPropertyExpression.Inverse _ => ok none
+  | model.Axiom.FunctionalObjectProperty _ => ok none
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok none
+  | model.Axiom.ReflexiveObjectProperty _ => ok none
+  | model.Axiom.IrreflexiveObjectProperty _ => ok none
+  | model.Axiom.SymmetricObjectProperty _ => ok none
+  | model.Axiom.AsymmetricObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty _ => ok none
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual _ => ok none
+  | model.Axiom.DifferentIndividuals _ => ok none
+  | model.Axiom.ClassAssertion _ _ => ok none
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some nnf.NnfConcept.Top)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nnf.NnfConcept.Top)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nnf.NnfConcept.Top)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some nnf.NnfConcept.Top)
+
+/-- [rowl_kernel::model::Annotation]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 151:0-155:1
+    Visibility: public -/
+inductive model.Annotation where
+| mk :
+  alloc.vec.Vec model.Annotation →
+  model.AnnotationProperty →
+  model.AnnotationValue →
+  model.Annotation
+
+def model.Annotation.annotations (x : model.Annotation) :=
+  match x with | model.Annotation.mk x1 _ _ => x1
+
+def model.Annotation.property (x : model.Annotation) :=
+  match x with | model.Annotation.mk _ x1 _ => x1
+
+def model.Annotation.value (x : model.Annotation) :=
+  match x with | model.Annotation.mk _ _ x1 => x1
+
+@[simp]
+theorem model.Annotation.annotations._simpLemma_ (annotations : alloc.vec.Vec
+  model.Annotation) (property : model.AnnotationProperty) (value :
+  model.AnnotationValue) :
+  (model.Annotation.mk annotations property value).annotations = annotations :=
+  by rfl
+
+@[simp]
+theorem model.Annotation.property._simpLemma_ (annotations : alloc.vec.Vec
+  model.Annotation) (property : model.AnnotationProperty) (value :
+  model.AnnotationValue) :
+  (model.Annotation.mk annotations property value).property = property :=
+  by rfl
+
+@[simp]
+theorem model.Annotation.value._simpLemma_ (annotations : alloc.vec.Vec
+  model.Annotation) (property : model.AnnotationProperty) (value :
+  model.AnnotationValue) :
+  (model.Annotation.mk annotations property value).value = value := by rfl
+
+/-- [rowl_kernel::model::AnnotatedAxiom]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 206:0-209:1
+    Visibility: public -/
+structure model.AnnotatedAxiom where
+  annotations : alloc.vec.Vec model.Annotation
+  «axiom» : model.Axiom
+
+/-- [rowl_kernel::alc_ontology::internalize_from]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 235:0-252:1 -/
+def alc_ontology.internalize_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (joined : nnf.NnfConcept) :
+  Result (Option nnf.NnfConcept)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← alc_ontology.axiom_concept aa.axiom
+    match o with
+    | none => ok none
+    | some concept =>
+      let i1 ← index + 1#usize
+      alc_ontology.internalize_from items i1 (nnf.NnfConcept.And joined
+        concept)
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::alc_ontology::internalize]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 255:0-257:1
+    Visibility: public -/
+def alc_ontology.internalize
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option nnf.NnfConcept)
+  := do
+  alc_ontology.internalize_from items 0#usize nnf.NnfConcept.Top
+
+/-- [rowl_kernel::symbols::compare_from]:
+    Source: 'crates/rowl-kernel/src/symbols.rs', lines 28:0-38:1 -/
+def symbols.compare_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+        index
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) right
+        index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         symbols.compare_from left right i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::symbols::same_spelling]:
+    Source: 'crates/rowl-kernel/src/symbols.rs', lines 41:0-47:1
+    Visibility: public -/
+def symbols.same_spelling
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then symbols.compare_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::tbox::same_concept]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 44:0-68:1 -/
+def tbox.same_concept
+  (left : nnf.NnfConcept) (right : nnf.NnfConcept) : Result Bool := do
+  match left with
+  | nnf.NnfConcept.Top =>
+    match right with
+    | nnf.NnfConcept.Top => ok true
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Bottom =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok true
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Atom a =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.NotAtom a =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.And a1 b1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And a2 b2 =>
+      let b ← tbox.same_concept a1 a2
+      if b
+      then tbox.same_concept b1 b2
+      else ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Or a1 b1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or a2 b2 =>
+      let b ← tbox.same_concept a1 a2
+      if b
+      then tbox.same_concept b1 b2
+      else ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Exists r1 c1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists r2 c2 =>
+      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
+      if b
+      then tbox.same_concept c1 c2
+      else ok false
+    | nnf.NnfConcept.Forall _ _ => ok false
+  | nnf.NnfConcept.Forall r1 c1 =>
+    match right with
+    | nnf.NnfConcept.Top => ok false
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ => ok false
+    | nnf.NnfConcept.NotAtom _ => ok false
+    | nnf.NnfConcept.And _ _ => ok false
+    | nnf.NnfConcept.Or _ _ => ok false
+    | nnf.NnfConcept.Exists _ _ => ok false
+    | nnf.NnfConcept.Forall r2 c2 =>
+      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
+      if b
+      then tbox.same_concept c1 c2
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::Concepts]
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 19:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tableau.Concepts where
+| Empty : tableau.Concepts
+| Entry : nnf.NnfConcept → tableau.Concepts → tableau.Concepts
+
+/-- [rowl_kernel::tbox::contains_concept]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 70:0-85:1 -/
+def tbox.contains_concept
+  (list : tableau.Concepts) (sought : nnf.NnfConcept) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let here ← tbox.same_concept concept sought
+    let (later, rest) ← tbox.contains_concept next sought
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, tableau.Concepts.Entry concept rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::subset]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 87:0-103:1 -/
+def tbox.subset
+  (small : tableau.Concepts) (large : tableau.Concepts) :
+  Result (Bool × tableau.Concepts × tableau.Concepts)
+  := do
+  match small with
+  | tableau.Concepts.Empty => ok (true, tableau.Concepts.Empty, large)
+  | tableau.Concepts.Entry concept next =>
+    let (here, large1) ← tbox.contains_concept large concept
+    let (later, rest, large2) ← tbox.subset next large1
+    let b ← if here
+              then ok later
+              else ok false
+    ok (b, tableau.Concepts.Entry concept rest, large2)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::History]
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 16:0-22:1
+    Visibility: public -/
+@[discriminant isize]
+inductive tbox.History where
+| Empty : tbox.History
+| Entry : tableau.Concepts → tbox.History → tbox.History
+
+/-- [rowl_kernel::tbox::blocked]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 105:0-124:1 -/
+def tbox.blocked
+  (label : tableau.Concepts) (history : tbox.History) :
+  Result (Bool × tableau.Concepts × tbox.History)
+  := do
+  match history with
+  | tbox.History.Empty => ok (false, label, tbox.History.Empty)
+  | tbox.History.Entry ancestor next =>
+    let (here, label1, ancestor1) ← tbox.subset label ancestor
+    let (later, label2, rest) ← tbox.blocked label1 next
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, label2, tbox.History.Entry ancestor1 rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::duplicate]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 27:0-44:1 -/
+def tableau.duplicate
+  (list : tableau.Concepts) :
+  Result (tableau.Concepts × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty =>
+    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (left, right) ← tableau.duplicate next
+    ok (tableau.Concepts.Entry concept left, tableau.Concepts.Entry concept
+      right)
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::duplicate_history]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 24:0-42:1 -/
+def tbox.duplicate_history
+  (history : tbox.History) : Result (tbox.History × tbox.History) := do
+  match history with
+  | tbox.History.Empty => ok (tbox.History.Empty, tbox.History.Empty)
+  | tbox.History.Entry label next =>
+    let (left_label, right_label) ← tableau.duplicate label
+    let (left, right) ← tbox.duplicate_history next
+    ok (tbox.History.Entry left_label left, tbox.History.Entry right_label
+      right)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::universal_fillers]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 81:0-111:1 -/
+def tableau.universal_fillers
+  (list : tableau.Concepts) (role : model.ObjectProperty) :
+  Result (tableau.Concepts × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty =>
+    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (fillers, rest) ← tableau.universal_fillers next role
+    match concept with
+    | nnf.NnfConcept.Top =>
+      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Top rest)
+    | nnf.NnfConcept.Bottom =>
+      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Bottom rest)
+    | nnf.NnfConcept.Atom _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.NotAtom _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.And _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Or _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Exists _ _ =>
+      ok (fillers, tableau.Concepts.Entry concept rest)
+    | nnf.NnfConcept.Forall other filler =>
+      let b ← symbols.same_spelling other.iri.spelling role.iri.spelling
+      if b
+      then
+        ok (tableau.Concepts.Entry filler fillers, tableau.Concepts.Entry
+          concept rest)
+      else ok (fillers, tableau.Concepts.Entry concept rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::contains_atom]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 46:0-64:1 -/
+def tableau.contains_atom
+  (list : tableau.Concepts) («class» : model.Class) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match list with
+  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
+  | tableau.Concepts.Entry concept next =>
+    let (concept1, class1, here) ←
+      match concept with
+      | nnf.NnfConcept.Top => ok (nnf.NnfConcept.Top, «class», false)
+      | nnf.NnfConcept.Bottom => ok (nnf.NnfConcept.Bottom, «class», false)
+      | nnf.NnfConcept.Atom other =>
+        do
+        let here1 ←
+          symbols.same_spelling other.iri.spelling «class».iri.spelling
+        ok (concept, «class», here1)
+      | nnf.NnfConcept.NotAtom _ => ok (concept, «class», false)
+      | nnf.NnfConcept.And _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Or _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Exists _ _ => ok (concept, «class», false)
+      | nnf.NnfConcept.Forall _ _ => ok (concept, «class», false)
+    let (later, rest) ← tableau.contains_atom next class1
+    let b ← if here
+              then ok true
+              else ok later
+    ok (b, tableau.Concepts.Entry concept1 rest)
+partial_fixpoint
+
+/-- [rowl_kernel::tableau::has_clash]:
+    Source: 'crates/rowl-kernel/src/tableau.rs', lines 66:0-78:1 -/
+def tableau.has_clash
+  (all : tableau.Concepts) (cursor : tableau.Concepts) :
+  Result (Bool × tableau.Concepts)
+  := do
+  match cursor with
+  | tableau.Concepts.Empty => ok (false, all)
+  | tableau.Concepts.Entry concept next =>
+    let (here, all1) ←
+      match concept with
+      | nnf.NnfConcept.Top => ok (false, all)
+      | nnf.NnfConcept.Bottom => ok (false, all)
+      | nnf.NnfConcept.Atom _ => ok (false, all)
+      | nnf.NnfConcept.NotAtom «class» => tableau.contains_atom all «class»
+      | nnf.NnfConcept.And _ _ => ok (false, all)
+      | nnf.NnfConcept.Or _ _ => ok (false, all)
+      | nnf.NnfConcept.Exists _ _ => ok (false, all)
+      | nnf.NnfConcept.Forall _ _ => ok (false, all)
+    let (later, all2) ← tableau.has_clash all1 next
+    if here
+    then ok (true, all2)
+    else ok (later, all2)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::tbox::expand]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 127:0-200:1 -/
+def tbox.expand
+  (pending : tableau.Concepts) (literals : tableau.Concepts)
+  (history : tbox.History) (axioms : nnf.NnfConcept) :
+  Result Bool
+  := do
+  match pending with
+  | tableau.Concepts.Empty =>
+    let (cursor, literals1) ← tableau.duplicate literals
+    let (clash, literals2) ← tableau.has_clash literals1 cursor
+    if clash
+    then ok false
+    else
+      let (is_blocked, literals3, history1) ← tbox.blocked literals2 history
+      if is_blocked
+      then ok true
+      else
+        let (label, literals4) ← tableau.duplicate literals3
+        let (cursor1, literals5) ← tableau.duplicate literals4
+        let (b, _, _) ←
+          tbox.existentials_hold literals5 cursor1 (tbox.History.Entry label
+            history1) axioms
+        ok b
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tbox.expand next literals history axioms
+    | nnf.NnfConcept.Bottom => ok false
+    | nnf.NnfConcept.Atom _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.NotAtom _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.And left right =>
+      tbox.expand (tableau.Concepts.Entry left (tableau.Concepts.Entry right
+        next)) literals history axioms
+    | nnf.NnfConcept.Or left right =>
+      let (next1, other_pending) ← tableau.duplicate next
+      let (literals1, other_literals) ← tableau.duplicate literals
+      let (history1, other_history) ← tbox.duplicate_history history
+      let b ←
+        tbox.expand (tableau.Concepts.Entry left next1) literals1 history1
+          axioms
+      if b
+      then ok true
+      else
+        tbox.expand (tableau.Concepts.Entry right other_pending) other_literals
+          other_history axioms
+    | nnf.NnfConcept.Exists _ _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+    | nnf.NnfConcept.Forall _ _ =>
+      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
+partial_fixpoint
+
+/-- [rowl_kernel::tbox::existentials_hold]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 204:0-234:1 -/
+def tbox.existentials_hold
+  (all : tableau.Concepts) (cursor : tableau.Concepts) (history : tbox.History)
+  (axioms : nnf.NnfConcept) :
+  Result (Bool × tableau.Concepts × tbox.History)
+  := do
+  match cursor with
+  | tableau.Concepts.Empty => ok (true, all, history)
+  | tableau.Concepts.Entry concept next =>
+    match concept with
+    | nnf.NnfConcept.Top => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Bottom => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Atom _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.NotAtom _ =>
+      tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.And _ _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Or _ _ => tbox.existentials_hold all next history axioms
+    | nnf.NnfConcept.Exists role filler =>
+      let (fillers, all1) ← tableau.universal_fillers all role
+      let (successor_history, history1) ← tbox.duplicate_history history
+      let here ←
+        tbox.expand (tableau.Concepts.Entry filler (tableau.Concepts.Entry
+          axioms fillers)) tableau.Concepts.Empty successor_history axioms
+      let (later, all2, history2) ←
+        tbox.existentials_hold all1 next history1 axioms
+      if here
+      then ok (later, all2, history2)
+      else ok (false, all2, history2)
+    | nnf.NnfConcept.Forall _ _ =>
+      tbox.existentials_hold all next history axioms
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::tbox::satisfiable_in]:
+    Source: 'crates/rowl-kernel/src/tbox.rs', lines 237:0-250:1
+    Visibility: public -/
+def tbox.satisfiable_in
+  (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
+  tbox.expand (tableau.Concepts.Entry concept (tableau.Concepts.Entry axioms
+    tableau.Concepts.Empty)) tableau.Concepts.Empty tbox.History.Empty axioms
+
+/-- [rowl_kernel::alc_ontology::consistent]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 259:0-269:1
+    Visibility: public -/
+def alc_ontology.consistent
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
+  let o ← alc_ontology.internalize items
+  match o with
+  | none => ok none
+  | some axioms =>
+    let b ← alc_ontology.proper axioms
+    if b
+    then let b1 ← tbox.satisfiable_in nnf.NnfConcept.Top axioms
+         ok (some b1)
+    else ok none
+
+/-- [rowl_kernel::alc_ontology::class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 271:0-285:1
+    Visibility: public -/
+def alc_ontology.class_satisfiable
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← alc_ontology.internalize items
+  match o with
+  | none => ok none
+  | some axioms =>
+    let o1 ← nnf.nnf «class» true
+    match o1 with
+    | none => ok none
+    | some concept =>
+      let b ← alc_ontology.proper axioms
+      if b
+      then
+        let b1 ← alc_ontology.proper concept
+        if b1
+        then let b2 ← tbox.satisfiable_in concept axioms
+             ok (some b2)
+        else ok none
+      else ok none
+
+/-- [rowl_kernel::alc_ontology::subsumed]:
+    Source: 'crates/rowl-kernel/src/alc_ontology.rs', lines 287:0-310:1
+    Visibility: public -/
+def alc_ontology.subsumed
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← alc_ontology.internalize items
+  match o with
+  | none => ok none
+  | some axioms =>
+    let o1 ← nnf.nnf sub true
+    match o1 with
+    | none => ok none
+    | some inside =>
+      let o2 ← nnf.nnf sup false
+      match o2 with
+      | none => ok none
+      | some outside =>
+        let b ← alc_ontology.proper axioms
+        if b
+        then
+          let b1 ← alc_ontology.proper (nnf.NnfConcept.And inside outside)
+          if b1
+          then
+            let b2 ←
+              tbox.satisfiable_in (nnf.NnfConcept.And inside outside) axioms
+            ok (some (¬ b2))
+          else ok none
+        else ok none
+
+mutual
+
+/-- [rowl_kernel::anonymous::annotations_from]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 11:0-21:1 -/
+def anonymous.annotations_from
+  (values : alloc.vec.Vec model.Annotation) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Annotation) values index
+    let b ← anonymous.annotation_has_no_anonymous a
+    if b
+    then let i1 ← index + 1#usize
+         anonymous.annotations_from values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::anonymous::annotation_has_no_anonymous]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 24:0-31:1
+    Visibility: public -/
+def anonymous.annotation_has_no_anonymous
+  (annotation : model.Annotation) : Result Bool := do
+  match annotation.value with
+  | model.AnnotationValue.Iri _ =>
+    anonymous.annotations_from annotation.annotations 0#usize
+  | model.AnnotationValue.Anonymous _ => ok false
+  | model.AnnotationValue.Literal _ =>
+    anonymous.annotations_from annotation.annotations 0#usize
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::anonymous::named]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 33:0-38:1 -/
+def anonymous.named (individual : model.Individual) : Result Bool := do
+  match individual with
+  | model.Individual.Named _ => ok true
+  | model.Individual.Anonymous _ => ok false
+
+/-- [rowl_kernel::anonymous::individuals_from]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 39:0-49:1 -/
+def anonymous.individuals_from
+  (values : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) values index
+    let b ← anonymous.named i1
+    if b
+    then let i2 ← index + 1#usize
+         anonymous.individuals_from values i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::anonymous::classes_from]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 50:0-60:1 -/
+def anonymous.classes_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let b ← anonymous.class_positions_allowed ce
+    if b
+    then let i1 ← index + 1#usize
+         anonymous.classes_from values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::anonymous::class_positions_allowed]:
+    Source: 'crates/rowl-kernel/src/anonymous.rs', lines 63:0-92:1
+    Visibility: public -/
+def anonymous.class_positions_allowed
+  (expression : model.ClassExpression) : Result Bool := do
+  match expression with
+  | model.ClassExpression.Class _ => ok true
+  | model.ClassExpression.ObjectIntersectionOf values =>
+    let b ← anonymous.class_positions_allowed values.first
+    if b
+    then
+      let b1 ← anonymous.class_positions_allowed values.second
+      if b1
+      then anonymous.classes_from values.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectUnionOf values =>
+    let b ← anonymous.class_positions_allowed values.first
+    if b
+    then
+      let b1 ← anonymous.class_positions_allowed values.second
+      if b1
+      then anonymous.classes_from values.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectComplementOf inner =>
+    anonymous.class_positions_allowed inner
+  | model.ClassExpression.ObjectOneOf values =>
+    let b ← anonymous.named values.first
+    if b
+    then anonymous.individuals_from values.rest 0#usize
+    else ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ inner =>
+    anonymous.class_positions_allowed inner
+  | model.ClassExpression.ObjectAllValuesFrom _ inner =>
+    anonymous.class_positions_allowed inner
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    anonymous.named individual
+  | model.ClassExpression.ObjectHasSelf _ => ok true
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous.class_positions_allowed inner
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous.class_positions_allowed inner
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous.class_positions_allowed inner
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok true
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok true
+  | model.ClassExpression.DataHasValue _ _ => ok true
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok true
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok true
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok true
+partial_fixpoint
+
+end
+
 /-- [rowl_kernel::anonymous::axiom_positions_allowed]:
     Source: 'crates/rowl-kernel/src/anonymous.rs', lines 97:0-142:1
     Visibility: public -/
@@ -627,13 +1732,6 @@ def anonymous.axiom_positions_allowed
   | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
   | model.Axiom.AnnotationPropertyDomain _ _ => ok true
   | model.Axiom.AnnotationPropertyRange _ _ => ok true
-
-/-- [rowl_kernel::model::AnnotatedAxiom]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 206:0-209:1
-    Visibility: public -/
-structure model.AnnotatedAxiom where
-  annotations : alloc.vec.Vec model.Annotation
-  «axiom» : model.Axiom
 
 /-- [rowl_kernel::anonymous::annotated_axiom_positions_allowed]:
     Source: 'crates/rowl-kernel/src/anonymous.rs', lines 147:0-161:1
@@ -827,42 +1925,6 @@ def anonymous_boundary.second_candidate
   | model.Axiom.SubAnnotationPropertyOf _ _ => ok none
   | model.Axiom.AnnotationPropertyDomain _ _ => ok none
   | model.Axiom.AnnotationPropertyRange _ _ => ok none
-
-/-- [rowl_kernel::symbols::compare_from]:
-    Source: 'crates/rowl-kernel/src/symbols.rs', lines 28:0-38:1 -/
-def symbols.compare_from
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
-        index
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) right
-        index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         symbols.compare_from left right i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::symbols::same_spelling]:
-    Source: 'crates/rowl-kernel/src/symbols.rs', lines 41:0-47:1
-    Visibility: public -/
-def symbols.same_spelling
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  let i1 := alloc.vec.Vec.len right
-  if i = i1
-  then symbols.compare_from left right 0#usize
-  else ok false
 
 /-- [rowl_kernel::anonymous_graph::same_individual]:
     Source: 'crates/rowl-kernel/src/anonymous_graph.rs', lines 32:0-34:1
@@ -2263,36 +3325,6 @@ def class_equality.same_individual_set
   then class_equality.individual_subset right left
   else ok false
 
-/-- [rowl_kernel::class_equality::equal_from]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 12:0-18:1 -/
-def class_equality.equal_from
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len key
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-        index
-    let i2 ← Slice.index_usize pattern index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         class_equality.equal_from key pattern i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::class_equality::same_pattern]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 19:0-21:1 -/
-def class_equality.same_pattern
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len key
-  let i1 := Slice.len pattern
-  if i = i1
-  then class_equality.equal_from key pattern 0#usize
-  else ok false
-
 /-- [rowl_kernel::class_equality::is_literal]:
     Source: 'crates/rowl-kernel/src/class_equality.rs', lines 49:0-57:1
     Visibility: public -/
@@ -2331,39 +3363,6 @@ def class_equality.same_optional_range
     match right with
     | none => class_equality.is_literal value
     | some b => range_equality.same_range value b
-
-/-- [rowl_kernel::class_equality::is_thing]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 31:0-38:1
-    Visibility: public -/
-def class_equality.is_thing (value : model.ClassExpression) : Result Bool := do
-  match value with
-  | model.ClassExpression.Class c =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 35#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
-          ]))
-    class_equality.same_pattern c.iri.spelling s
-  | model.ClassExpression.ObjectIntersectionOf _ => ok false
-  | model.ClassExpression.ObjectUnionOf _ => ok false
-  | model.ClassExpression.ObjectComplementOf _ => ok false
-  | model.ClassExpression.ObjectOneOf _ => ok false
-  | model.ClassExpression.ObjectSomeValuesFrom _ _ => ok false
-  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
-  | model.ClassExpression.ObjectHasValue _ _ => ok false
-  | model.ClassExpression.ObjectHasSelf _ => ok false
-  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
-  | model.ClassExpression.DataHasValue _ _ => ok false
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
 
 /-- [rowl_kernel::class_equality::same_natural]:
     Source: 'crates/rowl-kernel/src/class_equality.rs', lines 23:0-29:1
@@ -6853,41 +7852,6 @@ def builtins.builtin_kind
     | some _ => ok o1
   | some _ => ok o
 
-/-- [rowl_kernel::class_equality::is_nothing]:
-    Source: 'crates/rowl-kernel/src/class_equality.rs', lines 40:0-47:1
-    Visibility: public -/
-def class_equality.is_nothing
-  (value : model.ClassExpression) : Result Bool := do
-  match value with
-  | model.ClassExpression.Class c =>
-    let s ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8, 104#u8, 105#u8, 110#u8,
-          103#u8
-          ]))
-    class_equality.same_pattern c.iri.spelling s
-  | model.ClassExpression.ObjectIntersectionOf _ => ok false
-  | model.ClassExpression.ObjectUnionOf _ => ok false
-  | model.ClassExpression.ObjectComplementOf _ => ok false
-  | model.ClassExpression.ObjectOneOf _ => ok false
-  | model.ClassExpression.ObjectSomeValuesFrom _ _ => ok false
-  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
-  | model.ClassExpression.ObjectHasValue _ _ => ok false
-  | model.ClassExpression.ObjectHasSelf _ => ok false
-  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
-  | model.ClassExpression.DataHasValue _ _ => ok false
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
-
 /-- [rowl_kernel::collection::EntityUses]
     Source: 'crates/rowl-kernel/src/collection.rs', lines 12:0-19:1
     Visibility: public -/
@@ -9210,180 +10174,6 @@ def model.invert
   | model.ObjectPropertyExpression.Inverse p =>
     ok (model.ObjectPropertyExpression.Property p)
 
-/-- [rowl_kernel::nnf::NnfConcept]
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 15:0-24:1
-    Visibility: public -/
-@[discriminant isize]
-inductive nnf.NnfConcept where
-| Top : nnf.NnfConcept
-| Bottom : nnf.NnfConcept
-| Atom : model.Class → nnf.NnfConcept
-| NotAtom : model.Class → nnf.NnfConcept
-| And : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
-| Or : nnf.NnfConcept → nnf.NnfConcept → nnf.NnfConcept
-| Exists : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
-| Forall : model.ObjectProperty → nnf.NnfConcept → nnf.NnfConcept
-
-/-- [rowl_kernel::nnf::copy_from]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 26:0-33:1 -/
-def nnf.copy_from
-  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
-  (target : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := alloc.vec.Vec.len source
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
-        index
-    let target1 ← alloc.vec.Vec.push target i1
-    let i2 ← index + 1#usize
-    nnf.copy_from source i2 target1
-  else ok target
-partial_fixpoint
-
-/-- [rowl_kernel::nnf::copy_iri]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 34:0-38:1 -/
-def nnf.copy_iri (iri : model.Iri) : Result model.Iri := do
-  let v ← nnf.copy_from iri.spelling 0#usize (alloc.vec.Vec.new Std.U8)
-  ok { spelling := v }
-
-/-- [rowl_kernel::nnf::named]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 40:0-63:1 -/
-def nnf.named
-  (expression : model.ClassExpression) («class» : model.Class)
-  (positive : Bool) :
-  Result nnf.NnfConcept
-  := do
-  let b ← class_equality.is_thing expression
-  if b
-  then if positive
-       then ok nnf.NnfConcept.Top
-       else ok nnf.NnfConcept.Bottom
-  else
-    let b1 ← class_equality.is_nothing expression
-    if b1
-    then if positive
-         then ok nnf.NnfConcept.Bottom
-         else ok nnf.NnfConcept.Top
-    else
-      let i ← nnf.copy_iri «class».iri
-      if positive
-      then ok (nnf.NnfConcept.Atom { iri := i })
-      else ok (nnf.NnfConcept.NotAtom { iri := i })
-
-/-- [rowl_kernel::nnf::join]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 64:0-70:1 -/
-def nnf.join
-  (conjunctive : Bool) (left : nnf.NnfConcept) (right : nnf.NnfConcept) :
-  Result nnf.NnfConcept
-  := do
-  if conjunctive
-  then ok (nnf.NnfConcept.And left right)
-  else ok (nnf.NnfConcept.Or left right)
-
-mutual
-
-/-- [rowl_kernel::nnf::fold_from]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 72:0-94:1 -/
-def nnf.fold_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (positive : Bool) (conjunctive : Bool) (joined : nnf.NnfConcept) :
-  Result (Option nnf.NnfConcept)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let o ← nnf.nnf ce positive
-    match o with
-    | none => ok none
-    | some next =>
-      let i1 ← index + 1#usize
-      let nc ← nnf.join conjunctive joined next
-      nnf.fold_from values i1 positive conjunctive nc
-  else ok (some joined)
-partial_fixpoint
-
-/-- [rowl_kernel::nnf::connect]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 96:0-116:1 -/
-def nnf.connect
-  (members : model.AtLeastTwo model.ClassExpression) (positive : Bool)
-  (conjunctive : Bool) :
-  Result (Option nnf.NnfConcept)
-  := do
-  let o ← nnf.nnf members.first positive
-  match o with
-  | none => ok none
-  | some first =>
-    let o1 ← nnf.nnf members.second positive
-    match o1 with
-    | none => ok none
-    | some second =>
-      let nc ← nnf.join conjunctive first second
-      nnf.fold_from members.rest 0#usize positive conjunctive nc
-partial_fixpoint
-
-/-- [rowl_kernel::nnf::restriction]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 118:0-139:1 -/
-def nnf.restriction
-  (property : model.ObjectPropertyExpression) (filler : model.ClassExpression)
-  (positive : Bool) (existential : Bool) :
-  Result (Option nnf.NnfConcept)
-  := do
-  match property with
-  | model.ObjectPropertyExpression.Property p =>
-    let i ← nnf.copy_iri p.iri
-    let o ← nnf.nnf filler positive
-    match o with
-    | none => ok none
-    | some inner =>
-      if existential
-      then ok (some (nnf.NnfConcept.Exists { iri := i } inner))
-      else ok (some (nnf.NnfConcept.Forall { iri := i } inner))
-  | model.ObjectPropertyExpression.Inverse _ => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::nnf::nnf]:
-    Source: 'crates/rowl-kernel/src/nnf.rs', lines 144:0-158:1
-    Visibility: public -/
-def nnf.nnf
-  (expression : model.ClassExpression) (positive : Bool) :
-  Result (Option nnf.NnfConcept)
-  := do
-  match expression with
-  | model.ClassExpression.Class «class» =>
-    let nc ← nnf.named expression «class» positive
-    ok (some nc)
-  | model.ClassExpression.ObjectIntersectionOf members =>
-    nnf.connect members positive positive
-  | model.ClassExpression.ObjectUnionOf members =>
-    nnf.connect members positive (¬ positive)
-  | model.ClassExpression.ObjectComplementOf inner =>
-    nnf.nnf inner (¬ positive)
-  | model.ClassExpression.ObjectOneOf _ => ok none
-  | model.ClassExpression.ObjectSomeValuesFrom property filler =>
-    nnf.restriction property filler positive positive
-  | model.ClassExpression.ObjectAllValuesFrom property filler =>
-    nnf.restriction property filler positive (¬ positive)
-  | model.ClassExpression.ObjectHasValue _ _ => ok none
-  | model.ClassExpression.ObjectHasSelf _ => ok none
-  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
-  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
-  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
-  | model.ClassExpression.DataHasValue _ _ => ok none
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
-partial_fixpoint
-
-end
-
 /-- [rowl_kernel::probes::replace_slot]:
     Source: 'crates/rowl-kernel/src/probes.rs', lines 22:0-29:1
     Visibility: public -/
@@ -10946,119 +11736,6 @@ def roles.check_simplicity
     roles.check_required facts.simple_required non_simple
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
-/-- [rowl_kernel::tableau::Concepts]
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 19:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive tableau.Concepts where
-| Empty : tableau.Concepts
-| Entry : nnf.NnfConcept → tableau.Concepts → tableau.Concepts
-
-/-- [rowl_kernel::tableau::duplicate]:
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 27:0-44:1 -/
-def tableau.duplicate
-  (list : tableau.Concepts) :
-  Result (tableau.Concepts × tableau.Concepts)
-  := do
-  match list with
-  | tableau.Concepts.Empty =>
-    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
-  | tableau.Concepts.Entry concept next =>
-    let (left, right) ← tableau.duplicate next
-    ok (tableau.Concepts.Entry concept left, tableau.Concepts.Entry concept
-      right)
-partial_fixpoint
-
-/-- [rowl_kernel::tableau::contains_atom]:
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 46:0-64:1 -/
-def tableau.contains_atom
-  (list : tableau.Concepts) («class» : model.Class) :
-  Result (Bool × tableau.Concepts)
-  := do
-  match list with
-  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
-  | tableau.Concepts.Entry concept next =>
-    let (concept1, class1, here) ←
-      match concept with
-      | nnf.NnfConcept.Top => ok (nnf.NnfConcept.Top, «class», false)
-      | nnf.NnfConcept.Bottom => ok (nnf.NnfConcept.Bottom, «class», false)
-      | nnf.NnfConcept.Atom other =>
-        do
-        let here1 ←
-          symbols.same_spelling other.iri.spelling «class».iri.spelling
-        ok (concept, «class», here1)
-      | nnf.NnfConcept.NotAtom _ => ok (concept, «class», false)
-      | nnf.NnfConcept.And _ _ => ok (concept, «class», false)
-      | nnf.NnfConcept.Or _ _ => ok (concept, «class», false)
-      | nnf.NnfConcept.Exists _ _ => ok (concept, «class», false)
-      | nnf.NnfConcept.Forall _ _ => ok (concept, «class», false)
-    let (later, rest) ← tableau.contains_atom next class1
-    let b ← if here
-              then ok true
-              else ok later
-    ok (b, tableau.Concepts.Entry concept1 rest)
-partial_fixpoint
-
-/-- [rowl_kernel::tableau::has_clash]:
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 66:0-78:1 -/
-def tableau.has_clash
-  (all : tableau.Concepts) (cursor : tableau.Concepts) :
-  Result (Bool × tableau.Concepts)
-  := do
-  match cursor with
-  | tableau.Concepts.Empty => ok (false, all)
-  | tableau.Concepts.Entry concept next =>
-    let (here, all1) ←
-      match concept with
-      | nnf.NnfConcept.Top => ok (false, all)
-      | nnf.NnfConcept.Bottom => ok (false, all)
-      | nnf.NnfConcept.Atom _ => ok (false, all)
-      | nnf.NnfConcept.NotAtom «class» => tableau.contains_atom all «class»
-      | nnf.NnfConcept.And _ _ => ok (false, all)
-      | nnf.NnfConcept.Or _ _ => ok (false, all)
-      | nnf.NnfConcept.Exists _ _ => ok (false, all)
-      | nnf.NnfConcept.Forall _ _ => ok (false, all)
-    let (later, all2) ← tableau.has_clash all1 next
-    if here
-    then ok (true, all2)
-    else ok (later, all2)
-partial_fixpoint
-
-/-- [rowl_kernel::tableau::universal_fillers]:
-    Source: 'crates/rowl-kernel/src/tableau.rs', lines 81:0-111:1 -/
-def tableau.universal_fillers
-  (list : tableau.Concepts) (role : model.ObjectProperty) :
-  Result (tableau.Concepts × tableau.Concepts)
-  := do
-  match list with
-  | tableau.Concepts.Empty =>
-    ok (tableau.Concepts.Empty, tableau.Concepts.Empty)
-  | tableau.Concepts.Entry concept next =>
-    let (fillers, rest) ← tableau.universal_fillers next role
-    match concept with
-    | nnf.NnfConcept.Top =>
-      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Top rest)
-    | nnf.NnfConcept.Bottom =>
-      ok (fillers, tableau.Concepts.Entry nnf.NnfConcept.Bottom rest)
-    | nnf.NnfConcept.Atom _ =>
-      ok (fillers, tableau.Concepts.Entry concept rest)
-    | nnf.NnfConcept.NotAtom _ =>
-      ok (fillers, tableau.Concepts.Entry concept rest)
-    | nnf.NnfConcept.And _ _ =>
-      ok (fillers, tableau.Concepts.Entry concept rest)
-    | nnf.NnfConcept.Or _ _ =>
-      ok (fillers, tableau.Concepts.Entry concept rest)
-    | nnf.NnfConcept.Exists _ _ =>
-      ok (fillers, tableau.Concepts.Entry concept rest)
-    | nnf.NnfConcept.Forall other filler =>
-      let b ← symbols.same_spelling other.iri.spelling role.iri.spelling
-      if b
-      then
-        ok (tableau.Concepts.Entry filler fillers, tableau.Concepts.Entry
-          concept rest)
-      else ok (fillers, tableau.Concepts.Entry concept rest)
-partial_fixpoint
-
 mutual
 
 /-- [rowl_kernel::tableau::expand]:
@@ -11139,281 +11816,6 @@ end
 def tableau.satisfiable (concept : nnf.NnfConcept) : Result Bool := do
   tableau.expand (tableau.Concepts.Entry concept tableau.Concepts.Empty)
     tableau.Concepts.Empty
-
-/-- [rowl_kernel::tbox::History]
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 16:0-22:1
-    Visibility: public -/
-@[discriminant isize]
-inductive tbox.History where
-| Empty : tbox.History
-| Entry : tableau.Concepts → tbox.History → tbox.History
-
-/-- [rowl_kernel::tbox::duplicate_history]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 24:0-42:1 -/
-def tbox.duplicate_history
-  (history : tbox.History) : Result (tbox.History × tbox.History) := do
-  match history with
-  | tbox.History.Empty => ok (tbox.History.Empty, tbox.History.Empty)
-  | tbox.History.Entry label next =>
-    let (left_label, right_label) ← tableau.duplicate label
-    let (left, right) ← tbox.duplicate_history next
-    ok (tbox.History.Entry left_label left, tbox.History.Entry right_label
-      right)
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::same_concept]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 44:0-68:1 -/
-def tbox.same_concept
-  (left : nnf.NnfConcept) (right : nnf.NnfConcept) : Result Bool := do
-  match left with
-  | nnf.NnfConcept.Top =>
-    match right with
-    | nnf.NnfConcept.Top => ok true
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.Bottom =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok true
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.Atom a =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.NotAtom a =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.And a1 b1 =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And a2 b2 =>
-      let b ← tbox.same_concept a1 a2
-      if b
-      then tbox.same_concept b1 b2
-      else ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.Or a1 b1 =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or a2 b2 =>
-      let b ← tbox.same_concept a1 a2
-      if b
-      then tbox.same_concept b1 b2
-      else ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.Exists r1 c1 =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists r2 c2 =>
-      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
-      if b
-      then tbox.same_concept c1 c2
-      else ok false
-    | nnf.NnfConcept.Forall _ _ => ok false
-  | nnf.NnfConcept.Forall r1 c1 =>
-    match right with
-    | nnf.NnfConcept.Top => ok false
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ => ok false
-    | nnf.NnfConcept.NotAtom _ => ok false
-    | nnf.NnfConcept.And _ _ => ok false
-    | nnf.NnfConcept.Or _ _ => ok false
-    | nnf.NnfConcept.Exists _ _ => ok false
-    | nnf.NnfConcept.Forall r2 c2 =>
-      let b ← symbols.same_spelling r1.iri.spelling r2.iri.spelling
-      if b
-      then tbox.same_concept c1 c2
-      else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::contains_concept]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 70:0-85:1 -/
-def tbox.contains_concept
-  (list : tableau.Concepts) (sought : nnf.NnfConcept) :
-  Result (Bool × tableau.Concepts)
-  := do
-  match list with
-  | tableau.Concepts.Empty => ok (false, tableau.Concepts.Empty)
-  | tableau.Concepts.Entry concept next =>
-    let here ← tbox.same_concept concept sought
-    let (later, rest) ← tbox.contains_concept next sought
-    let b ← if here
-              then ok true
-              else ok later
-    ok (b, tableau.Concepts.Entry concept rest)
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::subset]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 87:0-103:1 -/
-def tbox.subset
-  (small : tableau.Concepts) (large : tableau.Concepts) :
-  Result (Bool × tableau.Concepts × tableau.Concepts)
-  := do
-  match small with
-  | tableau.Concepts.Empty => ok (true, tableau.Concepts.Empty, large)
-  | tableau.Concepts.Entry concept next =>
-    let (here, large1) ← tbox.contains_concept large concept
-    let (later, rest, large2) ← tbox.subset next large1
-    let b ← if here
-              then ok later
-              else ok false
-    ok (b, tableau.Concepts.Entry concept rest, large2)
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::blocked]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 105:0-124:1 -/
-def tbox.blocked
-  (label : tableau.Concepts) (history : tbox.History) :
-  Result (Bool × tableau.Concepts × tbox.History)
-  := do
-  match history with
-  | tbox.History.Empty => ok (false, label, tbox.History.Empty)
-  | tbox.History.Entry ancestor next =>
-    let (here, label1, ancestor1) ← tbox.subset label ancestor
-    let (later, label2, rest) ← tbox.blocked label1 next
-    let b ← if here
-              then ok true
-              else ok later
-    ok (b, label2, tbox.History.Entry ancestor1 rest)
-partial_fixpoint
-
-mutual
-
-/-- [rowl_kernel::tbox::expand]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 127:0-200:1 -/
-def tbox.expand
-  (pending : tableau.Concepts) (literals : tableau.Concepts)
-  (history : tbox.History) (axioms : nnf.NnfConcept) :
-  Result Bool
-  := do
-  match pending with
-  | tableau.Concepts.Empty =>
-    let (cursor, literals1) ← tableau.duplicate literals
-    let (clash, literals2) ← tableau.has_clash literals1 cursor
-    if clash
-    then ok false
-    else
-      let (is_blocked, literals3, history1) ← tbox.blocked literals2 history
-      if is_blocked
-      then ok true
-      else
-        let (label, literals4) ← tableau.duplicate literals3
-        let (cursor1, literals5) ← tableau.duplicate literals4
-        let (b, _, _) ←
-          tbox.existentials_hold literals5 cursor1 (tbox.History.Entry label
-            history1) axioms
-        ok b
-  | tableau.Concepts.Entry concept next =>
-    match concept with
-    | nnf.NnfConcept.Top => tbox.expand next literals history axioms
-    | nnf.NnfConcept.Bottom => ok false
-    | nnf.NnfConcept.Atom _ =>
-      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
-    | nnf.NnfConcept.NotAtom _ =>
-      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
-    | nnf.NnfConcept.And left right =>
-      tbox.expand (tableau.Concepts.Entry left (tableau.Concepts.Entry right
-        next)) literals history axioms
-    | nnf.NnfConcept.Or left right =>
-      let (next1, other_pending) ← tableau.duplicate next
-      let (literals1, other_literals) ← tableau.duplicate literals
-      let (history1, other_history) ← tbox.duplicate_history history
-      let b ←
-        tbox.expand (tableau.Concepts.Entry left next1) literals1 history1
-          axioms
-      if b
-      then ok true
-      else
-        tbox.expand (tableau.Concepts.Entry right other_pending) other_literals
-          other_history axioms
-    | nnf.NnfConcept.Exists _ _ =>
-      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
-    | nnf.NnfConcept.Forall _ _ =>
-      tbox.expand next (tableau.Concepts.Entry concept literals) history axioms
-partial_fixpoint
-
-/-- [rowl_kernel::tbox::existentials_hold]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 204:0-234:1 -/
-def tbox.existentials_hold
-  (all : tableau.Concepts) (cursor : tableau.Concepts) (history : tbox.History)
-  (axioms : nnf.NnfConcept) :
-  Result (Bool × tableau.Concepts × tbox.History)
-  := do
-  match cursor with
-  | tableau.Concepts.Empty => ok (true, all, history)
-  | tableau.Concepts.Entry concept next =>
-    match concept with
-    | nnf.NnfConcept.Top => tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.Bottom => tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.Atom _ => tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.NotAtom _ =>
-      tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.And _ _ => tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.Or _ _ => tbox.existentials_hold all next history axioms
-    | nnf.NnfConcept.Exists role filler =>
-      let (fillers, all1) ← tableau.universal_fillers all role
-      let (successor_history, history1) ← tbox.duplicate_history history
-      let here ←
-        tbox.expand (tableau.Concepts.Entry filler (tableau.Concepts.Entry
-          axioms fillers)) tableau.Concepts.Empty successor_history axioms
-      let (later, all2, history2) ←
-        tbox.existentials_hold all1 next history1 axioms
-      if here
-      then ok (later, all2, history2)
-      else ok (false, all2, history2)
-    | nnf.NnfConcept.Forall _ _ =>
-      tbox.existentials_hold all next history axioms
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::tbox::satisfiable_in]:
-    Source: 'crates/rowl-kernel/src/tbox.rs', lines 237:0-250:1
-    Visibility: public -/
-def tbox.satisfiable_in
-  (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
-  tbox.expand (tableau.Concepts.Entry concept (tableau.Concepts.Entry axioms
-    tableau.Concepts.Empty)) tableau.Concepts.Empty tbox.History.Empty axioms
 
 /-- [rowl_kernel::topdata::equal_from]:
     Source: 'crates/rowl-kernel/src/topdata.rs', lines 12:0-18:1 -/

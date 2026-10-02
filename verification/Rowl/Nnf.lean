@@ -255,7 +255,9 @@ private theorem fold_from_correct (values : alloc.vec.Vec ClassExpression) (posi
 termination_by values.val.length - index.val
 decreasing_by omega
 
-private theorem connect_correct (members : AtLeastTwo ClassExpression) (positive conjunctive : Bool)
+/-- Joining the translations of all members with one connective means the
+    connective applied to the members' polarities. -/
+theorem connect_correct (members : AtLeastTwo ClassExpression) (positive conjunctive : Bool)
     (child : ∀ e ∈ members.elements, ∀ polarity, ∃ result, nnf.nnf e polarity = .ok result ∧
       Correct.{u,v} e polarity result) :
     ∃ result, nnf.connect members positive conjunctive = .ok result ∧

@@ -2188,3 +2188,98 @@ This block adds 18 public theorems and 13 independent definitions: totals are
 665 audited theorems, 544 definitions, 343 Rust regressions and 858 ledger
 obligations. Full OWL reasoning, ontology-level queries and byte-to-answer
 release proofs remain pending.
+
+
+## Reasoner track: verified ontology-level ALC queries
+
+`alc_ontology::internalize` turns an axiom closure into one TBox concept in
+negation normal form. Each supported axiom contributes a concept that holds at
+every element exactly when the axiom holds:
+
+- `SubClassOf(C D)` contributes `¬C ⊔ D`.
+- `EquivalentClasses` contributes "all members, or none of them".
+- `DisjointClasses` contributes, for every two member occurrences, "not both".
+  Occurrences are compared, not expressions, so a repeated member must be empty.
+- `DisjointUnion(A ...)` also equates `A` with the union of its members.
+- `ObjectPropertyDomain(P C)` contributes `∀P.⊥ ⊔ C`, and
+  `ObjectPropertyRange(P C)` contributes `∀P.C`, on a named property `P`.
+- Declarations and the four annotation axioms contribute top.
+
+Every class expression goes through the proved NNF translation (the member
+joins reuse its `connect`). Any other axiom, an inverse property or an
+expression outside ALC gives no TBox concept.
+
+The queries are `consistent`, `class_satisfiable` and `subsumed`. Subsumption
+tests the intersection of `sub` with the complement of `sup`. Each query
+translates its expressions and then checks that no translated concept uses
+owl:topObjectProperty or owl:bottomObjectProperty as a role, or owl:Thing or
+owl:Nothing as an ordinary named class. The translation already turns those two
+classes into top and bottom. The tableau treats every role as an ordinary one,
+but OWL fixes the meaning of the two built-in properties. When the check passes,
+the query runs the tableau with blocking against the TBox concept.
+
+Internalization proves `axiom_concept` and `internalize` exact against the
+independent Direct Semantics. The result is defined exactly when every axiom is
+supported. Its concept holds at every element exactly when an interpretation
+fixing owl:Thing and owl:Nothing satisfies the axiom, or the whole closure. Two
+semantic lemmas read the axiom conditions one element at a time.
+Equivalent-class equality of denotations becomes "all or none" at each element.
+Pairwise disjointness of denotations becomes pairwise exclusion at each element.
+The pairwise construction is proved by well-founded recursion over member
+indices, with its exact support condition.
+
+AlcOntology proves the built-in name checks exact, using byte comparisons
+against the fixed OWL spellings. It also proves reinterpreting anonymous
+individuals irrelevant to every concept. It then builds an OWL interpretation
+from any tableau model:
+
+- Objects and data values are lifted into the requested universes.
+- owl:Thing, owl:Nothing and the top and bottom object and data properties get
+  their fixed meaning.
+- Every other class and object property keeps the tableau's reading.
+- Data values are the datatype map's values, embedded through `Option`.
+- Datatypes, literals and facets are read from the datatype map.
+
+owl_model_valid proves that this is an OWL interpretation in the sense of
+IsInterpretation. owl_model_agrees proves that it gives every proper concept
+its tableau meaning.
+
+consistent_correct, class_satisfiable_correct and subsumed_correct state the
+results. Each query answers exactly when the closure is supported and the
+translations are proper. Then, for every valid vocabulary, its answer equals
+Consistent, ClassSatisfiable or Subsumed of the independent semantics, for any
+object universe and any data universe that holds the datatype map's values. An
+acceptance yields the constructed OWL model of the closure. Any OWL model, in
+any universe, forces acceptance through the tableau's completeness, because
+every model fixes the built-in classes and satisfies the internalized concept.
+consistent_complete, class_satisfiable_complete and subsumed_sound state this
+direction for all universes and every vocabulary, valid or not: a model forces
+a positive consistency or satisfiability answer, and a positive subsumption
+answer holds in every model.
+
+Six kernel regressions cover:
+
+- subclass chains with disjointness, and built-in class bounds;
+- equivalence and disjoint unions, including a repeated disjoint member;
+- consistency checks;
+- domain and range axioms;
+- unsupported inputs: assertions, inverse properties and the universal object
+  property;
+- two randomized checks against all interpretations with at most three
+  elements. One checks that the internalized concept holds everywhere exactly
+  when the axioms hold. The other checks that every class with a small model of
+  its axioms is satisfiable.
+
+The runnable alc_ontology example answers consistency, subsumption and
+satisfiability questions for an eight-axiom maintenance ontology. It also shows
+that an added class assertion is outside the fragment.
+
+Individuals and assertions, the other axiom forms, the remaining SROIQ
+constructors and role axioms, datatypes, the frontend's reading of logical
+axioms, query answering and performance remain pending. This is an internal
+fragment experiment toward M6.
+
+This block adds 18 public theorems (17 new, and the NNF member-join lemma made
+public) and 4 independent definitions. Totals are 683 audited theorems, 548
+definitions, 349 Rust regressions and 876 ledger obligations. Full OWL
+reasoning and byte-to-answer release proofs remain pending.

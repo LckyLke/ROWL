@@ -92,5 +92,5 @@ fn main() {
         )
     );
     println!("Satisfiable answers (and failed subsumptions) come with a model of the translated concept in which every element satisfies the translated axioms; unsatisfiable answers (and subsumptions) are proved for every OWL interpretation in which every element is in the axiom expression.");
-    println!("The axioms are written here as one class expression by hand; reading SubClassOf axioms from an ontology into it is not yet a verified step.");
+    println!("The axioms are written here as one class expression by hand; the alc_ontology example has the kernel internalize the axioms of an ontology instead.");
 }

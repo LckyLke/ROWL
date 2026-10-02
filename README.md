@@ -108,7 +108,12 @@ interpretation. A second tableau decides them under a TBox concept that must hol
 at every element, blocking a node whose literals all occur at an ancestor. It is
 proved total, sound (through a Hintikka-family model) and complete, so a rejection
 proves a class empty in every OWL interpretation where the TBox class expression
-holds everywhere. Reading ontology axioms into that expression is the next stage.
+holds everywhere. On top of these, the kernel now answers consistency, class
+satisfiability and subsumption for whole axiom closures whose logical axioms are
+ALC class, domain and range axioms. Each answer is proved equal to the
+independent Direct Semantics definition, and each acceptance comes with an
+actual OWL model. Individuals, the other axiom forms and reading logical axioms
+from source text are later stages.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -135,6 +140,7 @@ cargo run -p rowl --example functional_annotation_axioms # declarations and anno
 cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
 cargo run -p rowl --example tableau     # verified ALC satisfiability and subsumption answers
 cargo run -p rowl --example tbox        # verified answers under maintenance axioms, with blocking
+cargo run -p rowl --example alc_ontology # verified consistency/satisfiability/subsumption of an ALC ontology
 python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
 ```
 
@@ -145,7 +151,7 @@ does not entail membership in A. Search must consider every interpretation.
 
 | Path | Responsibility |
 | --- | --- |
-| `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form and the verified ALC tableaux, without and with a TBox |
+| `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form, the verified ALC tableaux without and with a TBox, and verified ontology-level ALC queries |
 | `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |

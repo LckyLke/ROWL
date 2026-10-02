@@ -105,3 +105,5 @@ import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
 import Rowl.TboxTableau
+import Rowl.Internalization
+import Rowl.AlcOntology

@@ -83,5 +83,5 @@ fn main() {
             None => println!("{title}: outside the ALC fragment (a later reasoner stage)"),
         }
     }
-    println!("Negation only remains on named classes. The tableau that decides these concepts is the next reasoner stage.");
+    println!("Negation only remains on named classes. The tableau, tbox and alc_ontology examples decide these concepts.");
 }

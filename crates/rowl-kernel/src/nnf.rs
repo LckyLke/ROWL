@@ -31,7 +31,7 @@ fn copy_from(source: &Vec<u8>, index: usize, mut target: Vec<u8>) -> Vec<u8> {
         target
     }
 }
-fn copy_iri(iri: &Iri) -> Iri {
+pub(crate) fn copy_iri(iri: &Iri) -> Iri {
     Iri {
         spelling: copy_from(&iri.spelling, 0, Vec::new()),
     }
@@ -93,7 +93,7 @@ fn fold_from(
     }
 }
 /// Translate every member and join them all with one connective.
-fn connect(
+pub(crate) fn connect(
     members: &AtLeastTwo<ClassExpression>,
     positive: bool,
     conjunctive: bool,

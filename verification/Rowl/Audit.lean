@@ -79,6 +79,8 @@ import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
 import Rowl.TboxTableau
+import Rowl.Internalization
+import Rowl.AlcOntology
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -703,6 +705,7 @@ import Rowl.TboxTableau
 #print axioms Rowl.FunctionalAnnotationAxiomSource.source_prefix_annotation_axiom_result_iff
 #print axioms Rowl.Nnf.fixes_of_interpretation
 #print axioms Rowl.Nnf.copy_iri_identity
+#print axioms Rowl.Nnf.connect_correct
 #print axioms Rowl.Nnf.nnf_total_correct
 #print axioms Rowl.Nnf.nnf_supported_iff
 #print axioms Rowl.Nnf.nnf_meaning
@@ -745,6 +748,23 @@ import Rowl.TboxTableau
 #print axioms Rowl.TboxTableau.rejected_empty_in_models
 #print axioms Rowl.TboxTableau.class_instances_accepted_in
 #print axioms Rowl.TboxTableau.rejected_class_empty_in
+#print axioms Rowl.Internalization.all_equal_iff
+#print axioms Rowl.Internalization.pairwise_disjoint_iff
+#print axioms Rowl.Internalization.pairwise_correct
+#print axioms Rowl.Internalization.axiom_concept_correct
+#print axioms Rowl.Internalization.internalize_correct
+#print axioms Rowl.AlcOntology.builtin_class_correct
+#print axioms Rowl.AlcOntology.builtin_role_correct
+#print axioms Rowl.AlcOntology.proper_correct
+#print axioms Rowl.AlcOntology.concept_with_anonymous
+#print axioms Rowl.AlcOntology.owl_model_valid
+#print axioms Rowl.AlcOntology.owl_model_agrees
+#print axioms Rowl.AlcOntology.consistent_correct
+#print axioms Rowl.AlcOntology.class_satisfiable_correct
+#print axioms Rowl.AlcOntology.subsumed_correct
+#print axioms Rowl.AlcOntology.consistent_complete
+#print axioms Rowl.AlcOntology.class_satisfiable_complete
+#print axioms Rowl.AlcOntology.subsumed_sound
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1289,3 +1309,7 @@ import Rowl.TboxTableau
 #print axioms Rowl.TboxTableau.ModelSat
 #print axioms Rowl.TboxTableau.Decides
 #print axioms Rowl.TboxTableau.Invariant
+#print axioms Rowl.Internalization.SupportedAxiom
+#print axioms Rowl.AlcOntology.Proper
+#print axioms Rowl.AlcOntology.embedding
+#print axioms Rowl.AlcOntology.owlModel
