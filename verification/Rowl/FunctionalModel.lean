@@ -15,6 +15,7 @@ open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open RowlRust.functional_model
 open RowlRust.functional_annotations (SourceAnnotation SourceAnnotationValue)
 open RowlRust.functional_annotation_axioms (SourceAnnotationAxiomBody SourceAnnotationSubject)
+open RowlRust.functional_assertions (SourceAssertionBody SourceIndividual)
 open RowlRust.functional_classes (SourceClass SourceObjectProperty)
 open RowlRust.functional_class_axioms (SourceClassAxiomBody)
 open RowlRust.functional_declarations (SourceDeclaration SourceEntity SourceEntityKind)
@@ -37,6 +38,11 @@ def ValueOf (scope : alloc.vec.Vec U8) : SourceAnnotationValue → model.Annotat
   | .Literal literal => .Literal (LiteralOf literal)
 def SubjectOf (scope : alloc.vec.Vec U8) : SourceAnnotationSubject → model.AnnotationSubject
   | .Iri iri => .Iri (IriOf iri)
+  | .Anonymous _ label => .Anonymous (AnonymousOf scope label)
+/-- A named individual's exact IRI, or a node ID as an anonymous individual of
+    the caller's scope. -/
+def IndividualOf (scope : alloc.vec.Vec U8) : SourceIndividual → model.Individual
+  | .Named iri => .Named ⟨IriOf iri⟩
   | .Anonymous _ label => .Anonymous (AnonymousOf scope label)
 def PropertyOf : SourceObjectProperty → model.ObjectPropertyExpression
   | .Named iri => .Property ⟨IriOf iri⟩
@@ -135,6 +141,19 @@ inductive ClassAxiomModel : SourceClassAxiomBody → model.Axiom → Prop
   | range {property : SourceObjectProperty} {range : SourceClass} {target : model.ClassExpression}
       (inner : ClassModel range target) :
       ClassAxiomModel (.ObjectPropertyRange property range) (.ObjectPropertyRange (PropertyOf property) target)
+/-- A model assertion corresponds to a source assertion of the same form, with
+    the model of its class expression or property and its individuals. -/
+inductive AssertionModel (scope : alloc.vec.Vec U8) : SourceAssertionBody → model.Axiom → Prop
+  | classAssertion {expression : SourceClass} {member : SourceIndividual} {target : model.ClassExpression}
+      (inner : ClassModel expression target) :
+      AssertionModel scope (.ClassAssertion expression member) (.ClassAssertion target (IndividualOf scope member))
+  | propertyAssertion {property : SourceObjectProperty} {subject object : SourceIndividual} :
+      AssertionModel scope (.ObjectPropertyAssertion property subject object)
+        (.ObjectPropertyAssertion (PropertyOf property) (IndividualOf scope subject) (IndividualOf scope object))
+  | negativeAssertion {property : SourceObjectProperty} {subject object : SourceIndividual} :
+      AssertionModel scope (.NegativeObjectPropertyAssertion property subject object)
+        (.NegativeObjectPropertyAssertion (PropertyOf property) (IndividualOf scope subject)
+          (IndividualOf scope object))
 /-- A model axiom corresponds to a source axiom: the same axiom and the models
     of its axiom annotations in order. -/
 inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.AnnotatedAxiom → Prop
@@ -149,6 +168,11 @@ inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.Annotate
       {target : model.Axiom}
       (inner : AnnotationsModel scope record.annotations.val annotations.val) (body : ClassAxiomModel record.body target) :
       AxiomModel scope (.Class record) ⟨annotations,target⟩
+  | assertion {record : functional_assertions.SourceAssertion} {annotations : alloc.vec.Vec model.Annotation}
+      {target : model.Axiom}
+      (inner : AnnotationsModel scope record.annotations.val annotations.val)
+      (body : AssertionModel scope record.body target) :
+      AxiomModel scope (.Assertion record) ⟨annotations,target⟩
 /-- The model of a document tail: the same identity, the import targets, the
     ontology annotations and the axioms, each in source order. -/
 def OntologyModel (scope : alloc.vec.Vec U8) (tail : SourceDocumentTail) (ontology : model.RawOntology) : Prop :=
@@ -182,9 +206,14 @@ def ShapedAxiom : SourceClassAxiomBody → Prop
   | .DisjointUnion _ members => 2 ≤ members.val.length ∧ ∀ member ∈ members.val, Shaped member
   | .ObjectPropertyDomain _ domain => Shaped domain
   | .ObjectPropertyRange _ range => Shaped range
+/-- An assertion whose class expression is shaped. -/
+def ShapedAssertion : SourceAssertionBody → Prop
+  | .ClassAssertion expression _ => Shaped expression
+  | _ => True
 /-- A source axiom of the shape the document grammar accepts. -/
 def ShapedSource : SourceAxiom → Prop
   | .Class record => ShapedAxiom record.body
+  | .Assertion record => ShapedAssertion record.body
   | _ => True
 
 private theorem listN_mem_size {α : Type} [SizeOf α] {n : Nat}
@@ -249,6 +278,9 @@ theorem subject_correct (source : SourceAnnotationSubject) (scope : alloc.vec.Ve
   cases source <;> simp [subject,iri_correct,anonymous_correct,SubjectOf]
 theorem property_correct (source : SourceObjectProperty) : property source = .ok (PropertyOf source) := by
   cases source <;> simp [property,iri_correct,PropertyOf]
+theorem individual_correct (source : SourceIndividual) (scope : alloc.vec.Vec U8) :
+    individual source scope = .ok (IndividualOf scope source) := by
+  cases source <;> simp [individual,iri_correct,anonymous_correct,IndividualOf]
 theorem entity_correct (source : SourceEntity) : entity source = .ok (EntityOf source) := by
   obtain ⟨kind,keyword,named⟩ := source
   cases kind <;> simp [entity,iri_correct,EntityOf]
@@ -589,6 +621,32 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
       exact ⟨some (.ObjectPropertyRange (PropertyOf property) target),by simp [read,property_correct],
         (by intro target' same; cases same; exact .range (correct _ rfl)),fun _ => rfl⟩
 
+/-- Every assertion maps, when it maps, to its corresponding model assertion;
+    every shaped assertion maps. -/
+theorem assertion_correct (source : SourceAssertionBody) (scope : alloc.vec.Vec U8) :
+    ∃ result, assertion source scope = .ok result ∧
+      (∀ target, result = some target → AssertionModel scope source target) ∧
+      (ShapedAssertion source → result.isSome) := by
+  rw [assertion.eq_def]
+  cases source with
+  | ClassAssertion expression member =>
+    obtain ⟨result,read,correct,total⟩ := class_correct expression
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.ClassAssertion target (IndividualOf scope member)),by simp [read,individual_correct],
+        (by intro target' same; cases same; exact .classAssertion (correct target rfl)),fun _ => rfl⟩
+  | ObjectPropertyAssertion role subject object =>
+    exact ⟨some (.ObjectPropertyAssertion (PropertyOf role) (IndividualOf scope subject) (IndividualOf scope object)),
+      by simp [property_correct,individual_correct],(by intro target same; cases same; exact .propertyAssertion),
+      fun _ => rfl⟩
+  | NegativeObjectPropertyAssertion role subject object =>
+    exact ⟨some (.NegativeObjectPropertyAssertion (PropertyOf role) (IndividualOf scope subject)
+      (IndividualOf scope object)),by simp [property_correct,individual_correct],
+      (by intro target same; cases same; exact .negativeAssertion),fun _ => rfl⟩
+
 private theorem axiom_annotations (values : alloc.vec.Vec SourceAnnotation) (scope : alloc.vec.Vec U8) :
     ∃ targets, annotations_from values 0#usize (alloc.vec.Vec.new model.Annotation) scope = .ok targets ∧
       AnnotationsModel scope values.val targets.val :=
@@ -619,6 +677,16 @@ theorem axiom_correct (source : SourceAxiom) (scope : alloc.vec.Vec U8) :
       obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
       exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
         (by intro target same; cases same; exact .«class» annotationsModel (correct body rfl)),fun _ => rfl⟩
+  | Assertion record =>
+    obtain ⟨result,read,correct,total⟩ := assertion_correct record.body scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some body =>
+      obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
+      exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
+        (by intro target same; cases same; exact .assertion annotationsModel (correct body rfl)),fun _ => rfl⟩
 
 private theorem forall₂_snoc {source : SourceAxiom} {target : model.AnnotatedAxiom} {scope : alloc.vec.Vec U8}
     (last : AxiomModel scope source target) {sources : List SourceAxiom} {targets : List model.AnnotatedAxiom}
@@ -838,6 +906,30 @@ theorem class_axiom_run_shaped {annotationCount annotationIri annotationLexical 
   cases run with
   | ready _ _ _ bodyRun _ => cases same; exact body_run_shaped bodyRun rfl
   | _ => cases same
+/-- Every assertion body the assertion grammar accepts is shaped. -/
+theorem assertion_body_run_shaped {count limit depth : Nat} {form : functional_assertions.AssertionForm}
+    {tokens rest : Tokens} {body : SourceAssertionBody}
+    {result : core.result.Result (SourceAssertionBody × Tokens) functional_assertions.AssertionError}
+    (run : Rowl.FunctionalAssertions.BodyRun rows source eof count limit depth form tokens result)
+    (same : result = .Ok (body,rest)) : ShapedAssertion body := by
+  cases run with
+  | classAssertion classRun _ =>
+    cases same
+    cases classRun with
+    | ok classRun => exact class_run_shaped classRun rfl
+  | propertyAssertion _ => cases same; exact trivial
+  | negativeAssertion _ => cases same; exact trivial
+  | _ => cases same
+/-- Every assertion the assertion grammar accepts is shaped. -/
+theorem assertion_run_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+      classDepth : Nat} {tokens rest : Tokens} {record : functional_assertions.SourceAssertion}
+    {result : core.result.Result (functional_assertions.SourceAssertion × Tokens) functional_assertions.AssertionError}
+    (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+      annotationDepth classCount classIri classDepth tokens result) (same : result = .Ok (record,rest)) :
+    ShapedAssertion record.body := by
+  cases run with
+  | ready _ _ _ bodyRun _ => cases same; exact assertion_body_run_shaped bodyRun rfl
+  | _ => cases same
 /-- Every axiom the document grammar reads is shaped. -/
 theorem axiom_step_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
       classDepth : Nat} {family : AxiomFamily} {tokens rest : Tokens} {offset : Usize} {item : SourceAxiom}
@@ -849,6 +941,7 @@ theorem axiom_step_shaped {annotationCount annotationIri annotationLexical annot
   | declaration _ => cases same; exact trivial
   | annotation _ => cases same; exact trivial
   | «class» run => cases same; exact class_axiom_run_shaped run rfl
+  | assertion run => cases same; exact assertion_run_shaped run rfl
   | _ => cases same
 /-- Every axiom sequence the document grammar reads extends the shaped axioms
     before it with shaped axioms. -/

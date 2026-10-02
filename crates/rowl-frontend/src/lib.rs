@@ -10,6 +10,7 @@ pub use rowl_kernel::encoding;
 pub use rowl_kernel::functional;
 pub use rowl_kernel::functional_annotation_axioms;
 pub use rowl_kernel::functional_annotations;
+pub use rowl_kernel::functional_assertions;
 pub use rowl_kernel::functional_class_axioms;
 pub use rowl_kernel::functional_classes;
 pub use rowl_kernel::functional_declarations;

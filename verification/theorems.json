@@ -1275,6 +1275,7 @@
         "Rowl.FunctionalModel.annotation_value_correct",
         "Rowl.FunctionalModel.subject_correct",
         "Rowl.FunctionalModel.property_correct",
+        "Rowl.FunctionalModel.individual_correct",
         "Rowl.FunctionalModel.entity_correct",
         "Rowl.FunctionalModel.annotation_axiom_correct",
         "Rowl.FunctionalModel.identity_correct",
@@ -1284,6 +1285,7 @@
         "Rowl.FunctionalModel.rest_from_correct",
         "Rowl.FunctionalModel.members_of_correct",
         "Rowl.FunctionalModel.class_axiom_correct",
+        "Rowl.FunctionalModel.assertion_correct",
         "Rowl.FunctionalModel.axiom_correct",
         "Rowl.FunctionalModel.axioms_from_correct",
         "Rowl.FunctionalModel.imports_from_correct",
@@ -1295,6 +1297,8 @@
         "Rowl.FunctionalModel.list_run_shaped",
         "Rowl.FunctionalModel.body_run_shaped",
         "Rowl.FunctionalModel.class_axiom_run_shaped",
+        "Rowl.FunctionalModel.assertion_body_run_shaped",
+        "Rowl.FunctionalModel.assertion_run_shaped",
         "Rowl.FunctionalModel.axiom_step_shaped",
         "Rowl.FunctionalModel.axioms_run_shaped",
         "Rowl.FunctionalModel.tail_run_shaped"
@@ -1312,6 +1316,32 @@
         "Rowl.SourceReasoning.source_class_satisfiable_complete",
         "Rowl.SourceReasoning.source_subsumed_correct",
         "Rowl.SourceReasoning.source_subsumed_sound"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalAssertions",
+      "namespace": "Rowl.FunctionalAssertions",
+      "theorems": [
+        "Rowl.FunctionalAssertions.assertion_form_total_correct",
+        "Rowl.FunctionalAssertions.individual_kind_total_correct",
+        "Rowl.FunctionalAssertions.expected_terminal_total_correct",
+        "Rowl.FunctionalAssertions.take_expected_total_correct",
+        "Rowl.FunctionalAssertions.take_expected_result_iff",
+        "Rowl.FunctionalAssertions.take_progress",
+        "Rowl.FunctionalAssertions.read_individual_total_correct",
+        "Rowl.FunctionalAssertions.read_individual_result_iff",
+        "Rowl.FunctionalAssertions.individual_progress",
+        "Rowl.FunctionalAssertions.read_class_total_correct",
+        "Rowl.FunctionalAssertions.read_class_result_iff",
+        "Rowl.FunctionalAssertions.read_property_total_correct",
+        "Rowl.FunctionalAssertions.read_property_result_iff",
+        "Rowl.FunctionalAssertions.read_edge_total_correct",
+        "Rowl.FunctionalAssertions.read_edge_result_iff",
+        "Rowl.FunctionalAssertions.read_body_total_correct",
+        "Rowl.FunctionalAssertions.read_body_result_iff",
+        "Rowl.FunctionalAssertions.read_assertion_total_correct",
+        "Rowl.FunctionalAssertions.read_assertion_result_iff",
+        "Rowl.FunctionalAssertions.assertion_progress"
       ]
     }
   ],
@@ -1908,6 +1938,19 @@
     "Rowl.FunctionalModel.ShapedAxiom",
     "Rowl.FunctionalModel.ShapedSource",
     "Rowl.SourceReasoning.Read",
-    "Rowl.SourceReasoning.SourceOntology"
+    "Rowl.SourceReasoning.SourceOntology",
+    "Rowl.FunctionalAssertions.FormOf",
+    "Rowl.FunctionalAssertions.IndividualKindOf",
+    "Rowl.FunctionalAssertions.Expected",
+    "Rowl.FunctionalAssertions.TakeRun",
+    "Rowl.FunctionalAssertions.IndividualRun",
+    "Rowl.FunctionalAssertions.ClassStep",
+    "Rowl.FunctionalAssertions.PropertyStep",
+    "Rowl.FunctionalAssertions.EdgeRun",
+    "Rowl.FunctionalAssertions.BodyRun",
+    "Rowl.FunctionalAssertions.AxiomRun",
+    "Rowl.FunctionalModel.IndividualOf",
+    "Rowl.FunctionalModel.AssertionModel",
+    "Rowl.FunctionalModel.ShapedAssertion"
   ]
 }

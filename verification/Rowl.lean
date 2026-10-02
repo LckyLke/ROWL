@@ -104,6 +104,7 @@ import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
+import Rowl.FunctionalAssertions
 import Rowl.FunctionalDocument
 import Rowl.FunctionalModel
 import Rowl.Nnf

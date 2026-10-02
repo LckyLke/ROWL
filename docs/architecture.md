@@ -868,7 +868,9 @@ theorems. Everything after `Ontology(` has an independent grammar.
 Readers produce source records, which keep original tokens for diagnostics. The
 kernel reasons over the raw OWL model, which has no tokens. `document_ontology`
 maps one into the other. It copies IRI and literal bytes exactly, gives node IDs
-the caller's scope and drops tokens. The scope is a parameter because node IDs
+the caller's scope and drops tokens. Individuals in assertions get the same
+treatment: a named individual keeps its exact IRI, and a node ID becomes an
+anonymous individual of the caller's scope. The scope is a parameter because node IDs
 are local to a document: an import closure must give each document its own
 scope, and that assignment belongs to import assembly.
 

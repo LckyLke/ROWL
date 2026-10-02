@@ -41,6 +41,7 @@ fn families(document: &SourceDocument) -> Vec<&'static str> {
             SourceAxiom::Declaration(_) => "declaration",
             SourceAxiom::Annotation(_) => "annotation",
             SourceAxiom::Class(_) => "class",
+            SourceAxiom::Assertion(_) => "assertion",
         })
         .collect()
 }
@@ -100,12 +101,12 @@ fn axioms_keep_their_family_and_order() {
 fn errors_report_the_first_failing_stage() {
     // An axiom form this stage does not read yet.
     let (bytes, result) = read(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ClassAssertion(:A :a)\n)",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)",
         10,
     );
     match result {
         Err(DocumentError::UnsupportedAxiom { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "ClassAssertion"))
+            assert_eq!(at, offset(&bytes, "SubObjectPropertyOf"))
         }
         _ => panic!("the other logical axioms are reported as unsupported"),
     }

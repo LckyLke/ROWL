@@ -3,8 +3,8 @@
 //! source.
 //!
 //! The axiom loop dispatches on the axiom keyword to the proved declaration,
-//! annotation-axiom and class-axiom readers. The other logical axiom forms are
-//! reported as unsupported at their keyword; later stages read them.
+//! annotation-axiom, class-axiom and assertion readers. The other logical axiom
+//! forms are reported as unsupported at their keyword; later stages read them.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal};
 use crate::functional_annotation_axioms::{
@@ -13,6 +13,7 @@ use crate::functional_annotation_axioms::{
 use crate::functional_annotations::{
     read_annotations, AnnotationError, AnnotationLimits, SourceAnnotation,
 };
+use crate::functional_assertions::{read_assertion, AssertionError, SourceAssertion};
 use crate::functional_class_axioms::{read_class_axiom, ClassAxiomError, SourceClassAxiom};
 use crate::functional_classes::ClassLimits;
 use crate::functional_declarations::{read_declaration, DeclarationError, SourceDeclaration};
@@ -28,6 +29,7 @@ pub enum SourceAxiom {
     Declaration(SourceDeclaration),
     Annotation(SourceAnnotationAxiom),
     Class(SourceClassAxiom),
+    Assertion(SourceAssertion),
 }
 /// Everything after `Ontology(`: the identity, the imports, the ontology
 /// annotations and the axioms in source order.
@@ -80,6 +82,7 @@ pub enum DocumentError {
     Declaration(DeclarationError),
     AnnotationAxiom(AnnotationAxiomError),
     ClassAxiom(ClassAxiomError),
+    Assertion(AssertionError),
     /// An axiom form that this stage does not read yet.
     UnsupportedAxiom {
         offset: usize,
@@ -97,6 +100,7 @@ enum AxiomFamily {
     Declaration,
     Annotation,
     Class,
+    Assertion,
     Unsupported,
 }
 fn axiom_family(terminal: Terminal) -> Option<AxiomFamily> {
@@ -135,11 +139,9 @@ fn axiom_family(terminal: Terminal) -> Option<AxiomFamily> {
         Terminal::Keyword(Keyword::HasKey) => Some(AxiomFamily::Unsupported),
         Terminal::Keyword(Keyword::SameIndividual) => Some(AxiomFamily::Unsupported),
         Terminal::Keyword(Keyword::DifferentIndividuals) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::ClassAssertion) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::ObjectPropertyAssertion) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion) => {
-            Some(AxiomFamily::Unsupported)
-        }
+        Terminal::Keyword(Keyword::ClassAssertion) => Some(AxiomFamily::Assertion),
+        Terminal::Keyword(Keyword::ObjectPropertyAssertion) => Some(AxiomFamily::Assertion),
+        Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion) => Some(AxiomFamily::Assertion),
         Terminal::Keyword(Keyword::DataPropertyAssertion) => Some(AxiomFamily::Unsupported),
         Terminal::Keyword(Keyword::NegativeDataPropertyAssertion) => Some(AxiomFamily::Unsupported),
         _ => None,
@@ -174,6 +176,12 @@ fn read_axiom(
             match read_class_axiom(table, bytes, tokens, &limits.annotations, &limits.classes) {
                 Ok((axiom, rest)) => Ok((SourceAxiom::Class(axiom), rest)),
                 Err(error) => Err(DocumentError::ClassAxiom(error)),
+            }
+        }
+        AxiomFamily::Assertion => {
+            match read_assertion(table, bytes, tokens, &limits.annotations, &limits.classes) {
+                Ok((axiom, rest)) => Ok((SourceAxiom::Assertion(axiom), rest)),
+                Err(error) => Err(DocumentError::Assertion(error)),
             }
         }
         AxiomFamily::Unsupported => Err(DocumentError::UnsupportedAxiom { offset }),

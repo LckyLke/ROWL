@@ -78,6 +78,7 @@ import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
+import Rowl.FunctionalAssertions
 import Rowl.FunctionalDocument
 import Rowl.FunctionalModel
 import Rowl.Nnf
@@ -836,6 +837,7 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.annotation_value_correct
 #print axioms Rowl.FunctionalModel.subject_correct
 #print axioms Rowl.FunctionalModel.property_correct
+#print axioms Rowl.FunctionalModel.individual_correct
 #print axioms Rowl.FunctionalModel.entity_correct
 #print axioms Rowl.FunctionalModel.annotation_axiom_correct
 #print axioms Rowl.FunctionalModel.identity_correct
@@ -845,6 +847,7 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.rest_from_correct
 #print axioms Rowl.FunctionalModel.members_of_correct
 #print axioms Rowl.FunctionalModel.class_axiom_correct
+#print axioms Rowl.FunctionalModel.assertion_correct
 #print axioms Rowl.FunctionalModel.axiom_correct
 #print axioms Rowl.FunctionalModel.axioms_from_correct
 #print axioms Rowl.FunctionalModel.imports_from_correct
@@ -856,6 +859,8 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.list_run_shaped
 #print axioms Rowl.FunctionalModel.body_run_shaped
 #print axioms Rowl.FunctionalModel.class_axiom_run_shaped
+#print axioms Rowl.FunctionalModel.assertion_body_run_shaped
+#print axioms Rowl.FunctionalModel.assertion_run_shaped
 #print axioms Rowl.FunctionalModel.axiom_step_shaped
 #print axioms Rowl.FunctionalModel.axioms_run_shaped
 #print axioms Rowl.FunctionalModel.tail_run_shaped
@@ -867,6 +872,26 @@ import Rowl.SourceReasoning
 #print axioms Rowl.SourceReasoning.source_class_satisfiable_complete
 #print axioms Rowl.SourceReasoning.source_subsumed_correct
 #print axioms Rowl.SourceReasoning.source_subsumed_sound
+#print axioms Rowl.FunctionalAssertions.assertion_form_total_correct
+#print axioms Rowl.FunctionalAssertions.individual_kind_total_correct
+#print axioms Rowl.FunctionalAssertions.expected_terminal_total_correct
+#print axioms Rowl.FunctionalAssertions.take_expected_total_correct
+#print axioms Rowl.FunctionalAssertions.take_expected_result_iff
+#print axioms Rowl.FunctionalAssertions.take_progress
+#print axioms Rowl.FunctionalAssertions.read_individual_total_correct
+#print axioms Rowl.FunctionalAssertions.read_individual_result_iff
+#print axioms Rowl.FunctionalAssertions.individual_progress
+#print axioms Rowl.FunctionalAssertions.read_class_total_correct
+#print axioms Rowl.FunctionalAssertions.read_class_result_iff
+#print axioms Rowl.FunctionalAssertions.read_property_total_correct
+#print axioms Rowl.FunctionalAssertions.read_property_result_iff
+#print axioms Rowl.FunctionalAssertions.read_edge_total_correct
+#print axioms Rowl.FunctionalAssertions.read_edge_result_iff
+#print axioms Rowl.FunctionalAssertions.read_body_total_correct
+#print axioms Rowl.FunctionalAssertions.read_body_result_iff
+#print axioms Rowl.FunctionalAssertions.read_assertion_total_correct
+#print axioms Rowl.FunctionalAssertions.read_assertion_result_iff
+#print axioms Rowl.FunctionalAssertions.assertion_progress
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1460,3 +1485,16 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.ShapedSource
 #print axioms Rowl.SourceReasoning.Read
 #print axioms Rowl.SourceReasoning.SourceOntology
+#print axioms Rowl.FunctionalAssertions.FormOf
+#print axioms Rowl.FunctionalAssertions.IndividualKindOf
+#print axioms Rowl.FunctionalAssertions.Expected
+#print axioms Rowl.FunctionalAssertions.TakeRun
+#print axioms Rowl.FunctionalAssertions.IndividualRun
+#print axioms Rowl.FunctionalAssertions.ClassStep
+#print axioms Rowl.FunctionalAssertions.PropertyStep
+#print axioms Rowl.FunctionalAssertions.EdgeRun
+#print axioms Rowl.FunctionalAssertions.BodyRun
+#print axioms Rowl.FunctionalAssertions.AxiomRun
+#print axioms Rowl.FunctionalModel.IndividualOf
+#print axioms Rowl.FunctionalModel.AssertionModel
+#print axioms Rowl.FunctionalModel.ShapedAssertion

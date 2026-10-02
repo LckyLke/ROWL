@@ -103,7 +103,9 @@ every non-logical axiom now has a proved reader. Class expressions of the
 reasoner's ALC fragment (with inverse object properties) and the class, domain
 and range axioms (`SubClassOf`, `EquivalentClasses`, `DisjointClasses`,
 `DisjointUnion`, `ObjectPropertyDomain`, `ObjectPropertyRange`) have proved
-readers as well. Whole documents are now read by a verified axiom loop: the
+readers as well, and so do class assertions and positive and negative object
+property assertions, whose individuals are IRIs or node IDs. Whole documents
+are now read by a verified axiom loop: the
 prefix table, the ontology header and annotations, every axiom up to the closing
 parenthesis, and the end of the source. The other logical axioms are reported as
 unsupported. Every read document then maps into the kernel's raw OWL model with

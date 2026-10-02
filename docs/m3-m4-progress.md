@@ -2492,3 +2492,48 @@ This block adds 38 public theorems and 22 independent definitions. Totals are
 obligations. Individuals and assertions, the other axiom forms, anonymous scopes
 across an import closure, the remaining constructors, datatypes and performance
 remain pending.
+
+
+## M3: Functional Syntax assertions
+
+`functional_assertions::read_assertion` reads one `ClassAssertion`,
+`ObjectPropertyAssertion` or `NegativeObjectPropertyAssertion`. In source order
+it reads the keyword, `(`, the axiom annotations with the proved annotation
+reader, the body, then `)`. A class assertion's body is a class expression and
+an individual; a property assertion's body is an object property expression,
+possibly `ObjectInverseOf`, and its source and target individuals. Class and
+property expressions reuse the proved readers with the caller's class limits.
+An individual is a full or abbreviated IRI, resolved through the checked prefix
+table, or a node ID with its exact label; both use the class IRI limit.
+
+FunctionalAssertions gives the independent grammar: IndividualRun for one
+individual, EdgeRun for a property and its two individuals, BodyRun and
+AxiomRun. Totality and exact result/error equivalence are proved, and
+assertion_progress shows that an accepted assertion consumes at least its
+keyword and its closing parenthesis.
+
+The document loop now sends the three assertion keywords to this reader
+instead of reporting them as unsupported. The model mapping turns a named
+individual into its exact IRI and a node ID into an anonymous individual of the
+caller's scope; a class assertion keeps the model of its class expression, and
+a property assertion keeps its property expression. AssertionModel states the
+correspondence, and the shape theorems extend to assertions, so every read
+document still maps.
+
+Three regressions in `crates/rowl-frontend/tests/functional_assertions.rs`
+cover:
+
+- every form, with named and anonymous individuals, inverse properties and
+  axiom annotations;
+- the unchanged suffix after an assertion;
+- the first error at each step: a missing individual, a literal in an
+  individual position, an undeclared prefix, an unsupported class expression,
+  an extra individual and a keyword of another axiom form.
+
+The end-to-end model test also checks a class assertion on a node ID and a
+property assertion through an inverse property.
+
+This block adds 24 public theorems and 13 independent definitions. Totals are
+803 audited theorems, 606 definitions, 368 Rust regressions and 996 ledger
+obligations. Reasoning with these assertions is the next step; the ALC queries
+still give no answer for a document that contains them.

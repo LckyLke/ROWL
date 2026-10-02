@@ -471,13 +471,22 @@ progress. Full OWL parsing and executable reasoning are still future work.
   have exact result/error equivalence to an independent grammar. Source
   composition uses the namespace rows parsed from the same bytes. The other
   logical axioms remain pending.
+- M3 Functional Syntax assertions. The actual reader takes one `ClassAssertion`,
+  `ObjectPropertyAssertion` or `NegativeObjectPropertyAssertion` with its axiom
+  annotations at a caller-supplied position. Class and object property
+  expressions reuse the proved readers; an individual is an IRI resolved through
+  the checked prefix table or a node ID with its exact label. Errors report the
+  first failing step in source order with original offsets. Totality and exact
+  result/error equivalence to an independent grammar are proved, and every
+  accepted assertion consumes at least two tokens. `SameIndividual`,
+  `DifferentIndividuals` and the data property assertions remain pending.
 - M3 Functional Syntax documents. The actual reader takes the original bytes of a
   whole document. It reads the prefix declarations with the proved prefix-header
   reader and checks them with the normative table checker. It then reads the
   ontology identity and imports, the ontology annotations, every axiom up to the
   closing parenthesis, and the end of the source. The axiom loop dispatches on
-  all 37 axiom keywords to the proved declaration, annotation-axiom and
-  class-axiom readers, reports the other logical axioms as unsupported at their
+  all 37 axiom keywords to the proved declaration, annotation-axiom, class-axiom
+  and assertion readers, reports the other logical axioms as unsupported at their
   keyword, and has an axiom count limit. Errors report the first failing stage
   with original offsets. The loop is proved total by token count from each
   reader's minimum consumption, with exact result/error equivalence to an
@@ -486,8 +495,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   document into the raw OWL ontology: the identity, import targets, ontology
   annotations and axioms with their annotations, in source order. IRIs and
   literals keep their exact bytes, node IDs become anonymous individuals of a
-  caller-supplied scope, and original tokens are dropped. Every mapping is proved
-  total, and every result corresponds to its source records under an independent
+  caller-supplied scope, and original tokens are dropped. Assertions keep their
+  class expression or property and their named or anonymous individuals. Every
+  mapping is proved total, and every result corresponds to its source records
+  under an independent
   structural correspondence. The mapping declines only a member list with fewer
   than two members. Independent grammar invariants prove that every list in an
   accepted document has at least two members, so every read document maps.
@@ -563,13 +574,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   answer holds in every model. Individuals and assertions, the other axiom
   forms, imports, the remaining SROIQ constructors, datatypes and performance
   remain pending.
-- 779 audited public theorems and 593 audited semantic definitions. Consistency,
+- 803 audited public theorems and 606 audited semantic definitions. Consistency,
   class satisfiability and subsumption are decided, with proofs against the OWL
   definitions, for axiom closures whose logical axioms are ALC class, domain and
   range axioms, also directly from Functional Syntax source bytes; no full OWL
   decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 365 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 368 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -578,7 +589,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 972-obligation release ledger and separate checked constructor and built-in inventories.
+- A 996-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

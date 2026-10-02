@@ -3,8 +3,8 @@ use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{read_document, DocumentError, DocumentLimits};
 use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::{
-    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, Entity, Iri,
-    ObjectProperty, ObjectPropertyExpression, OntologyIdentity, RawOntology,
+    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, Entity,
+    Individual, Iri, ObjectProperty, ObjectPropertyExpression, OntologyIdentity, RawOntology,
 };
 use rowl_kernel::source_reasoning::{source_class_satisfiable, source_consistent, source_subsumed};
 
@@ -124,7 +124,7 @@ fn maintenance_questions_are_answered_from_the_original_bytes() {
 #[test]
 fn the_model_keeps_every_source_record() {
     let model = ontology(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o> <https://example.org/o/1>\n Import(<https://example.org/base>)\n Annotation(Annotation(rdfs:comment \"nested\") rdfs:label \"o\")\n Declaration(Class(:A))\n AnnotationAssertion(rdfs:seeAlso _:x :A)\n SubClassOf(Annotation(rdfs:comment \"why\") :A ObjectIntersectionOf(:B :C :D))\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n)",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o> <https://example.org/o/1>\n Import(<https://example.org/base>)\n Annotation(Annotation(rdfs:comment \"nested\") rdfs:label \"o\")\n Declaration(Class(:A))\n AnnotationAssertion(rdfs:seeAlso _:x :A)\n SubClassOf(Annotation(rdfs:comment \"why\") :A ObjectIntersectionOf(:B :C :D))\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n ClassAssertion(:A _:y)\n ObjectPropertyAssertion(ObjectInverseOf(:p) :a :b)\n)",
         b"doc-1",
     );
     match &model.identity {
@@ -157,7 +157,7 @@ fn the_model_keeps_every_source_record() {
         }
         _ => panic!("a literal label"),
     }
-    assert_eq!(model.axioms.len(), 4);
+    assert_eq!(model.axioms.len(), 6);
     match &model.axioms[0].axiom {
         Axiom::Declaration(Entity::Class(class)) => {
             assert_eq!(class.iri.spelling, b"https://example.org/A")
@@ -199,13 +199,33 @@ fn the_model_keeps_every_source_record() {
         }
         _ => panic!("the domain of an inverse property"),
     }
+    match &model.axioms[4].axiom {
+        Axiom::ClassAssertion(class, Individual::Anonymous(node)) => {
+            assert_eq!(class_name(class), b"https://example.org/A");
+            assert_eq!(node.scope, b"doc-1");
+            assert_eq!(node.label, b"y");
+        }
+        _ => panic!("the class assertion on a node ID"),
+    }
+    match &model.axioms[5].axiom {
+        Axiom::ObjectPropertyAssertion(
+            ObjectPropertyExpression::Inverse(property),
+            Individual::Named(source),
+            Individual::Named(target),
+        ) => {
+            assert_eq!(property.iri.spelling, b"https://example.org/p");
+            assert_eq!(source.iri.spelling, b"https://example.org/a");
+            assert_eq!(target.iri.spelling, b"https://example.org/b");
+        }
+        _ => panic!("the property assertion through an inverse property"),
+    }
 }
 
 #[test]
 fn errors_and_unsupported_axioms_give_no_answer() {
     let scope = b"s".to_vec();
     // A document error is the reader's first error.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ClassAssertion(:A :a)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p :q)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(

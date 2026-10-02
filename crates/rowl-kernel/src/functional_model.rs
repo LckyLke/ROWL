@@ -8,6 +8,7 @@
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::manual_map)] // Explicit branches for the pinned extraction subset.
 use crate::functional_annotation_axioms::{SourceAnnotationAxiomBody, SourceAnnotationSubject};
 use crate::functional_annotations::{SourceAnnotation, SourceAnnotationValue};
+use crate::functional_assertions::{SourceAssertionBody, SourceIndividual};
 use crate::functional_class_axioms::SourceClassAxiomBody;
 use crate::functional_classes::{SourceClass, SourceObjectProperty};
 use crate::functional_declarations::{SourceEntity, SourceEntityKind};
@@ -17,8 +18,8 @@ use crate::functional_literals::SourceLiteral;
 use crate::model::{
     AnnotatedAxiom, Annotation, AnnotationProperty, AnnotationSubject, AnnotationValue,
     AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, Datatype, Entity,
-    Iri, Literal, NamedIndividual, ObjectProperty, ObjectPropertyExpression, OntologyIdentity,
-    RawOntology,
+    Individual, Iri, Literal, NamedIndividual, ObjectProperty, ObjectPropertyExpression,
+    OntologyIdentity, RawOntology,
 };
 
 fn copy_from(source: &Vec<u8>, index: usize, mut target: Vec<u8>) -> Vec<u8> {
@@ -258,6 +259,41 @@ fn class_axiom(source: &SourceClassAxiomBody) -> Option<Axiom> {
         },
     }
 }
+fn individual(source: &SourceIndividual, scope: &Vec<u8>) -> Individual {
+    match source {
+        SourceIndividual::Named(name) => Individual::Named(NamedIndividual { iri: iri(name) }),
+        SourceIndividual::Anonymous { label, .. } => Individual::Anonymous(anonymous(label, scope)),
+    }
+}
+fn assertion(source: &SourceAssertionBody, scope: &Vec<u8>) -> Option<Axiom> {
+    match source {
+        SourceAssertionBody::ClassAssertion {
+            class: expression,
+            individual: member,
+        } => match class(expression) {
+            Some(expression) => Some(Axiom::ClassAssertion(expression, individual(member, scope))),
+            None => None,
+        },
+        SourceAssertionBody::ObjectPropertyAssertion {
+            property: role,
+            source,
+            target,
+        } => Some(Axiom::ObjectPropertyAssertion(
+            property(role),
+            individual(source, scope),
+            individual(target, scope),
+        )),
+        SourceAssertionBody::NegativeObjectPropertyAssertion {
+            property: role,
+            source,
+            target,
+        } => Some(Axiom::NegativeObjectPropertyAssertion(
+            property(role),
+            individual(source, scope),
+            individual(target, scope),
+        )),
+    }
+}
 fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
     match source {
         SourceAxiom::Declaration(declaration) => Some(AnnotatedAxiom {
@@ -269,6 +305,13 @@ fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
             axiom: annotation_axiom(&record.body, scope),
         }),
         SourceAxiom::Class(record) => match class_axiom(&record.body) {
+            Some(axiom) => Some(AnnotatedAxiom {
+                annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
+                axiom,
+            }),
+            None => None,
+        },
+        SourceAxiom::Assertion(record) => match assertion(&record.body, scope) {
             Some(axiom) => Some(AnnotatedAxiom {
                 annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
                 axiom,

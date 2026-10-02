@@ -1,4 +1,5 @@
 import Rowl.FunctionalClassAxioms
+import Rowl.FunctionalAssertions
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalDeclarations
 import Rowl.FunctionalHeader
@@ -8,8 +9,9 @@ import Rowl.FunctionalPrefixes
 Whole Functional Syntax documents, proved total and exact against an
 independent grammar that composes the proved stage grammars: the ontology
 header, the ontology annotations, the axiom loop (declarations, annotation
-axioms and the class, domain and range axioms; the other logical axioms are
-reported as unsupported), the closing parenthesis and the end of the source.
+axioms, the class, domain and range axioms and the class and object property
+assertions; the other logical axioms are reported as unsupported), the closing
+parenthesis and the end of the source.
 The prefix declarations and their normative table check compose with it through
 their own proved readers.
 -/
@@ -22,6 +24,7 @@ open RowlRust.functional_classes (ClassLimits)
 open RowlRust.functional_declarations (SourceDeclaration DeclarationError)
 open RowlRust.functional_annotation_axioms (SourceAnnotationAxiom AnnotationAxiomError)
 open RowlRust.functional_class_axioms (SourceClassAxiom ClassAxiomError)
+open RowlRust.functional_assertions (SourceAssertion AssertionError)
 open RowlRust.functional_header (HeaderTail)
 open RowlRust.functional_prefixes (read_prefix_header PrefixHeader PrefixReadError)
 open Rowl.FunctionalLexer (TokenCount)
@@ -30,8 +33,8 @@ set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
 /-- The 37 axiom keywords by family: declarations, the four annotation axioms,
-    the six class, domain and range axioms read here, and the other logical
-    axiom forms. -/
+    the six class, domain and range axioms and the three class and object
+    property assertions read here, and the other logical axiom forms. -/
 def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .Declaration => some .Declaration
   | .Keyword .AnnotationAssertion => some .Annotation
@@ -65,9 +68,9 @@ def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .HasKey => some .Unsupported
   | .Keyword .SameIndividual => some .Unsupported
   | .Keyword .DifferentIndividuals => some .Unsupported
-  | .Keyword .ClassAssertion => some .Unsupported
-  | .Keyword .ObjectPropertyAssertion => some .Unsupported
-  | .Keyword .NegativeObjectPropertyAssertion => some .Unsupported
+  | .Keyword .ClassAssertion => some .Assertion
+  | .Keyword .ObjectPropertyAssertion => some .Assertion
+  | .Keyword .NegativeObjectPropertyAssertion => some .Assertion
   | .Keyword .DataPropertyAssertion => some .Unsupported
   | .Keyword .NegativeDataPropertyAssertion => some .Unsupported
   | _ => none
@@ -202,6 +205,16 @@ inductive AxiomStep (rows : List prefixes.Declaration) (source : List U8) (eof :
         annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
         classDepth .Class tokens offset (.Ok (.Class record,rest))
+  | assertionError {tokens : Tokens} {offset : Usize} {error : AssertionError}
+      (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri classDepth tokens (.Err error)) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Assertion tokens offset (.Err (.Assertion error))
+  | assertion {tokens rest : Tokens} {offset : Usize} {record : SourceAssertion}
+      (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Assertion tokens offset (.Ok (.Assertion record,rest))
   | unsupported {tokens : Tokens} {offset : Usize} :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
         classDepth .Unsupported tokens offset (.Err (.UnsupportedAxiom offset))
@@ -238,6 +251,14 @@ theorem read_axiom_total_correct (table : prefixes.PrefixTable) (bytes : alloc.v
     | Ok pair =>
       obtain ⟨record,rest⟩ := pair
       exact ⟨.Ok (.Class record,rest),by simp [executed],.«class» correct⟩
+  | Assertion =>
+    obtain ⟨result,executed,correct⟩ :=
+      Rowl.FunctionalAssertions.read_assertion_total_correct table bytes tokens limits.annotations limits.classes
+    cases result with
+    | Err error => exact ⟨.Err (.Assertion error),by simp [executed],.assertionError correct⟩
+    | Ok pair =>
+      obtain ⟨record,rest⟩ := pair
+      exact ⟨.Ok (.Assertion record,rest),by simp [executed],.assertion correct⟩
   | Unsupported => exact ⟨.Err (.UnsupportedAxiom offset),rfl,.unsupported⟩
 theorem read_axiom_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (family : AxiomFamily)
     (tokens : Tokens) (offset : Usize) (limits : DocumentLimits)
@@ -270,6 +291,12 @@ theorem read_axiom_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.
     | «class» run =>
       simp [(Rowl.FunctionalClassAxioms.read_class_axiom_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
+    | assertionError run =>
+      simp [(Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
+    | assertion run =>
+      simp [(Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
     | unsupported => rfl
 /-- A successful axiom step consumes at least one token. -/
 theorem axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (family : AxiomFamily)
@@ -293,7 +320,13 @@ theorem axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
       limits.classes _).mpr run
     have := class_axiom_progress table bytes tokens _ limits.annotations limits.classes _ read
     omega
-  | declarationError | annotationError | classError | unsupported => cases outputEq
+  | assertion run =>
+    injection outputEq with same; injection same with _ restSame; subst restSame
+    have read := (Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
+      limits.classes _).mpr run
+    have := Rowl.FunctionalAssertions.assertion_progress table bytes tokens _ limits.annotations limits.classes _ read
+    omega
+  | declarationError | annotationError | classError | assertionError | unsupported => cases outputEq
 
 /-- Independent axiom loop: it stops before `)`; any other token must start an
     axiom of one of the 37 forms, after the axiom count is checked, and is read
