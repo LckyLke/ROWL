@@ -659,8 +659,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   also directly from Functional Syntax source bytes; no full OWL decision
   procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 386 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
-  maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
+- 387 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+  maintenance OWL/RDF examples, a medication-safety example answered from its
+  bytes, and CLI status/demo/check-nt/export-nt commands. The reasoning
+  procedures are unoptimised and suited to small ontologies.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;

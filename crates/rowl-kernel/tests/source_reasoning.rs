@@ -342,3 +342,42 @@ fn role_axioms_are_reasoned_about_from_the_original_bytes() {
         Some(false)
     );
 }
+
+#[test]
+fn medication_alerts_are_derived_from_the_original_bytes() {
+    let bytes = include_bytes!("../../../examples/medication-safety.ofn").to_vec();
+    let scope = b"records".to_vec();
+    let medication = "https://example.org/medication/";
+    let patient = |name: &str| NamedIndividual {
+        iri: iri(&format!("{medication}{name}")),
+    };
+    let alert = ClassExpression::Class(Class {
+        iri: iri(&format!("{medication}AllergyAlert")),
+    });
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    // The penicillin is an active ingredient of a capsule inside the pack.
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &patient("alice"),
+            &alert
+        )),
+        Some(true)
+    );
+    // The same pack without a recorded allergy needs no alert.
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &patient("bob"),
+            &alert
+        )),
+        Some(false)
+    );
+}

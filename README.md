@@ -1,4 +1,4 @@
-# ROWL
+# ROWL: Rust OWL
 
 **An OWL 2 reasoner in Rust whose answers come with a machine-checked proof,
 from the bytes of the ontology file to the final yes or no.**
@@ -11,7 +11,8 @@ from the bytes of the ontology file to the final yes or no.**
 Ontologies written in [OWL](https://www.w3.org/TR/owl2-overview/) record what a
 field knows: diseases and drugs, genes, the parts of a machine. A *reasoner*
 draws the conclusions: it finds contradictions, builds class hierarchies and
-answers questions such as *"which pumps need inspection?"*
+answers questions such as *"does this prescription conflict with the patient's
+allergies?"*
 
 Reasoners are large, heavily optimised programs. When one is wrong, the wrong
 answer looks exactly like a right one; all that stands behind it is trust in the
@@ -59,36 +60,40 @@ Concretely, the theorems say:
 
 ## Example
 
-[`examples/maintenance-individuals.ofn`](examples/maintenance-individuals.ofn) says,
-in OWL Functional Syntax (abridged):
+[`examples/medication-safety.ofn`](examples/medication-safety.ofn) records, in
+OWL Functional Syntax (abridged):
 
 ```text
-SubClassOf(ex:Pump ex:Machine)
-SubClassOf(ObjectIntersectionOf(ex:Machine ObjectSomeValuesFrom(ex:hasPart ex:FaultyPart))
-           ex:NeedsInspection)
-ClassAssertion(ex:Pump ex:pump1)
-ObjectPropertyAssertion(ex:hasPart ex:pump1 ex:motor1)
-ClassAssertion(ex:FaultyPart ex:motor1)
+TransitiveObjectProperty(ex:contains)
+SubObjectPropertyOf(ex:hasActiveIngredient ex:contains)
+SubClassOf(ex:Amoxicillin ex:Penicillin)
+SubClassOf(ObjectIntersectionOf(ObjectSomeValuesFrom(ex:hasAllergy ex:PenicillinAllergy)
+                                ObjectSomeValuesFrom(ex:receives
+                                  ObjectSomeValuesFrom(ex:contains ex:Penicillin)))
+           ex:AllergyAlert)
+ClassAssertion(ObjectSomeValuesFrom(ex:hasAllergy ex:PenicillinAllergy) ex:alice)
+ObjectPropertyAssertion(ex:receives ex:alice ex:comboPack)
+ObjectPropertyAssertion(ex:receives ex:bob ex:comboPack)
+ObjectPropertyAssertion(ex:contains ex:comboPack ex:capsule)
+ClassAssertion(ObjectSomeValuesFrom(ex:hasActiveIngredient ex:Amoxicillin) ex:capsule)
 ```
 
 ```console
-$ cargo run -p rowl --example source_individuals
-The fleet's axioms are consistent: true
-pump1 needs inspection: true
-pump2 needs inspection: false
-pump2 is a machine: true
+$ cargo run -p rowl --example medication_safety
+The records are consistent: true
+alice needs an allergy alert: true
+bob needs an allergy alert: false
 ```
 
-pump1 needs inspection in every model of the file. For pump2 this does not
-follow ("false"), since nothing says pump2 has a faulty part. Each answer comes
-from code proved to compute exactly the Direct Semantics of the bytes in that
-file.
-
-Role axioms work the same way: in
-[`examples/maintenance-roles.ofn`](examples/maintenance-roles.ofn), `hasPart` is
-transitive and `hasComponent` is one of its sub-properties, so a faulty bearing
-in a motor in pump1 makes pump1 need inspection
-(`cargo run -p rowl --example source_roles`).
+alice is allergic to penicillins. Her combination pack contains a capsule
+whose active ingredient is amoxicillin, which is a penicillin. The penicillin
+is two levels down, where a check that looks only at the pack would miss it.
+Because `contains` is transitive and every active ingredient is contained, the
+alert follows in every model of the records. bob receives the same pack, but no
+allergy is recorded, so his alert does not follow. "false" means *not entailed
+by the records*, not *proved safe*. Each answer comes from code proved to
+compute exactly the Direct Semantics of the bytes in that file. (An
+illustration, not clinical guidance.)
 
 ## Status
 
@@ -100,7 +105,7 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
 | **Logic** | ALC (and, or, not, some, only) with named individuals, role hierarchies and transitive roles (SH) | inverse roles, number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
-| **Focus** | correctness | performance |
+| **Scale** | small ontologies: the procedures are correct but unoptimised | performance: lazy unfolding, early clash detection, backjumping |
 
 There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
 and proofs from bytes to answers. [`docs/status.md`](docs/status.md) states
@@ -112,7 +117,7 @@ exactly what is proved and what is not.
 python3 scripts/bootstrap.py        # hash-pinned Rust, Lean and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
 cargo test --workspace              # regression tests
-cargo run -p rowl --example source_individuals
+cargo run -p rowl --example medication_safety
 python3 scripts/verify.py           # re-translate the Rust code and re-check every proof
 ```
 
