@@ -666,10 +666,14 @@ progress. Full OWL parsing and executable reasoning are still future work.
   anonymous nodes, clash detection on insertion, lazy unfolding of `A ⊑ C`, and
   equality blocking. Its rule search is proved exact: it returns what a node
   needs and lacks, else an unblocked node with an unwitnessed existential
-  restriction, else Done exactly when no rule applies. The tableau's
-  termination, soundness and completeness, and the ontology queries with
-  inverse roles, are the next steps of this stage.
-- 1004 audited public theorems and 704 audited semantic definitions. Consistency,
+  restriction, else Done exactly when no rule applies. completion::satisfiable
+  is proved total, sound and complete for SHI with named individuals: an
+  acceptance comes with a model of the role hierarchy in which the TBox concept
+  and every definition hold everywhere and every fact and link holds, and a
+  rejection rules out every such model. The ontology queries do not use it yet;
+  moving them to it, with inverse property axioms, is the next step of this
+  stage.
+- 1078 audited public theorems and 727 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALC class, domain and range axioms, class and object property assertions, and
@@ -688,7 +692,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1197-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1271-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

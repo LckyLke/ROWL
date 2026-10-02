@@ -12842,7 +12842,7 @@
       "rust_symbol": "rowl_kernel::completion::contains",
       "theorem": "Rowl.CompletionSearch.contains_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.mem_index_iff",
@@ -12853,7 +12853,7 @@
       "rust_symbol": "rowl_kernel::completion::contains",
       "theorem": "Rowl.CompletionSearch.mem_index_iff",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.holds_correct",
@@ -12864,7 +12864,7 @@
       "rust_symbol": "rowl_kernel::completion::holds",
       "theorem": "Rowl.CompletionSearch.holds_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.complementary_correct",
@@ -12875,7 +12875,7 @@
       "rust_symbol": "rowl_kernel::completion::complementary",
       "theorem": "Rowl.CompletionSearch.complementary_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.clashes_correct",
@@ -12886,7 +12886,7 @@
       "rust_symbol": "rowl_kernel::completion::clashes",
       "theorem": "Rowl.CompletionSearch.clashes_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.is_atom_correct",
@@ -12897,7 +12897,7 @@
       "rust_symbol": "rowl_kernel::completion::is_atom",
       "theorem": "Rowl.CompletionSearch.is_atom_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.has_atom_correct",
@@ -12908,7 +12908,7 @@
       "rust_symbol": "rowl_kernel::completion::has_atom",
       "theorem": "Rowl.CompletionSearch.has_atom_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.subset_correct",
@@ -12919,7 +12919,7 @@
       "rust_symbol": "rowl_kernel::completion::subset",
       "theorem": "Rowl.CompletionSearch.subset_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.same_label_correct",
@@ -12930,7 +12930,7 @@
       "rust_symbol": "rowl_kernel::completion::same_label",
       "theorem": "Rowl.CompletionSearch.same_label_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_at_correct",
@@ -12941,7 +12941,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_at",
       "theorem": "Rowl.CompletionSearch.missing_at_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_node_correct",
@@ -12952,7 +12952,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_node",
       "theorem": "Rowl.CompletionSearch.missing_node_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.holds_listed",
@@ -12963,7 +12963,7 @@
       "rust_symbol": "rowl_kernel::completion::holds",
       "theorem": "Rowl.CompletionSearch.holds_listed",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.has_universal_correct",
@@ -12974,7 +12974,7 @@
       "rust_symbol": "rowl_kernel::completion::has_universal",
       "theorem": "Rowl.CompletionSearch.has_universal_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_edge_correct",
@@ -12985,7 +12985,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_edge",
       "theorem": "Rowl.CompletionSearch.missing_edge_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.created_role_correct",
@@ -12996,7 +12996,7 @@
       "rust_symbol": "rowl_kernel::completion::created_role",
       "theorem": "Rowl.CompletionSearch.created_role_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_link_correct",
@@ -13007,7 +13007,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_link",
       "theorem": "Rowl.CompletionSearch.missing_link_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_tree_correct",
@@ -13018,7 +13018,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_tree",
       "theorem": "Rowl.CompletionSearch.missing_tree_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.has_witness_correct",
@@ -13029,7 +13029,7 @@
       "rust_symbol": "rowl_kernel::completion::has_witness",
       "theorem": "Rowl.CompletionSearch.has_witness_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_witness_correct",
@@ -13040,7 +13040,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_witness",
       "theorem": "Rowl.CompletionSearch.missing_witness_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.repeats_above_correct",
@@ -13051,7 +13051,7 @@
       "rust_symbol": "rowl_kernel::completion::repeats_above",
       "theorem": "Rowl.CompletionSearch.repeats_above_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.blocked_correct",
@@ -13062,7 +13062,7 @@
       "rust_symbol": "rowl_kernel::completion::blocked",
       "theorem": "Rowl.CompletionSearch.blocked_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.missing_successor_correct",
@@ -13073,7 +13073,7 @@
       "rust_symbol": "rowl_kernel::completion::missing_successor",
       "theorem": "Rowl.CompletionSearch.missing_successor_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
       "id": "m6.CompletionSearch.next_step_correct",
@@ -13084,7 +13084,821 @@
       "rust_symbol": "rowl_kernel::completion::next_step",
       "theorem": "Rowl.CompletionSearch.next_step_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
-      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+      "implementation_scope": "Actual rule search of the completion graph tableau for SHI with named individuals, proved exact against independent predicates on its lists. A label is a list of indices of literal entries of the concept table; Holds reads conjunctions and disjunctions propositionally and every other entry as membership, and holds is proved to decide it. The searches are proved to return, in a fixed order, a node and an entry it needs and lacks (a requirement at the node, the TBox concept, the concept of a lazy unfolding A \u2291 C whose class the label lists, or what a universal restriction at the other end of a link or tree edge requires along the edge's role in either direction, including the restriction on every transitive role in between), else an unblocked node with an existential restriction without a witness (a child created along an included role, the parent along the inverse of the creating role, or a linked named node, satisfying the filler), else Done exactly when no rule applies (Complete). Blocking is equality blocking: a tree node is blocked when two tree nodes on its path to its named root have the same label, and blocked is proved to decide it. Clashes between a named class and its complement are detected by an exact search. The tableau's termination, soundness and completeness are proved separately (Rowl.Completion). No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.CompletionModel.holds_same",
+      "requirement": "Verified model of a complete completion graph: holds_same",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.holds_same",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.edgeOk_same",
+      "requirement": "Verified model of a complete completion graph: edgeOk_same",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.edgeOk_same",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.edgeOk_mono",
+      "requirement": "Verified model of a complete completion graph: edgeOk_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.edgeOk_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.blocked_down",
+      "requirement": "Verified model of a complete completion graph: blocked_down",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.blocked_down",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.treePath_tree",
+      "requirement": "Verified model of a complete completion graph: treePath_tree",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.treePath_tree",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.child_blocked",
+      "requirement": "Verified model of a complete completion graph: child_blocked",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.child_blocked",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.named_free",
+      "requirement": "Verified model of a complete completion graph: named_free",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.named_free",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.family_mem",
+      "requirement": "Verified model of a complete completion graph: family_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.family_mem",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.below_inv_iff",
+      "requirement": "Verified model of a complete completion graph: below_inv_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.below_inv_iff",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.step_inv",
+      "requirement": "Verified model of a complete completion graph: step_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.step_inv",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.rel_inv",
+      "requirement": "Verified model of a complete completion graph: rel_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.rel_inv",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.relation_model",
+      "requirement": "Verified model of a complete completion graph: relation_model",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.relation_model",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.step_mono",
+      "requirement": "Verified model of a complete completion graph: step_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.step_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.rel_mono",
+      "requirement": "Verified model of a complete completion graph: rel_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.rel_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.rel_trans",
+      "requirement": "Verified model of a complete completion graph: rel_trans",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.rel_trans",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.model_respects",
+      "requirement": "Verified model of a complete completion graph: model_respects",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.model_respects",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.lab_node",
+      "requirement": "Verified model of a complete completion graph: lab_node",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.lab_node",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.treePath_named",
+      "requirement": "Verified model of a complete completion graph: treePath_named",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.treePath_named",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.treePath_self",
+      "requirement": "Verified model of a complete completion graph: treePath_self",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.treePath_self",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.treePath_parent",
+      "requirement": "Verified model of a complete completion graph: treePath_parent",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.treePath_parent",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.step_ok",
+      "requirement": "Verified model of a complete completion graph: step_ok",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.step_ok",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.tree_compatible",
+      "requirement": "Verified model of a complete completion graph: tree_compatible",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.tree_compatible",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.witness",
+      "requirement": "Verified model of a complete completion graph: witness",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.witness",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.truth",
+      "requirement": "Verified model of a complete completion graph: truth",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.truth",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.lab_in",
+      "requirement": "Verified model of a complete completion graph: lab_in",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.lab_in",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.holds_literal",
+      "requirement": "Verified model of a complete completion graph: holds_literal",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.holds_literal",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.CompletionModel.model_of_complete",
+      "requirement": "Verified model of a complete completion graph: model_of_complete",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.CompletionModel.model_of_complete",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Model of a complete, clash-free completion graph of the SHI tableau, proved against the direct semantics independently of how the graph was built. Its elements are the named nodes and the labels of the unblocked tree nodes; a named class holds where the label lists it; two named nodes are related along a role when a link's role, or its inverse for the reverse direction, is included in it, and every other pair when each label satisfies what the other requires along the role and its inverse; a role also relates every path of such steps along a transitive role included in it. The truth lemma shows every element satisfies every entry its label holds, and model_of_complete gives a model of the role hierarchy (inclusions, inverses and transitivity) in which the TBox concept and every unfolding hold everywhere and every requirement, link and named label holds, with named nodes related only along links when there are no role axioms."
+    },
+    {
+      "id": "m6.Completion.copy_label_correct",
+      "requirement": "Verified completion graph tableau: copy_label_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::copy_label",
+      "theorem": "Rowl.Completion.copy_label_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.copy_nodes_correct",
+      "requirement": "Verified completion graph tableau: copy_nodes_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::copy_nodes",
+      "theorem": "Rowl.Completion.copy_nodes_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.copy_pending_correct",
+      "requirement": "Verified completion graph tableau: copy_pending_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::copy_pending",
+      "theorem": "Rowl.Completion.copy_pending_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.filler_of_correct",
+      "requirement": "Verified completion graph tableau: filler_of_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::filler_of",
+      "theorem": "Rowl.Completion.filler_of_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.insert_correct",
+      "requirement": "Verified completion graph tableau: insert_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::insert",
+      "theorem": "Rowl.Completion.insert_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.holds_denote",
+      "requirement": "Verified completion graph tableau: holds_denote",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::holds",
+      "theorem": "Rowl.Completion.holds_denote",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.edge_need_holds",
+      "requirement": "Verified completion graph tableau: edge_need_holds",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.edge_need_holds",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.needs_hold",
+      "requirement": "Verified completion graph tableau: needs_hold",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.needs_hold",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.grows_refl",
+      "requirement": "Verified completion graph tableau: grows_refl",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.grows_refl",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.grows_trans",
+      "requirement": "Verified completion graph tableau: grows_trans",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.grows_trans",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.grows_label",
+      "requirement": "Verified completion graph tableau: grows_label",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.grows_label",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.grows_treePath",
+      "requirement": "Verified completion graph tableau: grows_treePath",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.grows_treePath",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.holds_mono",
+      "requirement": "Verified completion graph tableau: holds_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::holds",
+      "theorem": "Rowl.Completion.holds_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.witnessed_mono",
+      "requirement": "Verified completion graph tableau: witnessed_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.witnessed_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.path_distinct",
+      "requirement": "Verified completion graph tableau: path_distinct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.path_distinct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.depth_le",
+      "requirement": "Verified completion graph tableau: depth_le",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.depth_le",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.count_le",
+      "requirement": "Verified completion graph tableau: count_le",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.count_le",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.label_le",
+      "requirement": "Verified completion graph tableau: label_le",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.label_le",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.count_mono",
+      "requirement": "Verified completion graph tableau: count_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.count_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.weight_le",
+      "requirement": "Verified completion graph tableau: weight_le",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.weight_le",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.weight_lt",
+      "requirement": "Verified completion graph tableau: weight_lt",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.weight_lt",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.weight_witness",
+      "requirement": "Verified completion graph tableau: weight_witness",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.weight_witness",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.measure_lt_label",
+      "requirement": "Verified completion graph tableau: measure_lt_label",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.measure_lt_label",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.sum_drop",
+      "requirement": "Verified completion graph tableau: sum_drop",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.sum_drop",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.measure_lt_child",
+      "requirement": "Verified completion graph tableau: measure_lt_child",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.measure_lt_child",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.labels_in",
+      "requirement": "Verified completion graph tableau: labels_in",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.labels_in",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.complementary_symm",
+      "requirement": "Verified completion graph tableau: complementary_symm",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.complementary_symm",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.complementary_irrefl",
+      "requirement": "Verified completion graph tableau: complementary_irrefl",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.complementary_irrefl",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.set_label",
+      "requirement": "Verified completion graph tableau: set_label",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.set_label",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.insert_inv",
+      "requirement": "Verified completion graph tableau: insert_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::insert",
+      "theorem": "Rowl.Completion.insert_inv",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.create_inv",
+      "requirement": "Verified completion graph tableau: create_inv",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::create",
+      "theorem": "Rowl.Completion.create_inv",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.namedModel_mono",
+      "requirement": "Verified completion graph tableau: namedModel_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.namedModel_mono",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.fullModel_drop",
+      "requirement": "Verified completion graph tableau: fullModel_drop",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.fullModel_drop",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.fullModel_any",
+      "requirement": "Verified completion graph tableau: fullModel_any",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.fullModel_any",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.fullModel_insert",
+      "requirement": "Verified completion graph tableau: fullModel_insert",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::insert",
+      "theorem": "Rowl.Completion.fullModel_insert",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.fullModel_create",
+      "requirement": "Verified completion graph tableau: fullModel_create",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::create",
+      "theorem": "Rowl.Completion.fullModel_create",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.grow_strict",
+      "requirement": "Verified completion graph tableau: grow_strict",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.grow_strict",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.three_pow_lt",
+      "requirement": "Verified completion graph tableau: three_pow_lt",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.three_pow_lt",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.fullModel_imply",
+      "requirement": "Verified completion graph tableau: fullModel_imply",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.fullModel_imply",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.add_correct",
+      "requirement": "Verified completion graph tableau: add_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::add",
+      "theorem": "Rowl.Completion.add_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.run_correct",
+      "requirement": "Verified completion graph tableau: run_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::run",
+      "theorem": "Rowl.Completion.run_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.corresponds_append",
+      "requirement": "Verified completion graph tableau: corresponds_append",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::intern_facts",
+      "theorem": "Rowl.Completion.corresponds_append",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.unfolds_append",
+      "requirement": "Verified completion graph tableau: unfolds_append",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::intern_definitions",
+      "theorem": "Rowl.Completion.unfolds_append",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.intern_facts_correct",
+      "requirement": "Verified completion graph tableau: intern_facts_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::intern_facts",
+      "theorem": "Rowl.Completion.intern_facts_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.intern_definitions_correct",
+      "requirement": "Verified completion graph tableau: intern_definitions_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::intern_definitions",
+      "theorem": "Rowl.Completion.intern_definitions_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.named_nodes_correct",
+      "requirement": "Verified completion graph tableau: named_nodes_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::named_nodes",
+      "theorem": "Rowl.Completion.named_nodes_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.satisfiable_correct",
+      "requirement": "Verified completion graph tableau: satisfiable_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::satisfiable",
+      "theorem": "Rowl.Completion.satisfiable_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs",
+      "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Disjunctions branch on copies of the graph; clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms; a rejection is proved to rule out every such model in any universes. None reports only a usize capacity limit."
     }
   ]
 }

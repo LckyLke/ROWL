@@ -2909,3 +2909,48 @@ the tableau accepts whenever a model of at most three elements exists.
 This block adds 23 public theorems and 18 independent definitions. Totals are
 1004 audited theorems, 704 definitions, 399 Rust regressions and 1197 ledger
 obligations. Termination, soundness and completeness of `run` are next.
+
+## Reasoner: the completion graph tableau is total, sound and complete
+
+CompletionModel reads a complete graph as a model, independently of how the
+graph was built. Its elements are the named nodes and the labels of the
+unblocked tree nodes. A named class holds where the label lists it. Two named
+nodes are related along a role when a link's role, or the inverse of its role
+for the reverse direction, is included in the role; every other pair is related
+when the labels are Compatible: each satisfies what the other requires along the
+role and along its inverse. A role also relates the ends of every path of such
+steps along a transitive role included in it. The truth lemma shows that every
+element satisfies every entry its label holds, and `model_of_complete` turns a
+complete, clash-free graph of the right Shape into a model of the role hierarchy
+in which the TBox concept and the unfoldings hold everywhere and every
+requirement, link and named label holds. Without role axioms, named nodes are
+related only along links.
+
+Completion proves `run` total, sound and complete (`run_correct`, with `add`,
+`branch`, `add_literal` and `create` in `add_correct`). For a table of `n`
+entries, a node at depth `d` weighs `(2n+2)^(2^n+1-d)` times the room left in it
+(`2n` minus its label and its witnessed existential restrictions). Adding a
+literal shrinks that room; creating a child witnesses an existential at its
+parent, which outweighs the whole new child, because equality blocking keeps
+the labels on an unblocked path pairwise distinct (`path_distinct`) and so its
+depth at most `2^n` (`depth_le`). An acceptance comes with NamedModel; a
+rejection excludes FullModel, a model in any universes that places every node,
+each tree node along the role that created it, so a clash on both branches of a
+disjunction excludes both.
+
+`satisfiable_correct` composes the setup: the TBox concept, the facts and the
+definitions are interned (`intern_correct`, `intern_facts_correct`,
+`intern_definitions_correct`), the table is closed under the restrictions of
+transitive roles (`close_correct`), and every individual starts as a blank named
+node (`named_nodes_correct`). For a closed role hierarchy, and facts and links
+on the given individuals, `Some(true)` comes with a model that respects the
+hierarchy, in which the TBox concept and every definition hold everywhere and
+every fact and link holds; without role axioms, named individuals are related
+only along links. `Some(false)` rules out every such model, in any universes.
+`None` reports only a `usize` limit. Every theorem uses only propext,
+Classical.choice and Quot.sound.
+
+This block adds 74 public theorems and 23 independent definitions. Totals are
+1078 audited theorems, 727 definitions, 399 Rust regressions and 1271 ledger
+obligations. The ontology queries move to this tableau next, with inverse
+property axioms and domains as universal restrictions on inverse roles.

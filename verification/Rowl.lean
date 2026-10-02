@@ -122,3 +122,5 @@ import Rowl.Concepts
 import Rowl.Hierarchy
 import Rowl.ConceptTable
 import Rowl.CompletionSearch
+import Rowl.CompletionModel
+import Rowl.Completion
