@@ -685,7 +685,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   to role axioms, built-in object properties and other constructors get no
   answer. The source-byte queries now run on them, so SHI documents, including
   the full medication-safety example, are answered end to end from their bytes.
-- 1139 audited public theorems and 738 audited semantic definitions. Consistency,
+- Reasoner track, tenth stage (in progress): backjumping and caching. The
+  completion graph tableau now backjumps: every node records the branch points
+  its label depends on, a rule adds to a node with the points of the node and its
+  neighbours, and a clash reports the points of its node. When the left
+  disjunct of a branch fails without depending on the branch point, the right
+  disjunct is skipped. A rejection with clash set D is proved to rule out every
+  model, in any universes, that satisfies the labels of the nodes whose points
+  lie in D, so satisfiable keeps its exact statement. An inconsistent TBox with
+  eight individuals is refuted in milliseconds, where chronological
+  backtracking did not finish with three. Reuse across queries is the next
+  step of this stage.
+- 1146 audited public theorems and 742 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -693,12 +704,11 @@ progress. Full OWL parsing and executable reasoning are still future work.
   property expressions (SHI), also directly from Functional Syntax source
   bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 408 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 409 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
-  lazy unfolding with absorption, clash detection on insertion and equality
-  blocking; backjumping and caching are not implemented yet, so disjunctions
-  that cannot be absorbed still branch at every node.
+  lazy unfolding with absorption, clash detection on insertion, equality
+  blocking and backjumping; every query still starts from scratch.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;
@@ -706,7 +716,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1332-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1339-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

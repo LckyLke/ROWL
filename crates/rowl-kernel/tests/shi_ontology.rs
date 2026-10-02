@@ -581,3 +581,29 @@ fn inverse_free_closures_agree_with_the_alc_queries() {
     }
     assert!(negative > 50, "the sample must exercise both answers");
 }
+
+#[test]
+fn independent_choices_are_not_retried() {
+    // The equivalence forces every element into A and gives each one an
+    // R-successor outside A, so the closure is inconsistent. Every individual
+    // branches on the same disjunctions; backjumping keeps the search linear in
+    // the number of individuals instead of trying every combination of their
+    // choices.
+    let equivalence = || {
+        axiom(Axiom::EquivalentClasses(two(
+            some(b"R", class(NOTHING)),
+            all(b"R", class(b"A")),
+            vec![not(class(b"A"))],
+        )))
+    };
+    let mut items = vec![equivalence()];
+    for i in 0..8 {
+        items.push(asserted(
+            some(b"R", class(b"A")),
+            named(format!("a{i}").as_bytes()),
+        ));
+    }
+    assert_eq!(consistent(&items), Some(false));
+    // Without the individuals the closure is still inconsistent.
+    assert_eq!(consistent(&vec![equivalence()]), Some(false));
+}

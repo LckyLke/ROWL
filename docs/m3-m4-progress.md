@@ -3042,3 +3042,36 @@ example (`shi_ontology`) shows inverse, symmetric and transitive properties.
 
 The theorem and definition totals are unchanged (1139 and 738); 408 Rust
 regressions and 1332 ledger obligations.
+
+## Reasoner: backjumping in the completion graph tableau
+
+Every node now records the branch points its label depends on (`deps`). A rule
+adds to a node with the points of the node and of its neighbours, its parent, its
+children and the nodes linked to it (`rule_deps`), so the points cover whatever
+the rule rests on; a new tree node starts with its parent's points; a clash
+reports the points of its node and of the clashing entry; a pending `⊥` reports
+the points of the entries it came from. A disjunction branches under a fresh
+point `k`: the left disjunct is added depending on `k`. If it fails with a clash
+set that does not contain `k`, the right disjunct would fail the same way and is
+skipped; otherwise the right disjunct is added depending on the clash set
+without `k`, and its failure is reported. The points are kept as lists;
+joining skips points already listed (`join_from`), and `without_from` drops the
+branch point.
+
+Completion states what a rejection means with the points: FullModel now takes
+the set `D` of a clash and asks only for the labels and tree edges of the nodes
+whose points lie in `D`, and for the pending entries when their points do.
+`add_correct` proves that a rejection with `D` rules out every such model and
+that `D` lies below the next free point (FreshNodes). The branch case is the
+backjumping argument: a clash set without `k` rules out the model whichever
+disjunct holds, and a clash set from the right disjunct rules it out together
+with the left failure, because the nodes' points lie below `k`. For the initial
+graph every node has no points, so `satisfiable_correct` keeps its statement and
+the ontology and source queries their theorems.
+
+A new regression refutes an inconsistent TBox with eight individuals; with
+chronological backtracking three individuals did not finish in two minutes.
+
+This block adds 7 public theorems and 4 independent definitions. Totals are
+1146 audited theorems, 742 definitions, 409 Rust regressions and 1339 ledger
+obligations. Reuse across queries is next.

@@ -1137,7 +1137,14 @@ import Rowl.ShiOntology
 #print axioms Rowl.Completion.copy_nodes_correct
 #print axioms Rowl.Completion.copy_pending_correct
 #print axioms Rowl.Completion.filler_of_correct
+#print axioms Rowl.Completion.join_from_correct
+#print axioms Rowl.Completion.join_correct
+#print axioms Rowl.Completion.without_from_correct
 #print axioms Rowl.Completion.insert_correct
+#print axioms Rowl.Completion.end_deps_correct
+#print axioms Rowl.Completion.children_deps_correct
+#print axioms Rowl.Completion.linked_deps_correct
+#print axioms Rowl.Completion.rule_deps_correct
 #print axioms Rowl.Completion.holds_denote
 #print axioms Rowl.Completion.edge_need_holds
 #print axioms Rowl.Completion.needs_hold
@@ -1979,3 +1986,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.RoleProper
 #print axioms Rowl.ShiOntology.Denies
 #print axioms Rowl.ShiOntology.AnswerData
+#print axioms Rowl.Completion.nodeDeps
+#print axioms Rowl.Completion.Sub
+#print axioms Rowl.Completion.FreshNodes
+#print axioms Rowl.Completion.Near

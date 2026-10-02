@@ -19,8 +19,15 @@
 //!
 //! A tree node is blocked when two tree nodes on its path to its named root have
 //! the same label (equality blocking, which inverse roles need), so unblocked
-//! paths are bounded by the number of label sets. `None` means that a structure
-//! would exceed the `usize` range.
+//! paths are bounded by the number of label sets.
+//!
+//! Backjumping: every node records the branch points its label depends on, the
+//! points of the disjunctions chosen on the way to it. A rule adds to a node with
+//! the points of the node and its neighbours, and a clash reports the points of
+//! its node. When the left disjunct of a branch fails without depending on the
+//! branch point, the right disjunct would fail the same way and is skipped;
+//! otherwise it is tried with the points the failure depended on. `None` means
+//! that a structure would exceed the `usize` range.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -32,8 +39,10 @@
     clippy::boxed_local,
     clippy::manual_map,
     clippy::manual_filter,
-    clippy::if_same_then_else
-)] // Indexed operations and explicit branches for the pinned extraction subset.
+    clippy::if_same_then_else,
+    clippy::too_many_arguments,
+    clippy::vec_init_then_push
+)] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::concept_table::{close, intern, universal_from, universal_is, Entry};
 use crate::concepts::{copy_role, inverse, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
@@ -48,6 +57,8 @@ pub struct Node {
     pub parent: usize,
     pub via: usize,
     pub tree: bool,
+    /// The branch points the label depends on.
+    pub deps: Vec<usize>,
 }
 /// An edge between named nodes along a role.
 pub struct Link {
@@ -94,6 +105,12 @@ pub enum Step {
     Add { node: usize, concept: usize },
     Create { node: usize, existential: usize },
     Done,
+}
+/// The outcome of a search: a complete graph without clashes, or a clash that
+/// depends only on the listed branch points.
+pub enum Outcome {
+    Accepted,
+    Rejected(Vec<usize>),
 }
 
 /// Whether `label[index..]` has the item.
@@ -770,13 +787,19 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, nodes: &Vec<Node>) -> Ste
         None => Step::Done,
     }
 }
-/// The nodes with `item` added to the label of `node`; `None` when there is no
-/// room.
-fn insert(mut nodes: Vec<Node>, node: usize, item: usize) -> Option<Vec<Node>> {
+/// The nodes with `item` added to the label of `node`, which then also depends
+/// on `deps`; `None` when there is no room.
+fn insert(mut nodes: Vec<Node>, node: usize, item: usize, deps: &Vec<usize>) -> Option<Vec<Node>> {
     if node < nodes.len() {
         if nodes[node].label.len() < usize::MAX {
-            nodes[node].label.push(item);
-            Some(nodes)
+            match join(&nodes[node].deps, deps) {
+                Some(joined) => {
+                    nodes[node].label.push(item);
+                    nodes[node].deps = joined;
+                    Some(nodes)
+                }
+                None => None,
+            }
         } else {
             None
         }
@@ -802,6 +825,7 @@ fn copy_nodes(nodes: &Vec<Node>, index: usize, mut out: Vec<Node>) -> Vec<Node> 
                 parent: nodes[index].parent,
                 via: nodes[index].via,
                 tree: nodes[index].tree,
+                deps: copy_label(&nodes[index].deps, 0, Vec::new()),
             });
         }
         copy_nodes(nodes, index + 1, out)
@@ -818,7 +842,43 @@ fn copy_pending(pending: &Pending) -> Pending {
         },
     }
 }
-/// Try the left disjunct on the graph and, if it fails, the right one on a copy.
+/// `out` with every point of `set[index..]` it does not list; `None` when there
+/// is no room.
+fn join_from(set: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Option<Vec<usize>> {
+    if index < set.len() {
+        if contains(&out, set[index], 0) {
+            join_from(set, index + 1, out)
+        } else if out.len() < usize::MAX {
+            out.push(set[index]);
+            join_from(set, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The points of both sets.
+fn join(left: &Vec<usize>, right: &Vec<usize>) -> Option<Vec<usize>> {
+    join_from(right, 0, copy_label(left, 0, Vec::new()))
+}
+/// `out` with every point of `set[index..]` other than `point`.
+fn without_from(set: &Vec<usize>, point: usize, index: usize, mut out: Vec<usize>) -> Vec<usize> {
+    if index < set.len() {
+        if set[index] != point {
+            if out.len() < usize::MAX {
+                out.push(set[index]);
+            }
+        }
+        without_from(set, point, index + 1, out)
+    } else {
+        out
+    }
+}
+/// Try the left disjunct on the graph, under the new branch point `depth`. If it
+/// fails with a clash that does not depend on that point, the right disjunct
+/// fails the same way and the clash is reported; otherwise the right disjunct is
+/// tried on a copy, depending on the points the left failure depended on.
 fn branch(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -827,35 +887,62 @@ fn branch(
     left: usize,
     right: usize,
     next: Box<Pending>,
-) -> Option<bool> {
-    let other_nodes = copy_nodes(&nodes, 0, Vec::new());
-    let other_next = copy_pending(&next);
-    match add(
-        problem,
-        roles,
-        nodes,
-        node,
-        Pending::Item {
-            concept: left,
-            next,
-        },
-    ) {
-        Some(true) => Some(true),
-        Some(false) => add(
+    deps: Vec<usize>,
+    depth: usize,
+) -> Option<Outcome> {
+    if depth < usize::MAX {
+        let other_nodes = copy_nodes(&nodes, 0, Vec::new());
+        let other_next = copy_pending(&next);
+        let mut point = Vec::new();
+        point.push(depth);
+        let left_deps = match join(&deps, &point) {
+            Some(left_deps) => left_deps,
+            None => return None,
+        };
+        match add(
             problem,
             roles,
-            other_nodes,
+            nodes,
             node,
             Pending::Item {
-                concept: right,
-                next: Box::new(other_next),
+                concept: left,
+                next,
             },
-        ),
-        None => None,
+            left_deps,
+            depth + 1,
+        ) {
+            Some(Outcome::Accepted) => Some(Outcome::Accepted),
+            Some(Outcome::Rejected(clash)) => {
+                if contains(&clash, depth, 0) {
+                    let rest = without_from(&clash, depth, 0, Vec::new());
+                    match join(&deps, &rest) {
+                        Some(right_deps) => add(
+                            problem,
+                            roles,
+                            other_nodes,
+                            node,
+                            Pending::Item {
+                                concept: right,
+                                next: Box::new(other_next),
+                            },
+                            right_deps,
+                            depth,
+                        ),
+                        None => None,
+                    }
+                } else {
+                    Some(Outcome::Rejected(clash))
+                }
+            }
+            None => None,
+        }
+    } else {
+        None
     }
 }
-/// Add a literal to the label of `node` unless it is there; a complementary
-/// literal is a clash.
+/// Add a literal, which depends on `deps`, to the label of `node` unless it is
+/// there; a complementary literal is a clash that depends on the node's points
+/// and `deps`.
 fn add_literal(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -863,15 +950,20 @@ fn add_literal(
     node: usize,
     concept: usize,
     next: Box<Pending>,
-) -> Option<bool> {
+    deps: Vec<usize>,
+    depth: usize,
+) -> Option<Outcome> {
     if node < nodes.len() {
         if contains(&nodes[node].label, concept, 0) {
-            add(problem, roles, nodes, node, *next)
+            add(problem, roles, nodes, node, *next, deps, depth)
         } else if clashes(&problem.entries, &nodes[node].label, concept, 0) {
-            Some(false)
+            match join(&nodes[node].deps, &deps) {
+                Some(clash) => Some(Outcome::Rejected(clash)),
+                None => None,
+            }
         } else {
-            match insert(nodes, node, concept) {
-                Some(nodes) => add(problem, roles, nodes, node, *next),
+            match insert(nodes, node, concept, &deps) {
+                Some(nodes) => add(problem, roles, nodes, node, *next, deps, depth),
                 None => None,
             }
         }
@@ -879,21 +971,24 @@ fn add_literal(
         None
     }
 }
-/// Add the pending entries to the label of `node`, then continue the run.
+/// Add the pending entries, which depend on `deps`, to the label of `node`,
+/// then continue the run; `depth` is the next free branch point.
 fn add(
     problem: &Problem,
     roles: &RoleHierarchy,
     nodes: Vec<Node>,
     node: usize,
     pending: Pending,
-) -> Option<bool> {
+    deps: Vec<usize>,
+    depth: usize,
+) -> Option<Outcome> {
     match pending {
-        Pending::Empty => run(problem, roles, nodes),
+        Pending::Empty => run(problem, roles, nodes, depth),
         Pending::Item { concept, next } => {
             if concept < problem.entries.len() {
                 match &problem.entries[concept] {
-                    Entry::Top => add(problem, roles, nodes, node, *next),
-                    Entry::Bottom => Some(false),
+                    Entry::Top => add(problem, roles, nodes, node, *next, deps, depth),
+                    Entry::Bottom => Some(Outcome::Rejected(deps)),
                     Entry::And(left, right) => add(
                         problem,
                         roles,
@@ -906,11 +1001,13 @@ fn add(
                                 next,
                             }),
                         },
+                        deps,
+                        depth,
                     ),
-                    Entry::Or(left, right) => {
-                        branch(problem, roles, nodes, node, *left, *right, next)
-                    }
-                    _ => add_literal(problem, roles, nodes, node, concept, next),
+                    Entry::Or(left, right) => branch(
+                        problem, roles, nodes, node, *left, *right, next, deps, depth,
+                    ),
+                    _ => add_literal(problem, roles, nodes, node, concept, next, deps, depth),
                 }
             } else {
                 None
@@ -930,58 +1027,169 @@ fn filler_of(entries: &Vec<Entry>, existential: usize) -> Option<usize> {
     }
 }
 /// Create a tree node below `node` for the existential entry, with its filler
-/// and the TBox concept.
+/// and the TBox concept; the new node depends on the points of `node`.
 fn create(
     problem: &Problem,
     roles: &RoleHierarchy,
     mut nodes: Vec<Node>,
     node: usize,
     existential: usize,
-) -> Option<bool> {
+    depth: usize,
+) -> Option<Outcome> {
     let filler = match filler_of(&problem.entries, existential) {
         Some(filler) => filler,
         None => return None,
     };
-    if nodes.len() < usize::MAX {
-        let child = nodes.len();
-        nodes.push(Node {
-            label: Vec::new(),
-            parent: node,
-            via: existential,
-            tree: true,
-        });
-        add(
-            problem,
-            roles,
-            nodes,
-            child,
-            Pending::Item {
-                concept: filler,
-                next: Box::new(Pending::Item {
-                    concept: problem.axioms,
-                    next: Box::new(Pending::Empty),
-                }),
-            },
-        )
+    if node < nodes.len() {
+        if nodes.len() < usize::MAX {
+            let child = nodes.len();
+            let deps = copy_label(&nodes[node].deps, 0, Vec::new());
+            nodes.push(Node {
+                label: Vec::new(),
+                parent: node,
+                via: existential,
+                tree: true,
+                deps: copy_label(&deps, 0, Vec::new()),
+            });
+            add(
+                problem,
+                roles,
+                nodes,
+                child,
+                Pending::Item {
+                    concept: filler,
+                    next: Box::new(Pending::Item {
+                        concept: problem.axioms,
+                        next: Box::new(Pending::Empty),
+                    }),
+                },
+                deps,
+                depth,
+            )
+        } else {
+            None
+        }
     } else {
         None
     }
 }
-/// Apply rules until a clash, a complete graph, or no room.
-fn run(problem: &Problem, roles: &RoleHierarchy, nodes: Vec<Node>) -> Option<bool> {
-    match next_step(problem, roles, &nodes) {
-        Step::Add { node, concept } => add(
-            problem,
-            roles,
-            nodes,
-            node,
-            Pending::Item {
-                concept,
-                next: Box::new(Pending::Empty),
+/// `out` with the points of every tree node of `nodes[index..]` below `node`.
+fn children_deps(
+    nodes: &Vec<Node>,
+    node: usize,
+    index: usize,
+    out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if index < nodes.len() {
+        let child = if nodes[index].tree {
+            nodes[index].parent == node
+        } else {
+            false
+        };
+        if child {
+            match join_from(&nodes[index].deps, 0, out) {
+                Some(out) => children_deps(nodes, node, index + 1, out),
+                None => None,
+            }
+        } else {
+            children_deps(nodes, node, index + 1, out)
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the points of node `end`, if there is such a node.
+fn end_deps(nodes: &Vec<Node>, end: usize, out: Vec<usize>) -> Option<Vec<usize>> {
+    if end < nodes.len() {
+        join_from(&nodes[end].deps, 0, out)
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the points of the other end of every link of `links[index..]`
+/// at `node`.
+fn linked_deps(
+    links: &Vec<Link>,
+    nodes: &Vec<Node>,
+    node: usize,
+    index: usize,
+    out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if index < links.len() {
+        let to = links[index].to;
+        let from = links[index].from;
+        let forward = if from == node {
+            end_deps(nodes, to, out)
+        } else {
+            Some(out)
+        };
+        match forward {
+            Some(out) => {
+                let backward = if to == node {
+                    end_deps(nodes, from, out)
+                } else {
+                    Some(out)
+                };
+                match backward {
+                    Some(out) => linked_deps(links, nodes, node, index + 1, out),
+                    None => None,
+                }
+            }
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The points the labels of `node` and of its neighbours depend on: everything a
+/// rule adding to `node` can rest on.
+fn rule_deps(problem: &Problem, nodes: &Vec<Node>, node: usize) -> Option<Vec<usize>> {
+    if node < nodes.len() {
+        let own = copy_label(&nodes[node].deps, 0, Vec::new());
+        let with_parent = if nodes[node].tree {
+            end_deps(nodes, nodes[node].parent, own)
+        } else {
+            Some(own)
+        };
+        match with_parent {
+            Some(out) => match children_deps(nodes, node, 0, out) {
+                Some(out) => linked_deps(&problem.links, nodes, node, 0, out),
+                None => None,
             },
-        ),
-        Step::Create { node, existential } => create(problem, roles, nodes, node, existential),
-        Step::Done => Some(true),
+            None => None,
+        }
+    } else {
+        None
+    }
+}
+/// Apply rules until a clash, a complete graph, or no room; `depth` is the next
+/// free branch point.
+fn run(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    nodes: Vec<Node>,
+    depth: usize,
+) -> Option<Outcome> {
+    match next_step(problem, roles, &nodes) {
+        Step::Add { node, concept } => match rule_deps(problem, &nodes, node) {
+            Some(deps) => add(
+                problem,
+                roles,
+                nodes,
+                node,
+                Pending::Item {
+                    concept,
+                    next: Box::new(Pending::Empty),
+                },
+                deps,
+                depth,
+            ),
+            None => None,
+        },
+        Step::Create { node, existential } => {
+            create(problem, roles, nodes, node, existential, depth)
+        }
+        Step::Done => Some(Outcome::Accepted),
     }
 }
 fn intern_facts(
@@ -1042,6 +1250,7 @@ fn named_nodes(count: usize, mut nodes: Vec<Node>) -> Option<Vec<Node>> {
                 parent: 0,
                 via: 0,
                 tree: false,
+                deps: Vec::new(),
             });
             named_nodes(count, nodes)
         } else {
@@ -1093,5 +1302,9 @@ pub fn satisfiable(
         unfoldings,
         axioms,
     };
-    run(&problem, roles, nodes)
+    match run(&problem, roles, nodes, 0) {
+        Some(Outcome::Accepted) => Some(true),
+        Some(Outcome::Rejected(_)) => Some(false),
+        None => None,
+    }
 }

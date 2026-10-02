@@ -1035,4 +1035,9 @@ left, and branching by copying the graph. The design keeps the proofs modular:
   definitions first (`∃r.E ⊑ D` as `E ⊑ ∀r⁻.D`, `E ⊓ F ⊑ D` as `E ⊑ ¬F ⊔ D`),
   which inverse roles make possible. Domain axioms become universal
   restrictions on the inverse role, so they no longer branch either.
-  Backjumping and reuse across queries follow as a separate stage.
+- Backjumping keeps the proof modular too: nodes record the branch points their
+  labels depend on, and a rejection is read as "no model satisfies the nodes
+  whose points lie in the clash set". Deterministic rules preserve that reading
+  forward, so only the branch rule needs the backjumping argument, and the
+  graph search and the model construction are unchanged. Reuse across queries
+  follows as a separate step.

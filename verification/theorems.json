@@ -1634,7 +1634,14 @@
         "Rowl.Completion.copy_nodes_correct",
         "Rowl.Completion.copy_pending_correct",
         "Rowl.Completion.filler_of_correct",
+        "Rowl.Completion.join_from_correct",
+        "Rowl.Completion.join_correct",
+        "Rowl.Completion.without_from_correct",
         "Rowl.Completion.insert_correct",
+        "Rowl.Completion.end_deps_correct",
+        "Rowl.Completion.children_deps_correct",
+        "Rowl.Completion.linked_deps_correct",
+        "Rowl.Completion.rule_deps_correct",
         "Rowl.Completion.holds_denote",
         "Rowl.Completion.edge_need_holds",
         "Rowl.Completion.needs_hold",
@@ -2497,6 +2504,10 @@
     "Rowl.ShiOntology.DefinitionProper",
     "Rowl.ShiOntology.RoleProper",
     "Rowl.ShiOntology.Denies",
-    "Rowl.ShiOntology.AnswerData"
+    "Rowl.ShiOntology.AnswerData",
+    "Rowl.Completion.nodeDeps",
+    "Rowl.Completion.Sub",
+    "Rowl.Completion.FreshNodes",
+    "Rowl.Completion.Near"
   ]
 }

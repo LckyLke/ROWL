@@ -117,7 +117,7 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
 | **Logic** | ALC (and, or, not, some, only) with named individuals, inverse roles, role hierarchies and transitive roles (SHI) | number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
-| **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection and equality blocking | backjumping, caching across queries |
+| **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection, equality blocking and backjumping | reuse across queries |
 
 There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
 and proofs from bytes to answers. [`docs/status.md`](docs/status.md) states

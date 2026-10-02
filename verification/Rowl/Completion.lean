@@ -35,23 +35,45 @@ def pendingList : completion.Pending → List Usize
   | .Empty => []
   | .Item c next => c :: pendingList next
 
-/-- An interpretation, in any universes, with a placement of every node: it
-    respects the role hierarchy, the TBox concept and the unfoldings hold
-    everywhere, every requirement and link holds, every label holds at its node,
-    every tree node is reached from its parent along the role that created it,
-    and the extra entries hold at node `x`. -/
+/-- The branch points the label of node `y` depends on. -/
+def nodeDeps (nodes : List completion.Node) (y : Nat) : List Usize :=
+  match nodes[y]? with
+  | some n => n.deps.val
+  | none => []
+
+/-- Every point of `a` is a point of `b`. -/
+def Sub (a b : List Usize) : Prop := ∀ k ∈ a, k ∈ b
+
+/-- Every point the nodes depend on is below `fresh`, so `fresh` is a new branch
+    point. -/
+def FreshNodes (nodes : List completion.Node) (fresh : Nat) : Prop :=
+  ∀ y, ∀ k ∈ nodeDeps nodes y, k.val < fresh
+
+/-- `y` is `x` or a neighbour of `x`: its parent, a child, or a node linked to it. -/
+def Near (P : completion.Problem) (nodes : List completion.Node) (x y : Nat) : Prop :=
+  y = x ∨
+  (∃ n : completion.Node, nodes[x]? = some n ∧ n.tree = true ∧ n.parent.val = y) ∨
+  (∃ n : completion.Node, nodes[y]? = some n ∧ n.tree = true ∧ n.parent.val = x) ∨
+  (∃ l ∈ P.links.val, (l.from.val = x ∧ l.to.val = y) ∨ (l.to.val = x ∧ l.from.val = y))
+
+/-- An interpretation, in any universes, with a placement of every node, that
+    holds under the branch points `D`: it respects the role hierarchy, the TBox
+    concept and the unfoldings hold everywhere, every requirement and link holds,
+    the label of every node whose points are in `D` holds at it, every such tree
+    node is reached from its parent along the role that created it, and, when
+    the points `deps` are in `D`, the extra entries hold at node `x`. -/
 def FullModel (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node) (x : Nat)
-    (extra : List Usize) : Prop :=
+    (extra deps D : List Usize) : Prop :=
   ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
     Respects I h ∧
     (∀ y, denote I (meaning P.entries.val P.axioms.val) y) ∧
     (∀ w ∈ P.unfoldings.val, ∀ y, I.classes w.class y → denote I (meaning P.entries.val w.concept.val) y) ∧
     (∀ q ∈ P.requirements.val, denote I (meaning P.entries.val q.concept.val) (π q.node.val)) ∧
     (∀ l ∈ P.links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) ∧
-    (∀ y, ∀ i ∈ labelOf nodes y, denote I (meaning P.entries.val i.val) (π y)) ∧
-    (∀ y n s, nodes[y]? = some n → n.tree = true → createdRole P.entries.val n = some s →
+    (∀ y, Sub (nodeDeps nodes y) D → ∀ i ∈ labelOf nodes y, denote I (meaning P.entries.val i.val) (π y)) ∧
+    (∀ y n s, nodes[y]? = some n → n.tree = true → Sub n.deps.val D → createdRole P.entries.val n = some s →
       objectRelation I s (π n.parent.val) (π y)) ∧
-    (∀ c ∈ extra, denote I (meaning P.entries.val c.val) (π x))
+    (Sub deps D → ∀ c ∈ extra, denote I (meaning P.entries.val c.val) (π x))
 
 /-- A model in `Type` of what the named nodes need: it respects the role
     hierarchy, the TBox concept and the unfoldings hold everywhere, every
@@ -107,8 +129,10 @@ theorem copy_nodes_correct (nodes : alloc.vec.Vec completion.Node) (index : Usiz
       rw [copied]; simp; have := nodes.property; scalar_tac
     have labelCopy := copy_label_correct nodes.val[index.val].label 0#usize (alloc.vec.Vec.new Usize) (by simp)
       (by simp)
+    have depsCopy := copy_label_correct nodes.val[index.val].deps 0#usize (alloc.vec.Vec.new Usize) (by simp)
+      (by simp)
     have same : (⟨nodes.val[index.val].label,nodes.val[index.val].parent,nodes.val[index.val].via,
-        nodes.val[index.val].tree⟩ : completion.Node) = nodes.val[index.val] := rfl
+        nodes.val[index.val].tree,nodes.val[index.val].deps⟩ : completion.Node) = nodes.val[index.val] := rfl
     obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out nodes.val[index.val] room)
     obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
@@ -116,7 +140,7 @@ theorem copy_nodes_correct (nodes : alloc.vec.Vec completion.Node) (index : Usiz
     have rest := copy_nodes_correct nodes next appended
       (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
     simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
-      alloc.vec.Vec.index_slice_index,lookup,bind_ok,labelCopy,same,push,advance,rest]
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,labelCopy,depsCopy,same,push,advance,rest]
   · have full : index.val = nodes.val.length := by omega
     have same : out = nodes := by
       apply (alloc.vec.Vec.eq_iff out nodes).mpr
@@ -144,31 +168,416 @@ theorem filler_of_correct (entries : alloc.vec.Vec concept_table.Entry) (i : Usi
   · rw [List.getElem?_eq_none_iff.mpr (by omega)]
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]
 
-/-- Inserting into a label appends the item to that label and changes nothing
-    else; `None` only without room. -/
-theorem insert_correct (nodes : alloc.vec.Vec completion.Node) (x item : Usize) :
-    ∃ r, completion.insert nodes x item = .ok r ∧ ∀ nodes', r = some nodes' →
-      ∃ inside : x.val < nodes.val.length, ∃ label : alloc.vec.Vec Usize,
+/-- Joining points: `out` with every point of `set[index..]`. -/
+theorem join_from_correct (set : alloc.vec.Vec Usize) (index : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ r, completion.join_from set index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ k, k ∈ out'.val ↔ k ∈ out.val ∨ k ∈ set.val.drop index.val := by
+  rw [completion.join_from]
+  by_cases more : index.val < set.val.length
+  · have lookup : set.index_usize index = .ok set.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : set.val.drop index.val = set.val[index.val] :: set.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    by_cases listed : set.val[index.val] ∈ out.val
+    · obtain ⟨r,run,spec⟩ := join_from_correct set next out
+      refine ⟨r,?_,?_⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,listed,decide_true,advance,run]
+      · intro out' same k
+        rw [spec out' same k,nextIndex,split,List.mem_cons]
+        constructor
+        · rintro (old | later)
+          · exact .inl old
+          · exact .inr (.inr later)
+        · rintro (old | rfl | later)
+          · exact .inl old
+          · exact .inl listed
+          · exact .inr later
+    · by_cases room : out.val.length < Usize.max
+      · obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out set.val[index.val] room)
+        obtain ⟨r,run,spec⟩ := join_from_correct set next appended
+        refine ⟨r,?_,?_⟩
+        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,listed,decide_false,
+            Bool.false_eq_true,usize_max_val,room,push,advance,run]
+        · intro out' same k
+          rw [spec out' same k,nextIndex,split,List.mem_cons,contents,List.mem_append,List.mem_singleton]
+          tauto
+      · refine ⟨none,?_,by simp⟩
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,listed,decide_false,
+          Bool.false_eq_true,usize_max_val,room]
+  · have empty : set.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same k
+    cases same
+    simp [empty]
+termination_by set.val.length - index.val
+decreasing_by all_goals omega
+
+/-- Joining two sets of points. -/
+theorem join_correct (left right : alloc.vec.Vec Usize) :
+    ∃ r, completion.join left right = .ok r ∧ ∀ out, r = some out → ∀ k, k ∈ out.val ↔ k ∈ left.val ∨ k ∈ right.val := by
+  rw [completion.join,copy_label_correct left 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)]
+  obtain ⟨r,run,spec⟩ := join_from_correct right 0#usize left
+  refine ⟨r,by simp [run],?_⟩
+  intro out same k
+  rw [spec out same k]
+  simp
+
+/-- Removing a point: `out` with every point of `set[index..]` other than `point`. -/
+theorem without_from_correct (set : alloc.vec.Vec Usize) (point index : Usize) (out : alloc.vec.Vec Usize)
+    (room : out.val.length ≤ index.val) :
+    ∃ out', completion.without_from set point index out = .ok out' ∧
+      ∀ k, k ∈ out'.val ↔ k ∈ out.val ∨ (k ∈ set.val.drop index.val ∧ k ≠ point) := by
+  rw [completion.without_from]
+  by_cases more : index.val < set.val.length
+  · have lookup : set.index_usize index = .ok set.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : set.val.drop index.val = set.val[index.val] :: set.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have fits : out.val.length < Usize.max := by have := set.property; scalar_tac
+    by_cases kept : set.val[index.val] = point
+    · obtain ⟨out',run,spec⟩ := without_from_correct set point next out (by omega)
+      refine ⟨out',?_,?_⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,kept,bne_self_eq_false,Bool.false_eq_true,advance,run]
+      · intro k
+        rw [spec k,nextIndex,split,List.mem_cons]
+        constructor
+        · rintro (old | ⟨later,other⟩)
+          · exact .inl old
+          · exact .inr ⟨.inr later,other⟩
+        · rintro (old | ⟨rfl | later,other⟩)
+          · exact .inl old
+          · exact absurd kept other
+          · exact .inr ⟨later,other⟩
+    · obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out set.val[index.val] fits)
+      obtain ⟨out',run,spec⟩ := without_from_correct set point next appended (by rw [contents]; simp; omega)
+      refine ⟨out',?_,?_⟩
+      · have different : (set.val[index.val] != point) = true := by simpa using kept
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,different,usize_max_val,fits,push,advance,run]
+      · intro k
+        rw [spec k,nextIndex,split,List.mem_cons,contents,List.mem_append,List.mem_singleton]
+        constructor
+        · rintro ((old | rfl) | ⟨later,other⟩)
+          · exact .inl old
+          · exact .inr ⟨.inl rfl,kept⟩
+          · exact .inr ⟨.inr later,other⟩
+        · rintro (old | ⟨rfl | later,other⟩)
+          · exact .inl (.inl old)
+          · exact .inl (.inr rfl)
+          · exact .inr ⟨later,other⟩
+  · have empty : set.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro k
+    simp [empty]
+termination_by set.val.length - index.val
+decreasing_by all_goals omega
+
+/-- Inserting into a label appends the item to that label, joins the points into
+    the node's points, and changes nothing else; `None` only without room. -/
+theorem insert_correct (nodes : alloc.vec.Vec completion.Node) (x item : Usize) (deps : alloc.vec.Vec Usize) :
+    ∃ r, completion.insert nodes x item deps = .ok r ∧ ∀ nodes', r = some nodes' →
+      ∃ inside : x.val < nodes.val.length, ∃ (label joined : alloc.vec.Vec Usize),
         label.val = nodes.val[x.val].label.val ++ [item] ∧
-        nodes'.val = nodes.val.set x.val { nodes.val[x.val] with label := label } := by
+        (∀ k, k ∈ joined.val ↔ k ∈ nodes.val[x.val].deps.val ∨ k ∈ deps.val) ∧
+        nodes'.val = nodes.val.set x.val
+          ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,joined⟩ := by
   rw [completion.insert]
   by_cases inside : x.val < nodes.val.length
   · have lookup : nodes.index_usize x = .ok nodes.val[x.val] := by
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
     by_cases room : nodes.val[x.val].label.val.length < Usize.max
-    · obtain ⟨label,push,contents⟩ := WP.spec_imp_exists
-        (alloc.vec.Vec.push_spec nodes.val[x.val].label item room)
-      refine ⟨some (nodes.set x { nodes.val[x.val] with label := label }),?_,?_⟩
-      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,usize_max_val,room,alloc.vec.Vec.index_mut_slice_index,alloc.vec.Vec.index_mut_usize,push]
-        simp [push]
-      · intro nodes' same
-        cases same
-        exact ⟨inside,label,contents,by simp⟩
+    · obtain ⟨joinResult,joinRun,joinSpec⟩ := join_correct nodes.val[x.val].deps deps
+      cases joinResult with
+      | none =>
+        refine ⟨none,?_,by simp⟩
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,usize_max_val,room,joinRun]
+      | some joined =>
+        obtain ⟨label,push,contents⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec nodes.val[x.val].label item room)
+        refine ⟨some (nodes.set x
+          ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,joined⟩),?_,?_⟩
+        · have setLookup : (nodes.set x
+              ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,nodes.val[x.val].deps⟩).index_usize x =
+              .ok ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,nodes.val[x.val].deps⟩ := by
+            simp [alloc.vec.Vec.index_usize,alloc.vec.Vec.set_val_eq,inside]
+          have twice : (nodes.set x
+              ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,nodes.val[x.val].deps⟩).set x
+              ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,joined⟩ =
+              nodes.set x ⟨label,nodes.val[x.val].parent,nodes.val[x.val].via,nodes.val[x.val].tree,joined⟩ := by
+            apply (alloc.vec.Vec.eq_iff _ _).mpr
+            simp [alloc.vec.Vec.set_val_eq]
+          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+            lookup,bind_ok,usize_max_val,room,joinRun,alloc.vec.Vec.index_mut_slice_index,
+            alloc.vec.Vec.index_mut_usize,push]
+          simp [push,setLookup,twice]
+        · intro nodes' same
+          cases same
+          exact ⟨inside,label,joined,contents,joinSpec joined rfl,by simp⟩
     · refine ⟨none,?_,by simp⟩
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,usize_max_val,room]
   · refine ⟨none,?_,by simp⟩
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]
+
+/-- The points of a node, if there is one. -/
+theorem end_deps_correct (nodes : alloc.vec.Vec completion.Node) (e : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ r, completion.end_deps nodes e out = .ok r ∧ ∀ out', r = some out' →
+      ∀ k, k ∈ out'.val ↔ k ∈ out.val ∨ k ∈ nodeDeps nodes.val e.val := by
+  rw [completion.end_deps]
+  by_cases inside : e.val < nodes.val.length
+  · have lookup : nodes.index_usize e = .ok nodes.val[e.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+    obtain ⟨r,run,spec⟩ := join_from_correct nodes.val[e.val].deps 0#usize out
+    refine ⟨r,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run],?_⟩
+    intro out' same k
+    rw [spec out' same k]
+    simp [nodeDeps,List.getElem?_eq_getElem inside]
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside],?_⟩
+    intro out' same k
+    cases same
+    simp [nodeDeps,List.getElem?_eq_none_iff.mpr (show nodes.val.length ≤ e.val by omega)]
+
+/-- The points of the tree nodes below `node`, from `index` on. -/
+theorem children_deps_correct (nodes : alloc.vec.Vec completion.Node) (node index : Usize)
+    (out : alloc.vec.Vec Usize) :
+    ∃ r, completion.children_deps nodes node index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ k, k ∈ out'.val ↔ k ∈ out.val ∨ ∃ y, index.val ≤ y ∧ ∃ n : completion.Node, nodes.val[y]? = some n ∧
+        n.tree = true ∧ n.parent = node ∧ k ∈ n.deps.val := by
+  rw [completion.children_deps]
+  by_cases more : index.val < nodes.val.length
+  · have lookup : nodes.index_usize index = .ok nodes.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have at_index : nodes.val[index.val]? = some nodes.val[index.val] := List.getElem?_eq_getElem more
+    have step : ∀ y, index.val ≤ y ↔ y = index.val ∨ next.val ≤ y := by intro y; omega
+    by_cases child : nodes.val[index.val].tree = true ∧ nodes.val[index.val].parent = node
+    · obtain ⟨joined,joinRun,joinSpec⟩ := join_from_correct nodes.val[index.val].deps 0#usize out
+      cases joined with
+      | none =>
+        refine ⟨none,?_,by simp⟩
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,child.1,child.2,joinRun]
+      | some out1 =>
+        obtain ⟨r,run,spec⟩ := children_deps_correct nodes node next out1
+        refine ⟨r,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,child.1,child.2,joinRun,advance,run],?_⟩
+        intro out' same k
+        rw [spec out' same k,joinSpec out1 rfl k]
+        simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
+        constructor
+        · rintro ((old | here) | ⟨y,later,n,at_y,tree,parent,listed⟩)
+          · exact .inl old
+          · exact .inr ⟨index.val,le_refl _,nodes.val[index.val],at_index,child.1,child.2,here⟩
+          · exact .inr ⟨y,by omega,n,at_y,tree,parent,listed⟩
+        · rintro (old | ⟨y,from',n,at_y,tree,parent,listed⟩)
+          · exact .inl (.inl old)
+          · rcases (step y).mp from' with rfl | later
+            · rw [at_index] at at_y
+              cases at_y
+              exact .inl (.inr listed)
+            · exact .inr ⟨y,later,n,at_y,tree,parent,listed⟩
+    · obtain ⟨r,run,spec⟩ := children_deps_correct nodes node next out
+      have notChild : (if nodes.val[index.val].tree = true then decide (nodes.val[index.val].parent = node) else false)
+          = false := by
+        by_cases tree : nodes.val[index.val].tree = true
+        · have : ¬ nodes.val[index.val].parent = node := fun same => child ⟨tree,same⟩
+          simp [tree,this]
+        · simp [tree]
+      refine ⟨r,?_,?_⟩
+      · by_cases tree : nodes.val[index.val].tree = true
+        · have parentNot : ¬ nodes.val[index.val].parent = node := fun same => child ⟨tree,same⟩
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,tree,parentNot,advance,run]
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,tree,advance,run]
+      · intro out' same k
+        rw [spec out' same k]
+        constructor
+        · rintro (old | ⟨y,later,n,at_y,tree,parent,listed⟩)
+          · exact .inl old
+          · exact .inr ⟨y,by omega,n,at_y,tree,parent,listed⟩
+        · rintro (old | ⟨y,from',n,at_y,tree,parent,listed⟩)
+          · exact .inl old
+          · rcases (step y).mp from' with rfl | later
+            · rw [at_index] at at_y
+              cases at_y
+              exact absurd ⟨tree,parent⟩ child
+            · exact .inr ⟨y,later,n,at_y,tree,parent,listed⟩
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same k
+    cases same
+    constructor
+    · exact .inl
+    · rintro (old | ⟨y,from',n,at_y,_⟩)
+      · exact old
+      · rw [List.getElem?_eq_none_iff.mpr (by omega)] at at_y
+        cases at_y
+termination_by nodes.val.length - index.val
+decreasing_by all_goals omega
+
+/-- The points of the other ends of the links at `node`, from `index` on. -/
+theorem linked_deps_correct (links : alloc.vec.Vec completion.Link) (nodes : alloc.vec.Vec completion.Node)
+    (node index : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ r, completion.linked_deps links nodes node index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ k, k ∈ out'.val ↔ k ∈ out.val ∨ ∃ l ∈ links.val.drop index.val,
+        (l.from = node ∧ k ∈ nodeDeps nodes.val l.to.val) ∨ (l.to = node ∧ k ∈ nodeDeps nodes.val l.from.val) := by
+  rw [completion.linked_deps]
+  by_cases more : index.val < links.val.length
+  · have lookup : links.index_usize index = .ok links.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : links.val.drop index.val = links.val[index.val] :: links.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    set l := links.val[index.val] with lIs
+    -- The forward end.
+    have forward : ∃ r1, (if l.from = node then completion.end_deps nodes l.to out else ok (some out)) = .ok r1 ∧
+        ∀ o, r1 = some o → ∀ k, k ∈ o.val ↔ k ∈ out.val ∨ (l.from = node ∧ k ∈ nodeDeps nodes.val l.to.val) := by
+      by_cases fromHere : l.from = node
+      · obtain ⟨r1,run1,spec1⟩ := end_deps_correct nodes l.to out
+        refine ⟨r1,by simp [fromHere,run1],fun o same k => ?_⟩
+        rw [spec1 o same k]
+        simp [fromHere]
+      · refine ⟨some out,by simp [fromHere],fun o same k => ?_⟩
+        cases same
+        simp [fromHere]
+    obtain ⟨r1,run1,spec1⟩ := forward
+    cases r1 with
+    | none =>
+      refine ⟨none,?_,by simp⟩
+      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok]
+      rw [run1]
+      simp
+    | some out1 =>
+      have backward : ∃ r2, (if l.to = node then completion.end_deps nodes l.from out1 else ok (some out1)) = .ok r2 ∧
+          ∀ o, r2 = some o → ∀ k, k ∈ o.val ↔ k ∈ out1.val ∨ (l.to = node ∧ k ∈ nodeDeps nodes.val l.from.val) := by
+        by_cases toHere : l.to = node
+        · obtain ⟨r2,run2,spec2⟩ := end_deps_correct nodes l.from out1
+          refine ⟨r2,by simp [toHere,run2],fun o same k => ?_⟩
+          rw [spec2 o same k]
+          simp [toHere]
+        · refine ⟨some out1,by simp [toHere],fun o same k => ?_⟩
+          cases same
+          simp [toHere]
+      obtain ⟨r2,run2,spec2⟩ := backward
+      cases r2 with
+      | none =>
+        refine ⟨none,?_,by simp⟩
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok]
+        rw [run1]
+        simp only [bind_ok]
+        rw [run2]
+        simp
+      | some out2 =>
+        obtain ⟨r,run,spec⟩ := linked_deps_correct links nodes node next out2
+        refine ⟨r,?_,?_⟩
+        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok]
+          rw [run1]
+          simp only [bind_ok]
+          rw [run2]
+          simp [advance,run]
+        · intro out' same k
+          rw [spec out' same k,spec2 out2 rfl k,spec1 out1 rfl k,split,nextIndex]
+          simp only [List.mem_cons,exists_eq_or_imp]
+          constructor
+          · rintro (((old | here) | there) | later)
+            · exact .inl old
+            · exact .inr (.inl (.inl here))
+            · exact .inr (.inl (.inr there))
+            · exact .inr (.inr later)
+          · rintro (old | (here | there) | later)
+            · exact .inl (.inl (.inl old))
+            · exact .inl (.inl (.inr here))
+            · exact .inl (.inr there)
+            · exact .inr later
+  · have empty : links.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same k
+    cases same
+    simp [empty]
+termination_by links.val.length - index.val
+decreasing_by all_goals omega
+
+/-- The points of a node and of its neighbours: the result covers the points of
+    every node near `x`, and every point comes from some node. -/
+theorem rule_deps_correct (P : completion.Problem) (nodes : alloc.vec.Vec completion.Node) (x : Usize)
+    (inside : x.val < nodes.val.length) :
+    ∃ r, completion.rule_deps P nodes x = .ok r ∧ ∀ out, r = some out →
+      (∀ y, Near P nodes.val x.val y → Sub (nodeDeps nodes.val y) out.val) ∧
+      (∀ k ∈ out.val, ∃ y, k ∈ nodeDeps nodes.val y) := by
+  have lookup : nodes.index_usize x = .ok nodes.val[x.val] := by
+    simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+  have at_x : nodes.val[x.val]? = some nodes.val[x.val] := List.getElem?_eq_getElem inside
+  have own : nodeDeps nodes.val x.val = nodes.val[x.val].deps.val := by simp [nodeDeps,at_x]
+  rw [completion.rule_deps]
+  simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,bind_ok,
+    copy_label_correct nodes.val[x.val].deps 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)]
+  -- With the parent.
+  have parentStep : ∃ r1, (if nodes.val[x.val].tree = true then completion.end_deps nodes nodes.val[x.val].parent
+        nodes.val[x.val].deps else ok (some nodes.val[x.val].deps)) = .ok r1 ∧ ∀ o, r1 = some o →
+      ∀ k, k ∈ o.val ↔ k ∈ nodes.val[x.val].deps.val ∨
+        (nodes.val[x.val].tree = true ∧ k ∈ nodeDeps nodes.val nodes.val[x.val].parent.val) := by
+    by_cases tree : nodes.val[x.val].tree = true
+    · obtain ⟨r1,run1,spec1⟩ := end_deps_correct nodes nodes.val[x.val].parent nodes.val[x.val].deps
+      refine ⟨r1,by simp [tree,run1],fun o same k => ?_⟩
+      rw [spec1 o same k]
+      simp [tree]
+    · refine ⟨some nodes.val[x.val].deps,by simp [tree],fun o same k => ?_⟩
+      cases same
+      simp [tree]
+  obtain ⟨r1,run1,spec1⟩ := parentStep
+  rw [run1]
+  cases r1 with
+  | none => exact ⟨none,by simp,by simp⟩
+  | some out1 =>
+    obtain ⟨r2,run2,spec2⟩ := children_deps_correct nodes x 0#usize out1
+    simp only [bind_ok,run2]
+    cases r2 with
+    | none => exact ⟨none,by simp,by simp⟩
+    | some out2 =>
+      obtain ⟨r3,run3,spec3⟩ := linked_deps_correct P.links nodes x 0#usize out2
+      refine ⟨r3,by simp [run3],?_⟩
+      intro out same
+      have member : ∀ k, k ∈ out.val ↔ (k ∈ nodes.val[x.val].deps.val ∨
+          (nodes.val[x.val].tree = true ∧ k ∈ nodeDeps nodes.val nodes.val[x.val].parent.val)) ∨
+          (∃ y, 0 ≤ y ∧ ∃ n : completion.Node, nodes.val[y]? = some n ∧ n.tree = true ∧ n.parent = x ∧ k ∈ n.deps.val) ∨
+          ∃ l ∈ P.links.val, (l.from = x ∧ k ∈ nodeDeps nodes.val l.to.val) ∨
+            (l.to = x ∧ k ∈ nodeDeps nodes.val l.from.val) := by
+        intro k
+        rw [spec3 out same k,spec2 out2 rfl k,spec1 out1 rfl k]
+        simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
+        exact or_assoc
+      refine ⟨?_,?_⟩
+      · intro y near k listed
+        rw [member k]
+        rcases near with rfl | ⟨n,at_n,tree,parent⟩ | ⟨n,at_n,tree,parent⟩ | ⟨l,linked,⟨source,target⟩ | ⟨target,source⟩⟩
+        · rw [own] at listed
+          exact .inl (.inl listed)
+        · rw [at_x] at at_n
+          cases at_n
+          exact .inl (.inr ⟨tree,by rw [parent]; exact listed⟩)
+        · refine .inr (.inl ⟨y,Nat.zero_le _,n,at_n,tree,UScalar.eq_of_val_eq parent,?_⟩)
+          simpa [nodeDeps,at_n] using listed
+        · exact .inr (.inr ⟨l,linked,.inl ⟨UScalar.eq_of_val_eq source,by rw [target]; exact listed⟩⟩)
+        · exact .inr (.inr ⟨l,linked,.inr ⟨UScalar.eq_of_val_eq target,by rw [source]; exact listed⟩⟩)
+      · intro k listed
+        rcases (member k).mp listed with (here | ⟨_,parent⟩) | ⟨y,_,n,at_n,_,_,there⟩ | ⟨l,_,⟨_,there⟩ | ⟨_,there⟩⟩
+        · exact ⟨x.val,by rw [own]; exact here⟩
+        · exact ⟨_,parent⟩
+        · exact ⟨y,by simpa [nodeDeps,at_n] using there⟩
+        · exact ⟨_,there⟩
+        · exact ⟨_,there⟩
 
 /-- In an interpretation where every listed literal holds at an element, every
     entry the label satisfies holds there too. -/
@@ -235,8 +644,9 @@ theorem edge_need_holds {Object : Type u} {Value : Type v} (I : Interpretation O
     have along : objectRelation I t a b := respects_below respects first edge
     exact universal z (respects_below respects second (respects.2 t transitive a b z along next))
 
-/-- Everything a node needs holds at its element in every interpretation that
-    places every node. -/
+/-- Everything a node needs holds at its element in every interpretation where
+    the labels of the node and its neighbours hold, and the tree edges at the
+    node hold. -/
 theorem needs_hold {Object : Type u} {Value : Type v} (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     (nodes : List completion.Node) (wf : WellFormed P.entries.val) (I : Interpretation Object Value)
     (π : Nat → Object) (respects : Respects I h)
@@ -245,25 +655,27 @@ theorem needs_hold {Object : Type u} {Value : Type v} (P : completion.Problem) (
       denote I (meaning P.entries.val w.concept.val) y)
     (requirementsHold : ∀ q ∈ P.requirements.val, denote I (meaning P.entries.val q.concept.val) (π q.node.val))
     (linksHold : ∀ l ∈ P.links.val, objectRelation I l.role (π l.from.val) (π l.to.val))
-    (labelsHold : ∀ y, ∀ i ∈ labelOf nodes y, denote I (meaning P.entries.val i.val) (π y))
-    (treeHold : ∀ y n s, nodes[y]? = some n → n.tree = true → createdRole P.entries.val n = some s →
-      objectRelation I s (π n.parent.val) (π y))
-    (x : Nat) (c : Usize) (needs : Needs P h nodes x c) : denote I (meaning P.entries.val c.val) (π x) := by
+    (x : Nat) (labelsHold : ∀ y, Near P nodes x y → ∀ i ∈ labelOf nodes y, denote I (meaning P.entries.val i.val) (π y))
+    (treeHold : ∀ y n s, nodes[y]? = some n → n.tree = true → (y = x ∨ n.parent.val = x) →
+      createdRole P.entries.val n = some s → objectRelation I s (π n.parent.val) (π y))
+    (c : Usize) (needs : Needs P h nodes x c) : denote I (meaning P.entries.val c.val) (π x) := by
   rcases needs with (⟨q,member,node,rfl⟩ | rfl | ⟨w,member,⟨i,listed,at_i⟩,rfl⟩) |
       ⟨l,member,_,_,⟨rfl,edgeNeeds⟩ | ⟨rfl,edgeNeeds⟩⟩ | ⟨y,n,s,at_y,tree,role,_,⟨rfl,edgeNeeds⟩ | ⟨rfl,edgeNeeds⟩⟩
   · rw [← node]; exact requirementsHold q member
   · exact axiomsHold (π x)
   · apply unfoldingsHold w member
-    have := labelsHold x i listed
+    have := labelsHold x (.inl rfl) i listed
     rwa [meaning_at P.entries.val wf i.val _ at_i] at this
   · exact edge_need_holds I h respects P.entries.val wf _ l.role c (π l.from.val) (π l.to.val)
-      (labelsHold l.from.val) (linksHold l member) edgeNeeds
+      (labelsHold l.from.val (.inr (.inr (.inr ⟨l,member,.inr ⟨rfl,rfl⟩⟩)))) (linksHold l member) edgeNeeds
   · exact edge_need_holds I h respects P.entries.val wf _ (inv l.role) c (π l.to.val) (π l.from.val)
-      (labelsHold l.to.val) ((relation_inv I l.role _ _).mpr (linksHold l member)) edgeNeeds
+      (labelsHold l.to.val (.inr (.inr (.inr ⟨l,member,.inl ⟨rfl,rfl⟩⟩))))
+      ((relation_inv I l.role _ _).mpr (linksHold l member)) edgeNeeds
   · exact edge_need_holds I h respects P.entries.val wf _ s c (π n.parent.val) (π x)
-      (labelsHold n.parent.val) (treeHold x n s at_y tree role) edgeNeeds
+      (labelsHold n.parent.val (.inr (.inl ⟨n,at_y,tree,rfl⟩))) (treeHold x n s at_y tree (.inl rfl) role) edgeNeeds
   · exact edge_need_holds I h respects P.entries.val wf _ (inv s) c (π y) (π n.parent.val)
-      (labelsHold y) ((relation_inv I s _ _).mpr (treeHold y n s at_y tree role)) edgeNeeds
+      (labelsHold y (.inr (.inr (.inl ⟨n,at_y,tree,rfl⟩))))
+      ((relation_inv I s _ _).mpr (treeHold y n s at_y tree (.inr rfl) role)) edgeNeeds
 
 /-- The number of tree nodes on the path from `y` to its named root. -/
 def depth (nodes : List completion.Node) (y : Nat) : Nat := (treePath nodes y).length
@@ -651,17 +1063,18 @@ theorem complementary_irrefl (e : concept_table.Entry) : ¬ Complementary e e :=
   cases e <;> simp [Complementary]
 
 /-- The graph after inserting an item into one label. -/
-theorem set_label (nodes : List completion.Node) (x : Nat) (inside : x < nodes.length) (label : alloc.vec.Vec Usize) :
-    let nodes' := nodes.set x { nodes[x] with label := label }
+theorem set_label (nodes : List completion.Node) (x : Nat) (inside : x < nodes.length)
+    (label joined : alloc.vec.Vec Usize) :
+    let nodes' := nodes.set x ⟨label,nodes[x].parent,nodes[x].via,nodes[x].tree,joined⟩
     nodes'.length = nodes.length ∧ (∀ y, y ≠ x → nodes'[y]? = nodes[y]?) ∧
-      nodes'[x]? = some { nodes[x] with label := label } ∧
+      nodes'[x]? = some ⟨label,nodes[x].parent,nodes[x].via,nodes[x].tree,joined⟩ ∧
       (∀ y, labelOf nodes' y = if y = x then label.val else labelOf nodes y) := by
   intro nodes'
   have length : nodes'.length = nodes.length := List.length_set ..
   have other : ∀ y, y ≠ x → nodes'[y]? = nodes[y]? := by
     intro y different
     exact List.getElem?_set_ne (Ne.symm different)
-  have here : nodes'[x]? = some { nodes[x] with label := label } := by
+  have here : nodes'[x]? = some ⟨label,nodes[x].parent,nodes[x].via,nodes[x].tree,joined⟩ := by
     simp [nodes',List.getElem?_set_self inside]
   refine ⟨length,other,here,?_⟩
   intro y
@@ -677,12 +1090,12 @@ theorem set_label (nodes : List completion.Node) (x : Nat) (inside : x < nodes.l
 theorem insert_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (nodes : List completion.Node)
     (inv : Inv P h count nodes) (x : Nat) (inside : x < nodes.length) (item : Usize) (e : concept_table.Entry)
     (at_item : P.entries.val[item.val]? = some e) (literal : Literal e) (fresh : item ∉ labelOf nodes x)
-    (noClash : ¬ Clashes P.entries.val (labelOf nodes x) item) (label : alloc.vec.Vec Usize)
+    (noClash : ¬ Clashes P.entries.val (labelOf nodes x) item) (label joined : alloc.vec.Vec Usize)
     (labelIs : label.val = nodes[x].label.val ++ [item]) (nodes' : List completion.Node)
-    (isSet : nodes' = nodes.set x { nodes[x] with label := label }) :
+    (isSet : nodes' = nodes.set x ⟨label,nodes[x].parent,nodes[x].via,nodes[x].tree,joined⟩) :
     Inv P h count nodes' ∧ Grows nodes nodes' ∧ nodes'.length = nodes.length ∧
       (∀ y, y ≠ x → labelOf nodes' y = labelOf nodes y) ∧ labelOf nodes' x = labelOf nodes x ++ [item] := by
-  obtain ⟨length,other,here,labels⟩ := set_label nodes x inside label
+  obtain ⟨length,other,here,labels⟩ := set_label nodes x inside label joined
   rw [← isSet] at length other here labels
   have hereLabel : labelOf nodes x = nodes[x].label.val := by simp [labelOf,List.getElem?_eq_getElem inside]
   have newLabel : labelOf nodes' x = labelOf nodes x ++ [item] := by
@@ -791,40 +1204,40 @@ theorem insert_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count
 theorem create_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (nodes : List completion.Node)
     (inv : Inv P h count nodes) (x : Nat) (inside : x < nodes.length) (free : ¬ Blocked nodes x) (i : Usize)
     (r : ObjectPropertyExpression) (f : Usize) (at_i : P.entries.val[i.val]? = some (.Exists r f)) (parent : Usize)
-    (parentIs : parent.val = x) (nodes1 : List completion.Node)
-    (isPush : nodes1 = nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) :
+    (parentIs : parent.val = x) (deps : alloc.vec.Vec Usize) (nodes1 : List completion.Node)
+    (isPush : nodes1 = nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) :
     Inv P h count nodes1 ∧ Grows nodes nodes1 ∧ nodes1.length = nodes.length + 1 ∧
       (∀ y < nodes.length, labelOf nodes1 y = labelOf nodes y) ∧ labelOf nodes1 nodes.length = [] ∧
       depth nodes1 nodes.length = depth nodes x + 1 ∧
-      nodes1[nodes.length]? = some (⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node) := by
+      nodes1[nodes.length]? = some (⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node) := by
   subst isPush
   have shape := inv.shape
-  have old : ∀ y, y < nodes.length → (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)])[y]? =
+  have old : ∀ y, y < nodes.length → (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)])[y]? =
       nodes[y]? := fun y yIn => List.getElem?_append_left yIn
-  have new : (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)])[nodes.length]? =
-      some ⟨alloc.vec.Vec.new Usize,parent,i,true⟩ := by simp
+  have new : (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)])[nodes.length]? =
+      some ⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ := by simp
   have beyond : ∀ y, nodes.length < y →
-      (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)])[y]? = none := by
+      (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)])[y]? = none := by
     intro y yOut
     apply List.getElem?_eq_none_iff.mpr
     simp; omega
   have labelsOld : ∀ y < nodes.length,
-      labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) y = labelOf nodes y := by
+      labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) y = labelOf nodes y := by
     intro y yIn
     unfold labelOf
     rw [old y yIn]
-  have labelNew : labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) nodes.length = [] := by
+  have labelNew : labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) nodes.length = [] := by
     simp [labelOf,new]
   have labelBeyond : ∀ y, nodes.length < y →
-      labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) y = [] := by
+      labelOf (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) y = [] := by
     intro y yOut
     simp [labelOf,beyond y yOut]
-  have grows : Grows nodes (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) := by
+  have grows : Grows nodes (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) := by
     refine ⟨by simp,?_⟩
     intro y n at_y
     have yIn : y < nodes.length := (List.getElem?_eq_some_iff.mp at_y).1
     exact ⟨n,by rw [old y yIn]; exact at_y,rfl,rfl,rfl,fun _ member => member⟩
-  have childDepth : depth (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) nodes.length =
+  have childDepth : depth (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) nodes.length =
       depth nodes x + 1 := by
     unfold depth
     rw [treePath_parent _ nodes.length _ new rfl (by simp only []; omega)]
@@ -870,7 +1283,7 @@ theorem create_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count
     · rw [labelBeyond y yOut]; exact List.nodup_nil
   · intro y yIn
     rcases cases' y with yOld | rfl | yOut
-    · have : depth (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) y = depth nodes y := by
+    · have : depth (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) y = depth nodes y := by
         unfold depth; rw [grows_treePath grows y yOld]
       rw [this]; exact inv.deep y yOld
     · rw [childDepth]; omega
@@ -892,48 +1305,70 @@ theorem namedModel_mono (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     fun a aIn i member => labels a aIn i (grows_label grows a i member),exact⟩
 
 theorem fullModel_drop (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node) (x : Nat)
-    (c : Usize) (rest : List Usize) : FullModel.{u,v} P h nodes x (c :: rest) → FullModel.{u,v} P h nodes x rest := by
+    (c : Usize) (rest deps D : List Usize) :
+    FullModel.{u,v} P h nodes x (c :: rest) deps D → FullModel.{u,v} P h nodes x rest deps D := by
   rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,extra⟩
   exact ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,
-    fun c' member => extra c' (List.mem_cons_of_mem _ member)⟩
+    fun sub c' member => extra sub c' (List.mem_cons_of_mem _ member)⟩
 
 theorem fullModel_any (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node)
-    (x y : Nat) : FullModel.{u,v} P h nodes x [] → FullModel.{u,v} P h nodes y [] := by
+    (x y : Nat) (deps deps' D : List Usize) :
+    FullModel.{u,v} P h nodes x [] deps D → FullModel.{u,v} P h nodes y [] deps' D := by
   rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,_⟩
   exact ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,by simp⟩
 
 /-- A model with the inserted item at its node models the graph with the
-    inserted item. -/
+    inserted item and the joined points. -/
 theorem fullModel_insert (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node) (x : Nat)
-    (inside : x < nodes.length) (item : Usize) (rest : List Usize) (label : alloc.vec.Vec Usize)
-    (labelIs : label.val = nodes[x].label.val ++ [item]) :
-    FullModel.{u,v} P h nodes x (item :: rest) →
-      FullModel.{u,v} P h (nodes.set x { nodes[x] with label := label }) x rest := by
+    (inside : x < nodes.length) (item : Usize) (rest deps D : List Usize) (label joined : alloc.vec.Vec Usize)
+    (labelIs : label.val = nodes[x].label.val ++ [item])
+    (joinedIs : ∀ k, k ∈ joined.val ↔ k ∈ nodes[x].deps.val ∨ k ∈ deps) :
+    FullModel.{u,v} P h nodes x (item :: rest) deps D →
+      FullModel.{u,v} P h (nodes.set x ⟨label,nodes[x].parent,nodes[x].via,nodes[x].tree,joined⟩) x rest deps D := by
   rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,extra⟩
-  obtain ⟨_,other,here,labelsNew⟩ := set_label nodes x inside label
+  obtain ⟨_,other,here,labelsNew⟩ := set_label nodes x inside label joined
+  have at_x : nodes[x]? = some nodes[x] := List.getElem?_eq_getElem inside
+  have oldDeps : nodeDeps nodes x = nodes[x].deps.val := by simp [nodeDeps,at_x]
   refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,?_,?_,
-    fun c member => extra c (List.mem_cons_of_mem _ member)⟩
-  · intro y i member
+    fun sub c member => extra sub c (List.mem_cons_of_mem _ member)⟩
+  · intro y sub i member
     rw [labelsNew y] at member
     by_cases same : y = x
     · subst same
+      have joinedSub : Sub joined.val D := by
+        intro k listed
+        apply sub k
+        simp [nodeDeps,here,listed]
+      have oldSub : Sub (nodeDeps nodes y) D := by
+        intro k listed
+        rw [oldDeps] at listed
+        exact joinedSub k ((joinedIs k).mpr (.inl listed))
+      have depsSub : Sub deps D := fun k listed => joinedSub k ((joinedIs k).mpr (.inr listed))
       simp only [↓reduceIte,labelIs,List.mem_append,List.mem_singleton] at member
       rcases member with old | rfl
-      · exact labels y i (by simp [labelOf,List.getElem?_eq_getElem inside,old])
-      · exact extra _ (List.mem_cons_self ..)
+      · exact labels y oldSub i (by simp [labelOf,at_x,old])
+      · exact extra depsSub _ (List.mem_cons_self ..)
     · simp only [same,↓reduceIte] at member
-      exact labels y i member
-  · intro y n s at_y isTree role
+      have oldSub : Sub (nodeDeps nodes y) D := by
+        intro k listed
+        apply sub k
+        simpa [nodeDeps,other y same] using listed
+      exact labels y oldSub i member
+  · intro y n s at_y isTree sub role
     by_cases same : y = x
     · subst same
       rw [here] at at_y
       cases at_y
-      exact tree y nodes[y] s (List.getElem?_eq_getElem inside) isTree role
+      have oldSub : Sub nodes[y].deps.val D := fun k listed => sub k ((joinedIs k).mpr (.inl listed))
+      exact tree y nodes[y] s at_x isTree oldSub role
     · rw [other y same] at at_y
-      exact tree y n s at_y isTree role
+      exact tree y n s at_y isTree sub role
 
-/-- A model of the graph has, at the element of a node, a witness for each of
-    its existential restrictions, which models the graph with a child for it. -/
+/-- A model of the graph that satisfies the label of a node has, at the element
+    of the node, a witness for each of its existential restrictions; with it,
+    it models the graph with a child for the restriction, which depends on the
+    node's points. A model where the node's points are not all in `D` models the
+    graph with the child anywhere. -/
 theorem fullModel_create (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node)
     (wf : WellFormed P.entries.val) (parents : ∀ (y : Nat) (n : completion.Node), nodes[y]? = some n → n.tree = true →
       n.parent.val < y)
@@ -941,19 +1376,26 @@ theorem fullModel_create (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
     (linksIn : ∀ l ∈ P.links.val, l.from.val < nodes.length ∧ l.to.val < nodes.length)
     (x : Nat) (inside : x < nodes.length) (i : Usize) (r : ObjectPropertyExpression) (f : Usize)
     (at_i : P.entries.val[i.val]? = some (.Exists r f)) (member : i ∈ labelOf nodes x) (parent : Usize)
-    (parentIs : parent.val = x) :
-    FullModel.{u,v} P h nodes 0 [] →
-      FullModel.{u,v} P h (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)]) nodes.length
-        [f,P.axioms] := by
+    (parentIs : parent.val = x) (deps : alloc.vec.Vec Usize) (depsIs : deps.val = nodeDeps nodes x) (D : List Usize) :
+    FullModel.{u,v} P h nodes 0 [] [] D →
+      FullModel.{u,v} P h (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)]) nodes.length
+        [f,P.axioms] deps.val D := by
   rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,_⟩
-  have existential := labels x i member
-  rw [meaning_at P.entries.val wf i.val _ at_i] at existential
-  obtain ⟨e,edge,fillerHolds⟩ := existential
+  have oldNode : ∀ y, y < nodes.length → (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true,deps⟩ : completion.Node)])[y]? =
+      nodes[y]? := fun y yIn => List.getElem?_append_left yIn
+  -- The element of the child: a witness when the parent's label holds.
+  have witness : ∃ e : Object, Sub deps.val D → objectRelation I r (π x) e ∧
+      denote I (meaning P.entries.val f.val) e := by
+    by_cases sub : Sub deps.val D
+    · have existential := labels x (by rw [← depsIs]; exact sub) i member
+      rw [meaning_at P.entries.val wf i.val _ at_i] at existential
+      obtain ⟨e,edge,fillerHolds⟩ := existential
+      exact ⟨e,fun _ => ⟨edge,fillerHolds⟩⟩
+    · exact ⟨π x,fun yes => absurd yes sub⟩
+  obtain ⟨e,witnessed⟩ := witness
   let π' : Nat → Object := fun y => if y < nodes.length then π y else e
   have old : ∀ y, y < nodes.length → π' y = π y := by intro y yIn; simp [π',yIn]
   have new : π' nodes.length = e := by simp [π']
-  have oldNode : ∀ y, y < nodes.length → (nodes ++ [(⟨alloc.vec.Vec.new Usize,parent,i,true⟩ : completion.Node)])[y]? =
-      nodes[y]? := fun y yIn => List.getElem?_append_left yIn
   refine ⟨Object,Value,I,π',respects,axiomsHold,unfoldings,?_,?_,?_,?_,?_⟩
   · intro q listed
     rw [old _ (requirementsIn q listed)]
@@ -961,24 +1403,29 @@ theorem fullModel_create (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
   · intro l listed
     rw [old _ (linksIn l listed).1,old _ (linksIn l listed).2]
     exact links l listed
-  · intro y j listed
+  · intro y sub j listed
     by_cases yIn : y < nodes.length
     · rw [old y yIn]
-      apply labels y j
-      unfold labelOf at listed ⊢
-      rw [oldNode y yIn] at listed
-      exact listed
+      apply labels y
+      · intro k member
+        apply sub k
+        unfold nodeDeps at member ⊢
+        rw [oldNode y yIn]
+        exact member
+      · unfold labelOf at listed ⊢
+        rw [oldNode y yIn] at listed
+        exact listed
     · unfold labelOf at listed
       by_cases same : y = nodes.length
       · subst same; simp at listed
       · rw [List.getElem?_eq_none_iff.mpr (by simp; omega)] at listed
         cases listed
-  · intro y n s at_y isTree role
+  · intro y n s at_y isTree sub role
     by_cases yIn : y < nodes.length
     · rw [oldNode y yIn] at at_y
       have below := parents y n at_y isTree
       rw [old y yIn,old _ (by omega)]
-      exact tree y n s at_y isTree role
+      exact tree y n s at_y isTree sub role
     · by_cases same : y = nodes.length
       · subst same
         simp at at_y
@@ -986,14 +1433,14 @@ theorem fullModel_create (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
         simp only [createdRole,at_i,Option.some.injEq] at role
         subst role
         rw [new,parentIs,old x inside]
-        exact edge
+        exact (witnessed sub).1
       · rw [List.getElem?_eq_none_iff.mpr (by simp; omega)] at at_y
         cases at_y
-  · intro c listed
+  · intro sub c listed
     rw [new]
     simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at listed
     rcases listed with rfl | rfl
-    · exact fillerHolds
+    · exact (witnessed sub).2
     · exact axiomsHold e
 
 /-- An entry that a grown label satisfies and the old one does not makes the
@@ -1009,11 +1456,14 @@ theorem grow_strict (entries : List concept_table.Entry) (L L' : List Usize) (no
 def pendingWeight (l : List Usize) : Nat := (l.map (fun c => 3 ^ c.val)).sum
 
 /-- What a run of the tableau means: an acceptance comes with a model of what the
-    named nodes need, and a rejection rules out every model, in any universes,
-    that places every node with the extra entries at node `x`. -/
+    named nodes need, and a rejection with a set of branch points below `fresh`
+    rules out every model, in any universes, that holds under those points, with
+    the extra entries, depending on `deps`, at node `x`. -/
 def Answers (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (nodes : List completion.Node)
-    (x : Nat) (extra : List Usize) (r : Option Bool) : Prop :=
-  (r = some true → NamedModel P h count nodes) ∧ (r = some false → ¬ FullModel.{u,v} P h nodes x extra)
+    (x : Nat) (extra deps : List Usize) (fresh : Nat) (r : Option completion.Outcome) : Prop :=
+  (r = some .Accepted → NamedModel P h count nodes) ∧
+  (∀ D : alloc.vec.Vec Usize, r = some (.Rejected D) → (∀ k ∈ D.val, k.val < fresh) ∧
+    ¬ FullModel.{u,v} P h nodes x extra deps D.val)
 
 theorem three_pow_lt (a b c : Nat) (ha : a < c) (hb : b < c) : 3 ^ a + 3 ^ b < 3 ^ c := by
   have one : 3 ^ a ≤ 3 ^ (c - 1) := Nat.pow_le_pow_right (by omega) (by omega)
@@ -1027,34 +1477,39 @@ theorem three_pow_lt (a b c : Nat) (ha : a < c) (hb : b < c) : 3 ^ a + 3 ^ b < 3
 
 /-- A model of the graph with the extra entries also has entries implied by them. -/
 theorem fullModel_imply (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node) (x : Nat)
-    (extra extra' : List Usize)
+    (extra extra' deps D : List Usize)
     (implies : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (z : Object),
       (∀ c ∈ extra, denote I (meaning P.entries.val c.val) z) → ∀ c ∈ extra', denote I (meaning P.entries.val c.val) z) :
-    FullModel.{u,v} P h nodes x extra → FullModel.{u,v} P h nodes x extra' := by
+    FullModel.{u,v} P h nodes x extra deps D → FullModel.{u,v} P h nodes x extra' deps D := by
   rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,extras⟩
   exact ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,
-    implies Object Value I (π x) extras⟩
+    fun sub => implies Object Value I (π x) (extras sub)⟩
 
 theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
-    (IH : ∀ nodes : alloc.vec.Vec completion.Node, measure P h nodes.val < M → Inv P h count nodes.val →
-      ∃ r, completion.run P h nodes = .ok r ∧ Answers.{u,v} P h count nodes.val 0 [] r) :
-    ∀ (w : Nat) (pending : completion.Pending) (nodes : alloc.vec.Vec completion.Node) (x : Usize),
+    (IH : ∀ (nodes : alloc.vec.Vec completion.Node) (fresh : Usize), measure P h nodes.val < M →
+      Inv P h count nodes.val → FreshNodes nodes.val fresh.val →
+      ∃ r, completion.run P h nodes fresh = .ok r ∧ Answers.{u,v} P h count nodes.val 0 [] [] fresh.val r) :
+    ∀ (w : Nat) (pending : completion.Pending) (nodes : alloc.vec.Vec completion.Node) (x : Usize)
+      (deps : alloc.vec.Vec Usize) (fresh : Usize),
       pendingWeight (pendingList pending) = w → Inv P h count nodes.val → x.val < nodes.val.length →
+      FreshNodes nodes.val fresh.val → (∀ k ∈ deps.val, k.val < fresh.val) →
       (∀ nodes' : List completion.Node, Inv P h count nodes' → Grows nodes.val nodes' →
         nodes'.length = nodes.val.length → (∀ y, y ≠ x.val → labelOf nodes' y = labelOf nodes.val y) →
         (∀ c ∈ pendingList pending, Holds P.entries.val (labelOf nodes' x.val) c.val) → measure P h nodes' < M) →
-      ∃ r, completion.add P h nodes x pending = .ok r ∧
-        Answers.{u,v} P h count nodes.val x.val (pendingList pending) r := by
+      ∃ r, completion.add P h nodes x pending deps fresh = .ok r ∧
+        Answers.{u,v} P h count nodes.val x.val (pendingList pending) deps.val fresh.val r := by
   intro w
   induction w using Nat.strong_induction_on with
   | _ w ih =>
-  intro pending nodes x weight inv inside progress
+  intro pending nodes x deps fresh weight inv inside freshNodes freshDeps progress
   cases pending with
   | Empty =>
-    obtain ⟨r,run,sound,complete⟩ := IH nodes
-      (progress nodes.val inv (grows_refl _) rfl (fun _ _ => rfl) (by simp [pendingList])) inv
-    exact ⟨r,by rw [completion.add]; exact run,sound,
-      fun rejected model => complete rejected (fullModel_any P h nodes.val x.val 0 model)⟩
+    obtain ⟨r,run,sound,complete⟩ := IH nodes fresh
+      (progress nodes.val inv (grows_refl _) rfl (fun _ _ => rfl) (by simp [pendingList])) inv freshNodes
+    refine ⟨r,by rw [completion.add]; exact run,sound,?_⟩
+    intro D rejected
+    obtain ⟨bound,none⟩ := complete D rejected
+    exact ⟨bound,fun model => none (fullModel_any P h nodes.val x.val 0 deps.val [] D.val model)⟩
   | Item c next =>
     have wf := inv.shape.wellFormed
     by_cases cIn : c.val < P.entries.val.length
@@ -1066,46 +1521,93 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         simp [pendingWeight,pendingList]
       -- A literal is added unless it is there or clashes.
       have literalCase : Literal P.entries.val[c.val] →
-          ∃ r, completion.add_literal P h nodes x c next = .ok r ∧
-            Answers.{u,v} P h count nodes.val x.val (c :: pendingList next) r := by
+          ∃ r, completion.add_literal P h nodes x c next deps fresh = .ok r ∧
+            Answers.{u,v} P h count nodes.val x.val (c :: pendingList next) deps.val fresh.val r := by
         intro literal
         have nodeLookup : nodes.index_usize x = .ok nodes.val[x.val] := by
           simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+        have at_x : nodes.val[x.val]? = some nodes.val[x.val] := List.getElem?_eq_getElem inside
         have labelIs : labelOf nodes.val x.val = nodes.val[x.val].label.val := by
-          simp [labelOf,List.getElem?_eq_getElem inside]
+          simp [labelOf,at_x]
+        have depsIs : nodeDeps nodes.val x.val = nodes.val[x.val].deps.val := by
+          simp [nodeDeps,at_x]
         have smaller : pendingWeight (pendingList next) < w := by
           rw [← weight,weightIs]; have := pow_pos (show 0 < 3 by omega) c.val; omega
         rw [completion.add_literal]
         by_cases present : c ∈ labelOf nodes.val x.val
-        · obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes x rfl inv inside (by
+        · obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes x deps fresh rfl inv inside freshNodes freshDeps (by
             intro nodes' inv' grows' length' others' holds'
             apply progress nodes' inv' grows' length' others'
             intro c' member
             rcases List.mem_cons.mp member with rfl | later
             · exact holds_literal _ _ c' _ at_c literal (grows_label grows' x.val c' present)
             · exact holds' c' later)
-          refine ⟨r,?_,sound,fun rejected model => complete rejected (fullModel_drop P h _ _ _ _ model)⟩
-          rw [labelIs] at present
-          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-            nodeLookup,bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,present,decide_true,run]
+          refine ⟨r,?_,sound,?_⟩
+          · rw [labelIs] at present
+            simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+              nodeLookup,bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,present,decide_true,
+              run]
+          · intro D rejected
+            obtain ⟨bound,none⟩ := complete D rejected
+            exact ⟨bound,fun model => none (fullModel_drop P h _ _ _ _ _ _ model)⟩
         · have absent : c ∉ nodes.val[x.val].label.val := by rwa [← labelIs]
           by_cases clash : Clashes P.entries.val (labelOf nodes.val x.val) c
-          · refine ⟨some false,?_,by simp,?_⟩
-            · rw [labelIs] at clash
+          · obtain ⟨joined,joinRun,joinSpec⟩ := join_correct nodes.val[x.val].deps deps
+            have code : ∀ (rest : Result (Option completion.Outcome)),
+                (do
+                  let o ← completion.join nodes.val[x.val].deps deps
+                  match o with
+                  | none => ok none
+                  | some clash => ok (some (completion.Outcome.Rejected clash)) : Result (Option completion.Outcome)) =
+                  rest →
+                (if x < nodes.len then do
+                  let n ← alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice completion.Node) nodes x
+                  let b ← completion.contains n.label c 0#usize
+                  if b = true then completion.add P h nodes x next deps fresh
+                  else do
+                    let b1 ← completion.clashes P.entries n.label c 0#usize
+                    if b1 = true then do
+                      let o ← completion.join n.deps deps
+                      match o with
+                      | none => ok none
+                      | some clash => ok (some (completion.Outcome.Rejected clash))
+                    else do
+                      let o ← completion.insert nodes x c deps
+                      match o with
+                      | none => ok none
+                      | some nodes1 => completion.add P h nodes1 x next deps fresh
+                else ok none) = rest := by
+              intro rest same
+              rw [labelIs] at clash
               simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
                 nodeLookup,bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,absent,
                 decide_false,Bool.false_eq_true,clashes_correct,clash,decide_true]
-            · intro _
-              rintro ⟨Object,Value,I,π,_,_,_,_,_,labels,_,extras⟩
-              obtain ⟨j,listed,e,e',at_c',at_j,complementary⟩ := clash
-              have here := extras c (List.mem_cons_self ..)
-              have there := labels x.val j listed
-              rw [meaning_at P.entries.val wf c.val e at_c'] at here
-              rw [meaning_at P.entries.val wf j.val e' at_j] at there
-              cases e <;> cases e' <;> simp only [Complementary] at complementary
-              · subst complementary; exact there here
-              · subst complementary; exact here there
-          · obtain ⟨inserted,insertRun,insertSpec⟩ := insert_correct nodes x c
+              exact same
+            cases joined with
+            | none =>
+              exact ⟨none,code _ (by simp [joinRun]),by simp,by simp⟩
+            | some clashSet =>
+              refine ⟨some (.Rejected clashSet),code _ (by simp [joinRun]),by simp,?_⟩
+              intro D same
+              simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+              subst same
+              have members := joinSpec clashSet rfl
+              refine ⟨?_,?_⟩
+              · intro k member
+                rcases (members k).mp member with old | given
+                · exact freshNodes x.val k (by rw [depsIs]; exact old)
+                · exact freshDeps k given
+              · rintro ⟨Object,Value,I,π,_,_,_,_,_,labels,_,extras⟩
+                obtain ⟨j,listed,e,e',at_c',at_j,complementary⟩ := clash
+                have here := extras (fun k member => (members k).mpr (.inr member)) c (List.mem_cons_self ..)
+                have there := labels x.val (fun k member => (members k).mpr (.inl (by rw [← depsIs]; exact member)))
+                  j listed
+                rw [meaning_at P.entries.val wf c.val e at_c'] at here
+                rw [meaning_at P.entries.val wf j.val e' at_j] at there
+                cases e <;> cases e' <;> simp only [Complementary] at complementary
+                · subst complementary; exact there here
+                · subst complementary; exact here there
+          · obtain ⟨inserted,insertRun,insertSpec⟩ := insert_correct nodes x c deps
             cases inserted with
             | none =>
               refine ⟨none,?_,by simp,by simp⟩
@@ -1114,10 +1616,25 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
                 nodeLookup,bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,absent,
                 decide_false,Bool.false_eq_true,clashes_correct,clash,insertRun]
             | some nodes1 =>
-              obtain ⟨_,label,labelValue,shape1⟩ := insertSpec nodes1 rfl
+              obtain ⟨_,label,joined,labelValue,joinedValue,shape1⟩ := insertSpec nodes1 rfl
               obtain ⟨inv1,grows1,length1,others1,new1⟩ := insert_inv P h count nodes.val inv x.val inside c
-                P.entries.val[c.val] at_c literal present clash label labelValue nodes1.val shape1
-              obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes1 x rfl inv1 (by rw [length1]; exact inside)
+                P.entries.val[c.val] at_c literal present clash label joined labelValue nodes1.val shape1
+              have fresh1 : FreshNodes nodes1.val fresh.val := by
+                intro y k member
+                rw [shape1] at member
+                obtain ⟨_,other,here,_⟩ := set_label nodes.val x.val inside label joined
+                by_cases same : y = x.val
+                · subst same
+                  simp only [nodeDeps,here] at member
+                  rcases (joinedValue k).mp member with old | given
+                  · exact freshNodes x.val k (by rw [depsIs]; exact old)
+                  · exact freshDeps k given
+                · apply freshNodes y k
+                  unfold nodeDeps at member ⊢
+                  rw [other y same] at member
+                  exact member
+              obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes1 x deps fresh rfl inv1
+                (by rw [length1]; exact inside) fresh1 freshDeps
                 (by
                   intro nodes' inv' grows' length' others' holds'
                   apply progress nodes' inv' (grows_trans grows1 grows') (by rw [length',length1])
@@ -1132,32 +1649,40 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
                 simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
                   nodeLookup,bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,absent,
                   decide_false,Bool.false_eq_true,clashes_correct,clash,insertRun,run]
-              · intro rejected model
-                apply complete rejected
+              · intro D rejected
+                obtain ⟨bound,none⟩ := complete D rejected
+                refine ⟨bound,fun model => none ?_⟩
                 rw [shape1]
-                exact fullModel_insert P h nodes.val x.val inside c (pendingList next) label labelValue model
+                exact fullModel_insert P h nodes.val x.val inside c (pendingList next) deps.val D.val label joined
+                  labelValue joinedValue model
       cases entry : P.entries.val[c.val] with
       | Top =>
         have smaller : pendingWeight (pendingList next) < w := by
           rw [← weight,weightIs]; have := pow_pos (show 0 < 3 by omega) c.val; omega
-        obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes x rfl inv inside (by
+        obtain ⟨r,run,sound,complete⟩ := ih _ smaller next nodes x deps fresh rfl inv inside freshNodes freshDeps (by
           intro nodes' inv' grows' length' others' holds'
           apply progress nodes' inv' grows' length' others'
           intro c' member
           rcases List.mem_cons.mp member with rfl | later
           · rw [Holds.eq_def,at_c,entry]; trivial
           · exact holds' c' later)
-        refine ⟨r,?_,sound,fun rejected model => complete rejected (fullModel_drop P h _ _ _ _ model)⟩
-        rw [completion.add]
-        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
-          bind_ok,entry,run]
+        refine ⟨r,?_,sound,?_⟩
+        · rw [completion.add]
+          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok,entry,run]
+        · intro D rejected
+          obtain ⟨bound,none⟩ := complete D rejected
+          exact ⟨bound,fun model => none (fullModel_drop P h _ _ _ _ _ _ model)⟩
       | Bottom =>
-        refine ⟨some false,?_,by simp,?_⟩
+        refine ⟨some (.Rejected deps),?_,by simp,?_⟩
         · rw [completion.add]
           simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
-        · intro _
+        · intro D same
+          simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+          subst same
+          refine ⟨freshDeps,?_⟩
           rintro ⟨Object,Value,I,π,_,_,_,_,_,_,_,extras⟩
-          have here := extras c (List.mem_cons_self ..)
+          have here := extras (fun k member => member) c (List.mem_cons_self ..)
           rw [meaning_at P.entries.val wf c.val _ at_c,entry] at here
           exact here
       | And a b =>
@@ -1169,7 +1694,8 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           have := three_pow_lt a.val b.val c.val aBelow bBelow
           simp [pendingWeight,pendingList] at this ⊢
           omega
-        obtain ⟨r,run,sound,complete⟩ := ih _ smaller (.Item a (.Item b next)) nodes x rfl inv inside (by
+        obtain ⟨r,run,sound,complete⟩ := ih _ smaller (.Item a (.Item b next)) nodes x deps fresh rfl inv inside
+          freshNodes freshDeps (by
           intro nodes' inv' grows' length' others' holds'
           apply progress nodes' inv' grows' length' others'
           intro c' member
@@ -1182,9 +1708,10 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         · rw [completion.add]
           simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
             bind_ok,entry,run]
-        · intro rejected model
-          apply complete rejected
-          apply fullModel_imply P h nodes.val x.val _ _ _ model
+        · intro D rejected
+          obtain ⟨bound,none⟩ := complete D rejected
+          refine ⟨bound,fun model => none ?_⟩
+          apply fullModel_imply P h nodes.val x.val _ _ _ _ _ model
           intro Object Value I z extras c' member
           have both := extras c (List.mem_cons_self ..)
           rw [meaning_at P.entries.val wf c.val _ at_c,entry] at both
@@ -1225,41 +1752,132 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           rcases List.mem_cons.mp member with rfl | later
           · exact implies _ (holds' d (List.mem_cons_self ..))
           · exact holds' c' (List.mem_cons_of_mem _ later)
-        obtain ⟨left,leftRun,leftSound,leftComplete⟩ := ih _ smallerLeft (.Item a next) nodes x rfl inv inside
-          (branchProgress a (fun L holds => orHolds L (.inl holds)))
-        have code : completion.add P h nodes x (.Item c next) = completion.branch P h nodes x a b next := by
+        have code : completion.add P h nodes x (.Item c next) deps fresh =
+            completion.branch P h nodes x a b next deps fresh := by
           rw [completion.add]
           simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
             bind_ok,entry]
         rw [code,completion.branch]
-        simp only [copy_nodes_correct nodes 0#usize (alloc.vec.Vec.new completion.Node) (by simp) (by simp),
-          copy_pending_correct,bind_ok,leftRun]
-        cases left with
-        | none => exact ⟨none,rfl,by simp,by simp⟩
-        | some accepted =>
-          cases accepted with
-          | true => exact ⟨some true,rfl,fun _ => leftSound rfl,by simp⟩
-          | false =>
-            obtain ⟨right,rightRun,rightSound,rightComplete⟩ := ih _ smallerRight (.Item b next) nodes x rfl inv inside
+        by_cases room : fresh.val < Usize.max
+        · obtain ⟨point,pointRun,pointValue⟩ := WP.spec_imp_exists
+            (alloc.vec.Vec.push_spec (alloc.vec.Vec.new Usize) fresh (by simp; scalar_tac))
+          obtain ⟨leftDeps,leftDepsRun,leftDepsSpec⟩ := join_correct deps point
+          obtain ⟨next',advance,nextValue⟩ := WP.spec_imp_exists
+            (Usize.add_spec (x := fresh) (y := 1#usize) (by scalar_tac))
+          have nextIs : next'.val = fresh.val + 1 := by simpa using nextValue
+          simp only [UScalar.lt_equiv,usize_max_val,room,↓reduceIte,
+            copy_nodes_correct nodes 0#usize (alloc.vec.Vec.new completion.Node) (by simp) (by simp),
+            copy_pending_correct,bind_ok,pointRun,leftDepsRun]
+          cases leftDeps with
+          | none => exact ⟨none,by simp,by simp,by simp⟩
+          | some left_deps =>
+          have leftMembers : ∀ k, k ∈ left_deps.val ↔ k ∈ deps.val ∨ k = fresh := by
+            intro k
+            rw [leftDepsSpec left_deps rfl k,pointValue]
+            simp
+          obtain ⟨left,leftRun,leftSound,leftComplete⟩ := ih _ smallerLeft (.Item a next) nodes x left_deps next' rfl
+            inv inside (fun y k member => by rw [nextIs]; have := freshNodes y k member; omega)
+            (by
+              intro k member
+              rw [nextIs]
+              rcases (leftMembers k).mp member with given | rfl
+              · have := freshDeps k given; omega
+              · omega)
+            (branchProgress a (fun L holds => orHolds L (.inl holds)))
+          simp only [advance,bind_ok,leftRun]
+          cases left with
+          | none => exact ⟨none,rfl,by simp,by simp⟩
+          | some outcome =>
+          cases outcome with
+          | Accepted => exact ⟨some .Accepted,rfl,fun _ => leftSound rfl,by simp⟩
+          | Rejected D1 =>
+          obtain ⟨leftBound,leftNone⟩ := leftComplete D1 rfl
+          by_cases depends : fresh ∈ D1.val
+          · obtain ⟨rest,restRun,restSpec⟩ := without_from_correct D1 fresh 0#usize (alloc.vec.Vec.new Usize)
+              (by simp)
+            obtain ⟨rightDeps,rightDepsRun,rightDepsSpec⟩ := join_correct deps rest
+            simp only [contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,depends,decide_true,
+              ↓reduceIte,restRun,bind_ok,rightDepsRun]
+            cases rightDeps with
+            | none => exact ⟨none,by simp,by simp,by simp⟩
+            | some right_deps =>
+            have rightMembers : ∀ k, k ∈ right_deps.val ↔ k ∈ deps.val ∨ (k ∈ D1.val ∧ k ≠ fresh) := by
+              intro k
+              rw [rightDepsSpec right_deps rfl k,restSpec k]
+              simp
+            obtain ⟨right,rightRun,rightSound,rightComplete⟩ := ih _ smallerRight (.Item b next) nodes x right_deps
+              fresh rfl inv inside freshNodes
+              (by
+                intro k member
+                rcases (rightMembers k).mp member with given | ⟨listed,other⟩
+                · exact freshDeps k given
+                · have bound := leftBound k listed
+                  rw [nextIs] at bound
+                  have : k.val ≠ fresh.val := fun same => other (UScalar.eq_of_val_eq same)
+                  omega)
               (branchProgress b (fun L holds => orHolds L (.inr holds)))
             refine ⟨right,by simp [rightRun],rightSound,?_⟩
-            intro rejected model
-            obtain ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,extras⟩ := model
-            have either := extras c (List.mem_cons_self ..)
-            rw [meaning_at P.entries.val wf c.val _ at_c,entry] at either
-            rcases either with one | two
-            · apply leftComplete rfl
+            intro D2 rejected
+            obtain ⟨rightBound,rightNone⟩ := rightComplete D2 rejected
+            refine ⟨rightBound,?_⟩
+            rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,extras⟩
+            by_cases subRight : Sub right_deps.val D2.val
+            · have subDeps : Sub deps.val D2.val := fun k member => subRight k ((rightMembers k).mpr (.inl member))
+              have either := extras subDeps c (List.mem_cons_self ..)
+              rw [meaning_at P.entries.val wf c.val _ at_c,entry] at either
+              have nextHolds := fun c' member => extras subDeps c' (List.mem_cons_of_mem _ member)
+              rcases either with one | two
+              · -- The left disjunct holds: the left failure rules this model out.
+                have below' : ∀ y, Sub (nodeDeps nodes.val y) D1.val → Sub (nodeDeps nodes.val y) D2.val := by
+                  intro y sub k member
+                  apply subRight k
+                  apply (rightMembers k).mpr
+                  refine .inr ⟨sub k member,?_⟩
+                  intro same
+                  have := freshNodes y k member
+                  rw [same] at this
+                  omega
+                apply leftNone
+                refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,
+                  fun y sub => labels y (below' y sub),?_,?_⟩
+                · intro y n s at_y isTree sub role
+                  apply tree y n s at_y isTree _ role
+                  have := below' y (by simpa [nodeDeps,at_y] using sub)
+                  simpa [nodeDeps,at_y] using this
+                · intro _ c' member
+                  rcases List.mem_cons.mp member with rfl | later
+                  · exact one
+                  · exact nextHolds c' later
+              · apply rightNone
+                refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,?_⟩
+                intro _ c' member
+                rcases List.mem_cons.mp member with rfl | later
+                · exact two
+                · exact nextHolds c' later
+            · apply rightNone
+              exact ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,
+                fun sub => absurd sub subRight⟩
+          · simp only [contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,depends,decide_false,
+              Bool.false_eq_true,↓reduceIte,bind_ok]
+            refine ⟨some (.Rejected D1),rfl,by simp,?_⟩
+            intro D same
+            simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+            subst same
+            refine ⟨?_,?_⟩
+            · intro k member
+              have bound := leftBound k member
+              rw [nextIs] at bound
+              have : k.val ≠ fresh.val := fun same => depends (by rw [← UScalar.eq_of_val_eq same]; exact member)
+              omega
+            · -- The left failure does not depend on the branch point: it rules out the
+              -- model whatever the disjunct.
+              rintro ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,_⟩
+              apply leftNone
               refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,?_⟩
-              intro c' member
-              rcases List.mem_cons.mp member with rfl | later
-              · exact one
-              · exact extras c' (List.mem_cons_of_mem _ later)
-            · apply rightComplete rejected
-              refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,?_⟩
-              intro c' member
-              rcases List.mem_cons.mp member with rfl | later
-              · exact two
-              · exact extras c' (List.mem_cons_of_mem _ later)
+              intro sub
+              exact absurd (sub fresh ((leftMembers fresh).mpr (.inr rfl))) depends
+        · refine ⟨none,?_,by simp,by simp⟩
+          simp [UScalar.lt_equiv,usize_max_val,room]
       | Atom k =>
         obtain ⟨r,run,answers⟩ := literalCase (by rw [entry]; trivial)
         refine ⟨r,?_,answers⟩
@@ -1288,24 +1906,39 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       rw [completion.add]
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn]
 
-/-- The main loop terminates on every graph satisfying the invariant, and its
-    answer means what `Answers` says. -/
+/-- The main loop terminates on every graph satisfying the invariant whose points
+    are below `fresh`, and its answer means what `Answers` says. -/
 theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (positive : 0 < count) :
-    ∀ (m : Nat) (nodes : alloc.vec.Vec completion.Node), measure P h nodes.val = m → Inv P h count nodes.val →
-      ∃ r, completion.run P h nodes = .ok r ∧ Answers.{u,v} P h count nodes.val 0 [] r := by
+    ∀ (m : Nat) (nodes : alloc.vec.Vec completion.Node) (fresh : Usize), measure P h nodes.val = m →
+      Inv P h count nodes.val → FreshNodes nodes.val fresh.val →
+      ∃ r, completion.run P h nodes fresh = .ok r ∧ Answers.{u,v} P h count nodes.val 0 [] [] fresh.val r := by
   intro m
   induction m using Nat.strong_induction_on with
   | _ m ih =>
-  intro nodes same inv
-  have IH : ∀ nodes' : alloc.vec.Vec completion.Node, measure P h nodes'.val < m → Inv P h count nodes'.val →
-      ∃ r, completion.run P h nodes' = .ok r ∧ Answers.{u,v} P h count nodes'.val 0 [] r :=
-    fun nodes' smaller inv' => ih _ smaller nodes' rfl inv'
+  intro nodes fresh same inv freshNodes
+  have IH : ∀ (nodes' : alloc.vec.Vec completion.Node) (fresh' : Usize), measure P h nodes'.val < m →
+      Inv P h count nodes'.val → FreshNodes nodes'.val fresh'.val →
+      ∃ r, completion.run P h nodes' fresh' = .ok r ∧ Answers.{u,v} P h count nodes'.val 0 [] [] fresh'.val r :=
+    fun nodes' fresh' smaller inv' fresh'' => ih _ smaller nodes' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
   obtain ⟨step,stepRun,addCase,createCase,doneCase⟩ := next_step_correct P h nodes
   cases step with
   | Add x c =>
     obtain ⟨inside,needs,missing⟩ := addCase x c rfl
-    obtain ⟨r,run,sound,complete⟩ := add_correct.{u,v} P h count m IH _ (.Item c .Empty) nodes x rfl inv inside
+    obtain ⟨ruleResult,ruleRun,ruleSpec⟩ := rule_deps_correct P nodes x inside
+    cases ruleResult with
+    | none =>
+      refine ⟨none,?_,by simp,by simp⟩
+      rw [completion.run,stepRun]
+      simp [ruleRun]
+    | some deps =>
+    obtain ⟨covers,origin⟩ := ruleSpec deps rfl
+    obtain ⟨r,run,sound,complete⟩ := add_correct.{u,v} P h count m IH _ (.Item c .Empty) nodes x deps fresh rfl inv
+      inside freshNodes
+      (by
+        intro k member
+        obtain ⟨y,listed⟩ := origin k member
+        exact freshNodes y k listed)
       (by
         intro nodes' inv' grows' length' _ holds'
         rw [← same]
@@ -1314,28 +1947,61 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           (holds' c (by simp [pendingList])) missing)
     refine ⟨r,?_,sound,?_⟩
     · rw [completion.run,stepRun]
-      simp only [bind_ok,run]
-    · intro rejected model
-      apply complete rejected
+      simp only [bind_ok,ruleRun,run]
+    · intro D rejected
+      obtain ⟨bound,none⟩ := complete D rejected
+      refine ⟨bound,fun model => none ?_⟩
       obtain ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,_⟩ := model
       refine ⟨Object,Value,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,tree,?_⟩
-      intro c' member
+      intro sub c' member
       simp only [pendingList,List.mem_singleton] at member
       subst member
-      exact needs_hold P h nodes.val wf I π respects axiomsHold unfoldings requirements links labels tree x.val c' needs
+      apply needs_hold P h nodes.val wf I π respects axiomsHold unfoldings requirements links x.val _ _ c' needs
+      · intro y near
+        exact labels y (fun k listed => sub k (covers y near k listed))
+      · intro y n s at_y isTree close role
+        apply tree y n s at_y isTree _ role
+        have near : Near P nodes.val x.val y := by
+          rcases close with rfl | parent
+          · exact .inl rfl
+          · exact .inr (.inr (.inl ⟨n,at_y,isTree,parent⟩))
+        intro k listed
+        exact sub k (covers y near k (by simpa [nodeDeps,at_y] using listed))
   | Create x i =>
     obtain ⟨inside,free,member,r',f,at_i,missing⟩ := createCase x i rfl
     have filler : completion.filler_of P.entries i = .ok (some f) := by
       rw [filler_of_correct,at_i]
+    have nodeLookup : nodes.index_usize x = .ok nodes.val[x.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+    have at_x : nodes.val[x.val]? = some nodes.val[x.val] := List.getElem?_eq_getElem inside
+    have depsIs : nodes.val[x.val].deps.val = nodeDeps nodes.val x.val := by simp [nodeDeps,at_x]
     by_cases room : nodes.val.length < Usize.max
     · obtain ⟨nodes1,push,contents⟩ := WP.spec_imp_exists
-        (alloc.vec.Vec.push_spec nodes (⟨alloc.vec.Vec.new Usize,x,i,true⟩ : completion.Node) room)
+        (alloc.vec.Vec.push_spec nodes
+          (⟨alloc.vec.Vec.new Usize,x,i,true,nodes.val[x.val].deps⟩ : completion.Node) room)
       obtain ⟨inv1,grows1,length1,labels1,_,depth1,at_new⟩ := create_inv P h count nodes.val inv x.val inside free i r'
-        f at_i x rfl nodes1.val contents
+        f at_i x rfl nodes.val[x.val].deps nodes1.val contents
       have newIndex : (alloc.vec.Vec.len nodes).val = nodes.val.length := by simp
       have countIn := inv.shape.countIn
+      have fresh1 : FreshNodes nodes1.val fresh.val := by
+        intro y k listed
+        by_cases yIn : y < nodes.val.length
+        · apply freshNodes y k
+          unfold nodeDeps at listed ⊢
+          rw [contents,List.getElem?_append_left yIn] at listed
+          exact listed
+        · by_cases same : y = nodes.val.length
+          · subst same
+            unfold nodeDeps at listed
+            rw [contents] at listed
+            simp at listed
+            exact freshNodes x.val k (by rw [← depsIs]; exact listed)
+          · unfold nodeDeps at listed
+            rw [contents,List.getElem?_eq_none_iff.mpr (by simp; omega)] at listed
+            cases listed
       obtain ⟨r,run,sound,complete⟩ := add_correct.{u,v} P h count m IH _ (.Item f (.Item P.axioms .Empty)) nodes1
-        (alloc.vec.Vec.len nodes) rfl inv1 (by rw [newIndex,length1]; omega)
+        (alloc.vec.Vec.len nodes) nodes.val[x.val].deps fresh rfl inv1 (by rw [newIndex,length1]; omega) fresh1
+        (fun k member => freshNodes x.val k (by rw [← depsIs]; exact member))
         (by
           intro nodes' inv' grows' length' others' holds'
           rw [← same,newIndex] at *
@@ -1353,21 +2019,23 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           · exact holds' f (by simp [pendingList]))
       refine ⟨r,?_,fun accepted => namedModel_mono P h count grows1 (sound accepted),?_⟩
       · rw [completion.run,stepRun]
-        simp only [bind_ok,completion.create,filler,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room,
-          ↓reduceIte,push,run]
-      · intro rejected model
-        apply complete rejected
+        simp only [bind_ok,completion.create,filler,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,usize_max_val,room,
+          ↓reduceIte,alloc.vec.Vec.index_slice_index,nodeLookup,
+          copy_label_correct nodes.val[x.val].deps 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp),push,run]
+      · intro D rejected
+        obtain ⟨bound,none⟩ := complete D rejected
+        refine ⟨bound,fun model => none ?_⟩
         rw [newIndex,contents]
         exact fullModel_create P h nodes.val wf inv.shape.parents
           (fun q listed => by have := inv.shape.requirements q listed; omega)
           (fun l listed => by have := inv.shape.links l listed; omega)
-          x.val inside i r' f at_i member x rfl model
+          x.val inside i r' f at_i member x rfl nodes.val[x.val].deps depsIs D.val model
     · refine ⟨none,?_,by simp,by simp⟩
       rw [completion.run,stepRun]
-      simp [completion.create,filler,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room]
+      simp [completion.create,filler,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,usize_max_val,room]
   | Done =>
     obtain ⟨Object,I,π,body⟩ := model_of_complete P h count nodes.val inv.shape (doneCase rfl) positive
-    refine ⟨some true,?_,fun _ => ⟨Object,I,π,body⟩,by simp⟩
+    refine ⟨some .Accepted,?_,fun _ => ⟨Object,I,π,body⟩,by simp⟩
     rw [completion.run,stepRun]
     simp
 
@@ -1546,7 +2214,7 @@ termination_by definitions.val.length - index.val
 decreasing_by omega
 
 /-- A named node with an empty label. -/
-def blank : completion.Node := ⟨alloc.vec.Vec.new Usize,0#usize,0#usize,false⟩
+def blank : completion.Node := ⟨alloc.vec.Vec.new Usize,0#usize,0#usize,false,alloc.vec.Vec.new Usize⟩
 
 theorem named_nodes_correct (count : Usize) (nodes : alloc.vec.Vec completion.Node)
     (inside : nodes.val.length ≤ count.val) (blanks : ∀ n ∈ nodes.val, n = blank) :
@@ -1565,7 +2233,8 @@ theorem named_nodes_correct (count : Usize) (nodes : alloc.vec.Vec completion.No
         · simpa using new)
     refine ⟨result,?_,length,all⟩
     simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room]
-    exact (show alloc.vec.Vec.push nodes ⟨alloc.vec.Vec.new Usize,0#usize,0#usize,false⟩ = .ok nodes1 from push) ▸
+    exact (show alloc.vec.Vec.push nodes ⟨alloc.vec.Vec.new Usize,0#usize,0#usize,false,alloc.vec.Vec.new Usize⟩ =
+      .ok nodes1 from push) ▸
       (by simp [run])
   · refine ⟨nodes,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by omega,blanks⟩
 termination_by count.val - nodes.val.length
@@ -1681,13 +2350,33 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
     · intro y n at_y isTree
       rw [blankNode y n at_y] at isTree
       cases isTree
-  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 rfl inv0
-  refine ⟨r,?_,?_,?_⟩
-  · rw [completion.satisfiable]
+  have fresh0 : FreshNodes nodes0.val (0#usize).val := by
+    intro y k member
+    unfold nodeDeps at member
+    cases at_y : nodes0.val[y]? with
+    | none => rw [at_y] at member; cases member
+    | some n =>
+      rw [at_y,blankNode y n at_y] at member
+      simp [blank] at member
+  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 0#usize rfl inv0 fresh0
+  have run' : completion.run ⟨t3,links,requirements,unfoldings,ax⟩ h nodes0 0#usize = .ok r := run
+  cases r with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [completion.satisfiable]
     simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
-    exact run
-  · intro accepted
-    obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold,_,exact⟩ := sound accepted
+    rw [run']
+    simp
+  | some outcome =>
+  cases outcome with
+  | Accepted =>
+    refine ⟨some true,?_,?_,by simp⟩
+    · rw [completion.satisfiable]
+      simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
+      rw [run']
+      simp
+    intro _
+    obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold,_,exact⟩ := sound rfl
     refine ⟨Object,I,π,respects,?_,?_,?_,linksHold,exact⟩
     · intro y
       have := axiomsHold y
@@ -1700,9 +2389,15 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
       obtain ⟨q,qMember,node,means⟩ := corresponds3.2 f member
       have := requirementsHold q qMember
       rwa [means,node] at this
-  · intro rejected
+  | Rejected D =>
+    refine ⟨some false,?_,by simp,?_⟩
+    · rw [completion.satisfiable]
+      simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
+      rw [run']
+      simp
+    intro _
     rintro ⟨Object,Value,I,π,respects,axiomsHold,definitionsHold,factsHold,linksHold⟩
-    apply complete rejected
+    apply (complete D rfl).2
     refine ⟨Object,Value,I,π,respects,?_,?_,?_,linksHold,?_,?_,by simp⟩
     · intro y
       show denote I (meaning t3.val ax.val) y
@@ -1718,7 +2413,7 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
       show denote I (meaning t3.val q.concept.val) (π q.node.val)
       rw [means,node]
       exact factsHold f listed
-    · intro y i member
+    · intro y _ i member
       rw [blankLabel y] at member
       cases member
     · intro y n _ at_y isTree
