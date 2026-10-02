@@ -946,3 +946,15 @@ built-in class as an ordinary named class and no built-in object property as a
 role. The kernel checks that condition before it answers, because the tableau
 treats every role as an ordinary one, while owl:topObjectProperty relates all
 elements.
+
+Named individuals need one more layer. Individuals and the role assertions
+between them form an arbitrary graph, possibly with cycles, so they cannot be
+decided as one tree. The completion in `abox` works on facts (a concept at a
+numbered node) and fixed edges. It adds each fact once and pushes universal
+restrictions only along the given edges. Everything below a node is again a
+tree: each existential restriction becomes an independent call to the TBox
+tableau, with the universal restrictions on its role at that node. The model
+of an acceptance is the nodes plus a disjoint copy of each successor model.
+That is why the soundness proof can reuse the TBox tableau's theorem as a black
+box. Termination needs no blocking at the node level, because the facts are
+drawn from a finite set of node and closure pairs and are never added twice.

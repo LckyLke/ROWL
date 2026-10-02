@@ -574,13 +574,28 @@ progress. Full OWL parsing and executable reasoning are still future work.
   answer holds in every model. Individuals and assertions, the other axiom
   forms, imports, the remaining SROIQ constructors, datatypes and performance
   remain pending.
-- 803 audited public theorems and 606 audited semantic definitions. Consistency,
+- Reasoner track, sixth stage: ALC with named individuals. The actual kernel
+  procedure abox_satisfiable decides whether some interpretation in which the
+  TBox concept holds at every element has an element for every node that
+  satisfies given facts (concepts at nodes) and edges (named object properties
+  between nodes). The completion adds the TBox concept at every node and each
+  fact once. It expands conjunctions, branches on disjunctions and pushes every
+  universal restriction's filler along the edges of its role. It then checks
+  every node for a clash and decides every existential restriction with the TBox
+  tableau, together with the universal restrictions on its role at the same
+  node. Termination is proved from the finite set of node and closure pairs.
+  Every acceptance yields an explicit model: one element per node and a disjoint
+  copy of a successor model for each existential restriction. Every model, in
+  any universe, forces acceptance. Using it for ontologies with assertions,
+  equality between individuals, inverse roles and number restrictions remain
+  pending.
+- 830 audited public theorems and 618 audited semantic definitions. Consistency,
   class satisfiability and subsumption are decided, with proofs against the OWL
   definitions, for axiom closures whose logical axioms are ALC class, domain and
   range axioms, also directly from Functional Syntax source bytes; no full OWL
   decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 368 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 371 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -589,7 +604,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 996-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1023-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

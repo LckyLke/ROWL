@@ -774,4 +774,59 @@ theorem rejected_class_empty_in (e t : ClassExpression) (c axioms : nnf.NnfConce
   have accepted := class_instances_accepted_in e t c axioms translated internalized I fixes model x member
   rw [rejected] at accepted
   cases Result.ok_injective accepted
+
+/-- The subconcepts of every concept in a list. -/
+def listSubconcepts : List nnf.NnfConcept → List nnf.NnfConcept
+  | [] => []
+  | c :: rest => subconcepts c ++ listSubconcepts rest
+theorem listSubconcepts_closed : ∀ cs, Closed (listSubconcepts cs)
+  | [] => ⟨by simp [listSubconcepts],by simp [listSubconcepts],by simp [listSubconcepts],by simp [listSubconcepts]⟩
+  | c :: rest => closed_append (subconcepts_closed c) (listSubconcepts_closed rest)
+theorem listSubconcepts_self : ∀ {cs : List nnf.NnfConcept} {c : nnf.NnfConcept}, c ∈ cs → c ∈ listSubconcepts cs
+  | _ :: _, _, member => by
+    rcases List.mem_cons.mp member with rfl | later
+    · exact List.mem_append_left _ (subconcepts_self _)
+    · exact List.mem_append_right _ (listSubconcepts_self later)
+
+/-- The procedure for a list of concepts terminates; every acceptance comes with
+    a model in which the TBox concept holds everywhere and one element is in
+    every concept of the list; and every such model, in any universe, forces
+    acceptance. -/
+theorem satisfiable_all_correct (concepts : tableau.Concepts) (axioms : nnf.NnfConcept) :
+    ∃ result, tbox.satisfiable_all concepts axioms = .ok result ∧
+      (result = true → ∃ (Object : Type) (I : Interpretation Object Unit),
+        (∀ y, conceptDenote I axioms y) ∧ ∃ x, Holds I x (toList concepts)) ∧
+      ((∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+        (∀ y, conceptDenote I axioms y) ∧ ∃ x, Holds I x (toList concepts)) → result = true) := by
+  obtain ⟨result,executed,decides⟩ := expand_correct.{u,v}
+    (listSubconcepts (toList concepts) ++ subconcepts axioms) axioms (axioms :: toList concepts)
+    (.Entry axioms concepts) .Empty .Empty
+    { closed := closed_append (listSubconcepts_closed _) (subconcepts_closed axioms)
+      axiomsIn := List.mem_append_right _ (subconcepts_self axioms)
+      axiomsGoal := by simp
+      pendingIn := by
+        intro d member
+        simp only [toList,List.mem_cons] at member
+        rcases member with rfl | inner
+        · exact List.mem_append_right _ (subconcepts_self _)
+        · exact List.mem_append_left _ (listSubconcepts_self inner)
+      literalsIn := by simp [toList]
+      historyIn := by simp [historyList]
+      distinct := by simp [historyList]
+      literal := by simp [toList]
+      covers := by intro L sat; simpa [toList] using sat }
+  refine ⟨result,by rw [tbox.satisfiable_all]; exact executed,?_,?_⟩
+  · intro accepted
+    obtain ⟨family,⟨L,located,sat⟩,coherent⟩ := decides.1 accepted
+    simp only [historyList,List.not_mem_nil,or_false] at located
+    refine ⟨{L // L ∈ family},Rowl.Hintikka.familyModel family L located,fun y => ?_,⟨L,located⟩,fun d member => ?_⟩
+    · exact Rowl.Hintikka.family_truth axioms family coherent L located axioms y (coherent y.val y.property).2.1
+    · exact Rowl.Hintikka.family_truth axioms family coherent L located d ⟨L,located⟩
+        (sat d (by simp [toList,member]))
+  · rintro ⟨Object,Value,I,everywhere,x,holds⟩
+    exact decides.2 ⟨Object,Value,I,x,everywhere,fun d member => by
+      simp only [toList,List.mem_cons,List.append_nil] at member
+      rcases member with rfl | inner
+      · exact everywhere x
+      · exact holds d inner⟩
 end Rowl.TboxTableau

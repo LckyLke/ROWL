@@ -72,6 +72,7 @@ fn main() -> std::process::ExitCode {
             println!("With a TBox concept that must hold at every element, a second tableau with subset blocking is proved total, sound (Hintikka-family models) and complete, so each rejection proves a class empty in every OWL interpretation where the TBox expression holds everywhere.");
             println!("Consistency, class satisfiability and subsumption are answered for axiom closures whose logical axioms are ALC class, domain and range axioms; each answer is proved equal to the Direct Semantics definition, and each acceptance comes with an actual OWL model. Individuals and the other axiom forms are pending.");
             println!("These answers also come straight from Functional Syntax source bytes: one extracted function reads the document, maps it into the raw model and queries the reasoner, and each answer is proved exact for the Direct Semantics of the read axioms.");
+            println!("A verified completion for named individuals decides concepts at nodes related by named object properties under the TBox: proved total, sound (explicit models with a successor model per existential restriction) and complete in every universe. Answering ontology queries with assertions is pending.");
             println!("Full OWL 2 DL parsing and reasoning are not implemented.");
         }
         [command] if command == "demo" => {

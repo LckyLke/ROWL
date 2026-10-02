@@ -30,6 +30,7 @@ pub mod experimental {
     pub use rowl_frontend::regular;
     pub use rowl_frontend::snapshot;
     pub use rowl_frontend::unicode;
+    pub use rowl_kernel::abox;
     pub use rowl_kernel::alc_ontology;
     pub use rowl_kernel::anonymous;
     pub use rowl_kernel::anonymous_boundary;

@@ -9369,6 +9369,39 @@
       "implementation_scope": "Actual ALC concept-satisfiability procedure with respect to a TBox in the kernel: it decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element in a negation-normal-form concept (general concept inclusions C \u2291 D can be supplied as the negation normal form of the conjunction of the unions of the complement of C with D). It runs the rules of the plain tableau, adds the TBox concept at the root and at every successor, and blocks, and accepts, a node whose literal set is contained in the literal set of an ancestor on its branch; concepts are compared structurally by exact IRI spelling. It is proved total by well-founded recursion on the lexicographic triple of the remaining room 2^|closure| - |ancestors|, the total concept size and the pending concept size: every unblocked node adds a literal set from the finite subconcept closure of the input and TBox concepts that differs from all of its ancestors' sets, which bounds every branch. It is proved sound through a Hintikka-family certificate: every acceptance yields a finite family of clash-free literal sets that each satisfy the TBox concept, with every existential restriction witnessed inside the family together with the universal restrictions on its property, and the interpretation whose elements are those sets is a model of the TBox concept with an instance of the input concept. It is proved complete: any interpretation in any universe in which the TBox concept holds everywhere and the input concept has an instance forces acceptance. Composed with the proved negation-normal-form translation, the procedure never rejects an OWL class expression with an instance in an OWL interpretation in which the TBox class expression holds at every element, so every rejection proves the expression empty in all such interpretations. This is an internal fragment experiment toward M6: reading ontology axioms into the TBox class expression, the OWL-level model fixing owl:Thing and owl:Nothing, the remaining SROIQ constructors and role axioms, datatypes, ontology-level query reductions and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     },
     {
+      "id": "m6.TboxTableau.listSubconcepts_closed",
+      "requirement": "Verified ALC satisfiability of a concept list with respect to a TBox: listSubconcepts_closed",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tbox::satisfiable_all",
+      "theorem": "Rowl.TboxTableau.listSubconcepts_closed",
+      "regression": "crates/rowl-kernel/tests/abox.rs; crates/rowl-kernel/tests/tbox.rs",
+      "implementation_scope": "Actual list entry point of the TBox tableau: satisfiable_all decides whether some interpretation in which the TBox concept holds at every element has one element in every concept of a list, with the same termination, soundness (a Hintikka-family model) and completeness (any model in any universe) as the single-concept entry point. The ABox completion uses it for every existential obligation together with the universal restrictions on its role."
+    },
+    {
+      "id": "m6.TboxTableau.listSubconcepts_self",
+      "requirement": "Verified ALC satisfiability of a concept list with respect to a TBox: listSubconcepts_self",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tbox::satisfiable_all",
+      "theorem": "Rowl.TboxTableau.listSubconcepts_self",
+      "regression": "crates/rowl-kernel/tests/abox.rs; crates/rowl-kernel/tests/tbox.rs",
+      "implementation_scope": "Actual list entry point of the TBox tableau: satisfiable_all decides whether some interpretation in which the TBox concept holds at every element has one element in every concept of a list, with the same termination, soundness (a Hintikka-family model) and completeness (any model in any universe) as the single-concept entry point. The ABox completion uses it for every existential obligation together with the universal restrictions on its role."
+    },
+    {
+      "id": "m6.TboxTableau.satisfiable_all_correct",
+      "requirement": "Verified ALC satisfiability of a concept list with respect to a TBox: satisfiable_all_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::tbox::satisfiable_all",
+      "theorem": "Rowl.TboxTableau.satisfiable_all_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs; crates/rowl-kernel/tests/tbox.rs",
+      "implementation_scope": "Actual list entry point of the TBox tableau: satisfiable_all decides whether some interpretation in which the TBox concept holds at every element has one element in every concept of a list, with the same termination, soundness (a Hintikka-family model) and completeness (any model in any universe) as the single-concept entry point. The ABox completion uses it for every existential obligation together with the universal restrictions on its role."
+    },
+    {
       "id": "m6.Internalization.all_equal_iff",
       "requirement": "Verified ontology-level ALC consistency, class satisfiability and subsumption: all_equal_iff",
       "owner": "rowl-kernel",
@@ -10874,6 +10907,270 @@
       "theorem": "Rowl.FunctionalAssertions.assertion_progress",
       "regression": "crates/rowl-frontend/tests/functional_assertions.rs; crates/rowl-kernel/tests/source_reasoning.rs",
       "implementation_scope": "Actual Functional Syntax reading of ClassAssertion, ObjectPropertyAssertion and NegativeObjectPropertyAssertion at a caller-supplied axiom position is total and has exact result/error equivalence to an independent grammar. In source order it reads the keyword, (, the maximal axiom-annotation sequence with the proved annotation reader, the body, then ). Class expressions and object property expressions, including ObjectInverseOf, reuse the proved readers with the caller's class limits. An individual is a full or abbreviated IRI resolved through the checked prefix table or a node ID with its exact label, both under the class IRI limit. Errors report the first failing step in source order with original offsets. Every successful assertion consumes at least its keyword and its closing parenthesis, which the document loop uses for termination. SameIndividual, DifferentIndividuals and the data property assertions remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.targetsOf_mem",
+      "requirement": "Verified ALC reasoning with named individuals: targetsOf_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::propagate",
+      "theorem": "Rowl.AboxTableau.targetsOf_mem",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.nodeFillers_mem",
+      "requirement": "Verified ALC reasoning with named individuals: nodeFillers_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::node_fillers",
+      "theorem": "Rowl.AboxTableau.nodeFillers_mem",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.duplicate_facts_correct",
+      "requirement": "Verified ALC reasoning with named individuals: duplicate_facts_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::duplicate_facts",
+      "theorem": "Rowl.AboxTableau.duplicate_facts_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.duplicate_edges_correct",
+      "requirement": "Verified ALC reasoning with named individuals: duplicate_edges_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::duplicate_edges",
+      "theorem": "Rowl.AboxTableau.duplicate_edges_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.contains_fact_correct",
+      "requirement": "Verified ALC reasoning with named individuals: contains_fact_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::contains_fact",
+      "theorem": "Rowl.AboxTableau.contains_fact_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.propagate_correct",
+      "requirement": "Verified ALC reasoning with named individuals: propagate_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::propagate",
+      "theorem": "Rowl.AboxTableau.propagate_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.has_atom_correct",
+      "requirement": "Verified ALC reasoning with named individuals: has_atom_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::has_atom",
+      "theorem": "Rowl.AboxTableau.has_atom_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.has_clash_correct",
+      "requirement": "Verified ALC reasoning with named individuals: has_clash_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::has_clash",
+      "theorem": "Rowl.AboxTableau.has_clash_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.node_fillers_correct",
+      "requirement": "Verified ALC reasoning with named individuals: node_fillers_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::node_fillers",
+      "theorem": "Rowl.AboxTableau.node_fillers_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.obligations_hold_correct",
+      "requirement": "Verified ALC reasoning with named individuals: obligations_hold_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::obligations_hold",
+      "theorem": "Rowl.AboxTableau.obligations_hold_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.with_axioms_correct",
+      "requirement": "Verified ALC reasoning with named individuals: with_axioms_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::with_axioms",
+      "theorem": "Rowl.AboxTableau.with_axioms_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.requires_mono",
+      "requirement": "Verified ALC reasoning with named individuals: requires_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.requires_mono",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.component_truth",
+      "requirement": "Verified ALC reasoning with named individuals: component_truth",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.component_truth",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.node_truth",
+      "requirement": "Verified ALC reasoning with named individuals: node_truth",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.node_truth",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.model_of_saturated",
+      "requirement": "Verified ALC reasoning with named individuals: model_of_saturated",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.model_of_saturated",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.facts_bound",
+      "requirement": "Verified ALC reasoning with named individuals: facts_bound",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.facts_bound",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.invariant_skip",
+      "requirement": "Verified ALC reasoning with named individuals: invariant_skip",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.invariant_skip",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.invariant_add",
+      "requirement": "Verified ALC reasoning with named individuals: invariant_add",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.invariant_add",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.model_mono",
+      "requirement": "Verified ALC reasoning with named individuals: model_mono",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.model_mono",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.decides_of_implies",
+      "requirement": "Verified ALC reasoning with named individuals: decides_of_implies",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.decides_of_implies",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.model_extend",
+      "requirement": "Verified ALC reasoning with named individuals: model_extend",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.model_extend",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.decides_of_extra",
+      "requirement": "Verified ALC reasoning with named individuals: decides_of_extra",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.decides_of_extra",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.complete_correct",
+      "requirement": "Verified ALC reasoning with named individuals: complete_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::complete",
+      "theorem": "Rowl.AboxTableau.complete_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.AboxTableau.abox_satisfiable_correct",
+      "requirement": "Verified ALC reasoning with named individuals: abox_satisfiable_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::abox::abox_satisfiable",
+      "theorem": "Rowl.AboxTableau.abox_satisfiable_correct",
+      "regression": "crates/rowl-kernel/tests/abox.rs",
+      "implementation_scope": "Actual ALC reasoning with named individuals in the kernel: abox_satisfiable decides whether some interpretation in which a negation-normal-form TBox concept holds at every element has an element for every node below a positive count that satisfies the given facts (concepts at nodes) and edges (named object properties between nodes). The completion adds the TBox concept at every node, then adds each fact once: it expands conjunctions, branches on disjunctions and pushes the filler of every universal restriction to the target of every edge of its role from the node. Once no fact is pending it checks every node for a clash and decides every existential restriction with the TBox tableau, together with the fillers of the universal restrictions on its role at the same node. Termination is proved from the measure (node-closure pairs not yet added, pending facts). Every acceptance yields an explicit model: one element per node and a disjoint copy of a successor model for every existential obligation; every model in any universe forces acceptance. Equality between individuals, inverse roles, number restrictions and nominals remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     }
   ]
 }

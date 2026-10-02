@@ -41,7 +41,7 @@ fn duplicate_history(history: History<'_>) -> (History<'_>, History<'_>) {
     }
 }
 /// Structural equality, comparing classes and properties by exact spelling.
-fn same_concept(left: &NnfConcept, right: &NnfConcept) -> bool {
+pub(crate) fn same_concept(left: &NnfConcept, right: &NnfConcept) -> bool {
     match (left, right) {
         (NnfConcept::Top, NnfConcept::Top) => true,
         (NnfConcept::Bottom, NnfConcept::Bottom) => true,
@@ -242,6 +242,19 @@ pub fn satisfiable_in(concept: &NnfConcept, axioms: &NnfConcept) -> bool {
                 concept: axioms,
                 next: Box::new(Concepts::Empty),
             }),
+        },
+        Concepts::Empty,
+        History::Empty,
+        axioms,
+    )
+}
+/// Decide whether some interpretation in which every element satisfies `axioms`
+/// has an element satisfying every concept of `concepts`.
+pub(crate) fn satisfiable_all<'a>(concepts: Concepts<'a>, axioms: &'a NnfConcept) -> bool {
+    expand(
+        Concepts::Entry {
+            concept: axioms,
+            next: Box::new(concepts),
         },
         Concepts::Empty,
         History::Empty,

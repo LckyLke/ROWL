@@ -129,8 +129,11 @@ actual OWL model. The same answers now come straight from source text:
 `source_consistent`, `source_class_satisfiable` and `source_subsumed` read a
 Functional Syntax document, map it into the raw model and query the reasoner as
 one extracted unit. Every read document reaches the reasoner, and each answer is
-proved exact for the Direct Semantics of the read axioms. Individuals and the
-other axiom forms are later stages.
+proved exact for the Direct Semantics of the read axioms. A verified completion
+for named individuals now also decides concepts at nodes related by named
+object properties under the TBox, with an explicit model for every acceptance;
+using it for ontologies with assertions and the other axiom forms are later
+stages.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.

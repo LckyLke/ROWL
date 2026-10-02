@@ -2537,3 +2537,46 @@ This block adds 24 public theorems and 13 independent definitions. Totals are
 803 audited theorems, 606 definitions, 368 Rust regressions and 996 ledger
 obligations. Reasoning with these assertions is the next step; the ALC queries
 still give no answer for a document that contains them.
+
+
+## Reasoner: ALC with named individuals
+
+`abox::abox_satisfiable(count, facts, edges, axioms)` decides whether some
+interpretation in which `axioms` holds at every element has elements for the
+nodes `0..count` that satisfy `facts` (a concept at a node) and `edges` (a named
+object property between two nodes). The completion:
+
+1. adds the TBox concept at every node;
+2. takes the pending facts one at a time and skips a fact already added;
+3. otherwise adds it and expands a conjunction, branches on a disjunction, or
+   pushes a universal restriction's filler to the target of every edge of its
+   role from the node;
+4. when nothing is pending, checks every node for a clash and decides every
+   existential restriction with the TBox tableau, together with the fillers of
+   the universal restrictions on its role at the same node.
+
+`tbox::satisfiable_all` is the TBox tableau's entry point for such a list of
+concepts; satisfiable_all_correct proves it like the single-concept entry point.
+
+AboxTableau states the contract with AboxModel: an interpretation and an
+assignment of elements to nodes in which the TBox concept holds everywhere and
+every fact and edge holds. complete_correct proves the completion total by
+well-founded recursion on (node and closure pairs not yet added, pending facts)
+and exact against that contract. The invariant records, for every added fact,
+what it requires of the added and pending facts; once nothing is pending, the
+facts are saturated. model_of_saturated then builds the model: one element per
+node and a disjoint copy of a successor model, chosen for every existential
+restriction, whose root satisfies its filler and the universal restrictions on
+its role. abox_satisfiable_correct is the public theorem; it needs a positive
+count and facts and edges below it.
+
+Three regressions in `crates/rowl-kernel/tests/abox.rs` cover the maintenance
+inference with named individuals (pump1 hasPart motor1, motor1 is faulty, so
+pump1 needs inspection), universal restrictions along edges in one direction
+only, existential restrictions meeting universal ones, branching, the TBox
+concept at every node, and an unsatisfiable TBox without facts.
+
+This block adds 27 public theorems and 12 independent definitions. Totals are
+830 audited theorems, 618 definitions, 371 Rust regressions and 1023 ledger
+obligations. Using the completion for ontologies with assertions, and from
+source text, is the next step.

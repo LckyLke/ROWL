@@ -85,6 +85,7 @@ import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
 import Rowl.TboxTableau
+import Rowl.AboxTableau
 import Rowl.Internalization
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
@@ -755,6 +756,9 @@ import Rowl.SourceReasoning
 #print axioms Rowl.TboxTableau.rejected_empty_in_models
 #print axioms Rowl.TboxTableau.class_instances_accepted_in
 #print axioms Rowl.TboxTableau.rejected_class_empty_in
+#print axioms Rowl.TboxTableau.listSubconcepts_closed
+#print axioms Rowl.TboxTableau.listSubconcepts_self
+#print axioms Rowl.TboxTableau.satisfiable_all_correct
 #print axioms Rowl.Internalization.all_equal_iff
 #print axioms Rowl.Internalization.pairwise_disjoint_iff
 #print axioms Rowl.Internalization.pairwise_correct
@@ -892,6 +896,30 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalAssertions.read_assertion_total_correct
 #print axioms Rowl.FunctionalAssertions.read_assertion_result_iff
 #print axioms Rowl.FunctionalAssertions.assertion_progress
+#print axioms Rowl.AboxTableau.targetsOf_mem
+#print axioms Rowl.AboxTableau.nodeFillers_mem
+#print axioms Rowl.AboxTableau.duplicate_facts_correct
+#print axioms Rowl.AboxTableau.duplicate_edges_correct
+#print axioms Rowl.AboxTableau.contains_fact_correct
+#print axioms Rowl.AboxTableau.propagate_correct
+#print axioms Rowl.AboxTableau.has_atom_correct
+#print axioms Rowl.AboxTableau.has_clash_correct
+#print axioms Rowl.AboxTableau.node_fillers_correct
+#print axioms Rowl.AboxTableau.obligations_hold_correct
+#print axioms Rowl.AboxTableau.with_axioms_correct
+#print axioms Rowl.AboxTableau.requires_mono
+#print axioms Rowl.AboxTableau.component_truth
+#print axioms Rowl.AboxTableau.node_truth
+#print axioms Rowl.AboxTableau.model_of_saturated
+#print axioms Rowl.AboxTableau.facts_bound
+#print axioms Rowl.AboxTableau.invariant_skip
+#print axioms Rowl.AboxTableau.invariant_add
+#print axioms Rowl.AboxTableau.model_mono
+#print axioms Rowl.AboxTableau.decides_of_implies
+#print axioms Rowl.AboxTableau.model_extend
+#print axioms Rowl.AboxTableau.decides_of_extra
+#print axioms Rowl.AboxTableau.complete_correct
+#print axioms Rowl.AboxTableau.abox_satisfiable_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1498,3 +1526,15 @@ import Rowl.SourceReasoning
 #print axioms Rowl.FunctionalModel.IndividualOf
 #print axioms Rowl.FunctionalModel.AssertionModel
 #print axioms Rowl.FunctionalModel.ShapedAssertion
+#print axioms Rowl.TboxTableau.listSubconcepts
+#print axioms Rowl.AboxTableau.factsList
+#print axioms Rowl.AboxTableau.edgesList
+#print axioms Rowl.AboxTableau.targetsOf
+#print axioms Rowl.AboxTableau.nodeFillers
+#print axioms Rowl.AboxTableau.Obligation
+#print axioms Rowl.AboxTableau.AboxModel
+#print axioms Rowl.AboxTableau.Requires
+#print axioms Rowl.AboxTableau.Obligations
+#print axioms Rowl.AboxTableau.aboxModel
+#print axioms Rowl.AboxTableau.Invariant
+#print axioms Rowl.AboxTableau.Decides

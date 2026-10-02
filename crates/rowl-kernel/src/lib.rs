@@ -68,6 +68,8 @@ pub mod tableau;
 
 pub mod tbox;
 
+pub mod abox;
+
 pub mod alc_ontology;
 
 pub mod source_reasoning;
