@@ -121,3 +121,4 @@ import Rowl.SourceReasoning
 import Rowl.Concepts
 import Rowl.Hierarchy
 import Rowl.ConceptTable
+import Rowl.CompletionSearch

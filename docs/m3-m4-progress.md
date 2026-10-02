@@ -2871,3 +2871,41 @@ and its inverse.
 This block adds 11 public theorems and 7 independent definitions. Totals are
 981 audited theorems, 686 definitions, 392 Rust regressions and 1174 ledger
 obligations. The completion graph tableau is next.
+
+
+## Reasoner: the completion graph tableau and its rule search
+
+`completion::satisfiable` decides SHI with named individuals on a completion
+graph. It interns the TBox concept, the facts and the lazy unfoldings `A ⊑ C`
+into the concept table, closes it under the restrictions of transitive roles,
+and starts with one node per named individual. Labels are lists of table
+indices of literals. Conjunctions are split, disjunctions branch on a copy of
+the graph, and inserting a literal whose complement is there is a clash on the
+spot. `run` applies the first rule that `next_step` finds:
+
+1. a node lacks something it needs: a fact, the TBox concept, or the concept of
+   an unfolding whose class it lists;
+2. an edge (a link between named nodes or a tree edge) lacks, at either end,
+   what a universal restriction at the other end requires along its role,
+   including `∀t.d` for every transitive role `t` in between;
+3. an unblocked node has an existential restriction without a neighbour along
+   an included role that satisfies its filler; a tree node is created.
+
+A tree node is blocked when two tree nodes on its path to its named root have
+the same label. `None` means that a structure would exceed the `usize` range.
+
+CompletionSearch proves the search exact: `Holds` (propositional satisfaction of
+an entry by a label) is decided by `holds`; every search returns an entry the
+node needs and lacks (Needs), else an unblocked node with an existential
+restriction that has no witness (Witnessed over Neighbour), else `Done` exactly
+when no rule applies (Complete); `blocked` decides Blocked over the tree path.
+
+Seven regressions cover inverse roles reaching predecessors, transitive inverse
+roles along paths, cycles closed by blocking, lazy unfolding, inverse links
+between named individuals, 400 pseudo-random inverse-free inputs that agree with
+the verified SH tableau, and 400 pseudo-random inputs with inverse roles that
+the tableau accepts whenever a model of at most three elements exists.
+
+This block adds 23 public theorems and 18 independent definitions. Totals are
+1004 audited theorems, 704 definitions, 399 Rust regressions and 1197 ledger
+obligations. Termination, soundness and completeness of `run` are next.

@@ -95,6 +95,7 @@ import Rowl.SourceReasoning
 import Rowl.Concepts
 import Rowl.Hierarchy
 import Rowl.ConceptTable
+import Rowl.CompletionSearch
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -1077,6 +1078,29 @@ import Rowl.ConceptTable
 #print axioms Rowl.ConceptTable.universal_is_correct
 #print axioms Rowl.ConceptTable.universal_from_correct
 #print axioms Rowl.ConceptTable.universal_found
+#print axioms Rowl.CompletionSearch.contains_correct
+#print axioms Rowl.CompletionSearch.mem_index_iff
+#print axioms Rowl.CompletionSearch.holds_correct
+#print axioms Rowl.CompletionSearch.complementary_correct
+#print axioms Rowl.CompletionSearch.clashes_correct
+#print axioms Rowl.CompletionSearch.is_atom_correct
+#print axioms Rowl.CompletionSearch.has_atom_correct
+#print axioms Rowl.CompletionSearch.subset_correct
+#print axioms Rowl.CompletionSearch.same_label_correct
+#print axioms Rowl.CompletionSearch.missing_at_correct
+#print axioms Rowl.CompletionSearch.missing_node_correct
+#print axioms Rowl.CompletionSearch.holds_listed
+#print axioms Rowl.CompletionSearch.has_universal_correct
+#print axioms Rowl.CompletionSearch.missing_edge_correct
+#print axioms Rowl.CompletionSearch.created_role_correct
+#print axioms Rowl.CompletionSearch.missing_link_correct
+#print axioms Rowl.CompletionSearch.missing_tree_correct
+#print axioms Rowl.CompletionSearch.has_witness_correct
+#print axioms Rowl.CompletionSearch.missing_witness_correct
+#print axioms Rowl.CompletionSearch.repeats_above_correct
+#print axioms Rowl.CompletionSearch.blocked_correct
+#print axioms Rowl.CompletionSearch.missing_successor_correct
+#print axioms Rowl.CompletionSearch.next_step_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1763,3 +1787,21 @@ import Rowl.ConceptTable
 #print axioms Rowl.ConceptTable.Added
 #print axioms Rowl.ConceptTable.FromOriginal
 #print axioms Rowl.ConceptTable.TransitiveClosed
+#print axioms Rowl.CompletionSearch.Holds
+#print axioms Rowl.CompletionSearch.Complementary
+#print axioms Rowl.CompletionSearch.Clashes
+#print axioms Rowl.CompletionSearch.HasAtom
+#print axioms Rowl.CompletionSearch.NodeNeeds
+#print axioms Rowl.CompletionSearch.NodeOk
+#print axioms Rowl.CompletionSearch.labelOf
+#print axioms Rowl.CompletionSearch.HasUniversal
+#print axioms Rowl.CompletionSearch.EdgeNeeds
+#print axioms Rowl.CompletionSearch.EdgeOk
+#print axioms Rowl.CompletionSearch.createdRole
+#print axioms Rowl.CompletionSearch.Neighbour
+#print axioms Rowl.CompletionSearch.Witnessed
+#print axioms Rowl.CompletionSearch.SameLabel
+#print axioms Rowl.CompletionSearch.treePath
+#print axioms Rowl.CompletionSearch.Blocked
+#print axioms Rowl.CompletionSearch.Needs
+#print axioms Rowl.CompletionSearch.Complete

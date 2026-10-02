@@ -10384,6 +10384,71 @@ def collection.axiom_closure_entities
       collection.EntityUses.Empty
   ok { declarations, uses }
 
+/-- [rowl_kernel::completion::Node]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 46:0-51:1
+    Visibility: public -/
+structure completion.Node where
+  label : alloc.vec.Vec Std.Usize
+  parent : Std.Usize
+  via : Std.Usize
+  tree : Bool
+
+/-- [rowl_kernel::completion::Link]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 53:0-57:1
+    Visibility: public -/
+structure completion.Link where
+  role : model.ObjectPropertyExpression
+  «from» : Std.Usize
+  «to» : Std.Usize
+
+/-- [rowl_kernel::concepts::Concept]
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 19:0-28:1
+    Visibility: public -/
+@[discriminant isize]
+inductive concepts.Concept where
+| Top : concepts.Concept
+| Bottom : concepts.Concept
+| Atom : model.Class → concepts.Concept
+| NotAtom : model.Class → concepts.Concept
+| And : concepts.Concept → concepts.Concept → concepts.Concept
+| Or : concepts.Concept → concepts.Concept → concepts.Concept
+| Exists :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+| Forall :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+
+/-- [rowl_kernel::completion::Fact]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 59:0-62:1
+    Visibility: public -/
+structure completion.Fact where
+  node : Std.Usize
+  concept : concepts.Concept
+
+/-- [rowl_kernel::completion::Definition]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 64:0-67:1
+    Visibility: public -/
+structure completion.Definition where
+  «class» : model.Class
+  concept : concepts.Concept
+
+/-- [rowl_kernel::completion::Requirement]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 69:0-72:1
+    Visibility: public -/
+structure completion.Requirement where
+  node : Std.Usize
+  concept : Std.Usize
+
+/-- [rowl_kernel::completion::Unfolding]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 74:0-77:1
+    Visibility: public -/
+structure completion.Unfolding where
+  «class» : model.Class
+  concept : Std.Usize
+
 /-- [rowl_kernel::concept_table::Entry]
     Source: 'crates/rowl-kernel/src/concept_table.rs', lines 16:0-25:1
     Visibility: public -/
@@ -10397,6 +10462,322 @@ inductive concept_table.Entry where
 | Or : Std.Usize → Std.Usize → concept_table.Entry
 | Exists : model.ObjectPropertyExpression → Std.Usize → concept_table.Entry
 | Forall : model.ObjectPropertyExpression → Std.Usize → concept_table.Entry
+
+/-- [rowl_kernel::completion::Problem]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 80:0-86:1
+    Visibility: public -/
+structure completion.Problem where
+  entries : alloc.vec.Vec concept_table.Entry
+  links : alloc.vec.Vec completion.Link
+  requirements : alloc.vec.Vec completion.Requirement
+  unfoldings : alloc.vec.Vec completion.Unfolding
+  axioms : Std.Usize
+
+/-- [rowl_kernel::completion::Pending]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 88:0-91:1
+    Visibility: public -/
+@[discriminant isize]
+inductive completion.Pending where
+| Empty : completion.Pending
+| Item : Std.Usize → completion.Pending → completion.Pending
+
+/-- [rowl_kernel::completion::Step]
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 93:0-97:1
+    Visibility: public -/
+@[discriminant isize]
+inductive completion.Step where
+| Add : Std.Usize → Std.Usize → completion.Step
+| Create : Std.Usize → Std.Usize → completion.Step
+| Done : completion.Step
+
+/-- [rowl_kernel::completion::contains]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 100:0-110:1 -/
+def completion.contains
+  (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    if i1 = item
+    then ok true
+    else let i2 ← index + 1#usize
+         completion.contains label item i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::holds]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 113:0-145:1 -/
+def completion.holds
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (label : alloc.vec.Vec Std.Usize) (concept : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len entries
+  if concept < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries concept
+    match e with
+    | concept_table.Entry.Top => ok true
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => completion.contains label concept 0#usize
+    | concept_table.Entry.NotAtom _ =>
+      completion.contains label concept 0#usize
+    | concept_table.Entry.And left right =>
+      if left < concept
+      then
+        if right < concept
+        then
+          let b ← completion.holds entries label left
+          if b
+          then completion.holds entries label right
+          else ok false
+        else ok false
+      else ok false
+    | concept_table.Entry.Or left right =>
+      if left < concept
+      then
+        if right < concept
+        then
+          let b ← completion.holds entries label left
+          if b
+          then ok true
+          else completion.holds entries label right
+        else ok false
+      else ok false
+    | concept_table.Entry.Exists _ _ =>
+      completion.contains label concept 0#usize
+    | concept_table.Entry.Forall _ _ =>
+      completion.contains label concept 0#usize
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::complementary]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 147:0-153:1 -/
+def completion.complementary
+  (left : concept_table.Entry) (right : concept_table.Entry) :
+  Result Bool
+  := do
+  match left with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.NotAtom a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok false
+  | concept_table.Entry.Forall _ _ => ok false
+
+/-- [rowl_kernel::completion::clashes]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 155:0-171:1 -/
+def completion.clashes
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let other ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let i1 := alloc.vec.Vec.len entries
+    let here ←
+      if item < i1
+      then
+        let i2 := alloc.vec.Vec.len entries
+        if other < i2
+        then
+          do
+          let e ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              concept_table.Entry) entries item
+          let e1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              concept_table.Entry) entries other
+          completion.complementary e e1
+        else ok false
+      else ok false
+    if here
+    then ok true
+    else let i2 ← index + 1#usize
+         completion.clashes entries label item i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::is_atom]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 173:0-178:1 -/
+def completion.is_atom
+  (entry : concept_table.Entry) («class» : model.Class) : Result Bool := do
+  match entry with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom other =>
+    symbols.same_spelling other.iri.spelling «class».iri.spelling
+  | concept_table.Entry.NotAtom _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok false
+  | concept_table.Entry.Forall _ _ => ok false
+
+/-- [rowl_kernel::completion::has_atom]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 180:0-196:1 -/
+def completion.has_atom
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (label : alloc.vec.Vec Std.Usize) («class» : model.Class)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let item ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let i1 := alloc.vec.Vec.len entries
+    let here ←
+      if item < i1
+      then
+        do
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concept_table.Entry) entries item
+        completion.is_atom e «class»
+      else ok false
+    if here
+    then ok true
+    else
+      let i2 ← index + 1#usize
+      completion.has_atom entries label «class» i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::missing_requirement]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 199:0-220:1 -/
+def completion.missing_requirement
+  (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
+  (node : Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len problem.requirements
+  if index < i
+  then
+    let requirement ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Requirement) problem.requirements index
+    let missing ←
+      if requirement.node = node
+      then
+        do
+        let b ← completion.holds problem.entries label requirement.concept
+        ok (¬ b)
+      else ok false
+    if missing
+    then ok (some requirement.concept)
+    else
+      let i1 ← index + 1#usize
+      completion.missing_requirement problem label node i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::unfolding_missing]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 222:0-228:1 -/
+def completion.unfolding_missing
+  (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
+  (unfolding : completion.Unfolding) :
+  Result Bool
+  := do
+  let b ← completion.has_atom problem.entries label unfolding.class 0#usize
+  if b
+  then
+    let b1 ← completion.holds problem.entries label unfolding.concept
+    ok (¬ b1)
+  else ok false
+
+/-- [rowl_kernel::completion::missing_unfolding]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 231:0-241:1 -/
+def completion.missing_unfolding
+  (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len problem.unfoldings
+  if index < i
+  then
+    let u ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Unfolding) problem.unfoldings index
+    let b ← completion.unfolding_missing problem label u
+    if b
+    then ok (some u.concept)
+    else
+      let i1 ← index + 1#usize
+      completion.missing_unfolding problem label i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::missing_at]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 244:0-255:1 -/
+def completion.missing_at
+  (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
+  (node : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let o ← completion.missing_requirement problem label node 0#usize
+  match o with
+  | none =>
+    let b ← completion.holds problem.entries label problem.axioms
+    if b
+    then completion.missing_unfolding problem label 0#usize
+    else ok (some problem.axioms)
+  | some _ => ok o
+
+/-- [rowl_kernel::completion::missing_node]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 257:0-266:1 -/
+def completion.missing_node
+  (problem : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
+  (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes index
+    let o ← completion.missing_at problem n.label index
+    match o with
+    | none =>
+      let i1 ← index + 1#usize
+      completion.missing_node problem nodes i1
+    | some concept => ok (some (index, concept))
+  else ok none
+partial_fixpoint
 
 /-- [rowl_kernel::concepts::same_role]:
     Source: 'crates/rowl-kernel/src/concepts.rs', lines 61:0-71:1
@@ -10417,6 +10798,1027 @@ def concepts.same_role
     | model.ObjectPropertyExpression.Property _ => ok false
     | model.ObjectPropertyExpression.Inverse b =>
       symbols.same_spelling a.iri.spelling b.iri.spelling
+
+/-- [rowl_kernel::concept_table::universal_is]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 207:0-218:1 -/
+def concept_table.universal_is
+  (entry : concept_table.Entry) (role : model.ObjectPropertyExpression)
+  (filler : Std.Usize) :
+  Result Bool
+  := do
+  match entry with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom _ => ok false
+  | concept_table.Entry.NotAtom _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok false
+  | concept_table.Entry.Forall other inner =>
+    if inner = filler
+    then concepts.same_role other role
+    else ok false
+
+/-- [rowl_kernel::completion::has_universal]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 268:0-290:1 -/
+def completion.has_universal
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (label : alloc.vec.Vec Std.Usize) (role : model.ObjectPropertyExpression)
+  (filler : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let item ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let i1 := alloc.vec.Vec.len entries
+    let here ←
+      if item < i1
+      then
+        do
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concept_table.Entry) entries item
+        concept_table.universal_is e role filler
+      else ok false
+    if here
+    then ok true
+    else
+      let i2 ← index + 1#usize
+      completion.has_universal entries label role filler i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::Inclusion]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 13:0-16:1
+    Visibility: public -/
+structure hierarchy.Inclusion where
+  sub : model.ObjectPropertyExpression
+  sup : model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::listed_from]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 25:0-41:1 -/
+def hierarchy.listed_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role inclusion.sub sub
+    if b
+    then
+      let b1 ← concepts.same_role inclusion.sup sup
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        hierarchy.listed_from inclusions i1 sub sup
+    else let i1 ← index + 1#usize
+         hierarchy.listed_from inclusions i1 sub sup
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::RoleHierarchy]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 19:0-22:1
+    Visibility: public -/
+structure hierarchy.RoleHierarchy where
+  inclusions : alloc.vec.Vec hierarchy.Inclusion
+  transitive : alloc.vec.Vec model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::below]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 44:0-50:1
+    Visibility: public -/
+def hierarchy.below
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← concepts.same_role sub sup
+  if b
+  then ok true
+  else hierarchy.listed_from roles.inclusions 0#usize sub sup
+
+/-- [rowl_kernel::concept_table::universal_from]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 221:0-236:1
+    Visibility: public -/
+def concept_table.universal_from
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries index
+    let b ← concept_table.universal_is e role filler
+    if b
+    then ok index
+    else
+      let i1 ← index + 1#usize
+      concept_table.universal_from entries role filler i1
+  else ok (alloc.vec.Vec.len entries)
+partial_fixpoint
+
+/-- [rowl_kernel::completion::missing_transitive]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 293:0-318:1 -/
+def completion.missing_transitive
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (target : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let transitive ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles.transitive index
+    let b ← hierarchy.below roles role transitive
+    if b
+    then
+      let b1 ← hierarchy.below roles transitive sup
+      if b1
+      then
+        let b2 ←
+          completion.has_universal entries target transitive filler 0#usize
+        if b2
+        then
+          let i1 ← index + 1#usize
+          completion.missing_transitive entries roles role sup filler target i1
+        else
+          let restriction ←
+            concept_table.universal_from entries transitive filler 0#usize
+          let i1 := alloc.vec.Vec.len entries
+          if restriction < i1
+          then ok (some restriction)
+          else
+            let i2 ← index + 1#usize
+            completion.missing_transitive entries roles role sup filler target
+              i2
+      else
+        let i1 ← index + 1#usize
+        completion.missing_transitive entries roles role sup filler target i1
+    else
+      let i1 ← index + 1#usize
+      completion.missing_transitive entries roles role sup filler target i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::missing_for]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 321:0-346:1 -/
+def completion.missing_for
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (item : Std.Usize)
+  (role : model.ObjectPropertyExpression) (target : alloc.vec.Vec Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len entries
+  if item < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries item
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists _ _ => ok none
+    | concept_table.Entry.Forall sup filler =>
+      let b ← hierarchy.below roles role sup
+      if b
+      then
+        let b1 ← completion.holds entries target filler
+        if b1
+        then
+          completion.missing_transitive entries roles role sup filler target
+            0#usize
+        else ok (some filler)
+      else ok none
+  else ok none
+
+/-- [rowl_kernel::completion::missing_along]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 349:0-365:1 -/
+def completion.missing_along
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (label : alloc.vec.Vec Std.Usize)
+  (role : model.ObjectPropertyExpression) (target : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let o ← completion.missing_for entries roles i1 role target
+    match o with
+    | none =>
+      let i2 ← index + 1#usize
+      completion.missing_along entries roles label role target i2
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::inverse]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 46:0-59:1
+    Visibility: public -/
+def concepts.inverse
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+
+/-- [rowl_kernel::completion::missing_edge]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 368:0-404:1 -/
+def completion.missing_edge
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (nodes : alloc.vec.Vec completion.Node)
+  («from» : Std.Usize) («to» : Std.Usize)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len nodes
+    if «to» < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Node) nodes «from»
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Node) nodes «to»
+      let o ←
+        completion.missing_along entries roles n.label role n1.label 0#usize
+      match o with
+      | none =>
+        let back ← concepts.inverse role
+        let o1 ←
+          completion.missing_along entries roles n1.label back n.label 0#usize
+        match o1 with
+        | none => ok none
+        | some concept => ok (some («from», concept))
+      | some concept => ok (some («to», concept))
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::completion::missing_link]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 406:0-428:1 -/
+def completion.missing_link
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len problem.links
+  if index < i
+  then
+    let link ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) problem.links index
+    let o ←
+      completion.missing_edge problem.entries roles nodes link.from link.to
+        link.role
+    match o with
+    | none =>
+      let i1 ← index + 1#usize
+      completion.missing_link problem roles nodes i1
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::copy_role]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 31:0-44:1 -/
+def concepts.copy_role
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+
+/-- [rowl_kernel::completion::created_role]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 430:0-439:1 -/
+def completion.created_role
+  (entries : alloc.vec.Vec concept_table.Entry) (via : Std.Usize) :
+  Result (Option model.ObjectPropertyExpression)
+  := do
+  let i := alloc.vec.Vec.len entries
+  if via < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries via
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists role _ =>
+      let ope ← concepts.copy_role role
+      ok (some ope)
+    | concept_table.Entry.Forall _ _ => ok none
+  else ok none
+
+/-- [rowl_kernel::completion::missing_tree]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 441:0-470:1 -/
+def completion.missing_tree
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes index
+    let (problem1, found) ←
+      if n.tree
+      then
+        do
+        let o ← completion.created_role problem.entries n.via
+        let o1 ←
+          match o with
+          | none => ok none
+          | some role =>
+            completion.missing_edge problem.entries roles nodes n.parent index
+              role
+        ok (problem, o1)
+      else ok (problem, none)
+    match found with
+    | none =>
+      let i1 ← index + 1#usize
+      completion.missing_tree problem1 roles nodes i1
+    | some _ => ok found
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::child_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 473:0-504:1 -/
+def completion.child_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes index
+    let (problem1, here) ←
+      if n.tree
+      then
+        if n.parent = node
+        then
+          do
+          let o ← completion.created_role problem.entries n.via
+          let b ←
+            match o with
+            | none => ok false
+            | some created =>
+              do
+              let b1 ← hierarchy.below roles created role
+              if b1
+              then completion.holds problem.entries n.label filler
+              else ok false
+          ok (problem, b)
+        else ok (problem, false)
+      else ok (problem, false)
+    if here
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      completion.child_witness problem1 roles nodes node role filler i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::parent_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 508:0-533:1 -/
+def completion.parent_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes node
+    if n.tree
+    then
+      let i1 := alloc.vec.Vec.len nodes
+      if n.parent < i1
+      then
+        let o ← completion.created_role problem.entries n.via
+        match o with
+        | none => ok false
+        | some created =>
+          let back ← concepts.inverse created
+          let b ← hierarchy.below roles back role
+          if b
+          then
+            let n1 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                completion.Node) nodes n.parent
+            completion.holds problem.entries n1.label filler
+          else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::completion::forward_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 536:0-553:1 -/
+def completion.forward_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
+  (node : Std.Usize) (role : model.ObjectPropertyExpression)
+  (filler : Std.Usize) :
+  Result Bool
+  := do
+  if link.from = node
+  then
+    let i := alloc.vec.Vec.len nodes
+    if link.to < i
+    then
+      let b ← hierarchy.below roles link.role role
+      if b
+      then
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            completion.Node) nodes link.to
+        completion.holds problem.entries n.label filler
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::completion::backward_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 556:0-574:1 -/
+def completion.backward_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
+  (node : Std.Usize) (role : model.ObjectPropertyExpression)
+  (filler : Std.Usize) :
+  Result Bool
+  := do
+  if link.to = node
+  then
+    let i := alloc.vec.Vec.len nodes
+    if link.from < i
+    then
+      let back ← concepts.inverse link.role
+      let b ← hierarchy.below roles back role
+      if b
+      then
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            completion.Node) nodes link.from
+        completion.holds problem.entries n.label filler
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::completion::link_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 577:0-613:1 -/
+def completion.link_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len problem.links
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) problem.links index
+    let b ← completion.forward_witness problem roles nodes l node role filler
+    if b
+    then ok true
+    else
+      let b1 ←
+        completion.backward_witness problem roles nodes l node role filler
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        completion.link_witness problem roles nodes node role filler i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::has_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 616:0-631:1 -/
+def completion.has_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize) :
+  Result Bool
+  := do
+  let b ←
+    completion.child_witness problem roles nodes node role filler 0#usize
+  if b
+  then ok true
+  else
+    let b1 ← completion.parent_witness problem roles nodes node role filler
+    if b1
+    then ok true
+    else completion.link_witness problem roles nodes node role filler 0#usize
+
+/-- [rowl_kernel::completion::missing_witness]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 634:0-664:1 -/
+def completion.missing_witness
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let i2 := alloc.vec.Vec.len problem.entries
+      let missing ←
+        if item < i2
+        then
+          do
+          let e ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              concept_table.Entry) problem.entries item
+          match e with
+          | concept_table.Entry.Top => ok false
+          | concept_table.Entry.Bottom => ok false
+          | concept_table.Entry.Atom _ => ok false
+          | concept_table.Entry.NotAtom _ => ok false
+          | concept_table.Entry.And _ _ => ok false
+          | concept_table.Entry.Or _ _ => ok false
+          | concept_table.Entry.Exists role filler =>
+            let b ←
+              completion.has_witness problem roles nodes node role filler
+            ok (¬ b)
+          | concept_table.Entry.Forall _ _ => ok false
+        else ok false
+      if missing
+      then ok (some item)
+      else
+        let i3 ← index + 1#usize
+        completion.missing_witness problem roles nodes node i3
+    else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::subset]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 666:0-676:1 -/
+def completion.subset
+  (small : alloc.vec.Vec Std.Usize) (large : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len small
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        small index
+    let b ← completion.contains large i1 0#usize
+    if b
+    then let i2 ← index + 1#usize
+         completion.subset small large i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::completion::same_label]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 678:0-684:1 -/
+def completion.same_label
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
+  Result Bool
+  := do
+  let b ← completion.subset left right 0#usize
+  if b
+  then completion.subset right left 0#usize
+  else ok false
+
+/-- [rowl_kernel::completion::repeats_above]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 687:0-703:1 -/
+def completion.repeats_above
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (ancestor : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if ancestor < i
+  then
+    let i1 := alloc.vec.Vec.len nodes
+    if node < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Node) nodes ancestor
+      if n.tree
+      then
+        let n1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            completion.Node) nodes node
+        let b ← completion.same_label n1.label n.label
+        if b
+        then ok true
+        else
+          if n.parent < ancestor
+          then completion.repeats_above nodes node n.parent
+          else ok false
+      else ok false
+    else ok false
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::blocked]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 706:0-725:1 -/
+def completion.blocked
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes node
+    if n.tree
+    then
+      if n.parent < node
+      then
+        let b ← completion.repeats_above nodes node n.parent
+        if b
+        then ok true
+        else completion.blocked nodes n.parent
+      else ok false
+    else ok false
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::completion::missing_successor]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 728:0-752:1 -/
+def completion.missing_successor
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let o ← completion.missing_witness problem roles nodes index 0#usize
+    let found ←
+      match o with
+      | none => ok none
+      | some _ =>
+        do
+        let b ← completion.blocked nodes index
+        if b
+        then ok none
+        else ok o
+    match found with
+    | none =>
+      let i1 ← index + 1#usize
+      completion.missing_successor problem roles nodes i1
+    | some item => ok (some (index, item))
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::next_step]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 755:0-772:1 -/
+def completion.next_step
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) :
+  Result completion.Step
+  := do
+  let o ← completion.missing_node problem nodes 0#usize
+  match o with
+  | none =>
+    let o1 ← completion.missing_link problem roles nodes 0#usize
+    match o1 with
+    | none =>
+      let o2 ← completion.missing_tree problem roles nodes 0#usize
+      match o2 with
+      | none =>
+        let o3 ← completion.missing_successor problem roles nodes 0#usize
+        match o3 with
+        | none => ok completion.Step.Done
+        | some p =>
+          let (node, existential) := p
+          ok (completion.Step.Create node existential)
+      | some p =>
+        let (node, concept) := p
+        ok (completion.Step.Add node concept)
+    | some p => let (node, concept) := p
+                ok (completion.Step.Add node concept)
+  | some p => let (node, concept) := p
+              ok (completion.Step.Add node concept)
+
+/-- [rowl_kernel::completion::insert]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 775:0-786:1 -/
+def completion.insert
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (item : Std.Usize)
+  :
+  Result (Option (alloc.vec.Vec completion.Node))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if i1 < core.num.Usize.MAX
+    then
+      let (n1, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          completion.Node) nodes node
+      let v ← alloc.vec.Vec.push n1.label item
+      let nodes1 := index_mut_back { n1 with label := v }
+      ok (some nodes1)
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::completion::copy_label]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 787:0-796:1 -/
+def completion.copy_label
+  (label : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            label index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    completion.copy_label label i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::completion::copy_nodes]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 797:0-811:1 -/
+def completion.copy_nodes
+  (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize)
+  (out : alloc.vec.Vec completion.Node) :
+  Result (alloc.vec.Vec completion.Node)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            completion.Node) nodes index
+        let v ←
+          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          { n with label := v, via := n.via, tree := n.tree }
+      else ok out
+    let i2 ← index + 1#usize
+    completion.copy_nodes nodes i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::completion::copy_pending]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 812:0-820:1 -/
+def completion.copy_pending
+  (pending : completion.Pending) : Result completion.Pending := do
+  match pending with
+  | completion.Pending.Empty => ok completion.Pending.Empty
+  | completion.Pending.Item concept next =>
+    let p ← completion.copy_pending next
+    ok (completion.Pending.Item concept p)
+partial_fixpoint
+
+/-- [rowl_kernel::completion::filler_of]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 922:0-931:1 -/
+def completion.filler_of
+  (entries : alloc.vec.Vec concept_table.Entry) (existential : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len entries
+  if existential < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries existential
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists _ filler => ok (some filler)
+    | concept_table.Entry.Forall _ _ => ok none
+  else ok none
+
+mutual
+
+/-- [rowl_kernel::completion::branch]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 822:0-856:1 -/
+def completion.branch
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (left : Std.Usize)
+  (right : Std.Usize) (next : completion.Pending) :
+  Result (Option Bool)
+  := do
+  let other_nodes ←
+    completion.copy_nodes nodes 0#usize (alloc.vec.Vec.new completion.Node)
+  let other_next ← completion.copy_pending next
+  let o ←
+    completion.add problem roles nodes node (completion.Pending.Item left next)
+  match o with
+  | none => ok none
+  | some b =>
+    if b
+    then ok o
+    else
+      completion.add problem roles other_nodes node (completion.Pending.Item
+        right other_next)
+partial_fixpoint
+
+/-- [rowl_kernel::completion::add_literal]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 859:0-881:1 -/
+def completion.add_literal
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (concept : Std.Usize) (next : completion.Pending) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Node) nodes node
+    let b ← completion.contains n.label concept 0#usize
+    if b
+    then completion.add problem roles nodes node next
+    else
+      let b1 ← completion.clashes problem.entries n.label concept 0#usize
+      if b1
+      then ok (some false)
+      else
+        let o ← completion.insert nodes node concept
+        match o with
+        | none => ok none
+        | some nodes1 => completion.add problem roles nodes1 node next
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::add]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 883:0-920:1 -/
+def completion.add
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (pending : completion.Pending) :
+  Result (Option Bool)
+  := do
+  match pending with
+  | completion.Pending.Empty => completion.run problem roles nodes
+  | completion.Pending.Item concept next =>
+    let i := alloc.vec.Vec.len problem.entries
+    if concept < i
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) problem.entries concept
+      match e with
+      | concept_table.Entry.Top => completion.add problem roles nodes node next
+      | concept_table.Entry.Bottom => ok (some false)
+      | concept_table.Entry.Atom _ =>
+        completion.add_literal problem roles nodes node concept next
+      | concept_table.Entry.NotAtom _ =>
+        completion.add_literal problem roles nodes node concept next
+      | concept_table.Entry.And left right =>
+        completion.add problem roles nodes node (completion.Pending.Item left
+          (completion.Pending.Item right next))
+      | concept_table.Entry.Or left right =>
+        completion.branch problem roles nodes node left right next
+      | concept_table.Entry.Exists _ _ =>
+        completion.add_literal problem roles nodes node concept next
+      | concept_table.Entry.Forall _ _ =>
+        completion.add_literal problem roles nodes node concept next
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::create]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 934:0-969:1 -/
+def completion.create
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
+  (existential : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let o ← completion.filler_of problem.entries existential
+  match o with
+  | none => ok none
+  | some filler =>
+    let i := alloc.vec.Vec.len nodes
+    if i < core.num.Usize.MAX
+    then
+      let child := alloc.vec.Vec.len nodes
+      let nodes1 ←
+        alloc.vec.Vec.push nodes
+          ({
+             label := (alloc.vec.Vec.new Std.Usize),
+             parent := node,
+             via := existential,
+             tree := true
+           } : completion.Node)
+      completion.add problem roles nodes1 child (completion.Pending.Item filler
+        (completion.Pending.Item problem.axioms completion.Pending.Empty))
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::completion::run]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 971:0-986:1 -/
+def completion.run
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (nodes : alloc.vec.Vec completion.Node) :
+  Result (Option Bool)
+  := do
+  let s ← completion.next_step problem roles nodes
+  match s with
+  | completion.Step.Add node concept =>
+    completion.add problem roles nodes node (completion.Pending.Item concept
+      completion.Pending.Empty)
+  | completion.Step.Create node existential =>
+    completion.create problem roles nodes node existential
+  | completion.Step.Done => ok (some true)
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::concept_table::push_new]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 69:0-77:1 -/
+def concept_table.push_new
+  (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len entries
+  if i < core.num.Usize.MAX
+  then
+    let position := alloc.vec.Vec.len entries
+    let entries1 ← alloc.vec.Vec.push entries entry
+    ok (some (entries1, position))
+  else ok none
 
 /-- [rowl_kernel::concept_table::same_entry]:
     Source: 'crates/rowl-kernel/src/concept_table.rs', lines 29:0-53:1 -/
@@ -10542,20 +11944,6 @@ def concept_table.position_from
   else ok (alloc.vec.Vec.len entries)
 partial_fixpoint
 
-/-- [rowl_kernel::concept_table::push_new]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 69:0-77:1 -/
-def concept_table.push_new
-  (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
-  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len entries
-  if i < core.num.Usize.MAX
-  then
-    let position := alloc.vec.Vec.len entries
-    let entries1 ← alloc.vec.Vec.push entries entry
-    ok (some (entries1, position))
-  else ok none
-
 /-- [rowl_kernel::concept_table::add]:
     Source: 'crates/rowl-kernel/src/concept_table.rs', lines 80:0-86:1 -/
 def concept_table.add
@@ -10567,40 +11955,6 @@ def concept_table.add
   if position < i
   then ok (some (entries, position))
   else concept_table.push_new entries entry
-
-/-- [rowl_kernel::concepts::copy_role]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 31:0-44:1 -/
-def concepts.copy_role
-  (role : model.ObjectPropertyExpression) :
-  Result model.ObjectPropertyExpression
-  := do
-  match role with
-  | model.ObjectPropertyExpression.Property property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Property { iri := i })
-  | model.ObjectPropertyExpression.Inverse property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Inverse { iri := i })
-
-/-- [rowl_kernel::concepts::Concept]
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 19:0-28:1
-    Visibility: public -/
-@[discriminant isize]
-inductive concepts.Concept where
-| Top : concepts.Concept
-| Bottom : concepts.Concept
-| Atom : model.Class → concepts.Concept
-| NotAtom : model.Class → concepts.Concept
-| And : concepts.Concept → concepts.Concept → concepts.Concept
-| Or : concepts.Concept → concepts.Concept → concepts.Concept
-| Exists :
-  model.ObjectPropertyExpression →
-  concepts.Concept →
-  concepts.Concept
-| Forall :
-  model.ObjectPropertyExpression →
-  concepts.Concept →
-  concepts.Concept
 
 mutual
 
@@ -10677,60 +12031,95 @@ partial_fixpoint
 
 end
 
-/-- [rowl_kernel::hierarchy::Inclusion]
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 13:0-16:1
-    Visibility: public -/
-structure hierarchy.Inclusion where
-  sub : model.ObjectPropertyExpression
-  sup : model.ObjectPropertyExpression
-
-/-- [rowl_kernel::hierarchy::listed_from]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 25:0-41:1 -/
-def hierarchy.listed_from
-  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
-  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
-  :
-  Result Bool
+/-- [rowl_kernel::completion::intern_facts]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 987:0-1010:1 -/
+def completion.intern_facts
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
+  (out : alloc.vec.Vec completion.Requirement) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × (alloc.vec.Vec
+    completion.Requirement)))
   := do
-  let i := alloc.vec.Vec.len inclusions
+  let i := alloc.vec.Vec.len facts
   if index < i
   then
-    let inclusion ←
+    let f ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Inclusion) inclusions index
-    let b ← concepts.same_role inclusion.sub sub
-    if b
-    then
-      let b1 ← concepts.same_role inclusion.sup sup
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        hierarchy.listed_from inclusions i1 sub sup
-    else let i1 ← index + 1#usize
-         hierarchy.listed_from inclusions i1 sub sup
-  else ok false
+        completion.Fact) facts index
+    let o ← concept_table.intern entries f.concept
+    match o with
+    | none => ok none
+    | some pair =>
+      let (entries1, concept) := pair
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ←
+          alloc.vec.Vec.push out ({ node := f.node, concept } :
+            completion.Requirement)
+        let i2 ← index + 1#usize
+        completion.intern_facts entries1 facts i2 out1
+      else ok none
+  else ok (some (entries, out))
 partial_fixpoint
 
-/-- [rowl_kernel::hierarchy::RoleHierarchy]
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 19:0-22:1
-    Visibility: public -/
-structure hierarchy.RoleHierarchy where
-  inclusions : alloc.vec.Vec hierarchy.Inclusion
-  transitive : alloc.vec.Vec model.ObjectPropertyExpression
-
-/-- [rowl_kernel::hierarchy::below]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 44:0-50:1
-    Visibility: public -/
-def hierarchy.below
-  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result Bool
+/-- [rowl_kernel::completion::intern_definitions]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1011:0-1036:1 -/
+def completion.intern_definitions
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
+  (out : alloc.vec.Vec completion.Unfolding) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × (alloc.vec.Vec
+    completion.Unfolding)))
   := do
-  let b ← concepts.same_role sub sup
-  if b
-  then ok true
-  else hierarchy.listed_from roles.inclusions 0#usize sub sup
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let o ← concept_table.intern entries d.concept
+    match o with
+    | none => ok none
+    | some pair =>
+      let (entries1, concept) := pair
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let i2 ← nnf.copy_iri d.class.iri
+        let out1 ←
+          alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept } :
+            completion.Unfolding)
+        let i3 ← index + 1#usize
+        completion.intern_definitions entries1 definitions i3 out1
+      else ok none
+  else ok (some (entries, out))
+partial_fixpoint
+
+/-- [rowl_kernel::completion::named_nodes]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1037:0-1053:1 -/
+def completion.named_nodes
+  (count : Std.Usize) (nodes : alloc.vec.Vec completion.Node) :
+  Result (Option (alloc.vec.Vec completion.Node))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if i < count
+  then
+    let i1 := alloc.vec.Vec.len nodes
+    if i1 < core.num.Usize.MAX
+    then
+      let nodes1 ←
+        alloc.vec.Vec.push nodes
+          ({
+             label := (alloc.vec.Vec.new Std.Usize),
+             parent := 0#usize,
+             via := 0#usize,
+             tree := false
+           } : completion.Node)
+      completion.named_nodes count nodes1
+    else ok none
+  else ok (some nodes)
+partial_fixpoint
 
 /-- [rowl_kernel::concept_table::transitive_restrictions]:
     Source: 'crates/rowl-kernel/src/concept_table.rs', lines 149:0-172:1 -/
@@ -10821,64 +12210,52 @@ def concept_table.close
   let limit := alloc.vec.Vec.len entries
   concept_table.close_from entries roles 0#usize limit
 
-/-- [rowl_kernel::concept_table::universal_is]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 207:0-218:1 -/
-def concept_table.universal_is
-  (entry : concept_table.Entry) (role : model.ObjectPropertyExpression)
-  (filler : Std.Usize) :
-  Result Bool
-  := do
-  match entry with
-  | concept_table.Entry.Top => ok false
-  | concept_table.Entry.Bottom => ok false
-  | concept_table.Entry.Atom _ => ok false
-  | concept_table.Entry.NotAtom _ => ok false
-  | concept_table.Entry.And _ _ => ok false
-  | concept_table.Entry.Or _ _ => ok false
-  | concept_table.Entry.Exists _ _ => ok false
-  | concept_table.Entry.Forall other inner =>
-    if inner = filler
-    then concepts.same_role other role
-    else ok false
-
-/-- [rowl_kernel::concept_table::universal_from]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 221:0-236:1
+/-- [rowl_kernel::completion::satisfiable]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1061:0-1097:1
     Visibility: public -/
-def concept_table.universal_from
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
-  (index : Std.Usize) :
-  Result Std.Usize
+def completion.satisfiable
+  (count : Std.Usize) (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option Bool)
   := do
-  let i := alloc.vec.Vec.len entries
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries index
-    let b ← concept_table.universal_is e role filler
-    if b
-    then ok index
-    else
-      let i1 ← index + 1#usize
-      concept_table.universal_from entries role filler i1
-  else ok (alloc.vec.Vec.len entries)
-partial_fixpoint
-
-/-- [rowl_kernel::concepts::inverse]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 46:0-59:1
-    Visibility: public -/
-def concepts.inverse
-  (role : model.ObjectPropertyExpression) :
-  Result model.ObjectPropertyExpression
-  := do
-  match role with
-  | model.ObjectPropertyExpression.Property property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Inverse { iri := i })
-  | model.ObjectPropertyExpression.Inverse property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Property { iri := i })
+  let o ← concept_table.intern (alloc.vec.Vec.new concept_table.Entry) axioms
+  match o with
+  | none => ok none
+  | some pair =>
+    let (entries, axioms1) := pair
+    let o1 ←
+      completion.intern_facts entries facts 0#usize (alloc.vec.Vec.new
+        completion.Requirement)
+    match o1 with
+    | none => ok none
+    | some pair1 =>
+      let (entries1, requirements) := pair1
+      let o2 ←
+        completion.intern_definitions entries1 definitions 0#usize
+          (alloc.vec.Vec.new completion.Unfolding)
+      match o2 with
+      | none => ok none
+      | some pair2 =>
+        let (entries2, unfoldings) := pair2
+        let o3 ← concept_table.close entries2 roles
+        match o3 with
+        | none => ok none
+        | some entries3 =>
+          let o4 ←
+            completion.named_nodes count (alloc.vec.Vec.new completion.Node)
+          match o4 with
+          | none => ok none
+          | some nodes =>
+            completion.run
+              {
+                entries := entries3,
+                links,
+                requirements,
+                unfoldings,
+                axioms := axioms1
+              } roles nodes
 
 /-- [rowl_kernel::concepts::named]:
     Source: 'crates/rowl-kernel/src/concepts.rs', lines 73:0-96:1 -/

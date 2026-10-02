@@ -1563,6 +1563,35 @@
         "Rowl.ConceptTable.universal_from_correct",
         "Rowl.ConceptTable.universal_found"
       ]
+    },
+    {
+      "module": "Rowl.CompletionSearch",
+      "namespace": "Rowl.CompletionSearch",
+      "theorems": [
+        "Rowl.CompletionSearch.contains_correct",
+        "Rowl.CompletionSearch.mem_index_iff",
+        "Rowl.CompletionSearch.holds_correct",
+        "Rowl.CompletionSearch.complementary_correct",
+        "Rowl.CompletionSearch.clashes_correct",
+        "Rowl.CompletionSearch.is_atom_correct",
+        "Rowl.CompletionSearch.has_atom_correct",
+        "Rowl.CompletionSearch.subset_correct",
+        "Rowl.CompletionSearch.same_label_correct",
+        "Rowl.CompletionSearch.missing_at_correct",
+        "Rowl.CompletionSearch.missing_node_correct",
+        "Rowl.CompletionSearch.holds_listed",
+        "Rowl.CompletionSearch.has_universal_correct",
+        "Rowl.CompletionSearch.missing_edge_correct",
+        "Rowl.CompletionSearch.created_role_correct",
+        "Rowl.CompletionSearch.missing_link_correct",
+        "Rowl.CompletionSearch.missing_tree_correct",
+        "Rowl.CompletionSearch.has_witness_correct",
+        "Rowl.CompletionSearch.missing_witness_correct",
+        "Rowl.CompletionSearch.repeats_above_correct",
+        "Rowl.CompletionSearch.blocked_correct",
+        "Rowl.CompletionSearch.missing_successor_correct",
+        "Rowl.CompletionSearch.next_step_correct"
+      ]
     }
   ],
   "specifications": [
@@ -2251,6 +2280,24 @@
     "Rowl.ConceptTable.rebuild",
     "Rowl.ConceptTable.Added",
     "Rowl.ConceptTable.FromOriginal",
-    "Rowl.ConceptTable.TransitiveClosed"
+    "Rowl.ConceptTable.TransitiveClosed",
+    "Rowl.CompletionSearch.Holds",
+    "Rowl.CompletionSearch.Complementary",
+    "Rowl.CompletionSearch.Clashes",
+    "Rowl.CompletionSearch.HasAtom",
+    "Rowl.CompletionSearch.NodeNeeds",
+    "Rowl.CompletionSearch.NodeOk",
+    "Rowl.CompletionSearch.labelOf",
+    "Rowl.CompletionSearch.HasUniversal",
+    "Rowl.CompletionSearch.EdgeNeeds",
+    "Rowl.CompletionSearch.EdgeOk",
+    "Rowl.CompletionSearch.createdRole",
+    "Rowl.CompletionSearch.Neighbour",
+    "Rowl.CompletionSearch.Witnessed",
+    "Rowl.CompletionSearch.SameLabel",
+    "Rowl.CompletionSearch.treePath",
+    "Rowl.CompletionSearch.Blocked",
+    "Rowl.CompletionSearch.Needs",
+    "Rowl.CompletionSearch.Complete"
   ]
 }

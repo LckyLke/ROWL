@@ -80,6 +80,8 @@ pub mod hierarchy;
 
 pub mod concept_table;
 
+pub mod completion;
+
 pub mod source_reasoning;
 
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.

@@ -204,7 +204,7 @@ pub fn close(entries: Vec<Entry>, roles: &RoleHierarchy) -> Option<Vec<Entry>> {
     close_from(entries, roles, 0, limit)
 }
 /// Whether the entry is `∀role.filler`.
-fn universal_is(entry: &Entry, role: &ObjectPropertyExpression, filler: usize) -> bool {
+pub(crate) fn universal_is(entry: &Entry, role: &ObjectPropertyExpression, filler: usize) -> bool {
     match entry {
         Entry::Forall(other, inner) => {
             if *inner == filler {
