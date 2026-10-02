@@ -149,6 +149,33 @@ theorem copy_nodes_correct (nodes : alloc.vec.Vec completion.Node) (index : Usiz
 termination_by nodes.val.length - index.val
 decreasing_by omega
 
+theorem copy_links_correct (links : alloc.vec.Vec completion.Link) (index : Usize) (out : alloc.vec.Vec completion.Link)
+    (copied : out.val = links.val.take index.val) (inside : index.val ≤ links.val.length) :
+    completion.copy_links links index out = .ok links := by
+  rw [completion.copy_links]
+  by_cases more : index.val < links.val.length
+  · have lookup : links.index_usize index = .ok links.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := links.property; scalar_tac
+    have same : (⟨links.val[index.val].role,links.val[index.val].from,links.val[index.val].to⟩ : completion.Link) =
+        links.val[index.val] := rfl
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out links.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_links_correct links next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,Rowl.Concepts.copy_role_identity,same,push,advance,rest]
+  · have full : index.val = links.val.length := by omega
+    have same : out = links := by
+      apply (alloc.vec.Vec.eq_iff out links).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by links.val.length - index.val
+decreasing_by omega
+
 theorem copy_pending_correct (pending : completion.Pending) : completion.copy_pending pending = .ok pending := by
   induction pending with
   | Empty => rw [completion.copy_pending]
@@ -2083,10 +2110,11 @@ theorem unfolds_append (definitions : List completion.Definition) (entries more 
 
 theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Usize)
     (entries : alloc.vec.Vec concept_table.Entry) (out : alloc.vec.Vec completion.Requirement)
-    (wf : WellFormed entries.val) (inside : index.val ≤ facts.val.length)
-    (corresponds : Corresponds (facts.val.take index.val) entries.val out.val) :
+    (earlier : List completion.Fact) (wf : WellFormed entries.val) (inside : index.val ≤ facts.val.length)
+    (corresponds : Corresponds (earlier ++ facts.val.take index.val) entries.val out.val) :
     ∃ r, completion.intern_facts entries facts index out = .ok r ∧ ∀ t requirements, r = some (t,requirements) →
-      WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ Corresponds facts.val t.val requirements.val := by
+      WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧
+        Corresponds (earlier ++ facts.val) t.val requirements.val := by
   rw [completion.intern_facts]
   by_cases more : index.val < facts.val.length
   · have lookup : facts.index_usize index = .ok facts.val[index.val] := by
@@ -2105,8 +2133,8 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
         obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
           (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
         have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-        have corresponds1 : Corresponds (facts.val.take index'.val) t1.val out1.val := by
-          rw [nextIndex,List.take_succ_eq_append_getElem more,contents,grows1]
+        have corresponds1 : Corresponds (earlier ++ facts.val.take index'.val) t1.val out1.val := by
+          rw [nextIndex,List.take_succ_eq_append_getElem more,← List.append_assoc,contents,grows1]
           have old := corresponds_append _ entries.val more1 wf out.val corresponds
           obtain ⟨forward,backward⟩ := old
           refine ⟨?_,?_⟩
@@ -2126,7 +2154,7 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
               subst new
               rw [← grows1]
               exact ⟨_,List.mem_append_right _ (List.mem_singleton_self _),rfl,means⟩
-        obtain ⟨r,run,spec⟩ := intern_facts_correct facts index' t1 out1 wf1 (by omega) corresponds1
+        obtain ⟨r,run,spec⟩ := intern_facts_correct facts index' t1 out1 earlier wf1 (by omega) corresponds1
         refine ⟨r,?_,?_⟩
         · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
             bind_ok,internRun,uncurry_apply_pair,usize_max_val,room,push,advance,run]
@@ -2246,16 +2274,16 @@ decreasing_by
     everywhere and every fact and link holds at the elements of its named nodes
     (and, without role axioms, named nodes are related only along links); a
     rejection rules out every such model, in any universes. -/
-theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fact)
+theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)
-    (positive : 0 < count.val) (factsIn : ∀ f ∈ facts.val, f.node.val < count.val)
+    (positive : 0 < count.val) (factsIn : ∀ f ∈ query.val ++ facts.val, f.node.val < count.val)
     (linksIn : ∀ l ∈ links.val, l.from.val < count.val ∧ l.to.val < count.val) :
-    ∃ r, completion.satisfiable count facts links axioms definitions h = .ok r ∧
+    ∃ r, completion.satisfiable count query facts links axioms definitions h = .ok r ∧
       (r = some true → ∃ (Object : Type) (I : Interpretation Object Unit) (π : Nat → Object),
         Respects I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
-        (∀ f ∈ facts.val, denote I f.concept (π f.node.val)) ∧
+        (∀ f ∈ query.val ++ facts.val, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) ∧
         (h.inclusions.val = [] → h.transitive.val = [] → ∀ r a b, a < count.val → b < count.val →
           objectRelation I r (π a) (π b) → ∃ l ∈ links.val,
@@ -2263,7 +2291,7 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
       (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
         Respects I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
-        (∀ f ∈ facts.val, denote I f.concept (π f.node.val)) ∧
+        (∀ f ∈ query.val ++ facts.val, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
   have emptyTable : WellFormed (alloc.vec.Vec.new concept_table.Entry).val := by
     intro i e at_i
@@ -2274,35 +2302,43 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
   | some pair0 =>
   obtain ⟨t0,ax⟩ := pair0
   obtain ⟨wf0,_,axIn,axMeaning⟩ := spec0 t0 ax rfl
-  obtain ⟨r1,run1,spec1⟩ := intern_facts_correct facts 0#usize t0 (alloc.vec.Vec.new completion.Requirement) wf0
-    (by simp) (by simp [Corresponds])
+  obtain ⟨rq,runq,specq⟩ := intern_facts_correct query 0#usize t0 (alloc.vec.Vec.new completion.Requirement) []
+    wf0 (by simp) (by simp [Corresponds])
+  cases rq with
+  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq],by simp,by simp⟩
+  | some pairq =>
+  obtain ⟨tq,requirementsq⟩ := pairq
+  obtain ⟨wfq,⟨moreq,growsq⟩,correspondsq⟩ := specq tq requirementsq rfl
+  obtain ⟨r1,run1,spec1⟩ := intern_facts_correct facts 0#usize tq requirementsq query.val wfq (by simp)
+    (by simpa using correspondsq)
   cases r1 with
-  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,run1],by simp,by simp⟩
+  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1],by simp,by simp⟩
   | some pair1 =>
   obtain ⟨t1,requirements⟩ := pair1
   obtain ⟨wf1,⟨more1,grows1⟩,corresponds1⟩ := spec1 t1 requirements rfl
   obtain ⟨r2,run2,spec2⟩ := intern_definitions_correct definitions 0#usize t1
     (alloc.vec.Vec.new completion.Unfolding) wf1 (by simp) (by simp [Unfolds])
   cases r2 with
-  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,run1,run2],by simp,by simp⟩
+  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1,run2],by simp,by simp⟩
   | some pair2 =>
   obtain ⟨t2,unfoldings⟩ := pair2
   obtain ⟨wf2,⟨more2,grows2⟩,unfolds2⟩ := spec2 t2 unfoldings rfl
   obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h t2 wf2
   cases r3 with
-  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,run1,run2,run3],by simp,by simp⟩
+  | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1,run2,run3],by simp,by simp⟩
   | some t3 =>
   obtain ⟨wf3,⟨more3,grows3,_⟩,closedTable⟩ := spec3 t3 rfl
   obtain ⟨nodes0,run4,length0,blanks⟩ := named_nodes_correct count (alloc.vec.Vec.new completion.Node) (by simp)
     (by simp)
   let P : completion.Problem := { entries := t3, links, requirements, unfoldings, axioms := ax }
   have axMeaning3 : meaning t3.val ax.val = axioms := by
+    have insideq : ax.val < tq.val.length := by rw [growsq]; simp; omega
     have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
     have inside2 : ax.val < t2.val.length := by rw [grows2]; simp; omega
     rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf2 _ inside2,grows2,
-      Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,
-      axMeaning]
-  have corresponds3 : Corresponds facts.val t3.val requirements.val := by
+      Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,Rowl.ConceptTable.meaning_append _ _ wfq _ insideq,
+      growsq,Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,axMeaning]
+  have corresponds3 : Corresponds (query.val ++ facts.val) t3.val requirements.val := by
     rw [grows3,grows2]
     exact corresponds_append _ _ _ (by rw [← grows2]; exact wf2) _ (corresponds_append _ _ _ wf1 _ corresponds1)
   have unfolds3 : Unfolds definitions.val t3.val unfoldings.val := by
@@ -2360,11 +2396,12 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
       simp [blank] at member
   obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 0#usize rfl inv0 fresh0
   have run' : completion.run ⟨t3,links,requirements,unfoldings,ax⟩ h nodes0 0#usize = .ok r := run
+  have linksCopy := copy_links_correct links 0#usize (alloc.vec.Vec.new completion.Link) (by simp) (by simp)
   cases r with
   | none =>
     refine ⟨none,?_,by simp,by simp⟩
     rw [completion.satisfiable]
-    simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
+    simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
     rw [run']
     simp
   | some outcome =>
@@ -2372,7 +2409,7 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
   | Accepted =>
     refine ⟨some true,?_,?_,by simp⟩
     · rw [completion.satisfiable]
-      simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
+      simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
       rw [run']
       simp
     intro _
@@ -2392,7 +2429,7 @@ theorem satisfiable_correct (count : Usize) (facts : alloc.vec.Vec completion.Fa
   | Rejected D =>
     refine ⟨some false,?_,by simp,?_⟩
     · rw [completion.satisfiable]
-      simp only [run0,run1,run2,run3,run4,bind_ok,uncurry_apply_pair]
+      simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
       rw [run']
       simp
     intro _

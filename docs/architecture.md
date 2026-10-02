@@ -1039,5 +1039,9 @@ left, and branching by copying the graph. The design keeps the proofs modular:
   labels depend on, and a rejection is read as "no model satisfies the nodes
   whose points lie in the clash set". Deterministic rules preserve that reading
   forward, so only the branch rule needs the backjumping argument, and the
-  graph search and the model construction are unchanged. Reuse across queries
-  follows as a separate step.
+  graph search and the model construction are unchanged.
+- Reuse across queries needs no new argument either: preparing a closure
+  computes, once, everything the query did before running the tableau, and
+  `PreparedData` states what was computed. The prepared queries are proved
+  from that statement alone, and the plain queries are the composition of
+  `prepare` and the prepared query, so their theorems follow directly.

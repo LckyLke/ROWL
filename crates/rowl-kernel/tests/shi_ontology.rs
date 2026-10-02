@@ -2,7 +2,8 @@ use rowl_kernel::alc_ontology;
 use rowl_kernel::concepts::Concept;
 use rowl_kernel::model::*;
 use rowl_kernel::shi_ontology::{
-    class_parts, class_satisfiable, consistent, instance_of, subsumed,
+    class_parts, class_satisfiable, consistent, instance_of, prepare, prepared_class_satisfiable,
+    prepared_consistent, prepared_instance_of, prepared_subsumed, subsumed,
 };
 
 const THING: &[u8] = b"http://www.w3.org/2002/07/owl#Thing";
@@ -606,4 +607,37 @@ fn independent_choices_are_not_retried() {
     assert_eq!(consistent(&items), Some(false));
     // Without the individuals the closure is still inconsistent.
     assert_eq!(consistent(&vec![equivalence()]), Some(false));
+}
+
+#[test]
+fn one_preparation_answers_many_queries() {
+    // A closure prepared once gives every query the answer it has on its own.
+    let mut seed = 31;
+    let b = individual(b"b");
+    for _ in 0..60 {
+        let mut items = vec![random_axiom(&mut seed, true), random_axiom(&mut seed, true)];
+        items.push(asserted(random_expression(&mut seed, 1, true), named(b"a")));
+        items.push(related(inverse(b"R"), named(b"b"), named(b"a")));
+        let prepared = prepare(&items).expect("supported axioms");
+        assert_eq!(prepared_consistent(&prepared), consistent(&items));
+        for _ in 0..4 {
+            let first = random_expression(&mut seed, 2, true);
+            let second = random_expression(&mut seed, 2, true);
+            assert_eq!(
+                prepared_class_satisfiable(&prepared, &first),
+                class_satisfiable(&items, &first)
+            );
+            assert_eq!(
+                prepared_subsumed(&prepared, &first, &second),
+                subsumed(&items, &first, &second)
+            );
+            assert_eq!(
+                prepared_instance_of(&prepared, &b, &first),
+                instance_of(&items, &b, &first)
+            );
+        }
+    }
+    // Axioms outside the supported fragment are not prepared.
+    let unsupported = vec![axiom(Axiom::FunctionalObjectProperty(property(b"R")))];
+    assert!(prepare(&unsupported).is_none());
 }

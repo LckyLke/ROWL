@@ -8,8 +8,37 @@
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional_document::{read_document, DocumentError, DocumentLimits};
 use crate::functional_model::document_ontology;
-use crate::model::{ClassExpression, NamedIndividual};
-use crate::shi_ontology::{class_satisfiable, consistent, instance_of, subsumed};
+use crate::model::{ClassExpression, NamedIndividual, RawOntology};
+use crate::shi_ontology::{
+    class_satisfiable, consistent, instance_of, prepare, subsumed, Prepared,
+};
+
+/// The raw OWL ontology of the document's bytes, read once to answer many
+/// questions.
+pub fn source_ontology(
+    bytes: &Vec<u8>,
+    limits: &DocumentLimits,
+    scope: &Vec<u8>,
+) -> Result<Option<RawOntology>, DocumentError> {
+    let document = match read_document(bytes, limits) {
+        Ok(document) => document,
+        Err(error) => return Err(error),
+    };
+    Ok(document_ontology(&document, scope))
+}
+/// The document's axioms, read and prepared once for the `prepared_` queries;
+/// `Ok(None)` when they are outside the supported fragment.
+pub fn source_prepared(
+    bytes: &Vec<u8>,
+    limits: &DocumentLimits,
+    scope: &Vec<u8>,
+) -> Result<Option<Prepared>, DocumentError> {
+    match source_ontology(bytes, limits, scope) {
+        Ok(Some(ontology)) => Ok(prepare(&ontology.axioms)),
+        Ok(None) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
 
 /// Whether the document's axioms have a model.
 pub fn source_consistent(

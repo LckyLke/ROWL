@@ -7,8 +7,10 @@ use rowl_kernel::model::{
     Individual, Iri, NamedIndividual, ObjectProperty, ObjectPropertyExpression, OntologyIdentity,
     RawOntology,
 };
+use rowl_kernel::shi_ontology::{prepared_consistent, prepared_instance_of};
 use rowl_kernel::source_reasoning::{
-    source_class_satisfiable, source_consistent, source_instance_of, source_subsumed,
+    source_class_satisfiable, source_consistent, source_instance_of, source_ontology,
+    source_prepared, source_subsumed,
 };
 
 const EX: &str = "https://example.org/maintenance/";
@@ -476,4 +478,55 @@ fn inverse_properties_are_reasoned_about_from_the_original_bytes() {
         )),
         Some(true)
     );
+}
+
+#[test]
+fn one_reading_answers_many_questions() {
+    let bytes = include_bytes!("../../../examples/medication-safety.ofn").to_vec();
+    let scope = b"records".to_vec();
+    let medication = "https://example.org/medication/";
+    let alert = ClassExpression::Class(Class {
+        iri: iri(&format!("{medication}AllergyAlert")),
+    });
+    let read = source_ontology(&bytes, &limits(), &scope)
+        .unwrap_or_else(|_| panic!("the document reads"))
+        .unwrap_or_else(|| panic!("every read document maps"));
+    assert_eq!(read.axioms.len(), 30);
+    let prepared = source_prepared(&bytes, &limits(), &scope)
+        .unwrap_or_else(|_| panic!("the document reads"))
+        .unwrap_or_else(|| panic!("supported axioms"));
+    assert_eq!(prepared_consistent(&prepared), Some(true));
+    for (name, expected) in [("alice", true), ("bob", false), ("carol", false)] {
+        let patient = NamedIndividual {
+            iri: iri(&format!("{medication}{name}")),
+        };
+        assert_eq!(
+            prepared_instance_of(&prepared, &patient, &alert),
+            Some(expected)
+        );
+    }
+    // A document error is the reader's first error, for reading and preparing alike.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:a :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert!(matches!(
+        source_ontology(&bytes, &limits(), &scope),
+        Err(DocumentError::UnsupportedAxiom { .. })
+    ));
+    assert!(matches!(
+        source_prepared(&bytes, &limits(), &scope),
+        Err(DocumentError::UnsupportedAxiom { .. })
+    ));
+    // Axioms outside the supported fragment are read but not prepared.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n FunctionalObjectProperty(:p)\n)"
+        .as_bytes()
+        .to_vec();
+    assert!(matches!(
+        source_ontology(&bytes, &limits(), &scope),
+        Ok(Some(_))
+    ));
+    assert!(matches!(
+        source_prepared(&bytes, &limits(), &scope),
+        Ok(None)
+    ));
 }

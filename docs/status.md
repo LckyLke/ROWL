@@ -685,18 +685,27 @@ progress. Full OWL parsing and executable reasoning are still future work.
   to role axioms, built-in object properties and other constructors get no
   answer. The source-byte queries now run on them, so SHI documents, including
   the full medication-safety example, are answered end to end from their bytes.
-- Reasoner track, tenth stage (in progress): backjumping and caching. The
-  completion graph tableau now backjumps: every node records the branch points
-  its label depends on, a rule adds to a node with the points of the node and its
-  neighbours, and a clash reports the points of its node. When the left
-  disjunct of a branch fails without depending on the branch point, the right
-  disjunct is skipped. A rejection with clash set D is proved to rule out every
-  model, in any universes, that satisfies the labels of the nodes whose points
-  lie in D, so satisfiable keeps its exact statement. An inconsistent TBox with
-  eight individuals is refuted in milliseconds, where chronological
-  backtracking did not finish with three. Reuse across queries is the next
-  step of this stage.
-- 1146 audited public theorems and 742 audited semantic definitions. Consistency,
+- Reasoner track, tenth stage: backjumping and caching. The completion graph
+  tableau backjumps: every node records the branch points its label depends
+  on, a rule adds to a node with the points of the node and its neighbours, and
+  a clash reports the points of its node. When the left disjunct of a branch
+  fails without depending on the branch point, the right disjunct is skipped.
+  A rejection with clash set D is proved to rule out every model, in any
+  universes, that satisfies the labels of the nodes whose points lie in D, so
+  satisfiable keeps its exact statement. An inconsistent TBox with eight
+  individuals is refuted in milliseconds, where chronological backtracking did
+  not finish with three. Reuse across queries: shi_ontology::prepare reads an
+  axiom closure once into its individuals, TBox concept and definitions, the
+  facts of its class assertions, its closed role hierarchy, its links and
+  whether a negative assertion is refuted by a link (PreparedData). The
+  prepared queries add only the query's own facts and run the tableau; each is
+  proved exact for the Direct Semantics of the closure's axioms in any
+  universes. The plain queries are now a preparation followed by the prepared
+  query and keep their theorems. source_ontology reads source bytes once and
+  never declines a document the reader accepts; source_prepared prepares its
+  axioms, proved to give a prepared closure of the bytes' raw OWL ontology. The
+  medication-safety example reads its document once for all five questions.
+- 1158 audited public theorems and 742 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -704,11 +713,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   property expressions (SHI), also directly from Functional Syntax source
   bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 409 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 411 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
-  blocking and backjumping; every query still starts from scratch.
+  blocking and backjumping, and a closure or document prepared once answers
+  any number of queries.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;
@@ -716,7 +726,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1339-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1351-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

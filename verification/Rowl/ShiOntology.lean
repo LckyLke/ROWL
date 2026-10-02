@@ -717,28 +717,22 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
       ((relation p proper.1 proper.2 x y).mp first) ((relation p proper.1 proper.2 y z).mp second))
   | _ => simp [RoleAxiom] at role
 
-/-- What an answer `b` of the closure check rests on: the class parts, facts,
-    role hierarchy and links are read, every name is ordinary, negative
-    assertions meet no role axioms, and `b` is `false` for a denied link or else
-    the tableau's answer on the facts, links, TBox concept, definitions and
-    roles. -/
-def AnswerData (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra : alloc.vec.Vec completion.Fact) (b : Bool) : Prop :=
-  ∃ (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) (h : hierarchy.RoleHierarchy)
-    (links : alloc.vec.Vec completion.Link) (count : Usize),
-    shi_ontology.class_parts items = .ok (some parts) ∧
-    shi_ontology.assertions_from items nodes 0#usize extra = .ok (some facts) ∧
-    shi_ontology.role_hierarchy items = .ok (some h) ∧
-    shi_ontology.links_from items nodes 0#usize (alloc.vec.Vec.new completion.Link) = .ok (some links) ∧
-    Proper parts.axioms ∧ (∀ d ∈ parts.definitions.val, DefinitionProper d) ∧
-    (∀ q ∈ facts.val, Proper q.concept) ∧ (∀ item ∈ items.val, RoleProper item.axiom) ∧
-    ((∃ item ∈ items.val, Negative item.axiom) → h.inclusions.val = [] ∧ h.transitive.val = []) ∧
-    count.val = nodes.val.length + 1 ∧
-    (((∃ item ∈ items.val, Denies nodes.val links.val item.axiom) ∧ b = false) ∨
-      (¬ (∃ item ∈ items.val, Denies nodes.val links.val item.axiom) ∧
-        completion.satisfiable count facts links parts.axioms parts.definitions h = .ok (some b)))
+/-- What `prepare` computes from a closure: its individuals, class parts, facts
+    of its class assertions, role hierarchy and links, every name ordinary,
+    negative assertions only without role axioms, and whether a negative
+    assertion denies a link. -/
+def PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared) : Prop :=
+  alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new Individual) = .ok (some p.nodes) ∧
+  shi_ontology.class_parts items = .ok (some p.parts) ∧
+  shi_ontology.assertions_from items p.nodes 0#usize (alloc.vec.Vec.new completion.Fact) = .ok (some p.facts) ∧
+  shi_ontology.role_hierarchy items = .ok (some p.roles) ∧
+  shi_ontology.links_from items p.nodes 0#usize (alloc.vec.Vec.new completion.Link) = .ok (some p.links) ∧
+  Proper p.parts.axioms ∧ (∀ d ∈ p.parts.definitions.val, DefinitionProper d) ∧
+  (∀ q ∈ p.facts.val, Proper q.concept) ∧ (∀ item ∈ items.val, RoleProper item.axiom) ∧
+  ((∃ item ∈ items.val, Negative item.axiom) → p.roles.inclusions.val = [] ∧ p.roles.transitive.val = []) ∧
+  (p.denied = true ↔ ∃ item ∈ items.val, Denies p.nodes.val p.links.val item.axiom)
 
-/-- The check for negative assertions next to role axioms lets the closure check
+/-- The check for negative assertions next to role axioms lets the preparation
     continue whenever it passes. -/
 private theorem gate {α : Type} (b : Bool) (A B : Prop) [Decidable A] [Decidable B] (X Y : Result α)
     (passes : b = true → A ∧ B) :
@@ -749,35 +743,33 @@ private theorem gate {α : Type} (b : Bool) (A B : Prop) [Decidable A] [Decidabl
     obtain ⟨a,bb⟩ := passes rfl
     simp [a,bb]
 
-/-- The closure check terminates, and every answer rests on `AnswerData`. -/
-private theorem closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra : alloc.vec.Vec completion.Fact) (room : nodes.val.length ≤ Usize.max-1)
-    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length) :
-    ∃ r, shi_ontology.closure_satisfiable items nodes extra = .ok r ∧
-      ∀ b, r = some b → AnswerData items nodes extra b := by
+/-- The preparation terminates, and a prepared closure is what `PreparedData` says. -/
+theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ r, shi_ontology.prepare items = .ok r ∧ ∀ p, r = some p → PreparedData items p := by
   have zero : (0#usize).val = 0 := rfl
+  obtain ⟨nodesResult,nodesRun,_⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual) (by simp)
+  rw [shi_ontology.prepare]
+  cases nodesResult with
+  | none => exact ⟨none,by simp [nodesRun],by simp⟩
+  | some nodes =>
   obtain ⟨partsResult,partsRun,_,_,_⟩ := class_parts_correct.{0,0} items
-  obtain ⟨assertResult,assertRun,assertSpec⟩ := assertions_from_correct items nodes 0#usize extra
-  obtain ⟨roleResult,roleRun,roleSpec⟩ := role_hierarchy_correct.{0,0} items
-  rw [shi_ontology.closure_satisfiable]
   cases partsResult with
-  | none => exact ⟨none,by simp [partsRun],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,partsRun],by simp⟩
   | some parts =>
+  obtain ⟨assertResult,assertRun,_⟩ := assertions_from_correct items nodes 0#usize (alloc.vec.Vec.new _)
   cases assertResult with
-  | none => exact ⟨none,by simp [partsRun,assertRun],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,partsRun,assertRun],by simp⟩
   | some facts =>
+  obtain ⟨roleResult,roleRun,_⟩ := role_hierarchy_correct.{0,0} items
   cases roleResult with
-  | none => exact ⟨none,by simp [partsRun,assertRun,roleRun],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,partsRun,assertRun,roleRun],by simp⟩
   | some h =>
-  obtain ⟨closed,_⟩ := roleSpec h rfl
-  obtain ⟨origin,_,_⟩ := assertSpec facts rfl
   have p2 := definitions_proper_correct parts.definitions 0#usize
   have p3 := facts_proper_correct facts 0#usize
   have p4 := roles_proper_correct items 0#usize
   have p5 := has_negative_correct items 0#usize
   rw [zero,List.drop_zero] at p2 p3 p4 p5
-  simp only [zero,List.drop_zero] at origin
-  simp only [partsRun,assertRun,roleRun,bind_ok]
+  simp only [nodesRun,partsRun,assertRun,roleRun,bind_ok]
   by_cases c1 : Proper parts.axioms
   swap
   · exact ⟨none,by simp [proper_correct,c1],by simp⟩
@@ -796,14 +788,6 @@ private theorem closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : 
   · rw [decide_eq_false c4] at p4
     exact ⟨none,by simp [proper_correct,c1,p2,p3,p4],by simp⟩
   rw [decide_eq_true c4] at p4
-  have factsIn : ∀ q ∈ facts.val, q.node.val < nodes.val.length + 1 := by
-    intro q member
-    rcases origin q member with given | ⟨_,_,_,m,_,node,_⟩
-    · have := extraIn q given; omega
-    · rw [node]; have := positionOf_le nodes.val m; omega
-  obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
-    (Usize.add_spec (x := nodes.len) (y := 1#usize) (by have := room; scalar_tac))
-  have countIs : count.val = nodes.val.length+1 := by simpa using countValue
   by_cases c5 : (∃ item ∈ items.val, Negative item.axiom) → h.inclusions.val = [] ∧ h.transitive.val = []
   swap
   · obtain ⟨negative,nonempty⟩ : (∃ item ∈ items.val, Negative item.axiom) ∧
@@ -837,107 +821,167 @@ private theorem closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : 
     intro negative
     obtain ⟨noInclusions,noTransitive⟩ := c5 (by simpa using negative)
     exact ⟨UScalar.eq_of_val_eq (by simp [noInclusions]),UScalar.eq_of_val_eq (by simp [noTransitive])⟩)]
-  obtain ⟨linksResult,linksRun,linksSpec⟩ :=
-    links_from_correct items nodes 0#usize (alloc.vec.Vec.new completion.Link)
+  obtain ⟨linksResult,linksRun,_⟩ := links_from_correct items nodes 0#usize (alloc.vec.Vec.new completion.Link)
   cases linksResult with
   | none => exact ⟨none,by simp [linksRun],by simp⟩
   | some links =>
-    obtain ⟨linkOrigin,_,_⟩ := linksSpec links rfl
-    have linksIn : ∀ l ∈ links.val, l.from.val < count.val ∧ l.to.val < count.val := by
-      intro l member
-      rcases linkOrigin l member with given | ⟨_,_,_,s,t,_,_,source,target⟩
-      · simp at given
-      · rw [source,target,countIs]
-        exact ⟨by have := positionOf_le nodes.val s; omega,by have := positionOf_le nodes.val t; omega⟩
     have denial := denied_from_correct items nodes links 0#usize
     rw [zero,List.drop_zero] at denial
-    by_cases denied : ∃ item ∈ items.val, Denies nodes.val links.val item.axiom
-    · refine ⟨some false,by simp [linksRun,denial,denied],?_⟩
-      intro b same
-      cases same
-      exact ⟨parts,facts,h,links,count,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,countIs,
-        .inl ⟨denied,rfl⟩⟩
-    · obtain ⟨answer,answerRun,_,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count facts links parts.axioms
-        parts.definitions h closed (by omega) (by rw [countIs]; exact factsIn) linksIn
-      refine ⟨answer,by simp [linksRun,denial,denied,countRun,answerRun],?_⟩
-      intro b same
-      exact ⟨parts,facts,h,links,count,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,countIs,
-        .inr ⟨denied,by rw [answerRun,same]⟩⟩
+    refine ⟨some ⟨nodes,parts,facts,h,links,decide (∃ item ∈ items.val, Denies nodes.val links.val item.axiom)⟩,
+      by simp [linksRun,denial],?_⟩
+    intro p same
+    cases same
+    exact ⟨nodesRun,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,by simp⟩
 
-/-- Every answered closure has supported axioms only. -/
-theorem answer_supported {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
-    {extra : alloc.vec.Vec completion.Fact} {b : Bool} (data : AnswerData items nodes extra b) :
-    ∀ a ∈ items.val, SupportedAxiom a.axiom := by
-  obtain ⟨parts,_,_,_,_,partsRun,_⟩ := data
+/-- A prepared closure has supported axioms only. -/
+theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) : ∀ a ∈ items.val, SupportedAxiom a.axiom := by
+  obtain ⟨_,partsRun,_⟩ := data
   obtain ⟨result,run,support,_,_⟩ := class_parts_correct.{0,0} items
   rw [partsRun] at run
   cases Result.ok_injective run
   exact support rfl
 
-/-- The facts' nodes and the links' nodes are nodes of the closure check. -/
-private theorem nodes_in {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
-    {extra facts : alloc.vec.Vec completion.Fact} {links : alloc.vec.Vec completion.Link}
-    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length)
-    (assertRun : shi_ontology.assertions_from items nodes 0#usize extra = .ok (some facts))
-    (linksRun : shi_ontology.links_from items nodes 0#usize (alloc.vec.Vec.new completion.Link) = .ok (some links)) :
-    (∀ q ∈ facts.val, q.node.val < nodes.val.length + 1) ∧
-    (∀ l ∈ links.val, l.from.val < nodes.val.length + 1 ∧ l.to.val < nodes.val.length + 1) := by
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items nodes 0#usize extra
+/-- The individuals of a prepared closure: every individual an assertion
+    mentions, with room for one more node. -/
+private theorem prepared_nodes {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) :
+    (∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ p.nodes.val) ∧ p.nodes.val.length ≤ Usize.max-1 := by
+  obtain ⟨nodesRun,_⟩ := data
+  obtain ⟨result,run,spec⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual) (by simp)
+  rw [nodesRun] at run
+  cases Result.ok_injective run
+  obtain ⟨_,mentioned,room⟩ := spec p.nodes rfl
+  exact ⟨by simpa using mentioned,room⟩
+
+/-- The facts' nodes and the links' nodes of a prepared closure are its nodes. -/
+private theorem prepared_in {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) :
+    (∀ q ∈ p.facts.val, q.node.val ≤ p.nodes.val.length) ∧
+    (∀ l ∈ p.links.val, l.from.val ≤ p.nodes.val.length ∧ l.to.val ≤ p.nodes.val.length) := by
+  obtain ⟨_,_,assertRun,_,linksRun,_⟩ := data
+  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
   rw [assertRun] at assertRun'
   cases Result.ok_injective assertRun'
-  obtain ⟨origin,_,_⟩ := assertSpec facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items nodes 0#usize (alloc.vec.Vec.new _)
+  obtain ⟨origin,_,_⟩ := assertSpec p.facts rfl
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
   rw [linksRun] at linksRun'
   cases Result.ok_injective linksRun'
-  obtain ⟨linkOrigin,_,_⟩ := linksSpec links rfl
+  obtain ⟨linkOrigin,_,_⟩ := linksSpec p.links rfl
   refine ⟨?_,?_⟩
   · intro q member
     rcases origin q member with given | ⟨_,_,_,m,_,node,_⟩
-    · have := extraIn q given; omega
-    · rw [node]; have := positionOf_le nodes.val m; omega
+    · simp at given
+    · rw [node]; exact positionOf_le p.nodes.val m
   · intro l member
     rcases linkOrigin l member with given | ⟨_,_,_,s,t,_,_,source,target⟩
     · simp at given
     · rw [source,target]
-      exact ⟨by have := positionOf_le nodes.val s; omega,by have := positionOf_le nodes.val t; omega⟩
+      exact ⟨positionOf_le p.nodes.val s,positionOf_le p.nodes.val t⟩
 
-/-- An accepting closure check yields an OWL model of the closure in which every
-    individual sits at the element of its node and every extra fact holds at the
-    element of its node. -/
-theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra : alloc.vec.Vec completion.Fact) (room : nodes.val.length ≤ Usize.max-1)
-    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length)
-    (accepted : shi_ontology.closure_satisfiable items nodes extra = .ok (some true))
-    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
-    ∃ (Object : Type u) (I : Interpretation Object (ULift.{v} (Option Native))) (f : Nat → Object),
-      Model D (embedding.{v,w} D) V I items.val ∧ (∀ a, Rowl.Owl.individual I a = f (PositionOf nodes.val a)) ∧
-      ∀ q ∈ extra.val, denote I q.concept (f q.node.val) := by
-  obtain ⟨result,run,spec⟩ := closure_correct items nodes extra room extraIn
-  rw [accepted] at run
-  cases Result.ok_injective run
-  obtain ⟨parts,facts,h,links,count,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,countIs,outcome⟩ :=
-    spec true rfl
-  rcases outcome with ⟨_,impossible⟩ | ⟨notDenied,tableauRun⟩
-  · cases impossible
-  obtain ⟨factsIn,linksIn⟩ := nodes_in extraIn assertRun linksRun
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items nodes 0#usize extra
-  rw [assertRun] at assertRun'
-  cases Result.ok_injective assertRun'
-  obtain ⟨_,kept,covered⟩ := assertSpec facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items nodes 0#usize (alloc.vec.Vec.new _)
-  rw [linksRun] at linksRun'
-  cases Result.ok_injective linksRun'
-  obtain ⟨_,_,linkCovered⟩ := linksSpec links rfl
+/-- The check of a prepared closure with extra facts terminates; an answer is
+    `false` for a denied link or the tableau's answer on the extra facts, the
+    facts, the links, the TBox concept, the definitions and the roles. -/
+private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (extra : alloc.vec.Vec completion.Fact)
+    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length) :
+    ∃ r, shi_ontology.prepared_satisfiable p extra = .ok r ∧ ∀ b, r = some b →
+      (∀ q ∈ extra.val, Proper q.concept) ∧ ∃ count : Usize, count.val = p.nodes.val.length + 1 ∧
+        ((p.denied = true ∧ b = false) ∨ (p.denied = false ∧
+          completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
+            .ok (some b))) := by
+  have zero : (0#usize).val = 0 := rfl
+  obtain ⟨_,room⟩ := prepared_nodes data
+  obtain ⟨factsIn,linksIn⟩ := prepared_in data
+  obtain ⟨_,_,_,roleRun,_⟩ := data
   obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{0,0} items
   rw [roleRun] at roleRun'
   cases Result.ok_injective roleRun'
-  obtain ⟨closed,respectsIff⟩ := roleSpec h rfl
-  obtain ⟨tableau,tableauRun',sound,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count facts links parts.axioms
-    parts.definitions h closed (by omega) (by rw [countIs]; exact factsIn) (by rw [countIs]; exact linksIn)
+  obtain ⟨closed,_⟩ := roleSpec p.roles rfl
+  have properCheck := facts_proper_correct extra 0#usize
+  rw [zero,List.drop_zero] at properCheck
+  rw [shi_ontology.prepared_satisfiable]
+  by_cases proper : ∀ q ∈ extra.val, Proper q.concept
+  swap
+  · rw [decide_eq_false proper] at properCheck
+    exact ⟨none,by simp [properCheck],by simp⟩
+  rw [decide_eq_true proper] at properCheck
+  obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
+    (Usize.add_spec (x := p.nodes.len) (y := 1#usize) (by have := room; scalar_tac))
+  have countIs : count.val = p.nodes.val.length + 1 := by simpa using countValue
+  cases deniedIs : p.denied with
+  | true =>
+    refine ⟨some false,by simp [properCheck,deniedIs],?_⟩
+    intro b same
+    cases same
+    exact ⟨proper,count,countIs,.inl ⟨rfl,rfl⟩⟩
+  | false =>
+    obtain ⟨answer,answerRun,_,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
+      p.parts.axioms p.parts.definitions p.roles closed (by omega)
+      (by
+        intro q member
+        rcases List.mem_append.mp member with given | old
+        · have := extraIn q given; omega
+        · have := factsIn q old; omega)
+      (by
+        intro l member
+        have := linksIn l member
+        omega)
+    refine ⟨answer,by simp [properCheck,deniedIs,countRun,answerRun],?_⟩
+    intro b same
+    exact ⟨proper,count,countIs,.inr ⟨rfl,by rw [answerRun,same]⟩⟩
+
+/-- An accepting check of a prepared closure yields an OWL model of the closure
+    in which every individual sits at the element of its node and every extra
+    fact holds at the element of its node. -/
+theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (extra : alloc.vec.Vec completion.Fact)
+    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length)
+    (accepted : shi_ontology.prepared_satisfiable p extra = .ok (some true))
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
+    ∃ (Object : Type u) (I : Interpretation Object (ULift.{v} (Option Native))) (f : Nat → Object),
+      Model D (embedding.{v,w} D) V I items.val ∧ (∀ a, Rowl.Owl.individual I a = f (PositionOf p.nodes.val a)) ∧
+      ∀ q ∈ extra.val, denote I q.concept (f q.node.val) := by
+  obtain ⟨result,run,spec⟩ := prepared_correct items p data extra extraIn
+  rw [accepted] at run
+  cases Result.ok_injective run
+  obtain ⟨properExtra,count,countIs,outcome⟩ := spec true rfl
+  rcases outcome with ⟨_,impossible⟩ | ⟨notDenied,tableauRun⟩
+  · cases impossible
+  obtain ⟨factsIn,linksIn⟩ := prepared_in data
+  obtain ⟨_,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,deniedIff⟩ := data
+  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
+  rw [assertRun] at assertRun'
+  cases Result.ok_injective assertRun'
+  obtain ⟨_,_,covered⟩ := assertSpec p.facts rfl
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
+  rw [linksRun] at linksRun'
+  cases Result.ok_injective linksRun'
+  obtain ⟨_,_,linkCovered⟩ := linksSpec p.links rfl
+  obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{0,0} items
+  rw [roleRun] at roleRun'
+  cases Result.ok_injective roleRun'
+  obtain ⟨closed,respectsIff⟩ := roleSpec p.roles rfl
+  obtain ⟨tableau,tableauRun',sound,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
+    p.parts.axioms p.parts.definitions p.roles closed (by omega)
+    (by
+      intro q member
+      rcases List.mem_append.mp member with given | old
+      · have := extraIn q given; omega
+      · have := factsIn q old; omega)
+    (by
+      intro l member
+      have := linksIn l member
+      omega)
   rw [tableauRun] at tableauRun'
   cases Result.ok_injective tableauRun'
   obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,exactLinks⟩ := sound rfl
-  let place := fun a => π (PositionOf nodes.val a)
+  have properFacts : ∀ q ∈ extra.val ++ p.facts.val, Proper q.concept := by
+    intro q member
+    rcases List.mem_append.mp member with given | old
+    · exact properExtra q given
+    · exact c3 q old
+  let place := fun a => π (PositionOf p.nodes.val a)
   have valid := owl_model_valid.{u,v,w} J (π 0) place D V
   have fixes := fixes_of_interpretation valid
   have agrees := owl_model_agrees.{u,v,w} J (π 0) place D
@@ -946,14 +990,14 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
   obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u, max w v} items
   rw [partsRun] at partsRun'
   cases Result.ok_injective partsRun'
-  have partsHold : PartsHold (owlModel.{u,v,w} J (π 0) place D) parts := by
-    refine ⟨fun x => (agrees parts.axioms c1 x).mpr (tbox x.down),?_⟩
+  have partsHold : PartsHold (owlModel.{u,v,w} J (π 0) place D) p.parts := by
+    refine ⟨fun x => (agrees p.parts.axioms c1 x).mpr (tbox x.down),?_⟩
     intro d member x classes
     have proper := c2 d member
     have classesJ : J.classes d.class x.down := by
       simpa [owlModel,proper.1.1,proper.1.2] using classes
     exact (agrees d.concept proper.2 x).mpr (defs d member x.down classesJ)
-  have classParts := (partsMeaning parts rfl _ _ (owlModel.{u,v,w} J (π 0) place D) fixes).mp partsHold
+  have classParts := (partsMeaning p.parts rfl _ _ (owlModel.{u,v,w} J (π 0) place D) fixes).mp partsHold
   have rolesHold := (respectsIff Obj Unit J).mp respects
   refine ⟨ULift.{u} Obj,owlModel.{u,v,w} J (π 0) place D,fun n => ULift.up (π n),
     ⟨vocabulary,valid,(owlModel.{u,v,w} J (π 0) place D).anonymousIndividuals,?_⟩,fun a => individualAt a,?_⟩
@@ -963,41 +1007,44 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
     · cases statement : item.axiom with
       | ClassAssertion C m =>
         obtain ⟨q,qIn,qNode,qRead⟩ := covered item (by simpa using member) C m statement
-        have holds := factsHold q qIn
-        have lifted := (agrees q.concept (c3 q qIn) (ULift.up (π q.node.val))).mpr holds
+        have inBoth : q ∈ extra.val ++ p.facts.val := List.mem_append_right _ qIn
+        have holds := factsHold q inBoth
+        have lifted := (agrees q.concept (properFacts q inBoth) (ULift.up (π q.node.val))).mpr holds
         have meaningOf := (translate_meaning C true q.concept qRead _ fixes (ULift.up (π q.node.val))).mp lifted
         simp only [Rowl.Owl.satisfies,individualAt,place]
         rw [← qNode]
         exact meaningOf
-      | ObjectPropertyAssertion p a b =>
-        obtain ⟨l,lIn,role,source,target⟩ := linkCovered item (by simpa using member) p a b statement
+      | ObjectPropertyAssertion r a b =>
+        obtain ⟨l,lIn,role,source,target⟩ := linkCovered item (by simpa using member) r a b statement
         have holds := linksHold l lIn
         have proper := c4 item member
         rw [statement] at proper
         simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation p proper.1 proper.2]
+        rw [relation r proper.1 proper.2]
         rw [role,source,target] at holds
         exact holds
-      | NegativeObjectPropertyAssertion p a b =>
+      | NegativeObjectPropertyAssertion r a b =>
         have proper := c4 item member
         rw [statement] at proper
         simp only [RoleProper] at proper
         obtain ⟨noInclusions,noTransitive⟩ := c5 ⟨item,member,by rw [statement]; trivial⟩
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation p proper.1 proper.2]
+        rw [relation r proper.1 proper.2]
         intro related
-        obtain ⟨l,lIn,found⟩ := exactLinks noInclusions noTransitive p (PositionOf nodes.val a)
-          (PositionOf nodes.val b) (by rw [countIs]; have := positionOf_le nodes.val a; omega)
-          (by rw [countIs]; have := positionOf_le nodes.val b; omega) related
-        apply notDenied
-        refine ⟨item,member,?_⟩
-        rw [statement]
-        simp only [Denies]
-        rcases found with ⟨fromIs,toIs,roleIs⟩ | ⟨toIs,fromIs,roleIs⟩
-        · exact ⟨l,lIn,.inl ⟨fromIs,toIs,roleIs⟩⟩
-        · refine ⟨l,lIn,.inr ⟨fromIs,toIs,?_⟩⟩
-          rw [← roleIs,Rowl.Concepts.inv_inv]
+        obtain ⟨l,lIn,found⟩ := exactLinks noInclusions noTransitive r (PositionOf p.nodes.val a)
+          (PositionOf p.nodes.val b) (by rw [countIs]; have := positionOf_le p.nodes.val a; omega)
+          (by rw [countIs]; have := positionOf_le p.nodes.val b; omega) related
+        have denies : ∃ item ∈ items.val, Denies p.nodes.val p.links.val item.axiom := by
+          refine ⟨item,member,?_⟩
+          rw [statement]
+          simp only [Denies]
+          rcases found with ⟨fromIs,toIs,roleIs⟩ | ⟨toIs,fromIs,roleIs⟩
+          · exact ⟨l,lIn,.inl ⟨fromIs,toIs,roleIs⟩⟩
+          · refine ⟨l,lIn,.inr ⟨fromIs,toIs,?_⟩⟩
+            rw [← roleIs,Rowl.Concepts.inv_inv]
+        rw [deniedIff.mpr denies] at notDenied
+        cases notDenied
       | _ => simp [statement,Assertion] at assertion
     · by_cases role : RoleAxiom item.axiom
       · exact owl_model_role_axiom J (π 0) place D item.axiom role (c4 item member) (rolesHold item member role)
@@ -1006,44 +1053,45 @@ theorem closure_satisfiable_sound (items : alloc.vec.Vec AnnotatedAxiom) (nodes 
         · exact absurd role' role
         · exact holds
   · intro q member
-    exact (agrees q.concept (c3 q (kept q member)) (ULift.up (π q.node.val))).mpr (factsHold q (kept q member))
+    have inBoth : q ∈ extra.val ++ p.facts.val := List.mem_append_left _ member
+    exact (agrees q.concept (properFacts q inBoth) (ULift.up (π q.node.val))).mpr (factsHold q inBoth)
 
 /-- Any OWL model of the closure, in any universes, with an element for every
     node at which its individual sits and at which the extra facts hold, makes
-    the closure check accept. -/
-theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (extra : alloc.vec.Vec completion.Fact) (room : nodes.val.length ≤ Usize.max-1)
-    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length)
-    (mentioned : ∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ nodes.val) (answer : Bool)
-    (answered : shi_ontology.closure_satisfiable items nodes extra = .ok (some answer))
+    the check of the prepared closure accept. -/
+theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (extra : alloc.vec.Vec completion.Fact)
+    (extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length) (answer : Bool)
+    (answered : shi_ontology.prepared_satisfiable p extra = .ok (some answer))
     {Native : Type w} {D : DatatypeMap Native} {V : Vocabulary} {Object : Type u} {Value : Type v}
     {embed : ValueEmbedding D Value} {I : Interpretation Object Value} (valid : IsInterpretation D embed V I)
     (g : AnonymousIndividual → Object) (satisfied : Rowl.Owl.satisfiesClosure (withAnonymous I g) items.val)
     (f : Nat → Object)
-    (placedAt : ∀ a ∈ nodes.val, f (PositionOf nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a)
+    (placedAt : ∀ a ∈ p.nodes.val, f (PositionOf p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a)
     (extraHolds : ∀ q ∈ extra.val, denote (withAnonymous I g) q.concept (f q.node.val)) : answer = true := by
-  obtain ⟨result,run,spec⟩ := closure_correct items nodes extra room extraIn
+  obtain ⟨result,run,spec⟩ := prepared_correct items p data extra extraIn
   rw [answered] at run
   cases Result.ok_injective run
-  obtain ⟨parts,facts,h,links,count,partsRun,assertRun,roleRun,linksRun,_,_,_,_,_,countIs,outcome⟩ :=
-    spec answer rfl
-  obtain ⟨factsIn,linksIn⟩ := nodes_in extraIn assertRun linksRun
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items nodes 0#usize extra
+  obtain ⟨_,count,countIs,outcome⟩ := spec answer rfl
+  obtain ⟨mentioned,_⟩ := prepared_nodes data
+  obtain ⟨factsIn,linksIn⟩ := prepared_in data
+  obtain ⟨_,partsRun,assertRun,roleRun,linksRun,_,_,_,_,_,deniedIff⟩ := data
+  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
   rw [assertRun] at assertRun'
   cases Result.ok_injective assertRun'
-  obtain ⟨origin,_,_⟩ := assertSpec facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items nodes 0#usize (alloc.vec.Vec.new _)
+  obtain ⟨origin,_,_⟩ := assertSpec p.facts rfl
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
   rw [linksRun] at linksRun'
   cases Result.ok_injective linksRun'
-  obtain ⟨linkOrigin,_,_⟩ := linksSpec links rfl
+  obtain ⟨linkOrigin,_,_⟩ := linksSpec p.links rfl
   have fixes : Fixes (withAnonymous I g) := fixes_of_interpretation valid
   have mentionedAt : ∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom,
-      f (PositionOf nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a :=
+      f (PositionOf p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a :=
     fun item member a inItem => placedAt a (mentioned item member a inItem)
   have zero : (0#usize).val = 0 := rfl
-  have linkHolds : ∀ l ∈ links.val, objectRelation (withAnonymous I g) l.role (f l.from.val) (f l.to.val) := by
+  have linkHolds : ∀ l ∈ p.links.val, objectRelation (withAnonymous I g) l.role (f l.from.val) (f l.to.val) := by
     intro l member
-    rcases linkOrigin l member with given | ⟨item,itemIn,p,s,t,statement,role,source,target⟩
+    rcases linkOrigin l member with given | ⟨item,itemIn,r,s,t,statement,role,source,target⟩
     · simp at given
     · rw [zero,List.drop_zero] at itemIn
       have holds := satisfied item itemIn
@@ -1052,10 +1100,11 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
       rw [role,source,target,mentionedAt item itemIn s (by simp [statement,IndividualsOf]),
         mentionedAt item itemIn t (by simp [statement,IndividualsOf])]
       exact holds
-  rcases outcome with ⟨⟨item,itemIn,denies⟩,rfl⟩ | ⟨notDenied,tableauRun⟩
+  rcases outcome with ⟨deniedTrue,rfl⟩ | ⟨_,tableauRun⟩
   · exfalso
+    obtain ⟨item,itemIn,denies⟩ := deniedIff.mp deniedTrue
     cases statement : item.axiom with
-    | NegativeObjectPropertyAssertion p s t =>
+    | NegativeObjectPropertyAssertion r s t =>
       rw [statement] at denies
       simp only [Denies] at denies
       obtain ⟨l,lIn,found⟩ := denies
@@ -1077,10 +1126,18 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
   · obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{u,v} items
     rw [roleRun] at roleRun'
     cases Result.ok_injective roleRun'
-    obtain ⟨closed,respectsIff⟩ := roleSpec h rfl
-    obtain ⟨tableau,tableauRun',_,complete⟩ := Rowl.Completion.satisfiable_correct.{u,v} count facts links
-      parts.axioms parts.definitions h closed (by omega) (by rw [countIs]; exact factsIn)
-      (by rw [countIs]; exact linksIn)
+    obtain ⟨closed,respectsIff⟩ := roleSpec p.roles rfl
+    obtain ⟨tableau,tableauRun',_,complete⟩ := Rowl.Completion.satisfiable_correct.{u,v} count extra p.facts
+      p.links p.parts.axioms p.parts.definitions p.roles closed (by omega)
+      (by
+        intro q member
+        rcases List.mem_append.mp member with given | old
+        · have := extraIn q given; omega
+        · have := factsIn q old; omega)
+      (by
+        intro l member
+        have := linksIn l member
+        omega)
     rw [tableauRun] at tableauRun'
     cases Result.ok_injective tableauRun'
     cases answer with
@@ -1091,32 +1148,23 @@ theorem closure_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (nod
       obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u,v} items
       rw [partsRun] at partsRun'
       cases Result.ok_injective partsRun'
-      have partsHold := (partsMeaning parts rfl _ _ (withAnonymous I g) fixes).mpr
+      have partsHold := (partsMeaning p.parts rfl _ _ (withAnonymous I g) fixes).mpr
         (fun item member => .inr (.inr (satisfied item member)))
       refine ⟨Object,Value,withAnonymous I g,f,
         (respectsIff Object Value (withAnonymous I g)).mpr (fun item member _ => satisfied item member),
         partsHold.1,partsHold.2,?_,linkHolds⟩
       intro q member
-      rcases origin q member with given | ⟨item,itemIn,C,m,statement,qNode,qRead⟩
+      rcases List.mem_append.mp member with given | old
       · exact extraHolds q given
-      · rw [zero,List.drop_zero] at itemIn
-        have holds := satisfied item itemIn
-        rw [statement] at holds
-        have at_m := mentionedAt item itemIn m (by simp [statement,IndividualsOf])
-        simp only [Rowl.Owl.satisfies] at holds
-        rw [← at_m,← qNode] at holds
-        exact (translate_meaning C true q.concept qRead _ fixes _).mpr holds
-
-/-- The nodes of the closure: every individual an assertion mentions, with room
-    for one more node. -/
-private theorem nodes_of (items : alloc.vec.Vec AnnotatedAxiom) :
-    ∃ result, alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new Individual) = .ok result ∧
-      ∀ nodes, result = some nodes →
-        (∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ nodes.val) ∧ nodes.val.length ≤ Usize.max-1 := by
-  obtain ⟨result,run,spec⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual) (by simp)
-  refine ⟨result,run,fun nodes same => ?_⟩
-  obtain ⟨_,mentioned,room⟩ := spec nodes same
-  exact ⟨by simpa using mentioned,room⟩
+      · rcases origin q old with impossible | ⟨item,itemIn,C,m,statement,qNode,qRead⟩
+        · simp at impossible
+        · rw [zero,List.drop_zero] at itemIn
+          have holds := satisfied item itemIn
+          rw [statement] at holds
+          have at_m := mentionedAt item itemIn m (by simp [statement,IndividualsOf])
+          simp only [Rowl.Owl.satisfies] at holds
+          rw [← at_m,← qNode] at holds
+          exact (translate_meaning C true q.concept qRead _ fixes _).mpr holds
 
 private theorem single_fact (concept : concepts.Concept) (node : Usize) :
     ∃ extra, alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact) ⟨node,concept⟩ = .ok extra ∧
@@ -1133,6 +1181,327 @@ private theorem pair_facts (first second : concepts.Concept) :
     (alloc.vec.Vec.push_spec one ⟨0#usize,second⟩ (by rw [oneValue]; simp; scalar_tac))
   exact ⟨one,two,oneRun,twoRun,by rw [twoValue,oneValue]; rfl⟩
 
+/-- Consistency of a prepared closure: the query terminates, and an answer is
+    whether the closure has an OWL model. -/
+theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) :
+    ∃ result, shi_ontology.prepared_consistent p = .ok result ∧
+      ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
+        IsVocabulary D V → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+  obtain ⟨_,room⟩ := prepared_nodes data
+  obtain ⟨result,run,_⟩ := prepared_correct items p data (alloc.vec.Vec.new _) (by simp)
+  refine ⟨result,by rw [shi_ontology.prepared_consistent]; exact run,?_⟩
+  intro answer same Native D V vocabulary
+  subst same
+  constructor
+  · intro yes
+    subst yes
+    obtain ⟨Object,I,f,model,_,_⟩ := prepared_sound.{u,v,w} items p data _ (by simp) run D V vocabulary
+    exact ⟨Object,_,_,I,model⟩
+  · rintro ⟨Object,Value,embed,I,_,valid,g,satisfied⟩
+    obtain ⟨x⟩ := I.objectsNonempty
+    exact prepared_complete.{u, max w v, w} items p data _ (by simp) answer run valid g satisfied
+      (Placement (withAnonymous I g) p.nodes.val x) (fun a present => placement_at _ p.nodes.val x a present)
+      (by simp)
+
+/-- Class satisfiability with respect to a prepared closure: the query
+    terminates, it answers only on ALCI expressions, and an answer is whether
+    some OWL model of the closure has an instance of the expression. -/
+theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (e : ClassExpression) :
+    ∃ result, shi_ontology.prepared_class_satisfiable p e = .ok result ∧ (result.isSome → InAlci e) ∧
+      ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
+        IsVocabulary D V → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+  obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e true
+  rw [shi_ontology.prepared_class_satisfiable]
+  cases translated with
+  | none => exact ⟨none,by simp [translatedRead],by simp,by simp⟩
+  | some concept =>
+    obtain ⟨extra,extraRun,extraValue⟩ := single_fact concept 0#usize
+    have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by simp [extraValue]
+    obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
+    refine ⟨result,by simp [translatedRead,extraRun,run],fun _ => translatedCorrect.1,?_⟩
+    intro answer same Native D V vocabulary
+    subst same
+    constructor
+    · intro yes
+      subst yes
+      obtain ⟨Object,I,f,model,_,holds⟩ := prepared_sound.{u,v,w} items p data extra extraIn run D V vocabulary
+      have fixes := fixes_of_interpretation model.2.1
+      have member := holds ⟨0#usize,concept⟩ (by simp [extraValue])
+      exact ⟨Object,_,_,I,model,f 0,(translate_meaning e true concept translatedRead I fixes (f 0)).mp member⟩
+    · rintro ⟨Object,Value,embed,I,⟨_,valid,g,satisfied⟩,x,member⟩
+      have fixes := fixes_of_interpretation valid
+      exact prepared_complete.{u, max w v, w} items p data extra extraIn answer run valid g satisfied
+        (Placement (withAnonymous I g) p.nodes.val x) (fun a present => placement_at _ p.nodes.val x a present)
+        (by
+          intro q qIn
+          simp only [extraValue,List.mem_singleton] at qIn
+          subst qIn
+          simp only [placement_zero]
+          exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+
+/-- Subsumption with respect to a prepared closure: the query terminates, it
+    answers only on ALCI expressions, and an answer is whether every instance of
+    `sub` is an instance of `sup` in every OWL model of the closure. -/
+theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (sub sup : ClassExpression) :
+    ∃ result, shi_ontology.prepared_subsumed p sub sup = .ok result ∧ (result.isSome → InAlci sub ∧ InAlci sup) ∧
+      ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
+        IsVocabulary D V → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+  obtain ⟨insideResult,insideRead,insideCorrect⟩ := translate_total_correct.{0,0} sub true
+  obtain ⟨outsideResult,outsideRead,outsideCorrect⟩ := translate_total_correct.{0,0} sup false
+  rw [shi_ontology.prepared_subsumed]
+  cases insideResult with
+  | none => exact ⟨none,by simp [insideRead],by simp,by simp⟩
+  | some inside =>
+    cases outsideResult with
+    | none => exact ⟨none,by simp [insideRead,outsideRead],by simp,by simp⟩
+    | some outside =>
+      obtain ⟨one,extra,oneRun,extraRun,extraValue⟩ := pair_facts inside outside
+      have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
+        intro q member; rw [extraValue] at member; simp at member; rcases member with rfl | rfl <;> simp
+      obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
+      refine ⟨result.map (fun satisfiable => decide ¬ satisfiable = true),?_,
+        fun _ => ⟨insideCorrect.1,outsideCorrect.1⟩,?_⟩
+      · simp only [insideRead,outsideRead,bind_ok,oneRun,extraRun,run]
+        cases result <;> rfl
+      · intro answer same Native D V vocabulary
+        cases result with
+        | none => cases same
+        | some satisfiable =>
+          simp only [Option.map_some,Option.some.injEq] at same
+          subst same
+          constructor
+          · intro yes Object Value embed I model x member
+            obtain ⟨_,valid,g,satisfied⟩ := model
+            have fixes := fixes_of_interpretation valid
+            by_contra outsideSup
+            have accepted := prepared_complete.{u, max w v, w} items p data extra extraIn satisfiable run valid g
+              satisfied (Placement (withAnonymous I g) p.nodes.val x)
+              (fun a present => placement_at _ p.nodes.val x a present)
+              (by
+                intro q qIn
+                rw [extraValue] at qIn
+                simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
+                rcases qIn with rfl | rfl
+                · simp only [placement_zero]
+                  exact (translated_meaning fixes g sub true inside insideRead x).mpr member
+                · simp only [placement_zero]
+                  exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
+            simp [accepted] at yes
+          · intro subsumed
+            cases satisfiable with
+            | false => rfl
+            | true =>
+              exfalso
+              obtain ⟨Object,I,f,model,_,holds⟩ := prepared_sound.{u,v,w} items p data extra extraIn run D V
+                vocabulary
+              have fixes := fixes_of_interpretation model.2.1
+              have inSub := (translate_meaning sub true inside insideRead I fixes (f 0)).mp
+                (holds ⟨0#usize,inside⟩ (by simp [extraValue]))
+              have notSup := (translate_meaning sup false outside outsideRead I fixes (f 0)).mp
+                (holds ⟨0#usize,outside⟩ (by simp [extraValue]))
+              exact notSup (subsumed _ _ _ _ model _ inSub)
+
+/-- Instance checking with respect to a prepared closure: the query terminates,
+    it answers only on ALCI expressions, and an answer is whether the named
+    individual is an instance of the expression in every OWL model of the
+    closure. -/
+theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (a : NamedIndividual) (e : ClassExpression) :
+    ∃ result, shi_ontology.prepared_instance_of p a e = .ok result ∧ (result.isSome → InAlci e) ∧
+      ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
+        IsVocabulary D V → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+  obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e false
+  rw [shi_ontology.prepared_instance_of]
+  cases translated with
+  | none => exact ⟨none,by simp [translatedRead],by simp,by simp⟩
+  | some outside =>
+    obtain ⟨node,nodeRun,nodeValue⟩ := position_of p.nodes (.Named a)
+    have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
+    obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
+    have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
+      intro q member
+      rw [extraValue,List.mem_singleton] at member
+      subst member
+      rw [nodeValue]
+      exact positionOf_le _ _
+    obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
+    refine ⟨result.map (fun satisfiable => decide ¬ satisfiable = true),?_,fun _ => translatedCorrect.1,?_⟩
+    · simp only [translatedRead,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run]
+      cases result <;> rfl
+    · intro answer same Native D V vocabulary
+      cases result with
+      | none => cases same
+      | some satisfiable =>
+        simp only [Option.map_some,Option.some.injEq] at same
+        subst same
+        constructor
+        · intro yes Object Value embed I model
+          obtain ⟨_,valid,g,satisfied⟩ := model
+          have fixes := fixes_of_interpretation valid
+          by_contra outsideClass
+          have located : Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a)
+              (PositionOf p.nodes.val (.Named a)) = I.namedIndividuals a := by
+            by_cases present : Individual.Named a ∈ p.nodes.val
+            · rw [placement_at _ p.nodes.val _ _ present]; rfl
+            · rw [show PositionOf p.nodes.val (.Named a) = 0 from positionFrom_absent p.nodes.val _ 0 present,
+                placement_zero]
+          have accepted := prepared_complete.{u, max w v, w} items p data extra extraIn satisfiable run valid g
+            satisfied (Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a))
+            (fun b present => placement_at _ p.nodes.val _ b present)
+            (by
+              intro q qIn
+              rw [extraValue,List.mem_singleton] at qIn
+              subst qIn
+              simp only [nodeValue,located]
+              exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
+          simp [accepted] at yes
+        · intro instance'
+          cases satisfiable with
+          | false => rfl
+          | true =>
+            exfalso
+            obtain ⟨Object,I,f,model,placed,holds⟩ := prepared_sound.{u,v,w} items p data extra extraIn run D V
+              vocabulary
+            have fixes := fixes_of_interpretation model.2.1
+            have notIn := (translate_meaning e false outside translatedRead I fixes (f node.val)).mp
+              (holds ⟨node,outside⟩ (by simp [extraValue]))
+            have at_a : f node.val = I.namedIndividuals a := by
+              rw [nodeValue,← placed (.Named a)]
+              rfl
+            rw [at_a] at notIn
+            exact notIn (instance' _ _ _ _ model)
+
+/-- Any OWL model of the closure, in any universes and for any vocabulary, makes
+    a consistency answer of the prepared closure positive. -/
+theorem prepared_consistent_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (answer : Bool) (answered : shi_ontology.prepared_consistent p = .ok (some answer))
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (consistent : Consistent.{u,v,w} D V items.val) :
+    answer = true := by
+  rw [shi_ontology.prepared_consistent] at answered
+  obtain ⟨Object,Value,embed,I,_,valid,g,satisfied⟩ := consistent
+  obtain ⟨x⟩ := I.objectsNonempty
+  exact prepared_complete.{u,v,w} items p data _ (by simp) answer answered valid g satisfied
+    (Placement (withAnonymous I g) p.nodes.val x) (fun a present => placement_at _ p.nodes.val x a present) (by simp)
+
+/-- An instance of the expression in any OWL model of the closure, in any
+    universes and for any vocabulary, makes a satisfiability answer of the
+    prepared closure positive. -/
+theorem prepared_class_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (e : ClassExpression) (answer : Bool)
+    (answered : shi_ontology.prepared_class_satisfiable p e = .ok (some answer)) {Native : Type w}
+    (D : DatatypeMap Native) (V : Vocabulary) (satisfiable : ClassSatisfiable.{u,v,w} D V items.val e) :
+    answer = true := by
+  obtain ⟨translated,translatedRead,_⟩ := translate_total_correct.{0,0} e true
+  rw [shi_ontology.prepared_class_satisfiable] at answered
+  cases translated with
+  | none => simp [translatedRead] at answered
+  | some concept =>
+    obtain ⟨extra,extraRun,extraValue⟩ := single_fact concept 0#usize
+    simp only [translatedRead,extraRun,bind_ok] at answered
+    obtain ⟨Object,Value,embed,I,⟨_,valid,g,satisfied⟩,x,member⟩ := satisfiable
+    have fixes := fixes_of_interpretation valid
+    exact prepared_complete.{u,v,w} items p data extra (by simp [extraValue]) answer answered valid g satisfied
+      (Placement (withAnonymous I g) p.nodes.val x) (fun a present => placement_at _ p.nodes.val x a present)
+      (by
+        intro q qIn
+        simp only [extraValue,List.mem_singleton] at qIn
+        subst qIn
+        simp only [placement_zero]
+        exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+
+/-- A positive subsumption answer of a prepared closure holds in every OWL model
+    of the closure, in any universes and for any vocabulary. -/
+theorem prepared_subsumed_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (sub sup : ClassExpression)
+    (answered : shi_ontology.prepared_subsumed p sub sup = .ok (some true)) {Native : Type w} (D : DatatypeMap Native)
+    (V : Vocabulary) : Subsumed.{u,v,w} D V items.val sub sup := by
+  obtain ⟨insideResult,insideRead,_⟩ := translate_total_correct.{0,0} sub true
+  obtain ⟨outsideResult,outsideRead,_⟩ := translate_total_correct.{0,0} sup false
+  rw [shi_ontology.prepared_subsumed] at answered
+  cases insideResult with
+  | none => simp [insideRead] at answered
+  | some inside =>
+    cases outsideResult with
+    | none => simp [insideRead,outsideRead] at answered
+    | some outside =>
+      obtain ⟨one,extra,oneRun,extraRun,extraValue⟩ := pair_facts inside outside
+      have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
+        intro q member; rw [extraValue] at member; simp at member; rcases member with rfl | rfl <;> simp
+      obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
+      simp only [insideRead,outsideRead,oneRun,extraRun,run,bind_ok] at answered
+      cases result with
+      | none => simp at answered
+      | some satisfiable =>
+        have notSatisfiable : satisfiable = false := by simpa using answered
+        subst notSatisfiable
+        intro Object Value embed I model x member
+        obtain ⟨_,valid,g,satisfied⟩ := model
+        have fixes := fixes_of_interpretation valid
+        by_contra outsideSup
+        have accepted := prepared_complete.{u,v,w} items p data extra extraIn false run valid g satisfied
+          (Placement (withAnonymous I g) p.nodes.val x) (fun a present => placement_at _ p.nodes.val x a present)
+          (by
+            intro q qIn
+            rw [extraValue] at qIn
+            simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
+            rcases qIn with rfl | rfl
+            · simp only [placement_zero]
+              exact (translated_meaning fixes g sub true inside insideRead x).mpr member
+            · simp only [placement_zero]
+              exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
+        cases accepted
+
+/-- A positive instance answer of a prepared closure holds in every OWL model of
+    the closure, in any universes and for any vocabulary. -/
+theorem prepared_instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
+    (data : PreparedData items p) (a : NamedIndividual) (e : ClassExpression)
+    (answered : shi_ontology.prepared_instance_of p a e = .ok (some true)) {Native : Type w} (D : DatatypeMap Native)
+    (V : Vocabulary) : InstanceOf.{u,v,w} D V items.val a e := by
+  obtain ⟨translated,translatedRead,_⟩ := translate_total_correct.{0,0} e false
+  rw [shi_ontology.prepared_instance_of] at answered
+  cases translated with
+  | none => simp [translatedRead] at answered
+  | some outside =>
+    obtain ⟨node,nodeRun,nodeValue⟩ := position_of p.nodes (.Named a)
+    have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
+    obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
+    have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
+      intro q member
+      rw [extraValue,List.mem_singleton] at member
+      subst member
+      rw [nodeValue]
+      exact positionOf_le _ _
+    obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
+    simp only [translatedRead,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run] at answered
+    cases result with
+    | none => simp at answered
+    | some satisfiable =>
+      have notSatisfiable : satisfiable = false := by simpa using answered
+      subst notSatisfiable
+      intro Object Value embed I model
+      obtain ⟨_,valid,g,satisfied⟩ := model
+      have fixes := fixes_of_interpretation valid
+      by_contra outsideClass
+      have located : Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a)
+          (PositionOf p.nodes.val (.Named a)) = I.namedIndividuals a := by
+        by_cases present : Individual.Named a ∈ p.nodes.val
+        · rw [placement_at _ p.nodes.val _ _ present]; rfl
+        · rw [show PositionOf p.nodes.val (.Named a) = 0 from positionFrom_absent p.nodes.val _ 0 present,
+            placement_zero]
+      have accepted := prepared_complete.{u,v,w} items p data extra extraIn false run valid g satisfied
+        (Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a))
+        (fun b present => placement_at _ p.nodes.val _ b present)
+        (by
+          intro q qIn
+          rw [extraValue,List.mem_singleton] at qIn
+          subst qIn
+          simp only [nodeValue,located]
+          exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
+      cases accepted
+
 /-- Consistency of a SHI axiom closure with assertions: the query terminates, it
     answers only when every axiom is supported, and an answer is whether the
     closure has an OWL model. -/
@@ -1141,31 +1510,14 @@ theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
       (result.isSome → ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
-  obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.consistent]
-  cases individuals with
-  | none => exact ⟨none,by simp [individualsRun],by simp,by simp⟩
-  | some nodes =>
-    obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-    obtain ⟨result,run,spec⟩ := closure_correct items nodes (alloc.vec.Vec.new _) room (by simp)
-    refine ⟨result,by simp [individualsRun,run],?_,?_⟩
-    · intro some
-      cases result with
-      | none => cases some
-      | some b => exact answer_supported (spec b rfl)
-    · intro answer same Native D V vocabulary
-      subst same
-      constructor
-      · intro yes
-        subst yes
-        obtain ⟨Object,I,f,model,_,_⟩ := closure_satisfiable_sound.{u,v,w} items nodes _ room (by simp) run D V
-          vocabulary
-        exact ⟨Object,_,_,I,model⟩
-      · rintro ⟨Object,Value,embed,I,_,valid,g,satisfied⟩
-        obtain ⟨x⟩ := I.objectsNonempty
-        exact closure_satisfiable_complete.{u, max w v, w} items nodes _ room (by simp) mentioned answer run valid g
-          satisfied (Placement (withAnonymous I g) nodes.val x)
-          (fun a present => placement_at _ nodes.val x a present) (by simp)
+  cases prepared with
+  | none => exact ⟨none,by simp [prepareRun],by simp,by simp⟩
+  | some p =>
+    have data := prepareSpec p rfl
+    obtain ⟨result,run,semantic⟩ := prepared_consistent_correct.{u,v,w} items p data
+    exact ⟨result,by simp [prepareRun,run],fun _ => prepared_supported data,semantic⟩
 
 /-- Class satisfiability with respect to a SHI axiom closure with assertions:
     the query terminates, it answers only when the expression is in ALCI and
@@ -1176,45 +1528,14 @@ theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : Cl
       (result.isSome → InAlci e ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
-  obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e true
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.class_satisfiable]
-  cases translated with
-  | none => exact ⟨none,by simp [translatedRead],by simp,by simp⟩
-  | some concept =>
-    obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-    cases individuals with
-    | none => exact ⟨none,by simp [translatedRead,individualsRun],by simp,by simp⟩
-    | some nodes =>
-      obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-      obtain ⟨extra,extraRun,extraValue⟩ := single_fact concept 0#usize
-      have extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length := by simp [extraValue]
-      obtain ⟨result,run,spec⟩ := closure_correct items nodes extra room extraIn
-      refine ⟨result,by simp [translatedRead,individualsRun,extraRun,run],?_,?_⟩
-      · intro some
-        cases result with
-        | none => cases some
-        | some b => exact ⟨translatedCorrect.1,answer_supported (spec b rfl)⟩
-      · intro answer same Native D V vocabulary
-        subst same
-        constructor
-        · intro yes
-          subst yes
-          obtain ⟨Object,I,f,model,_,holds⟩ := closure_satisfiable_sound.{u,v,w} items nodes extra room extraIn run D V
-            vocabulary
-          have fixes := fixes_of_interpretation model.2.1
-          have member := holds ⟨0#usize,concept⟩ (by simp [extraValue])
-          exact ⟨Object,_,_,I,model,f 0,(translate_meaning e true concept translatedRead I fixes (f 0)).mp member⟩
-        · rintro ⟨Object,Value,embed,I,⟨_,valid,g,satisfied⟩,x,member⟩
-          have fixes := fixes_of_interpretation valid
-          exact closure_satisfiable_complete.{u, max w v, w} items nodes extra room extraIn mentioned answer run valid
-            g satisfied (Placement (withAnonymous I g) nodes.val x)
-            (fun a present => placement_at _ nodes.val x a present)
-            (by
-              intro q qIn
-              simp only [extraValue,List.mem_singleton] at qIn
-              subst qIn
-              simp only [placement_zero]
-              exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+  cases prepared with
+  | none => exact ⟨none,by simp [prepareRun],by simp,by simp⟩
+  | some p =>
+    have data := prepareSpec p rfl
+    obtain ⟨result,run,support,semantic⟩ := prepared_class_satisfiable_correct.{u,v,w} items p data e
+    exact ⟨result,by simp [prepareRun,run],fun some => ⟨support some,prepared_supported data⟩,semantic⟩
 
 /-- Subsumption with respect to a SHI axiom closure with assertions: the query
     terminates, it answers only when both expressions are in ALCI and every
@@ -1225,68 +1546,15 @@ theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : Class
       (result.isSome → InAlci sub ∧ InAlci sup ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
-  obtain ⟨insideResult,insideRead,insideCorrect⟩ := translate_total_correct.{0,0} sub true
-  obtain ⟨outsideResult,outsideRead,outsideCorrect⟩ := translate_total_correct.{0,0} sup false
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.subsumed]
-  cases insideResult with
-  | none => exact ⟨none,by simp [insideRead],by simp,by simp⟩
-  | some inside =>
-    cases outsideResult with
-    | none => exact ⟨none,by simp [insideRead,outsideRead],by simp,by simp⟩
-    | some outside =>
-      obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-      cases individuals with
-      | none => exact ⟨none,by simp [insideRead,outsideRead,individualsRun],by simp,by simp⟩
-      | some nodes =>
-        obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-        obtain ⟨one,extra,oneRun,extraRun,extraValue⟩ := pair_facts inside outside
-        have extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length := by
-          intro q member; rw [extraValue] at member; simp at member; rcases member with rfl | rfl <;> simp
-        obtain ⟨result,run,spec⟩ := closure_correct items nodes extra room extraIn
-        refine ⟨result.map (fun satisfiable => decide ¬ satisfiable = true),?_,?_,?_⟩
-        · simp only [insideRead,outsideRead,individualsRun,bind_ok,oneRun,extraRun,run]
-          cases result <;> rfl
-        · intro some
-          cases result with
-          | none => cases some
-          | some b => exact ⟨insideCorrect.1,outsideCorrect.1,answer_supported (spec b rfl)⟩
-        · intro answer same Native D V vocabulary
-          cases result with
-          | none => cases same
-          | some satisfiable =>
-            simp only [Option.map_some,Option.some.injEq] at same
-            subst same
-            constructor
-            · intro yes Object Value embed I model x member
-              obtain ⟨_,valid,g,satisfied⟩ := model
-              have fixes := fixes_of_interpretation valid
-              by_contra outsideSup
-              have accepted := closure_satisfiable_complete.{u, max w v, w} items nodes extra room extraIn mentioned
-                satisfiable run valid g satisfied (Placement (withAnonymous I g) nodes.val x)
-                (fun a present => placement_at _ nodes.val x a present)
-                (by
-                  intro q qIn
-                  rw [extraValue] at qIn
-                  simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
-                  rcases qIn with rfl | rfl
-                  · simp only [placement_zero]
-                    exact (translated_meaning fixes g sub true inside insideRead x).mpr member
-                  · simp only [placement_zero]
-                    exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
-              simp [accepted] at yes
-            · intro subsumed
-              cases satisfiable with
-              | false => rfl
-              | true =>
-                exfalso
-                obtain ⟨Object,I,f,model,_,holds⟩ := closure_satisfiable_sound.{u,v,w} items nodes extra room extraIn
-                  run D V vocabulary
-                have fixes := fixes_of_interpretation model.2.1
-                have inSub := (translate_meaning sub true inside insideRead I fixes (f 0)).mp
-                  (holds ⟨0#usize,inside⟩ (by simp [extraValue]))
-                have notSup := (translate_meaning sup false outside outsideRead I fixes (f 0)).mp
-                  (holds ⟨0#usize,outside⟩ (by simp [extraValue]))
-                exact notSup (subsumed _ _ _ _ model _ inSub)
+  cases prepared with
+  | none => exact ⟨none,by simp [prepareRun],by simp,by simp⟩
+  | some p =>
+    have data := prepareSpec p rfl
+    obtain ⟨result,run,support,semantic⟩ := prepared_subsumed_correct.{u,v,w} items p data sub sup
+    exact ⟨result,by simp [prepareRun,run],
+      fun some => ⟨(support some).1,(support some).2,prepared_supported data⟩,semantic⟩
 
 /-- Instance checking with respect to a SHI axiom closure with assertions: the
     query terminates, it answers only when the expression is in ALCI and every
@@ -1297,93 +1565,27 @@ theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedInd
       (result.isSome → InAlci e ∧ ∀ item ∈ items.val, SupportedAxiom item.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
-  obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e false
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.instance_of]
-  cases translated with
-  | none => exact ⟨none,by simp [translatedRead],by simp,by simp⟩
-  | some outside =>
-    obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-    cases individuals with
-    | none => exact ⟨none,by simp [translatedRead,individualsRun],by simp,by simp⟩
-    | some nodes =>
-      obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-      obtain ⟨node,nodeRun,nodeValue⟩ := position_of nodes (.Named a)
-      have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
-      obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
-      have extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length := by
-        intro q member
-        rw [extraValue,List.mem_singleton] at member
-        subst member
-        rw [nodeValue]
-        exact positionOf_le _ _
-      obtain ⟨result,run,spec⟩ := closure_correct items nodes extra room extraIn
-      refine ⟨result.map (fun satisfiable => decide ¬ satisfiable = true),?_,?_,?_⟩
-      · simp only [translatedRead,individualsRun,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run]
-        cases result <;> rfl
-      · intro some
-        cases result with
-        | none => cases some
-        | some b => exact ⟨translatedCorrect.1,answer_supported (spec b rfl)⟩
-      · intro answer same Native D V vocabulary
-        cases result with
-        | none => cases same
-        | some satisfiable =>
-          simp only [Option.map_some,Option.some.injEq] at same
-          subst same
-          constructor
-          · intro yes Object Value embed I model
-            obtain ⟨_,valid,g,satisfied⟩ := model
-            have fixes := fixes_of_interpretation valid
-            by_contra outsideClass
-            have located : Placement (withAnonymous I g) nodes.val (I.namedIndividuals a)
-                (PositionOf nodes.val (.Named a)) = I.namedIndividuals a := by
-              by_cases present : Individual.Named a ∈ nodes.val
-              · rw [placement_at _ nodes.val _ _ present]; rfl
-              · rw [show PositionOf nodes.val (.Named a) = 0 from positionFrom_absent nodes.val _ 0 present,
-                  placement_zero]
-            have accepted := closure_satisfiable_complete.{u, max w v, w} items nodes extra room extraIn mentioned
-              satisfiable run valid g satisfied (Placement (withAnonymous I g) nodes.val (I.namedIndividuals a))
-              (fun b present => placement_at _ nodes.val _ b present)
-              (by
-                intro q qIn
-                rw [extraValue,List.mem_singleton] at qIn
-                subst qIn
-                simp only [nodeValue,located]
-                exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
-            simp [accepted] at yes
-          · intro instance'
-            cases satisfiable with
-            | false => rfl
-            | true =>
-              exfalso
-              obtain ⟨Object,I,f,model,placed,holds⟩ := closure_satisfiable_sound.{u,v,w} items nodes extra room
-                extraIn run D V vocabulary
-              have fixes := fixes_of_interpretation model.2.1
-              have notIn := (translate_meaning e false outside translatedRead I fixes (f node.val)).mp
-                (holds ⟨node,outside⟩ (by simp [extraValue]))
-              have at_a : f node.val = I.namedIndividuals a := by
-                rw [nodeValue,← placed (.Named a)]
-                rfl
-              rw [at_a] at notIn
-              exact notIn (instance' _ _ _ _ model)
+  cases prepared with
+  | none => exact ⟨none,by simp [prepareRun],by simp,by simp⟩
+  | some p =>
+    have data := prepareSpec p rfl
+    obtain ⟨result,run,support,semantic⟩ := prepared_instance_of_correct.{u,v,w} items p data a e
+    exact ⟨result,by simp [prepareRun,run],fun some => ⟨support some,prepared_supported data⟩,semantic⟩
 
 /-- Any OWL model of the closure, in any universes and for any vocabulary, makes
     a consistency answer positive. -/
 theorem consistent_complete (items : alloc.vec.Vec AnnotatedAxiom) (answer : Bool)
     (answered : shi_ontology.consistent items = .ok (some answer)) {Native : Type w} (D : DatatypeMap Native)
     (V : Vocabulary) (consistent : Consistent.{u,v,w} D V items.val) : answer = true := by
-  obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.consistent] at answered
-  cases individuals with
-  | none => simp [individualsRun] at answered
-  | some nodes =>
-    obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-    simp only [individualsRun,bind_ok] at answered
-    obtain ⟨Object,Value,embed,I,_,valid,g,satisfied⟩ := consistent
-    obtain ⟨x⟩ := I.objectsNonempty
-    exact closure_satisfiable_complete.{u,v,w} items nodes _ room (by simp) mentioned answer answered valid g
-      satisfied (Placement (withAnonymous I g) nodes.val x) (fun a present => placement_at _ nodes.val x a present)
-      (by simp)
+  cases prepared with
+  | none => simp [prepareRun] at answered
+  | some p =>
+    simp only [prepareRun,bind_ok] at answered
+    exact prepared_consistent_complete.{u,v,w} items p (prepareSpec p rfl) answer answered D V consistent
 
 /-- An instance of the expression in any OWL model of the closure, in any
     universes and for any vocabulary, makes a satisfiability answer positive. -/
@@ -1391,128 +1593,38 @@ theorem class_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxiom) (e : C
     (answered : shi_ontology.class_satisfiable items e = .ok (some answer)) {Native : Type w}
     (D : DatatypeMap Native) (V : Vocabulary) (satisfiable : ClassSatisfiable.{u,v,w} D V items.val e) :
     answer = true := by
-  obtain ⟨translated,translatedRead,_⟩ := translate_total_correct.{0,0} e true
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.class_satisfiable] at answered
-  cases translated with
-  | none => simp [translatedRead] at answered
-  | some concept =>
-    obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-    cases individuals with
-    | none => simp [translatedRead,individualsRun] at answered
-    | some nodes =>
-      obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-      obtain ⟨extra,extraRun,extraValue⟩ := single_fact concept 0#usize
-      simp only [translatedRead,individualsRun,extraRun,bind_ok] at answered
-      obtain ⟨Object,Value,embed,I,⟨_,valid,g,satisfied⟩,x,member⟩ := satisfiable
-      have fixes := fixes_of_interpretation valid
-      exact closure_satisfiable_complete.{u,v,w} items nodes extra room (by simp [extraValue]) mentioned answer
-        answered valid g satisfied (Placement (withAnonymous I g) nodes.val x)
-        (fun a present => placement_at _ nodes.val x a present)
-        (by
-          intro q qIn
-          simp only [extraValue,List.mem_singleton] at qIn
-          subst qIn
-          simp only [placement_zero]
-          exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+  cases prepared with
+  | none => simp [prepareRun] at answered
+  | some p =>
+    simp only [prepareRun,bind_ok] at answered
+    exact prepared_class_satisfiable_complete.{u,v,w} items p (prepareSpec p rfl) e answer answered D V satisfiable
 
 /-- A positive subsumption answer holds in every OWL model of the closure, in
     any universes and for any vocabulary. -/
 theorem subsumed_sound (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression)
     (answered : shi_ontology.subsumed items sub sup = .ok (some true)) {Native : Type w} (D : DatatypeMap Native)
     (V : Vocabulary) : Subsumed.{u,v,w} D V items.val sub sup := by
-  obtain ⟨insideResult,insideRead,_⟩ := translate_total_correct.{0,0} sub true
-  obtain ⟨outsideResult,outsideRead,_⟩ := translate_total_correct.{0,0} sup false
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.subsumed] at answered
-  cases insideResult with
-  | none => simp [insideRead] at answered
-  | some inside =>
-    cases outsideResult with
-    | none => simp [insideRead,outsideRead] at answered
-    | some outside =>
-      obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-      cases individuals with
-      | none => simp [insideRead,outsideRead,individualsRun] at answered
-      | some nodes =>
-        obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-        obtain ⟨one,extra,oneRun,extraRun,extraValue⟩ := pair_facts inside outside
-        have extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length := by
-          intro q member; rw [extraValue] at member; simp at member; rcases member with rfl | rfl <;> simp
-        obtain ⟨result,run,_⟩ := closure_correct items nodes extra room extraIn
-        simp only [insideRead,outsideRead,individualsRun,oneRun,extraRun,run,bind_ok] at answered
-        cases result with
-        | none => simp at answered
-        | some satisfiable =>
-          have notSatisfiable : satisfiable = false := by simpa using answered
-          subst notSatisfiable
-          intro Object Value embed I model x member
-          obtain ⟨_,valid,g,satisfied⟩ := model
-          have fixes := fixes_of_interpretation valid
-          by_contra outsideSup
-          have accepted := closure_satisfiable_complete.{u,v,w} items nodes extra room extraIn mentioned false run
-            valid g satisfied (Placement (withAnonymous I g) nodes.val x)
-            (fun a present => placement_at _ nodes.val x a present)
-            (by
-              intro q qIn
-              rw [extraValue] at qIn
-              simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
-              rcases qIn with rfl | rfl
-              · simp only [placement_zero]
-                exact (translated_meaning fixes g sub true inside insideRead x).mpr member
-              · simp only [placement_zero]
-                exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
-          cases accepted
+  cases prepared with
+  | none => simp [prepareRun] at answered
+  | some p =>
+    simp only [prepareRun,bind_ok] at answered
+    exact prepared_subsumed_sound.{u,v,w} items p (prepareSpec p rfl) sub sup answered D V
 
 /-- A positive instance answer holds in every OWL model of the closure, in any
     universes and for any vocabulary. -/
 theorem instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression)
     (answered : shi_ontology.instance_of items a e = .ok (some true)) {Native : Type w} (D : DatatypeMap Native)
     (V : Vocabulary) : InstanceOf.{u,v,w} D V items.val a e := by
-  obtain ⟨translated,translatedRead,_⟩ := translate_total_correct.{0,0} e false
+  obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
   rw [shi_ontology.instance_of] at answered
-  cases translated with
-  | none => simp [translatedRead] at answered
-  | some outside =>
-    obtain ⟨individuals,individualsRun,individualsSpec⟩ := nodes_of items
-    cases individuals with
-    | none => simp [translatedRead,individualsRun] at answered
-    | some nodes =>
-      obtain ⟨mentioned,room⟩ := individualsSpec nodes rfl
-      obtain ⟨node,nodeRun,nodeValue⟩ := position_of nodes (.Named a)
-      have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
-      obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
-      have extraIn : ∀ q ∈ extra.val, q.node.val ≤ nodes.val.length := by
-        intro q member
-        rw [extraValue,List.mem_singleton] at member
-        subst member
-        rw [nodeValue]
-        exact positionOf_le _ _
-      obtain ⟨result,run,_⟩ := closure_correct items nodes extra room extraIn
-      simp only [translatedRead,individualsRun,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run]
-        at answered
-      cases result with
-      | none => simp at answered
-      | some satisfiable =>
-        have notSatisfiable : satisfiable = false := by simpa using answered
-        subst notSatisfiable
-        intro Object Value embed I model
-        obtain ⟨_,valid,g,satisfied⟩ := model
-        have fixes := fixes_of_interpretation valid
-        by_contra outsideClass
-        have located : Placement (withAnonymous I g) nodes.val (I.namedIndividuals a)
-            (PositionOf nodes.val (.Named a)) = I.namedIndividuals a := by
-          by_cases present : Individual.Named a ∈ nodes.val
-          · rw [placement_at _ nodes.val _ _ present]; rfl
-          · rw [show PositionOf nodes.val (.Named a) = 0 from positionFrom_absent nodes.val _ 0 present,
-              placement_zero]
-        have accepted := closure_satisfiable_complete.{u,v,w} items nodes extra room extraIn mentioned false run
-          valid g satisfied (Placement (withAnonymous I g) nodes.val (I.namedIndividuals a))
-          (fun b present => placement_at _ nodes.val _ b present)
-          (by
-            intro q qIn
-            rw [extraValue,List.mem_singleton] at qIn
-            subst qIn
-            simp only [nodeValue,located]
-            exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
-        cases accepted
+  cases prepared with
+  | none => simp [prepareRun] at answered
+  | some p =>
+    simp only [prepareRun,bind_ok] at answered
+    exact prepared_instance_of_sound.{u,v,w} items p (prepareSpec p rfl) a e answered D V
 
 end Rowl.ShiOntology

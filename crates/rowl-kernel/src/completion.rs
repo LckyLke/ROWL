@@ -1260,17 +1260,33 @@ fn named_nodes(count: usize, mut nodes: Vec<Node>) -> Option<Vec<Node>> {
         Some(nodes)
     }
 }
+/// A copy of `links[index..]` after `out`.
+fn copy_links(links: &Vec<Link>, index: usize, mut out: Vec<Link>) -> Vec<Link> {
+    if index < links.len() {
+        if out.len() < usize::MAX {
+            out.push(Link {
+                role: copy_role(&links[index].role),
+                from: links[index].from,
+                to: links[index].to,
+            });
+        }
+        copy_links(links, index + 1, out)
+    } else {
+        out
+    }
+}
 /// Decide whether some interpretation in which every element satisfies `axioms`
 /// and every definition, and the object properties satisfy `roles`, has an
-/// element for each of the `count` named nodes such that every fact holds at
-/// its node and every link relates its nodes along its role. `roles` must be
-/// closed: its inclusions include their compositions and inverses, and its
-/// transitive roles their inverses. `None` means that a structure would exceed
-/// the `usize` range.
+/// element for each of the `count` named nodes such that every fact of `query`
+/// and of `facts` holds at its node and every link relates its nodes along its
+/// role. `roles` must be closed: its inclusions include their compositions and
+/// inverses, and its transitive roles their inverses. `None` means that a
+/// structure would exceed the `usize` range.
 pub fn satisfiable(
     count: usize,
+    query: &Vec<Fact>,
     facts: &Vec<Fact>,
-    links: Vec<Link>,
+    links: &Vec<Link>,
     axioms: &Concept,
     definitions: &Vec<Definition>,
     roles: &RoleHierarchy,
@@ -1279,7 +1295,11 @@ pub fn satisfiable(
         Some(pair) => pair,
         None => return None,
     };
-    let (entries, requirements) = match intern_facts(entries, facts, 0, Vec::new()) {
+    let (entries, requirements) = match intern_facts(entries, query, 0, Vec::new()) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let (entries, requirements) = match intern_facts(entries, facts, 0, requirements) {
         Some(pair) => pair,
         None => return None,
     };
@@ -1297,7 +1317,7 @@ pub fn satisfiable(
     };
     let problem = Problem {
         entries,
-        links,
+        links: copy_links(links, 0, Vec::new()),
         requirements,
         unfoldings,
         axioms,

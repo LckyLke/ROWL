@@ -3074,4 +3074,40 @@ chronological backtracking three individuals did not finish in two minutes.
 
 This block adds 7 public theorems and 4 independent definitions. Totals are
 1146 audited theorems, 742 definitions, 409 Rust regressions and 1339 ledger
-obligations. Reuse across queries is next.
+obligations.
+
+## Reasoner: reuse across queries
+
+`shi_ontology::prepare` does once what every query did before its tableau run:
+it collects the individuals, splits the class axioms into the TBox concept and
+definitions, turns class assertions into facts and object property assertions
+into links, builds the closed role hierarchy, checks that every name is
+ordinary, and records whether a negative object property assertion is refuted
+by a link. `PreparedData` states the result; `prepare_correct` proves that
+`prepare` terminates and that whatever it returns satisfies `PreparedData`.
+
+`prepared_satisfiable` adds only the query's own facts. The tableau entry point
+`completion::satisfiable` now takes the query facts and the closure facts as
+two lists (`intern_facts_correct` interns after any earlier facts) and copies
+the prepared links (`copy_links`), so the prepared closure is never changed.
+`prepared_sound` and `prepared_complete` carry the old closure theorems over to
+a prepared closure, and `prepared_consistent`, `prepared_class_satisfiable`,
+`prepared_subsumed` and `prepared_instance_of` are proved exact for the Direct
+Semantics of the closure's axioms in any universes, with the same completeness
+and soundness corollaries as the plain queries. The plain queries are now
+`prepare` followed by the prepared query, and their statements are unchanged.
+
+`source_reasoning::source_ontology` reads source bytes once: its error is
+exactly the reader's first error, it never returns `Ok(None)`, and its ontology
+is the raw OWL ontology of the bytes. `source_prepared` prepares that
+ontology's axioms; `source_prepared_correct` gives a prepared closure that
+satisfies `PreparedData` for the axioms of the bytes, so every prepared query on
+it is exact for them. The medication-safety example now reads its document once
+for its five questions; in a debug build the run takes under a second instead of
+about five, because reading the document dominated.
+
+`answer_supported`, `closure_satisfiable_sound`, `closure_satisfiable_complete`
+and the `AnswerData` definition are replaced by `prepared_supported`,
+`prepared_sound`, `prepared_complete` and `PreparedData`. Totals are 1158
+audited theorems, 742 definitions, 411 Rust regressions and 1351 ledger
+obligations.

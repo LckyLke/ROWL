@@ -11,7 +11,9 @@ exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then
 the kernel's query on those axioms: no answer means the axioms or the query are
 outside the supported fragment or a `usize` limit was reached, and an answer is
-exact for the OWL 2 Direct Semantics of the axioms.
+exact for the OWL 2 Direct Semantics of the axioms. To answer many questions,
+`source_prepared` reads and prepares the bytes once; the prepared queries of
+`Rowl.ShiOntology` are then exact for the same axioms.
 -/
 namespace Rowl.SourceReasoning
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -96,6 +98,53 @@ private theorem pipeline (bytes : alloc.vec.Vec U8) (limits : DocumentLimits) (s
   | Ok document =>
     obtain ⟨ontology,mapped,source⟩ := read_document_maps bytes limits scope document readRun
     exact .inr ⟨document,ontology,readRun,mapped,source⟩
+
+/-- Reading source bytes once always terminates. An error is exactly the
+    reader's first error, the result is never `Ok none`, and an ontology is the
+    raw OWL ontology of the bytes. -/
+theorem source_ontology_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLimits) (scope : alloc.vec.Vec U8) :
+    ∃ result, source_reasoning.source_ontology bytes limits scope = .ok result ∧
+      (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
+      result ≠ .Ok none ∧
+      ∀ ontology, result = .Ok (some ontology) → SourceOntology bytes limits scope ontology := by
+  rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
+  · refine ⟨.Err error,by simp [source_reasoning.source_ontology,readRun],?_,by simp,?_⟩
+    · intro other; simp [readRun]
+    · intro ontology impossible; cases impossible
+  · refine ⟨.Ok (some ontology),by simp [source_reasoning.source_ontology,readRun,mappedRun],?_,by simp,?_⟩
+    · intro error; simp [readRun]
+    · intro other same
+      cases same
+      exact source
+
+/-- Preparing source bytes once always terminates. An error is exactly the
+    reader's first error; otherwise the result is the kernel's preparation of
+    the axioms of the bytes' raw OWL ontology, and a prepared closure is what
+    `PreparedData` says of those axioms, so every prepared query on it is exact
+    for them. -/
+theorem source_prepared_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLimits) (scope : alloc.vec.Vec U8) :
+    ∃ result, source_reasoning.source_prepared bytes limits scope = .ok result ∧
+      (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
+      (∀ prepared, result = .Ok prepared → ∃ ontology, SourceOntology bytes limits scope ontology ∧
+        shi_ontology.prepare ontology.axioms = .ok prepared) ∧
+      ∀ p, result = .Ok (some p) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
+        Rowl.ShiOntology.PreparedData ontology.axioms p := by
+  rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
+  · refine ⟨.Err error,by simp [source_reasoning.source_prepared,source_reasoning.source_ontology,readRun],
+      ?_,?_,?_⟩
+    · intro other; simp [readRun]
+    · intro prepared impossible; cases impossible
+    · intro p impossible; cases impossible
+  · obtain ⟨prepared,prepareRun,prepareSpec⟩ := Rowl.ShiOntology.prepare_correct ontology.axioms
+    refine ⟨.Ok prepared,by simp [source_reasoning.source_prepared,source_reasoning.source_ontology,readRun,
+      mappedRun,prepareRun],?_,?_,?_⟩
+    · intro error; simp [readRun]
+    · intro other same
+      cases same
+      exact ⟨ontology,source,prepareRun⟩
+    · intro p same
+      cases same
+      exact ⟨ontology,source,prepareSpec p rfl⟩
 
 /-- Consistency from source bytes always terminates. An error is exactly the
     reader's first error; otherwise the result is the kernel's consistency query

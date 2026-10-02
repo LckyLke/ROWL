@@ -30,6 +30,12 @@
 //! orientation, because the tableau's models relate named individuals only
 //! along links.
 //!
+//! `prepare` reads a closure once: its individuals, class parts, role hierarchy,
+//! facts and links, and the check of its negative assertions. The `prepared_`
+//! queries then only translate their class expressions and run the tableau, so
+//! many questions about one closure share that work; the plain queries prepare
+//! and ask once.
+//!
 //! The answer is `None` when an axiom has any other form, when a class
 //! expression is outside ALCI, when a concept, definition, role axiom or
 //! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
@@ -810,19 +816,30 @@ fn denied_from(
         false
     }
 }
-/// Whether the closure has a model with elements for its individuals and one
-/// more element, in which the `extra` facts hold at their nodes: node 0 is the
-/// further element and node `i + 1` the individual `nodes[i]`.
-fn closure_satisfiable(
-    items: &Vec<AnnotatedAxiom>,
-    nodes: &Vec<Individual>,
-    extra: Vec<Fact>,
-) -> Option<bool> {
+/// An axiom closure read once for many queries: its individuals, what its class
+/// axioms require, the facts of its class assertions, its role hierarchy, the
+/// links of its object property assertions, and whether a negative object
+/// property assertion denies one of them.
+pub struct Prepared {
+    pub nodes: Vec<Individual>,
+    pub parts: Parts,
+    pub facts: Vec<Fact>,
+    pub roles: RoleHierarchy,
+    pub links: Vec<Link>,
+    pub denied: bool,
+}
+/// Read an axiom closure for queries; `None` when it is outside the supported
+/// fragment or a list would exceed the `usize` range.
+pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
+    let nodes = match individuals_from(items, 0, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
     let parts = match class_parts(items) {
         Some(parts) => parts,
         None => return None,
     };
-    let facts = match assertions_from(items, nodes, 0, extra) {
+    let facts = match assertions_from(items, &nodes, 0, Vec::new()) {
         Some(facts) => facts,
         None => return None,
     };
@@ -840,48 +857,59 @@ fn closure_satisfiable(
     if has_negative(items, 0) && !(roles.inclusions.len() == 0 && roles.transitive.len() == 0) {
         return None;
     }
-    let links = match links_from(items, nodes, 0, Vec::new()) {
+    let links = match links_from(items, &nodes, 0, Vec::new()) {
         Some(links) => links,
         None => return None,
     };
-    if denied_from(items, nodes, &links, 0) {
+    let denied = denied_from(items, &nodes, &links, 0);
+    Some(Prepared {
+        nodes,
+        parts,
+        facts,
+        roles,
+        links,
+        denied,
+    })
+}
+/// Whether the prepared closure has a model with elements for its individuals
+/// and one more element, in which the `extra` facts hold at their nodes: node 0
+/// is the further element and node `i + 1` the individual `nodes[i]`.
+fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
+    if !facts_proper(extra, 0) {
+        return None;
+    }
+    if prepared.denied {
         return Some(false);
     }
     satisfiable(
-        nodes.len() + 1,
-        &facts,
-        links,
-        &parts.axioms,
-        &parts.definitions,
-        &roles,
+        prepared.nodes.len() + 1,
+        extra,
+        &prepared.facts,
+        &prepared.links,
+        &prepared.parts.axioms,
+        &prepared.parts.definitions,
+        &prepared.roles,
     )
 }
-/// Whether the closure has a model at all.
-pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
-    let nodes = match individuals_from(items, 0, Vec::new()) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
-    closure_satisfiable(items, &nodes, Vec::new())
+/// Whether the prepared closure has a model at all.
+pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
+    prepared_satisfiable(prepared, &Vec::new())
 }
-/// Whether some model of the closure has an instance of the class expression.
-pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
+/// Whether some model of the prepared closure has an instance of the class
+/// expression.
+pub fn prepared_class_satisfiable(prepared: &Prepared, class: &ClassExpression) -> Option<bool> {
     let concept = match translate(class, true) {
         Some(concept) => concept,
         None => return None,
     };
-    let nodes = match individuals_from(items, 0, Vec::new()) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
     let mut extra = Vec::new();
     extra.push(Fact { node: 0, concept });
-    closure_satisfiable(items, &nodes, extra)
+    prepared_satisfiable(prepared, &extra)
 }
 /// Whether every instance of `sub` is an instance of `sup` in every model of
-/// the closure.
-pub fn subsumed(
-    items: &Vec<AnnotatedAxiom>,
+/// the prepared closure.
+pub fn prepared_subsumed(
+    prepared: &Prepared,
     sub: &ClassExpression,
     sup: &ClassExpression,
 ) -> Option<bool> {
@@ -893,10 +921,6 @@ pub fn subsumed(
         Some(outside) => outside,
         None => return None,
     };
-    let nodes = match individuals_from(items, 0, Vec::new()) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
     let mut extra = Vec::new();
     extra.push(Fact {
         node: 0,
@@ -906,8 +930,58 @@ pub fn subsumed(
         node: 0,
         concept: outside,
     });
-    match closure_satisfiable(items, &nodes, extra) {
+    match prepared_satisfiable(prepared, &extra) {
         Some(satisfiable) => Some(!satisfiable),
+        None => None,
+    }
+}
+/// Whether the named individual is an instance of the class expression in
+/// every model of the prepared closure.
+pub fn prepared_instance_of(
+    prepared: &Prepared,
+    individual: &NamedIndividual,
+    class: &ClassExpression,
+) -> Option<bool> {
+    let outside = match translate(class, false) {
+        Some(outside) => outside,
+        None => return None,
+    };
+    let named = Individual::Named(NamedIndividual {
+        iri: copy_iri(&individual.iri),
+    });
+    let mut extra = Vec::new();
+    extra.push(Fact {
+        node: position(&prepared.nodes, &named, 0),
+        concept: outside,
+    });
+    match prepared_satisfiable(prepared, &extra) {
+        Some(satisfiable) => Some(!satisfiable),
+        None => None,
+    }
+}
+/// Whether the closure has a model at all.
+pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+    match prepare(items) {
+        Some(prepared) => prepared_consistent(&prepared),
+        None => None,
+    }
+}
+/// Whether some model of the closure has an instance of the class expression.
+pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
+    match prepare(items) {
+        Some(prepared) => prepared_class_satisfiable(&prepared, class),
+        None => None,
+    }
+}
+/// Whether every instance of `sub` is an instance of `sup` in every model of
+/// the closure.
+pub fn subsumed(
+    items: &Vec<AnnotatedAxiom>,
+    sub: &ClassExpression,
+    sup: &ClassExpression,
+) -> Option<bool> {
+    match prepare(items) {
+        Some(prepared) => prepared_subsumed(&prepared, sub, sup),
         None => None,
     }
 }
@@ -918,24 +992,8 @@ pub fn instance_of(
     individual: &NamedIndividual,
     class: &ClassExpression,
 ) -> Option<bool> {
-    let outside = match translate(class, false) {
-        Some(outside) => outside,
-        None => return None,
-    };
-    let nodes = match individuals_from(items, 0, Vec::new()) {
-        Some(nodes) => nodes,
-        None => return None,
-    };
-    let named = Individual::Named(NamedIndividual {
-        iri: copy_iri(&individual.iri),
-    });
-    let mut extra = Vec::new();
-    extra.push(Fact {
-        node: position(&nodes, &named, 0),
-        concept: outside,
-    });
-    match closure_satisfiable(items, &nodes, extra) {
-        Some(satisfiable) => Some(!satisfiable),
+    match prepare(items) {
+        Some(prepared) => prepared_instance_of(&prepared, individual, class),
         None => None,
     }
 }

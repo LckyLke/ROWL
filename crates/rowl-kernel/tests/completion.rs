@@ -90,7 +90,8 @@ fn concept_sat(c: Concept, tbox: &Concept, roles: &RoleHierarchy) -> Option<bool
             node: 0,
             concept: c,
         }],
-        Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         tbox,
         &Vec::new(),
         roles,
@@ -164,7 +165,8 @@ fn definitions_unfold_only_where_their_class_holds() {
         satisfiable(
             1,
             &fact(c),
-            Vec::new(),
+            &Vec::new(),
+            &Vec::new(),
             &Concept::Top,
             &definitions,
             &none(),
@@ -217,7 +219,15 @@ fn named_individuals_constrain_each_other_through_inverse_links() {
         },
     ];
     let decide = |facts: &Vec<Fact>, links: Vec<Link>| {
-        satisfiable(2, facts, links, &Concept::Top, &Vec::new(), &none())
+        satisfiable(
+            2,
+            &Vec::new(),
+            facts,
+            &links,
+            &Concept::Top,
+            &Vec::new(),
+            &none(),
+        )
     };
     assert_eq!(decide(&facts, links()), Some(false));
     assert_eq!(decide(&facts, Vec::new()), Some(true));
