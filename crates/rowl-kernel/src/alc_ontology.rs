@@ -1,26 +1,45 @@
-//! ALC class satisfiability and subsumption with respect to an axiom closure.
+//! ALC consistency, class satisfiability, subsumption and instance checking for
+//! an axiom closure with assertions about individuals.
 //!
-//! Every supported axiom becomes a concept in negation normal form that holds
-//! at every element exactly when the axiom holds: `C ⊑ D` becomes `¬C ⊔ D`,
+//! Every supported class axiom becomes a concept in negation normal form that
+//! holds at every element exactly when the axiom holds: `C ⊑ D` becomes `¬C ⊔ D`,
 //! equivalent classes hold all together or not at all, disjoint classes are
 //! pairwise excluded, a disjoint union also equates the class with the union of
 //! its members, and a domain or range restricts the property's sources or
-//! targets. Declarations and annotation axioms impose nothing. The conjunction
-//! of these concepts is the TBox concept of the closure, which the tableau with
-//! blocking decides against.
+//! targets. Declarations, annotation axioms and assertions impose nothing on
+//! it. The conjunction of these concepts is the TBox concept of the closure.
+//!
+//! The assertions become the facts and edges of the completion for named
+//! individuals (see `abox`). Every individual gets a node, node 0 stands for one
+//! more element, a class assertion is a concept at its individual's node, and
+//! an object property assertion is an edge along its named property. A negative
+//! object property assertion contradicts the closure exactly when the same edge
+//! is asserted, because the completion's models relate nodes only along
+//! asserted edges. Queries add their concepts at node 0 or at the queried
+//! individual's node.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside the ALC fragment, or when a translated concept uses
+//! expression is outside the ALC fragment, when a translated concept uses
 //! `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose fixed meaning
 //! the tableau does not model) or `owl:Thing` or `owl:Nothing` as an ordinary
-//! named class (the translation turns those classes into top and bottom).
-#![allow(clippy::ptr_arg, clippy::question_mark)] // Indexed operations and explicit branches for the pinned extraction subset.
+//! named class (the translation turns those classes into top and bottom), when
+//! an object property assertion uses one of the two built-in properties, or when
+//! there are more than `usize::MAX - 2` distinct individuals or `usize::MAX`
+//! concepts to place.
+#![allow(
+    clippy::ptr_arg,
+    clippy::question_mark,
+    clippy::manual_map,
+    clippy::vec_init_then_push
+)] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
+use crate::abox::{abox_satisfiable, Edges, Facts};
+use crate::assertion_equality::same_individual_value;
 use crate::model::{
-    AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, ObjectProperty,
-    ObjectPropertyExpression,
+    AnnotatedAxiom, AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, Individual,
+    NamedIndividual, ObjectProperty, ObjectPropertyExpression,
 };
-use crate::nnf::{connect, copy_iri, nnf, NnfConcept};
-use crate::tbox::satisfiable_in;
+use crate::nnf::{connect, copy_bytes, copy_iri, nnf, NnfConcept};
+use crate::symbols::same_spelling;
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
     if index < key.len() {
@@ -228,6 +247,9 @@ fn axiom_concept(axiom: &Axiom) -> Option<NnfConcept> {
         Axiom::SubAnnotationPropertyOf(_, _) => Some(NnfConcept::Top),
         Axiom::AnnotationPropertyDomain(_, _) => Some(NnfConcept::Top),
         Axiom::AnnotationPropertyRange(_, _) => Some(NnfConcept::Top),
+        Axiom::ClassAssertion(_, _) => Some(NnfConcept::Top),
+        Axiom::ObjectPropertyAssertion(_, _, _) => Some(NnfConcept::Top),
+        Axiom::NegativeObjectPropertyAssertion(_, _, _) => Some(NnfConcept::Top),
         _ => None,
     }
 }
@@ -251,37 +273,323 @@ fn internalize_from(
     }
 }
 /// The TBox concept of an axiom closure: it holds at every element exactly when
-/// every axiom holds. `None` when some axiom is not supported.
+/// every class axiom holds; assertions impose nothing on it. `None` when some
+/// axiom is not supported.
 pub fn internalize(items: &Vec<AnnotatedAxiom>) -> Option<NnfConcept> {
     internalize_from(items, 0, NnfConcept::Top)
 }
-/// Whether the closure has a model at all.
-pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
-    let axioms = match internalize(items) {
-        Some(axioms) => axioms,
-        None => return None,
-    };
-    if proper(&axioms) {
-        Some(satisfiable_in(&NnfConcept::Top, &axioms))
+/// A concept that must hold at a node.
+pub struct Placed {
+    pub node: usize,
+    pub concept: NnfConcept,
+}
+fn copy_individual(individual: &Individual) -> Individual {
+    match individual {
+        Individual::Named(named) => Individual::Named(NamedIndividual {
+            iri: copy_iri(&named.iri),
+        }),
+        Individual::Anonymous(anonymous) => Individual::Anonymous(AnonymousIndividual {
+            scope: copy_bytes(&anonymous.scope),
+            label: copy_bytes(&anonymous.label),
+        }),
+    }
+}
+/// The node of `individual`: its position in `nodes` from `index`, plus one, or
+/// 0 when it is absent.
+fn position(nodes: &Vec<Individual>, individual: &Individual, index: usize) -> usize {
+    if index < nodes.len() {
+        if same_individual_value(&nodes[index], individual) {
+            index + 1
+        } else {
+            position(nodes, individual, index + 1)
+        }
+    } else {
+        0
+    }
+}
+/// `nodes` with `individual` at the end when it is new; `None` when there is no
+/// room for another node.
+fn intern(mut nodes: Vec<Individual>, individual: &Individual) -> Option<Vec<Individual>> {
+    if position(&nodes, individual, 0) != 0 {
+        Some(nodes)
+    } else if nodes.len() < usize::MAX - 1 {
+        nodes.push(copy_individual(individual));
+        Some(nodes)
     } else {
         None
     }
 }
-/// Whether some model of the closure has an instance of the class expression.
-pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
+fn intern_pair(
+    nodes: Vec<Individual>,
+    source: &Individual,
+    target: &Individual,
+) -> Option<Vec<Individual>> {
+    match intern(nodes, source) {
+        Some(nodes) => intern(nodes, target),
+        None => None,
+    }
+}
+/// `nodes` with every new individual of the assertions in `items[index..]`, in
+/// order of first occurrence.
+fn individuals_from(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    nodes: Vec<Individual>,
+) -> Option<Vec<Individual>> {
+    if index < items.len() {
+        let nodes = match &items[index].axiom {
+            Axiom::ClassAssertion(_, member) => intern(nodes, member),
+            Axiom::ObjectPropertyAssertion(_, source, target) => intern_pair(nodes, source, target),
+            Axiom::NegativeObjectPropertyAssertion(_, source, target) => {
+                intern_pair(nodes, source, target)
+            }
+            _ => Some(nodes),
+        };
+        match nodes {
+            Some(nodes) => individuals_from(items, index + 1, nodes),
+            None => None,
+        }
+    } else {
+        Some(nodes)
+    }
+}
+/// `placed` with the class assertions of `items[index..]` at their individuals'
+/// nodes; `None` when a class expression is outside the fragment or there is no
+/// room for another placed concept.
+fn assertions_from(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    index: usize,
+    mut placed: Vec<Placed>,
+) -> Option<Vec<Placed>> {
+    if index < items.len() {
+        match &items[index].axiom {
+            Axiom::ClassAssertion(class, member) => match nnf(class, true) {
+                Some(concept) => {
+                    if placed.len() < usize::MAX {
+                        placed.push(Placed {
+                            node: position(nodes, member, 0),
+                            concept,
+                        });
+                        assertions_from(items, nodes, index + 1, placed)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            },
+            _ => assertions_from(items, nodes, index + 1, placed),
+        }
+    } else {
+        Some(placed)
+    }
+}
+/// Whether every concept in `placed[index..]` is proper.
+fn placed_proper(placed: &Vec<Placed>, index: usize) -> bool {
+    if index < placed.len() {
+        proper(&placed[index].concept) && placed_proper(placed, index + 1)
+    } else {
+        true
+    }
+}
+fn named_property(property: &ObjectPropertyExpression) -> &ObjectProperty {
+    match property {
+        ObjectPropertyExpression::Property(role) => role,
+        ObjectPropertyExpression::Inverse(role) => role,
+    }
+}
+/// Whether no object property assertion in `items[index..]` uses a built-in
+/// object property.
+fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
+    if index < items.len() {
+        let here = match &items[index].axiom {
+            Axiom::ObjectPropertyAssertion(property, _, _) => {
+                !builtin_role(named_property(property))
+            }
+            Axiom::NegativeObjectPropertyAssertion(property, _, _) => {
+                !builtin_role(named_property(property))
+            }
+            _ => true,
+        };
+        here && roles_proper(items, index + 1)
+    } else {
+        true
+    }
+}
+/// `edges` with an edge for every object property assertion in `items[index..]`,
+/// oriented along its named property.
+fn edges_from<'a>(
+    items: &'a Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    index: usize,
+    edges: Edges<'a>,
+) -> Edges<'a> {
+    if index < items.len() {
+        let edges = match &items[index].axiom {
+            Axiom::ObjectPropertyAssertion(
+                ObjectPropertyExpression::Property(role),
+                source,
+                target,
+            ) => Edges::Entry {
+                role,
+                source: position(nodes, source, 0),
+                target: position(nodes, target, 0),
+                next: Box::new(edges),
+            },
+            Axiom::ObjectPropertyAssertion(
+                ObjectPropertyExpression::Inverse(role),
+                source,
+                target,
+            ) => Edges::Entry {
+                role,
+                source: position(nodes, target, 0),
+                target: position(nodes, source, 0),
+                next: Box::new(edges),
+            },
+            _ => edges,
+        };
+        edges_from(items, nodes, index + 1, edges)
+    } else {
+        edges
+    }
+}
+/// Whether the edge is among `edges`; the edges are handed back.
+fn has_edge<'a>(
+    edges: Edges<'a>,
+    role: &ObjectProperty,
+    source: usize,
+    target: usize,
+) -> (bool, Edges<'a>) {
+    match edges {
+        Edges::Empty => (false, Edges::Empty),
+        Edges::Entry {
+            role: other,
+            source: from,
+            target: to,
+            next,
+        } => {
+            let here = from == source
+                && to == target
+                && same_spelling(&other.iri.spelling, &role.iri.spelling);
+            let (later, rest) = has_edge(*next, role, source, target);
+            (
+                here || later,
+                Edges::Entry {
+                    role: other,
+                    source: from,
+                    target: to,
+                    next: Box::new(rest),
+                },
+            )
+        }
+    }
+}
+/// Whether a negative object property assertion in `items[index..]` denies an
+/// edge in `edges`; the edges are handed back.
+fn denied_from<'a>(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    index: usize,
+    edges: Edges<'a>,
+) -> (bool, Edges<'a>) {
+    if index < items.len() {
+        let (here, edges) = match &items[index].axiom {
+            Axiom::NegativeObjectPropertyAssertion(
+                ObjectPropertyExpression::Property(role),
+                source,
+                target,
+            ) => has_edge(
+                edges,
+                role,
+                position(nodes, source, 0),
+                position(nodes, target, 0),
+            ),
+            Axiom::NegativeObjectPropertyAssertion(
+                ObjectPropertyExpression::Inverse(role),
+                source,
+                target,
+            ) => has_edge(
+                edges,
+                role,
+                position(nodes, target, 0),
+                position(nodes, source, 0),
+            ),
+            _ => (false, edges),
+        };
+        let (later, edges) = denied_from(items, nodes, index + 1, edges);
+        (here || later, edges)
+    } else {
+        (false, edges)
+    }
+}
+/// `facts` with a fact for every concept in `placed[index..]`.
+fn facts_from<'a>(placed: &'a Vec<Placed>, index: usize, facts: Facts<'a>) -> Facts<'a> {
+    if index < placed.len() {
+        facts_from(
+            placed,
+            index + 1,
+            Facts::Entry {
+                node: placed[index].node,
+                concept: &placed[index].concept,
+                next: Box::new(facts),
+            },
+        )
+    } else {
+        facts
+    }
+}
+/// Whether the closure has a model with elements for its individuals and one
+/// more element, in which the `extra` concepts hold at their nodes: node 0 is
+/// the further element and node `i + 1` the individual `nodes[i]`.
+fn closure_satisfiable(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    extra: Vec<Placed>,
+) -> Option<bool> {
     let axioms = match internalize(items) {
         Some(axioms) => axioms,
         None => return None,
     };
+    let placed = match assertions_from(items, nodes, 0, extra) {
+        Some(placed) => placed,
+        None => return None,
+    };
+    if !(proper(&axioms) && placed_proper(&placed, 0) && roles_proper(items, 0)) {
+        return None;
+    }
+    let edges = edges_from(items, nodes, 0, Edges::Empty);
+    let (denied, edges) = denied_from(items, nodes, 0, edges);
+    if denied {
+        return Some(false);
+    }
+    Some(abox_satisfiable(
+        nodes.len() + 1,
+        facts_from(&placed, 0, Facts::Empty),
+        edges,
+        &axioms,
+    ))
+}
+/// Whether the closure has a model at all.
+pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+    let nodes = match individuals_from(items, 0, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    closure_satisfiable(items, &nodes, Vec::new())
+}
+/// Whether some model of the closure has an instance of the class expression.
+pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
     let concept = match nnf(class, true) {
         Some(concept) => concept,
         None => return None,
     };
-    if proper(&axioms) && proper(&concept) {
-        Some(satisfiable_in(&concept, &axioms))
-    } else {
-        None
-    }
+    let nodes = match individuals_from(items, 0, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let mut extra = Vec::new();
+    extra.push(Placed { node: 0, concept });
+    closure_satisfiable(items, &nodes, extra)
 }
 /// Whether every instance of `sub` is an instance of `sup` in every model of the closure.
 pub fn subsumed(
@@ -289,10 +597,6 @@ pub fn subsumed(
     sub: &ClassExpression,
     sup: &ClassExpression,
 ) -> Option<bool> {
-    let axioms = match internalize(items) {
-        Some(axioms) => axioms,
-        None => return None,
-    };
     let inside = match nnf(sub, true) {
         Some(inside) => inside,
         None => return None,
@@ -301,10 +605,49 @@ pub fn subsumed(
         Some(outside) => outside,
         None => return None,
     };
-    let concept = NnfConcept::And(Box::new(inside), Box::new(outside));
-    if proper(&axioms) && proper(&concept) {
-        Some(!satisfiable_in(&concept, &axioms))
-    } else {
-        None
+    let nodes = match individuals_from(items, 0, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let mut extra = Vec::new();
+    extra.push(Placed {
+        node: 0,
+        concept: inside,
+    });
+    extra.push(Placed {
+        node: 0,
+        concept: outside,
+    });
+    match closure_satisfiable(items, &nodes, extra) {
+        Some(satisfiable) => Some(!satisfiable),
+        None => None,
+    }
+}
+/// Whether the named individual is an instance of the class expression in every
+/// model of the closure.
+pub fn instance_of(
+    items: &Vec<AnnotatedAxiom>,
+    individual: &NamedIndividual,
+    class: &ClassExpression,
+) -> Option<bool> {
+    let outside = match nnf(class, false) {
+        Some(outside) => outside,
+        None => return None,
+    };
+    let nodes = match individuals_from(items, 0, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let named = Individual::Named(NamedIndividual {
+        iri: copy_iri(&individual.iri),
+    });
+    let mut extra = Vec::new();
+    extra.push(Placed {
+        node: position(&nodes, &named, 0),
+        concept: outside,
+    });
+    match closure_satisfiable(items, &nodes, extra) {
+        Some(satisfiable) => Some(!satisfiable),
+        None => None,
     }
 }

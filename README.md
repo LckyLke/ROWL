@@ -7,8 +7,9 @@ Charon and Aeneas. Intended license: MIT OR Apache-2.0.
 **Current status: M1/M2 complete; verified components of M3/M4 are working.**
 The Rust model represents all standard OWL 2 DL constructs; Lean defines their
 independent meaning and checks semantic laws. The verified reasoner decides
-consistency, class satisfiability and subsumption for ALC class, domain and range
-axioms, directly from Functional Syntax source text; the CLI demo still decides
+consistency, class satisfiability, subsumption and instance checking for ALC
+class, domain and range axioms with class and object property assertions,
+directly from Functional Syntax source text; the CLI demo still decides
 Boolean expressions over exactly two atomic classes. New verified stages
 resolve a supplied document-import graph, collect explicit entities across the
 full raw OWL AST, intern exact byte IRIs into stable symbols, inject implicit
@@ -130,10 +131,14 @@ actual OWL model. The same answers now come straight from source text:
 Functional Syntax document, map it into the raw model and query the reasoner as
 one extracted unit. Every read document reaches the reasoner, and each answer is
 proved exact for the Direct Semantics of the read axioms. A verified completion
-for named individuals now also decides concepts at nodes related by named
-object properties under the TBox, with an explicit model for every acceptance;
-using it for ontologies with assertions and the other axiom forms are later
-stages.
+for named individuals decides concepts at nodes related by named object
+properties under the TBox, with an explicit model for every acceptance. On top
+of it the queries now take class assertions and positive and negative object
+property assertions, and `instance_of` (from source text, `source_instance_of`)
+checks whether a named individual belongs to a class in every model: in the
+maintenance example, pump1 needs inspection because it has a faulty part.
+`SameIndividual`, `DifferentIndividuals`, data assertions and the other axiom
+forms are later stages.
 All 68 W3C N-Triples syntax cases pass. Export laws, the other required
 serializations, canonical OWL imports, DL validation and reasoning remain future work;
 version 0.1 is not ready for release.
@@ -161,7 +166,8 @@ cargo run -p rowl --example functional_class_axioms # questions about source tex
 cargo run -p rowl --example nnf         # negation normal form of maintenance class expressions
 cargo run -p rowl --example tableau     # verified ALC satisfiability and subsumption answers
 cargo run -p rowl --example tbox        # verified answers under maintenance axioms, with blocking
-cargo run -p rowl --example alc_ontology # verified consistency/satisfiability/subsumption of an ALC ontology
+cargo run -p rowl --example alc_ontology # verified consistency/satisfiability/subsumption/instance answers for an ALC ontology
+cargo run -p rowl --example source_individuals # instance checks on named individuals, from original source text
 python3 scripts/verify.py          # re-extract actual Rust, check proofs/audit
 ```
 

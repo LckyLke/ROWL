@@ -1089,6 +1089,7 @@
       "namespace": "Rowl.Nnf",
       "theorems": [
         "Rowl.Nnf.fixes_of_interpretation",
+        "Rowl.Nnf.copy_bytes_identity",
         "Rowl.Nnf.copy_iri_identity",
         "Rowl.Nnf.connect_correct",
         "Rowl.Nnf.nnf_total_correct",
@@ -1177,12 +1178,44 @@
         "Rowl.AlcOntology.concept_with_anonymous",
         "Rowl.AlcOntology.owl_model_valid",
         "Rowl.AlcOntology.owl_model_agrees",
+        "Rowl.AlcOntology.positionFrom_le",
+        "Rowl.AlcOntology.positionFrom_absent",
+        "Rowl.AlcOntology.positionFrom_present",
+        "Rowl.AlcOntology.positionOf_le",
+        "Rowl.AlcOntology.positionOf_present",
+        "Rowl.AlcOntology.copy_individual_identity",
+        "Rowl.AlcOntology.position_correct",
+        "Rowl.AlcOntology.position_of",
+        "Rowl.AlcOntology.intern_correct",
+        "Rowl.AlcOntology.intern_pair_correct",
+        "Rowl.AlcOntology.individuals_from_correct",
+        "Rowl.AlcOntology.assertions_from_correct",
+        "Rowl.AlcOntology.placed_proper_correct",
+        "Rowl.AlcOntology.named_property_correct",
+        "Rowl.AlcOntology.roles_proper_correct",
+        "Rowl.AlcOntology.facts_from_correct",
+        "Rowl.AlcOntology.edges_from_correct",
+        "Rowl.AlcOntology.has_edge_correct",
+        "Rowl.AlcOntology.denied_from_correct",
+        "Rowl.AlcOntology.edge_meaning",
+        "Rowl.AlcOntology.denied_meaning",
+        "Rowl.AlcOntology.edge_individuals",
+        "Rowl.AlcOntology.denied_individuals",
+        "Rowl.AlcOntology.assertion_of_individual",
+        "Rowl.AlcOntology.closure_satisfiable_total",
+        "Rowl.AlcOntology.closure_satisfiable_sound",
+        "Rowl.AlcOntology.closure_satisfiable_complete",
+        "Rowl.AlcOntology.placement_zero",
+        "Rowl.AlcOntology.placement_at",
+        "Rowl.AlcOntology.translated_meaning",
         "Rowl.AlcOntology.consistent_correct",
         "Rowl.AlcOntology.class_satisfiable_correct",
         "Rowl.AlcOntology.subsumed_correct",
+        "Rowl.AlcOntology.instance_of_correct",
         "Rowl.AlcOntology.consistent_complete",
         "Rowl.AlcOntology.class_satisfiable_complete",
-        "Rowl.AlcOntology.subsumed_sound"
+        "Rowl.AlcOntology.subsumed_sound",
+        "Rowl.AlcOntology.instance_of_sound"
       ]
     },
     {
@@ -1318,7 +1351,9 @@
         "Rowl.SourceReasoning.source_class_satisfiable_correct",
         "Rowl.SourceReasoning.source_class_satisfiable_complete",
         "Rowl.SourceReasoning.source_subsumed_correct",
-        "Rowl.SourceReasoning.source_subsumed_sound"
+        "Rowl.SourceReasoning.source_subsumed_sound",
+        "Rowl.SourceReasoning.source_instance_of_correct",
+        "Rowl.SourceReasoning.source_instance_of_sound"
       ]
     },
     {
@@ -1996,6 +2031,18 @@
     "Rowl.AboxTableau.Obligations",
     "Rowl.AboxTableau.aboxModel",
     "Rowl.AboxTableau.Invariant",
-    "Rowl.AboxTableau.Decides"
+    "Rowl.AboxTableau.Decides",
+    "Rowl.AboxTableau.ExactEdges",
+    "Rowl.Internalization.Assertion",
+    "Rowl.Internalization.TBoxPart",
+    "Rowl.AlcOntology.IndividualsOf",
+    "Rowl.AlcOntology.PositionFrom",
+    "Rowl.AlcOntology.PositionOf",
+    "Rowl.AlcOntology.RoleOf",
+    "Rowl.AlcOntology.RoleProper",
+    "Rowl.AlcOntology.EdgeOf",
+    "Rowl.AlcOntology.DeniedOf",
+    "Rowl.AlcOntology.Answerable",
+    "Rowl.AlcOntology.Placement"
   ]
 }

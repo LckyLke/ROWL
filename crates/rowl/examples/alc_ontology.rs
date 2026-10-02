@@ -1,5 +1,5 @@
 //! Verified ontology-level answers for a small maintenance ontology in ALC.
-use rowl::experimental::alc_ontology::{class_satisfiable, consistent, subsumed};
+use rowl::experimental::alc_ontology::{class_satisfiable, consistent, instance_of, subsumed};
 use rowl::experimental::model::*;
 
 const EX: &str = "https://example.org/maintenance/";
@@ -116,9 +116,17 @@ fn main() {
         Individual::Named(NamedIndividual { iri: iri("pump1") }),
     )));
     show(
-        "With an individual pump1 added",
+        "With an individual pump1 that is a pump, the axioms are consistent",
         consistent(&with_individual),
     );
-    println!("Each answer is proved to coincide with the OWL 2 Direct Semantics definition of consistency, class satisfiability or subsumption for these axioms; satisfiable answers come with an actual OWL model.");
-    println!("Individuals and the other axiom forms are later stages, and reading these axioms from Functional Syntax is a separate frontend stage.");
+    show(
+        "pump1 is a machine",
+        instance_of(
+            &with_individual,
+            &NamedIndividual { iri: iri("pump1") },
+            &class("Machine"),
+        ),
+    );
+    println!("Each answer is proved to coincide with the OWL 2 Direct Semantics definition of consistency, class satisfiability, subsumption or instance checking for these axioms; satisfiable answers come with an actual OWL model.");
+    println!("The other axiom forms are later stages; reading these axioms from Functional Syntax is shown in the functional_class_axioms and source_individuals examples.");
 }

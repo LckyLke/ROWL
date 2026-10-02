@@ -2580,3 +2580,58 @@ This block adds 27 public theorems and 12 independent definitions. Totals are
 830 audited theorems, 618 definitions, 371 Rust regressions and 1023 ledger
 obligations. Using the completion for ontologies with assertions, and from
 source text, is the next step.
+
+
+## Reasoner: ontology queries with assertions
+
+`alc_ontology::consistent`, `class_satisfiable`, `subsumed` and the new
+`instance_of` now take axiom closures with `ClassAssertion`,
+`ObjectPropertyAssertion` and `NegativeObjectPropertyAssertion`:
+
+1. the class axioms become the TBox concept as before, and assertions impose
+   nothing on it;
+2. every individual an assertion mentions, named or anonymous, is interned into
+   a node by exact structural equality (`same_individual_value`); node 0 stands
+   for one more element;
+3. a class assertion becomes its translated concept at its individual's node,
+   and a property assertion an edge along its named property (an inverse
+   property reverses the edge);
+4. a negative property assertion contradicts the closure exactly when the same
+   edge is asserted;
+5. the query adds its concepts at node 0 (satisfiability, subsumption) or at the
+   queried individual's node (instance checking) and runs the completion for
+   named individuals.
+
+Internalization now states its meaning for the axioms that are not assertions
+(TBoxPart), and the completion's soundness theorem also says that its model
+relates node elements only along the given edges, which negative assertions
+need. AlcOntology proves every helper exact and then:
+
+- closure_satisfiable_total: the check answers exactly when the closure is
+  answerable (the internalization and translations succeed and everything is
+  proper);
+- closure_satisfiable_sound: an acceptance becomes an OWL model of the closure
+  with every individual at its node and every query concept at its node;
+- closure_satisfiable_complete: every OWL model, in any universe and with any
+  reinterpretation of its anonymous individuals, forces acceptance;
+- consistent_correct, class_satisfiable_correct, subsumed_correct and
+  instance_of_correct: each answer equals Consistent, ClassSatisfiable,
+  Subsumed or InstanceOf for any valid vocabulary, with the any-universe
+  corollaries consistent_complete, class_satisfiable_complete, subsumed_sound and
+  instance_of_sound.
+
+SourceReasoning adds source_instance_of_correct and source_instance_of_sound,
+so instance checks are proved end to end from the original bytes.
+
+Regressions cover the maintenance inference with named individuals (pump1 needs
+inspection, motor1 does not, an individual without assertions is an instance
+only of what everything is), negative assertions through either orientation,
+a class assertion that contradicts the TBox, anonymous individuals, built-in
+properties in assertions, and the `maintenance-individuals.ofn` document read
+and answered from its bytes. The `source_individuals` example shows the
+end-to-end answers.
+
+This block adds 35 public theorems and 12 independent definitions. Totals are
+865 audited theorems, 630 definitions, 373 Rust regressions and 1058 ledger
+obligations. `SameIndividual`, `DifferentIndividuals`, data assertions, the
+other axiom forms, inverse roles and number restrictions remain pending.

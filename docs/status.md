@@ -556,11 +556,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   tableau's model gets the fixed built-in classes and object and data
   properties, and data values from the datatype map. Every OWL model, in any
   universe and for any vocabulary, forces acceptance, and a positive subsumption
-  answer holds in every such model. Individuals and assertions, the other axiom forms,
-  the remaining SROIQ constructors, datatypes, query answering and performance
-  remain pending.
+  answer holds in every such model. Assertions about individuals are added in the
+  seventh stage below; the other axiom forms, the remaining SROIQ constructors,
+  datatypes, query answering and performance remain pending.
 - Reasoner track, fifth stage: answers from source bytes. The actual kernel
-  functions source_consistent, source_class_satisfiable and source_subsumed read
+  functions source_consistent, source_class_satisfiable, source_subsumed and
+  (since the seventh stage) source_instance_of read
   a Functional Syntax document from its original bytes, map it into the raw
   model and run the ontology-level query, as one extracted unit. Every call
   terminates. An error is exactly the reader's first error. Every document the
@@ -569,9 +570,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   document grammar derives the rest, and its model corresponds to those records.
   The result is the kernel's query on that model's axioms. No answer therefore
   means the axioms or the query are outside the supported fragment. An answer is
-  proved equal to Consistent, ClassSatisfiable or Subsumed of the read axioms for
-  any valid vocabulary, complete in every universe, and a positive subsumption
-  answer holds in every model. Individuals and assertions, the other axiom
+  proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf of the
+  read axioms for any valid vocabulary, complete in every universe, and a
+  positive subsumption or instance answer holds in every model. The other axiom
   forms, imports, the remaining SROIQ constructors, datatypes and performance
   remain pending.
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
@@ -586,16 +587,34 @@ progress. Full OWL parsing and executable reasoning are still future work.
   node. Termination is proved from the finite set of node and closure pairs.
   Every acceptance yields an explicit model: one element per node and a disjoint
   copy of a successor model for each existential restriction. Every model, in
-  any universe, forces acceptance. Using it for ontologies with assertions,
-  equality between individuals, inverse roles and number restrictions remain
-  pending.
-- 830 audited public theorems and 618 audited semantic definitions. Consistency,
-  class satisfiability and subsumption are decided, with proofs against the OWL
-  definitions, for axiom closures whose logical axioms are ALC class, domain and
-  range axioms, also directly from Functional Syntax source bytes; no full OWL
-  decision procedure is proved yet. See
+  any universe, forces acceptance, and the accepting model relates node elements
+  only along the given edges. Equality between individuals, inverse roles and
+  number restrictions remain pending.
+- Reasoner track, seventh stage: ontology queries with assertions. The actual
+  kernel queries consistent, class_satisfiable, subsumed and the new instance_of
+  now take closures with ClassAssertion, ObjectPropertyAssertion and
+  NegativeObjectPropertyAssertion. Every individual an assertion mentions,
+  named or anonymous, gets a node by exact structural equality, and node 0
+  stands for one further element. A class assertion becomes its translated
+  concept at its individual's node and a property assertion an edge along its
+  named property; a negative property assertion contradicts the closure exactly
+  when the same edge is asserted. Queries put their concepts at node 0 or at the
+  queried individual's node and run the completion for named individuals. Each
+  answer is proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf
+  for any valid vocabulary. Every acceptance becomes an OWL model with each
+  individual at its node, and every OWL model, in any universe and with any
+  reinterpretation of its anonymous individuals, forces acceptance. The answer
+  is None outside the fragment, for an assertion on a built-in object property,
+  or beyond usize::MAX - 2 individuals. SameIndividual, DifferentIndividuals and
+  data assertions remain pending.
+- 865 audited public theorems and 630 audited semantic definitions. Consistency,
+  class satisfiability, subsumption and instance checking are decided, with
+  proofs against the OWL definitions, for axiom closures whose logical axioms are
+  ALC class, domain and range axioms and class and object property assertions,
+  also directly from Functional Syntax source bytes; no full OWL decision
+  procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 371 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 373 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -604,7 +623,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1023-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1058-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

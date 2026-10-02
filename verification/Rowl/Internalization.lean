@@ -4,8 +4,10 @@ import Rowl.TboxTableau
 TBox internalization of an axiom closure, proved against the independent
 Direct Semantics. Every supported axiom becomes a negation-normal-form concept
 that holds at every element exactly when the axiom holds, in every
-interpretation fixing owl:Thing and owl:Nothing; the closure's concept is their
-conjunction. The internalization succeeds exactly when every axiom is supported.
+interpretation fixing owl:Thing and owl:Nothing; assertions about individuals
+become the top concept, since they constrain individuals rather than every
+element. The closure's concept is the conjunction. The internalization succeeds
+exactly when every axiom is supported.
 -/
 namespace Rowl.Internalization
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -18,8 +20,9 @@ set_option maxHeartbeats 3000000
 universe u v
 
 /-- The supported axioms: declarations and annotation axioms, which impose
-    nothing, and class, domain and range axioms over ALC class expressions and
-    named object properties. -/
+    nothing, class, domain and range axioms over ALC class expressions and named
+    object properties, and assertions, which the TBox concept leaves to the
+    completion for individuals. -/
 def SupportedAxiom : Axiom → Prop
   | .Declaration _ => True
   | .SubClassOf a b => InAlc a ∧ InAlc b
@@ -32,9 +35,23 @@ def SupportedAxiom : Axiom → Prop
   | .SubAnnotationPropertyOf _ _ => True
   | .AnnotationPropertyDomain _ _ => True
   | .AnnotationPropertyRange _ _ => True
+  | .ClassAssertion _ _ => True
+  | .ObjectPropertyAssertion _ _ _ => True
+  | .NegativeObjectPropertyAssertion _ _ _ => True
+  | _ => False
+/-- Class assertions and positive and negative object property assertions:
+    they constrain individuals, not every element. -/
+def Assertion : Axiom → Prop
+  | .ClassAssertion _ _ => True
+  | .ObjectPropertyAssertion _ _ _ => True
+  | .NegativeObjectPropertyAssertion _ _ _ => True
   | _ => False
 
 variable {Object : Type u} {Value : Type v}
+
+/-- What an axiom requires of every element: nothing for an assertion, the axiom
+    itself otherwise. -/
+def TBoxPart (I : Interpretation Object Value) (a : Axiom) : Prop := Assertion a ∨ Rowl.Owl.satisfies I a
 
 /-- Equivalent classes hold at each element all together or not at all. -/
 theorem all_equal_iff (I : Interpretation Object Value) (xs : List ClassExpression) :
@@ -250,7 +267,7 @@ theorem axiom_concept_correct (statement : Axiom) :
     ∃ result, alc_ontology.axiom_concept statement = .ok result ∧
       (result.isSome ↔ SupportedAxiom statement) ∧
       ∀ concept, result = some concept → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
-        Fixes I → (Rowl.Owl.satisfies I statement ↔ ∀ x, conceptDenote I concept x) := by
+        Fixes I → (TBoxPart I statement ↔ ∀ x, conceptDenote I concept x) := by
   have child : ∀ members : AtLeastTwo ClassExpression, ∀ e ∈ members.elements, ∀ polarity,
       ∃ result, nnf.nnf e polarity = .ok result ∧ Correct.{u,v} e polarity result :=
     fun _ e _ polarity => nnf_total_correct e polarity
@@ -258,6 +275,7 @@ theorem axiom_concept_correct (statement : Axiom) :
   | Declaration _ =>
     refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
     intro concept same Object Value I fixes
+    simp only [TBoxPart,Assertion,false_or]
     cases same
     simp [Rowl.Owl.satisfies,conceptDenote]
   | SubClassOf a b =>
@@ -278,6 +296,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Or outside inside),by simp [alc_ontology.axiom_concept,outsideRead,insideRead],?_,?_⟩
         · simp [SupportedAxiom,outsideSupport.mp rfl,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
+          simp only [TBoxPart,Assertion,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,conceptDenote,outsideMeaning outside rfl Object Value I fixes,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -304,6 +323,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Or every absent),by simp [alc_ontology.axiom_concept,everyRead,absentRead],?_,?_⟩
         · simpa [SupportedAxiom] using everySupport
         · intro concept same Object Value I fixes
+          simp only [TBoxPart,Assertion,false_or]
           cases same
           simp only [Rowl.Owl.satisfies]
           rw [all_equal_iff]
@@ -314,6 +334,7 @@ theorem axiom_concept_correct (statement : Axiom) :
     refine ⟨result,by simp only [alc_ontology.axiom_concept]; exact executed,
       by simpa [SupportedAxiom] using support,?_⟩
     intro concept same Object Value I fixes
+    simp only [TBoxPart,Assertion,false_or]
     simp only [Rowl.Owl.satisfies]
     rw [pairwise_disjoint_iff]
     exact forall_congr' fun x => (meaning concept same Object Value I fixes x).symm
@@ -352,6 +373,7 @@ theorem axiom_concept_correct (statement : Axiom) :
             by simp [alc_ontology.axiom_concept,copy_iri_identity,outsideRead,insideRead,foundRead,absentRead,
               disjointRead],by simpa [SupportedAxiom] using foundSupport,?_⟩
           intro concept same Object Value I fixes
+          simp only [TBoxPart,Assertion,false_or]
           cases same
           have outsideMeaning := nnf_meaning (.Class ⟨ci⟩) false outside outsideRead I fixes
           have insideMeaning := nnf_meaning (.Class ⟨ci⟩) true inside insideRead I fixes
@@ -389,6 +411,7 @@ theorem axiom_concept_correct (statement : Axiom) :
           by simp [alc_ontology.axiom_concept,insideRead,copy_iri_identity],?_,?_⟩
         · simp [SupportedAxiom,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
+          simp only [TBoxPart,Assertion,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,Rowl.Owl.objectRelation,conceptDenote,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -415,6 +438,7 @@ theorem axiom_concept_correct (statement : Axiom) :
         refine ⟨some (.Forall ⟨ri⟩ inside),by simp [alc_ontology.axiom_concept,insideRead,copy_iri_identity],?_,?_⟩
         · simp [SupportedAxiom,insideSupport.mp rfl]
         · intro concept same Object Value I fixes
+          simp only [TBoxPart,Assertion,false_or]
           cases same
           simp only [Rowl.Owl.satisfies,Rowl.Owl.objectRelation,conceptDenote,
             insideMeaning inside rfl Object Value I fixes,Polar]
@@ -422,8 +446,14 @@ theorem axiom_concept_correct (statement : Axiom) :
   | AnnotationPropertyRange _ _ =>
     refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
     intro concept same Object Value I fixes
+    simp only [TBoxPart,Assertion,false_or]
     cases same
     simp [Rowl.Owl.satisfies,conceptDenote]
+  | ClassAssertion _ _ | ObjectPropertyAssertion _ _ _ | NegativeObjectPropertyAssertion _ _ _ =>
+    refine ⟨some .Top,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],?_⟩
+    intro concept same Object Value I fixes
+    cases same
+    simp [TBoxPart,Assertion,conceptDenote]
   | _ => exact ⟨none,by simp [alc_ontology.axiom_concept],by simp [SupportedAxiom],by simp⟩
 
 private theorem internalize_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize)
@@ -432,7 +462,7 @@ private theorem internalize_from_correct (items : alloc.vec.Vec AnnotatedAxiom) 
       (result.isSome ↔ ∀ a ∈ items.val.drop index.val, SupportedAxiom a.axiom) ∧
       ∀ concept, result = some concept → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
         Fixes I → ((∀ x, conceptDenote I concept x) ↔
-          (∀ x, conceptDenote I joined x) ∧ ∀ a ∈ items.val.drop index.val, Rowl.Owl.satisfies I a.axiom) := by
+          (∀ x, conceptDenote I joined x) ∧ ∀ a ∈ items.val.drop index.val, TBoxPart I a.axiom) := by
   rw [alc_ontology.internalize_from]
   by_cases more : index.val < items.val.length
   · have lookup : items.index_usize index = .ok items.val[index.val] := by
@@ -476,16 +506,17 @@ decreasing_by omega
 
 /-- The actual internalization terminates on every axiom closure, succeeds
     exactly when every axiom is supported, and its concept holds at every
-    element exactly when the interpretation satisfies the whole closure. -/
+    element exactly when the interpretation satisfies every axiom of the closure
+    that is not an assertion. -/
 theorem internalize_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ result, alc_ontology.internalize items = .ok result ∧
       (result.isSome ↔ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ axioms, result = some axioms → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
-        Fixes I → (Rowl.Owl.satisfiesClosure I items.val ↔ ∀ x, conceptDenote I axioms x) := by
+        Fixes I → ((∀ a ∈ items.val, TBoxPart I a.axiom) ↔ ∀ x, conceptDenote I axioms x) := by
   have zero : (0#usize).val = 0 := rfl
   obtain ⟨result,executed,support,meaning⟩ := internalize_from_correct.{u,v} items 0#usize .Top
   refine ⟨result,by rw [alc_ontology.internalize]; exact executed,by simpa [zero] using support,?_⟩
   intro axioms same Object Value I fixes
   rw [meaning axioms same Object Value I fixes]
-  simp [Rowl.Owl.satisfiesClosure,conceptDenote,zero]
+  simp [conceptDenote,zero]
 end Rowl.Internalization

@@ -31,9 +31,12 @@ fn copy_from(source: &Vec<u8>, index: usize, mut target: Vec<u8>) -> Vec<u8> {
         target
     }
 }
+pub(crate) fn copy_bytes(source: &Vec<u8>) -> Vec<u8> {
+    copy_from(source, 0, Vec::new())
+}
 pub(crate) fn copy_iri(iri: &Iri) -> Iri {
     Iri {
-        spelling: copy_from(&iri.spelling, 0, Vec::new()),
+        spelling: copy_bytes(&iri.spelling),
     }
 }
 /// A named class, a built-in top/bottom class, or its complement.

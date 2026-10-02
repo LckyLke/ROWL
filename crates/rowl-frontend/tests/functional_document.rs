@@ -53,7 +53,7 @@ fn offset(bytes: &[u8], needle: &str) -> usize {
 
 #[test]
 fn every_example_document_reads_completely() {
-    let cases: [(&[u8], usize); 5] = [
+    let cases: [(&[u8], usize); 6] = [
         (
             include_bytes!("../../../examples/maintenance-annotations.ofn"),
             2,
@@ -73,6 +73,10 @@ fn every_example_document_reads_completely() {
         (
             include_bytes!("../../../examples/maintenance-classes.ofn"),
             12,
+        ),
+        (
+            include_bytes!("../../../examples/maintenance-individuals.ofn"),
+            16,
         ),
     ];
     for (bytes, count) in cases {

@@ -135,11 +135,14 @@ private theorem copy_from_correct (source : alloc.vec.Vec U8) (index : Usize) (t
 termination_by source.val.length - index.val
 decreasing_by omega
 
+/-- Copying bytes reproduces them exactly. -/
+theorem copy_bytes_identity (bytes : alloc.vec.Vec U8) : nnf.copy_bytes bytes = .ok bytes := by
+  rw [nnf.copy_bytes]
+  exact copy_from_correct bytes 0#usize (alloc.vec.Vec.new U8) (by simp) (by simp)
 /-- Copying an IRI reproduces it exactly. -/
 theorem copy_iri_identity (iri : Iri) : nnf.copy_iri iri = .ok iri := by
-  have copied := copy_from_correct iri.spelling 0#usize (alloc.vec.Vec.new U8) (by simp) (by simp)
   cases iri with
-  | mk spelling => simp [nnf.copy_iri,copied]
+  | mk spelling => simp [nnf.copy_iri,copy_bytes_identity]
 
 private theorem thing_identity (c : Class) (top : IsThing (.Class c)) : c = thing := by
   cases c with | mk i => cases i with | mk bytes =>

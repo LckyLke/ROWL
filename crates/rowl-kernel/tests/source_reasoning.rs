@@ -4,9 +4,12 @@ use rowl_kernel::functional_document::{read_document, DocumentError, DocumentLim
 use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::{
     AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, Entity,
-    Individual, Iri, ObjectProperty, ObjectPropertyExpression, OntologyIdentity, RawOntology,
+    Individual, Iri, NamedIndividual, ObjectProperty, ObjectPropertyExpression, OntologyIdentity,
+    RawOntology,
 };
-use rowl_kernel::source_reasoning::{source_class_satisfiable, source_consistent, source_subsumed};
+use rowl_kernel::source_reasoning::{
+    source_class_satisfiable, source_consistent, source_instance_of, source_subsumed,
+};
 
 const EX: &str = "https://example.org/maintenance/";
 
@@ -254,6 +257,49 @@ fn errors_and_unsupported_axioms_give_no_answer() {
     );
     assert_eq!(
         answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+}
+
+#[test]
+fn individuals_are_reasoned_about_from_the_original_bytes() {
+    let bytes = include_bytes!("../../../examples/maintenance-individuals.ofn").to_vec();
+    let scope = b"fleet".to_vec();
+    let individual = |name: &str| NamedIndividual {
+        iri: iri(&format!("{EX}{name}")),
+    };
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("pump1"),
+            &named("NeedsInspection")
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("pump2"),
+            &named("NeedsInspection")
+        )),
+        Some(false)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("pump2"),
+            &named("Machine")
+        )),
         Some(true)
     );
 }

@@ -5,10 +5,10 @@
 //! maps into the model, so `Ok(None)` means the document's axioms or the query
 //! are outside the reasoner's supported fragment.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
-use crate::alc_ontology::{class_satisfiable, consistent, subsumed};
+use crate::alc_ontology::{class_satisfiable, consistent, instance_of, subsumed};
 use crate::functional_document::{read_document, DocumentError, DocumentLimits};
 use crate::functional_model::document_ontology;
-use crate::model::ClassExpression;
+use crate::model::{ClassExpression, NamedIndividual};
 
 /// Whether the document's axioms have a model.
 pub fn source_consistent(
@@ -56,6 +56,24 @@ pub fn source_subsumed(
     };
     match document_ontology(&document, scope) {
         Some(ontology) => Ok(subsumed(&ontology.axioms, sub, sup)),
+        None => Ok(None),
+    }
+}
+/// Whether the named individual is an instance of `class` in every model of the
+/// document's axioms.
+pub fn source_instance_of(
+    bytes: &Vec<u8>,
+    limits: &DocumentLimits,
+    scope: &Vec<u8>,
+    individual: &NamedIndividual,
+    class: &ClassExpression,
+) -> Result<Option<bool>, DocumentError> {
+    let document = match read_document(bytes, limits) {
+        Ok(document) => document,
+        Err(error) => return Err(error),
+    };
+    match document_ontology(&document, scope) {
+        Some(ontology) => Ok(instance_of(&ontology.axioms, individual, class)),
         None => Ok(None),
     }
 }

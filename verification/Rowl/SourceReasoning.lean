@@ -4,12 +4,13 @@ import Rowl.AlcOntology
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
 document reader, the proved mapping into the raw OWL model and the proved ALC
-queries compose into one extracted function from the original bytes to an
-answer. An error is exactly the reader's first error. Every document the reader
-accepts maps to a raw OWL ontology that corresponds to its source records, and
-the result is then the kernel's query on those axioms: no answer means the
-axioms or the query are outside the supported fragment, and an answer is exact
-for the OWL 2 Direct Semantics of the axioms.
+queries, including assertions about named and anonymous individuals, compose
+into one extracted function from the original bytes to an answer. An error is
+exactly the reader's first error. Every document the reader accepts maps to a
+raw OWL ontology that corresponds to its source records, and the result is then
+the kernel's query on those axioms: no answer means the axioms or the query are
+outside the supported fragment, and an answer is exact for the OWL 2 Direct
+Semantics of the axioms.
 -/
 namespace Rowl.SourceReasoning
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -17,7 +18,7 @@ open RowlRust.functional_document (SourceDocument DocumentLimits DocumentError r
 open RowlRust.functional_prefixes (read_prefix_header)
 open Rowl.FunctionalDocument (TailRun WithPrefixes)
 open Rowl.FunctionalModel (OntologyModel document_ontology_correct)
-open Rowl.Owl (DatatypeMap Vocabulary IsVocabulary Consistent ClassSatisfiable Subsumed)
+open Rowl.Owl (DatatypeMap Vocabulary IsVocabulary Consistent ClassSatisfiable Subsumed InstanceOf)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 universe u v w
@@ -224,4 +225,47 @@ theorem source_subsumed_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLimit
     subst answered
     exact ⟨ontology,source,
       fun D V => Rowl.AlcOntology.subsumed_sound.{u,v,w} ontology.axioms sub sup resultRun D V⟩
+
+/-- Instance checking from source bytes always terminates. An error is exactly
+    the reader's first error; otherwise the result is the kernel's instance
+    query on the raw OWL ontology of the bytes, and an answer is exactly whether
+    the named individual is an instance of the expression in every OWL model of
+    its axioms. -/
+theorem source_instance_of_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLimits) (scope : alloc.vec.Vec U8)
+    (a : NamedIndividual) (e : ClassExpression) :
+    ∃ result, source_reasoning.source_instance_of bytes limits scope a e = .ok result ∧
+      (∀ error, result = .Err error ↔ read_document bytes limits = .ok (.Err error)) ∧
+      (∀ answer, result = .Ok answer → ∃ ontology, SourceOntology bytes limits scope ontology ∧
+        alc_ontology.instance_of ontology.axioms a e = .ok answer) ∧
+      ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
+        ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
+          (answer = true ↔ InstanceOf.{u, max w v, w} D V ontology.axioms.val a e) := by
+  rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
+  · refine ⟨.Err error,by simp [source_reasoning.source_instance_of,readRun],?_,?_,?_⟩
+    · intro other; simp [readRun]
+    · intro answer impossible; cases impossible
+    · intro answer impossible; cases impossible
+  · obtain ⟨answered,answeredRun,_,semantic⟩ := Rowl.AlcOntology.instance_of_correct.{u,v,w} ontology.axioms a e
+    refine ⟨.Ok answered,by simp [source_reasoning.source_instance_of,readRun,mappedRun,answeredRun],?_,?_,?_⟩
+    · intro error; simp [readRun]
+    · intro answer same
+      cases same
+      exact ⟨ontology,source,answeredRun⟩
+    · intro answer same
+      cases same
+      exact ⟨ontology,source,semantic answer rfl⟩
+/-- A positive instance answer from source bytes is sound for OWL models in
+    every universe. -/
+theorem source_instance_of_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLimits) (scope : alloc.vec.Vec U8)
+    (a : NamedIndividual) (e : ClassExpression)
+    (answered : source_reasoning.source_instance_of bytes limits scope a e = .ok (.Ok (some true))) :
+    ∃ ontology, SourceOntology bytes limits scope ontology ∧
+      ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), InstanceOf.{u,v,w} D V ontology.axioms.val a e := by
+  rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
+  · simp [source_reasoning.source_instance_of,readRun] at answered
+  · obtain ⟨result,resultRun,_,_⟩ := Rowl.AlcOntology.instance_of_correct.{0,0,0} ontology.axioms a e
+    simp [source_reasoning.source_instance_of,readRun,mappedRun,resultRun] at answered
+    subst answered
+    exact ⟨ontology,source,
+      fun D V => Rowl.AlcOntology.instance_of_sound.{u,v,w} ontology.axioms a e resultRun D V⟩
 end Rowl.SourceReasoning

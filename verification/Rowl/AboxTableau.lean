@@ -263,6 +263,12 @@ def AboxModel {Object : Type u} {Value : Type v} (axioms : nnf.NnfConcept) (fact
   (∀ y, conceptDenote I axioms y) ∧ (∀ p ∈ facts, conceptDenote I p.2 (f p.1)) ∧
     ∀ e ∈ edges, I.objectProperties e.1 (f e.2.1) (f e.2.2)
 
+/-- Between node elements below the count, the interpretation relates nodes
+    only along the given edges. -/
+def ExactEdges {Object : Type u} {Value : Type v} (count : Nat) (edges : List (ObjectProperty × Nat × Nat))
+    (I : Interpretation Object Value) (f : Nat → Object) : Prop :=
+  ∀ r n m, n < count → m < count → I.objectProperties r (f n) (f m) → (r,n,m) ∈ edges
+
 /-- What an added fact requires of the known facts: a conjunction both conjuncts,
     a disjunction one disjunct and a universal restriction its filler at every
     target of its role's edges from the node; the bottom concept is never added. -/
@@ -410,10 +416,11 @@ theorem model_of_saturated (count : Nat) (positive : 0 < count) (axioms : nnf.Nn
     (clashFree : ∀ n k, (n,.NotAtom k) ∈ facts → (n,.Atom k) ∉ facts)
     (obligations : ∀ n r d, (n,.Exists r d) ∈ facts → ∃ (Object : Type) (I : Interpretation Object Unit),
       (∀ y, conceptDenote I axioms y) ∧ ∃ x, Holds I x (d :: nodeFillers r n facts)) :
-    ∃ (Object : Type) (I : Interpretation Object Unit) (f : Nat → Object), AboxModel axioms facts edges I f := by
+    ∃ (Object : Type) (I : Interpretation Object Unit) (f : Nat → Object),
+      AboxModel axioms facts edges I f ∧ ExactEdges count edges I f := by
   obtain ⟨Obj,J,root,spec⟩ := choose_successors axioms facts obligations
   refine ⟨_,aboxModel count positive facts edges Obj J root,
-    fun n => if h : n < count then .inl ⟨n,h⟩ else .inl ⟨0,positive⟩,?_,?_,?_⟩
+    fun n => if h : n < count then .inl ⟨n,h⟩ else .inl ⟨0,positive⟩,⟨?_,?_,?_⟩,?_⟩
   · intro y
     rcases y with n | ⟨o,y⟩
     · exact node_truth requires clashFree (fun o => (spec o).2) axioms n (everywhere n.val n.isLt)
@@ -426,6 +433,12 @@ theorem model_of_saturated (count : Nat) (positive : 0 < count) (axioms : nnf.Nn
     obtain ⟨sourceIn,targetIn⟩ := edgesIn e member
     simp only [sourceIn,targetIn,↓reduceDIte]
     exact .inl ⟨⟨e.2.2,targetIn⟩,rfl,member⟩
+  · intro r n m sourceIn targetIn related
+    simp only [sourceIn,targetIn,↓reduceDIte] at related
+    rcases related with ⟨m',same,edge⟩ | ⟨o,_,_,impossible⟩
+    · cases same
+      exact edge
+    · cases impossible
 
 /-- Invariants of every call: facts and pending facts stay at nodes below the
     count with concepts in a closed closure; the added facts are distinct; the
@@ -508,10 +521,10 @@ theorem invariant_add {count : Nat} {cl : List nnf.NnfConcept} {axioms : nnf.Nnf
 
 /-- The procedure's contract on the current facts: acceptance yields a model
     over a type, and every model, in the given universes, forces acceptance. -/
-def Decides (axioms : nnf.NnfConcept) (edges : List (ObjectProperty × Nat × Nat))
+def Decides (count : Nat) (axioms : nnf.NnfConcept) (edges : List (ObjectProperty × Nat × Nat))
     (current : List (Nat × nnf.NnfConcept)) (result : Bool) : Prop :=
   (result = true → ∃ (Object : Type) (I : Interpretation Object Unit) (f : Nat → Object),
-    AboxModel axioms current edges I f) ∧
+    AboxModel axioms current edges I f ∧ ExactEdges count edges I f) ∧
   ((∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (f : Nat → Object),
     AboxModel axioms current edges I f) → result = true)
 
@@ -522,14 +535,14 @@ theorem model_mono {Object : Type u} {Value : Type v} {axioms : nnf.NnfConcept}
   ⟨model.1,fun p member => model.2.1 p (sub p member),model.2.2⟩
 /-- A contract on more facts is a contract on fewer, when every model of the
     fewer facts is a model of the more. -/
-theorem decides_of_implies {axioms : nnf.NnfConcept} {edges : List (ObjectProperty × Nat × Nat)}
+theorem decides_of_implies {count : Nat} {axioms : nnf.NnfConcept} {edges : List (ObjectProperty × Nat × Nat)}
     {small large : List (Nat × nnf.NnfConcept)} {result : Bool} (sub : ∀ p ∈ small, p ∈ large)
     (back : ∀ {Object : Type u} {Value : Type v} (I : Interpretation Object Value) (f : Nat → Object),
       AboxModel axioms small edges I f → AboxModel axioms large edges I f)
-    (decides : Decides.{u,v} axioms edges large result) : Decides.{u,v} axioms edges small result := by
+    (decides : Decides.{u,v} count axioms edges large result) : Decides.{u,v} count axioms edges small result := by
   refine ⟨fun accepted => ?_,fun ⟨Object,Value,I,f,model⟩ => decides.2 ⟨Object,Value,I,f,back I f model⟩⟩
-  obtain ⟨Object,I,f,model⟩ := decides.1 accepted
-  exact ⟨Object,I,f,model_mono sub model⟩
+  obtain ⟨Object,I,f,model,exact⟩ := decides.1 accepted
+  exact ⟨Object,I,f,model_mono sub model,exact⟩
 
 /-- Models of fewer facts extend to more facts that every such model satisfies. -/
 theorem model_extend {Object : Type u} {Value : Type v} {axioms : nnf.NnfConcept}
@@ -538,12 +551,12 @@ theorem model_extend {Object : Type u} {Value : Type v} {axioms : nnf.NnfConcept
     (model : AboxModel axioms small edges I f) (implied : ∀ p ∈ extra, conceptDenote I p.2 (f p.1)) :
     AboxModel axioms large edges I f :=
   ⟨model.1,fun p member => (cover p member).elim (model.2.1 p) (implied p),model.2.2⟩
-theorem decides_of_extra {axioms : nnf.NnfConcept} {edges : List (ObjectProperty × Nat × Nat)}
+theorem decides_of_extra {count : Nat} {axioms : nnf.NnfConcept} {edges : List (ObjectProperty × Nat × Nat)}
     {small large extra : List (Nat × nnf.NnfConcept)} {result : Bool}
     (sub : ∀ p ∈ small, p ∈ large) (cover : ∀ p ∈ large, p ∈ small ∨ p ∈ extra)
     (implied : ∀ {Object : Type u} {Value : Type v} (I : Interpretation Object Value) (f : Nat → Object),
       AboxModel axioms small edges I f → ∀ p ∈ extra, conceptDenote I p.2 (f p.1))
-    (decides : Decides.{u,v} axioms edges large result) : Decides.{u,v} axioms edges small result :=
+    (decides : Decides.{u,v} count axioms edges large result) : Decides.{u,v} count axioms edges small result :=
   decides_of_implies sub (fun I f model => model_extend cover model (implied I f model)) decides
 
 /-- The actual completion terminates on every call satisfying the invariants and
@@ -552,7 +565,7 @@ theorem complete_correct (count : Nat) (positive : 0 < count) (cl : List nnf.Nnf
     (edges : abox.Edges) (pending facts : abox.Facts)
     (inv : Invariant count cl axioms (edgesList edges) (factsList pending) (factsList facts)) :
     ∃ result, abox.complete pending facts edges axioms = .ok result ∧
-      Decides.{u,v} axioms (edgesList edges) (factsList facts ++ factsList pending) result := by
+      Decides.{u,v} count axioms (edgesList edges) (factsList facts ++ factsList pending) result := by
   cases pending with
   | Empty =>
     rw [abox.complete.eq_def]
@@ -750,10 +763,10 @@ theorem complete_correct (count : Nat) (positive : 0 < count) (cl : List nnf.Nnf
         constructor
         · intro accepted
           rcases Bool.or_eq_true_iff.mp accepted with chosen | chosen
-          · obtain ⟨Object,I,f,model⟩ := leftDecides.1 chosen
-            exact ⟨Object,I,f,model_mono subLeft model⟩
-          · obtain ⟨Object,I,f,model⟩ := rightDecides.1 chosen
-            exact ⟨Object,I,f,model_mono subRight model⟩
+          · obtain ⟨Object,I,f,model,exact⟩ := leftDecides.1 chosen
+            exact ⟨Object,I,f,model_mono subLeft model,exact⟩
+          · obtain ⟨Object,I,f,model,exact⟩ := rightDecides.1 chosen
+            exact ⟨Object,I,f,model_mono subRight model,exact⟩
         · rintro ⟨Object,Value,I,f,model⟩
           rcases model.2.1 (node.val,.Or a b) (by simp [factsList]) with inA | inB
           · have := leftDecides.2 ⟨Object,Value,I,f,model_extend (cover a) model (by
@@ -814,13 +827,14 @@ decreasing_by
 /-- The public procedure terminates. For facts and edges at nodes below a positive
     count, every acceptance yields an interpretation with an element for every
     node that satisfies the facts, the edges and the TBox concept everywhere, and
-    every such interpretation, in any universe, forces acceptance. -/
+    every such interpretation, in any universe, forces acceptance. The accepting
+    interpretation relates node elements only along the given edges. -/
 theorem abox_satisfiable_correct (count : Usize) (positive : 0 < count.val) (facts : abox.Facts)
     (edges : abox.Edges) (axioms : nnf.NnfConcept) (factsIn : ∀ p ∈ factsList facts, p.1 < count.val)
     (edgesIn : ∀ e ∈ edgesList edges, e.2.1 < count.val ∧ e.2.2 < count.val) :
     ∃ result, abox.abox_satisfiable count facts edges axioms = .ok result ∧
       (result = true → ∃ (Object : Type) (I : Interpretation Object Unit) (f : Nat → Object),
-        AboxModel axioms (factsList facts) (edgesList edges) I f) ∧
+        AboxModel axioms (factsList facts) (edgesList edges) I f ∧ ExactEdges count.val (edgesList edges) I f) ∧
       ((∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (f : Nat → Object),
         AboxModel axioms (factsList facts) (edgesList edges) I f) → result = true) := by
   obtain ⟨initial,initialRun,initialContents⟩ := with_axioms_correct count facts axioms
@@ -850,8 +864,8 @@ theorem abox_satisfiable_correct (count : Usize) (positive : 0 < count.val) (fac
   rw [contents] at decides
   refine ⟨result,by rw [abox.abox_satisfiable]; simp [initialRun,run],?_,?_⟩
   · intro accepted
-    obtain ⟨Object,I,f,model⟩ := decides.1 accepted
-    exact ⟨Object,I,f,model_mono (fun p member => List.mem_append_right _ member) model⟩
+    obtain ⟨Object,I,f,model,exact⟩ := decides.1 accepted
+    exact ⟨Object,I,f,model_mono (fun p member => List.mem_append_right _ member) model,exact⟩
   · rintro ⟨Object,Value,I,f,model⟩
     apply decides.2
     refine ⟨Object,Value,I,f,model_extend (extra := (List.range count.val).map (fun n => (n,axioms)))

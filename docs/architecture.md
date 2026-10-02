@@ -958,3 +958,14 @@ of an acceptance is the nodes plus a disjoint copy of each successor model.
 That is why the soundness proof can reuse the TBox tableau's theorem as a black
 box. Termination needs no blocking at the node level, because the facts are
 drawn from a finite set of node and closure pairs and are never added twice.
+
+The ontology queries hand assertions to that completion. Individuals are
+interned by exact structural equality, so all occurrences of a named individual,
+or of a node ID in one scope, share a node, and node 0 stands for one more
+element: the instance of a class being tested for satisfiability, or the
+element of a queried individual that no assertion mentions. The proof that an
+acceptance is an OWL model places every individual at its node's element. A
+negative object property assertion is the one assertion that the facts and
+edges cannot express; the completion's models relate node elements only along
+the asserted edges, so it holds exactly when the same edge is not asserted,
+and a cheap check before the completion decides it.

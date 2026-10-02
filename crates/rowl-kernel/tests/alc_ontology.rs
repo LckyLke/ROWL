@@ -1,4 +1,6 @@
-use rowl_kernel::alc_ontology::{class_satisfiable, consistent, internalize, subsumed};
+use rowl_kernel::alc_ontology::{
+    class_satisfiable, consistent, instance_of, internalize, subsumed,
+};
 use rowl_kernel::model::*;
 use rowl_kernel::nnf::NnfConcept;
 
@@ -181,10 +183,14 @@ fn unsupported_inputs_have_no_answer() {
         )),
     ];
     assert_eq!(class_satisfiable(&declarations, &class(b"A")), Some(true));
-    let individual = Individual::Named(NamedIndividual { iri: iri(b"a") });
-    let assertion = vec![axiom(Axiom::ClassAssertion(class(b"A"), individual))];
-    assert_eq!(class_satisfiable(&assertion, &class(b"A")), None);
-    assert_eq!(consistent(&assertion), None);
+    // Equality between individuals is not supported yet.
+    let same = vec![axiom(Axiom::SameIndividual(two(
+        Individual::Named(NamedIndividual { iri: iri(b"a") }),
+        Individual::Named(NamedIndividual { iri: iri(b"b") }),
+        Vec::new(),
+    )))];
+    assert_eq!(class_satisfiable(&same, &class(b"A")), None);
+    assert_eq!(consistent(&same), None);
     let inverse = ClassExpression::ObjectSomeValuesFrom(
         ObjectPropertyExpression::Inverse(ObjectProperty { iri: iri(b"R") }),
         Box::new(class(b"A")),
@@ -431,4 +437,103 @@ fn every_class_with_a_small_model_of_the_axioms_is_satisfiable() {
         with_model > 30,
         "the sample must exercise satisfiable inputs"
     );
+}
+
+fn named(s: &[u8]) -> Individual {
+    Individual::Named(NamedIndividual { iri: iri(s) })
+}
+fn asserted(c: ClassExpression, a: Individual) -> AnnotatedAxiom {
+    axiom(Axiom::ClassAssertion(c, a))
+}
+fn related(r: &[u8], a: Individual, b: Individual) -> AnnotatedAxiom {
+    axiom(Axiom::ObjectPropertyAssertion(property(r), a, b))
+}
+
+/// Machines with a faulty part need inspection; pump1 is a machine with the
+/// faulty part motor1.
+fn maintenance() -> Vec<AnnotatedAxiom> {
+    vec![
+        sub(
+            and(class(b"Machine"), some(b"hasPart", class(b"FaultyPart"))),
+            class(b"NeedsInspection"),
+        ),
+        asserted(class(b"Machine"), named(b"pump1")),
+        related(b"hasPart", named(b"pump1"), named(b"motor1")),
+        asserted(class(b"FaultyPart"), named(b"motor1")),
+    ]
+}
+fn anon() -> Individual {
+    Individual::Anonymous(AnonymousIndividual {
+        scope: b"doc".to_vec(),
+        label: b"x".to_vec(),
+    })
+}
+
+#[test]
+fn assertions_about_individuals() {
+    let items = maintenance();
+    let pump = NamedIndividual { iri: iri(b"pump1") };
+    let motor = NamedIndividual {
+        iri: iri(b"motor1"),
+    };
+    let other = NamedIndividual { iri: iri(b"other") };
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(&items, &pump, &class(b"NeedsInspection")),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&items, &motor, &class(b"NeedsInspection")),
+        Some(false)
+    );
+    // An individual without assertions is an instance only of what everything is.
+    assert_eq!(instance_of(&items, &other, &class(b"Machine")), Some(false));
+    assert_eq!(
+        instance_of(&items, &other, &or(class(b"A"), not(class(b"A")))),
+        Some(true)
+    );
+    // The assertions constrain classes too: some machine needs inspection.
+    assert_eq!(
+        class_satisfiable(&items, &and(class(b"Machine"), class(b"NeedsInspection"))),
+        Some(true)
+    );
+    // A negative assertion of an asserted edge is inconsistent, also through
+    // the inverse property.
+    let mut denied = maintenance();
+    denied.push(axiom(Axiom::NegativeObjectPropertyAssertion(
+        property(b"hasPart"),
+        named(b"pump1"),
+        named(b"motor1"),
+    )));
+    assert_eq!(consistent(&denied), Some(false));
+    let mut inverse = maintenance();
+    inverse.push(axiom(Axiom::NegativeObjectPropertyAssertion(
+        ObjectPropertyExpression::Inverse(ObjectProperty {
+            iri: iri(b"hasPart"),
+        }),
+        named(b"motor1"),
+        named(b"pump1"),
+    )));
+    assert_eq!(consistent(&inverse), Some(false));
+    let mut unrelated = maintenance();
+    unrelated.push(axiom(Axiom::NegativeObjectPropertyAssertion(
+        property(b"hasPart"),
+        named(b"motor1"),
+        named(b"pump1"),
+    )));
+    assert_eq!(consistent(&unrelated), Some(true));
+    // A class assertion that contradicts the TBox.
+    let mut contradicted = maintenance();
+    contradicted.push(asserted(not(class(b"NeedsInspection")), named(b"pump1")));
+    assert_eq!(consistent(&contradicted), Some(false));
+    // Anonymous individuals take part like named ones.
+    let anonymous = vec![
+        asserted(all(b"hasPart", class(b"FaultyPart")), anon()),
+        related(b"hasPart", anon(), named(b"motor1")),
+        asserted(not(class(b"FaultyPart")), named(b"motor1")),
+    ];
+    assert_eq!(consistent(&anonymous), Some(false));
+    // A built-in object property in an assertion has no answer.
+    let builtin = vec![related(TOP_OBJECT, named(b"a"), named(b"b"))];
+    assert_eq!(consistent(&builtin), None);
 }
