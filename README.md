@@ -101,8 +101,11 @@ every non-logical axiom now has a proved reader. Class expressions of the
 reasoner's ALC fragment (with inverse object properties) and the class, domain
 and range axioms (`SubClassOf`, `EquivalentClasses`, `DisjointClasses`,
 `DisjointUnion`, `ObjectPropertyDomain`, `ObjectPropertyRange`) have proved
-readers as well. The other logical axioms and class-expression forms, the axiom
-loop and complete document construction remain pending.
+readers as well. Whole documents are now read by a verified axiom loop: the
+prefix table, the ontology header and annotations, every axiom up to the closing
+parenthesis, and the end of the source. The other logical axioms are reported as
+unsupported. The other logical axioms and class-expression forms and the mapping
+of documents into the kernel's raw model remain pending.
 The reasoner track has started: class expressions in the ALC fragment translate
 to negation normal form, proved to keep their meaning under the independent
 Direct Semantics in every OWL interpretation. A verified ALC tableau now decides

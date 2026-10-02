@@ -847,6 +847,22 @@ source records. The mapping into the kernel's ontology model belongs to complete
 document construction, together with the axiom loop.
 
 
+### Functional Syntax documents
+
+`read_document` composes the stages on the original bytes: the prefix header,
+the normative table check, the ontology header, the ontology annotations, the
+axiom loop, `)` and the end of the source. The axiom loop is the only new
+recursion. It terminates by token count, because every axiom reader is proved to
+consume at least two tokens on success. The loop classifies all 37 axiom
+keywords, so a known but unread axiom form is reported as unsupported, not as a
+syntax error. An axiom count limit bounds the vector it builds.
+
+The prefix stage and the table check keep their own proved contracts. The exact
+document theorem is therefore stated relative to the declarations parsed from
+the same bytes and the table they produce, like the earlier source-composition
+theorems. Everything after `Ontology(` has an independent grammar.
+
+
 ### Reasoner track: concept language and fragments
 
 The tableau decides concepts in negation normal form, not raw class expressions.

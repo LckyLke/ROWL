@@ -104,6 +104,7 @@ import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
+import Rowl.FunctionalDocument
 import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka

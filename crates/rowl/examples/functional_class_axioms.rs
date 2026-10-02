@@ -1,29 +1,15 @@
 //! Class axioms read from original Functional Syntax source, then answered by the
 //! verified reasoner.
 use rowl::experimental::alc_ontology::{class_satisfiable, consistent, subsumed};
-use rowl::experimental::functional::{Keyword, Terminal};
-use rowl::experimental::functional_annotations::{read_annotations, AnnotationLimits};
-use rowl::experimental::functional_class_axioms::{
-    read_class_axiom, SourceClassAxiom, SourceClassAxiomBody,
-};
+use rowl::experimental::functional_annotations::AnnotationLimits;
+use rowl::experimental::functional_class_axioms::{SourceClassAxiom, SourceClassAxiomBody};
 use rowl::experimental::functional_classes::{ClassLimits, SourceClass, SourceObjectProperty};
-use rowl::experimental::functional_declarations::{
-    read_declaration, SourceDeclaration, SourceEntityKind,
-};
-use rowl::experimental::functional_header::read_header_tail;
-use rowl::experimental::functional_lexer::Tokens;
-use rowl::experimental::functional_prefixes::read_prefix_header;
+use rowl::experimental::functional_declarations::{SourceDeclaration, SourceEntityKind};
+use rowl::experimental::functional_document::{read_document, DocumentLimits, SourceAxiom};
 use rowl::experimental::model::*;
-use rowl::experimental::prefixes::{check, Check};
 
 const EX: &str = "https://example.org/maintenance/";
 
-fn first_terminal(tokens: &Tokens) -> Option<Terminal> {
-    match tokens {
-        Tokens::Cons { token, .. } => Some(token.terminal),
-        Tokens::Empty => None,
-    }
-}
 fn iri(value: &[u8]) -> Iri {
     Iri {
         spelling: value.to_vec(),
@@ -144,44 +130,32 @@ fn show(question: &str, answer: Option<bool>) {
 }
 fn main() {
     let bytes = include_bytes!("../../../examples/maintenance-classes.ofn").to_vec();
-    let prefix =
-        read_prefix_header(&bytes, 400, 10, 100).unwrap_or_else(|_| panic!("source prefixes"));
-    let table = match check(&prefix.declarations) {
-        Check::Ready(table) => table,
-        _ => panic!("prefix table"),
-    };
-    let header = read_header_tail(&table, &bytes, prefix.remaining, 10, 100)
-        .unwrap_or_else(|_| panic!("header"));
-    let annotations = AnnotationLimits {
-        depth: 2,
-        count: 10,
+    let limits = DocumentLimits {
+        tokens: 400,
+        prefixes: 10,
+        prefix_value: 100,
+        imports: 10,
         iri: 100,
-        lexical: 100,
+        axioms: 100,
+        annotations: AnnotationLimits {
+            depth: 2,
+            count: 10,
+            iri: 100,
+            lexical: 100,
+        },
+        classes: ClassLimits {
+            depth: 10,
+            count: 10,
+            iri: 100,
+        },
     };
-    let classes = ClassLimits {
-        depth: 10,
-        count: 10,
-        iri: 100,
-    };
-    let ontology = read_annotations(&table, &bytes, header.remaining, &annotations)
-        .unwrap_or_else(|_| panic!("ontology annotations"));
-    // This loop selects axiom positions for the demo; the verified axiom loop is
-    // a later stage.
-    let mut tokens = ontology.remaining;
+    let document = read_document(&bytes, &limits).unwrap_or_else(|_| panic!("document"));
     let mut axioms = Vec::new();
-    loop {
-        match first_terminal(&tokens) {
-            Some(Terminal::Keyword(Keyword::Declaration)) => {
-                let (source, rest) = read_declaration(&table, &bytes, tokens, &annotations)
-                    .unwrap_or_else(|_| panic!("declaration"));
-                axioms.push(declaration(&source));
-                tokens = rest;
-            }
-            Some(Terminal::Close) | None => break,
-            _ => {
-                let (source, rest) =
-                    read_class_axiom(&table, &bytes, tokens, &annotations, &classes)
-                        .unwrap_or_else(|_| panic!("class axiom"));
+    for item in &document.tail.axioms {
+        match item {
+            SourceAxiom::Declaration(source) => axioms.push(declaration(source)),
+            SourceAxiom::Annotation(_) => {}
+            SourceAxiom::Class(source) => {
                 println!(
                     "Read {} with {} axiom annotation(s)",
                     match source.body {
@@ -194,8 +168,7 @@ fn main() {
                     },
                     source.annotations.len()
                 );
-                axioms.push(class_axiom(&source));
-                tokens = rest;
+                axioms.push(class_axiom(source));
             }
         }
     }
@@ -227,5 +200,5 @@ fn main() {
         "Every machine needs inspection",
         subsumed(&axioms, &named("Machine"), &named("NeedsInspection")),
     );
-    println!("Reading each axiom is proved exact against the Functional Syntax grammar, and each answer is proved against the OWL 2 Direct Semantics; the conversion between them in this example, the axiom loop and document construction are not yet verified steps.");
+    println!("Reading the whole document is proved exact against the Functional Syntax grammar, and each answer is proved against the OWL 2 Direct Semantics; the conversion between them in this example is not yet a verified step.");
 }

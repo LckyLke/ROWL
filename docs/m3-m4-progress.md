@@ -2376,3 +2376,52 @@ former files combined. The 45 frontend proof modules changed only their
 namespace and generated import. Every theorem, specification and ledger
 obligation is unchanged; the ledger's Rust symbols now name the defining crate,
 `rowl_kernel`.
+
+
+## M3: Functional Syntax documents
+
+`functional_document::read_document` reads a whole document from its original
+bytes. It runs the proved prefix-header reader and the normative table check.
+`read_document_tail` then reads everything after `Ontology(` in source order:
+
+1. the ontology identity and imports, with the proved header reader;
+2. the maximal ontology-annotation sequence;
+3. the axiom loop;
+4. `)`;
+5. the end of the source.
+
+The loop stops before `)`. Every other token must start one of the 37 axiom
+forms:
+
+- declarations, the four annotation axioms and the six class, domain and range
+  axioms go to their proved readers with the caller's limits;
+- the other logical axioms are reported as `UnsupportedAxiom` at their keyword.
+
+The axiom count is checked before each axiom is read.
+
+FunctionalDocument specifies the loop as AxiomsRun, with one axiom step per
+family (AxiomStep), and the tail as TailRun. The loop is proved total by
+well-founded recursion on the token count. Every successful axiom consumes at
+least one token: declarations and annotation axioms by their existing progress
+theorems, and class axioms by the new class_axiom_progress. Execution follows
+the grammar by induction on the derivation. The tail's end-of-source fallback
+before `)` is proved unreachable, because a successful loop always stops at `)`.
+The whole-document theorems:
+
+- prove totality;
+- report a prefix failure or a rejected table, by kind, as the first error;
+- given the declarations parsed from the same bytes and accepted by the checker,
+  equate every result with the independent tail derivation, keeping the
+  original declarations.
+
+Three regressions read all five maintenance example documents completely and
+check that axioms keep their family and order. They also cover each first error:
+an unsupported axiom, a missing `)`, trailing content, a non-axiom token, the
+axiom count, a duplicate prefix, a missing ontology and an error inside an axiom.
+The functional_class_axioms example now reads its ontology with the verified
+document reader.
+
+This block adds 17 public theorems and 6 independent definitions. Totals are
+741 audited theorems, 571 definitions, 362 Rust regressions and 934 ledger
+obligations. The mapping into the kernel's raw model and end-to-end answers are
+the next step.

@@ -9,6 +9,7 @@ pub mod experimental {
     pub use rowl_frontend::functional_class_axioms;
     pub use rowl_frontend::functional_classes;
     pub use rowl_frontend::functional_declarations;
+    pub use rowl_frontend::functional_document;
     pub use rowl_frontend::functional_header;
     pub use rowl_frontend::functional_iris;
     pub use rowl_frontend::functional_lexer;

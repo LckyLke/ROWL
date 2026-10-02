@@ -78,6 +78,7 @@ pub mod functional_annotations;
 pub mod functional_class_axioms;
 pub mod functional_classes;
 pub mod functional_declarations;
+pub mod functional_document;
 pub mod functional_header;
 pub mod functional_iris;
 pub mod functional_lexer;

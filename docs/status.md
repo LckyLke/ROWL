@@ -472,6 +472,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   composition uses the namespace rows parsed from the same bytes. The other
   logical axioms, the axiom loop, the closing token, complete document
   construction and the mapping into the kernel's ontology model remain pending.
+- M3 Functional Syntax documents. The actual reader takes the original bytes of a
+  whole document. It reads the prefix declarations with the proved prefix-header
+  reader and checks them with the normative table checker. It then reads the
+  ontology identity and imports, the ontology annotations, every axiom up to the
+  closing parenthesis, and the end of the source. The axiom loop dispatches on
+  all 37 axiom keywords to the proved declaration, annotation-axiom and
+  class-axiom readers, reports the other logical axioms as unsupported at their
+  keyword, and has an axiom count limit. Errors report the first failing stage
+  with original offsets. The loop is proved total by token count from each
+  reader's minimum consumption, with exact result/error equivalence to an
+  independent grammar. The mapping into the kernel's raw model, canonical
+  imports and the other axiom forms remain pending.
 - Reasoner track, first stage: negation normal form for the ALC fragment. The
   actual kernel translation maps named classes, intersections, unions,
   complements and existential/universal restrictions on named object properties
@@ -527,12 +539,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   answer holds in every such model. Individuals and assertions, the other axiom forms,
   the remaining SROIQ constructors, datatypes, the frontend's reading of logical
   axioms, query answering and performance remain pending.
-- 724 audited public theorems and 565 audited semantic definitions. Consistency,
+- 741 audited public theorems and 571 audited semantic definitions. Consistency,
   class satisfiability and subsumption are decided, with proofs against the OWL
   definitions, for axiom closures whose logical axioms are ALC class, domain and
   range axioms; no full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 359 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 362 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -541,7 +553,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 917-obligation release ledger and separate checked constructor and built-in inventories.
+- A 934-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -589,9 +601,10 @@ ontology/version identity and maximal leading imports also have source-derived
 value/error composition proofs. Ontology annotations, including nested ones,
 now have source-derived value/error composition proofs as well, and so do single
 entity declarations, annotation axioms, ALC class expressions and class, domain
-and range axioms at a supplied position. The other logical axioms, the axiom loop
-and closing syntax are returned as tokens; complete grammar/AST and canonical
-catalog/import construction remain pending.
+and range axioms, and whole documents of those axioms with their closing syntax
+and end of source. The other logical axioms are reported as unsupported; the
+mapping into the raw model and canonical catalog/import construction remain
+pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. The concrete normative OWL map is unimplemented. Semantic

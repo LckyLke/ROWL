@@ -1240,6 +1240,29 @@
         "Rowl.FunctionalClassSource.source_prefix_class_result_iff",
         "Rowl.FunctionalClassSource.source_prefix_class_axiom_result_iff"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalDocument",
+      "namespace": "Rowl.FunctionalDocument",
+      "theorems": [
+        "Rowl.FunctionalDocument.axiom_family_total_correct",
+        "Rowl.FunctionalDocument.closes_total_correct",
+        "Rowl.FunctionalDocument.class_axiom_progress",
+        "Rowl.FunctionalDocument.read_axiom_total_correct",
+        "Rowl.FunctionalDocument.read_axiom_result_iff",
+        "Rowl.FunctionalDocument.axiom_progress",
+        "Rowl.FunctionalDocument.read_axioms_total_correct",
+        "Rowl.FunctionalDocument.axioms_execution",
+        "Rowl.FunctionalDocument.read_axioms_result_iff",
+        "Rowl.FunctionalDocument.axioms_stop_at_close",
+        "Rowl.FunctionalDocument.read_document_tail_total_correct",
+        "Rowl.FunctionalDocument.read_document_tail_result_iff",
+        "Rowl.FunctionalDocument.table_error_total_correct",
+        "Rowl.FunctionalDocument.read_document_total",
+        "Rowl.FunctionalDocument.read_document_prefix_error",
+        "Rowl.FunctionalDocument.read_document_table_error",
+        "Rowl.FunctionalDocument.read_document_result_iff"
+      ]
     }
   ],
   "specifications": [
@@ -1807,6 +1830,12 @@
     "Rowl.FunctionalClassAxioms.ListRun",
     "Rowl.FunctionalClassAxioms.NamedRun",
     "Rowl.FunctionalClassAxioms.BodyRun",
-    "Rowl.FunctionalClassAxioms.AxiomRun"
+    "Rowl.FunctionalClassAxioms.AxiomRun",
+    "Rowl.FunctionalDocument.FamilyOf",
+    "Rowl.FunctionalDocument.AxiomStep",
+    "Rowl.FunctionalDocument.AxiomsRun",
+    "Rowl.FunctionalDocument.TailRun",
+    "Rowl.FunctionalDocument.TableErrorOf",
+    "Rowl.FunctionalDocument.WithPrefixes"
   ]
 }

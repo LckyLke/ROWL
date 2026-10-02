@@ -16690,6 +16690,28 @@ def functional_declarations.read_declaration
     | core.result.Result.Err error => ok (core.result.Result.Err error)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
+/-- [rowl_kernel::functional_document::SourceAxiom]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 27:0-31:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_document.SourceAxiom where
+| Declaration :
+  functional_declarations.SourceDeclaration →
+  functional_document.SourceAxiom
+| Annotation :
+  functional_annotation_axioms.SourceAnnotationAxiom →
+  functional_document.SourceAxiom
+| Class :
+  functional_class_axioms.SourceClassAxiom →
+  functional_document.SourceAxiom
+
+/-- [rowl_kernel::functional_header::ImportReference]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 21:0-24:1
+    Visibility: public -/
+structure functional_header.ImportReference where
+  keyword : functional.Token
+  target : functional_header.HeaderIri
+
 /-- [rowl_kernel::functional_header::SourceOntologyIdentity]
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 14:0-20:1
     Visibility: public -/
@@ -16701,20 +16723,141 @@ inductive functional_header.SourceOntologyIdentity where
   Option functional_header.HeaderIri →
   functional_header.SourceOntologyIdentity
 
-/-- [rowl_kernel::functional_header::ImportReference]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 21:0-24:1
+/-- [rowl_kernel::functional_document::SourceDocumentTail]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 34:0-39:1
     Visibility: public -/
-structure functional_header.ImportReference where
-  keyword : functional.Token
-  target : functional_header.HeaderIri
-
-/-- [rowl_kernel::functional_header::HeaderTail]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 25:0-29:1
-    Visibility: public -/
-structure functional_header.HeaderTail where
+structure functional_document.SourceDocumentTail where
   identity : functional_header.SourceOntologyIdentity
   imports : alloc.vec.Vec functional_header.ImportReference
-  remaining : functional_lexer.Tokens
+  annotations : alloc.vec.Vec functional_annotations.SourceAnnotation
+  axioms : alloc.vec.Vec functional_document.SourceAxiom
+
+/-- [rowl_kernel::functional_document::SourceDocument]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 41:0-44:1
+    Visibility: public -/
+structure functional_document.SourceDocument where
+  prefixes : alloc.vec.Vec prefixes.Declaration
+  tail : functional_document.SourceDocumentTail
+
+/-- [rowl_kernel::functional_document::DocumentLimits]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 48:0-57:1
+    Visibility: public -/
+structure functional_document.DocumentLimits where
+  tokens : Std.Usize
+  prefixes : Std.Usize
+  prefix_value : Std.Usize
+  imports : Std.Usize
+  iri : Std.Usize
+  axioms : Std.Usize
+  annotations : functional_annotations.AnnotationLimits
+  classes : functional_classes.ClassLimits
+
+/-- [rowl_kernel::functional_document::DocumentExpected]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 59:0-66:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_document.DocumentExpected where
+| Axiom : functional_document.DocumentExpected
+| Close : functional_document.DocumentExpected
+| End : functional_document.DocumentExpected
+
+/-- [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::DocumentExpected}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 58:9-58:14
+    Visibility: public -/
+def functional_document.DocumentExpected.Insts.CoreCloneClone.clone
+  (self : functional_document.DocumentExpected) :
+  Result functional_document.DocumentExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::DocumentExpected}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 58:9-58:14 -/
+@[reducible]
+def functional_document.DocumentExpected.Insts.CoreCloneClone :
+  core.clone.Clone functional_document.DocumentExpected := {
+  clone := functional_document.DocumentExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::marker::Copy for rowl_kernel::functional_document::DocumentExpected}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 58:16-58:20 -/
+@[reducible]
+def functional_document.DocumentExpected.Insts.CoreMarkerCopy :
+  core.marker.Copy functional_document.DocumentExpected := {
+  cloneInst := functional_document.DocumentExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_document::TableError]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 69:0-74:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_document.TableError where
+| InvalidName : functional_document.TableError
+| ReservedName : functional_document.TableError
+| InvalidNamespace : functional_document.TableError
+| Duplicate : functional_document.TableError
+
+/-- [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::TableError}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 68:9-68:14
+    Visibility: public -/
+def functional_document.TableError.Insts.CoreCloneClone.clone
+  (self : functional_document.TableError) :
+  Result functional_document.TableError
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::TableError}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 68:9-68:14 -/
+@[reducible]
+def functional_document.TableError.Insts.CoreCloneClone : core.clone.Clone
+  functional_document.TableError := {
+  clone := functional_document.TableError.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::marker::Copy for rowl_kernel::functional_document::TableError}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 68:16-68:20 -/
+@[reducible]
+def functional_document.TableError.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_document.TableError := {
+  cloneInst := functional_document.TableError.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_prefixes::PrefixExpected]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 12:0-19:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_prefixes.PrefixExpected where
+| Ontology : functional_prefixes.PrefixExpected
+| Open : functional_prefixes.PrefixExpected
+| Name : functional_prefixes.PrefixExpected
+| Equals : functional_prefixes.PrefixExpected
+| Namespace : functional_prefixes.PrefixExpected
+| Close : functional_prefixes.PrefixExpected
+
+/-- [rowl_kernel::functional_prefixes::PrefixSyntaxError]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 20:0-29:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_prefixes.PrefixSyntaxError where
+| Expected :
+  functional_prefixes.PrefixExpected →
+  Std.Usize →
+  functional_prefixes.PrefixSyntaxError
+| Name : functional_names.NameError → functional_prefixes.PrefixSyntaxError
+| DeclarationLimit : Std.Usize → functional_prefixes.PrefixSyntaxError
+
+/-- [rowl_kernel::functional_prefixes::PrefixReadError]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 30:0-37:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_prefixes.PrefixReadError where
+| Syntax :
+  functional_prefixes.PrefixSyntaxError →
+  functional_prefixes.PrefixReadError
+| InvalidText : unicode.TextError → functional_prefixes.PrefixReadError
+| NoToken : Std.Usize → functional_prefixes.PrefixReadError
+| MissingSeparator : Std.Usize → functional_prefixes.PrefixReadError
+| TokenLimit : Std.Usize → functional_prefixes.PrefixReadError
+| InvalidSpan : Std.Usize → functional_prefixes.PrefixReadError
 
 /-- [rowl_kernel::functional_header::HeaderExpected]
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 31:0-35:1
@@ -16724,31 +16867,6 @@ inductive functional_header.HeaderExpected where
 | Open : functional_header.HeaderExpected
 | Iri : functional_header.HeaderExpected
 | Close : functional_header.HeaderExpected
-
-/-- [rowl_kernel::functional_header::{impl core::clone::Clone for rowl_kernel::functional_header::HeaderExpected}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:9-30:14
-    Visibility: public -/
-def functional_header.HeaderExpected.Insts.CoreCloneClone.clone
-  (self : functional_header.HeaderExpected) :
-  Result functional_header.HeaderExpected
-  := do
-  ok self
-
-/-- Trait implementation: [rowl_kernel::functional_header::{impl core::clone::Clone for rowl_kernel::functional_header::HeaderExpected}]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:9-30:14 -/
-@[reducible]
-def functional_header.HeaderExpected.Insts.CoreCloneClone : core.clone.Clone
-  functional_header.HeaderExpected := {
-  clone := functional_header.HeaderExpected.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [rowl_kernel::functional_header::{impl core::marker::Copy for rowl_kernel::functional_header::HeaderExpected}]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:16-30:20 -/
-@[reducible]
-def functional_header.HeaderExpected.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_header.HeaderExpected := {
-  cloneInst := functional_header.HeaderExpected.Insts.CoreCloneClone
-}
 
 /-- [rowl_kernel::functional_header::HeaderError]
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 36:0-45:1
@@ -16762,57 +16880,324 @@ inductive functional_header.HeaderError where
 | Iri : functional_iris.SourceIriError → functional_header.HeaderError
 | ImportLimit : Std.Usize → functional_header.HeaderError
 
-/-- [rowl_kernel::functional_header::read_optional_iri]:
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 53:0-69:1 -/
-def functional_header.read_optional_iri
+/-- [rowl_kernel::functional_document::DocumentError]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 75:0-94:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_document.DocumentError where
+| Prefix :
+  functional_prefixes.PrefixReadError →
+  functional_document.DocumentError
+| Table : functional_document.TableError → functional_document.DocumentError
+| Header : functional_header.HeaderError → functional_document.DocumentError
+| Annotation :
+  functional_annotations.AnnotationError →
+  functional_document.DocumentError
+| Declaration :
+  functional_declarations.DeclarationError →
+  functional_document.DocumentError
+| AnnotationAxiom :
+  functional_annotation_axioms.AnnotationAxiomError →
+  functional_document.DocumentError
+| ClassAxiom :
+  functional_class_axioms.ClassAxiomError →
+  functional_document.DocumentError
+| UnsupportedAxiom : Std.Usize → functional_document.DocumentError
+| AxiomLimit : Std.Usize → functional_document.DocumentError
+| Expected :
+  functional_document.DocumentExpected →
+  Std.Usize →
+  functional_document.DocumentError
+
+/-- [rowl_kernel::functional_document::AxiomFamily]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 96:0-101:1 -/
+@[discriminant isize]
+inductive functional_document.AxiomFamily where
+| Declaration : functional_document.AxiomFamily
+| Annotation : functional_document.AxiomFamily
+| Class : functional_document.AxiomFamily
+| Unsupported : functional_document.AxiomFamily
+
+/-- [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::AxiomFamily}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 95:9-95:14
+    Visibility: public -/
+def functional_document.AxiomFamily.Insts.CoreCloneClone.clone
+  (self : functional_document.AxiomFamily) :
+  Result functional_document.AxiomFamily
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::clone::Clone for rowl_kernel::functional_document::AxiomFamily}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 95:9-95:14 -/
+@[reducible]
+def functional_document.AxiomFamily.Insts.CoreCloneClone : core.clone.Clone
+  functional_document.AxiomFamily := {
+  clone := functional_document.AxiomFamily.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_document::{impl core::marker::Copy for rowl_kernel::functional_document::AxiomFamily}]
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 95:16-95:20 -/
+@[reducible]
+def functional_document.AxiomFamily.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_document.AxiomFamily := {
+  cloneInst := functional_document.AxiomFamily.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_document::axiom_family]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 102:0-147:1 -/
+def functional_document.axiom_family
+  (terminal : functional.Terminal) :
+  Result (Option functional_document.AxiomFamily)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword k =>
+    match k with
+    | functional.Keyword.Prefix => ok none
+    | functional.Keyword.Ontology => ok none
+    | functional.Keyword.Import => ok none
+    | functional.Keyword.Declaration =>
+      ok (some functional_document.AxiomFamily.Declaration)
+    | functional.Keyword.Class => ok none
+    | functional.Keyword.Datatype => ok none
+    | functional.Keyword.ObjectProperty => ok none
+    | functional.Keyword.DataProperty => ok none
+    | functional.Keyword.AnnotationProperty => ok none
+    | functional.Keyword.NamedIndividual => ok none
+    | functional.Keyword.Annotation => ok none
+    | functional.Keyword.AnnotationAssertion =>
+      ok (some functional_document.AxiomFamily.Annotation)
+    | functional.Keyword.SubAnnotationPropertyOf =>
+      ok (some functional_document.AxiomFamily.Annotation)
+    | functional.Keyword.AnnotationPropertyDomain =>
+      ok (some functional_document.AxiomFamily.Annotation)
+    | functional.Keyword.AnnotationPropertyRange =>
+      ok (some functional_document.AxiomFamily.Annotation)
+    | functional.Keyword.ObjectInverseOf => ok none
+    | functional.Keyword.DataIntersectionOf => ok none
+    | functional.Keyword.DataUnionOf => ok none
+    | functional.Keyword.DataComplementOf => ok none
+    | functional.Keyword.DataOneOf => ok none
+    | functional.Keyword.DatatypeRestriction => ok none
+    | functional.Keyword.ObjectIntersectionOf => ok none
+    | functional.Keyword.ObjectUnionOf => ok none
+    | functional.Keyword.ObjectComplementOf => ok none
+    | functional.Keyword.ObjectOneOf => ok none
+    | functional.Keyword.ObjectSomeValuesFrom => ok none
+    | functional.Keyword.ObjectAllValuesFrom => ok none
+    | functional.Keyword.ObjectHasValue => ok none
+    | functional.Keyword.ObjectHasSelf => ok none
+    | functional.Keyword.ObjectMinCardinality => ok none
+    | functional.Keyword.ObjectMaxCardinality => ok none
+    | functional.Keyword.ObjectExactCardinality => ok none
+    | functional.Keyword.DataSomeValuesFrom => ok none
+    | functional.Keyword.DataAllValuesFrom => ok none
+    | functional.Keyword.DataHasValue => ok none
+    | functional.Keyword.DataMinCardinality => ok none
+    | functional.Keyword.DataMaxCardinality => ok none
+    | functional.Keyword.DataExactCardinality => ok none
+    | functional.Keyword.SubClassOf =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.EquivalentClasses =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.DisjointClasses =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.DisjointUnion =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.SubObjectPropertyOf =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.ObjectPropertyChain => ok none
+    | functional.Keyword.EquivalentObjectProperties =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DisjointObjectProperties =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.ObjectPropertyDomain =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.ObjectPropertyRange =>
+      ok (some functional_document.AxiomFamily.Class)
+    | functional.Keyword.InverseObjectProperties =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.FunctionalObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.InverseFunctionalObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.ReflexiveObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.IrreflexiveObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.SymmetricObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.AsymmetricObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.TransitiveObjectProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.SubDataPropertyOf =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.EquivalentDataProperties =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DisjointDataProperties =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DataPropertyDomain =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DataPropertyRange =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.FunctionalDataProperty =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DatatypeDefinition =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.HasKey =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.SameIndividual =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DifferentIndividuals =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.ClassAssertion =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.ObjectPropertyAssertion =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.NegativeObjectPropertyAssertion =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.DataPropertyAssertion =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+    | functional.Keyword.NegativeDataPropertyAssertion =>
+      ok (some functional_document.AxiomFamily.Unsupported)
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId => ok none
+  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri => ok none
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_kernel::functional_document::closes]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 148:0-150:1 -/
+def functional_document.closes
+  (terminal : functional.Terminal) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok false
+  | functional.Terminal.Open => ok false
+  | functional.Terminal.Close => ok true
+  | functional.Terminal.Equals => ok false
+  | functional.Terminal.DatatypeIndicator => ok false
+  | functional.Terminal.Integer => ok false
+  | functional.Terminal.QuotedString => ok false
+  | functional.Terminal.LanguageTag => ok false
+  | functional.Terminal.NodeId => ok false
+  | functional.Terminal.FullIri => ok false
+  | functional.Terminal.PrefixName => ok false
+  | functional.Terminal.AbbreviatedIri => ok false
+  | functional.Terminal.Whitespace => ok false
+  | functional.Terminal.Comment => ok false
+
+/-- [rowl_kernel::functional_document::read_axiom]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 152:0-181:1 -/
+def functional_document.read_axiom
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
-  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
-  Result (core.result.Result ((Option functional_header.HeaderIri) ×
-    functional_lexer.Tokens) functional_header.HeaderError)
+  (family : functional_document.AxiomFamily) (tokens : functional_lexer.Tokens)
+  (offset : Std.Usize) (limits : functional_document.DocumentLimits) :
+  Result (core.result.Result (functional_document.SourceAxiom ×
+    functional_lexer.Tokens) functional_document.DocumentError)
+  := do
+  match family with
+  | functional_document.AxiomFamily.Declaration =>
+    let r ←
+      functional_declarations.read_declaration table bytes tokens
+        limits.annotations
+    match r with
+    | core.result.Result.Ok p =>
+      let («axiom», rest) := p
+      ok (core.result.Result.Ok (functional_document.SourceAxiom.Declaration
+        «axiom», rest))
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_document.DocumentError.Declaration
+        error))
+  | functional_document.AxiomFamily.Annotation =>
+    let r ←
+      functional_annotation_axioms.read_annotation_axiom table bytes tokens
+        limits.annotations
+    match r with
+    | core.result.Result.Ok p =>
+      let («axiom», rest) := p
+      ok (core.result.Result.Ok (functional_document.SourceAxiom.Annotation
+        «axiom», rest))
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err
+        (functional_document.DocumentError.AnnotationAxiom error))
+  | functional_document.AxiomFamily.Class =>
+    let r ←
+      functional_class_axioms.read_class_axiom table bytes tokens
+        limits.annotations limits.classes
+    match r with
+    | core.result.Result.Ok p =>
+      let («axiom», rest) := p
+      ok (core.result.Result.Ok (functional_document.SourceAxiom.Class
+        «axiom», rest))
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_document.DocumentError.ClassAxiom
+        error))
+  | functional_document.AxiomFamily.Unsupported =>
+    ok (core.result.Result.Err
+      (functional_document.DocumentError.UnsupportedAxiom offset))
+
+/-- [rowl_kernel::functional_document::read_axioms]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 183:0-228:1 -/
+def functional_document.read_axioms
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (axioms : alloc.vec.Vec functional_document.SourceAxiom)
+  (limits : functional_document.DocumentLimits) :
+  Result (core.result.Result ((alloc.vec.Vec functional_document.SourceAxiom)
+    × functional_lexer.Tokens) functional_document.DocumentError)
   := do
   match tokens with
   | functional_lexer.Tokens.Empty =>
-    ok (core.result.Result.Ok (none, functional_lexer.Tokens.Empty))
-  | functional_lexer.Tokens.Cons token next =>
-    let o ← functional_header.iri_kind token.terminal
-    match o with
-    | none => ok (core.result.Result.Ok (none, tokens))
-    | some kind =>
-      let r ←
-        functional_iris.resolve_span table kind bytes token.start token.end
-          limit
-      match r with
-      | core.result.Result.Ok value =>
-        ok (core.result.Result.Ok (some { token, value }, next))
-      | core.result.Result.Err error =>
-        ok (core.result.Result.Err (functional_header.HeaderError.Iri error))
+    let i := alloc.vec.Vec.len bytes
+    ok (core.result.Result.Err (functional_document.DocumentError.Expected
+      functional_document.DocumentExpected.Close i))
+  | functional_lexer.Tokens.Cons token _ =>
+    let b ← functional_document.closes token.terminal
+    if b
+    then ok (core.result.Result.Ok (axioms, tokens))
+    else
+      let o ← functional_document.axiom_family token.terminal
+      match o with
+      | none =>
+        ok (core.result.Result.Err (functional_document.DocumentError.Expected
+          functional_document.DocumentExpected.Axiom token.start))
+      | some family =>
+        let i := alloc.vec.Vec.len axioms
+        if i >= limits.axioms
+        then
+          ok (core.result.Result.Err
+            (functional_document.DocumentError.AxiomLimit token.start))
+        else
+          let r ←
+            functional_document.read_axiom table bytes family tokens
+              token.start limits
+          match r with
+          | core.result.Result.Ok value =>
+            let («axiom», rest) := value
+            let axioms1 ← alloc.vec.Vec.push axioms «axiom»
+            functional_document.read_axioms table bytes rest axioms1 limits
+          | core.result.Result.Err error => ok (core.result.Result.Err error)
+partial_fixpoint
 
-/-- [rowl_kernel::functional_header::read_identity]:
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 70:0-90:1 -/
-def functional_header.read_identity
-  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
-  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
-  Result (core.result.Result (functional_header.SourceOntologyIdentity ×
-    functional_lexer.Tokens) functional_header.HeaderError)
-  := do
-  let r ← functional_header.read_optional_iri table bytes tokens limit
-  match r with
-  | core.result.Result.Ok value =>
-    let (ontology, tokens1) := value
-    match ontology with
-    | none =>
-      ok (core.result.Result.Ok
-        (functional_header.SourceOntologyIdentity.Anonymous, tokens1))
-    | some ontology1 =>
-      let r1 ← functional_header.read_optional_iri table bytes tokens1 limit
-      match r1 with
-      | core.result.Result.Ok value1 =>
-        let (version, tokens2) := value1
-        ok (core.result.Result.Ok
-          (functional_header.SourceOntologyIdentity.Named ontology1 version,
-          tokens2))
-      | core.result.Result.Err error => ok (core.result.Result.Err error)
-  | core.result.Result.Err error => ok (core.result.Result.Err error)
+/-- [rowl_kernel::functional_header::HeaderImports]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 177:0-180:1 -/
+structure functional_header.HeaderImports where
+  references : alloc.vec.Vec functional_header.ImportReference
+  remaining : functional_lexer.Tokens
+
+/-- [rowl_kernel::functional_header::ImportShape]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 120:0-123:1 -/
+structure functional_header.ImportShape where
+  target : functional.Token
+  remaining : functional_lexer.Tokens
 
 /-- [rowl_kernel::functional_header::expected_terminal]:
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 91:0-97:1 -/
@@ -16891,12 +17276,6 @@ def functional_header.take_expected
       ok (core.result.Result.Err (functional_header.HeaderError.Expected
         expected token.start))
 
-/-- [rowl_kernel::functional_header::ImportShape]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 120:0-123:1 -/
-structure functional_header.ImportShape where
-  target : functional.Token
-  remaining : functional_lexer.Tokens
-
 /-- [rowl_kernel::functional_header::read_import_shape]:
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 124:0-138:1 -/
 def functional_header.read_import_shape
@@ -16955,12 +17334,6 @@ def functional_header.read_import
       | core.result.Result.Err error =>
         ok (core.result.Result.Err (functional_header.HeaderError.Iri error))
   | core.result.Result.Err error => ok (core.result.Result.Err error)
-
-/-- [rowl_kernel::functional_header::HeaderImports]
-    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 177:0-180:1 -/
-structure functional_header.HeaderImports where
-  references : alloc.vec.Vec functional_header.ImportReference
-  remaining : functional_lexer.Tokens
 
 /-- [rowl_kernel::functional_header::scan_imports]:
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 181:0-224:1 -/
@@ -17165,6 +17538,66 @@ def functional_header.scan_imports
       ok (core.result.Result.Ok { references, remaining := tokens })
 partial_fixpoint
 
+/-- [rowl_kernel::functional_header::read_optional_iri]:
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 53:0-69:1 -/
+def functional_header.read_optional_iri
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result ((Option functional_header.HeaderIri) ×
+    functional_lexer.Tokens) functional_header.HeaderError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Ok (none, functional_lexer.Tokens.Empty))
+  | functional_lexer.Tokens.Cons token next =>
+    let o ← functional_header.iri_kind token.terminal
+    match o with
+    | none => ok (core.result.Result.Ok (none, tokens))
+    | some kind =>
+      let r ←
+        functional_iris.resolve_span table kind bytes token.start token.end
+          limit
+      match r with
+      | core.result.Result.Ok value =>
+        ok (core.result.Result.Ok (some { token, value }, next))
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err (functional_header.HeaderError.Iri error))
+
+/-- [rowl_kernel::functional_header::read_identity]:
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 70:0-90:1 -/
+def functional_header.read_identity
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_header.SourceOntologyIdentity ×
+    functional_lexer.Tokens) functional_header.HeaderError)
+  := do
+  let r ← functional_header.read_optional_iri table bytes tokens limit
+  match r with
+  | core.result.Result.Ok value =>
+    let (ontology, tokens1) := value
+    match ontology with
+    | none =>
+      ok (core.result.Result.Ok
+        (functional_header.SourceOntologyIdentity.Anonymous, tokens1))
+    | some ontology1 =>
+      let r1 ← functional_header.read_optional_iri table bytes tokens1 limit
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (version, tokens2) := value1
+        ok (core.result.Result.Ok
+          (functional_header.SourceOntologyIdentity.Named ontology1 version,
+          tokens2))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_kernel::functional_header::HeaderTail]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 25:0-29:1
+    Visibility: public -/
+structure functional_header.HeaderTail where
+  identity : functional_header.SourceOntologyIdentity
+  imports : alloc.vec.Vec functional_header.ImportReference
+  remaining : functional_lexer.Tokens
+
 /-- [rowl_kernel::functional_header::read_header_tail]:
     Source: 'crates/rowl-kernel/src/functional_header.rs', lines 233:0-253:1
     Visibility: public -/
@@ -17190,386 +17623,136 @@ def functional_header.read_header_tail
     | core.result.Result.Err error => ok (core.result.Result.Err error)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
-/-- [rowl_kernel::functional_iris::{impl core::clone::Clone for rowl_kernel::functional_iris::SourceIriKind}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:9-8:14
+/-- [rowl_kernel::functional_document::read_document_tail]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 232:0-272:1
     Visibility: public -/
-def functional_iris.SourceIriKind.Insts.CoreCloneClone.clone
-  (self : functional_iris.SourceIriKind) :
-  Result functional_iris.SourceIriKind
+def functional_document.read_document_tail
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (limits : functional_document.DocumentLimits) :
+  Result (core.result.Result functional_document.SourceDocumentTail
+    functional_document.DocumentError)
   := do
-  ok self
+  let r ←
+    functional_header.read_header_tail table bytes tokens limits.imports
+      limits.iri
+  match r with
+  | core.result.Result.Ok value =>
+    let r1 ←
+      functional_annotations.read_annotations table bytes value.remaining
+        limits.annotations
+    match r1 with
+    | core.result.Result.Ok value1 =>
+      let r2 ←
+        functional_document.read_axioms table bytes value1.remaining
+          (alloc.vec.Vec.new functional_document.SourceAxiom) limits
+      match r2 with
+      | core.result.Result.Ok value2 =>
+        let (axioms, tokens1) := value2
+        match tokens1 with
+        | functional_lexer.Tokens.Empty =>
+          let i := alloc.vec.Vec.len bytes
+          ok (core.result.Result.Err
+            (functional_document.DocumentError.Expected
+            functional_document.DocumentExpected.Close i))
+        | functional_lexer.Tokens.Cons _ next =>
+          match next with
+          | functional_lexer.Tokens.Empty =>
+            ok (core.result.Result.Ok
+              {
+                identity := value.identity,
+                imports := value.imports,
+                annotations := value1.annotations,
+                axioms
+              })
+          | functional_lexer.Tokens.Cons token _ =>
+            ok (core.result.Result.Err
+              (functional_document.DocumentError.Expected
+              functional_document.DocumentExpected.End token.start))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_document.DocumentError.Annotation
+        error))
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_document.DocumentError.Header
+      error))
 
-/-- Trait implementation: [rowl_kernel::functional_iris::{impl core::clone::Clone for rowl_kernel::functional_iris::SourceIriKind}]
-    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:9-8:14 -/
-@[reducible]
-def functional_iris.SourceIriKind.Insts.CoreCloneClone : core.clone.Clone
-  functional_iris.SourceIriKind := {
-  clone := functional_iris.SourceIriKind.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [rowl_kernel::functional_iris::{impl core::marker::Copy for rowl_kernel::functional_iris::SourceIriKind}]
-    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:16-8:20 -/
-@[reducible]
-def functional_iris.SourceIriKind.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_iris.SourceIriKind := {
-  cloneInst := functional_iris.SourceIriKind.Insts.CoreCloneClone
-}
-
-/-- [rowl_kernel::functional_lexer::LexResult]
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 12:0-19:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_lexer.LexResult where
-| Tokens : functional_lexer.Tokens → functional_lexer.LexResult
-| InvalidText : unicode.TextError → functional_lexer.LexResult
-| NoToken : Std.Usize → functional_lexer.LexResult
-| MissingSeparator : Std.Usize → functional_lexer.LexResult
-| TokenLimit : Std.Usize → functional_lexer.LexResult
-| InvalidSpan : Std.Usize → functional_lexer.LexResult
-
-/-- [rowl_kernel::functional_lexer::Gap]
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 20:0-25:1 -/
-@[discriminant isize]
-inductive functional_lexer.Gap where
-| Next : Std.Usize → functional_lexer.Gap
-| Missing : functional_lexer.Gap
-| InvalidText : unicode.TextError → functional_lexer.Gap
-| InvalidSpan : functional_lexer.Gap
-
-/-- [rowl_kernel::functional_lexer::delimiter]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 26:0-28:1 -/
-def functional_lexer.delimiter (cp : Std.U32) : Result Bool := do
-  if cp = 61#u32
-  then ok true
-  else
-    if cp = 40#u32
-    then ok true
-    else
-      if cp = 41#u32
-      then ok true
-      else
-        if cp = 60#u32
-        then ok true
-        else
-          if cp = 62#u32
-          then ok true
-          else if cp = 64#u32
-               then ok true
-               else ok (cp = 94#u32)
-
-/-- [rowl_kernel::functional_lexer::special]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 29:0-31:1 -/
-def functional_lexer.special
-  (terminal : functional.Terminal) : Result Bool := do
-  match terminal with
-  | functional.Terminal.Keyword _ => ok false
-  | functional.Terminal.Open => ok false
-  | functional.Terminal.Close => ok false
-  | functional.Terminal.Equals => ok false
-  | functional.Terminal.DatatypeIndicator => ok false
-  | functional.Terminal.Integer => ok false
-  | functional.Terminal.QuotedString => ok false
-  | functional.Terminal.LanguageTag => ok false
-  | functional.Terminal.NodeId => ok false
-  | functional.Terminal.FullIri => ok false
-  | functional.Terminal.PrefixName => ok false
-  | functional.Terminal.AbbreviatedIri => ok false
-  | functional.Terminal.Whitespace => ok true
-  | functional.Terminal.Comment => ok true
-
-/-- [rowl_kernel::functional_lexer::last_codepoint]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 35:0-48:1 -/
-def functional_lexer.last_codepoint
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) («end» : Std.Usize)
-  (last : Option Std.U32) :
-  Result (Option Std.U32)
-  := do
-  if position = «end»
-  then ok last
-  else
-    if position > «end»
-    then ok none
-    else
-      let d ← unicode.decode_next bytes position
-      match d with
-      | unicode.Decoded.End => ok none
-      | unicode.Decoded.Scalar codepoint next =>
-        if next <= «end»
-        then
-          functional_lexer.last_codepoint bytes next «end» (some codepoint)
-        else ok none
-      | unicode.Decoded.Error _ => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::functional_lexer::separator]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 49:0-75:1 -/
-def functional_lexer.separator
-  (bytes : alloc.vec.Vec Std.U8) (token : functional.Token) :
-  Result functional_lexer.Gap
-  := do
-  let o ← functional_lexer.last_codepoint bytes token.start token.end none
-  match o with
-  | none => ok functional_lexer.Gap.InvalidSpan
-  | some cp =>
-    let b ← functional_lexer.delimiter cp
-    if b
-    then ok (functional_lexer.Gap.Next token.end)
-    else
-      let d ← unicode.decode_next bytes token.end
-      match d with
-      | unicode.Decoded.End => ok (functional_lexer.Gap.Next token.end)
-      | unicode.Decoded.Scalar codepoint _ =>
-        let b1 ← functional_lexer.delimiter codepoint
-        if b1
-        then ok (functional_lexer.Gap.Next token.end)
-        else
-          let pr ←
-            functional.longest functional.Terminal.Whitespace bytes token.end
-          match pr with
-          | longest.PrefixResult.Matched o1 =>
-            match o1 with
-            | none =>
-              let pr1 ←
-                functional.longest functional.Terminal.Comment bytes token.end
-              match pr1 with
-              | longest.PrefixResult.Matched o2 =>
-                match o2 with
-                | none => ok functional_lexer.Gap.Missing
-                | some «end» => ok (functional_lexer.Gap.Next «end»)
-              | longest.PrefixResult.MalformedUtf8 error =>
-                ok (functional_lexer.Gap.InvalidText error)
-            | some «end» => ok (functional_lexer.Gap.Next «end»)
-          | longest.PrefixResult.MalformedUtf8 error =>
-            ok (functional_lexer.Gap.InvalidText error)
-      | unicode.Decoded.Error error =>
-        ok (functional_lexer.Gap.InvalidText error)
-
-/-- [rowl_kernel::functional_lexer::scan]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 76:0-109:1 -/
-def functional_lexer.scan
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (remaining : Std.Usize)
-  :
-  Result functional_lexer.LexResult
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if position = i
-  then ok (functional_lexer.LexResult.Tokens functional_lexer.Tokens.Empty)
-  else
-    let s ← functional.next_terminal bytes position
-    match s with
-    | functional.Selection.NoMatch =>
-      ok (functional_lexer.LexResult.NoToken position)
-    | functional.Selection.Token token =>
-      let b ← functional_lexer.special token.terminal
-      if b
-      then functional_lexer.scan bytes token.end remaining
-      else
-        if remaining = 0#usize
-        then ok (functional_lexer.LexResult.TokenLimit position)
-        else
-          let g ← functional_lexer.separator bytes token
-          match g with
-          | functional_lexer.Gap.Next «end» =>
-            let i1 ← remaining - 1#usize
-            let lr ← functional_lexer.scan bytes «end» i1
-            match lr with
-            | functional_lexer.LexResult.Tokens tail =>
-              ok (functional_lexer.LexResult.Tokens
-                (functional_lexer.Tokens.Cons token tail))
-            | functional_lexer.LexResult.InvalidText _ => ok lr
-            | functional_lexer.LexResult.NoToken _ => ok lr
-            | functional_lexer.LexResult.MissingSeparator _ => ok lr
-            | functional_lexer.LexResult.TokenLimit _ => ok lr
-            | functional_lexer.LexResult.InvalidSpan _ => ok lr
-          | functional_lexer.Gap.Missing =>
-            ok (functional_lexer.LexResult.MissingSeparator token.end)
-          | functional_lexer.Gap.InvalidText error =>
-            ok (functional_lexer.LexResult.InvalidText error)
-          | functional_lexer.Gap.InvalidSpan =>
-            ok (functional_lexer.LexResult.InvalidSpan position)
-    | functional.Selection.MalformedUtf8 error =>
-      ok (functional_lexer.LexResult.InvalidText error)
-partial_fixpoint
-
-/-- [rowl_kernel::unicode::Scalars]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
+/-- [rowl_kernel::prefixes::Check]
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 24:0-33:1
     Visibility: public -/
 @[discriminant isize]
-inductive unicode.Scalars where
-| Empty : unicode.Scalars
-| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
+inductive prefixes.Check where
+| Ready : prefixes.PrefixTable → prefixes.Check
+| InvalidName : prefixes.Declaration → prefixes.Check
+| ReservedName : prefixes.Declaration → prefixes.Check
+| InvalidNamespace : prefixes.Declaration → prefixes.Check
+| Duplicate : prefixes.Declaration → prefixes.Declaration → prefixes.Check
 
-/-- [rowl_kernel::unicode::TextScan]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextScan where
-| Valid : unicode.Scalars → unicode.TextScan
-| Invalid : unicode.TextError → unicode.TextScan
+/-- [rowl_kernel::functional_document::table_error]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 273:0-280:1 -/
+def functional_document.table_error
+  (check : prefixes.Check) : Result functional_document.TableError := do
+  match check with
+  | prefixes.Check.Ready _ => ok functional_document.TableError.Duplicate
+  | prefixes.Check.InvalidName _ =>
+    ok functional_document.TableError.InvalidName
+  | prefixes.Check.ReservedName _ =>
+    ok functional_document.TableError.ReservedName
+  | prefixes.Check.InvalidNamespace _ =>
+    ok functional_document.TableError.InvalidNamespace
+  | prefixes.Check.Duplicate _ _ => ok functional_document.TableError.Duplicate
 
-/-- [rowl_kernel::unicode::read_from]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
-def unicode.read_from
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.TextScan
+/-- [rowl_kernel::prefixes::check_from]:
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 104:0-125:1 -/
+def prefixes.check_from
+  (declarations : alloc.vec.Vec prefixes.Declaration) (index : Std.Usize) :
+  Result prefixes.Check
   := do
-  let d ← unicode.decode_next bytes offset
-  match d with
-  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
-  | unicode.Decoded.Scalar codepoint next =>
-    let b ← unicode.xml_character codepoint
+  let i := alloc.vec.Vec.len declarations
+  if index < i
+  then
+    let declaration ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        prefixes.Declaration) declarations index
+    let mr ← names.validate_prefix declaration.name
+    let b ← prefixes.accepted mr
     if b
     then
-      let ts ← unicode.read_from bytes next
-      match ts with
-      | unicode.TextScan.Valid tail =>
-        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
-          tail))
-      | unicode.TextScan.Invalid _ => ok ts
-    else
-      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
-        codepoint))
-  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
+      let o ← prefixes.standard declaration.name
+      let b1 := core.option.Option.is_some o
+      if b1
+      then ok (prefixes.Check.ReservedName declaration)
+      else
+        let mr1 ← iri.validate_iri declaration.namespace
+        let b2 ← prefixes.accepted mr1
+        if b2
+        then
+          let o1 ←
+            prefixes.find_from declarations declaration.name index 0#usize
+          match o1 with
+          | none =>
+            let i1 ← index + 1#usize
+            prefixes.check_from declarations i1
+          | some first => ok (prefixes.Check.Duplicate first declaration)
+        else ok (prefixes.Check.InvalidNamespace declaration)
+    else ok (prefixes.Check.InvalidName declaration)
+  else ok (prefixes.Check.Ready { declarations })
 partial_fixpoint
 
-/-- [rowl_kernel::unicode::read_text]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
+/-- [rowl_kernel::prefixes::check]:
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 127:0-129:1
     Visibility: public -/
-def unicode.read_text
-  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
-  unicode.read_from bytes 0#usize
-
-/-- [rowl_kernel::functional_lexer::lex]:
-    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 114:0-119:1
-    Visibility: public -/
-def functional_lexer.lex
-  (bytes : alloc.vec.Vec Std.U8) (max_tokens : Std.Usize) :
-  Result functional_lexer.LexResult
+def prefixes.check
+  (declarations : alloc.vec.Vec prefixes.Declaration) :
+  Result prefixes.Check
   := do
-  let ts ← unicode.read_text bytes
-  match ts with
-  | unicode.TextScan.Valid _ => functional_lexer.scan bytes 0#usize max_tokens
-  | unicode.TextScan.Invalid error =>
-    ok (functional_lexer.LexResult.InvalidText error)
+  prefixes.check_from declarations 0#usize
 
-/-- [rowl_kernel::functional_literals::{impl core::clone::Clone for rowl_kernel::functional_literals::LiteralExpected}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:9-24:14
-    Visibility: public -/
-def functional_literals.LiteralExpected.Insts.CoreCloneClone.clone
-  (self : functional_literals.LiteralExpected) :
-  Result functional_literals.LiteralExpected
-  := do
-  ok self
-
-/-- Trait implementation: [rowl_kernel::functional_literals::{impl core::clone::Clone for rowl_kernel::functional_literals::LiteralExpected}]
-    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:9-24:14 -/
-@[reducible]
-def functional_literals.LiteralExpected.Insts.CoreCloneClone : core.clone.Clone
-  functional_literals.LiteralExpected := {
-  clone := functional_literals.LiteralExpected.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [rowl_kernel::functional_literals::{impl core::marker::Copy for rowl_kernel::functional_literals::LiteralExpected}]
-    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:16-24:20 -/
-@[reducible]
-def functional_literals.LiteralExpected.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_literals.LiteralExpected := {
-  cloneInst := functional_literals.LiteralExpected.Insts.CoreCloneClone
-}
-
-/-- [rowl_kernel::functional_names::{impl core::clone::Clone for rowl_kernel::functional_names::NameKind}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:9-8:14
-    Visibility: public -/
-def functional_names.NameKind.Insts.CoreCloneClone.clone
-  (self : functional_names.NameKind) : Result functional_names.NameKind := do
-  ok self
-
-/-- Trait implementation: [rowl_kernel::functional_names::{impl core::clone::Clone for rowl_kernel::functional_names::NameKind}]
-    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:9-8:14 -/
-@[reducible]
-def functional_names.NameKind.Insts.CoreCloneClone : core.clone.Clone
-  functional_names.NameKind := {
-  clone := functional_names.NameKind.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [rowl_kernel::functional_names::{impl core::marker::Copy for rowl_kernel::functional_names::NameKind}]
-    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:16-8:20 -/
-@[reducible]
-def functional_names.NameKind.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_names.NameKind := {
-  cloneInst := functional_names.NameKind.Insts.CoreCloneClone
-}
-
-/-- [rowl_kernel::functional_prefixes::PrefixExpected]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 12:0-19:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_prefixes.PrefixExpected where
-| Ontology : functional_prefixes.PrefixExpected
-| Open : functional_prefixes.PrefixExpected
-| Name : functional_prefixes.PrefixExpected
-| Equals : functional_prefixes.PrefixExpected
-| Namespace : functional_prefixes.PrefixExpected
-| Close : functional_prefixes.PrefixExpected
-
-/-- [rowl_kernel::functional_prefixes::{impl core::clone::Clone for rowl_kernel::functional_prefixes::PrefixExpected}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:9-11:14
-    Visibility: public -/
-def functional_prefixes.PrefixExpected.Insts.CoreCloneClone.clone
-  (self : functional_prefixes.PrefixExpected) :
-  Result functional_prefixes.PrefixExpected
-  := do
-  ok self
-
-/-- Trait implementation: [rowl_kernel::functional_prefixes::{impl core::clone::Clone for rowl_kernel::functional_prefixes::PrefixExpected}]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:9-11:14 -/
-@[reducible]
-def functional_prefixes.PrefixExpected.Insts.CoreCloneClone : core.clone.Clone
-  functional_prefixes.PrefixExpected := {
-  clone := functional_prefixes.PrefixExpected.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [rowl_kernel::functional_prefixes::{impl core::marker::Copy for rowl_kernel::functional_prefixes::PrefixExpected}]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:16-11:20 -/
-@[reducible]
-def functional_prefixes.PrefixExpected.Insts.CoreMarkerCopy : core.marker.Copy
-  functional_prefixes.PrefixExpected := {
-  cloneInst := functional_prefixes.PrefixExpected.Insts.CoreCloneClone
-}
-
-/-- [rowl_kernel::functional_prefixes::PrefixSyntaxError]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 20:0-29:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_prefixes.PrefixSyntaxError where
-| Expected :
-  functional_prefixes.PrefixExpected →
-  Std.Usize →
-  functional_prefixes.PrefixSyntaxError
-| Name : functional_names.NameError → functional_prefixes.PrefixSyntaxError
-| DeclarationLimit : Std.Usize → functional_prefixes.PrefixSyntaxError
-
-/-- [rowl_kernel::functional_prefixes::PrefixReadError]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 30:0-37:1
-    Visibility: public -/
-@[discriminant isize]
-inductive functional_prefixes.PrefixReadError where
-| Syntax :
-  functional_prefixes.PrefixSyntaxError →
-  functional_prefixes.PrefixReadError
-| InvalidText : unicode.TextError → functional_prefixes.PrefixReadError
-| NoToken : Std.Usize → functional_prefixes.PrefixReadError
-| MissingSeparator : Std.Usize → functional_prefixes.PrefixReadError
-| TokenLimit : Std.Usize → functional_prefixes.PrefixReadError
-| InvalidSpan : Std.Usize → functional_prefixes.PrefixReadError
-
-/-- [rowl_kernel::functional_prefixes::PrefixHeader]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 38:0-43:1
-    Visibility: public -/
-structure functional_prefixes.PrefixHeader where
-  declarations : alloc.vec.Vec prefixes.Declaration
-  ontology : functional.Token
-  opening : functional.Token
+/-- [rowl_kernel::functional_prefixes::DeclarationShape]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 79:0-83:1 -/
+structure functional_prefixes.DeclarationShape where
+  «name» : functional.Token
+  «namespace» : functional.Token
   remaining : functional_lexer.Tokens
 
 /-- [rowl_kernel::functional_prefixes::expected_terminal]:
@@ -17769,13 +17952,6 @@ def functional_prefixes.take_expected
       ok (core.result.Result.Err
         (functional_prefixes.PrefixSyntaxError.Expected expected token.start))
 
-/-- [rowl_kernel::functional_prefixes::DeclarationShape]
-    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 79:0-83:1 -/
-structure functional_prefixes.DeclarationShape where
-  «name» : functional.Token
-  «namespace» : functional.Token
-  remaining : functional_lexer.Tokens
-
 /-- [rowl_kernel::functional_prefixes::read_shape]:
     Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 84:0-110:1 -/
 def functional_prefixes.read_shape
@@ -17856,6 +18032,15 @@ def functional_prefixes.read_declaration
       ok (core.result.Result.Err (functional_prefixes.PrefixSyntaxError.Name
         error))
   | core.result.Result.Err error => ok (core.result.Result.Err error)
+
+/-- [rowl_kernel::functional_prefixes::PrefixHeader]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 38:0-43:1
+    Visibility: public -/
+structure functional_prefixes.PrefixHeader where
+  declarations : alloc.vec.Vec prefixes.Declaration
+  ontology : functional.Token
+  opening : functional.Token
+  remaining : functional_lexer.Tokens
 
 /-- [rowl_kernel::functional_prefixes::scan_prefixes]:
     Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 142:0-187:1 -/
@@ -18232,6 +18417,243 @@ def functional_prefixes.scan_prefixes
         functional_prefixes.PrefixExpected.Ontology token.start))
 partial_fixpoint
 
+/-- [rowl_kernel::unicode::Scalars]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Scalars where
+| Empty : unicode.Scalars
+| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
+
+/-- [rowl_kernel::unicode::TextScan]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextScan where
+| Valid : unicode.Scalars → unicode.TextScan
+| Invalid : unicode.TextError → unicode.TextScan
+
+/-- [rowl_kernel::unicode::read_from]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
+def unicode.read_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.TextScan
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
+  | unicode.Decoded.Scalar codepoint next =>
+    let b ← unicode.xml_character codepoint
+    if b
+    then
+      let ts ← unicode.read_from bytes next
+      match ts with
+      | unicode.TextScan.Valid tail =>
+        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
+          tail))
+      | unicode.TextScan.Invalid _ => ok ts
+    else
+      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
+        codepoint))
+  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
+partial_fixpoint
+
+/-- [rowl_kernel::unicode::read_text]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
+    Visibility: public -/
+def unicode.read_text
+  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
+  unicode.read_from bytes 0#usize
+
+/-- [rowl_kernel::functional_lexer::last_codepoint]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 35:0-48:1 -/
+def functional_lexer.last_codepoint
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) («end» : Std.Usize)
+  (last : Option Std.U32) :
+  Result (Option Std.U32)
+  := do
+  if position = «end»
+  then ok last
+  else
+    if position > «end»
+    then ok none
+    else
+      let d ← unicode.decode_next bytes position
+      match d with
+      | unicode.Decoded.End => ok none
+      | unicode.Decoded.Scalar codepoint next =>
+        if next <= «end»
+        then
+          functional_lexer.last_codepoint bytes next «end» (some codepoint)
+        else ok none
+      | unicode.Decoded.Error _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::functional_lexer::delimiter]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 26:0-28:1 -/
+def functional_lexer.delimiter (cp : Std.U32) : Result Bool := do
+  if cp = 61#u32
+  then ok true
+  else
+    if cp = 40#u32
+    then ok true
+    else
+      if cp = 41#u32
+      then ok true
+      else
+        if cp = 60#u32
+        then ok true
+        else
+          if cp = 62#u32
+          then ok true
+          else if cp = 64#u32
+               then ok true
+               else ok (cp = 94#u32)
+
+/-- [rowl_kernel::functional_lexer::Gap]
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 20:0-25:1 -/
+@[discriminant isize]
+inductive functional_lexer.Gap where
+| Next : Std.Usize → functional_lexer.Gap
+| Missing : functional_lexer.Gap
+| InvalidText : unicode.TextError → functional_lexer.Gap
+| InvalidSpan : functional_lexer.Gap
+
+/-- [rowl_kernel::functional_lexer::separator]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 49:0-75:1 -/
+def functional_lexer.separator
+  (bytes : alloc.vec.Vec Std.U8) (token : functional.Token) :
+  Result functional_lexer.Gap
+  := do
+  let o ← functional_lexer.last_codepoint bytes token.start token.end none
+  match o with
+  | none => ok functional_lexer.Gap.InvalidSpan
+  | some cp =>
+    let b ← functional_lexer.delimiter cp
+    if b
+    then ok (functional_lexer.Gap.Next token.end)
+    else
+      let d ← unicode.decode_next bytes token.end
+      match d with
+      | unicode.Decoded.End => ok (functional_lexer.Gap.Next token.end)
+      | unicode.Decoded.Scalar codepoint _ =>
+        let b1 ← functional_lexer.delimiter codepoint
+        if b1
+        then ok (functional_lexer.Gap.Next token.end)
+        else
+          let pr ←
+            functional.longest functional.Terminal.Whitespace bytes token.end
+          match pr with
+          | longest.PrefixResult.Matched o1 =>
+            match o1 with
+            | none =>
+              let pr1 ←
+                functional.longest functional.Terminal.Comment bytes token.end
+              match pr1 with
+              | longest.PrefixResult.Matched o2 =>
+                match o2 with
+                | none => ok functional_lexer.Gap.Missing
+                | some «end» => ok (functional_lexer.Gap.Next «end»)
+              | longest.PrefixResult.MalformedUtf8 error =>
+                ok (functional_lexer.Gap.InvalidText error)
+            | some «end» => ok (functional_lexer.Gap.Next «end»)
+          | longest.PrefixResult.MalformedUtf8 error =>
+            ok (functional_lexer.Gap.InvalidText error)
+      | unicode.Decoded.Error error =>
+        ok (functional_lexer.Gap.InvalidText error)
+
+/-- [rowl_kernel::functional_lexer::special]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 29:0-31:1 -/
+def functional_lexer.special
+  (terminal : functional.Terminal) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok false
+  | functional.Terminal.Open => ok false
+  | functional.Terminal.Close => ok false
+  | functional.Terminal.Equals => ok false
+  | functional.Terminal.DatatypeIndicator => ok false
+  | functional.Terminal.Integer => ok false
+  | functional.Terminal.QuotedString => ok false
+  | functional.Terminal.LanguageTag => ok false
+  | functional.Terminal.NodeId => ok false
+  | functional.Terminal.FullIri => ok false
+  | functional.Terminal.PrefixName => ok false
+  | functional.Terminal.AbbreviatedIri => ok false
+  | functional.Terminal.Whitespace => ok true
+  | functional.Terminal.Comment => ok true
+
+/-- [rowl_kernel::functional_lexer::LexResult]
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 12:0-19:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_lexer.LexResult where
+| Tokens : functional_lexer.Tokens → functional_lexer.LexResult
+| InvalidText : unicode.TextError → functional_lexer.LexResult
+| NoToken : Std.Usize → functional_lexer.LexResult
+| MissingSeparator : Std.Usize → functional_lexer.LexResult
+| TokenLimit : Std.Usize → functional_lexer.LexResult
+| InvalidSpan : Std.Usize → functional_lexer.LexResult
+
+/-- [rowl_kernel::functional_lexer::scan]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 76:0-109:1 -/
+def functional_lexer.scan
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (remaining : Std.Usize)
+  :
+  Result functional_lexer.LexResult
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if position = i
+  then ok (functional_lexer.LexResult.Tokens functional_lexer.Tokens.Empty)
+  else
+    let s ← functional.next_terminal bytes position
+    match s with
+    | functional.Selection.NoMatch =>
+      ok (functional_lexer.LexResult.NoToken position)
+    | functional.Selection.Token token =>
+      let b ← functional_lexer.special token.terminal
+      if b
+      then functional_lexer.scan bytes token.end remaining
+      else
+        if remaining = 0#usize
+        then ok (functional_lexer.LexResult.TokenLimit position)
+        else
+          let g ← functional_lexer.separator bytes token
+          match g with
+          | functional_lexer.Gap.Next «end» =>
+            let i1 ← remaining - 1#usize
+            let lr ← functional_lexer.scan bytes «end» i1
+            match lr with
+            | functional_lexer.LexResult.Tokens tail =>
+              ok (functional_lexer.LexResult.Tokens
+                (functional_lexer.Tokens.Cons token tail))
+            | functional_lexer.LexResult.InvalidText _ => ok lr
+            | functional_lexer.LexResult.NoToken _ => ok lr
+            | functional_lexer.LexResult.MissingSeparator _ => ok lr
+            | functional_lexer.LexResult.TokenLimit _ => ok lr
+            | functional_lexer.LexResult.InvalidSpan _ => ok lr
+          | functional_lexer.Gap.Missing =>
+            ok (functional_lexer.LexResult.MissingSeparator token.end)
+          | functional_lexer.Gap.InvalidText error =>
+            ok (functional_lexer.LexResult.InvalidText error)
+          | functional_lexer.Gap.InvalidSpan =>
+            ok (functional_lexer.LexResult.InvalidSpan position)
+    | functional.Selection.MalformedUtf8 error =>
+      ok (functional_lexer.LexResult.InvalidText error)
+partial_fixpoint
+
+/-- [rowl_kernel::functional_lexer::lex]:
+    Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 114:0-119:1
+    Visibility: public -/
+def functional_lexer.lex
+  (bytes : alloc.vec.Vec Std.U8) (max_tokens : Std.Usize) :
+  Result functional_lexer.LexResult
+  := do
+  let ts ← unicode.read_text bytes
+  match ts with
+  | unicode.TextScan.Valid _ => functional_lexer.scan bytes 0#usize max_tokens
+  | unicode.TextScan.Invalid error =>
+    ok (functional_lexer.LexResult.InvalidText error)
+
 /-- [rowl_kernel::functional_prefixes::read_prefix_header]:
     Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 195:0-215:1
     Visibility: public -/
@@ -18267,6 +18689,177 @@ def functional_prefixes.read_prefix_header
   | functional_lexer.LexResult.InvalidSpan offset =>
     ok (core.result.Result.Err (functional_prefixes.PrefixReadError.InvalidSpan
       offset))
+
+/-- [rowl_kernel::functional_document::read_document]:
+    Source: 'crates/rowl-kernel/src/functional_document.rs', lines 285:0-306:1
+    Visibility: public -/
+def functional_document.read_document
+  (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
+  :
+  Result (core.result.Result functional_document.SourceDocument
+    functional_document.DocumentError)
+  := do
+  let r ←
+    functional_prefixes.read_prefix_header bytes limits.tokens limits.prefixes
+      limits.prefix_value
+  match r with
+  | core.result.Result.Ok value =>
+    let checked ← prefixes.check value.declarations
+    let tail ←
+      match checked with
+      | prefixes.Check.Ready pt =>
+        functional_document.read_document_tail pt bytes value.remaining limits
+      | prefixes.Check.InvalidName _ =>
+        do
+        let te ← functional_document.table_error checked
+        ok (core.result.Result.Err (functional_document.DocumentError.Table
+          te))
+      | prefixes.Check.ReservedName _ =>
+        do
+        let te ← functional_document.table_error checked
+        ok (core.result.Result.Err (functional_document.DocumentError.Table
+          te))
+      | prefixes.Check.InvalidNamespace _ =>
+        do
+        let te ← functional_document.table_error checked
+        ok (core.result.Result.Err (functional_document.DocumentError.Table
+          te))
+      | prefixes.Check.Duplicate _ _ =>
+        do
+        let te ← functional_document.table_error checked
+        ok (core.result.Result.Err (functional_document.DocumentError.Table
+          te))
+    match tail with
+    | core.result.Result.Ok tail1 =>
+      ok (core.result.Result.Ok
+        { prefixes := value.declarations, tail := tail1 })
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_document.DocumentError.Prefix
+      error))
+
+/-- [rowl_kernel::functional_header::{impl core::clone::Clone for rowl_kernel::functional_header::HeaderExpected}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:9-30:14
+    Visibility: public -/
+def functional_header.HeaderExpected.Insts.CoreCloneClone.clone
+  (self : functional_header.HeaderExpected) :
+  Result functional_header.HeaderExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_header::{impl core::clone::Clone for rowl_kernel::functional_header::HeaderExpected}]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:9-30:14 -/
+@[reducible]
+def functional_header.HeaderExpected.Insts.CoreCloneClone : core.clone.Clone
+  functional_header.HeaderExpected := {
+  clone := functional_header.HeaderExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_header::{impl core::marker::Copy for rowl_kernel::functional_header::HeaderExpected}]
+    Source: 'crates/rowl-kernel/src/functional_header.rs', lines 30:16-30:20 -/
+@[reducible]
+def functional_header.HeaderExpected.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_header.HeaderExpected := {
+  cloneInst := functional_header.HeaderExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_iris::{impl core::clone::Clone for rowl_kernel::functional_iris::SourceIriKind}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:9-8:14
+    Visibility: public -/
+def functional_iris.SourceIriKind.Insts.CoreCloneClone.clone
+  (self : functional_iris.SourceIriKind) :
+  Result functional_iris.SourceIriKind
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_iris::{impl core::clone::Clone for rowl_kernel::functional_iris::SourceIriKind}]
+    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:9-8:14 -/
+@[reducible]
+def functional_iris.SourceIriKind.Insts.CoreCloneClone : core.clone.Clone
+  functional_iris.SourceIriKind := {
+  clone := functional_iris.SourceIriKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_iris::{impl core::marker::Copy for rowl_kernel::functional_iris::SourceIriKind}]
+    Source: 'crates/rowl-kernel/src/functional_iris.rs', lines 8:16-8:20 -/
+@[reducible]
+def functional_iris.SourceIriKind.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_iris.SourceIriKind := {
+  cloneInst := functional_iris.SourceIriKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_literals::{impl core::clone::Clone for rowl_kernel::functional_literals::LiteralExpected}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:9-24:14
+    Visibility: public -/
+def functional_literals.LiteralExpected.Insts.CoreCloneClone.clone
+  (self : functional_literals.LiteralExpected) :
+  Result functional_literals.LiteralExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_literals::{impl core::clone::Clone for rowl_kernel::functional_literals::LiteralExpected}]
+    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:9-24:14 -/
+@[reducible]
+def functional_literals.LiteralExpected.Insts.CoreCloneClone : core.clone.Clone
+  functional_literals.LiteralExpected := {
+  clone := functional_literals.LiteralExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_literals::{impl core::marker::Copy for rowl_kernel::functional_literals::LiteralExpected}]
+    Source: 'crates/rowl-kernel/src/functional_literals.rs', lines 24:16-24:20 -/
+@[reducible]
+def functional_literals.LiteralExpected.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_literals.LiteralExpected := {
+  cloneInst := functional_literals.LiteralExpected.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_names::{impl core::clone::Clone for rowl_kernel::functional_names::NameKind}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:9-8:14
+    Visibility: public -/
+def functional_names.NameKind.Insts.CoreCloneClone.clone
+  (self : functional_names.NameKind) : Result functional_names.NameKind := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_names::{impl core::clone::Clone for rowl_kernel::functional_names::NameKind}]
+    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:9-8:14 -/
+@[reducible]
+def functional_names.NameKind.Insts.CoreCloneClone : core.clone.Clone
+  functional_names.NameKind := {
+  clone := functional_names.NameKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_names::{impl core::marker::Copy for rowl_kernel::functional_names::NameKind}]
+    Source: 'crates/rowl-kernel/src/functional_names.rs', lines 8:16-8:20 -/
+@[reducible]
+def functional_names.NameKind.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_names.NameKind := {
+  cloneInst := functional_names.NameKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::functional_prefixes::{impl core::clone::Clone for rowl_kernel::functional_prefixes::PrefixExpected}::clone]:
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:9-11:14
+    Visibility: public -/
+def functional_prefixes.PrefixExpected.Insts.CoreCloneClone.clone
+  (self : functional_prefixes.PrefixExpected) :
+  Result functional_prefixes.PrefixExpected
+  := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::functional_prefixes::{impl core::clone::Clone for rowl_kernel::functional_prefixes::PrefixExpected}]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:9-11:14 -/
+@[reducible]
+def functional_prefixes.PrefixExpected.Insts.CoreCloneClone : core.clone.Clone
+  functional_prefixes.PrefixExpected := {
+  clone := functional_prefixes.PrefixExpected.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::functional_prefixes::{impl core::marker::Copy for rowl_kernel::functional_prefixes::PrefixExpected}]
+    Source: 'crates/rowl-kernel/src/functional_prefixes.rs', lines 11:16-11:20 -/
+@[reducible]
+def functional_prefixes.PrefixExpected.Insts.CoreMarkerCopy : core.marker.Copy
+  functional_prefixes.PrefixExpected := {
+  cloneInst := functional_prefixes.PrefixExpected.Insts.CoreCloneClone
+}
 
 /-- [rowl_kernel::imports::DocumentIds]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 8:0-11:1
@@ -21011,63 +21604,6 @@ def ntriples.write
   match r with
   | core.result.Result.Ok bytes => ok (ntriples.WriteResult.Bytes bytes)
   | core.result.Result.Err error => ok (ntriples.WriteResult.Error error)
-
-/-- [rowl_kernel::prefixes::Check]
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 24:0-33:1
-    Visibility: public -/
-@[discriminant isize]
-inductive prefixes.Check where
-| Ready : prefixes.PrefixTable → prefixes.Check
-| InvalidName : prefixes.Declaration → prefixes.Check
-| ReservedName : prefixes.Declaration → prefixes.Check
-| InvalidNamespace : prefixes.Declaration → prefixes.Check
-| Duplicate : prefixes.Declaration → prefixes.Declaration → prefixes.Check
-
-/-- [rowl_kernel::prefixes::check_from]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 104:0-125:1 -/
-def prefixes.check_from
-  (declarations : alloc.vec.Vec prefixes.Declaration) (index : Std.Usize) :
-  Result prefixes.Check
-  := do
-  let i := alloc.vec.Vec.len declarations
-  if index < i
-  then
-    let declaration ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        prefixes.Declaration) declarations index
-    let mr ← names.validate_prefix declaration.name
-    let b ← prefixes.accepted mr
-    if b
-    then
-      let o ← prefixes.standard declaration.name
-      let b1 := core.option.Option.is_some o
-      if b1
-      then ok (prefixes.Check.ReservedName declaration)
-      else
-        let mr1 ← iri.validate_iri declaration.namespace
-        let b2 ← prefixes.accepted mr1
-        if b2
-        then
-          let o1 ←
-            prefixes.find_from declarations declaration.name index 0#usize
-          match o1 with
-          | none =>
-            let i1 ← index + 1#usize
-            prefixes.check_from declarations i1
-          | some first => ok (prefixes.Check.Duplicate first declaration)
-        else ok (prefixes.Check.InvalidNamespace declaration)
-    else ok (prefixes.Check.InvalidName declaration)
-  else ok (prefixes.Check.Ready { declarations })
-partial_fixpoint
-
-/-- [rowl_kernel::prefixes::check]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 127:0-129:1
-    Visibility: public -/
-def prefixes.check
-  (declarations : alloc.vec.Vec prefixes.Declaration) :
-  Result prefixes.Check
-  := do
-  prefixes.check_from declarations 0#usize
 
 /-- [rowl_kernel::prefixes::declarations]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 131:0-133:1

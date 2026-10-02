@@ -78,6 +78,7 @@ import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
+import Rowl.FunctionalDocument
 import Rowl.Nnf
 import Rowl.Tableau
 import Rowl.Hintikka
@@ -809,6 +810,23 @@ import Rowl.AlcOntology
 #print axioms Rowl.FunctionalClassAxioms.read_class_axiom_result_iff
 #print axioms Rowl.FunctionalClassSource.source_prefix_class_result_iff
 #print axioms Rowl.FunctionalClassSource.source_prefix_class_axiom_result_iff
+#print axioms Rowl.FunctionalDocument.axiom_family_total_correct
+#print axioms Rowl.FunctionalDocument.closes_total_correct
+#print axioms Rowl.FunctionalDocument.class_axiom_progress
+#print axioms Rowl.FunctionalDocument.read_axiom_total_correct
+#print axioms Rowl.FunctionalDocument.read_axiom_result_iff
+#print axioms Rowl.FunctionalDocument.axiom_progress
+#print axioms Rowl.FunctionalDocument.read_axioms_total_correct
+#print axioms Rowl.FunctionalDocument.axioms_execution
+#print axioms Rowl.FunctionalDocument.read_axioms_result_iff
+#print axioms Rowl.FunctionalDocument.axioms_stop_at_close
+#print axioms Rowl.FunctionalDocument.read_document_tail_total_correct
+#print axioms Rowl.FunctionalDocument.read_document_tail_result_iff
+#print axioms Rowl.FunctionalDocument.table_error_total_correct
+#print axioms Rowl.FunctionalDocument.read_document_total
+#print axioms Rowl.FunctionalDocument.read_document_prefix_error
+#print axioms Rowl.FunctionalDocument.read_document_table_error
+#print axioms Rowl.FunctionalDocument.read_document_result_iff
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1374,3 +1392,9 @@ import Rowl.AlcOntology
 #print axioms Rowl.FunctionalClassAxioms.NamedRun
 #print axioms Rowl.FunctionalClassAxioms.BodyRun
 #print axioms Rowl.FunctionalClassAxioms.AxiomRun
+#print axioms Rowl.FunctionalDocument.FamilyOf
+#print axioms Rowl.FunctionalDocument.AxiomStep
+#print axioms Rowl.FunctionalDocument.AxiomsRun
+#print axioms Rowl.FunctionalDocument.TailRun
+#print axioms Rowl.FunctionalDocument.TableErrorOf
+#print axioms Rowl.FunctionalDocument.WithPrefixes
