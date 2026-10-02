@@ -1,3 +1,5 @@
+<img src="assets/rusty-owl.svg" alt="ROWL logo: a rusty owl" width="140" align="right">
+
 # ROWL: Rust OWL
 
 **An OWL 2 reasoner in Rust whose answers come with a machine-checked proof,
