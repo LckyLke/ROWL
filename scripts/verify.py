@@ -232,7 +232,7 @@ def check_functional_inventory():
         raise RuntimeError("Functional Syntax variable-terminal inventory is incomplete")
     if inventory["special_terminals"] != ["whitespace", "comment"]:
         raise RuntimeError("Functional Syntax special-terminal inventory is incomplete")
-    rust = (ROOT / "crates/rowl-frontend/src/functional.rs").read_text()
+    rust = (ROOT / "crates/rowl-kernel/src/functional.rs").read_text()
     enum = re.search(r"pub enum Keyword\s*\{(.*?)^\}", rust, re.S | re.M)
     if not enum or re.findall(r"(?m)^    (\w+),", enum.group(1)) != keywords:
         raise RuntimeError("Rust keyword constructors differ from the reviewed complete grammar")

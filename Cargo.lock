@@ -20,6 +20,9 @@ dependencies = [
 [[package]]
 name = "rowl-frontend"
 version = "0.0.0"
+dependencies = [
+ "rowl-kernel",
+]
 
 [[package]]
 name = "rowl-kernel"

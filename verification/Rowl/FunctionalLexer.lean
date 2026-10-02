@@ -2,9 +2,9 @@ import Rowl.FunctionalSelection
 import Rowl.NTriples
 
 namespace Rowl.FunctionalLexer
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional_lexer
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional_lexer
 open Rowl.Unicode Rowl.NTriples
-open RowlFrontendRust.functional (Terminal Token)
+open RowlRust.functional (Terminal Token)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000

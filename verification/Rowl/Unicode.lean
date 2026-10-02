@@ -1,7 +1,7 @@
-import Rowl.Generated.RowlFrontend
+import Rowl.Generated.RowlKernel
 
 namespace Rowl.Unicode
-open Aeneas Aeneas.Std RowlFrontendRust.unicode
+open Aeneas Aeneas.Std RowlRust.unicode
 attribute [local instance] Classical.propDecidable
 
 /-- RFC 3629 §4 byte grammar, with natural numbers rather than machine arithmetic. -/

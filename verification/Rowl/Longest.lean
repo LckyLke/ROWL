@@ -1,7 +1,7 @@
 import Rowl.Regular
 
 namespace Rowl.Longest
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.longest Rowl.Regular
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.longest Rowl.Regular
 open scoped Computability
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

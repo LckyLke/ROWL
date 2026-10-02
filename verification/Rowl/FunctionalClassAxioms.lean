@@ -9,12 +9,12 @@ first error has its independent derivation, and every derivation is the actual
 result.
 -/
 namespace Rowl.FunctionalClassAxioms
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_class_axioms
-open RowlFrontendRust.functional_classes (ClassError ClassExpected ClassLimits SourceClass SourceObjectProperty)
-open RowlFrontendRust.functional_annotations (AnnotationLimits SourceAnnotations)
-open RowlFrontendRust.functional_header (HeaderIri)
-open RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_class_axioms
+open RowlRust.functional_classes (ClassError ClassExpected ClassLimits SourceClass SourceObjectProperty)
+open RowlRust.functional_annotations (AnnotationLimits SourceAnnotations)
+open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalHeaderIdentity (Kind iri_kind_total_correct)
 open Rowl.FunctionalLexer (TokenCount)
 open Rowl.FunctionalClasses (ClassRun MembersRun PropertyRun Position)

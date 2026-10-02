@@ -2,7 +2,7 @@ import Rowl.FunctionalLiteralShape
 import Rowl.FunctionalLiteralValues
 
 namespace Rowl.FunctionalLiterals
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open functional_literals functional_lexer functional
 open Rowl.FunctionalLiteralShape (BodyShape ShapeError ShapeCorrect typed_shape_kind)
 open Rowl.FunctionalLiteralValues (StringValue SpanError SpanCorrect PlainDatatype PlainLexical DatatypeCorrect)

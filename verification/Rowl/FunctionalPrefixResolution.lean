@@ -2,8 +2,8 @@ import Rowl.FunctionalPrefixes
 import Rowl.FunctionalIris
 
 namespace Rowl.FunctionalPrefixResolution
-open Aeneas Aeneas.Std RowlFrontendRust
-open RowlFrontendRust.functional_prefixes RowlFrontendRust.functional_iris
+open Aeneas Aeneas.Std RowlRust
+open RowlRust.functional_prefixes RowlRust.functional_iris
 
 /-- Source prefix parsing, normative table checking and actual IRI resolution
     compose without caller-supplied namespace metadata. Ontology contents remain

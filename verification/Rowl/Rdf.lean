@@ -1,7 +1,7 @@
-import Rowl.Generated.RowlFrontend
+import Rowl.Generated.RowlKernel
 
 namespace Rowl.Rdf
-open Aeneas Aeneas.Std RowlFrontendRust.rdf
+open Aeneas Aeneas.Std RowlRust.rdf
 attribute [local simp] alloc.vec.Vec.eq_iff
 attribute [local instance] Classical.propDecidable
 

@@ -2,7 +2,7 @@ import Rowl.FunctionalPayload
 import Rowl.Prefixes
 
 namespace Rowl.FunctionalLiteralValues
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open functional_literals functional
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

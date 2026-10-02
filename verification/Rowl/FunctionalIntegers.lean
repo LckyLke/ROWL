@@ -3,7 +3,7 @@ import Rowl.FunctionalDisjointness
 import Rowl.FunctionalLexer
 
 namespace Rowl.FunctionalIntegers
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open Rowl.Unicode
 open scoped Computability
 attribute [local instance] Classical.propDecidable

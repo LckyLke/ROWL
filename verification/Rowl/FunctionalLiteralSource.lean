@@ -2,7 +2,7 @@ import Rowl.FunctionalLiterals
 import Rowl.FunctionalPrefixResolution
 
 namespace Rowl.FunctionalLiteralSource
-open Aeneas Aeneas.Std RowlFrontendRust
+open Aeneas Aeneas.Std RowlRust
 open functional_literals functional_lexer functional_prefixes
 
 /-- Literal results use precisely the namespace rows actually parsed from the

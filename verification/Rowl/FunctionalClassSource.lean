@@ -6,10 +6,10 @@ Class expressions and class axioms read against the namespace rows actually
 parsed from the same original bytes and accepted by the normative table checker.
 -/
 namespace Rowl.FunctionalClassSource
-open Aeneas Aeneas.Std RowlFrontendRust
-open RowlFrontendRust.functional_classes RowlFrontendRust.functional_class_axioms RowlFrontendRust.functional_prefixes
-open RowlFrontendRust.functional_annotations (AnnotationLimits)
-open RowlFrontendRust.functional_lexer
+open Aeneas Aeneas.Std RowlRust
+open RowlRust.functional_classes RowlRust.functional_class_axioms RowlRust.functional_prefixes
+open RowlRust.functional_annotations (AnnotationLimits)
+open RowlRust.functional_lexer
 
 /-- Class-expression results use precisely the namespace rows parsed from the
     same original bytes. The caller still supplies the position. -/

@@ -1,8 +1,8 @@
-import Rowl.Generated.RowlFrontend
+import Rowl.Generated.RowlKernel
 import Mathlib.Logic.Relation
 
 namespace Rowl.Imports
-open Aeneas Aeneas.Std RowlFrontendRust.imports
+open Aeneas Aeneas.Std RowlRust.imports
 
 def ids : DocumentIds → List U32
   | .Empty => []

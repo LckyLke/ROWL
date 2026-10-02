@@ -1,7 +1,12 @@
-//! Internal reasoning kernel. Full OWL 2 DL is not implemented yet.
+//! Internal reasoning kernel and verified frontend stages. Full OWL 2 DL is not
+//! implemented yet.
 //!
-//! The prototype is deliberately isolated: its finite Boolean interpretations
-//! do not provide a decision procedure for arbitrary OWL ontologies.
+//! The frontend stages (text, IRI, RDF and Functional Syntax reading) live in
+//! this crate so that parsing, document assembly and reasoning are extracted to
+//! one Lean development; `rowl-frontend` re-exports them under their historical
+//! paths. The prototype is deliberately isolated: its finite Boolean
+//! interpretations do not provide a decision procedure for arbitrary OWL
+//! ontologies.
 
 pub mod batch;
 pub mod collection;
@@ -64,3 +69,30 @@ pub mod tableau;
 pub mod tbox;
 
 pub mod alc_ontology;
+
+// Frontend stages: text, IRI, RDF and Functional Syntax reading.
+pub mod encoding;
+pub mod functional;
+pub mod functional_annotation_axioms;
+pub mod functional_annotations;
+pub mod functional_class_axioms;
+pub mod functional_classes;
+pub mod functional_declarations;
+pub mod functional_header;
+pub mod functional_iris;
+pub mod functional_lexer;
+pub mod functional_literals;
+pub mod functional_names;
+pub mod functional_payload;
+pub mod functional_prefixes;
+pub mod imports;
+pub mod iri;
+pub mod langtag;
+pub mod longest;
+pub mod names;
+pub mod ntriples;
+pub mod prefixes;
+pub mod rdf;
+pub mod regular;
+pub mod snapshot;
+pub mod unicode;

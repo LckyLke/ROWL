@@ -1,7 +1,7 @@
 import Rowl.Iri
 
 namespace Rowl.Names
-open Aeneas Aeneas.Std RowlFrontendRust Rowl.Regular
+open Aeneas Aeneas.Std RowlRust Rowl.Regular
 open scoped Computability
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

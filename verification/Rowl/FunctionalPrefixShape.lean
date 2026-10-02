@@ -1,9 +1,9 @@
 import Rowl.FunctionalNames
 
 namespace Rowl.FunctionalPrefixShape
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_prefixes RowlFrontendRust.functional_lexer
-open RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_prefixes RowlRust.functional_lexer
+open RowlRust.functional
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000

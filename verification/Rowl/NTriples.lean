@@ -3,7 +3,7 @@ import Rowl.LangTag
 import Rowl.Iri
 
 namespace Rowl.NTriples
-open Aeneas Aeneas.Std RowlFrontendRust
+open Aeneas Aeneas.Std RowlRust
 open ntriples Rowl.Unicode
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

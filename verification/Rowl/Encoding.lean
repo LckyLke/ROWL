@@ -1,7 +1,7 @@
 import Rowl.Unicode
 
 namespace Rowl.Encoding
-open Aeneas Aeneas.Std RowlFrontendRust.encoding
+open Aeneas Aeneas.Std RowlRust.encoding
 open Rowl.Unicode
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
@@ -150,7 +150,7 @@ theorem encode_prefix_inverse (cp : U32) (e : Encoded)
 theorem decode_encoded_unit (cp : U32) (e : Encoded)
     (bytes : alloc.vec.Vec U8) (success : encode cp = .ok (some e))
     (contents : bytes.val = Bytes e) :
-    ∃ next, RowlFrontendRust.unicode.decode_next bytes 0#usize =
+    ∃ next, RowlRust.unicode.decode_next bytes 0#usize =
       .ok (.Scalar cp next) ∧ next.val = bytes.val.length := by
   have unitPrefix := encode_prefix_inverse cp e success
   rw [← contents] at unitPrefix

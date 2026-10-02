@@ -2,10 +2,10 @@ import Rowl.NTriples
 import Rowl.Functional
 
 namespace Rowl.FunctionalPayload
-open Aeneas Aeneas.Std RowlFrontendRust RowlFrontendRust.functional_payload
+open Aeneas Aeneas.Std RowlRust RowlRust.functional_payload
 open scoped Computability
 open Rowl.NTriples Rowl.Unicode
-open RowlFrontendRust.ntriples (ReadError ErrorKind)
+open RowlRust.ntriples (ReadError ErrorKind)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000

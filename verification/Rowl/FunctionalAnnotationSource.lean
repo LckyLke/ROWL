@@ -2,10 +2,10 @@ import Rowl.FunctionalAnnotations
 import Rowl.FunctionalHeaderSource
 
 namespace Rowl.FunctionalAnnotationSource
-open Aeneas Aeneas.Std RowlFrontendRust
-open RowlFrontendRust.functional_annotations RowlFrontendRust.functional_prefixes
-open RowlFrontendRust.functional_lexer RowlFrontendRust.functional
-open RowlFrontendRust.functional_header (HeaderTail read_header_tail)
+open Aeneas Aeneas.Std RowlRust
+open RowlRust.functional_annotations RowlRust.functional_prefixes
+open RowlRust.functional_lexer RowlRust.functional
+open RowlRust.functional_header (HeaderTail read_header_tail)
 
 /-- Annotation results use precisely the namespace rows actually parsed from the
     same original bytes and accepted by the normative table checker. Every

@@ -2,8 +2,8 @@ import Rowl.FunctionalIris
 import Rowl.FunctionalLexer
 
 namespace Rowl.FunctionalHeaderIdentity
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_header RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_header RowlRust.functional_lexer RowlRust.functional
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000

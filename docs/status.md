@@ -535,6 +535,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
 - 359 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, and CLI status/demo/check-nt/export-nt commands.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
+  The frontend stages are extracted together with the kernel as one Lean
+  development, so parsing and reasoning can be composed without assumptions;
+  `rowl-frontend` re-exports them.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.

@@ -3,7 +3,7 @@ import Rowl.LangTag
 import Rowl.Longest
 
 namespace Rowl.Functional
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional Rowl.Regular
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional Rowl.Regular
 open scoped Computability
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

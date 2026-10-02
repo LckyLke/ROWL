@@ -43,6 +43,14 @@ and proof-boundary review. No performance promise or release date is fixed.
 5. SROIQ-style tableau and datatype solver → a decision and replayable evidence.
 6. Facade → typed answers; CLI only reads bytes and renders results.
 
+The frontend stages are compiled and extracted inside the kernel crate, and
+`rowl-frontend` re-exports them. Parsing, document assembly and reasoning must
+meet inside one extraction. Two separate extractions would each contain their
+own Lean copy of the shared model types. Passing an assembled ontology from one
+copy to the other would then rest on an unproved assumption that the copies
+agree. Inside one extraction, the reader's output and the reasoner's input are
+literally the same Lean values.
+
 The frontend and kernel crates have no unsafe code. `ValidatedOntology` will
 mean structurally/global-restriction valid, not logically consistent. Handles
 are snapshot-owned. IRIs, typed entity occurrences, structural expression

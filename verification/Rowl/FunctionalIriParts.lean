@@ -1,8 +1,8 @@
 import Rowl.FunctionalNames
 
 namespace Rowl.FunctionalIriParts
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional_iris
-open Rowl.Names Rowl.NTriples Rowl.Unicode RowlFrontendRust.unicode
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional_iris
+open Rowl.Names Rowl.NTriples Rowl.Unicode RowlRust.unicode
 open scoped Computability
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

@@ -1,8 +1,8 @@
 import Rowl.FunctionalPrefixShape
 
 namespace Rowl.FunctionalPrefixDeclaration
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_prefixes RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_prefixes RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalPrefixShape
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

@@ -1,7 +1,7 @@
 import Rowl.Unicode
 import Mathlib.Computability.Language
 
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open scoped Computability
 
 namespace Rowl.Regular

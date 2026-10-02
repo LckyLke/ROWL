@@ -8,10 +8,10 @@ object property expressions. Every result and first error has its independent
 derivation, and every derivation is the actual result.
 -/
 namespace Rowl.FunctionalClasses
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_classes
-open RowlFrontendRust.functional_header (HeaderIri)
-open RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_classes
+open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalHeaderIdentity (Kind iri_kind_total_correct)
 open Rowl.FunctionalLexer (TokenCount)
 attribute [local instance] Classical.propDecidable

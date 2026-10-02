@@ -2358,3 +2358,21 @@ mapping into the kernel's model remain pending.
 This block adds 41 public theorems and 17 independent definitions. Totals are
 724 audited theorems, 565 definitions, 359 Rust regressions and 917 ledger
 obligations. Full M3/M4 parsing and byte-to-answer release proofs remain pending.
+
+
+## One extraction for frontend and kernel
+
+The frontend stages moved from `rowl-frontend` into `rowl-kernel`, and
+`rowl-frontend` now re-exports them under their historical paths. All Rust paths,
+tests and examples are unchanged. Document assembly will hand parsed axioms to
+the reasoner. With two extractions, the frontend and the kernel would each have
+their own generated copy of the shared types, and connecting the copies would
+need an unproved assumption. With one extraction (namespace `RowlRust`, file
+`RowlKernel.lean`), the frontend's output and the reasoner's input are the same
+Lean values.
+
+The generated development has exactly the same 912 definitions as the two
+former files combined. The 45 frontend proof modules changed only their
+namespace and generated import. Every theorem, specification and ledger
+obligation is unchanged; the ledger's Rust symbols now name the defining crate,
+`rowl_kernel`.

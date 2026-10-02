@@ -1,7 +1,7 @@
 import Rowl.Functional
 
 namespace Rowl.FunctionalSelection
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000

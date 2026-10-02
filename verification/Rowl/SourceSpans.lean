@@ -1,7 +1,7 @@
 import Rowl.Longest
 
 namespace Rowl.SourceSpans
-open Aeneas Aeneas.Std RowlFrontendRust
+open Aeneas Aeneas.Std RowlRust
 open Rowl.Unicode Rowl.Longest
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

@@ -2,8 +2,8 @@ import Rowl.Imports
 import Rowl.Unicode
 
 namespace Rowl.Snapshot
-open Aeneas Aeneas.Std RowlFrontendRust.imports RowlFrontendRust.snapshot
-open RowlFrontendRust.unicode Rowl.Unicode
+open Aeneas Aeneas.Std RowlRust.imports RowlRust.snapshot
+open RowlRust.unicode Rowl.Unicode
 
 def TextReady (catalog : DocumentCatalog) : Prop :=
   ∀ row ∈ Rowl.Imports.rows catalog, ∃ text, TextFrom row.2.1.val 0 text
@@ -75,7 +75,7 @@ def Correct (catalog : DocumentCatalog) (root : U32) : TextResolution → Prop
   | .MissingDocument key => Rowl.Imports.Correct catalog root (.MissingDocument key)
   | .DuplicateDocument key => Rowl.Imports.Correct catalog root (.DuplicateDocument key)
   | .InvalidText document error =>
-      ∃ closure, RowlFrontendRust.imports.resolve root catalog = .ok (.Complete closure) ∧
+      ∃ closure, RowlRust.imports.resolve root catalog = .ok (.Complete closure) ∧
         Rowl.Imports.Correct catalog root (.Complete closure) ∧ SourceFailure closure document error
 
 /-- Compose proved closure and byte checks. Complete retains exactly the reachable
@@ -95,7 +95,7 @@ theorem resolve_texts_total_correct (root : U32) (catalog : DocumentCatalog) :
 
 /-- With a known complete closure, byte validation accepts iff every source is valid. -/
 theorem resolve_texts_complete_iff (root : U32) (catalog closure : DocumentCatalog)
-    (resolved : RowlFrontendRust.imports.resolve root catalog = .ok (.Complete closure)) :
+    (resolved : RowlRust.imports.resolve root catalog = .ok (.Complete closure)) :
     resolve_texts root catalog = .ok (.Complete closure) ↔ TextReady closure := by
   obtain ⟨check, hs, hc⟩ := check_sources_total_correct closure
   cases check with

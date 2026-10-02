@@ -2,10 +2,10 @@ import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalPrefixResolution
 
 namespace Rowl.FunctionalAnnotationAxiomSource
-open Aeneas Aeneas.Std RowlFrontendRust
-open RowlFrontendRust.functional_annotation_axioms RowlFrontendRust.functional_prefixes
-open RowlFrontendRust.functional_annotations (AnnotationLimits)
-open RowlFrontendRust.functional_lexer
+open Aeneas Aeneas.Std RowlRust
+open RowlRust.functional_annotation_axioms RowlRust.functional_prefixes
+open RowlRust.functional_annotations (AnnotationLimits)
+open RowlRust.functional_lexer
 
 /-- Annotation-axiom results use precisely the namespace rows actually parsed from
     the same original bytes and accepted by the normative table checker. Every

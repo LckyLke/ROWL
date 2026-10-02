@@ -4,7 +4,7 @@ import Rowl.Prefixes
 import Rowl.NTriples
 
 namespace Rowl.FunctionalNames
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional_names
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional_names
 open scoped Computability
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

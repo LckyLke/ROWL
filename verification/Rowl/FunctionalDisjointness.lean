@@ -1,7 +1,7 @@
 import Rowl.FunctionalSelection
 
 namespace Rowl.FunctionalDisjointness
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional
 open Rowl.Functional Rowl.Names
 open scoped Computability
 set_option linter.unusedSimpArgs false

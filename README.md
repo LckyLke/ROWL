@@ -156,8 +156,8 @@ does not entail membership in A. Search must consider every interpretation.
 
 | Path | Responsibility |
 | --- | --- |
-| `crates/rowl-kernel` | Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form, the verified ALC tableaux without and with a TBox, and verified ontology-level ALC queries |
-| `crates/rowl-frontend` | Indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom/class-expression/class-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
+| `crates/rowl-kernel` | The verified core, extracted to Lean as one unit. Kernel: Boolean kernel, raw OWL model, exact byte symbols, built-ins, raw-ontology declaration/vocabulary checks, ordered semantic preparation, ALC negation normal form, the verified ALC tableaux without and with a TBox, and verified ontology-level ALC queries. Frontend stages: indexed catalog closure, UTF-8/XML text checks, complete IRI/name/Functional terminal grammars, proved whole-source token streams, source prefix/ontology identity/import/literal/annotation/declaration/annotation-axiom/class-expression/class-axiom stages, quoted payload reading and source IRI resolution, raw RDF terms/datasets, proved graph selection/language tags/UTF-8 encoding; N-Triples reading and experimental export |
+| `crates/rowl-frontend` | Re-exports the frontend stages of `rowl-kernel` under their historical paths; frontend regression tests |
 | `crates/rowl` | Future immutable snapshot API; currently experimental exports only |
 | `crates/rowl-cli` | Thin CLI; `status`, `demo`, experimental `check-nt` and `export-nt` |
 | `verification` | Actual generated Rust translation, independent semantics, Lean proofs |

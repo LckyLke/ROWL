@@ -1,9 +1,9 @@
 import Rowl.FunctionalAnnotationParts
 
 namespace Rowl.FunctionalAnnotations
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_annotations
-open RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_annotations
+open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalAnnotationParts
 open Rowl.FunctionalLexer (TokenCount)
 attribute [local instance] Classical.propDecidable

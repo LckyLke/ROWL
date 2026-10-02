@@ -1,8 +1,8 @@
 import Rowl.FunctionalHeaderImport
 
 namespace Rowl.FunctionalHeader
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_header RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_header RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalHeaderIdentity Rowl.FunctionalHeaderImport
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

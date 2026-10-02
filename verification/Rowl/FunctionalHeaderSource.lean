@@ -2,8 +2,8 @@ import Rowl.FunctionalHeader
 import Rowl.FunctionalPrefixResolution
 
 namespace Rowl.FunctionalHeaderSource
-open Aeneas Aeneas.Std RowlFrontendRust
-open RowlFrontendRust.functional_header RowlFrontendRust.functional_prefixes RowlFrontendRust.functional
+open Aeneas Aeneas.Std RowlRust
+open RowlRust.functional_header RowlRust.functional_prefixes RowlRust.functional
 
 /-- Exact header identity/import values and every first error are equivalent to
     the independent source contract using only the namespace rows actually read

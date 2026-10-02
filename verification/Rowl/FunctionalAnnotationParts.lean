@@ -1,10 +1,10 @@
 import Rowl.FunctionalLiterals
 
 namespace Rowl.FunctionalAnnotationParts
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
-open RowlFrontendRust.functional_annotations
-open RowlFrontendRust.functional_header (HeaderIri)
-open RowlFrontendRust.functional_lexer RowlFrontendRust.functional
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
+open RowlRust.functional_annotations
+open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalHeaderIdentity (Kind IriValue iri_kind_total_correct)
 open Rowl.FunctionalLexer (TokenCount)
 attribute [local instance] Classical.propDecidable

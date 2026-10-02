@@ -1,6 +1,6 @@
 import Rowl.Regular
 
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open scoped Computability
 
 namespace Rowl.Iri

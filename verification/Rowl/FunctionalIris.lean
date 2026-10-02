@@ -1,7 +1,7 @@
 import Rowl.FunctionalIriParts
 
 namespace Rowl.FunctionalIris
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.functional_iris
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.functional_iris
 open Rowl.FunctionalIriParts Rowl.Prefixes
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false

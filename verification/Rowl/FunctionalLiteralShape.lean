@@ -1,7 +1,7 @@
 import Rowl.FunctionalHeaderIdentity
 
 namespace Rowl.FunctionalLiteralShape
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open functional_literals functional_lexer functional
 open Rowl.FunctionalHeaderIdentity (Kind iri_kind_total_correct)
 attribute [local instance] Classical.propDecidable

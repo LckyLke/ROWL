@@ -1,7 +1,7 @@
 import Rowl.Names
 
 namespace Rowl.Prefixes
-open Aeneas Aeneas.Std Aeneas.Std.Result RowlFrontendRust RowlFrontendRust.prefixes
+open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.prefixes
 attribute [local instance] Classical.propDecidable
 attribute [local simp] alloc.vec.Vec.eq_iff
 set_option linter.unusedSimpArgs false
