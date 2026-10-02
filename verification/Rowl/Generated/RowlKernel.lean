@@ -10384,54 +10384,19 @@ def collection.axiom_closure_entities
       collection.EntityUses.Empty
   ok { declarations, uses }
 
-/-- [rowl_kernel::concepts::Concept]
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 19:0-28:1
+/-- [rowl_kernel::concept_table::Entry]
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 16:0-25:1
     Visibility: public -/
 @[discriminant isize]
-inductive concepts.Concept where
-| Top : concepts.Concept
-| Bottom : concepts.Concept
-| Atom : model.Class → concepts.Concept
-| NotAtom : model.Class → concepts.Concept
-| And : concepts.Concept → concepts.Concept → concepts.Concept
-| Or : concepts.Concept → concepts.Concept → concepts.Concept
-| Exists :
-  model.ObjectPropertyExpression →
-  concepts.Concept →
-  concepts.Concept
-| Forall :
-  model.ObjectPropertyExpression →
-  concepts.Concept →
-  concepts.Concept
-
-/-- [rowl_kernel::concepts::copy_role]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 31:0-44:1 -/
-def concepts.copy_role
-  (role : model.ObjectPropertyExpression) :
-  Result model.ObjectPropertyExpression
-  := do
-  match role with
-  | model.ObjectPropertyExpression.Property property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Property { iri := i })
-  | model.ObjectPropertyExpression.Inverse property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Inverse { iri := i })
-
-/-- [rowl_kernel::concepts::inverse]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 46:0-59:1
-    Visibility: public -/
-def concepts.inverse
-  (role : model.ObjectPropertyExpression) :
-  Result model.ObjectPropertyExpression
-  := do
-  match role with
-  | model.ObjectPropertyExpression.Property property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Inverse { iri := i })
-  | model.ObjectPropertyExpression.Inverse property =>
-    let i ← nnf.copy_iri property.iri
-    ok (model.ObjectPropertyExpression.Property { iri := i })
+inductive concept_table.Entry where
+| Top : concept_table.Entry
+| Bottom : concept_table.Entry
+| Atom : model.Class → concept_table.Entry
+| NotAtom : model.Class → concept_table.Entry
+| And : Std.Usize → Std.Usize → concept_table.Entry
+| Or : Std.Usize → Std.Usize → concept_table.Entry
+| Exists : model.ObjectPropertyExpression → Std.Usize → concept_table.Entry
+| Forall : model.ObjectPropertyExpression → Std.Usize → concept_table.Entry
 
 /-- [rowl_kernel::concepts::same_role]:
     Source: 'crates/rowl-kernel/src/concepts.rs', lines 61:0-71:1
@@ -10452,6 +10417,468 @@ def concepts.same_role
     | model.ObjectPropertyExpression.Property _ => ok false
     | model.ObjectPropertyExpression.Inverse b =>
       symbols.same_spelling a.iri.spelling b.iri.spelling
+
+/-- [rowl_kernel::concept_table::same_entry]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 29:0-53:1 -/
+def concept_table.same_entry
+  (left : concept_table.Entry) (right : concept_table.Entry) :
+  Result Bool
+  := do
+  match left with
+  | concept_table.Entry.Top =>
+    match right with
+    | concept_table.Entry.Top => ok true
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.Bottom =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok true
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.Atom a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.NotAtom a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.And a1 b1 =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And a2 b2 =>
+      if a1 = a2
+      then ok (b1 = b2)
+      else ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.Or a1 b1 =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or a2 b2 =>
+      if a1 = a2
+      then ok (b1 = b2)
+      else ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.Exists r1 c1 =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists r2 c2 =>
+      if c1 = c2
+      then concepts.same_role r1 r2
+      else ok false
+    | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.Forall r1 c1 =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall r2 c2 =>
+      if c1 = c2
+      then concepts.same_role r1 r2
+      else ok false
+
+/-- [rowl_kernel::concept_table::position_from]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 56:0-66:1 -/
+def concept_table.position_from
+  (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry)
+  (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries index
+    let b ← concept_table.same_entry e entry
+    if b
+    then ok index
+    else
+      let i1 ← index + 1#usize
+      concept_table.position_from entries entry i1
+  else ok (alloc.vec.Vec.len entries)
+partial_fixpoint
+
+/-- [rowl_kernel::concept_table::push_new]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 69:0-77:1 -/
+def concept_table.push_new
+  (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len entries
+  if i < core.num.Usize.MAX
+  then
+    let position := alloc.vec.Vec.len entries
+    let entries1 ← alloc.vec.Vec.push entries entry
+    ok (some (entries1, position))
+  else ok none
+
+/-- [rowl_kernel::concept_table::add]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 80:0-86:1 -/
+def concept_table.add
+  (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  let position ← concept_table.position_from entries entry 0#usize
+  let i := alloc.vec.Vec.len entries
+  if position < i
+  then ok (some (entries, position))
+  else concept_table.push_new entries entry
+
+/-- [rowl_kernel::concepts::copy_role]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 31:0-44:1 -/
+def concepts.copy_role
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+
+/-- [rowl_kernel::concepts::Concept]
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 19:0-28:1
+    Visibility: public -/
+@[discriminant isize]
+inductive concepts.Concept where
+| Top : concepts.Concept
+| Bottom : concepts.Concept
+| Atom : model.Class → concepts.Concept
+| NotAtom : model.Class → concepts.Concept
+| And : concepts.Concept → concepts.Concept → concepts.Concept
+| Or : concepts.Concept → concepts.Concept → concepts.Concept
+| Exists :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+| Forall :
+  model.ObjectPropertyExpression →
+  concepts.Concept →
+  concepts.Concept
+
+mutual
+
+/-- [rowl_kernel::concept_table::intern_pair]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 87:0-106:1 -/
+def concept_table.intern_pair
+  (entries : alloc.vec.Vec concept_table.Entry) (left : concepts.Concept)
+  (right : concepts.Concept) (conjunctive : Bool) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  let o ← concept_table.intern entries left
+  match o with
+  | none => ok none
+  | some pair =>
+    let (entries1, first) := pair
+    let o1 ← concept_table.intern entries1 right
+    match o1 with
+    | none => ok none
+    | some pair1 =>
+      let (entries2, second) := pair1
+      if conjunctive
+      then concept_table.add entries2 (concept_table.Entry.And first second)
+      else concept_table.add entries2 (concept_table.Entry.Or first second)
+partial_fixpoint
+
+/-- [rowl_kernel::concept_table::intern_restriction]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 107:0-122:1 -/
+def concept_table.intern_restriction
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (role : model.ObjectPropertyExpression) (filler : concepts.Concept)
+  (existential : Bool) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  let o ← concept_table.intern entries filler
+  match o with
+  | none => ok none
+  | some pair =>
+    let (entries1, inner) := pair
+    if existential
+    then
+      let ope ← concepts.copy_role role
+      concept_table.add entries1 (concept_table.Entry.Exists ope inner)
+    else
+      let ope ← concepts.copy_role role
+      concept_table.add entries1 (concept_table.Entry.Forall ope inner)
+partial_fixpoint
+
+/-- [rowl_kernel::concept_table::intern]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 125:0-146:1
+    Visibility: public -/
+def concept_table.intern
+  (entries : alloc.vec.Vec concept_table.Entry) (concept : concepts.Concept) :
+  Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
+  := do
+  match concept with
+  | concepts.Concept.Top => concept_table.add entries concept_table.Entry.Top
+  | concepts.Concept.Bottom =>
+    concept_table.add entries concept_table.Entry.Bottom
+  | concepts.Concept.Atom «class» =>
+    let i ← nnf.copy_iri «class».iri
+    concept_table.add entries (concept_table.Entry.Atom { iri := i })
+  | concepts.Concept.NotAtom «class» =>
+    let i ← nnf.copy_iri «class».iri
+    concept_table.add entries (concept_table.Entry.NotAtom { iri := i })
+  | concepts.Concept.And left right =>
+    concept_table.intern_pair entries left right true
+  | concepts.Concept.Or left right =>
+    concept_table.intern_pair entries left right false
+  | concepts.Concept.Exists role filler =>
+    concept_table.intern_restriction entries role filler true
+  | concepts.Concept.Forall role filler =>
+    concept_table.intern_restriction entries role filler false
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::hierarchy::Inclusion]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 13:0-16:1
+    Visibility: public -/
+structure hierarchy.Inclusion where
+  sub : model.ObjectPropertyExpression
+  sup : model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::listed_from]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 25:0-41:1 -/
+def hierarchy.listed_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role inclusion.sub sub
+    if b
+    then
+      let b1 ← concepts.same_role inclusion.sup sup
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        hierarchy.listed_from inclusions i1 sub sup
+    else let i1 ← index + 1#usize
+         hierarchy.listed_from inclusions i1 sub sup
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::RoleHierarchy]
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 19:0-22:1
+    Visibility: public -/
+structure hierarchy.RoleHierarchy where
+  inclusions : alloc.vec.Vec hierarchy.Inclusion
+  transitive : alloc.vec.Vec model.ObjectPropertyExpression
+
+/-- [rowl_kernel::hierarchy::below]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 44:0-50:1
+    Visibility: public -/
+def hierarchy.below
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← concepts.same_role sub sup
+  if b
+  then ok true
+  else hierarchy.listed_from roles.inclusions 0#usize sub sup
+
+/-- [rowl_kernel::concept_table::transitive_restrictions]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 149:0-172:1 -/
+def concept_table.transitive_restrictions
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (index : Std.Usize)
+  (sup : model.ObjectPropertyExpression) (filler : Std.Usize) :
+  Result (Option (alloc.vec.Vec concept_table.Entry))
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles.transitive index
+    let b ← hierarchy.below roles ope sup
+    if b
+    then
+      let ope1 ← concepts.copy_role ope
+      let o ←
+        concept_table.add entries (concept_table.Entry.Forall ope1 filler)
+      match o with
+      | none => ok none
+      | some p =>
+        let (entries1, _) := p
+        let i1 ← index + 1#usize
+        concept_table.transitive_restrictions entries1 roles i1 sup filler
+    else
+      let i1 ← index + 1#usize
+      concept_table.transitive_restrictions entries roles i1 sup filler
+  else ok (some entries)
+partial_fixpoint
+
+/-- [rowl_kernel::concept_table::close_from]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 175:0-199:1 -/
+def concept_table.close_from
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (index : Std.Usize) (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec concept_table.Entry))
+  := do
+  if index < limit
+  then
+    let i := alloc.vec.Vec.len entries
+    if index < i
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) entries index
+      let universal ←
+        match e with
+        | concept_table.Entry.Top => ok none
+        | concept_table.Entry.Bottom => ok none
+        | concept_table.Entry.Atom _ => ok none
+        | concept_table.Entry.NotAtom _ => ok none
+        | concept_table.Entry.And _ _ => ok none
+        | concept_table.Entry.Or _ _ => ok none
+        | concept_table.Entry.Exists _ _ => ok none
+        | concept_table.Entry.Forall role filler =>
+          do
+          let ope ← concepts.copy_role role
+          ok (some (ope, filler))
+      match universal with
+      | none =>
+        let i1 ← index + 1#usize
+        concept_table.close_from entries roles i1 limit
+      | some p =>
+        let (role, filler) := p
+        let o ←
+          concept_table.transitive_restrictions entries roles 0#usize role
+            filler
+        match o with
+        | none => ok none
+        | some entries1 =>
+          let i1 ← index + 1#usize
+          concept_table.close_from entries1 roles i1 limit
+    else ok (some entries)
+  else ok (some entries)
+partial_fixpoint
+
+/-- [rowl_kernel::concept_table::close]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 202:0-205:1
+    Visibility: public -/
+def concept_table.close
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option (alloc.vec.Vec concept_table.Entry))
+  := do
+  let limit := alloc.vec.Vec.len entries
+  concept_table.close_from entries roles 0#usize limit
+
+/-- [rowl_kernel::concept_table::universal_is]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 207:0-218:1 -/
+def concept_table.universal_is
+  (entry : concept_table.Entry) (role : model.ObjectPropertyExpression)
+  (filler : Std.Usize) :
+  Result Bool
+  := do
+  match entry with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom _ => ok false
+  | concept_table.Entry.NotAtom _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok false
+  | concept_table.Entry.Forall other inner =>
+    if inner = filler
+    then concepts.same_role other role
+    else ok false
+
+/-- [rowl_kernel::concept_table::universal_from]:
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 221:0-236:1
+    Visibility: public -/
+def concept_table.universal_from
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries index
+    let b ← concept_table.universal_is e role filler
+    if b
+    then ok index
+    else
+      let i1 ← index + 1#usize
+      concept_table.universal_from entries role filler i1
+  else ok (alloc.vec.Vec.len entries)
+partial_fixpoint
+
+/-- [rowl_kernel::concepts::inverse]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 46:0-59:1
+    Visibility: public -/
+def concepts.inverse
+  (role : model.ObjectPropertyExpression) :
+  Result model.ObjectPropertyExpression
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Inverse { iri := i })
+  | model.ObjectPropertyExpression.Inverse property =>
+    let i ← nnf.copy_iri property.iri
+    ok (model.ObjectPropertyExpression.Property { iri := i })
 
 /-- [rowl_kernel::concepts::named]:
     Source: 'crates/rowl-kernel/src/concepts.rs', lines 73:0-96:1 -/
@@ -22870,61 +23297,6 @@ def functional_property_axioms.AxiomForm.Insts.CoreMarkerCopy :
   core.marker.Copy functional_property_axioms.AxiomForm := {
   cloneInst := functional_property_axioms.AxiomForm.Insts.CoreCloneClone
 }
-
-/-- [rowl_kernel::hierarchy::Inclusion]
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 13:0-16:1
-    Visibility: public -/
-structure hierarchy.Inclusion where
-  sub : model.ObjectPropertyExpression
-  sup : model.ObjectPropertyExpression
-
-/-- [rowl_kernel::hierarchy::RoleHierarchy]
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 19:0-22:1
-    Visibility: public -/
-structure hierarchy.RoleHierarchy where
-  inclusions : alloc.vec.Vec hierarchy.Inclusion
-  transitive : alloc.vec.Vec model.ObjectPropertyExpression
-
-/-- [rowl_kernel::hierarchy::listed_from]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 25:0-41:1 -/
-def hierarchy.listed_from
-  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
-  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
-  :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len inclusions
-  if index < i
-  then
-    let inclusion ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Inclusion) inclusions index
-    let b ← concepts.same_role inclusion.sub sub
-    if b
-    then
-      let b1 ← concepts.same_role inclusion.sup sup
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        hierarchy.listed_from inclusions i1 sub sup
-    else let i1 ← index + 1#usize
-         hierarchy.listed_from inclusions i1 sub sup
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::hierarchy::below]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 44:0-50:1
-    Visibility: public -/
-def hierarchy.below
-  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let b ← concepts.same_role sub sup
-  if b
-  then ok true
-  else hierarchy.listed_from roles.inclusions 0#usize sub sup
 
 /-- [rowl_kernel::hierarchy::transitive_from]:
     Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 52:0-66:1 -/

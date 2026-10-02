@@ -2842,3 +2842,32 @@ This block adds 15 public theorems and 10 independent definitions. Totals are
 obligations. The concept table, the completion graph tableau with lazy unfolding
 and clash detection on insertion, and the ontology queries with inverse roles
 are next.
+
+
+## Reasoner: the concept table
+
+The completion graph tableau works on a table of interned concepts.
+`concept_table::Entry` is one constructor whose parts are indices of earlier
+entries; `intern` adds a concept and all its subconcepts, sharing every entry
+that is already there, so equal subconcepts get one index and the tableau's
+labels can be lists of indices. `close` adds `∀t.d` for every universal
+restriction `∀q.d` in the table and every transitive role `t` included in `q`,
+the restrictions the tableau passes along transitive roles, and `universal_from`
+finds an entry `∀t.d`.
+
+ConceptTable states the independent reading: WellFormed (every part comes
+before its entry) and `meaning`, which rebuilds the concept of an index.
+intern_correct proves that interning terminates, only appends, keeps the table
+well formed and, when there is room, returns an index whose meaning is exactly
+the interned concept; meaning_append shows that appending changes no meaning.
+close_correct proves that closing only appends transitive restrictions of
+existing universal restrictions and, when the inclusions include their
+compositions, leaves the table TransitiveClosed; universal_found turns that
+into a successful search.
+
+Two regressions cover shared entries and the transitive restrictions of a role
+and its inverse.
+
+This block adds 11 public theorems and 7 independent definitions. Totals are
+981 audited theorems, 686 definitions, 392 Rust regressions and 1174 ledger
+obligations. The completion graph tableau is next.

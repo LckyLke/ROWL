@@ -94,6 +94,7 @@ import Rowl.AlcOntology
 import Rowl.SourceReasoning
 import Rowl.Concepts
 import Rowl.Hierarchy
+import Rowl.ConceptTable
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -1065,6 +1066,17 @@ import Rowl.Hierarchy
 #print axioms Rowl.Hierarchy.respects_inv
 #print axioms Rowl.Hierarchy.closed_of_empty
 #print axioms Rowl.Hierarchy.respects_of_empty
+#print axioms Rowl.ConceptTable.meaning_at
+#print axioms Rowl.ConceptTable.meaning_append
+#print axioms Rowl.ConceptTable.wellFormed_append
+#print axioms Rowl.ConceptTable.same_entry_correct
+#print axioms Rowl.ConceptTable.add_correct
+#print axioms Rowl.ConceptTable.add_wellFormed
+#print axioms Rowl.ConceptTable.intern_correct
+#print axioms Rowl.ConceptTable.close_correct
+#print axioms Rowl.ConceptTable.universal_is_correct
+#print axioms Rowl.ConceptTable.universal_from_correct
+#print axioms Rowl.ConceptTable.universal_found
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1744,3 +1756,10 @@ import Rowl.Hierarchy
 #print axioms Rowl.Hierarchy.Below
 #print axioms Rowl.Hierarchy.Closed
 #print axioms Rowl.Hierarchy.Respects
+#print axioms Rowl.ConceptTable.parts
+#print axioms Rowl.ConceptTable.WellFormed
+#print axioms Rowl.ConceptTable.meaning
+#print axioms Rowl.ConceptTable.rebuild
+#print axioms Rowl.ConceptTable.Added
+#print axioms Rowl.ConceptTable.FromOriginal
+#print axioms Rowl.ConceptTable.TransitiveClosed

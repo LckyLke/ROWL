@@ -1546,6 +1546,23 @@
         "Rowl.Hierarchy.closed_of_empty",
         "Rowl.Hierarchy.respects_of_empty"
       ]
+    },
+    {
+      "module": "Rowl.ConceptTable",
+      "namespace": "Rowl.ConceptTable",
+      "theorems": [
+        "Rowl.ConceptTable.meaning_at",
+        "Rowl.ConceptTable.meaning_append",
+        "Rowl.ConceptTable.wellFormed_append",
+        "Rowl.ConceptTable.same_entry_correct",
+        "Rowl.ConceptTable.add_correct",
+        "Rowl.ConceptTable.add_wellFormed",
+        "Rowl.ConceptTable.intern_correct",
+        "Rowl.ConceptTable.close_correct",
+        "Rowl.ConceptTable.universal_is_correct",
+        "Rowl.ConceptTable.universal_from_correct",
+        "Rowl.ConceptTable.universal_found"
+      ]
     }
   ],
   "specifications": [
@@ -2227,6 +2244,13 @@
     "Rowl.Hierarchy.transitives",
     "Rowl.Hierarchy.Below",
     "Rowl.Hierarchy.Closed",
-    "Rowl.Hierarchy.Respects"
+    "Rowl.Hierarchy.Respects",
+    "Rowl.ConceptTable.parts",
+    "Rowl.ConceptTable.WellFormed",
+    "Rowl.ConceptTable.meaning",
+    "Rowl.ConceptTable.rebuild",
+    "Rowl.ConceptTable.Added",
+    "Rowl.ConceptTable.FromOriginal",
+    "Rowl.ConceptTable.TransitiveClosed"
   ]
 }

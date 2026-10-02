@@ -12711,6 +12711,127 @@
       "theorem": "Rowl.Hierarchy.respects_of_empty",
       "regression": "crates/rowl-kernel/tests/concepts.rs",
       "implementation_scope": "Actual concepts and role hierarchies with inverse roles for the completion graph tableau: concepts::translate turns ALCI class expressions (named classes, intersections, unions, complements, and existential and universal restrictions on object property expressions, named or inverse) into negation normal form whose roles are object property expressions. It is proved total, returns no result exactly outside ALCI, and preserves the meaning of the expression (or its complement) under the independent Direct Semantics in every interpretation fixing owl:Thing and owl:Nothing, for domains of any universe; roles are read with objectRelation, so an inverse role relates its property's pairs reversed. concepts::inverse and concepts::same_role are proved to compute the inverse role and to decide equality by orientation and exact spelling. hierarchy::RoleHierarchy lists inclusions between object property expressions and transitive object property expressions; below and is_transitive are proved to decide listed inclusion (or equality) and listed transitivity, Respects states what the role axioms mean, and Closed states the closure under composition and inverses that the tableau will rely on. The completion graph tableau that uses them, the ontology queries with inverse roles and performance remain pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.meaning_at",
+      "requirement": "Verified concept table for the completion graph tableau: meaning_at",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::intern",
+      "theorem": "Rowl.ConceptTable.meaning_at",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.meaning_append",
+      "requirement": "Verified concept table for the completion graph tableau: meaning_append",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::intern",
+      "theorem": "Rowl.ConceptTable.meaning_append",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.wellFormed_append",
+      "requirement": "Verified concept table for the completion graph tableau: wellFormed_append",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::add",
+      "theorem": "Rowl.ConceptTable.wellFormed_append",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.same_entry_correct",
+      "requirement": "Verified concept table for the completion graph tableau: same_entry_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::same_entry",
+      "theorem": "Rowl.ConceptTable.same_entry_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.add_correct",
+      "requirement": "Verified concept table for the completion graph tableau: add_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::add",
+      "theorem": "Rowl.ConceptTable.add_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.add_wellFormed",
+      "requirement": "Verified concept table for the completion graph tableau: add_wellFormed",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::add",
+      "theorem": "Rowl.ConceptTable.add_wellFormed",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.intern_correct",
+      "requirement": "Verified concept table for the completion graph tableau: intern_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::intern",
+      "theorem": "Rowl.ConceptTable.intern_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.close_correct",
+      "requirement": "Verified concept table for the completion graph tableau: close_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::close",
+      "theorem": "Rowl.ConceptTable.close_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.universal_is_correct",
+      "requirement": "Verified concept table for the completion graph tableau: universal_is_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::universal_is",
+      "theorem": "Rowl.ConceptTable.universal_is_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.universal_from_correct",
+      "requirement": "Verified concept table for the completion graph tableau: universal_from_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::universal_from",
+      "theorem": "Rowl.ConceptTable.universal_from_correct",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m6.ConceptTable.universal_found",
+      "requirement": "Verified concept table for the completion graph tableau: universal_found",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::universal_from",
+      "theorem": "Rowl.ConceptTable.universal_found",
+      "regression": "crates/rowl-kernel/tests/concept_table.rs",
+      "implementation_scope": "Actual concept table for the completion graph tableau: concept_table::intern stores a concept with inverse roles and all its subconcepts as entries whose parts are indices of earlier entries, sharing structurally equal entries, so labels can be lists of indices. It is proved to terminate, to only append, to keep every part before its entry, and, when there is room, to return an index that rebuilds the concept exactly (meaning). concept_table::close adds the universal restriction on every transitive role t included in q for every universal restriction on q in the table; it is proved to append only these restrictions and, when the role inclusions include their compositions, to make the table closed under them, and universal_from is proved to find each of them. The tableau that runs on the table remains pending. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
     }
   ]
 }

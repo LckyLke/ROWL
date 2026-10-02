@@ -658,10 +658,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   result exactly outside ALCI, and keeps the meaning of the expression (or its
   complement) in every OWL interpretation. hierarchy::RoleHierarchy lists
   inclusions between object property expressions and transitive ones; its
-  inclusion and transitivity tests are proved exact. The completion graph
-  tableau that will decide these concepts, and the ontology queries with
-  inverse roles, are the next steps of this stage.
-- 970 audited public theorems and 679 audited semantic definitions. Consistency,
+  inclusion and transitivity tests are proved exact. The concept table interns
+  concepts as entries whose parts are earlier indices, sharing equal entries;
+  interning is proved exact (every index rebuilds its concept), and closing the
+  table adds the universal restrictions that transitive roles pass along. The
+  completion graph tableau that will run on the table, and the ontology
+  queries with inverse roles, are the next steps of this stage.
+- 981 audited public theorems and 686 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALC class, domain and range axioms, class and object property assertions, and
@@ -669,7 +672,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   also directly from Functional Syntax source bytes; no full OWL decision
   procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 390 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 392 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The reasoning
   procedures are unoptimised and suited to small ontologies.
@@ -680,7 +683,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1163-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1174-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

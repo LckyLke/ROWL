@@ -120,3 +120,4 @@ import Rowl.AlcOntology
 import Rowl.SourceReasoning
 import Rowl.Concepts
 import Rowl.Hierarchy
+import Rowl.ConceptTable
