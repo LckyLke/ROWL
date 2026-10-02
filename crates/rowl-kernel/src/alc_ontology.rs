@@ -61,7 +61,7 @@ fn same_pattern(key: &Vec<u8>, pattern: &[u8]) -> bool {
     key.len() == pattern.len() && equal_from(key, pattern, 0)
 }
 /// `owl:Thing` or `owl:Nothing`.
-fn builtin_class(class: &Class) -> bool {
+pub(crate) fn builtin_class(class: &Class) -> bool {
     same_pattern(&class.iri.spelling, b"http://www.w3.org/2002/07/owl#Thing")
         || same_pattern(
             &class.iri.spelling,
@@ -547,7 +547,7 @@ fn role_box(items: &Vec<AnnotatedAxiom>) -> Option<RoleBox> {
     )
 }
 /// Whether `items[index..]` has a negative object property assertion.
-fn has_negative(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
+pub(crate) fn has_negative(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
     if index < items.len() {
         match &items[index].axiom {
             Axiom::NegativeObjectPropertyAssertion(_, _, _) => true,
@@ -575,7 +575,7 @@ fn copy_individual(individual: &Individual) -> Individual {
 }
 /// The node of `individual`: its position in `nodes` from `index`, plus one, or
 /// 0 when it is absent.
-fn position(nodes: &Vec<Individual>, individual: &Individual, index: usize) -> usize {
+pub(crate) fn position(nodes: &Vec<Individual>, individual: &Individual, index: usize) -> usize {
     if index < nodes.len() {
         if same_individual_value(&nodes[index], individual) {
             index + 1
@@ -610,7 +610,7 @@ fn intern_pair(
 }
 /// `nodes` with every new individual of the assertions in `items[index..]`, in
 /// order of first occurrence.
-fn individuals_from(
+pub(crate) fn individuals_from(
     items: &Vec<AnnotatedAxiom>,
     index: usize,
     nodes: Vec<Individual>,
@@ -686,7 +686,7 @@ fn rest_proper(values: &Vec<ObjectPropertyExpression>, index: usize) -> bool {
         true
     }
 }
-fn role_proper(property: &ObjectPropertyExpression) -> bool {
+pub(crate) fn role_proper(property: &ObjectPropertyExpression) -> bool {
     !builtin_role(named_property(property))
 }
 /// Whether no member names a built-in object property.

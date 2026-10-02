@@ -61,6 +61,7 @@ pub mod experimental {
     pub use rowl_kernel::range_equality;
     pub use rowl_kernel::role_order;
     pub use rowl_kernel::roles;
+    pub use rowl_kernel::shi_ontology;
     pub use rowl_kernel::source_reasoning;
     pub use rowl_kernel::symbols;
     pub use rowl_kernel::tableau;

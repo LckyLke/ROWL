@@ -670,21 +670,33 @@ progress. Full OWL parsing and executable reasoning are still future work.
   is proved total, sound and complete for SHI with named individuals: an
   acceptance comes with a model of the role hierarchy in which the TBox concept
   and every definition hold everywhere and every fact and link holds, and a
-  rejection rules out every such model. The ontology queries do not use it yet;
-  moving them to it, with inverse property axioms, is the next step of this
-  stage.
-- 1078 audited public theorems and 727 audited semantic definitions. Consistency,
+  rejection rules out every such model. The ontology queries in
+  shi_ontology run on it: class axioms over ALCI expressions become a TBox
+  concept and definitions `A ⊑ C` unfolded lazily, with absorption (`∃r.E ⊑ D`
+  as `E ⊑ ∀r⁻.D`, `E ⊓ F ⊑ D` as `E ⊑ ¬F ⊔ D`), domains and ranges of object
+  property expressions become universal restrictions, and SubObjectPropertyOf,
+  EquivalentObjectProperties, InverseObjectProperties, SymmetricObjectProperty
+  and TransitiveObjectProperty on named or inverse properties become a role
+  hierarchy proved closed under composition and inverses. Consistency, class
+  satisfiability, subsumption and instance checking are proved exact for the
+  Direct Semantics in any universes. Negative object property assertions next
+  to role axioms, built-in object properties and other constructors get no
+  answer. Answering from source bytes with these queries is the last step of
+  this stage.
+- 1139 audited public theorems and 738 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
-  ALC class, domain and range axioms, class and object property assertions, and
-  inclusions, equivalences and transitivity of named object properties (SH),
-  also directly from Functional Syntax source bytes; no full OWL decision
-  procedure is proved yet. See
+  ALCI class, domain and range axioms, class and object property assertions,
+  and inclusions, equivalences, inverses, symmetry and transitivity of object
+  property expressions (SHI); for the SH fragment also directly from Functional
+  Syntax source bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 399 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 407 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
-  bytes, and CLI status/demo/check-nt/export-nt commands. The reasoning
-  procedures are unoptimised and suited to small ontologies.
+  bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
+  lazy unfolding with absorption, clash detection on insertion and equality
+  blocking; backjumping and caching are not implemented yet, so disjunctions
+  that cannot be absorbed still branch at every node.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;
@@ -692,7 +704,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1271-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1332-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

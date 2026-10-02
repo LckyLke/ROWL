@@ -29189,6 +29189,1620 @@ def roles.check_simplicity
     roles.check_required facts.simple_required non_simple
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
+/-- [rowl_kernel::shi_ontology::Parts]
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 59:0-62:1
+    Visibility: public -/
+structure shi_ontology.Parts where
+  axioms : concepts.Concept
+  definitions : alloc.vec.Vec completion.Definition
+
+/-- [rowl_kernel::shi_ontology::proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 66:0-77:1 -/
+def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
+  match concept with
+  | concepts.Concept.Top => ok true
+  | concepts.Concept.Bottom => ok true
+  | concepts.Concept.Atom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | concepts.Concept.NotAtom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | concepts.Concept.And left right =>
+    let b ← shi_ontology.proper left
+    if b
+    then shi_ontology.proper right
+    else ok false
+  | concepts.Concept.Or left right =>
+    let b ← shi_ontology.proper left
+    if b
+    then shi_ontology.proper right
+    else ok false
+  | concepts.Concept.Exists role filler =>
+    let b ← alc_ontology.role_proper role
+    if b
+    then shi_ontology.proper filler
+    else ok false
+  | concepts.Concept.Forall role filler =>
+    let b ← alc_ontology.role_proper role
+    if b
+    then shi_ontology.proper filler
+    else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::definitions_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 80:0-87:1 -/
+def shi_ontology.definitions_proper
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← alc_ontology.builtin_class d.class
+    let here ← if b
+                 then ok false
+                 else shi_ontology.proper d.concept
+    if here
+    then
+      let i1 ← index + 1#usize
+      shi_ontology.definitions_proper definitions i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::facts_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 89:0-95:1 -/
+def shi_ontology.facts_proper
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← shi_ontology.proper f.concept
+    if b
+    then let i1 ← index + 1#usize
+         shi_ontology.facts_proper facts i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::absorbable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 100:0-107:1 -/
+def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
+  match sub with
+  | model.ClassExpression.Class «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    shi_ontology.absorbable members.first
+  | model.ClassExpression.ObjectUnionOf _ => ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    shi_ontology.absorbable filler
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue _ _ => ok false
+  | model.ClassExpression.ObjectHasSelf _ => ok false
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok false
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::fail_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 110:0-123:1 -/
+def shi_ontology.fail_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : concepts.Concept) :
+  Result (Option concepts.Concept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce false
+    match o with
+    | none => ok none
+    | some outside =>
+      let i1 ← index + 1#usize
+      shi_ontology.fail_from values i1 (concepts.Concept.Or joined outside)
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::absorb]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 127:0-151:1 -/
+def shi_ontology.absorb
+  (sub : model.ClassExpression) (sup : concepts.Concept) :
+  Result (Option completion.Definition)
+  := do
+  match sub with
+  | model.ClassExpression.Class «class» =>
+    let i ← nnf.copy_iri «class».iri
+    ok (some { «class» := { iri := i }, concept := sup })
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let o ← concepts.translate members.second false
+    match o with
+    | none => ok none
+    | some second =>
+      let o1 ← shi_ontology.fail_from members.rest 0#usize second
+      match o1 with
+      | none => ok none
+      | some others =>
+        shi_ontology.absorb members.first (concepts.Concept.Or others sup)
+  | model.ClassExpression.ObjectUnionOf _ => ok none
+  | model.ClassExpression.ObjectComplementOf _ => ok none
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let ope ← concepts.inverse role
+    shi_ontology.absorb filler (concepts.Concept.Forall ope sup)
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok none
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::include]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 154:0-179:1 -/
+def shi_ontology.include
+  (sub : model.ClassExpression) (sup : concepts.Concept)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let b ← shi_ontology.absorbable sub
+  if b
+  then
+    let o ← shi_ontology.absorb sub sup
+    match o with
+    | none => ok none
+    | some definition =>
+      let i := alloc.vec.Vec.len parts.definitions
+      if i < core.num.Usize.MAX
+      then
+        let v ← alloc.vec.Vec.push parts.definitions definition
+        ok (some { parts with definitions := v })
+      else ok none
+  else
+    let o ← concepts.translate sub false
+    match o with
+    | none => ok none
+    | some outside =>
+      ok (some
+        {
+          parts
+            with
+            axioms :=
+              (concepts.Concept.And
+                parts.axioms
+                (concepts.Concept.Or
+                outside
+                sup))
+        })
+
+/-- [rowl_kernel::shi_ontology::include_both]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 181:0-195:1 -/
+def shi_ontology.include_both
+  (left : model.ClassExpression) (right : model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← concepts.translate right true
+  match o with
+  | none => ok none
+  | some forward =>
+    let o1 ← shi_ontology.include left forward parts
+    match o1 with
+    | none => ok none
+    | some parts1 =>
+      let o2 ← concepts.translate left true
+      match o2 with
+      | none => ok none
+      | some backward => shi_ontology.include right backward parts1
+
+/-- [rowl_kernel::shi_ontology::equal_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 197:0-211:1 -/
+def shi_ontology.equal_from
+  (first : model.ClassExpression)
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← shi_ontology.include_both first ce parts
+    match o with
+    | none => ok none
+    | some parts1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.equal_from first values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::equivalent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 213:0-218:1 -/
+def shi_ontology.equivalent
+  (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← shi_ontology.include_both members.first members.second parts
+  match o with
+  | none => ok none
+  | some parts1 =>
+    shi_ontology.equal_from members.first members.rest 0#usize parts1
+
+/-- [rowl_kernel::shi_ontology::apart_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 220:0-238:1 -/
+def shi_ontology.apart_from
+  (member : model.ClassExpression)
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce false
+    match o with
+    | none => ok none
+    | some outside =>
+      let o1 ← shi_ontology.include member outside parts
+      match o1 with
+      | none => ok none
+      | some parts1 =>
+        let i1 ← index + 1#usize
+        shi_ontology.apart_from member values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::pairwise_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 240:0-249:1 -/
+def shi_ontology.pairwise_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let i1 ← index + 1#usize
+    let o ← shi_ontology.apart_from ce values i1 parts
+    match o with
+    | none => ok none
+    | some parts1 => shi_ontology.pairwise_from values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::disjoint]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 251:0-269:1 -/
+def shi_ontology.disjoint
+  (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← concepts.translate members.second false
+  match o with
+  | none => ok none
+  | some second =>
+    let o1 ← shi_ontology.include members.first second parts
+    match o1 with
+    | none => ok none
+    | some parts1 =>
+      let o2 ←
+        shi_ontology.apart_from members.first members.rest 0#usize parts1
+      match o2 with
+      | none => ok none
+      | some parts2 =>
+        let o3 ←
+          shi_ontology.apart_from members.second members.rest 0#usize parts2
+        match o3 with
+        | none => ok none
+        | some parts3 => shi_ontology.pairwise_from members.rest 0#usize parts3
+
+/-- [rowl_kernel::shi_ontology::some_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 272:0-285:1 -/
+def shi_ontology.some_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : concepts.Concept) :
+  Result (Option concepts.Concept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce true
+    match o with
+    | none => ok none
+    | some inside =>
+      let i1 ← index + 1#usize
+      shi_ontology.some_from values i1 (concepts.Concept.Or joined inside)
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::within_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 287:0-305:1 -/
+def shi_ontology.within_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (whole : model.ClassExpression) (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let o ← concepts.translate whole true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ce ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ClassExpression) values index
+      let o1 ← shi_ontology.include ce inside parts
+      match o1 with
+      | none => ok none
+      | some parts1 =>
+        let i1 ← index + 1#usize
+        shi_ontology.within_from values i1 whole parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::disjoint_union]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 308:0-357:1 -/
+def shi_ontology.disjoint_union
+  («class» : model.Class) (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i ← nnf.copy_iri «class».iri
+  let o ← concepts.translate members.first true
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← concepts.translate members.second true
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        shi_ontology.some_from members.rest 0#usize (concepts.Concept.Or first
+          second)
+      match o2 with
+      | none => ok none
+      | some union =>
+        let o3 ←
+          shi_ontology.include (model.ClassExpression.Class { iri := i }) union
+            parts
+        match o3 with
+        | none => ok none
+        | some parts1 =>
+          let o4 ←
+            concepts.translate (model.ClassExpression.Class { iri := i }) true
+          match o4 with
+          | none => ok none
+          | some inside =>
+            let o5 ← shi_ontology.include members.first inside parts1
+            match o5 with
+            | none => ok none
+            | some parts2 =>
+              match o4 with
+              | none => ok none
+              | some inside1 =>
+                let o6 ← shi_ontology.include members.second inside1 parts2
+                match o6 with
+                | none => ok none
+                | some parts3 =>
+                  let o7 ←
+                    shi_ontology.within_from members.rest 0#usize
+                      (model.ClassExpression.Class { iri := i }) parts3
+                  match o7 with
+                  | none => ok none
+                  | some parts4 => shi_ontology.disjoint members parts4
+
+/-- [rowl_kernel::shi_ontology::conjoin]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 359:0-364:1 -/
+def shi_ontology.conjoin
+  (parts : shi_ontology.Parts) (concept : concepts.Concept) :
+  Result shi_ontology.Parts
+  := do
+  ok { parts with axioms := (concepts.Concept.And parts.axioms concept) }
+
+/-- [rowl_kernel::shi_ontology::axiom_parts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 368:0-406:1 -/
+def shi_ontology.axiom_parts
+  («axiom» : model.Axiom) (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some parts)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← concepts.translate sup true
+    match o with
+    | none => ok none
+    | some inside => shi_ontology.include sub inside parts
+  | model.Axiom.EquivalentClasses members =>
+    shi_ontology.equivalent members parts
+  | model.Axiom.DisjointClasses members => shi_ontology.disjoint members parts
+  | model.Axiom.DisjointUnion «class» members =>
+    shi_ontology.disjoint_union «class» members parts
+  | model.Axiom.SubObjectPropertyOf sope _ =>
+    match sope with
+    | model.SubObjectPropertyExpression.Single _ => ok (some parts)
+    | model.SubObjectPropertyExpression.Chain _ => ok none
+  | model.Axiom.EquivalentObjectProperties _ => ok (some parts)
+  | model.Axiom.DisjointObjectProperties _ => ok none
+  | model.Axiom.InverseObjectProperties _ _ => ok (some parts)
+  | model.Axiom.ObjectPropertyDomain property «class» =>
+    let o ← concepts.translate «class» true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ope ← concepts.inverse property
+      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
+      ok (some p)
+  | model.Axiom.ObjectPropertyRange property «class» =>
+    let o ← concepts.translate «class» true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ope ← concepts.copy_role property
+      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
+      ok (some p)
+  | model.Axiom.FunctionalObjectProperty _ => ok none
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok none
+  | model.Axiom.ReflexiveObjectProperty _ => ok none
+  | model.Axiom.IrreflexiveObjectProperty _ => ok none
+  | model.Axiom.SymmetricObjectProperty _ => ok (some parts)
+  | model.Axiom.AsymmetricObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty _ => ok (some parts)
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual _ => ok none
+  | model.Axiom.DifferentIndividuals _ => ok none
+  | model.Axiom.ClassAssertion _ _ => ok (some parts)
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some parts)
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some parts)
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some parts)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some parts)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some parts)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some parts)
+
+/-- [rowl_kernel::shi_ontology::parts_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 408:0-417:1 -/
+def shi_ontology.parts_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← shi_ontology.axiom_parts aa.axiom parts
+    match o with
+    | none => ok none
+    | some parts1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.parts_from items i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::class_parts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 420:0-429:1
+    Visibility: public -/
+def shi_ontology.class_parts
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option shi_ontology.Parts)
+  := do
+  shi_ontology.parts_from items 0#usize
+    {
+      axioms := concepts.Concept.Top,
+      definitions := (alloc.vec.Vec.new completion.Definition)
+    }
+
+/-- [rowl_kernel::shi_ontology::subs_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 433:0-453:1 -/
+def shi_ontology.subs_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sup : model.ObjectPropertyExpression)
+  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role i1.sup sup
+    if b
+    then
+      let i2 := alloc.vec.Vec.len found
+      if i2 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role i1.sub
+        let found1 ← alloc.vec.Vec.push found ope
+        let i3 ← index + 1#usize
+        shi_ontology.subs_from inclusions i3 sup found1
+      else ok none
+    else
+      let i2 ← index + 1#usize
+      shi_ontology.subs_from inclusions i2 sup found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::sups_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 456:0-476:1 -/
+def shi_ontology.sups_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sub : model.ObjectPropertyExpression)
+  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role i1.sub sub
+    if b
+    then
+      let i2 := alloc.vec.Vec.len found
+      if i2 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role i1.sup
+        let found1 ← alloc.vec.Vec.push found ope
+        let i3 ← index + 1#usize
+        shi_ontology.sups_from inclusions i3 sub found1
+      else ok none
+    else
+      let i2 ← index + 1#usize
+      shi_ontology.sups_from inclusions i2 sub found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::row_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 479:0-500:1 -/
+def shi_ontology.row_from
+  (sub : model.ObjectPropertyExpression)
+  (above : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len above
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) above index
+    let b ← hierarchy.below roles sub ope
+    if b
+    then let i1 ← index + 1#usize
+         shi_ontology.row_from sub above i1 roles
+    else
+      let i1 := alloc.vec.Vec.len roles.inclusions
+      if i1 < core.num.Usize.MAX
+      then
+        let ope1 ← concepts.copy_role sub
+        let ope2 ← concepts.copy_role ope
+        let v ←
+          alloc.vec.Vec.push roles.inclusions ({ sub := ope1, sup := ope2 } :
+            hierarchy.Inclusion)
+        let i2 ← index + 1#usize
+        shi_ontology.row_from sub above i2 { roles with inclusions := v }
+      else ok none
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::pairs_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 502:0-516:1 -/
+def shi_ontology.pairs_from
+  (lower : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (above : alloc.vec.Vec model.ObjectPropertyExpression)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len lower
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) lower index
+    let o ← shi_ontology.row_from ope above 0#usize roles
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.pairs_from lower i1 above roles1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_one]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 520:0-538:1 -/
+def shi_ontology.add_one
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let ope ← concepts.copy_role sub
+  let start ←
+    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
+  let o ← shi_ontology.subs_from roles.inclusions 0#usize sub start
+  match o with
+  | none => ok none
+  | some lower =>
+    let ope1 ← concepts.copy_role sup
+    let «end» ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression)
+        ope1
+    let o1 ← shi_ontology.sups_from roles.inclusions 0#usize sup «end»
+    match o1 with
+    | none => ok none
+    | some upper => shi_ontology.pairs_from lower 0#usize upper roles
+
+/-- [rowl_kernel::shi_ontology::add_inclusion]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 541:0-553:1 -/
+def shi_ontology.add_inclusion
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_one roles sub sup
+  match o with
+  | none => ok none
+  | some roles1 =>
+    let flipped_sub ← concepts.inverse sub
+    let flipped_sup ← concepts.inverse sup
+    shi_ontology.add_one roles1 flipped_sub flipped_sup
+
+/-- [rowl_kernel::shi_ontology::add_equal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 555:0-564:1 -/
+def shi_ontology.add_equal
+  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_inclusion roles left right
+  match o with
+  | none => ok none
+  | some roles1 => shi_ontology.add_inclusion roles1 right left
+
+/-- [rowl_kernel::shi_ontology::same_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 566:0-580:1 -/
+def shi_ontology.same_from
+  (first : model.ObjectPropertyExpression)
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let o ← shi_ontology.add_equal roles first ope
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.same_from first values i1 roles1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_equivalent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 582:0-590:1 -/
+def shi_ontology.add_equivalent
+  (roles : hierarchy.RoleHierarchy)
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_equal roles members.first members.second
+  match o with
+  | none => ok none
+  | some roles1 =>
+    shi_ontology.same_from members.first members.rest 0#usize roles1
+
+/-- [rowl_kernel::shi_ontology::add_transitive]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 592:0-605:1 -/
+def shi_ontology.add_transitive
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let b ← hierarchy.is_transitive roles role
+  if b
+  then ok (some roles)
+  else
+    let i := alloc.vec.Vec.len roles.transitive
+    let i1 ← core.num.Usize.MAX - 1#usize
+    if i < i1
+    then
+      let ope ← concepts.copy_role role
+      let v ← alloc.vec.Vec.push roles.transitive ope
+      let ope1 ← concepts.inverse role
+      let v1 ← alloc.vec.Vec.push v ope1
+      ok (some { roles with transitive := v1 })
+    else ok none
+
+/-- [rowl_kernel::shi_ontology::hierarchy_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 608:0-637:1 -/
+def shi_ontology.hierarchy_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let roles1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some roles)
+      | model.Axiom.SubClassOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentClasses _ => ok (some roles)
+      | model.Axiom.DisjointClasses _ => ok (some roles)
+      | model.Axiom.DisjointUnion _ _ => ok (some roles)
+      | model.Axiom.SubObjectPropertyOf sope sup =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single sub =>
+          shi_ontology.add_inclusion roles sub sup
+        | model.SubObjectPropertyExpression.Chain _ => ok (some roles)
+      | model.Axiom.EquivalentObjectProperties members =>
+        shi_ontology.add_equivalent roles members
+      | model.Axiom.DisjointObjectProperties _ => ok (some roles)
+      | model.Axiom.InverseObjectProperties first second =>
+        do
+        let flipped ← concepts.inverse second
+        shi_ontology.add_equal roles first flipped
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.SymmetricObjectProperty role =>
+        do
+        let flipped ← concepts.inverse role
+        shi_ontology.add_inclusion roles role flipped
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some roles)
+      | model.Axiom.TransitiveObjectProperty role =>
+        shi_ontology.add_transitive roles role
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
+      | model.Axiom.DisjointDataProperties _ => ok (some roles)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
+      | model.Axiom.HasKey _ _ _ => ok (some roles)
+      | model.Axiom.SameIndividual _ => ok (some roles)
+      | model.Axiom.DifferentIndividuals _ => ok (some roles)
+      | model.Axiom.ClassAssertion _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
+    match roles1 with
+    | none => ok none
+    | some roles2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.hierarchy_from items i1 roles2
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::role_hierarchy]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 639:0-648:1
+    Visibility: public -/
+def shi_ontology.role_hierarchy
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  shi_ontology.hierarchy_from items 0#usize
+    {
+      inclusions := (alloc.vec.Vec.new hierarchy.Inclusion),
+      transitive := (alloc.vec.Vec.new model.ObjectPropertyExpression)
+    }
+
+/-- [rowl_kernel::shi_ontology::pair_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 650:0-654:1 -/
+def shi_ontology.pair_proper
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let lower ← alc_ontology.role_proper sub
+  let upper ← alc_ontology.role_proper sup
+  if lower
+  then ok upper
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::rest_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 656:0-663:1 -/
+def shi_ontology.rest_proper
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let here ← alc_ontology.role_proper ope
+    if here
+    then let i1 ← index + 1#usize
+         shi_ontology.rest_proper values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::members_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 665:0-669:1 -/
+def shi_ontology.members_proper
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let first ← alc_ontology.role_proper members.first
+  let second ← alc_ontology.role_proper members.second
+  if first
+  then
+    if second
+    then shi_ontology.rest_proper members.rest 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::roles_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 672:0-690:1 -/
+def shi_ontology.roles_proper
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let here ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok true
+      | model.Axiom.SubClassOf _ _ => ok true
+      | model.Axiom.EquivalentClasses _ => ok true
+      | model.Axiom.DisjointClasses _ => ok true
+      | model.Axiom.DisjointUnion _ _ => ok true
+      | model.Axiom.SubObjectPropertyOf sope sup =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single sub =>
+          shi_ontology.pair_proper sub sup
+        | model.SubObjectPropertyExpression.Chain _ => ok true
+      | model.Axiom.EquivalentObjectProperties members =>
+        shi_ontology.members_proper members
+      | model.Axiom.DisjointObjectProperties _ => ok true
+      | model.Axiom.InverseObjectProperties first second =>
+        shi_ontology.pair_proper first second
+      | model.Axiom.ObjectPropertyDomain _ _ => ok true
+      | model.Axiom.ObjectPropertyRange _ _ => ok true
+      | model.Axiom.FunctionalObjectProperty _ => ok true
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok true
+      | model.Axiom.ReflexiveObjectProperty _ => ok true
+      | model.Axiom.IrreflexiveObjectProperty _ => ok true
+      | model.Axiom.SymmetricObjectProperty property =>
+        alc_ontology.role_proper property
+      | model.Axiom.AsymmetricObjectProperty _ => ok true
+      | model.Axiom.TransitiveObjectProperty property =>
+        alc_ontology.role_proper property
+      | model.Axiom.SubDataPropertyOf _ _ => ok true
+      | model.Axiom.EquivalentDataProperties _ => ok true
+      | model.Axiom.DisjointDataProperties _ => ok true
+      | model.Axiom.DataPropertyDomain _ _ => ok true
+      | model.Axiom.DataPropertyRange _ _ => ok true
+      | model.Axiom.FunctionalDataProperty _ => ok true
+      | model.Axiom.DatatypeDefinition _ _ => ok true
+      | model.Axiom.HasKey _ _ _ => ok true
+      | model.Axiom.SameIndividual _ => ok true
+      | model.Axiom.DifferentIndividuals _ => ok true
+      | model.Axiom.ClassAssertion _ _ => ok true
+      | model.Axiom.ObjectPropertyAssertion property _ _ =>
+        alc_ontology.role_proper property
+      | model.Axiom.NegativeObjectPropertyAssertion property _ _ =>
+        alc_ontology.role_proper property
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok true
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok true
+      | model.Axiom.AnnotationAssertion _ _ _ => ok true
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok true
+      | model.Axiom.AnnotationPropertyRange _ _ => ok true
+    if here
+    then let i1 ← index + 1#usize
+         shi_ontology.roles_proper items i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::assertions_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 694:0-721:1 -/
+def shi_ontology.assertions_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.ClassAssertion «class» member =>
+      let o ← concepts.translate «class» true
+      match o with
+      | none => ok none
+      | some concept =>
+        let i1 := alloc.vec.Vec.len facts
+        if i1 < core.num.Usize.MAX
+        then
+          let i2 ← alc_ontology.position nodes member 0#usize
+          let facts1 ←
+            alloc.vec.Vec.push facts ({ node := i2, concept } :
+              completion.Fact)
+          let i3 ← index + 1#usize
+          shi_ontology.assertions_from items nodes i3 facts1
+        else ok none
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes i1 facts
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::links_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 724:0-749:1 -/
+def shi_ontology.links_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (links : alloc.vec.Vec completion.Link) :
+  Result (Option (alloc.vec.Vec completion.Link))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.ObjectPropertyAssertion role source target =>
+      let i1 := alloc.vec.Vec.len links
+      if i1 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role role
+        let i2 ← alc_ontology.position nodes source 0#usize
+        let i3 ← alc_ontology.position nodes target 0#usize
+        let links1 ←
+          alloc.vec.Vec.push links
+            ({ role := ope, «from» := i2, «to» := i3 } : completion.Link)
+        let i4 ← index + 1#usize
+        shi_ontology.links_from items nodes i4 links1
+      else ok none
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes i1 links
+  else ok (some links)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::link_is]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 751:0-761:1 -/
+def shi_ontology.link_is
+  (link : completion.Link) (role : model.ObjectPropertyExpression)
+  (source : Std.Usize) (target : Std.Usize) :
+  Result Bool
+  := do
+  if link.from = source
+  then if link.to = target
+       then concepts.same_role link.role role
+       else ok false
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::linked_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 765:0-784:1 -/
+def shi_ontology.linked_from
+  (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
+  (role : model.ObjectPropertyExpression)
+  (flipped : model.ObjectPropertyExpression) (source : Std.Usize)
+  (target : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len links
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) links index
+    let b ← shi_ontology.link_is l role source target
+    if b
+    then ok true
+    else
+      let b1 ← shi_ontology.link_is l flipped target source
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        shi_ontology.linked_from links i1 role flipped source target
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::denied_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 787:0-812:1 -/
+def shi_ontology.denied_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual)
+  (links : alloc.vec.Vec completion.Link) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+      let flipped ← concepts.inverse role
+      let i1 ← alc_ontology.position nodes source 0#usize
+      let i2 ← alc_ontology.position nodes target 0#usize
+      let here ← shi_ontology.linked_from links 0#usize role flipped i1 i2
+      if here
+      then ok true
+      else
+        let i3 ← index + 1#usize
+        shi_ontology.denied_from items nodes links i3
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes links i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::closure_satisfiable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 816:0-858:1 -/
+def shi_ontology.closure_satisfiable
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual)
+  (extra : alloc.vec.Vec completion.Fact) :
+  Result (Option Bool)
+  := do
+  let o ← shi_ontology.class_parts items
+  match o with
+  | none => ok none
+  | some parts =>
+    let o1 ← shi_ontology.assertions_from items nodes 0#usize extra
+    match o1 with
+    | none => ok none
+    | some facts =>
+      let o2 ← shi_ontology.role_hierarchy items
+      match o2 with
+      | none => ok none
+      | some roles =>
+        let b ← shi_ontology.proper parts.axioms
+        if b
+        then
+          let b1 ← shi_ontology.definitions_proper parts.definitions 0#usize
+          if b1
+          then
+            let b2 ← shi_ontology.facts_proper facts 0#usize
+            if b2
+            then
+              let b3 ← shi_ontology.roles_proper items 0#usize
+              if b3
+              then
+                let b4 ← alc_ontology.has_negative items 0#usize
+                if b4
+                then
+                  let i := alloc.vec.Vec.len roles.inclusions
+                  if i = 0#usize
+                  then
+                    let i1 := alloc.vec.Vec.len roles.transitive
+                    if i1 = 0#usize
+                    then
+                      let o3 ←
+                        shi_ontology.links_from items nodes 0#usize
+                          (alloc.vec.Vec.new completion.Link)
+                      match o3 with
+                      | none => ok none
+                      | some links =>
+                        let b5 ←
+                          shi_ontology.denied_from items nodes links 0#usize
+                        if b5
+                        then ok (some false)
+                        else
+                          let i2 := alloc.vec.Vec.len nodes
+                          let i3 ← i2 + 1#usize
+                          completion.satisfiable i3 facts links parts.axioms
+                            parts.definitions roles
+                    else ok none
+                  else ok none
+                else
+                  let o3 ←
+                    shi_ontology.links_from items nodes 0#usize
+                      (alloc.vec.Vec.new completion.Link)
+                  match o3 with
+                  | none => ok none
+                  | some links =>
+                    let b5 ←
+                      shi_ontology.denied_from items nodes links 0#usize
+                    if b5
+                    then ok (some false)
+                    else
+                      let i := alloc.vec.Vec.len nodes
+                      let i1 ← i + 1#usize
+                      completion.satisfiable i1 facts links parts.axioms
+                        parts.definitions roles
+              else ok none
+            else ok none
+          else ok none
+        else ok none
+
+/-- [rowl_kernel::shi_ontology::consistent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 860:0-866:1
+    Visibility: public -/
+def shi_ontology.consistent
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
+  let o ←
+    alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
+      model.Individual)
+  match o with
+  | none => ok none
+  | some nodes =>
+    shi_ontology.closure_satisfiable items nodes (alloc.vec.Vec.new
+      completion.Fact)
+
+/-- [rowl_kernel::shi_ontology::class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 868:0-880:1
+    Visibility: public -/
+def shi_ontology.class_satisfiable
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate «class» true
+  match o with
+  | none => ok none
+  | some concept =>
+    let o1 ←
+      alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
+        model.Individual)
+    match o1 with
+    | none => ok none
+    | some nodes =>
+      let extra ←
+        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+          ({ node := 0#usize, concept } : completion.Fact)
+      shi_ontology.closure_satisfiable items nodes extra
+
+/-- [rowl_kernel::shi_ontology::subsumed]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 883:0-913:1
+    Visibility: public -/
+def shi_ontology.subsumed
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate sub true
+  match o with
+  | none => ok none
+  | some inside =>
+    let o1 ← concepts.translate sup false
+    match o1 with
+    | none => ok none
+    | some outside =>
+      let o2 ←
+        alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
+          model.Individual)
+      match o2 with
+      | none => ok none
+      | some nodes =>
+        let extra ←
+          alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+            ({ node := 0#usize, concept := inside } : completion.Fact)
+        let extra1 ←
+          alloc.vec.Vec.push extra ({ node := 0#usize, concept := outside } :
+            completion.Fact)
+        let o3 ← shi_ontology.closure_satisfiable items nodes extra1
+        match o3 with
+        | none => ok none
+        | some satisfiable => ok (some (¬ satisfiable))
+
+/-- [rowl_kernel::shi_ontology::instance_of]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 916:0-941:1
+    Visibility: public -/
+def shi_ontology.instance_of
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (individual : model.NamedIndividual) («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate «class» false
+  match o with
+  | none => ok none
+  | some outside =>
+    let o1 ←
+      alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
+        model.Individual)
+    match o1 with
+    | none => ok none
+    | some nodes =>
+      let i ← nnf.copy_iri individual.iri
+      let i1 ←
+        alc_ontology.position nodes (model.Individual.Named { iri := i })
+          0#usize
+      let extra ←
+        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+          ({ node := i1, concept := outside } : completion.Fact)
+      let o2 ← shi_ontology.closure_satisfiable items nodes extra
+      match o2 with
+      | none => ok none
+      | some satisfiable => ok (some (¬ satisfiable))
+
 /-- [rowl_kernel::snapshot::SourceCheck]
     Source: 'crates/rowl-kernel/src/snapshot.rs', lines 7:0-10:1
     Visibility: public -/

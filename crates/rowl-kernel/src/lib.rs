@@ -82,6 +82,8 @@ pub mod concept_table;
 
 pub mod completion;
 
+pub mod shi_ontology;
+
 pub mod source_reasoning;
 
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.

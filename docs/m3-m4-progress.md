@@ -2954,3 +2954,67 @@ This block adds 74 public theorems and 23 independent definitions. Totals are
 1078 audited theorems, 727 definitions, 399 Rust regressions and 1271 ledger
 obligations. The ontology queries move to this tableau next, with inverse
 property axioms and domains as universal restrictions on inverse roles.
+
+## Reasoner: SHI ontology queries on the completion graph tableau
+
+`shi_ontology` answers consistency, class satisfiability, subsumption and
+instance checking on the completion graph tableau. The input contract:
+
+- Class axioms over ALCI class expressions (SubClassOf, EquivalentClasses,
+  DisjointClasses, DisjointUnion) and domains and ranges of object property
+  expressions, named or inverse, with ALCI classes.
+- Role axioms: SubObjectPropertyOf without chains, EquivalentObjectProperties,
+  InverseObjectProperties, SymmetricObjectProperty and TransitiveObjectProperty,
+  on named or inverse object properties.
+- Class assertions, object property assertions (also along an inverse) and,
+  without role axioms, negative object property assertions; declarations and
+  annotation axioms impose nothing.
+- No answer for any other axiom or class expression, for
+  `owl:topObjectProperty` or `owl:bottomObjectProperty` anywhere, for negative
+  assertions next to role axioms, or when a `usize` limit is reached.
+
+ShiParts reads the class axioms as inclusions. An inclusion whose left side is
+absorbable becomes a definition `A ⊑ C` that the tableau unfolds only at nodes
+that list `A`: a named class directly, `∃r.E ⊑ D` as `E ⊑ ∀r⁻.D`, and
+`E ⊓ F ⊓ … ⊑ D` as `E ⊑ ¬F ⊔ … ⊔ D`. Every other inclusion conjoins `¬C ⊔ D` onto
+the TBox concept, and a domain or range conjoins `∀r⁻.C` or `∀r.C`, so neither
+branches. `class_parts_correct` proves that in every interpretation fixing
+owl:Thing and owl:Nothing the TBox concept holds everywhere and the definitions
+hold exactly when every class axiom holds (PartsHold, ClassPart); the parts are
+computed only for supported axioms (SupportedAxiom), and always when every
+axiom is supported and the definitions fit (Inclusions bounds them).
+
+ShiRoles builds the role hierarchy. Every inclusion is added with its inverse,
+each together with its compositions with the inclusions already listed, and
+inclusions the hierarchy already has are skipped; every transitive role is
+added with its inverse. `role_hierarchy_correct` proves the result closed under
+composition and inverses (`closed_both_added` carries the inverse closure over
+both additions) and that an interpretation respects it exactly when it
+satisfies every role axiom (RolesHold).
+
+ShiOntology assembles the queries. Class assertions and the query's concepts
+are facts at the nodes of their individuals, node 0 standing for one more
+element, and object property assertions are links. Without role axioms, the
+tableau's models relate named individuals only along links, so a negative
+assertion is refuted exactly by a link in either orientation (Denies). An
+acceptance is turned into an OWL model of the closure: built-in classes,
+properties and the datatype map get their fixed meaning, and every other name
+keeps the tableau's reading, which agrees on proper concepts (Proper,
+DefinitionProper, RoleProper). `consistent_correct`, `class_satisfiable_correct`,
+`subsumed_correct` and `instance_of_correct` prove each answer exact for the
+Direct Semantics, and the `_complete` and `_sound` forms hold in any universes.
+
+Eight regressions cover absorption, inverse properties reaching back,
+symmetric and transitive inverse properties, domains and ranges of inverse
+properties, negative assertions and unsupported inputs, 200 pseudo-random closures
+whose parts are compared with the axioms in all interpretations of up to three
+elements, 200 pseudo-random queries that must be satisfiable whenever such a
+model exists, and 200 inverse-free closures that agree with the verified ALC
+queries. On the full medication example (three patients, two drug classes,
+disjointness and the alert rule) each query takes well under a millisecond;
+the ALC queries, which branch on the alert rule at every node, were too slow
+for it.
+
+This block adds 61 public theorems and 11 independent definitions. Totals are
+1139 audited theorems, 738 definitions, 407 Rust regressions and 1332 ledger
+obligations. Answering from source bytes with these queries is next.

@@ -98,6 +98,9 @@ import Rowl.ConceptTable
 import Rowl.CompletionSearch
 import Rowl.CompletionModel
 import Rowl.Completion
+import Rowl.ShiParts
+import Rowl.ShiRoles
+import Rowl.ShiOntology
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -1177,6 +1180,67 @@ import Rowl.Completion
 #print axioms Rowl.Completion.intern_definitions_correct
 #print axioms Rowl.Completion.named_nodes_correct
 #print axioms Rowl.Completion.satisfiable_correct
+#print axioms Rowl.ShiParts.copy_iri_class
+#print axioms Rowl.ShiParts.absorbable_total
+#print axioms Rowl.ShiParts.fail_from_correct
+#print axioms Rowl.ShiParts.absorb_correct
+#print axioms Rowl.ShiParts.include_correct
+#print axioms Rowl.ShiParts.include_both_correct
+#print axioms Rowl.ShiParts.equal_from_correct
+#print axioms Rowl.ShiParts.all_equal_star
+#print axioms Rowl.ShiParts.equivalent_correct
+#print axioms Rowl.ShiParts.apart_from_correct
+#print axioms Rowl.ShiParts.pairwise_from_correct
+#print axioms Rowl.ShiParts.disjoint_correct
+#print axioms Rowl.ShiParts.some_from_correct
+#print axioms Rowl.ShiParts.within_from_correct
+#print axioms Rowl.ShiParts.disjoint_union_correct
+#print axioms Rowl.ShiParts.conjoin_correct
+#print axioms Rowl.ShiParts.axiom_parts_correct
+#print axioms Rowl.ShiParts.parts_from_correct
+#print axioms Rowl.ShiParts.class_parts_correct
+#print axioms Rowl.ShiRoles.subs_from_correct
+#print axioms Rowl.ShiRoles.sups_from_correct
+#print axioms Rowl.ShiRoles.row_from_correct
+#print axioms Rowl.ShiRoles.pairs_from_correct
+#print axioms Rowl.ShiRoles.add_one_correct
+#print axioms Rowl.ShiRoles.composed_added
+#print axioms Rowl.ShiRoles.closed_both_added
+#print axioms Rowl.ShiRoles.respects_added
+#print axioms Rowl.ShiRoles.add_inclusion_correct
+#print axioms Rowl.ShiRoles.add_equal_correct
+#print axioms Rowl.ShiRoles.same_from_correct
+#print axioms Rowl.ShiRoles.all_equal_roles
+#print axioms Rowl.ShiRoles.add_equivalent_correct
+#print axioms Rowl.ShiRoles.add_transitive_correct
+#print axioms Rowl.ShiRoles.hierarchy_from_correct
+#print axioms Rowl.ShiRoles.role_hierarchy_correct
+#print axioms Rowl.ShiOntology.proper_correct
+#print axioms Rowl.ShiOntology.definitions_proper_correct
+#print axioms Rowl.ShiOntology.facts_proper_correct
+#print axioms Rowl.ShiOntology.members_proper_correct
+#print axioms Rowl.ShiOntology.pair_proper_correct
+#print axioms Rowl.ShiOntology.roles_proper_correct
+#print axioms Rowl.ShiOntology.assertions_from_correct
+#print axioms Rowl.ShiOntology.links_from_correct
+#print axioms Rowl.ShiOntology.link_is_correct
+#print axioms Rowl.ShiOntology.linked_from_correct
+#print axioms Rowl.ShiOntology.denied_from_correct
+#print axioms Rowl.ShiOntology.denote_with_anonymous
+#print axioms Rowl.ShiOntology.translated_meaning
+#print axioms Rowl.ShiOntology.owl_model_relation
+#print axioms Rowl.ShiOntology.owl_model_agrees
+#print axioms Rowl.ShiOntology.answer_supported
+#print axioms Rowl.ShiOntology.closure_satisfiable_sound
+#print axioms Rowl.ShiOntology.closure_satisfiable_complete
+#print axioms Rowl.ShiOntology.consistent_correct
+#print axioms Rowl.ShiOntology.class_satisfiable_correct
+#print axioms Rowl.ShiOntology.subsumed_correct
+#print axioms Rowl.ShiOntology.instance_of_correct
+#print axioms Rowl.ShiOntology.consistent_complete
+#print axioms Rowl.ShiOntology.class_satisfiable_complete
+#print axioms Rowl.ShiOntology.subsumed_sound
+#print axioms Rowl.ShiOntology.instance_of_sound
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -1904,3 +1968,14 @@ import Rowl.Completion
 #print axioms Rowl.Completion.Corresponds
 #print axioms Rowl.Completion.Unfolds
 #print axioms Rowl.Completion.blank
+#print axioms Rowl.ShiParts.SupportedAxiom
+#print axioms Rowl.ShiParts.RoleAxiom
+#print axioms Rowl.ShiParts.Inclusions
+#print axioms Rowl.ShiParts.ClassPart
+#print axioms Rowl.ShiParts.PartsHold
+#print axioms Rowl.ShiRoles.RolesHold
+#print axioms Rowl.ShiOntology.Proper
+#print axioms Rowl.ShiOntology.DefinitionProper
+#print axioms Rowl.ShiOntology.RoleProper
+#print axioms Rowl.ShiOntology.Denies
+#print axioms Rowl.ShiOntology.AnswerData
