@@ -283,11 +283,40 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         source_consistent(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
-    // Individual equalities and enumerations are read but not answered yet.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:a :b)\n ClassAssertion(ObjectOneOf(:a) :b)\n)"
+    // Enumerations are read but not answered yet.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ClassAssertion(ObjectOneOf(:a) :b)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
+    // Individual equalities and inequalities are answered from the bytes.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:pump1 :p1)\n DifferentIndividuals(:p1 :pump2)\n ClassAssertion(:Pump :pump1)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    let p1 = NamedIndividual {
+        iri: Iri {
+            spelling: b"https://example.org/p1".to_vec(),
+        },
+    };
+    let pump = ClassExpression::Class(Class {
+        iri: Iri {
+            spelling: b"https://example.org/Pump".to_vec(),
+        },
+    });
+    assert_eq!(
+        answer(source_instance_of(&bytes, &limits(), &scope, &p1, &pump)),
+        Some(true)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:pump1 :p1)\n DifferentIndividuals(:p1 :pump1)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
     // Object property axioms outside the supported role axioms are read but not answered.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ReflexiveObjectProperty(:p)\n)"
         .as_bytes()

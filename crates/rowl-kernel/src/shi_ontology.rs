@@ -24,16 +24,20 @@
 //! listed, and every transitive property with its inverse, so the hierarchy
 //! stays closed as the tableaux require.
 //!
-//! Every individual of an assertion gets a node after node 0, which stands for
-//! one more element. Class assertions and the query's concepts are facts at
-//! nodes, and object property assertions are links. A question whose concepts
-//! have no number restriction goes to the completion graph tableau; one that
-//! counts goes to the completion forest, which merges individuals when a
-//! maximum restriction requires it. Without role axioms and without counting,
-//! a negative object property assertion contradicts the closure exactly when a
-//! link relates the same individuals along the same property, in either
-//! orientation, because the tableau's models relate named individuals only
-//! along links.
+//! Every individual of an assertion, equality or inequality gets a node after
+//! node 0, which stands for one more element, and the members of a
+//! `SameIndividual` axiom share the node of their representative. Class
+//! assertions and the query's concepts are facts at those nodes, and object
+//! property assertions are links. A question whose concepts have no number
+//! restriction goes to the completion graph tableau; one that counts goes to
+//! the completion forest, which merges individuals when a maximum restriction
+//! requires it. Without role axioms and without counting, a negative object
+//! property assertion contradicts the closure exactly when a link relates the
+//! same nodes along the same property, in either orientation, because the
+//! tableau's models relate named individuals only along links. A
+//! `DifferentIndividuals` axiom contradicts the closure exactly when two of its
+//! members share a node, because the completion graph tableau's models keep
+//! different nodes apart.
 //!
 //! `prepare` reads a closure once: its individuals, class parts, role hierarchy,
 //! facts and links, and the check of its negative assertions. The `prepared_`
@@ -45,7 +49,8 @@
 //! expression is outside ALCIQ, when a concept, definition, role axiom or
 //! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
 //! fixed meaning the tableaux do not model), when negative object property
-//! assertions meet role axioms or a question that counts, when a number
+//! assertions meet role axioms or a question that counts, when individual
+//! inequalities meet a question that counts, when a number
 //! restriction counts along a role that is not simple, or when a list would
 //! exceed the `usize` range.
 #![allow(
@@ -57,7 +62,9 @@
     clippy::needless_return,
     clippy::if_same_then_else
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
-use crate::alc_ontology::{builtin_class, has_negative, individuals_from, position, role_proper};
+use crate::alc_ontology::{
+    builtin_class, has_negative, individuals_from, intern, position, role_proper,
+};
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_role, inverse, same_role, translate, Concept};
 use crate::forest;
@@ -455,6 +462,8 @@ fn axiom_parts(axiom: &Axiom, parts: Parts) -> Option<Parts> {
         Axiom::SubAnnotationPropertyOf(_, _) => Some(parts),
         Axiom::AnnotationPropertyDomain(_, _) => Some(parts),
         Axiom::AnnotationPropertyRange(_, _) => Some(parts),
+        Axiom::SameIndividual(_) => Some(parts),
+        Axiom::DifferentIndividuals(_) => Some(parts),
         Axiom::ClassAssertion(_, _) => Some(parts),
         Axiom::ObjectPropertyAssertion(_, _, _) => Some(parts),
         Axiom::NegativeObjectPropertyAssertion(_, _, _) => Some(parts),
@@ -746,11 +755,234 @@ fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
     }
 }
 
+/// `nodes` with every new member of `rest[index..]`; `None` when there is no
+/// room.
+fn intern_rest(
+    nodes: Vec<Individual>,
+    rest: &Vec<Individual>,
+    index: usize,
+) -> Option<Vec<Individual>> {
+    if index < rest.len() {
+        match intern(nodes, &rest[index]) {
+            Some(nodes) => intern_rest(nodes, rest, index + 1),
+            None => None,
+        }
+    } else {
+        Some(nodes)
+    }
+}
+/// `nodes` with every new member of an equality or inequality.
+fn intern_members(
+    nodes: Vec<Individual>,
+    members: &AtLeastTwo<Individual>,
+) -> Option<Vec<Individual>> {
+    let nodes = match intern(nodes, &members.first) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let nodes = match intern(nodes, &members.second) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    intern_rest(nodes, &members.rest, 0)
+}
+/// `nodes` with every new member of the equalities and inequalities of
+/// `items[index..]`, in order of first occurrence.
+fn members_from(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    nodes: Vec<Individual>,
+) -> Option<Vec<Individual>> {
+    if index < items.len() {
+        let nodes = match &items[index].axiom {
+            Axiom::SameIndividual(members) => intern_members(nodes, members),
+            Axiom::DifferentIndividuals(members) => intern_members(nodes, members),
+            _ => Some(nodes),
+        };
+        match nodes {
+            Some(nodes) => members_from(items, index + 1, nodes),
+            None => None,
+        }
+    } else {
+        Some(nodes)
+    }
+}
+/// `out` with every node from `index` below `count` as its own representative.
+fn identity_from(count: usize, index: usize, mut out: Vec<usize>) -> Vec<usize> {
+    if index < count {
+        out.push(index);
+        identity_from(count, index + 1, out)
+    } else {
+        out
+    }
+}
+/// `same` with every representative `from` in `same[index..]` replaced by
+/// `into`.
+fn relabel(mut same: Vec<usize>, from: usize, into: usize, index: usize) -> Vec<usize> {
+    if index < same.len() {
+        if same[index] == from {
+            same[index] = into;
+        }
+        relabel(same, from, into, index + 1)
+    } else {
+        same
+    }
+}
+/// `same` with the classes of the nodes `left` and `right` joined under the
+/// representative of `left`.
+fn unite(same: Vec<usize>, left: usize, right: usize) -> Vec<usize> {
+    if left < same.len() && right < same.len() {
+        let into = same[left];
+        let from = same[right];
+        if into == from {
+            same
+        } else {
+            relabel(same, from, into, 0)
+        }
+    } else {
+        same
+    }
+}
+/// `same` with every member of `rest[index..]` joined to the node `first`.
+fn unite_rest(
+    same: Vec<usize>,
+    nodes: &Vec<Individual>,
+    first: usize,
+    rest: &Vec<Individual>,
+    index: usize,
+) -> Vec<usize> {
+    if index < rest.len() {
+        let other = position(nodes, &rest[index], 0);
+        let same = unite(same, first, other);
+        unite_rest(same, nodes, first, rest, index + 1)
+    } else {
+        same
+    }
+}
+/// `same` with the members of every equality of `items[index..]` joined.
+fn equalities_from(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    index: usize,
+    same: Vec<usize>,
+) -> Vec<usize> {
+    if index < items.len() {
+        let same = match &items[index].axiom {
+            Axiom::SameIndividual(members) => {
+                let first = position(nodes, &members.first, 0);
+                let second = position(nodes, &members.second, 0);
+                let same = unite(same, first, second);
+                unite_rest(same, nodes, first, &members.rest, 0)
+            }
+            _ => same,
+        };
+        equalities_from(items, nodes, index + 1, same)
+    } else {
+        same
+    }
+}
+/// The representative of `node`, or the node itself outside `same`.
+fn representative(same: &Vec<usize>, node: usize) -> usize {
+    if node < same.len() {
+        same[node]
+    } else {
+        node
+    }
+}
+/// The node of an individual: the representative of its position.
+fn node_of(nodes: &Vec<Individual>, same: &Vec<usize>, individual: &Individual) -> usize {
+    representative(same, position(nodes, individual, 0))
+}
+/// Whether a member of `rest[index..]` has the node `node`.
+fn meets(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    node: usize,
+    rest: &Vec<Individual>,
+    index: usize,
+) -> bool {
+    if index < rest.len() {
+        if node_of(nodes, same, &rest[index]) == node {
+            true
+        } else {
+            meets(nodes, same, node, rest, index + 1)
+        }
+    } else {
+        false
+    }
+}
+/// Whether two members of `rest[index..]` share a node.
+fn repeats(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    rest: &Vec<Individual>,
+    index: usize,
+) -> bool {
+    if index < rest.len() {
+        let node = node_of(nodes, same, &rest[index]);
+        if meets(nodes, same, node, rest, index + 1) {
+            true
+        } else {
+            repeats(nodes, same, rest, index + 1)
+        }
+    } else {
+        false
+    }
+}
+/// Whether two members of an inequality share a node.
+fn shares(nodes: &Vec<Individual>, same: &Vec<usize>, members: &AtLeastTwo<Individual>) -> bool {
+    let first = node_of(nodes, same, &members.first);
+    let second = node_of(nodes, same, &members.second);
+    if first == second {
+        true
+    } else if meets(nodes, same, first, &members.rest, 0) {
+        true
+    } else if meets(nodes, same, second, &members.rest, 0) {
+        true
+    } else {
+        repeats(nodes, same, &members.rest, 0)
+    }
+}
+/// Whether two members of an inequality of `items[index..]` share a node.
+fn clash_from(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    index: usize,
+) -> bool {
+    if index < items.len() {
+        match &items[index].axiom {
+            Axiom::DifferentIndividuals(members) => {
+                if shares(nodes, same, members) {
+                    true
+                } else {
+                    clash_from(items, nodes, same, index + 1)
+                }
+            }
+            _ => clash_from(items, nodes, same, index + 1),
+        }
+    } else {
+        false
+    }
+}
+/// Whether `items[index..]` has an inequality.
+fn has_different(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
+    if index < items.len() {
+        match &items[index].axiom {
+            Axiom::DifferentIndividuals(_) => true,
+            _ => has_different(items, index + 1),
+        }
+    } else {
+        false
+    }
+}
+
 /// `facts` with the class assertions of `items[index..]` at their individuals'
-/// nodes; `None` when a class expression is outside ALCI or there is no room.
+/// nodes; `None` when a class expression is outside ALCIQ or there is no room.
 fn assertions_from(
     items: &Vec<AnnotatedAxiom>,
     nodes: &Vec<Individual>,
+    same: &Vec<usize>,
     index: usize,
     mut facts: Vec<Fact>,
 ) -> Option<Vec<Fact>> {
@@ -760,27 +992,28 @@ fn assertions_from(
                 Some(concept) => {
                     if facts.len() < usize::MAX {
                         facts.push(Fact {
-                            node: position(nodes, member, 0),
+                            node: node_of(nodes, same, member),
                             concept,
                         });
-                        assertions_from(items, nodes, index + 1, facts)
+                        assertions_from(items, nodes, same, index + 1, facts)
                     } else {
                         None
                     }
                 }
                 None => None,
             },
-            _ => assertions_from(items, nodes, index + 1, facts),
+            _ => assertions_from(items, nodes, same, index + 1, facts),
         }
     } else {
         Some(facts)
     }
 }
-/// `links` with a link for every object property assertion of `items[index..]`;
-/// `None` when there is no room.
+/// `links` with a link for every object property assertion of `items[index..]`
+/// between its individuals' nodes; `None` when there is no room.
 fn links_from(
     items: &Vec<AnnotatedAxiom>,
     nodes: &Vec<Individual>,
+    same: &Vec<usize>,
     index: usize,
     mut links: Vec<Link>,
 ) -> Option<Vec<Link>> {
@@ -790,15 +1023,15 @@ fn links_from(
                 if links.len() < usize::MAX {
                     links.push(Link {
                         role: copy_role(role),
-                        from: position(nodes, source, 0),
-                        to: position(nodes, target, 0),
+                        from: node_of(nodes, same, source),
+                        to: node_of(nodes, same, target),
                     });
-                    links_from(items, nodes, index + 1, links)
+                    links_from(items, nodes, same, index + 1, links)
                 } else {
                     None
                 }
             }
-            _ => links_from(items, nodes, index + 1, links),
+            _ => links_from(items, nodes, same, index + 1, links),
         }
     } else {
         Some(links)
@@ -840,10 +1073,11 @@ fn linked_from(
     }
 }
 /// Whether a negative object property assertion in `items[index..]` denies a
-/// link.
+/// link between its individuals' nodes.
 fn denied_from(
     items: &Vec<AnnotatedAxiom>,
     nodes: &Vec<Individual>,
+    same: &Vec<usize>,
     links: &Vec<Link>,
     index: usize,
 ) -> bool {
@@ -856,24 +1090,27 @@ fn denied_from(
                     0,
                     role,
                     &flipped,
-                    position(nodes, source, 0),
-                    position(nodes, target, 0),
+                    node_of(nodes, same, source),
+                    node_of(nodes, same, target),
                 );
-                here || denied_from(items, nodes, links, index + 1)
+                here || denied_from(items, nodes, same, links, index + 1)
             }
-            _ => denied_from(items, nodes, links, index + 1),
+            _ => denied_from(items, nodes, same, links, index + 1),
         }
     } else {
         false
     }
 }
-/// An axiom closure read once for many queries: its individuals, what its class
-/// axioms require, the facts of its class assertions, its role hierarchy, the
-/// links of its object property assertions, whether a negative object
-/// property assertion denies one of them, whether it has a negative object
-/// property assertion at all, and whether its concepts count.
+/// An axiom closure read once for many queries: its individuals, the
+/// representative node of every node, what its class axioms require, the facts
+/// of its class assertions, its role hierarchy, the links of its object
+/// property assertions, whether a negative object property assertion denies
+/// one of them, whether it has a negative object property assertion at all,
+/// whether its concepts count, whether two members of an inequality share a
+/// node, and whether it has an inequality at all.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
+    pub same: Vec<usize>,
     pub parts: Parts,
     pub facts: Vec<Fact>,
     pub roles: RoleHierarchy,
@@ -881,6 +1118,8 @@ pub struct Prepared {
     pub denied: bool,
     pub negative: bool,
     pub counting: bool,
+    pub clash: bool,
+    pub different: bool,
 }
 /// Read an axiom closure for queries; `None` when it is outside the supported
 /// fragment or a list would exceed the `usize` range.
@@ -889,11 +1128,17 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         Some(nodes) => nodes,
         None => return None,
     };
+    let nodes = match members_from(items, 0, nodes) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let start = identity_from(nodes.len() + 1, 0, Vec::new());
+    let same = equalities_from(items, &nodes, 0, start);
     let parts = match class_parts(items) {
         Some(parts) => parts,
         None => return None,
     };
-    let facts = match assertions_from(items, &nodes, 0, Vec::new()) {
+    let facts = match assertions_from(items, &nodes, &same, 0, Vec::new()) {
         Some(facts) => facts,
         None => return None,
     };
@@ -911,15 +1156,18 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
     if has_negative(items, 0) && !(roles.inclusions.len() == 0 && roles.transitive.len() == 0) {
         return None;
     }
-    let links = match links_from(items, &nodes, 0, Vec::new()) {
+    let links = match links_from(items, &nodes, &same, 0, Vec::new()) {
         Some(links) => links,
         None => return None,
     };
-    let denied = denied_from(items, &nodes, &links, 0);
+    let denied = denied_from(items, &nodes, &same, &links, 0);
     let negative = has_negative(items, 0);
     let counting = closure_counts(&parts, &facts);
+    let clash = clash_from(items, &nodes, &same, 0);
+    let different = has_different(items, 0);
     Some(Prepared {
         nodes,
+        same,
         parts,
         facts,
         roles,
@@ -927,6 +1175,8 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         denied,
         negative,
         counting,
+        clash,
+        different,
     })
 }
 /// Whether the prepared closure or the extra facts count.
@@ -935,14 +1185,19 @@ fn question_counts(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
 }
 /// Whether the prepared closure has a model with elements for its individuals
 /// and one more element, in which the `extra` facts hold at their nodes: node 0
-/// is the further element and node `i + 1` the individual `nodes[i]`. A
-/// question that counts goes to the completion forest.
+/// is the further element and node `i + 1` the individual `nodes[i]`, which
+/// sits at the node of its representative. An inequality two of whose members
+/// share a node rules out every model; a question that counts goes to the
+/// completion forest.
 fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
     if !facts_proper(extra, 0) {
         return None;
     }
+    if prepared.clash {
+        return Some(false);
+    }
     if question_counts(prepared, extra) {
-        if prepared.negative {
+        if prepared.negative || prepared.different {
             return None;
         }
         return forest::satisfiable(
@@ -1028,7 +1283,7 @@ pub fn prepared_instance_of(
     });
     let mut extra = Vec::new();
     extra.push(Fact {
-        node: position(&prepared.nodes, &named, 0),
+        node: node_of(&prepared.nodes, &prepared.same, &named),
         concept: outside,
     });
     match prepared_satisfiable(prepared, &extra) {

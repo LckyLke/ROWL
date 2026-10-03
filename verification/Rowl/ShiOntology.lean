@@ -1,16 +1,19 @@
 import Rowl.ShiRoles
 import Rowl.Completion
 import Rowl.ForestModel
+import Rowl.ShiEquality
 
 /-!
 Ontology-level answers for axiom closures with assertions, proved against the
 independent Direct Semantics: consistency, class satisfiability, subsumption and
 instance checking. The class axioms become the TBox concept and the
 definitions (`ShiParts`), the role axioms the role hierarchy (`ShiRoles`), and
-the assertions the facts and links of the named individuals. A question whose
-concepts have no number restriction goes to the completion graph tableau, and
-one that counts to the completion forest, which handles number restrictions on
-simple roles; every answer the kernel gives is exact for the OWL definitions.
+the assertions the facts and links of the named individuals, which equal
+individuals place at one node (`ShiEquality`). A question whose concepts have
+no number restriction goes to the completion graph tableau, whose models keep
+different nodes apart, and one that counts to the completion forest, which
+handles number restrictions on simple roles; every answer the kernel gives is
+exact for the OWL definitions.
 An acceptance comes with an actual OWL model of the closure, built from the
 tableau's model with every individual at its node and the built-in classes,
 properties and the datatype map fixed as OWL requires, and every OWL model, in
@@ -29,7 +32,9 @@ open Rowl.Internalization (Assertion)
 open Rowl.AlcOntology (builtin_class_correct role_proper_correct RoleOf IndividualsOf PositionOf PositionFrom
   positionOf_le positionOf_present positionFrom_absent position_of individuals_from_correct has_negative_correct
   Negative owlModel owl_model_valid embedding Placement placement_zero placement_at assertion_of_individual)
-open Rowl.ShiParts (SupportedAxiom RoleAxiom ClassPart PartsHold class_parts_correct)
+open Rowl.ShiParts (SupportedAxiom RoleAxiom Equality ClassPart PartsHold class_parts_correct)
+open Rowl.ShiEquality (MembersOf Different Equal Representative RepOf Joins Clashes members_from_correct joins_of
+  node_of_correct representative_value repOf_le clash_from_correct has_different_correct)
 open Rowl.ShiRoles (RolesHold role_hierarchy_correct)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
@@ -79,12 +84,13 @@ def RoleProper : Axiom → Prop
   | .TransitiveObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
   | _ => True
 
-/-- A negative object property assertion whose individuals some link relates
-    along its property, in either orientation. -/
-noncomputable def Denies (nodes : List Individual) (links : List completion.Link) : Axiom → Prop
+/-- A negative object property assertion whose individuals' nodes some link
+    relates along its property, in either orientation. -/
+noncomputable def Denies (same : List Usize) (nodes : List Individual) (links : List completion.Link) :
+    Axiom → Prop
   | .NegativeObjectPropertyAssertion p s t => ∃ l ∈ links,
-      (l.from.val = PositionOf nodes s ∧ l.to.val = PositionOf nodes t ∧ l.role = p) ∨
-      (l.from.val = PositionOf nodes t ∧ l.to.val = PositionOf nodes s ∧ l.role = inv p)
+      (l.from.val = RepOf same nodes s ∧ l.to.val = RepOf same nodes t ∧ l.role = p) ∨
+      (l.from.val = RepOf same nodes t ∧ l.to.val = RepOf same nodes s ∧ l.role = inv p)
   | _ => False
 
 private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
@@ -470,14 +476,15 @@ decreasing_by all_goals omega
     translation of a class assertion at its individual's node, and every class
     assertion has its fact. -/
 theorem assertions_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (index : Usize) (facts : alloc.vec.Vec completion.Fact) :
-    ∃ result, shi_ontology.assertions_from items nodes index facts = .ok result ∧ ∀ final, result = some final →
+    (same : alloc.vec.Vec Usize) (index : Usize) (facts : alloc.vec.Vec completion.Fact) :
+    ∃ result, shi_ontology.assertions_from items nodes same index facts = .ok result ∧ ∀ final, result = some final →
       (∀ q ∈ final.val, q ∈ facts.val ∨ ∃ item ∈ items.val.drop index.val, ∃ C m,
-        item.axiom = .ClassAssertion C m ∧ q.node.val = PositionOf nodes.val m ∧
+        item.axiom = .ClassAssertion C m ∧ q.node.val = RepOf same.val nodes.val m ∧
         concepts.translate C true = .ok (some q.concept)) ∧
       (∀ q ∈ facts.val, q ∈ final.val) ∧
       (∀ item ∈ items.val.drop index.val, ∀ C m, item.axiom = .ClassAssertion C m →
-        ∃ q ∈ final.val, q.node.val = PositionOf nodes.val m ∧ concepts.translate C true = .ok (some q.concept)) := by
+        ∃ q ∈ final.val, q.node.val = RepOf same.val nodes.val m ∧
+          concepts.translate C true = .ok (some q.concept)) := by
   rw [shi_ontology.assertions_from]
   by_cases more : index.val < items.val.length
   · have lookup : items.index_usize index = .ok items.val[index.val] := by
@@ -493,11 +500,11 @@ theorem assertions_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : 
       cases translated with
       | none => exact ⟨none,by simp [more,lookup,item,translatedRead],by intro final impossible; cases impossible⟩
       | some concept =>
-        obtain ⟨node,nodeRun,nodeValue⟩ := position_of nodes m
+        obtain ⟨node,nodeRun,nodeValue⟩ := node_of_correct nodes same m
         by_cases fits : facts.val.length < Usize.max
         · obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
             (alloc.vec.Vec.push_spec facts ⟨node,concept⟩ fits)
-          obtain ⟨result,run,spec⟩ := assertions_from_correct items nodes next appended
+          obtain ⟨result,run,spec⟩ := assertions_from_correct items nodes same next appended
           refine ⟨result,by simp [more,lookup,item,translatedRead,usize_max_val,fits,nodeRun,push,advance,run],?_⟩
           intro final same
           obtain ⟨origin,kept,covered⟩ := spec final same
@@ -526,7 +533,7 @@ theorem assertions_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : 
         · exact ⟨none,by simp [more,lookup,item,translatedRead,usize_max_val,fits],
             by intro final impossible; cases impossible⟩
     | _ =>
-      obtain ⟨result,run,spec⟩ := assertions_from_correct items nodes next facts
+      obtain ⟨result,run,spec⟩ := assertions_from_correct items nodes same next facts
       refine ⟨result,by simp [more,lookup,item,advance,run],?_⟩
       intro final same
       obtain ⟨origin,kept,covered⟩ := spec final same
@@ -555,14 +562,15 @@ decreasing_by all_goals omega
     object property assertion between its individuals' nodes, and every object
     property assertion has its link. -/
 theorem links_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (index : Usize) (links : alloc.vec.Vec completion.Link) :
-    ∃ result, shi_ontology.links_from items nodes index links = .ok result ∧ ∀ final, result = some final →
+    (same : alloc.vec.Vec Usize) (index : Usize) (links : alloc.vec.Vec completion.Link) :
+    ∃ result, shi_ontology.links_from items nodes same index links = .ok result ∧ ∀ final, result = some final →
       (∀ l ∈ final.val, l ∈ links.val ∨ ∃ item ∈ items.val.drop index.val, ∃ p s t,
-        item.axiom = .ObjectPropertyAssertion p s t ∧ l.role = p ∧ l.from.val = PositionOf nodes.val s ∧
-        l.to.val = PositionOf nodes.val t) ∧
+        item.axiom = .ObjectPropertyAssertion p s t ∧ l.role = p ∧ l.from.val = RepOf same.val nodes.val s ∧
+        l.to.val = RepOf same.val nodes.val t) ∧
       (∀ l ∈ links.val, l ∈ final.val) ∧
       (∀ item ∈ items.val.drop index.val, ∀ p s t, item.axiom = .ObjectPropertyAssertion p s t →
-        ∃ l ∈ final.val, l.role = p ∧ l.from.val = PositionOf nodes.val s ∧ l.to.val = PositionOf nodes.val t) := by
+        ∃ l ∈ final.val, l.role = p ∧ l.from.val = RepOf same.val nodes.val s ∧
+          l.to.val = RepOf same.val nodes.val t) := by
   rw [shi_ontology.links_from]
   by_cases more : index.val < items.val.length
   · have lookup : items.index_usize index = .ok items.val[index.val] := by
@@ -574,12 +582,12 @@ theorem links_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc
     have nextIndex : next.val = index.val+1 := by simpa using nextValue
     cases item : items.val[index.val].axiom with
     | ObjectPropertyAssertion p a b =>
-      obtain ⟨pa,paRun,paValue⟩ := position_of nodes a
-      obtain ⟨pb,pbRun,pbValue⟩ := position_of nodes b
+      obtain ⟨pa,paRun,paValue⟩ := node_of_correct nodes same a
+      obtain ⟨pb,pbRun,pbValue⟩ := node_of_correct nodes same b
       by_cases fits : links.val.length < Usize.max
       · obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
           (alloc.vec.Vec.push_spec links ⟨p,pa,pb⟩ fits)
-        obtain ⟨result,run,spec⟩ := links_from_correct items nodes next appended
+        obtain ⟨result,run,spec⟩ := links_from_correct items nodes same next appended
         refine ⟨result,by simp [more,lookup,item,usize_max_val,fits,copy_role_identity,paRun,pbRun,push,advance,run],?_⟩
         intro final same
         obtain ⟨origin,kept,covered⟩ := spec final same
@@ -607,7 +615,7 @@ theorem links_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc
             exact covered other later q s t otherItem
       · exact ⟨none,by simp [more,lookup,item,usize_max_val,fits],by intro final impossible; cases impossible⟩
     | _ =>
-      obtain ⟨result,run,spec⟩ := links_from_correct items nodes next links
+      obtain ⟨result,run,spec⟩ := links_from_correct items nodes same next links
       refine ⟨result,by simp [more,lookup,item,advance,run],?_⟩
       intro final same
       obtain ⟨origin,kept,covered⟩ := spec final same
@@ -699,9 +707,9 @@ decreasing_by omega
 /-- The denial check is exact: some negative object property assertion denies a
     link. -/
 theorem denied_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc.vec.Vec Individual)
-    (links : alloc.vec.Vec completion.Link) (index : Usize) :
-    shi_ontology.denied_from items nodes links index =
-      .ok (decide (∃ item ∈ items.val.drop index.val, Denies nodes.val links.val item.axiom)) := by
+    (same : alloc.vec.Vec Usize) (links : alloc.vec.Vec completion.Link) (index : Usize) :
+    shi_ontology.denied_from items nodes same links index =
+      .ok (decide (∃ item ∈ items.val.drop index.val, Denies same.val nodes.val links.val item.axiom)) := by
   rw [shi_ontology.denied_from]
   by_cases more : index.val < items.val.length
   · have lookup : items.index_usize index = .ok items.val[index.val] := by
@@ -711,18 +719,18 @@ theorem denied_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : allo
     obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val+1 := by simpa using nextValue
-    have rest := denied_from_correct items nodes links next
+    have rest := denied_from_correct items nodes same links next
     rw [nextIndex] at rest
     rw [split]
     simp only [List.mem_cons,exists_eq_or_imp]
     cases item : items.val[index.val].axiom with
     | NegativeObjectPropertyAssertion p a b =>
-      obtain ⟨pa,paRun,paValue⟩ := position_of nodes a
-      obtain ⟨pb,pbRun,pbValue⟩ := position_of nodes b
+      obtain ⟨pa,paRun,paValue⟩ := node_of_correct nodes same a
+      obtain ⟨pb,pbRun,pbValue⟩ := node_of_correct nodes same b
       have zero : (0#usize).val = 0 := rfl
       have found := linked_from_correct links 0#usize p (inv p) pa pb
       rw [zero,List.drop_zero] at found
-      by_cases here : Denies nodes.val links.val (.NegativeObjectPropertyAssertion p a b)
+      by_cases here : Denies same.val nodes.val links.val (.NegativeObjectPropertyAssertion p a b)
       · have linked : ∃ l ∈ links.val, (l.from.val = pa.val ∧ l.to.val = pb.val ∧ l.role = p) ∨
             (l.from.val = pb.val ∧ l.to.val = pa.val ∧ l.role = inv p) := by
           simpa [Denies,paValue,pbValue] using here
@@ -891,24 +899,36 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
       ((relation p proper.1 proper.2 x y).mp first) ((relation p proper.1 proper.2 y z).mp second))
   | _ => simp [RoleAxiom] at role
 
-/-- What `prepare` computes from a closure: its individuals, class parts, facts
-    of its class assertions, role hierarchy and links, every name ordinary,
-    negative assertions only without role axioms, whether a negative assertion
-    denies a link, whether there is a negative assertion, and whether its
-    concepts count. -/
-def PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared) : Prop :=
-  alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new Individual) = .ok (some p.nodes) ∧
-  shi_ontology.class_parts items = .ok (some p.parts) ∧
-  shi_ontology.assertions_from items p.nodes 0#usize (alloc.vec.Vec.new completion.Fact) = .ok (some p.facts) ∧
-  shi_ontology.role_hierarchy items = .ok (some p.roles) ∧
-  shi_ontology.links_from items p.nodes 0#usize (alloc.vec.Vec.new completion.Link) = .ok (some p.links) ∧
-  Proper p.parts.axioms ∧ (∀ d ∈ p.parts.definitions.val, DefinitionProper d) ∧
-  (∀ q ∈ p.facts.val, Proper q.concept) ∧ (∀ item ∈ items.val, RoleProper item.axiom) ∧
-  ((∃ item ∈ items.val, Negative item.axiom) → p.roles.inclusions.val = [] ∧ p.roles.transitive.val = []) ∧
-  (p.denied = true ↔ ∃ item ∈ items.val, Denies p.nodes.val p.links.val item.axiom) ∧
-  (p.negative = true ↔ ∃ item ∈ items.val, Negative item.axiom) ∧
-  (p.counting = true ↔ Counts p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, Counts d.concept) ∨
-    ∃ q ∈ p.facts.val, Counts q.concept)
+/-- What `prepare` computes from a closure: its individuals with room for one
+    more node, the representatives of its equalities, its class parts, the facts
+    of its class assertions, its role hierarchy and links at the representatives'
+    nodes, every name ordinary, negative assertions only without role axioms,
+    whether a negative assertion denies a link, whether there is a negative
+    assertion, whether its concepts count, whether an inequality has two members
+    at one node, and whether there is an inequality. -/
+structure PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared) : Prop where
+  individuals : ∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ p.nodes.val
+  members : ∀ item ∈ items.val, ∀ a ∈ MembersOf item.axiom, a ∈ p.nodes.val
+  room : p.nodes.val.length ≤ Usize.max-1
+  joins : Joins items.val p.nodes.val p.same.val
+  parts : shi_ontology.class_parts items = .ok (some p.parts)
+  facts : shi_ontology.assertions_from items p.nodes p.same 0#usize (alloc.vec.Vec.new completion.Fact) =
+    .ok (some p.facts)
+  roles : shi_ontology.role_hierarchy items = .ok (some p.roles)
+  links : shi_ontology.links_from items p.nodes p.same 0#usize (alloc.vec.Vec.new completion.Link) =
+    .ok (some p.links)
+  axiomsProper : Proper p.parts.axioms
+  definitionsProper : ∀ d ∈ p.parts.definitions.val, DefinitionProper d
+  factsProper : ∀ q ∈ p.facts.val, Proper q.concept
+  rolesProper : ∀ item ∈ items.val, RoleProper item.axiom
+  negativeAlone : (∃ item ∈ items.val, Negative item.axiom) →
+    p.roles.inclusions.val = [] ∧ p.roles.transitive.val = []
+  denied : p.denied = true ↔ ∃ item ∈ items.val, Denies p.same.val p.nodes.val p.links.val item.axiom
+  negative : p.negative = true ↔ ∃ item ∈ items.val, Negative item.axiom
+  counting : p.counting = true ↔ Counts p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, Counts d.concept) ∨
+    ∃ q ∈ p.facts.val, Counts q.concept
+  clash : p.clash = true ↔ ∃ item ∈ items.val, Clashes p.same.val p.nodes.val item.axiom
+  different : p.different = true ↔ ∃ item ∈ items.val, Different item.axiom
 
 /-- The check for negative assertions next to role axioms lets the preparation
     continue whenever it passes. -/
@@ -925,29 +945,42 @@ private theorem gate {α : Type} (b : Bool) (A B : Prop) [Decidable A] [Decidabl
 theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ r, shi_ontology.prepare items = .ok r ∧ ∀ p, r = some p → PreparedData items p := by
   have zero : (0#usize).val = 0 := rfl
-  obtain ⟨nodesResult,nodesRun,_⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual) (by simp)
+  obtain ⟨nodesResult,nodesRun,nodesSpec⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual)
+    (by simp)
   rw [shi_ontology.prepare]
   cases nodesResult with
   | none => exact ⟨none,by simp [nodesRun],by simp⟩
+  | some nodes0 =>
+  obtain ⟨_,individualsIn,room0⟩ := nodesSpec nodes0 rfl
+  obtain ⟨membersResult,membersRun,membersSpec⟩ := members_from_correct items 0#usize nodes0 room0
+  cases membersResult with
+  | none => exact ⟨none,by simp [nodesRun,membersRun],by simp⟩
   | some nodes =>
+  obtain ⟨kept,membersIn,room⟩ := membersSpec nodes rfl
+  rw [zero,List.drop_zero] at individualsIn membersIn
+  obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
+    (Usize.add_spec (x := nodes.len) (y := 1#usize) (by scalar_tac))
+  have countIs : count.val = nodes.val.length + 1 := by simpa using countValue
+  obtain ⟨start,same,startRun,sameRun,joins⟩ := joins_of items nodes count countIs
   obtain ⟨partsResult,partsRun,_,_,_⟩ := class_parts_correct.{0,0} items
   cases partsResult with
-  | none => exact ⟨none,by simp [nodesRun,partsRun],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,membersRun,countRun,startRun,sameRun,partsRun],by simp⟩
   | some parts =>
-  obtain ⟨assertResult,assertRun,_⟩ := assertions_from_correct items nodes 0#usize (alloc.vec.Vec.new _)
+  obtain ⟨assertResult,assertRun,_⟩ := assertions_from_correct items nodes same 0#usize (alloc.vec.Vec.new _)
   cases assertResult with
-  | none => exact ⟨none,by simp [nodesRun,partsRun,assertRun],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,membersRun,countRun,startRun,sameRun,partsRun,assertRun],by simp⟩
   | some facts =>
   obtain ⟨roleResult,roleRun,_⟩ := role_hierarchy_correct.{0,0} items
   cases roleResult with
-  | none => exact ⟨none,by simp [nodesRun,partsRun,assertRun,roleRun],by simp⟩
+  | none =>
+    exact ⟨none,by simp [nodesRun,membersRun,countRun,startRun,sameRun,partsRun,assertRun,roleRun],by simp⟩
   | some h =>
   have p2 := definitions_proper_correct parts.definitions 0#usize
   have p3 := facts_proper_correct facts 0#usize
   have p4 := roles_proper_correct items 0#usize
   have p5 := has_negative_correct items 0#usize
   rw [zero,List.drop_zero] at p2 p3 p4 p5
-  simp only [nodesRun,partsRun,assertRun,roleRun,bind_ok]
+  simp only [nodesRun,membersRun,countRun,startRun,sameRun,partsRun,assertRun,roleRun,bind_ok]
   by_cases c1 : Proper parts.axioms
   swap
   · exact ⟨none,by simp [proper_correct,c1],by simp⟩
@@ -999,26 +1032,34 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     intro negative
     obtain ⟨noInclusions,noTransitive⟩ := c5 (by simpa using negative)
     exact ⟨UScalar.eq_of_val_eq (by simp [noInclusions]),UScalar.eq_of_val_eq (by simp [noTransitive])⟩)]
-  obtain ⟨linksResult,linksRun,_⟩ := links_from_correct items nodes 0#usize (alloc.vec.Vec.new completion.Link)
+  obtain ⟨linksResult,linksRun,_⟩ := links_from_correct items nodes same 0#usize (alloc.vec.Vec.new completion.Link)
   cases linksResult with
   | none => exact ⟨none,by simp [linksRun],by simp⟩
   | some links =>
-    have denial := denied_from_correct items nodes links 0#usize
-    rw [zero,List.drop_zero] at denial
-    refine ⟨some ⟨nodes,parts,facts,h,links,decide (∃ item ∈ items.val, Denies nodes.val links.val item.axiom),
+    have denial := denied_from_correct items nodes same links 0#usize
+    have clashing := clash_from_correct items nodes same 0#usize
+    have differing := has_different_correct items 0#usize
+    rw [zero,List.drop_zero] at denial clashing differing
+    refine ⟨some ⟨nodes,same,parts,facts,h,links,
+      decide (∃ item ∈ items.val, Denies same.val nodes.val links.val item.axiom),
       decide (∃ item ∈ items.val, Negative item.axiom),decide (Counts parts.axioms ∨
-        (∃ d ∈ parts.definitions.val, Counts d.concept) ∨ ∃ q ∈ facts.val, Counts q.concept)⟩,
-      by simp [linksRun,denial,p5,closure_counts_correct],?_⟩
-    intro p same
-    cases same
-    exact ⟨nodesRun,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,by simp,by simp,by simp⟩
+        (∃ d ∈ parts.definitions.val, Counts d.concept) ∨ ∃ q ∈ facts.val, Counts q.concept),
+      decide (∃ item ∈ items.val, Clashes same.val nodes.val item.axiom),
+      decide (∃ item ∈ items.val, Different item.axiom)⟩,
+      by simp [linksRun,denial,p5,closure_counts_correct,clashing,differing],?_⟩
+    intro p same'
+    cases same'
+    exact { individuals := fun item member a mentioned => kept a (individualsIn item member a mentioned),
+            members := membersIn, room := room, joins := joins, parts := partsRun, facts := assertRun,
+            roles := roleRun, links := linksRun, axiomsProper := c1, definitionsProper := c2,
+            factsProper := c3, rolesProper := c4, negativeAlone := c5, denied := by simp,
+            negative := by simp, counting := by simp, clash := by simp, different := by simp }
 
 /-- A prepared closure has supported axioms only. -/
 theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
     (data : PreparedData items p) : ∀ a ∈ items.val, SupportedAxiom a.axiom := by
-  obtain ⟨_,partsRun,_⟩ := data
   obtain ⟨result,run,support,_,_⟩ := class_parts_correct.{0,0} items
-  rw [partsRun] at run
+  rw [data.parts] at run
   cases Result.ok_injective run
   exact support rfl
 
@@ -1026,60 +1067,72 @@ theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontol
     mentions, with room for one more node. -/
 private theorem prepared_nodes {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
     (data : PreparedData items p) :
-    (∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ p.nodes.val) ∧ p.nodes.val.length ≤ Usize.max-1 := by
-  obtain ⟨nodesRun,_⟩ := data
-  obtain ⟨result,run,spec⟩ := individuals_from_correct items 0#usize (alloc.vec.Vec.new Individual) (by simp)
-  rw [nodesRun] at run
-  cases Result.ok_injective run
-  obtain ⟨_,mentioned,room⟩ := spec p.nodes rfl
-  exact ⟨by simpa using mentioned,room⟩
+    (∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom, a ∈ p.nodes.val) ∧ p.nodes.val.length ≤ Usize.max-1 :=
+  ⟨data.individuals,data.room⟩
 
 /-- The facts' nodes and the links' nodes of a prepared closure are its nodes. -/
 private theorem prepared_in {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
     (data : PreparedData items p) :
     (∀ q ∈ p.facts.val, q.node.val ≤ p.nodes.val.length) ∧
     (∀ l ∈ p.links.val, l.from.val ≤ p.nodes.val.length ∧ l.to.val ≤ p.nodes.val.length) := by
-  obtain ⟨_,_,assertRun,_,linksRun,_⟩ := data
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [assertRun] at assertRun'
+  obtain ⟨assertResult,assertRun',assertSpec⟩ :=
+    assertions_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.facts] at assertRun'
   cases Result.ok_injective assertRun'
   obtain ⟨origin,_,_⟩ := assertSpec p.facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [linksRun] at linksRun'
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.links] at linksRun'
   cases Result.ok_injective linksRun'
   obtain ⟨linkOrigin,_,_⟩ := linksSpec p.links rfl
   refine ⟨?_,?_⟩
   · intro q member
     rcases origin q member with given | ⟨_,_,_,m,_,node,_⟩
     · simp at given
-    · rw [node]; exact positionOf_le p.nodes.val m
+    · rw [node]; exact repOf_le data.joins m
   · intro l member
     rcases linkOrigin l member with given | ⟨_,_,_,s,t,_,_,source,target⟩
     · simp at given
     · rw [source,target]
-      exact ⟨positionOf_le p.nodes.val s,positionOf_le p.nodes.val t⟩
+      exact ⟨repOf_le data.joins s,repOf_le data.joins t⟩
+
+/-- Under a placement of the individuals of an OWL model of the closure, every
+    node and its representative are one element. -/
+theorem placement_representative {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (satisfied : Rowl.Owl.satisfiesClosure I items.val) (f : Nat → Object)
+    (placedAt : ∀ a ∈ p.nodes.val, f (PositionOf p.nodes.val a) = Rowl.Owl.individual I a) (n : Nat) :
+    f (Representative p.same.val n) = f n := by
+  apply representative_value data.joins f
+  rintro i j ⟨item,itemIn,xs,statement,a,aIn,b,bIn,rfl,rfl⟩
+  have holds := satisfied item itemIn
+  rw [statement] at holds
+  simp only [Rowl.Owl.satisfies,Rowl.Owl.allEqual] at holds
+  rw [placedAt a (data.members item itemIn a (by simpa [statement,MembersOf] using aIn)),
+    placedAt b (data.members item itemIn b (by simpa [statement,MembersOf] using bIn))]
+  exact holds a aIn b bIn
 
 /-- The check of a prepared closure with extra facts terminates; an answer is
-    `false` for a denied link, the completion graph's answer, or, for a question
-    that counts and a closure without negative assertions, the completion
-    forest's answer, on the extra facts, the facts, the links, the TBox concept,
-    the definitions and the roles. -/
+    `false` for an inequality with two members at one node or for a denied link,
+    the completion graph's answer, or, for a question that counts and a closure
+    without negative assertions and inequalities, the completion forest's
+    answer, on the extra facts, the facts, the links, the TBox concept, the
+    definitions and the roles. -/
 private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
     (data : PreparedData items p) (extra : alloc.vec.Vec completion.Fact)
     (extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length) :
     ∃ r, shi_ontology.prepared_satisfiable p extra = .ok r ∧ ∀ b, r = some b →
       (∀ q ∈ extra.val, Proper q.concept) ∧ ∃ count : Usize, count.val = p.nodes.val.length + 1 ∧
-        ((p.denied = true ∧ b = false) ∨ (p.denied = false ∧
-          completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
-            .ok (some b)) ∨ (p.negative = false ∧
+        ((p.clash = true ∧ b = false) ∨ (p.clash = false ∧ p.denied = true ∧ b = false) ∨
+          (p.clash = false ∧ p.denied = false ∧
+            completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
+              .ok (some b)) ∨ (p.clash = false ∧ p.negative = false ∧ p.different = false ∧
           forest.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
             .ok (some b))) := by
   have zero : (0#usize).val = 0 := rfl
-  obtain ⟨_,room⟩ := prepared_nodes data
+  have room := data.room
   obtain ⟨factsIn,linksIn⟩ := prepared_in data
-  obtain ⟨_,_,_,roleRun,_⟩ := data
   obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{0,0} items
-  rw [roleRun] at roleRun'
+  rw [data.roles] at roleRun'
   cases Result.ok_injective roleRun'
   obtain ⟨closed,_⟩ := roleSpec p.roles rfl
   have properCheck := facts_proper_correct extra 0#usize
@@ -1093,6 +1146,13 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
   obtain ⟨count,countRun,countValue⟩ := WP.spec_imp_exists
     (Usize.add_spec (x := p.nodes.len) (y := 1#usize) (by have := room; scalar_tac))
   have countIs : count.val = p.nodes.val.length + 1 := by simpa using countValue
+  cases clashIs : p.clash with
+  | true =>
+    refine ⟨some false,by simp [properCheck,clashIs],?_⟩
+    intro b same
+    cases same
+    exact ⟨proper,count,countIs,.inl ⟨rfl,rfl⟩⟩
+  | false =>
   have factsIn' : ∀ q ∈ extra.val ++ p.facts.val, q.node.val < count.val := by
     intro q member
     rcases List.mem_append.mp member with given | old
@@ -1106,25 +1166,31 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
   · cases negativeIs : p.negative with
     | true =>
       refine ⟨none,?_,by simp⟩
-      simp [properCheck,question_counts_correct,counting,negativeIs]
+      simp [properCheck,clashIs,question_counts_correct,counting,negativeIs]
     | false =>
-      obtain ⟨answer,answerRun,_,_⟩ := Rowl.ForestModel.satisfiable_correct.{0,0} count extra p.facts p.links
-        p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
-      refine ⟨answer,by simp [properCheck,question_counts_correct,counting,negativeIs,countRun,answerRun],?_⟩
-      intro b same
-      exact ⟨proper,count,countIs,.inr (.inr ⟨rfl,by rw [answerRun,same]⟩)⟩
+      cases differentIs : p.different with
+      | true =>
+        refine ⟨none,?_,by simp⟩
+        simp [properCheck,clashIs,question_counts_correct,counting,negativeIs,differentIs]
+      | false =>
+        obtain ⟨answer,answerRun,_,_⟩ := Rowl.ForestModel.satisfiable_correct.{0,0} count extra p.facts p.links
+          p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
+        refine ⟨answer,by simp [properCheck,clashIs,question_counts_correct,counting,negativeIs,differentIs,countRun,
+          answerRun],?_⟩
+        intro b same
+        exact ⟨proper,count,countIs,.inr (.inr (.inr ⟨rfl,rfl,rfl,by rw [answerRun,same]⟩))⟩
   · cases deniedIs : p.denied with
     | true =>
-      refine ⟨some false,by simp [properCheck,question_counts_correct,counting,deniedIs],?_⟩
+      refine ⟨some false,by simp [properCheck,clashIs,question_counts_correct,counting,deniedIs],?_⟩
       intro b same
       cases same
-      exact ⟨proper,count,countIs,.inl ⟨rfl,rfl⟩⟩
+      exact ⟨proper,count,countIs,.inr (.inl ⟨rfl,rfl,rfl⟩)⟩
     | false =>
       obtain ⟨answer,answerRun,_,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
         p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
-      refine ⟨answer,by simp [properCheck,question_counts_correct,counting,deniedIs,countRun,answerRun],?_⟩
+      refine ⟨answer,by simp [properCheck,clashIs,question_counts_correct,counting,deniedIs,countRun,answerRun],?_⟩
       intro b same
-      exact ⟨proper,count,countIs,.inr (.inl ⟨rfl,by rw [answerRun,same]⟩)⟩
+      exact ⟨proper,count,countIs,.inr (.inr (.inl ⟨rfl,rfl,by rw [answerRun,same]⟩))⟩
 
 /-- An accepting check of a prepared closure yields an OWL model of the closure
     in which every individual sits at the element of its node and every extra
@@ -1135,24 +1201,25 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     (accepted : shi_ontology.prepared_satisfiable p extra = .ok (some true))
     {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
     ∃ (Object : Type u) (I : Interpretation Object (ULift.{v} (Option Native))) (f : Nat → Object),
-      Model D (embedding.{v,w} D) V I items.val ∧ (∀ a, Rowl.Owl.individual I a = f (PositionOf p.nodes.val a)) ∧
+      Model D (embedding.{v,w} D) V I items.val ∧
+      (∀ a, Rowl.Owl.individual I a = f (RepOf p.same.val p.nodes.val a)) ∧
       ∀ q ∈ extra.val, denote I q.concept (f q.node.val) := by
   obtain ⟨result,run,spec⟩ := prepared_correct items p data extra extraIn
   rw [accepted] at run
   cases Result.ok_injective run
   obtain ⟨properExtra,count,countIs,outcome⟩ := spec true rfl
   obtain ⟨factsIn,linksIn⟩ := prepared_in data
-  obtain ⟨_,partsRun,assertRun,roleRun,linksRun,c1,c2,c3,c4,c5,deniedIff,negativeIff,_⟩ := data
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [assertRun] at assertRun'
+  obtain ⟨assertResult,assertRun',assertSpec⟩ :=
+    assertions_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.facts] at assertRun'
   cases Result.ok_injective assertRun'
   obtain ⟨_,_,covered⟩ := assertSpec p.facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [linksRun] at linksRun'
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.links] at linksRun'
   cases Result.ok_injective linksRun'
   obtain ⟨_,_,linkCovered⟩ := linksSpec p.links rfl
   obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{0,0} items
-  rw [roleRun] at roleRun'
+  rw [data.roles] at roleRun'
   cases Result.ok_injective roleRun'
   obtain ⟨closed,respectsIff⟩ := roleSpec p.roles rfl
   have factsIn' : ∀ q ∈ extra.val ++ p.facts.val, q.node.val < count.val := by
@@ -1164,65 +1231,84 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     intro l member
     have := linksIn l member
     omega
+  have repIn : ∀ a, RepOf p.same.val p.nodes.val a < count.val := fun a => by
+    have := repOf_le data.joins a
+    omega
   -- A model in `Type` from the tableau that answered, where no negative
-  -- assertion relates its individuals.
-  obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,negatives⟩ : ∃ (Obj : Type) (J : Interpretation Obj Unit)
-      (π : Nat → Obj), Respects J p.roles ∧ (∀ y, denote J p.parts.axioms y) ∧
+  -- assertion relates its individuals and the members of every inequality are
+  -- apart.
+  obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,negatives,apart⟩ : ∃ (Obj : Type)
+      (J : Interpretation Obj Unit) (π : Nat → Obj), Respects J p.roles ∧ (∀ y, denote J p.parts.axioms y) ∧
       (∀ d ∈ p.parts.definitions.val, ∀ y, J.classes d.class y → denote J d.concept y) ∧
       (∀ f ∈ extra.val ++ p.facts.val, denote J f.concept (π f.node.val)) ∧
       (∀ l ∈ p.links.val, objectRelation J l.role (π l.from.val) (π l.to.val)) ∧
       (∀ item ∈ items.val, ∀ r a b, item.axiom = .NegativeObjectPropertyAssertion r a b →
-        ¬ objectRelation J r (π (PositionOf p.nodes.val a)) (π (PositionOf p.nodes.val b))) := by
-    rcases outcome with ⟨_,impossible⟩ | ⟨notDenied,tableauRun⟩ | ⟨noNegative,forestRun⟩
+        ¬ objectRelation J r (π (RepOf p.same.val p.nodes.val a)) (π (RepOf p.same.val p.nodes.val b))) ∧
+      (∀ item ∈ items.val, ∀ xs, item.axiom = .DifferentIndividuals xs →
+        xs.elements.Pairwise (fun a b => π (RepOf p.same.val p.nodes.val a) ≠ π (RepOf p.same.val p.nodes.val b))) := by
+    rcases outcome with ⟨_,impossible⟩ | ⟨_,_,impossible⟩ | ⟨notClash,notDenied,tableauRun⟩ |
+      ⟨_,noNegative,noDifferent,forestRun⟩
+    · cases impossible
     · cases impossible
     · obtain ⟨tableau,tableauRun',sound,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
         p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
       rw [tableauRun] at tableauRun'
       cases Result.ok_injective tableauRun'
-      obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,exactLinks⟩ := sound rfl
-      refine ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,?_⟩
-      intro item member r a b statement related
-      obtain ⟨noInclusions,noTransitive⟩ := c5 ⟨item,member,by rw [statement]; trivial⟩
-      obtain ⟨l,lIn,found⟩ := exactLinks noInclusions noTransitive r (PositionOf p.nodes.val a)
-        (PositionOf p.nodes.val b) (by rw [countIs]; have := positionOf_le p.nodes.val a; omega)
-        (by rw [countIs]; have := positionOf_le p.nodes.val b; omega) related
-      have denies : ∃ item ∈ items.val, Denies p.nodes.val p.links.val item.axiom := by
-        refine ⟨item,member,?_⟩
-        rw [statement]
-        simp only [Denies]
-        rcases found with ⟨fromIs,toIs,roleIs⟩ | ⟨toIs,fromIs,roleIs⟩
-        · exact ⟨l,lIn,.inl ⟨fromIs,toIs,roleIs⟩⟩
-        · refine ⟨l,lIn,.inr ⟨fromIs,toIs,?_⟩⟩
-          rw [← roleIs,Rowl.Concepts.inv_inv]
-      rw [deniedIff.mpr denies] at notDenied
-      cases notDenied
+      obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,exactLinks,injective⟩ := sound rfl
+      refine ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,?_,?_⟩
+      · intro item member r a b statement related
+        obtain ⟨noInclusions,noTransitive⟩ := data.negativeAlone ⟨item,member,by rw [statement]; trivial⟩
+        obtain ⟨l,lIn,found⟩ := exactLinks noInclusions noTransitive r (RepOf p.same.val p.nodes.val a)
+          (RepOf p.same.val p.nodes.val b) (repIn a) (repIn b) related
+        have denies : ∃ item ∈ items.val, Denies p.same.val p.nodes.val p.links.val item.axiom := by
+          refine ⟨item,member,?_⟩
+          rw [statement]
+          simp only [Denies]
+          rcases found with ⟨fromIs,toIs,roleIs⟩ | ⟨toIs,fromIs,roleIs⟩
+          · exact ⟨l,lIn,.inl ⟨fromIs,toIs,roleIs⟩⟩
+          · refine ⟨l,lIn,.inr ⟨fromIs,toIs,?_⟩⟩
+            rw [← roleIs,Rowl.Concepts.inv_inv]
+        rw [data.denied.mpr denies] at notDenied
+        cases notDenied
+      · intro item member xs statement
+        have whole : xs.elements.Pairwise
+            (fun a b => RepOf p.same.val p.nodes.val a ≠ RepOf p.same.val p.nodes.val b) := by
+          by_contra broken
+          have clashes : ∃ item ∈ items.val, Clashes p.same.val p.nodes.val item.axiom :=
+            ⟨item,member,by rw [statement]; exact broken⟩
+          rw [data.clash.mpr clashes] at notClash
+          cases notClash
+        exact whole.imp (fun {a b} different equal => different (injective _ _ (repIn a) (repIn b) equal))
     · obtain ⟨forestResult,forestRun',sound,_⟩ := Rowl.ForestModel.satisfiable_correct.{0,0} count extra p.facts
         p.links p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
       rw [forestRun] at forestRun'
       cases Result.ok_injective forestRun'
       obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold⟩ := sound rfl
-      refine ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,?_⟩
-      intro item member r a b statement _
-      rw [negativeIff.mpr ⟨item,member,by rw [statement]; trivial⟩] at noNegative
-      cases noNegative
+      refine ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,?_,?_⟩
+      · intro item member r a b statement _
+        rw [data.negative.mpr ⟨item,member,by rw [statement]; trivial⟩] at noNegative
+        cases noNegative
+      · intro item member xs statement
+        rw [data.different.mpr ⟨item,member,by rw [statement]; trivial⟩] at noDifferent
+        cases noDifferent
   have properFacts : ∀ q ∈ extra.val ++ p.facts.val, Proper q.concept := by
     intro q member
     rcases List.mem_append.mp member with given | old
     · exact properExtra q given
-    · exact c3 q old
-  let place := fun a => π (PositionOf p.nodes.val a)
+    · exact data.factsProper q old
+  let place := fun a => π (RepOf p.same.val p.nodes.val a)
   have valid := owl_model_valid.{u,v,w} J (π 0) place D V
   have fixes := fixes_of_interpretation valid
   have agrees := owl_model_agrees.{u,v,w} J (π 0) place D
   have individualAt := individual_owl_model.{u,v,w} J (π 0) place D
   have relation := owl_model_relation.{u,v,w} J (π 0) place D
   obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u, max w v} items
-  rw [partsRun] at partsRun'
+  rw [data.parts] at partsRun'
   cases Result.ok_injective partsRun'
   have partsHold : PartsHold (owlModel.{u,v,w} J (π 0) place D) p.parts := by
-    refine ⟨fun x => (agrees p.parts.axioms c1 x).mpr (tbox x.down),?_⟩
+    refine ⟨fun x => (agrees p.parts.axioms data.axiomsProper x).mpr (tbox x.down),?_⟩
     intro d member x classes
-    have proper := c2 d member
+    have proper := data.definitionsProper d member
     have classesJ : J.classes d.class x.down := by
       simpa [owlModel,proper.1.1,proper.1.2] using classes
     exact (agrees d.concept proper.2 x).mpr (defs d member x.down classesJ)
@@ -1246,7 +1332,7 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
       | ObjectPropertyAssertion r a b =>
         obtain ⟨l,lIn,role,source,target⟩ := linkCovered item (by simpa using member) r a b statement
         have holds := linksHold l lIn
-        have proper := c4 item member
+        have proper := data.rolesProper item member
         rw [statement] at proper
         simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
@@ -1254,19 +1340,32 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         rw [role,source,target] at holds
         exact holds
       | NegativeObjectPropertyAssertion r a b =>
-        have proper := c4 item member
+        have proper := data.rolesProper item member
         rw [statement] at proper
         simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
         rw [relation r proper.1 proper.2]
         exact negatives item member r a b statement
       | _ => simp [statement,Assertion] at assertion
-    · by_cases role : RoleAxiom item.axiom
-      · exact owl_model_role_axiom J (π 0) place D item.axiom role (c4 item member) (rolesHold item member role)
-      · rcases classParts item member with assertion' | role' | holds
-        · exact absurd assertion' assertion
-        · exact absurd role' role
-        · exact holds
+    · by_cases equality : Equality item.axiom
+      · cases statement : item.axiom with
+        | SameIndividual xs =>
+          simp only [Rowl.Owl.satisfies,Rowl.Owl.allEqual,individualAt,place]
+          intro a aIn b bIn
+          rw [data.joins.equal item member xs statement a aIn b bIn]
+        | DifferentIndividuals xs =>
+          simp only [Rowl.Owl.satisfies,individualAt,place]
+          exact (apart item member xs statement).imp
+            (fun {a b} different equal => different (congrArg ULift.down equal))
+        | _ => simp [statement,Equality] at equality
+      · by_cases role : RoleAxiom item.axiom
+        · exact owl_model_role_axiom J (π 0) place D item.axiom role (data.rolesProper item member)
+            (rolesHold item member role)
+        · rcases classParts item member with assertion' | equality' | role' | holds
+          · exact absurd assertion' assertion
+          · exact absurd equality' equality
+          · exact absurd role' role
+          · exact holds
   · intro q member
     have inBoth : q ∈ extra.val ++ p.facts.val := List.mem_append_left _ member
     exact (agrees q.concept (properFacts q inBoth) (ULift.up (π q.node.val))).mpr (factsHold q inBoth)
@@ -1288,21 +1387,25 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
   rw [answered] at run
   cases Result.ok_injective run
   obtain ⟨_,count,countIs,outcome⟩ := spec answer rfl
-  obtain ⟨mentioned,_⟩ := prepared_nodes data
   obtain ⟨factsIn,linksIn⟩ := prepared_in data
-  obtain ⟨_,partsRun,assertRun,roleRun,linksRun,_,_,_,_,_,deniedIff,_⟩ := data
-  obtain ⟨assertResult,assertRun',assertSpec⟩ := assertions_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [assertRun] at assertRun'
+  obtain ⟨assertResult,assertRun',assertSpec⟩ :=
+    assertions_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.facts] at assertRun'
   cases Result.ok_injective assertRun'
   obtain ⟨origin,_,_⟩ := assertSpec p.facts rfl
-  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes 0#usize (alloc.vec.Vec.new _)
-  rw [linksRun] at linksRun'
+  obtain ⟨linksResult,linksRun',linksSpec⟩ := links_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
+  rw [data.links] at linksRun'
   cases Result.ok_injective linksRun'
   obtain ⟨linkOrigin,_,_⟩ := linksSpec p.links rfl
   have fixes : Fixes (withAnonymous I g) := fixes_of_interpretation valid
+  have atRep : ∀ a ∈ p.nodes.val,
+      f (RepOf p.same.val p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a := by
+    intro a present
+    rw [RepOf,placement_representative data (withAnonymous I g) satisfied f placedAt]
+    exact placedAt a present
   have mentionedAt : ∀ item ∈ items.val, ∀ a ∈ IndividualsOf item.axiom,
-      f (PositionOf p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a :=
-    fun item member a inItem => placedAt a (mentioned item member a inItem)
+      f (RepOf p.same.val p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a :=
+    fun item member a inItem => atRep a (data.individuals item member a inItem)
   have zero : (0#usize).val = 0 := rfl
   have linkHolds : ∀ l ∈ p.links.val, objectRelation (withAnonymous I g) l.role (f l.from.val) (f l.to.val) := by
     intro l member
@@ -1325,7 +1428,7 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
     have := linksIn l member
     omega
   obtain ⟨roleResult,roleRun',roleSpec⟩ := role_hierarchy_correct.{u,v} items
-  rw [roleRun] at roleRun'
+  rw [data.roles] at roleRun'
   cases Result.ok_injective roleRun'
   obtain ⟨closed,respectsIff⟩ := roleSpec p.roles rfl
   -- The OWL model is a model of what the tableaux are given.
@@ -1335,10 +1438,10 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
       (∀ f ∈ extra.val ++ p.facts.val, denote I f.concept (π f.node.val)) ∧
       (∀ l ∈ p.links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) := by
     obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u,v} items
-    rw [partsRun] at partsRun'
+    rw [data.parts] at partsRun'
     cases Result.ok_injective partsRun'
     have partsHold := (partsMeaning p.parts rfl _ _ (withAnonymous I g) fixes).mpr
-      (fun item member => .inr (.inr (satisfied item member)))
+      (fun item member => .inr (.inr (.inr (satisfied item member))))
     refine ⟨Object,Value,withAnonymous I g,f,
       (respectsIff Object Value (withAnonymous I g)).mpr (fun item member _ => satisfied item member),
       partsHold.1,partsHold.2,?_,linkHolds⟩
@@ -1354,9 +1457,27 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
         simp only [Rowl.Owl.satisfies] at holds
         rw [← at_m,← qNode] at holds
         exact (translate_meaning C true q.concept qRead _ fixes _).mpr holds
-  rcases outcome with ⟨deniedTrue,rfl⟩ | ⟨_,tableauRun⟩ | ⟨_,forestRun⟩
+  rcases outcome with ⟨clashTrue,rfl⟩ | ⟨_,deniedTrue,rfl⟩ | ⟨_,_,tableauRun⟩ | ⟨_,_,_,forestRun⟩
   · exfalso
-    obtain ⟨item,itemIn,denies⟩ := deniedIff.mp deniedTrue
+    obtain ⟨item,itemIn,clashes⟩ := data.clash.mp clashTrue
+    cases statement : item.axiom with
+    | DifferentIndividuals xs =>
+      rw [statement] at clashes
+      simp only [Clashes] at clashes
+      apply clashes
+      have holds := satisfied item itemIn
+      rw [statement] at holds
+      simp only [Rowl.Owl.satisfies] at holds
+      refine holds.imp_of_mem ?_
+      intro a b aIn bIn different equal
+      apply different
+      rw [← atRep a (data.members item itemIn a (by simpa [statement,MembersOf] using aIn)),
+        ← atRep b (data.members item itemIn b (by simpa [statement,MembersOf] using bIn)),equal]
+    | _ =>
+      rw [statement] at clashes
+      simp [Clashes] at clashes
+  · exfalso
+    obtain ⟨item,itemIn,denies⟩ := data.denied.mp deniedTrue
     cases statement : item.axiom with
     | NegativeObjectPropertyAssertion r s t =>
       rw [statement] at denies
@@ -1544,7 +1665,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
   cases translated with
   | none => exact ⟨none,by simp [translatedRead],by simp,by simp⟩
   | some outside =>
-    obtain ⟨node,nodeRun,nodeValue⟩ := position_of p.nodes (.Named a)
+    obtain ⟨node,nodeRun,nodeValue⟩ := node_of_correct p.nodes p.same (.Named a)
     have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
     obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
     have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
@@ -1552,7 +1673,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       rw [extraValue,List.mem_singleton] at member
       subst member
       rw [nodeValue]
-      exact positionOf_le _ _
+      exact repOf_le data.joins _
     obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
     refine ⟨result.map (fun satisfiable => decide ¬ satisfiable = true),?_,fun _ => translatedCorrect.1,?_⟩
     · simp only [translatedRead,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run]
@@ -1569,7 +1690,9 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
           have fixes := fixes_of_interpretation valid
           by_contra outsideClass
           have located : Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a)
-              (PositionOf p.nodes.val (.Named a)) = I.namedIndividuals a := by
+              (RepOf p.same.val p.nodes.val (.Named a)) = I.namedIndividuals a := by
+            rw [RepOf,placement_representative data (withAnonymous I g) satisfied _
+              (fun b present => placement_at _ p.nodes.val _ b present)]
             by_cases present : Individual.Named a ∈ p.nodes.val
             · rw [placement_at _ p.nodes.val _ _ present]; rfl
             · rw [show PositionOf p.nodes.val (.Named a) = 0 from positionFrom_absent p.nodes.val _ 0 present,
@@ -1691,7 +1814,7 @@ theorem prepared_instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : s
   cases translated with
   | none => simp [translatedRead] at answered
   | some outside =>
-    obtain ⟨node,nodeRun,nodeValue⟩ := position_of p.nodes (.Named a)
+    obtain ⟨node,nodeRun,nodeValue⟩ := node_of_correct p.nodes p.same (.Named a)
     have named : (Individual.Named { iri := a.iri } : Individual) = .Named a := by cases a; rfl
     obtain ⟨extra,extraRun,extraValue⟩ := single_fact outside node
     have extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length := by
@@ -1699,7 +1822,7 @@ theorem prepared_instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : s
       rw [extraValue,List.mem_singleton] at member
       subst member
       rw [nodeValue]
-      exact positionOf_le _ _
+      exact repOf_le data.joins _
     obtain ⟨result,run,_⟩ := prepared_correct items p data extra extraIn
     simp only [translatedRead,bind_ok,Rowl.Nnf.copy_iri_identity,named,nodeRun,extraRun,run] at answered
     cases result with
@@ -1712,7 +1835,9 @@ theorem prepared_instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : s
       have fixes := fixes_of_interpretation valid
       by_contra outsideClass
       have located : Placement (withAnonymous I g) p.nodes.val (I.namedIndividuals a)
-          (PositionOf p.nodes.val (.Named a)) = I.namedIndividuals a := by
+          (RepOf p.same.val p.nodes.val (.Named a)) = I.namedIndividuals a := by
+        rw [RepOf,placement_representative data (withAnonymous I g) satisfied _
+          (fun b present => placement_at _ p.nodes.val _ b present)]
         by_cases present : Individual.Named a ∈ p.nodes.val
         · rw [placement_at _ p.nodes.val _ _ present]; rfl
         · rw [show PositionOf p.nodes.val (.Named a) = 0 from positionFrom_absent p.nodes.val _ 0 present,

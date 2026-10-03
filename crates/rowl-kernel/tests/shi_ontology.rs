@@ -801,3 +801,130 @@ fn number_restrictions_and_functional_properties() {
     ];
     assert_eq!(consistent(&transitive), None);
 }
+
+fn same(members: Vec<Individual>) -> AnnotatedAxiom {
+    let mut members = members.into_iter();
+    let first = members.next().expect("two members");
+    let second = members.next().expect("two members");
+    axiom(Axiom::SameIndividual(two(first, second, members.collect())))
+}
+fn different(members: Vec<Individual>) -> AnnotatedAxiom {
+    let mut members = members.into_iter();
+    let first = members.next().expect("two members");
+    let second = members.next().expect("two members");
+    axiom(Axiom::DifferentIndividuals(two(
+        first,
+        second,
+        members.collect(),
+    )))
+}
+
+#[test]
+fn equal_individuals_share_their_node() {
+    let a = || named(b"a");
+    let b = || named(b"b");
+    let c = || named(b"c");
+    // What holds of one holds of the other, in both directions.
+    let items = vec![asserted(class(b"A"), a()), same(vec![b(), a()])];
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &class(b"A")),
+        Some(true)
+    );
+    // Links follow the shared node, and equality is transitive across axioms.
+    let items = vec![
+        related(property(b"r"), a(), named(b"d")),
+        asserted(class(b"B"), named(b"d")),
+        same(vec![a(), b()]),
+        same(vec![c(), b()]),
+    ];
+    assert_eq!(
+        instance_of(&items, &individual(b"c"), &some(b"r", class(b"B"))),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&items, &individual(b"d"), &class(b"A")),
+        Some(false)
+    );
+    // Equal individuals with complementary classes clash.
+    let items = vec![
+        asserted(class(b"A"), a()),
+        asserted(not(class(b"A")), c()),
+        same(vec![a(), b(), c()]),
+    ];
+    assert_eq!(consistent(&items), Some(false));
+    // A negative assertion is denied through the shared node.
+    let items = vec![
+        related(property(b"r"), a(), b()),
+        axiom(Axiom::NegativeObjectPropertyAssertion(
+            property(b"r"),
+            c(),
+            b(),
+        )),
+        same(vec![a(), c()]),
+    ];
+    assert_eq!(consistent(&items), Some(false));
+    // A counting question merges equal individuals too.
+    let items = vec![
+        axiom(Axiom::FunctionalObjectProperty(property(b"r"))),
+        related(property(b"r"), a(), b()),
+        asserted(class(b"A"), b()),
+        same(vec![a(), c()]),
+    ];
+    assert_eq!(
+        instance_of(&items, &individual(b"c"), &at_least(1, b"r", class(b"A"))),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &at_least(1, b"r", class(b"A"))),
+        Some(false)
+    );
+}
+
+#[test]
+fn different_individuals_stay_apart() {
+    let a = || named(b"a");
+    let b = || named(b"b");
+    let c = || named(b"c");
+    let items = vec![different(vec![a(), b(), c()])];
+    assert_eq!(consistent(&items), Some(true));
+    // An equality between two of them contradicts the inequality.
+    let items = vec![different(vec![a(), b(), c()]), same(vec![c(), a()])];
+    assert_eq!(consistent(&items), Some(false));
+    assert_eq!(class_satisfiable(&items, &class(b"A")), Some(false));
+    // A repeated member contradicts it too, since inequality compares
+    // occurrences.
+    let items = vec![different(vec![a(), b(), a()])];
+    assert_eq!(consistent(&items), Some(false));
+    // Without counting, different individuals keep their own facts.
+    let items = vec![
+        different(vec![a(), b()]),
+        asserted(class(b"A"), a()),
+        asserted(not(class(b"A")), b()),
+    ];
+    assert_eq!(consistent(&items), Some(true));
+    // A counting question with an inequality gets no answer yet.
+    let items = vec![
+        axiom(Axiom::FunctionalObjectProperty(property(b"r"))),
+        related(property(b"r"), c(), a()),
+        related(property(b"r"), c(), b()),
+        different(vec![a(), b()]),
+    ];
+    assert_eq!(consistent(&items), None);
+    // One preparation answers questions about equal and different individuals.
+    let items = vec![
+        same(vec![a(), b()]),
+        different(vec![b(), c()]),
+        asserted(class(b"A"), a()),
+    ];
+    let prepared = prepare(&items).expect("supported axioms");
+    assert_eq!(prepared_consistent(&prepared), Some(true));
+    assert_eq!(
+        prepared_instance_of(&prepared, &individual(b"b"), &class(b"A")),
+        Some(true)
+    );
+    assert_eq!(
+        prepared_instance_of(&prepared, &individual(b"c"), &class(b"A")),
+        Some(false)
+    );
+}

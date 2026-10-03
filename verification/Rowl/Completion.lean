@@ -90,7 +90,8 @@ def NamedModel (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : N
     (∀ a < count, ∀ i ∈ labelOf nodes a, denote I (meaning P.entries.val i.val) (π a)) ∧
     (h.inclusions.val = [] → h.transitive.val = [] → ∀ r a b, a < count → b < count →
       objectRelation I r (π a) (π b) → ∃ l ∈ P.links.val,
-        (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r))
+        (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) ∧
+    (∀ a b, a < count → b < count → π a = π b → a = b)
 
 theorem copy_label_correct (label : alloc.vec.Vec Usize) (index : Usize) (out : alloc.vec.Vec Usize)
     (copied : out.val = label.val.take index.val) (inside : index.val ≤ label.val.length) :
@@ -1333,9 +1334,9 @@ theorem create_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count
 theorem namedModel_mono (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat)
     {nodes nodes' : List completion.Node} (grows : Grows nodes nodes') :
     NamedModel P h count nodes' → NamedModel P h count nodes := by
-  rintro ⟨Object,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,exact⟩
+  rintro ⟨Object,I,π,respects,axiomsHold,unfoldings,requirements,links,labels,exact,apart⟩
   exact ⟨Object,I,π,respects,axiomsHold,unfoldings,requirements,links,
-    fun a aIn i member => labels a aIn i (grows_label grows a i member),exact⟩
+    fun a aIn i member => labels a aIn i (grows_label grows a i member),exact,apart⟩
 
 theorem fullModel_drop (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : List completion.Node) (x : Nat)
     (c : Usize) (rest deps D : List Usize) :
@@ -2288,8 +2289,9 @@ decreasing_by
 /-- The completion graph tableau terminates; an acceptance comes with a model of
     the role hierarchy in which the TBox concept and every definition hold
     everywhere and every fact and link holds at the elements of its named nodes
-    (and, without role axioms, named nodes are related only along links); a
-    rejection rules out every such model, in any universes. -/
+    (and, without role axioms, named nodes are related only along links), and
+    different named nodes are different elements; a rejection rules out every
+    such model, in any universes. -/
 theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)
@@ -2303,7 +2305,8 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) ∧
         (h.inclusions.val = [] → h.transitive.val = [] → ∀ r a b, a < count.val → b < count.val →
           objectRelation I r (π a) (π b) → ∃ l ∈ links.val,
-            (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r))) ∧
+            (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) ∧
+        (∀ a b, a < count.val → b < count.val → π a = π b → a = b)) ∧
       (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
         Respects I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
@@ -2429,8 +2432,8 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
       rw [run']
       simp
     intro _
-    obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold,_,exact⟩ := sound rfl
-    refine ⟨Object,I,π,respects,?_,?_,?_,linksHold,exact⟩
+    obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold,_,exact,apart⟩ := sound rfl
+    refine ⟨Object,I,π,respects,?_,?_,?_,linksHold,exact,apart⟩
     · intro y
       have := axiomsHold y
       rwa [axMeaning3] at this

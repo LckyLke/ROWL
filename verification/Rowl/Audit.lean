@@ -107,6 +107,7 @@ import Rowl.Forest
 import Rowl.ForestModel
 import Rowl.ShiParts
 import Rowl.ShiRoles
+import Rowl.ShiEquality
 import Rowl.ShiOntology
 
 #print axioms Rowl.next_valuation_total_correct
@@ -1269,6 +1270,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.owl_model_agrees
 #print axioms Rowl.ShiOntology.prepare_correct
 #print axioms Rowl.ShiOntology.prepared_supported
+#print axioms Rowl.ShiOntology.placement_representative
 #print axioms Rowl.ShiOntology.prepared_sound
 #print axioms Rowl.ShiOntology.prepared_complete
 #print axioms Rowl.ShiOntology.prepared_consistent_correct
@@ -1494,6 +1496,27 @@ import Rowl.ShiOntology
 #print axioms Rowl.FunctionalIndividuals.read_individual_list_total_correct
 #print axioms Rowl.FunctionalIndividuals.read_individual_list_result_iff
 #print axioms Rowl.FunctionalIndividuals.list_progress
+#print axioms Rowl.ShiEquality.intern_rest_correct
+#print axioms Rowl.ShiEquality.intern_members_correct
+#print axioms Rowl.ShiEquality.members_from_correct
+#print axioms Rowl.ShiEquality.identity_from_correct
+#print axioms Rowl.ShiEquality.relabel_correct
+#print axioms Rowl.ShiEquality.unite_correct
+#print axioms Rowl.ShiEquality.united_reps
+#print axioms Rowl.ShiEquality.unite_rest_correct
+#print axioms Rowl.ShiEquality.equalities_from_correct
+#print axioms Rowl.ShiEquality.representative_correct
+#print axioms Rowl.ShiEquality.node_of_correct
+#print axioms Rowl.ShiEquality.joins_of
+#print axioms Rowl.ShiEquality.eqvGen_value
+#print axioms Rowl.ShiEquality.representative_value
+#print axioms Rowl.ShiEquality.representative_le
+#print axioms Rowl.ShiEquality.repOf_le
+#print axioms Rowl.ShiEquality.meets_correct
+#print axioms Rowl.ShiEquality.repeats_correct
+#print axioms Rowl.ShiEquality.shares_correct
+#print axioms Rowl.ShiEquality.clash_from_correct
+#print axioms Rowl.ShiEquality.has_different_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2324,3 +2347,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.FunctionalAssertions.MembersStep
 #print axioms Rowl.FunctionalModel.EnumerationModel
 #print axioms Rowl.FunctionalModel.IndividualMembersModel
+#print axioms Rowl.ShiEquality.MembersOf
+#print axioms Rowl.ShiEquality.Different
+#print axioms Rowl.ShiEquality.Equal
+#print axioms Rowl.ShiEquality.Representative
+#print axioms Rowl.ShiEquality.RepOf
+#print axioms Rowl.ShiEquality.Reps
+#print axioms Rowl.ShiEquality.Joins
+#print axioms Rowl.ShiEquality.Clashes
+#print axioms Rowl.ShiParts.Equality

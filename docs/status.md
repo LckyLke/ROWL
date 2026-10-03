@@ -745,18 +745,33 @@ progress. Full OWL parsing and executable reasoning are still future work.
   for the Direct Semantics. Negative object property assertions next to a
   question that counts, and number restrictions along roles that are not
   simple, get no answer.
-- 1385 audited public theorems and 830 audited semantic definitions. Consistency,
+- Reasoner track, twelfth stage (in progress): equality and nominals. The
+  reader takes `SameIndividual`, `DifferentIndividuals`, `ObjectOneOf` and
+  `ObjectHasValue`, and the ontology queries decide individual equalities and
+  inequalities. Every member of an equality or inequality gets a node, and
+  the members of each `SameIndividual` axiom share the node of a
+  representative, computed by uniting classes and proved to be joined to every
+  node by a chain of equalities, so every OWL model gives a node and its
+  representative one element. Facts, links and the check of negative
+  assertions use the representatives' nodes. The completion graph tableau's
+  models are proved to keep different named nodes apart, so a
+  `DifferentIndividuals` axiom holds exactly unless two of its members share a
+  node, which refutes the closure. A question that counts goes to the
+  completion forest with equal individuals merged; next to a
+  `DifferentIndividuals` axiom it gets no answer yet. Enumerations and value
+  restrictions are read but not yet answered.
+- 1407 audited public theorems and 839 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQ class, domain and range axioms with number restrictions on simple
   roles, functional and inverse functional object properties, class and object
-  property assertions, and inclusions, equivalences, inverses, symmetry and
-  transitivity of object property expressions (SHIQ), also directly from
-  Functional Syntax source bytes. Documents with individual equalities,
-  inequalities, enumerations and value restrictions are read and mapped into the
-  model, but get no answer yet. No full OWL decision procedure is proved yet. See
+  property assertions, individual equalities and inequalities, and inclusions,
+  equivalences, inverses, symmetry and transitivity of object property
+  expressions (SHIQ), also directly from Functional Syntax source bytes.
+  Documents with enumerations and value restrictions are read and mapped into
+  the model, but get no answer yet. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 428 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 430 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -770,7 +785,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1578-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1600-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

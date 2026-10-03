@@ -133,4 +133,5 @@ import Rowl.Forest
 import Rowl.ForestModel
 import Rowl.ShiParts
 import Rowl.ShiRoles
+import Rowl.ShiEquality
 import Rowl.ShiOntology

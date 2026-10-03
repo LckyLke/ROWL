@@ -1777,6 +1777,7 @@
         "Rowl.ShiOntology.owl_model_agrees",
         "Rowl.ShiOntology.prepare_correct",
         "Rowl.ShiOntology.prepared_supported",
+        "Rowl.ShiOntology.placement_representative",
         "Rowl.ShiOntology.prepared_sound",
         "Rowl.ShiOntology.prepared_complete",
         "Rowl.ShiOntology.prepared_consistent_correct",
@@ -2044,6 +2045,33 @@
         "Rowl.FunctionalIndividuals.read_individual_list_total_correct",
         "Rowl.FunctionalIndividuals.read_individual_list_result_iff",
         "Rowl.FunctionalIndividuals.list_progress"
+      ]
+    },
+    {
+      "module": "Rowl.ShiEquality",
+      "namespace": "Rowl.ShiEquality",
+      "theorems": [
+        "Rowl.ShiEquality.intern_rest_correct",
+        "Rowl.ShiEquality.intern_members_correct",
+        "Rowl.ShiEquality.members_from_correct",
+        "Rowl.ShiEquality.identity_from_correct",
+        "Rowl.ShiEquality.relabel_correct",
+        "Rowl.ShiEquality.unite_correct",
+        "Rowl.ShiEquality.united_reps",
+        "Rowl.ShiEquality.unite_rest_correct",
+        "Rowl.ShiEquality.equalities_from_correct",
+        "Rowl.ShiEquality.representative_correct",
+        "Rowl.ShiEquality.node_of_correct",
+        "Rowl.ShiEquality.joins_of",
+        "Rowl.ShiEquality.eqvGen_value",
+        "Rowl.ShiEquality.representative_value",
+        "Rowl.ShiEquality.representative_le",
+        "Rowl.ShiEquality.repOf_le",
+        "Rowl.ShiEquality.meets_correct",
+        "Rowl.ShiEquality.repeats_correct",
+        "Rowl.ShiEquality.shares_correct",
+        "Rowl.ShiEquality.clash_from_correct",
+        "Rowl.ShiEquality.has_different_correct"
       ]
     }
   ],
@@ -2877,6 +2905,15 @@
     "Rowl.FunctionalAssertions.MemberStep",
     "Rowl.FunctionalAssertions.MembersStep",
     "Rowl.FunctionalModel.EnumerationModel",
-    "Rowl.FunctionalModel.IndividualMembersModel"
+    "Rowl.FunctionalModel.IndividualMembersModel",
+    "Rowl.ShiEquality.MembersOf",
+    "Rowl.ShiEquality.Different",
+    "Rowl.ShiEquality.Equal",
+    "Rowl.ShiEquality.Representative",
+    "Rowl.ShiEquality.RepOf",
+    "Rowl.ShiEquality.Reps",
+    "Rowl.ShiEquality.Joins",
+    "Rowl.ShiEquality.Clashes",
+    "Rowl.ShiParts.Equality"
   ]
 }

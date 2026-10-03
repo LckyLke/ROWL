@@ -3354,3 +3354,37 @@ the ontology queries return no answer for them.
 This block adds 17 public theorems and 7 independent definitions. Totals are
 1385 audited theorems, 830 definitions, 428 Rust regressions and 1578 ledger
 obligations.
+
+## Reasoner: equal and different individuals
+
+The ontology queries (`shi_ontology`) now decide `SameIndividual` and
+`DifferentIndividuals`. Every member of either axiom gets a node after the
+individuals of the assertions (members_from), and `prepare` unites the nodes of
+the members of each equality: every node starts as its own representative
+(identity_from), and uniting two nodes replaces the representative of the
+second by that of the first everywhere (relabel, unite). ShiEquality proves the
+result a union of classes (Joins): every representative is a node joined to its
+own node by a chain of equalities, the equivalence closure of the positions of
+members of one `SameIndividual` axiom, and the members of every equality share
+their representative. So every OWL model of the closure gives a node and its
+representative one element (representative_value, placement_representative),
+and the facts, links and the check of negative assertions use the
+representatives' nodes (node_of). An inequality two of whose members share a
+representative, counting occurrences, refutes the closure (clash_from), which
+every question then answers with `false`.
+
+The completion graph tableau's models are now proved to keep different named
+nodes apart (model_of_complete, satisfiable_correct), so without a shared node
+every `DifferentIndividuals` axiom holds in the OWL model of an acceptance. The
+completion forest merges named nodes when a maximum restriction requires it, so
+a question that counts gets no answer next to a `DifferentIndividuals` axiom
+yet; the nominal forest of a later step will decide it. prepared_sound builds
+the OWL model with every individual at its representative's element, and
+prepared_complete shows that every OWL model forces acceptance, now also when
+equal individuals share a node. `PreparedData` became a structure with named
+fields. The consistency, satisfiability, subsumption and instance theorems,
+and the queries from source bytes, keep their statements.
+
+This block adds 22 public theorems and 9 independent definitions. Totals are
+1407 audited theorems, 839 definitions, 430 Rust regressions and 1600 ledger
+obligations.

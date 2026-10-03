@@ -588,7 +588,10 @@ pub(crate) fn position(nodes: &Vec<Individual>, individual: &Individual, index: 
 }
 /// `nodes` with `individual` at the end when it is new; `None` when there is no
 /// room for another node.
-fn intern(mut nodes: Vec<Individual>, individual: &Individual) -> Option<Vec<Individual>> {
+pub(crate) fn intern(
+    mut nodes: Vec<Individual>,
+    individual: &Individual,
+) -> Option<Vec<Individual>> {
     if position(&nodes, individual, 0) != 0 {
         Some(nodes)
     } else if nodes.len() < usize::MAX - 1 {

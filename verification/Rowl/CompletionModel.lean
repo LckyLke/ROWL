@@ -614,7 +614,7 @@ theorem holds_literal (entries : List concept_table.Entry) (L : List Usize) (i :
     model: it respects the hierarchy and satisfies the TBox concept at every
     element, every unfolding, every requirement at its node, every link and the
     label of every named node; without role axioms it relates named nodes only
-    along links. -/
+    along links, and different named nodes are different elements. -/
 theorem model_of_complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat)
     (nodes : List completion.Node) (shape : Shape P h count nodes) (complete : Complete P h nodes)
     (positive : 0 < count) :
@@ -627,14 +627,15 @@ theorem model_of_complete (P : completion.Problem) (h : hierarchy.RoleHierarchy)
       (∀ a < count, ∀ i ∈ labelOf nodes a, denote I (meaning P.entries.val i.val) (π a)) ∧
       (h.inclusions.val = [] → h.transitive.val = [] → ∀ r a b, a < count → b < count →
         objectRelation I r (π a) (π b) → ∃ l ∈ P.links.val,
-          (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) := by
+          (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) ∧
+      (∀ a b, a < count → b < count → π a = π b → a = b) := by
   let root : Element count nodes := .inl ⟨0,positive⟩
   let π : Nat → Element count nodes := fun a => if inside : a < count then .inl ⟨a,inside⟩ else root
   have named : ∀ a (inside : a < count), π a = .inl ⟨a,inside⟩ := by
     intro a inside
     simp only [π,dif_pos inside]
   refine ⟨Element count nodes,model P h count nodes root,π,model_respects P h shape.closed count nodes root,
-    ?_,?_,?_,?_,?_,?_⟩
+    ?_,?_,?_,?_,?_,?_,?_⟩
   · intro y
     obtain ⟨node,nodeIn,labelIs⟩ := lab_in shape.countIn y
     apply truth P h count nodes shape complete root P.axioms.val y
@@ -673,4 +674,8 @@ theorem model_of_complete (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     · exact ⟨l,member,.inl ⟨source,target,equal _ _ below⟩⟩
     · exact ⟨l,member,.inr ⟨target,source,equal _ _ below⟩⟩
     · simp [transitives,noTransitive] at transitive
+  · intro a b aIn bIn same
+    rw [named _ aIn,named _ bIn] at same
+    injection same with same
+    injection same
 end Rowl.CompletionModel
