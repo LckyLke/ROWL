@@ -705,7 +705,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   never declines a document the reader accepts; source_prepared prepares its
   axioms, proved to give a prepared closure of the bytes' raw OWL ontology. The
   medication-safety example reads its document once for all five questions.
-- Reasoner track, eleventh stage (in progress): number restrictions. The
+- Reasoner track, eleventh stage: number restrictions. The
   concepts and the concept table now have cardinality restrictions:
   concepts::translate covers ALCIQ (minimum, maximum and exact cardinalities,
   qualified or not, below `usize::MAX`), proved total and exact for the Direct
@@ -733,21 +733,29 @@ progress. Full OWL parsing and executable reasoning are still future work.
   complete forest under pairwise blocking, of the role hierarchy where the
   TBox concept and every definition hold everywhere and every fact and link
   holds; and its false answers rule out every such model, in any universes.
-  No ontology query uses the forest yet.
-- 1361 audited public theorems and 822 audited semantic definitions. Consistency,
+  The ontology queries now accept number restrictions and functional and
+  inverse functional object properties (as `≤1 r.⊤` and `≤1 r⁻.⊤` in the TBox
+  concept): a question whose concepts count goes to the forest, and every
+  other question to the completion graph tableau as before, both proved exact
+  for the Direct Semantics. Negative object property assertions next to a
+  question that counts, and number restrictions along roles that are not
+  simple, get no answer.
+- 1368 audited public theorems and 823 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
-  ALCI class, domain and range axioms, class and object property assertions,
-  and inclusions, equivalences, inverses, symmetry and transitivity of object
-  property expressions (SHI), also directly from Functional Syntax source
-  bytes. No full OWL decision procedure is proved yet. See
+  ALCIQ class, domain and range axioms with number restrictions on simple
+  roles, functional and inverse functional object properties, class and object
+  property assertions, and inclusions, equivalences, inverses, symmetry and
+  transitivity of object property expressions (SHIQ), also directly from
+  Functional Syntax source bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 425 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 426 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
-  blocking and backjumping, and a closure or document prepared once answers
-  any number of queries.
+  blocking and backjumping, the counting queries a completion forest with
+  pairwise blocking and backjumping over merges, and a closure or document
+  prepared once answers any number of queries.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;
@@ -755,7 +763,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1554-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1561-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

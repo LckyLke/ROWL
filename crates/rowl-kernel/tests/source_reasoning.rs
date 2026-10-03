@@ -238,10 +238,18 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Object property axioms outside the supported role axioms are read but not answered.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n FunctionalObjectProperty(:p)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ReflexiveObjectProperty(:p)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
+    // A functional property merges two values, which then clash.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n FunctionalObjectProperty(:p)\n ObjectPropertyAssertion(:p :a :b)\n ObjectPropertyAssertion(:p :a :c)\n ClassAssertion(:B :b)\n ClassAssertion(ObjectComplementOf(:B) :c)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
     // A negative property assertion next to a role axiom gives no answer.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SymmetricObjectProperty(:p)\n NegativeObjectPropertyAssertion(:p :a :b)\n)"
         .as_bytes()
@@ -518,7 +526,7 @@ fn one_reading_answers_many_questions() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Axioms outside the supported fragment are read but not prepared.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n FunctionalObjectProperty(:p)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ReflexiveObjectProperty(:p)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(

@@ -40,6 +40,8 @@ def SupportedAxiom : Axiom → Prop
   | .DisjointUnion _ xs => ∀ e ∈ xs.elements, InAlciq e
   | .ObjectPropertyDomain _ e => InAlciq e
   | .ObjectPropertyRange _ e => InAlciq e
+  | .FunctionalObjectProperty _ => True
+  | .InverseFunctionalObjectProperty _ => True
   | .SubObjectPropertyOf (.Single _) _ => True
   | .EquivalentObjectProperties _ => True
   | .InverseObjectProperties _ _ => True
@@ -1002,6 +1004,32 @@ private theorem refused_parts (statement : Axiom) (parts : shi_ontology.Parts)
           (PartsHold I parts' ↔ PartsHold I parts ∧ ClassPart I statement) :=
   ⟨none,run,by simp,fun supported => absurd supported unsupported,by simp⟩
 
+/-- At most one element satisfies the property exactly when any two that do are
+    equal. -/
+theorem atMost_one_iff {α : Type u} (P : α → Prop) : Rowl.Owl.AtMost 1 P ↔ ∀ y z, P y → P z → y = z := by
+  constructor
+  · intro atMost y z py pz
+    by_contra different
+    apply atMost
+    refine ⟨fun i => if i.val = 0 then y else z,?_,?_⟩
+    · intro i j same
+      apply Fin.ext
+      have hi := i.isLt
+      have hj := j.isLt
+      by_cases zi : i.val = 0 <;> by_cases zj : j.val = 0 <;> simp only [zi,zj,↓reduceIte] at same
+      · omega
+      · exact absurd same different
+      · exact absurd same.symm different
+      · omega
+    · intro i
+      by_cases zi : i.val = 0 <;> simp only [zi,↓reduceIte]
+      · exact py
+      · exact pz
+  · rintro unique ⟨f,injective,each⟩
+    have same := unique (f 0) (f 1) (each 0) (each 1)
+    have := injective same
+    simp at this
+
 /-- One axiom: afterwards the parts hold exactly when they held before and the
     axiom's class part holds; the axiom is read exactly when it is supported
     and its definitions fit. -/
@@ -1132,6 +1160,46 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
         exact ⟨⟨fun x => (every x).1,defs⟩,fun x y edge => (every x).2 y edge⟩
       · rintro ⟨⟨tbox,defs⟩,range⟩
         exact ⟨fun x => ⟨tbox x,fun y edge => range x y edge⟩,defs⟩
+  | FunctionalObjectProperty p =>
+    refine ⟨some {parts with axioms := .And parts.axioms (.AtMost 1#usize p .Top)},
+      by rw [shi_ontology.axiom_parts]; simp [copy_role_identity,conjoin_correct],fun _ => trivial,
+      fun _ _ => rfl,?_⟩
+    intro parts' same
+    cases same
+    refine ⟨by simp,?_⟩
+    intro Object Value I fixes
+    simp only [PartsHold,denote,ClassPart,Assertion,RoleAxiom,Rowl.Owl.satisfies,false_or,and_true]
+    have functional : (∀ x, Rowl.Owl.AtMost (1#usize).val (fun y => objectRelation I p x y)) ↔
+        ∀ x y z, objectRelation I p x y → objectRelation I p x z → y = z := by
+      refine forall_congr' (fun x => ?_)
+      exact atMost_one_iff _
+    constructor
+    · rintro ⟨every,defs⟩
+      exact ⟨⟨fun x => (every x).1,defs⟩,functional.mp (fun x => (every x).2)⟩
+    · rintro ⟨⟨tbox,defs⟩,unique⟩
+      exact ⟨fun x => ⟨tbox x,functional.mpr unique x⟩,defs⟩
+  | InverseFunctionalObjectProperty p =>
+    refine ⟨some {parts with axioms := .And parts.axioms (.AtMost 1#usize (inv p) .Top)},
+      by rw [shi_ontology.axiom_parts]; simp [inverse_correct,conjoin_correct],fun _ => trivial,
+      fun _ _ => rfl,?_⟩
+    intro parts' same
+    cases same
+    refine ⟨by simp,?_⟩
+    intro Object Value I fixes
+    simp only [PartsHold,denote,ClassPart,Assertion,RoleAxiom,Rowl.Owl.satisfies,false_or,and_true]
+    have functional : (∀ z, Rowl.Owl.AtMost (1#usize).val (fun x => objectRelation I (inv p) z x)) ↔
+        ∀ x y z, objectRelation I p x z → objectRelation I p y z → x = y := by
+      constructor
+      · intro every x y z first second
+        exact (atMost_one_iff _).mp (every z) x y ((relation_inv I p z x).mpr first) ((relation_inv I p z y).mpr second)
+      · intro unique z
+        exact (atMost_one_iff _).mpr (fun x y first second =>
+          unique x y z ((relation_inv I p z x).mp first) ((relation_inv I p z y).mp second))
+    constructor
+    · rintro ⟨every,defs⟩
+      exact ⟨⟨fun x => (every x).1,defs⟩,functional.mp (fun x => (every x).2)⟩
+    · rintro ⟨⟨tbox,defs⟩,unique⟩
+      exact ⟨fun x => ⟨tbox x,functional.mpr unique x⟩,defs⟩
   | ClassAssertion _ _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
       (fun _ _ _ => by simp [ClassPart,Assertion])
@@ -1153,7 +1221,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
   | AnnotationPropertyRange _ _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
       (fun _ _ _ => by simp [ClassPart,Rowl.Owl.satisfies])
-  | DisjointObjectProperties _ | FunctionalObjectProperty _ | InverseFunctionalObjectProperty _
+  | DisjointObjectProperties _
   | ReflexiveObjectProperty _ | IrreflexiveObjectProperty _ | AsymmetricObjectProperty _ | SubDataPropertyOf _ _
   | EquivalentDataProperties _ | DisjointDataProperties _ | DataPropertyDomain _ _ | DataPropertyRange _ _
   | FunctionalDataProperty _ | DatatypeDefinition _ _ | HasKey _ _ _ | SameIndividual _ | DifferentIndividuals _

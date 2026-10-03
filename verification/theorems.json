@@ -1717,6 +1717,7 @@
         "Rowl.ShiParts.within_from_correct",
         "Rowl.ShiParts.disjoint_union_correct",
         "Rowl.ShiParts.conjoin_correct",
+        "Rowl.ShiParts.atMost_one_iff",
         "Rowl.ShiParts.axiom_parts_correct",
         "Rowl.ShiParts.parts_from_correct",
         "Rowl.ShiParts.class_parts_correct"
@@ -1749,6 +1750,11 @@
       "namespace": "Rowl.ShiOntology",
       "theorems": [
         "Rowl.ShiOntology.proper_correct",
+        "Rowl.ShiOntology.counts_correct",
+        "Rowl.ShiOntology.definitions_count_correct",
+        "Rowl.ShiOntology.facts_count_correct",
+        "Rowl.ShiOntology.closure_counts_correct",
+        "Rowl.ShiOntology.question_counts_correct",
         "Rowl.ShiOntology.definitions_proper_correct",
         "Rowl.ShiOntology.facts_proper_correct",
         "Rowl.ShiOntology.members_proper_correct",
@@ -1762,6 +1768,7 @@
         "Rowl.ShiOntology.denote_with_anonymous",
         "Rowl.ShiOntology.translated_meaning",
         "Rowl.ShiOntology.owl_model_relation",
+        "Rowl.ShiOntology.atLeast_lift",
         "Rowl.ShiOntology.owl_model_agrees",
         "Rowl.ShiOntology.prepare_correct",
         "Rowl.ShiOntology.prepared_supported",
@@ -2839,6 +2846,7 @@
     "Rowl.ForestModel.Rel",
     "Rowl.ForestModel.model",
     "Rowl.ForestModel.Corr",
-    "Rowl.ForestModel.place"
+    "Rowl.ForestModel.place",
+    "Rowl.ShiOntology.Counts"
   ]
 }

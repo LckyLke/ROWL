@@ -1220,6 +1220,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiParts.within_from_correct
 #print axioms Rowl.ShiParts.disjoint_union_correct
 #print axioms Rowl.ShiParts.conjoin_correct
+#print axioms Rowl.ShiParts.atMost_one_iff
 #print axioms Rowl.ShiParts.axiom_parts_correct
 #print axioms Rowl.ShiParts.parts_from_correct
 #print axioms Rowl.ShiParts.class_parts_correct
@@ -1240,6 +1241,11 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiRoles.hierarchy_from_correct
 #print axioms Rowl.ShiRoles.role_hierarchy_correct
 #print axioms Rowl.ShiOntology.proper_correct
+#print axioms Rowl.ShiOntology.counts_correct
+#print axioms Rowl.ShiOntology.definitions_count_correct
+#print axioms Rowl.ShiOntology.facts_count_correct
+#print axioms Rowl.ShiOntology.closure_counts_correct
+#print axioms Rowl.ShiOntology.question_counts_correct
 #print axioms Rowl.ShiOntology.definitions_proper_correct
 #print axioms Rowl.ShiOntology.facts_proper_correct
 #print axioms Rowl.ShiOntology.members_proper_correct
@@ -1253,6 +1259,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.denote_with_anonymous
 #print axioms Rowl.ShiOntology.translated_meaning
 #print axioms Rowl.ShiOntology.owl_model_relation
+#print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
 #print axioms Rowl.ShiOntology.prepare_correct
 #print axioms Rowl.ShiOntology.prepared_supported
@@ -2291,3 +2298,4 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.model
 #print axioms Rowl.ForestModel.Corr
 #print axioms Rowl.ForestModel.place
+#print axioms Rowl.ShiOntology.Counts

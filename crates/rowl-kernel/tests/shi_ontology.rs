@@ -1,6 +1,7 @@
 use rowl_kernel::alc_ontology;
 use rowl_kernel::concepts::Concept;
 use rowl_kernel::model::*;
+use rowl_kernel::probes::Natural;
 use rowl_kernel::shi_ontology::{
     class_parts, class_satisfiable, consistent, instance_of, prepare, prepared_class_satisfiable,
     prepared_consistent, prepared_instance_of, prepared_subsumed, subsumed,
@@ -288,8 +289,8 @@ fn negative_assertions_and_unsupported_inputs() {
     assert_eq!(consistent(&builtin), None);
     let in_concept = vec![sub(class(b"A"), some(TOP_OBJECT, class(b"B")))];
     assert_eq!(consistent(&in_concept), None);
-    let functional = vec![axiom(Axiom::FunctionalObjectProperty(property(b"r")))];
-    assert_eq!(consistent(&functional), None);
+    let reflexive = vec![axiom(Axiom::ReflexiveObjectProperty(property(b"r")))];
+    assert_eq!(consistent(&reflexive), None);
     let enumeration = ClassExpression::ObjectOneOf(NonEmpty {
         first: named(b"a"),
         rest: Vec::new(),
@@ -650,6 +651,153 @@ fn one_preparation_answers_many_queries() {
         }
     }
     // Axioms outside the supported fragment are not prepared.
-    let unsupported = vec![axiom(Axiom::FunctionalObjectProperty(property(b"R")))];
+    let unsupported = vec![axiom(Axiom::ReflexiveObjectProperty(property(b"R")))];
     assert!(prepare(&unsupported).is_none());
+}
+
+fn natural(n: usize) -> Natural {
+    (0..n).fold(Natural::Zero, |previous, _| {
+        Natural::Succ(Box::new(previous))
+    })
+}
+fn at_least(n: usize, r: &[u8], c: ClassExpression) -> ClassExpression {
+    ClassExpression::ObjectMinCardinality(natural(n), property(r), Some(Box::new(c)))
+}
+fn at_most(n: usize, r: &[u8], c: ClassExpression) -> ClassExpression {
+    ClassExpression::ObjectMaxCardinality(natural(n), property(r), Some(Box::new(c)))
+}
+fn exactly(n: usize, r: &[u8], c: ClassExpression) -> ClassExpression {
+    ClassExpression::ObjectExactCardinality(natural(n), property(r), Some(Box::new(c)))
+}
+
+/// Number restrictions and functional properties go to the completion forest,
+/// which merges the individuals and anonymous elements that a maximum
+/// restriction forces together.
+#[test]
+fn number_restrictions_and_functional_properties() {
+    let a = || named(b"a");
+    let b = || named(b"b");
+    let c = || named(b"c");
+    // A functional property merges its two values, which then clash.
+    let functional = || axiom(Axiom::FunctionalObjectProperty(property(b"r")));
+    let clash = vec![
+        functional(),
+        related(property(b"r"), a(), b()),
+        related(property(b"r"), a(), c()),
+        asserted(class(b"B"), b()),
+        asserted(not(class(b"B")), c()),
+    ];
+    assert_eq!(consistent(&clash), Some(false));
+    // Without the clash, the merged value carries the other's classes.
+    let merged = vec![
+        functional(),
+        related(property(b"r"), a(), b()),
+        related(property(b"r"), a(), c()),
+        asserted(class(b"B"), b()),
+    ];
+    assert_eq!(consistent(&merged), Some(true));
+    assert_eq!(
+        instance_of(&merged, &individual(b"c"), &class(b"B")),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&merged, &individual(b"a"), &class(b"B")),
+        Some(false)
+    );
+    // An inverse functional property merges the individuals that point to one value.
+    let inverse_clash = vec![
+        axiom(Axiom::InverseFunctionalObjectProperty(property(b"r"))),
+        related(property(b"r"), b(), a()),
+        related(property(b"r"), c(), a()),
+        asserted(class(b"B"), b()),
+        asserted(not(class(b"B")), c()),
+    ];
+    assert_eq!(consistent(&inverse_clash), Some(false));
+    // Cardinalities in class expressions, against the empty closure.
+    let none: Vec<AnnotatedAxiom> = Vec::new();
+    let thing = || class(THING);
+    assert_eq!(
+        class_satisfiable(
+            &none,
+            &and(at_least(2, b"r", thing()), at_most(1, b"r", thing()))
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&none, &exactly(2, b"r", class(b"A"))),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(
+            &none,
+            &at_least(3, b"r", class(b"A")),
+            &at_least(2, b"r", class(b"A"))
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(
+            &none,
+            &at_least(2, b"r", class(b"A")),
+            &at_least(3, b"r", class(b"A"))
+        ),
+        Some(false)
+    );
+    let squeezed = and(
+        and(some(b"r", class(b"A")), some(b"r", class(b"B"))),
+        at_most(1, b"r", thing()),
+    );
+    assert_eq!(
+        subsumed(&none, &squeezed, &some(b"r", and(class(b"A"), class(b"B")))),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(
+            &none,
+            &and(some(b"r", class(b"A")), some(b"r", class(b"B"))),
+            &some(b"r", and(class(b"A"), class(b"B")))
+        ),
+        Some(false)
+    );
+    // Counting against an inverse: two children whose parent allows one child.
+    let parent = vec![
+        sub(class(b"Parent"), at_most(1, b"hasChild", thing())),
+        asserted(class(b"Parent"), a()),
+        related(property(b"hasChild"), a(), b()),
+        related(property(b"hasChild"), a(), c()),
+        asserted(class(b"B"), b()),
+    ];
+    assert_eq!(
+        instance_of(&parent, &individual(b"c"), &class(b"B")),
+        Some(true)
+    );
+    // A closure without counting still answers a question that counts.
+    let plain = vec![
+        related(property(b"r"), a(), b()),
+        related(property(b"r"), a(), c()),
+    ];
+    assert_eq!(
+        instance_of(&plain, &individual(b"a"), &at_least(1, b"r", thing())),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&plain, &individual(b"a"), &at_least(2, b"r", thing())),
+        Some(false)
+    );
+    // Negative assertions next to counting, and counting along a transitive
+    // role, have no answer.
+    let negative = vec![
+        functional(),
+        axiom(Axiom::NegativeObjectPropertyAssertion(
+            property(b"r"),
+            a(),
+            b(),
+        )),
+    ];
+    assert_eq!(consistent(&negative), None);
+    let transitive = vec![
+        axiom(Axiom::TransitiveObjectProperty(property(b"r"))),
+        sub(class(b"A"), at_most(1, b"r", thing())),
+    ];
+    assert_eq!(consistent(&transitive), None);
 }

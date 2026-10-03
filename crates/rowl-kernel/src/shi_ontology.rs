@@ -1,7 +1,8 @@
-//! SHI consistency, class satisfiability, subsumption and instance checking for
-//! an axiom closure with assertions, decided by the completion graph tableau.
+//! Consistency, class satisfiability, subsumption and instance checking for an
+//! axiom closure with assertions: SHI decided by the completion graph tableau,
+//! and SHIQ, with number restrictions on simple roles, by the completion forest.
 //!
-//! Class expressions are translated into ALCI concepts (see `concepts`). Every
+//! Class expressions are translated into ALCIQ concepts (see `concepts`). Every
 //! class axiom becomes inclusions `C ⊑ D`: a subclass axiom is one, equivalent
 //! classes include the first member in every other member and back, disjoint
 //! classes include every member in the complement of every later member, and a
@@ -11,8 +12,9 @@
 //! unfolds only at nodes that list `A`: a named class absorbs directly,
 //! `∃r.E ⊑ D` becomes `E ⊑ ∀r⁻.D`, and `E ⊓ F ⊓ … ⊑ D` becomes
 //! `E ⊑ ¬F ⊔ … ⊔ D`. Every other inclusion conjoins `¬C ⊔ D` onto the TBox
-//! concept, which holds everywhere. A domain conjoins `∀r⁻.C` and a range
-//! `∀r.C`, so neither branches.
+//! concept, which holds everywhere. A domain conjoins `∀r⁻.C`, a range
+//! `∀r.C`, a functional property `≤1 r.⊤` and an inverse functional property
+//! `≤1 r⁻.⊤`.
 //!
 //! The role axioms `SubObjectPropertyOf` without chains,
 //! `EquivalentObjectProperties`, `InverseObjectProperties`,
@@ -20,27 +22,32 @@
 //! object properties, become a role hierarchy. Every inclusion is added with
 //! its inverse, each together with its compositions with the inclusions already
 //! listed, and every transitive property with its inverse, so the hierarchy
-//! stays closed as the tableau requires.
+//! stays closed as the tableaux require.
 //!
 //! Every individual of an assertion gets a node after node 0, which stands for
 //! one more element. Class assertions and the query's concepts are facts at
-//! nodes, and object property assertions are links. Without role axioms, a
-//! negative object property assertion contradicts the closure exactly when a
+//! nodes, and object property assertions are links. A question whose concepts
+//! have no number restriction goes to the completion graph tableau; one that
+//! counts goes to the completion forest, which merges individuals when a
+//! maximum restriction requires it. Without role axioms and without counting,
+//! a negative object property assertion contradicts the closure exactly when a
 //! link relates the same individuals along the same property, in either
 //! orientation, because the tableau's models relate named individuals only
 //! along links.
 //!
 //! `prepare` reads a closure once: its individuals, class parts, role hierarchy,
 //! facts and links, and the check of its negative assertions. The `prepared_`
-//! queries then only translate their class expressions and run the tableau, so
+//! queries then only translate their class expressions and run a tableau, so
 //! many questions about one closure share that work; the plain queries prepare
 //! and ask once.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside ALCI, when a concept, definition, role axiom or
+//! expression is outside ALCIQ, when a concept, definition, role axiom or
 //! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
-//! fixed meaning the tableau does not model), when negative object property
-//! assertions meet role axioms, or when a list would exceed the `usize` range.
+//! fixed meaning the tableaux do not model), when negative object property
+//! assertions meet role axioms or a question that counts, when a number
+//! restriction counts along a role that is not simple, or when a list would
+//! exceed the `usize` range.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -53,6 +60,7 @@
 use crate::alc_ontology::{builtin_class, has_negative, individuals_from, position, role_proper};
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_role, inverse, same_role, translate, Concept};
+use crate::forest;
 use crate::hierarchy::{below, is_transitive, Inclusion, RoleHierarchy};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, Individual, NamedIndividual,
@@ -68,9 +76,7 @@ pub struct Parts {
 }
 
 /// Whether no built-in class occurs as a named class and no built-in object
-/// property as a role, so the tableau reads every name as an ordinary one, and
-/// no cardinality restriction occurs, which the completion graph tableau does
-/// not count.
+/// property as a role, so the tableaux read every name as an ordinary one.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -81,9 +87,42 @@ fn proper(concept: &Concept) -> bool {
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),
         Concept::Forall(role, filler) => role_proper(role) && proper(filler),
-        Concept::AtLeast(_, _, _) => false,
-        Concept::AtMost(_, _, _) => false,
+        Concept::AtLeast(_, role, filler) => role_proper(role) && proper(filler),
+        Concept::AtMost(_, role, filler) => role_proper(role) && proper(filler),
     }
+}
+/// Whether a number restriction occurs, which only the completion forest
+/// counts.
+fn counts(concept: &Concept) -> bool {
+    match concept {
+        Concept::And(left, right) => counts(left) || counts(right),
+        Concept::Or(left, right) => counts(left) || counts(right),
+        Concept::Exists(_, filler) => counts(filler),
+        Concept::Forall(_, filler) => counts(filler),
+        Concept::AtLeast(_, _, _) => true,
+        Concept::AtMost(_, _, _) => true,
+        _ => false,
+    }
+}
+/// Whether a definition in `definitions[index..]` counts.
+fn definitions_count(definitions: &Vec<Definition>, index: usize) -> bool {
+    if index < definitions.len() {
+        counts(&definitions[index].concept) || definitions_count(definitions, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether a fact in `facts[index..]` counts.
+fn facts_count(facts: &Vec<Fact>, index: usize) -> bool {
+    if index < facts.len() {
+        counts(&facts[index].concept) || facts_count(facts, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether the TBox concept, a definition or a fact counts.
+fn closure_counts(parts: &Parts, facts: &Vec<Fact>) -> bool {
+    counts(&parts.axioms) || definitions_count(&parts.definitions, 0) || facts_count(facts, 0)
 }
 /// Whether every definition in `definitions[index..]` defines an ordinary class
 /// by a proper concept.
@@ -399,6 +438,14 @@ fn axiom_parts(axiom: &Axiom, parts: Parts) -> Option<Parts> {
             )),
             None => None,
         },
+        Axiom::FunctionalObjectProperty(property) => Some(conjoin(
+            parts,
+            Concept::AtMost(1, copy_role(property), Box::new(Concept::Top)),
+        )),
+        Axiom::InverseFunctionalObjectProperty(property) => Some(conjoin(
+            parts,
+            Concept::AtMost(1, inverse(property), Box::new(Concept::Top)),
+        )),
         Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(_), _) => Some(parts),
         Axiom::EquivalentObjectProperties(_) => Some(parts),
         Axiom::InverseObjectProperties(_, _) => Some(parts),
@@ -822,8 +869,9 @@ fn denied_from(
 }
 /// An axiom closure read once for many queries: its individuals, what its class
 /// axioms require, the facts of its class assertions, its role hierarchy, the
-/// links of its object property assertions, and whether a negative object
-/// property assertion denies one of them.
+/// links of its object property assertions, whether a negative object
+/// property assertion denies one of them, whether it has a negative object
+/// property assertion at all, and whether its concepts count.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
     pub parts: Parts,
@@ -831,6 +879,8 @@ pub struct Prepared {
     pub roles: RoleHierarchy,
     pub links: Vec<Link>,
     pub denied: bool,
+    pub negative: bool,
+    pub counting: bool,
 }
 /// Read an axiom closure for queries; `None` when it is outside the supported
 /// fragment or a list would exceed the `usize` range.
@@ -866,6 +916,8 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         None => return None,
     };
     let denied = denied_from(items, &nodes, &links, 0);
+    let negative = has_negative(items, 0);
+    let counting = closure_counts(&parts, &facts);
     Some(Prepared {
         nodes,
         parts,
@@ -873,14 +925,35 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         roles,
         links,
         denied,
+        negative,
+        counting,
     })
+}
+/// Whether the prepared closure or the extra facts count.
+fn question_counts(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
+    prepared.counting || facts_count(extra, 0)
 }
 /// Whether the prepared closure has a model with elements for its individuals
 /// and one more element, in which the `extra` facts hold at their nodes: node 0
-/// is the further element and node `i + 1` the individual `nodes[i]`.
+/// is the further element and node `i + 1` the individual `nodes[i]`. A
+/// question that counts goes to the completion forest.
 fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
     if !facts_proper(extra, 0) {
         return None;
+    }
+    if question_counts(prepared, extra) {
+        if prepared.negative {
+            return None;
+        }
+        return forest::satisfiable(
+            prepared.nodes.len() + 1,
+            extra,
+            &prepared.facts,
+            &prepared.links,
+            &prepared.parts.axioms,
+            &prepared.parts.definitions,
+            &prepared.roles,
+        );
     }
     if prepared.denied {
         return Some(false);

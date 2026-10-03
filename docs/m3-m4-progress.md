@@ -3291,3 +3291,31 @@ This block adds 31 public theorems and 11 independent definitions. Totals are
 1361 audited theorems, 822 definitions, 425 Rust regressions and 1554 ledger
 obligations.
 
+## Reasoner: number restrictions in ontology queries
+
+The ontology queries (`shi_ontology`) now count. Class expressions translate to
+ALCIQ concepts, so minimum, maximum and exact cardinalities, qualified or not,
+reach the TBox concept, the definitions and the facts; a functional object
+property conjoins `≤1 r.⊤` onto the TBox concept and an inverse functional one
+`≤1 r⁻.⊤` (ShiParts proves both against the OWL definitions, through
+atMost_one_iff). Properness still rejects built-in classes and object
+properties, now also inside number restrictions.
+
+A prepared question goes to the completion forest when the closure or the
+question counts (closure_counts, question_counts), and to the completion graph
+tableau otherwise, so the answers and the speed of counting-free questions are
+unchanged. The forest merges individuals that a maximum restriction forces
+together, so the link test for negative object property assertions no longer
+applies: a question that counts gets no answer next to a negative assertion.
+prepared_sound and prepared_complete cover both tableaux: an acceptance by
+either comes with an OWL model of the closure (owl_model_agrees now also
+covers number restrictions, counting lifted elements with atLeast_lift), and
+every OWL model forces acceptance by either. The consistency, satisfiability,
+subsumption and instance theorems, and the queries from source bytes, keep
+their statements and now cover SHIQ. A number restriction along a role that
+includes a transitive role gets no answer.
+
+This block adds 7 public theorems and 1 independent definition. Totals are 1368
+audited theorems, 823 definitions, 426 Rust regressions and 1561 ledger
+obligations.
+

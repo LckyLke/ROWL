@@ -115,9 +115,9 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
 | **Input** | OWL Functional Syntax documents (prefixes, header, annotations, declarations, class and object property axioms, assertions); N-Triples, passing all 68 W3C syntax tests | RDF/XML, Turtle and the other required formats |
-| **Logic** | ALC (and, or, not, some, only) with named individuals, inverse roles, role hierarchies and transitive roles (SHI) | number restrictions, nominals and datatypes, up to full OWL 2 DL (SROIQ(D)) |
+| **Logic** | ALC (and, or, not, some, only) with named individuals, inverse roles, role hierarchies, transitive roles and number restrictions, including functional properties (SHIQ) | nominals, role chains and datatypes, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking | classification, query answering |
-| **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection, equality blocking and backjumping; a document read and prepared once answers any number of queries | caching satisfiability results for classification |
+| **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection, equality blocking and backjumping, and a completion forest with pairwise blocking for counting; a document read and prepared once answers any number of queries | caching satisfiability results for classification |
 
 There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
 and proofs from bytes to answers. [`docs/status.md`](docs/status.md) states
