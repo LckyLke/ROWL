@@ -1,6 +1,6 @@
 //! Answers for Functional Syntax source bytes: the verified document reader,
-//! the mapping into the raw OWL model, and the verified SHI queries on the
-//! completion graph tableau.
+//! the mapping into the raw OWL model, and the verified SHOIQ queries on the
+//! completion graph tableau and the completion forest.
 //!
 //! A document error is returned as `Err`. Every document the reader accepts
 //! maps into the model, so `Ok(None)` means the document's axioms or the query

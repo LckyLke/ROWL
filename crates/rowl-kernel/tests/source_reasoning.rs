@@ -283,8 +283,23 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         source_consistent(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
-    // Enumerations are read but not answered yet.
+    // Enumerations of named individuals are answered from the bytes, and
+    // those of anonymous individuals get no answer.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ClassAssertion(ObjectOneOf(:a) :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ClassAssertion(ObjectOneOf(:a) :b)\n DifferentIndividuals(:a :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ClassAssertion(ObjectOneOf(_:x) :b)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
@@ -330,11 +345,21 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         answer(source_consistent(&bytes, &limits(), &scope)),
         Some(false)
     );
-    // A negative property assertion next to a role axiom gives no answer.
+    // A negative property assertion next to a role axiom is answered too.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SymmetricObjectProperty(:p)\n NegativeObjectPropertyAssertion(:p :a :b)\n)"
         .as_bytes()
         .to_vec();
-    assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SymmetricObjectProperty(:p)\n ObjectPropertyAssertion(:p :b :a)\n NegativeObjectPropertyAssertion(:p :a :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
     // Domains of inverse properties and inverse role axioms are answered.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ObjectPropertyDomain(ObjectInverseOf(:p) :A)\n InverseObjectProperties(:p :q)\n)"
         .as_bytes()

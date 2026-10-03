@@ -1760,7 +1760,7 @@
         "Rowl.ShiOntology.definitions_count_correct",
         "Rowl.ShiOntology.facts_count_correct",
         "Rowl.ShiOntology.closure_counts_correct",
-        "Rowl.ShiOntology.question_counts_correct",
+        "Rowl.ShiOntology.question_forest_correct",
         "Rowl.ShiOntology.definitions_proper_correct",
         "Rowl.ShiOntology.facts_proper_correct",
         "Rowl.ShiOntology.members_proper_correct",
@@ -1775,6 +1775,7 @@
         "Rowl.ShiOntology.owl_model_relation",
         "Rowl.ShiOntology.atLeast_lift",
         "Rowl.ShiOntology.owl_model_agrees",
+        "Rowl.ShiOntology.tangled_correct",
         "Rowl.ShiOntology.prepare_correct",
         "Rowl.ShiOntology.prepared_supported",
         "Rowl.ShiOntology.placement_representative",
@@ -2079,8 +2080,32 @@
         "Rowl.ShiEquality.meets_correct",
         "Rowl.ShiEquality.repeats_correct",
         "Rowl.ShiEquality.shares_correct",
-        "Rowl.ShiEquality.clash_from_correct",
-        "Rowl.ShiEquality.has_different_correct"
+        "Rowl.ShiEquality.clash_from_correct"
+      ]
+    },
+    {
+      "module": "Rowl.ShiNominals",
+      "namespace": "Rowl.ShiNominals",
+      "theorems": [
+        "Rowl.ShiNominals.not_mentions",
+        "Rowl.ShiNominals.nominal_correct",
+        "Rowl.ShiNominals.definitions_nominal_correct",
+        "Rowl.ShiNominals.facts_nominal_correct",
+        "Rowl.ShiNominals.closure_nominal_correct",
+        "Rowl.ShiNominals.positionOf_ne_zero",
+        "Rowl.ShiNominals.known_correct",
+        "Rowl.ShiNominals.facts_known_correct",
+        "Rowl.ShiNominals.nominal_individuals_correct",
+        "Rowl.ShiNominals.definition_individuals_correct",
+        "Rowl.ShiNominals.class_individuals_correct",
+        "Rowl.ShiNominals.assertion_individuals_correct",
+        "Rowl.ShiNominals.add_fact_correct",
+        "Rowl.ShiNominals.named_from_correct",
+        "Rowl.ShiNominals.apart_rest_correct",
+        "Rowl.ShiNominals.apart_within_correct",
+        "Rowl.ShiNominals.apart_members_correct",
+        "Rowl.ShiNominals.unequal_from_correct",
+        "Rowl.ShiNominals.refused_from_correct"
       ]
     }
   ],
@@ -2916,7 +2941,6 @@
     "Rowl.FunctionalModel.EnumerationModel",
     "Rowl.FunctionalModel.IndividualMembersModel",
     "Rowl.ShiEquality.MembersOf",
-    "Rowl.ShiEquality.Different",
     "Rowl.ShiEquality.Equal",
     "Rowl.ShiEquality.Representative",
     "Rowl.ShiEquality.RepOf",
@@ -2928,6 +2952,9 @@
     "Rowl.ForestSearch.NominalRoot",
     "Rowl.ForestSearch.NominalOkFor",
     "Rowl.ForestSearch.NominalOkAt",
-    "Rowl.ForestModel.nominalPlace"
+    "Rowl.ForestModel.nominalPlace",
+    "Rowl.ShiNominals.IsNamed",
+    "Rowl.ShiNominals.Mentions",
+    "Rowl.ShiNominals.Nominal"
   ]
 }

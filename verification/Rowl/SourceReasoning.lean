@@ -4,9 +4,10 @@ import Rowl.ShiOntology
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
 document reader, the proved mapping into the raw OWL model and the proved
-queries for SHI with assertions about named and anonymous individuals, inverse
-properties and role axioms, decided by the completion graph tableau, compose
-into one extracted function from the original bytes to an answer. An error is
+queries for SHOIQ with assertions about named and anonymous individuals, inverse
+properties, role axioms, number restrictions and nominals of named individuals,
+decided by the completion graph tableau or the completion forest, compose into
+one extracted function from the original bytes to an answer. An error is
 exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then
 the kernel's query on those axioms: no answer means the axioms or the query are

@@ -745,7 +745,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   for the Direct Semantics. Negative object property assertions next to a
   question that counts, and number restrictions along roles that are not
   simple, get no answer.
-- Reasoner track, twelfth stage (in progress): equality and nominals. The
+- Reasoner track, twelfth stage: equality and nominals. The
   reader takes `SameIndividual`, `DifferentIndividuals`, `ObjectOneOf` and
   `ObjectHasValue`, and the ontology queries decide individual equalities and
   inequalities. Every member of an equality or inequality gets a node, and
@@ -756,9 +756,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   assertions use the representatives' nodes. The completion graph tableau's
   models are proved to keep different named nodes apart, so a
   `DifferentIndividuals` axiom holds exactly unless two of its members share a
-  node, which refutes the closure. A question that counts goes to the
-  completion forest with equal individuals merged; next to a
-  `DifferentIndividuals` axiom it gets no answer yet. The concepts and the
+  node, which refutes the closure. The concepts and the
   concept table now have nominals `{a}` and their complements, read with the
   individual's OWL meaning: concepts::translate covers ALCIQO, turning an
   enumeration into the union of the nominals of its individuals and a value
@@ -771,25 +769,37 @@ progress. Full OWL parsing and executable reasoning are still future work.
   of a complete forest places each individual on the path of its named node,
   so the acceptances stay exact. A nominal below a tree node, or an individual
   of a nominal or its complement without a named node, gets no answer. The
-  ontology queries still reject nominals as not proper, so enumerations and
-  value restrictions are not yet answered.
-- 1416 audited public theorems and 844 audited semantic definitions. Consistency,
+  ontology queries take nominals of named individuals: the individuals of the
+  nominals of a closure get nodes, and a question with a nominal, one that
+  counts, or one about a closure with negative assertions next to role axioms
+  goes to the completion forest, which also gets the nominal `{a}` of every
+  individual at its node, every inequality as its members outside the
+  nominals of the later members, and every negative assertion `¬r(a, b)` as
+  `∀r.¬{b}` at `a`. These facts are proved to hold in every OWL model of the
+  closure, and the forest's model, with every individual where its nominal is,
+  is proved to give an OWL model of the closure, so the answers stay exact;
+  inequalities and negative assertions next to counting or role axioms are now
+  decided. A nominal of an anonymous individual, or in a question of an
+  individual the closure does not have, gets no answer.
+- 1435 audited public theorems and 846 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
-  ALCIQ class, domain and range axioms with number restrictions on simple
-  roles, functional and inverse functional object properties, class and object
-  property assertions, individual equalities and inequalities, and inclusions,
+  ALCIQO class, domain and range axioms with number restrictions on simple
+  roles and nominals of named individuals, functional and inverse functional
+  object properties, class, object property and negative object property
+  assertions, individual equalities and inequalities, and inclusions,
   equivalences, inverses, symmetry and transitivity of object property
-  expressions (SHIQ), also directly from Functional Syntax source bytes.
-  Documents with enumerations and value restrictions are read and mapped into
-  the model, but get no answer yet. No full OWL decision procedure is proved yet. See
-  m3-m4-progress.md for the input contracts.
-- 433 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+  expressions (SHOIQ), also directly from Functional Syntax source bytes; a
+  nominal that reaches an anonymous element below another gets no answer yet.
+  No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
+  input contracts.
+- 435 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
-  blocking and backjumping, the counting queries a completion forest with
-  pairwise blocking and backjumping over merges, and a closure or document
+  blocking and backjumping, the queries that count or have nominals a
+  completion forest with pairwise blocking and backjumping over merges, and a
+  closure or document
   prepared once answers any number of queries.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
@@ -798,7 +808,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1609-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1628-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

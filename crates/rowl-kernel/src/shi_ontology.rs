@@ -1,8 +1,9 @@
 //! Consistency, class satisfiability, subsumption and instance checking for an
 //! axiom closure with assertions: SHI decided by the completion graph tableau,
-//! and SHIQ, with number restrictions on simple roles, by the completion forest.
+//! and SHOIQ, with number restrictions on simple roles and nominals of named
+//! individuals, by the completion forest.
 //!
-//! Class expressions are translated into ALCIQ concepts (see `concepts`). Every
+//! Class expressions are translated into ALCIQO concepts (see `concepts`). Every
 //! class axiom becomes inclusions `C ⊑ D`: a subclass axiom is one, equivalent
 //! classes include the first member in every other member and back, disjoint
 //! classes include every member in the complement of every later member, and a
@@ -24,20 +25,24 @@
 //! listed, and every transitive property with its inverse, so the hierarchy
 //! stays closed as the tableaux require.
 //!
-//! Every individual of an assertion, equality or inequality gets a node after
-//! node 0, which stands for one more element, and the members of a
-//! `SameIndividual` axiom share the node of their representative. Class
-//! assertions and the query's concepts are facts at those nodes, and object
-//! property assertions are links. A question whose concepts have no number
-//! restriction goes to the completion graph tableau; one that counts goes to
-//! the completion forest, which merges individuals when a maximum restriction
-//! requires it. Without role axioms and without counting, a negative object
-//! property assertion contradicts the closure exactly when a link relates the
-//! same nodes along the same property, in either orientation, because the
-//! tableau's models relate named individuals only along links. A
-//! `DifferentIndividuals` axiom contradicts the closure exactly when two of its
-//! members share a node, because the completion graph tableau's models keep
-//! different nodes apart.
+//! Every individual of an assertion, equality or inequality, and every
+//! individual of a nominal of the closure, gets a node after node 0, which
+//! stands for one more element, and the members of a `SameIndividual` axiom
+//! share the node of their representative. Class assertions and the query's
+//! concepts are facts at those nodes, and object property assertions are links.
+//! A question whose concepts have no number restriction and no nominal goes to
+//! the completion graph tableau, unless the closure has negative assertions next
+//! to role axioms. There, without role axioms, a negative object property
+//! assertion contradicts the closure exactly when a link relates the same nodes
+//! along the same property, in either orientation, because the tableau's models
+//! relate named individuals only along links, and a `DifferentIndividuals`
+//! axiom contradicts the closure exactly when two of its members share a node,
+//! because the tableau's models keep different nodes apart. Every other
+//! question goes to the completion forest, which merges individuals when a
+//! maximum restriction or a nominal requires it, with three more kinds of
+//! facts: the nominal `{a}` of every individual at its node, the members of
+//! every inequality outside each other's nominals, and `∀r.¬{b}` at the source
+//! `a` of every negative assertion `¬r(a, b)`.
 //!
 //! `prepare` reads a closure once: its individuals, class parts, role hierarchy,
 //! facts and links, and the check of its negative assertions. The `prepared_`
@@ -46,13 +51,13 @@
 //! and ask once.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside ALCIQ, when a concept, definition, role axiom or
+//! expression is outside ALCIQO, when a concept, definition, role axiom or
 //! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
-//! fixed meaning the tableaux do not model), when negative object property
-//! assertions meet role axioms or a question that counts, when individual
-//! inequalities meet a question that counts, when a number
-//! restriction counts along a role that is not simple, or when a list would
-//! exceed the `usize` range.
+//! fixed meaning the tableaux do not model), when a nominal is of an anonymous
+//! individual or, in a question, of an individual the closure does not have,
+//! when the completion forest meets a nominal below an anonymous element of a
+//! tree, when a number restriction counts along a role that is not simple, or
+//! when a list would exceed the `usize` range.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -66,7 +71,7 @@ use crate::alc_ontology::{
     builtin_class, has_negative, individuals_from, intern, position, role_proper,
 };
 use crate::completion::{satisfiable, Definition, Fact, Link};
-use crate::concepts::{copy_role, inverse, same_role, translate, Concept};
+use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
 use crate::forest;
 use crate::hierarchy::{below, is_transitive, Inclusion, RoleHierarchy};
 use crate::model::{
@@ -82,16 +87,25 @@ pub struct Parts {
     pub definitions: Vec<Definition>,
 }
 
-/// Whether no built-in class occurs as a named class and no built-in object
-/// property as a role, so the tableaux read every name as an ordinary one.
+/// Whether the individual is a named one, which a reinterpretation of the
+/// anonymous individuals leaves in place.
+fn named_individual(individual: &Individual) -> bool {
+    match individual {
+        Individual::Named(_) => true,
+        Individual::Anonymous(_) => false,
+    }
+}
+/// Whether no built-in class occurs as a named class, no built-in object
+/// property as a role and no anonymous individual in a nominal, so the tableaux
+/// read every name as an ordinary one.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
         Concept::Bottom => true,
         Concept::Atom(class) => !builtin_class(class),
         Concept::NotAtom(class) => !builtin_class(class),
-        Concept::One(_) => false,
-        Concept::NotOne(_) => false,
+        Concept::One(individual) => named_individual(individual),
+        Concept::NotOne(individual) => named_individual(individual),
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),
@@ -132,6 +146,63 @@ fn facts_count(facts: &Vec<Fact>, index: usize) -> bool {
 /// Whether the TBox concept, a definition or a fact counts.
 fn closure_counts(parts: &Parts, facts: &Vec<Fact>) -> bool {
     counts(&parts.axioms) || definitions_count(&parts.definitions, 0) || facts_count(facts, 0)
+}
+/// Whether a nominal occurs, which only the completion forest decides.
+fn nominal(concept: &Concept) -> bool {
+    match concept {
+        Concept::One(_) => true,
+        Concept::NotOne(_) => true,
+        Concept::And(left, right) => nominal(left) || nominal(right),
+        Concept::Or(left, right) => nominal(left) || nominal(right),
+        Concept::Exists(_, filler) => nominal(filler),
+        Concept::Forall(_, filler) => nominal(filler),
+        Concept::AtLeast(_, _, filler) => nominal(filler),
+        Concept::AtMost(_, _, filler) => nominal(filler),
+        _ => false,
+    }
+}
+/// Whether a definition in `definitions[index..]` has a nominal.
+fn definitions_nominal(definitions: &Vec<Definition>, index: usize) -> bool {
+    if index < definitions.len() {
+        nominal(&definitions[index].concept) || definitions_nominal(definitions, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether a fact in `facts[index..]` has a nominal.
+fn facts_nominal(facts: &Vec<Fact>, index: usize) -> bool {
+    if index < facts.len() {
+        nominal(&facts[index].concept) || facts_nominal(facts, index + 1)
+    } else {
+        false
+    }
+}
+/// Whether the TBox concept, a definition or a fact has a nominal.
+fn closure_nominal(parts: &Parts, facts: &Vec<Fact>) -> bool {
+    nominal(&parts.axioms) || definitions_nominal(&parts.definitions, 0) || facts_nominal(facts, 0)
+}
+/// Whether the individual of every nominal of `concept` has a node.
+fn known(nodes: &Vec<Individual>, concept: &Concept) -> bool {
+    match concept {
+        Concept::One(individual) => position(nodes, individual, 0) != 0,
+        Concept::NotOne(individual) => position(nodes, individual, 0) != 0,
+        Concept::And(left, right) => known(nodes, left) && known(nodes, right),
+        Concept::Or(left, right) => known(nodes, left) && known(nodes, right),
+        Concept::Exists(_, filler) => known(nodes, filler),
+        Concept::Forall(_, filler) => known(nodes, filler),
+        Concept::AtLeast(_, _, filler) => known(nodes, filler),
+        Concept::AtMost(_, _, filler) => known(nodes, filler),
+        _ => true,
+    }
+}
+/// Whether the individual of every nominal of a fact in `facts[index..]` has a
+/// node.
+fn facts_known(nodes: &Vec<Individual>, facts: &Vec<Fact>, index: usize) -> bool {
+    if index < facts.len() {
+        known(nodes, &facts[index].concept) && facts_known(nodes, facts, index + 1)
+    } else {
+        true
+    }
 }
 /// Whether every definition in `definitions[index..]` defines an ordinary class
 /// by a proper concept.
@@ -967,15 +1038,212 @@ fn clash_from(
         false
     }
 }
-/// Whether `items[index..]` has an inequality.
-fn has_different(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
-    if index < items.len() {
-        match &items[index].axiom {
-            Axiom::DifferentIndividuals(_) => true,
-            _ => has_different(items, index + 1),
+/// `nodes` with every new individual of a nominal of `concept`; `None` when
+/// there is no room.
+fn nominal_individuals(nodes: Vec<Individual>, concept: &Concept) -> Option<Vec<Individual>> {
+    match concept {
+        Concept::One(individual) => intern(nodes, individual),
+        Concept::NotOne(individual) => intern(nodes, individual),
+        Concept::And(left, right) => match nominal_individuals(nodes, left) {
+            Some(nodes) => nominal_individuals(nodes, right),
+            None => None,
+        },
+        Concept::Or(left, right) => match nominal_individuals(nodes, left) {
+            Some(nodes) => nominal_individuals(nodes, right),
+            None => None,
+        },
+        Concept::Exists(_, filler) => nominal_individuals(nodes, filler),
+        Concept::Forall(_, filler) => nominal_individuals(nodes, filler),
+        Concept::AtLeast(_, _, filler) => nominal_individuals(nodes, filler),
+        Concept::AtMost(_, _, filler) => nominal_individuals(nodes, filler),
+        _ => Some(nodes),
+    }
+}
+/// `nodes` with every new individual of a nominal of a definition in
+/// `definitions[index..]`.
+fn definition_individuals(
+    nodes: Vec<Individual>,
+    definitions: &Vec<Definition>,
+    index: usize,
+) -> Option<Vec<Individual>> {
+    if index < definitions.len() {
+        match nominal_individuals(nodes, &definitions[index].concept) {
+            Some(nodes) => definition_individuals(nodes, definitions, index + 1),
+            None => None,
         }
     } else {
-        false
+        Some(nodes)
+    }
+}
+/// `nodes` with every new individual of a nominal of the concept of a class
+/// expression; `None` when it is outside ALCIQO.
+fn class_individuals(nodes: Vec<Individual>, class: &ClassExpression) -> Option<Vec<Individual>> {
+    match translate(class, true) {
+        Some(concept) => nominal_individuals(nodes, &concept),
+        None => None,
+    }
+}
+/// `nodes` with every new individual of a nominal of a class assertion in
+/// `items[index..]`; `None` when a class expression is outside ALCIQO.
+fn assertion_individuals(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    nodes: Vec<Individual>,
+) -> Option<Vec<Individual>> {
+    if index < items.len() {
+        let nodes = match &items[index].axiom {
+            Axiom::ClassAssertion(class, _) => class_individuals(nodes, class),
+            _ => Some(nodes),
+        };
+        match nodes {
+            Some(nodes) => assertion_individuals(items, index + 1, nodes),
+            None => None,
+        }
+    } else {
+        Some(nodes)
+    }
+}
+/// `facts` with one more fact; `None` when there is no room.
+fn add_fact(mut facts: Vec<Fact>, node: usize, concept: Concept) -> Option<Vec<Fact>> {
+    if facts.len() < usize::MAX {
+        facts.push(Fact { node, concept });
+        Some(facts)
+    } else {
+        None
+    }
+}
+/// `facts` with the nominal of every individual of `nodes[index..]` at its
+/// node.
+fn named_from(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    index: usize,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    if index < nodes.len() {
+        let node = node_of(nodes, same, &nodes[index]);
+        match add_fact(facts, node, Concept::One(copy_individual(&nodes[index]))) {
+            Some(facts) => named_from(nodes, same, index + 1, facts),
+            None => None,
+        }
+    } else {
+        Some(facts)
+    }
+}
+/// `facts` with `member` outside the nominal of every individual of
+/// `rest[index..]`.
+fn apart_rest(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    member: &Individual,
+    rest: &Vec<Individual>,
+    index: usize,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    if index < rest.len() {
+        let node = node_of(nodes, same, member);
+        match add_fact(facts, node, Concept::NotOne(copy_individual(&rest[index]))) {
+            Some(facts) => apart_rest(nodes, same, member, rest, index + 1, facts),
+            None => None,
+        }
+    } else {
+        Some(facts)
+    }
+}
+/// `facts` with every individual of `rest[index..]` outside the nominals of the
+/// later ones.
+fn apart_within(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    rest: &Vec<Individual>,
+    index: usize,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    if index < rest.len() {
+        match apart_rest(nodes, same, &rest[index], rest, index + 1, facts) {
+            Some(facts) => apart_within(nodes, same, rest, index + 1, facts),
+            None => None,
+        }
+    } else {
+        Some(facts)
+    }
+}
+/// `facts` with every member of an inequality outside the nominals of the later
+/// ones.
+fn apart_members(
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    members: &AtLeastTwo<Individual>,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    let node = node_of(nodes, same, &members.first);
+    let facts = match add_fact(
+        facts,
+        node,
+        Concept::NotOne(copy_individual(&members.second)),
+    ) {
+        Some(facts) => facts,
+        None => return None,
+    };
+    let facts = match apart_rest(nodes, same, &members.first, &members.rest, 0, facts) {
+        Some(facts) => facts,
+        None => return None,
+    };
+    let facts = match apart_rest(nodes, same, &members.second, &members.rest, 0, facts) {
+        Some(facts) => facts,
+        None => return None,
+    };
+    apart_within(nodes, same, &members.rest, 0, facts)
+}
+/// `facts` with the members of every inequality of `items[index..]` apart.
+fn unequal_from(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    index: usize,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    if index < items.len() {
+        let facts = match &items[index].axiom {
+            Axiom::DifferentIndividuals(members) => apart_members(nodes, same, members, facts),
+            _ => Some(facts),
+        };
+        match facts {
+            Some(facts) => unequal_from(items, nodes, same, index + 1, facts),
+            None => None,
+        }
+    } else {
+        Some(facts)
+    }
+}
+/// `facts` with the source of every negative object property assertion of
+/// `items[index..]` related along its property only outside the target's
+/// nominal.
+fn refused_from(
+    items: &Vec<AnnotatedAxiom>,
+    nodes: &Vec<Individual>,
+    same: &Vec<usize>,
+    index: usize,
+    facts: Vec<Fact>,
+) -> Option<Vec<Fact>> {
+    if index < items.len() {
+        let facts = match &items[index].axiom {
+            Axiom::NegativeObjectPropertyAssertion(role, source, target) => {
+                let node = node_of(nodes, same, source);
+                let concept = Concept::Forall(
+                    copy_role(role),
+                    Box::new(Concept::NotOne(copy_individual(target))),
+                );
+                add_fact(facts, node, concept)
+            }
+            _ => Some(facts),
+        };
+        match facts {
+            Some(facts) => refused_from(items, nodes, same, index + 1, facts),
+            None => None,
+        }
+    } else {
+        Some(facts)
     }
 }
 
@@ -1103,25 +1371,32 @@ fn denied_from(
         false
     }
 }
+/// Whether negative object property assertions meet role axioms, which only
+/// the completion forest decides.
+fn tangled(items: &Vec<AnnotatedAxiom>, roles: &RoleHierarchy) -> bool {
+    has_negative(items, 0) && !(roles.inclusions.len() == 0 && roles.transitive.len() == 0)
+}
 /// An axiom closure read once for many queries: its individuals, the
 /// representative node of every node, what its class axioms require, the facts
-/// of its class assertions, its role hierarchy, the links of its object
-/// property assertions, whether a negative object property assertion denies
-/// one of them, whether it has a negative object property assertion at all,
-/// whether its concepts count, whether two members of an inequality share a
-/// node, and whether it has an inequality at all.
+/// of its class assertions, the facts the completion forest also gets (the
+/// nominal of every individual at its node, the members of every inequality
+/// outside each other's nominals, and the source of every negative object
+/// property assertion related along its property only outside the target's
+/// nominal), its role hierarchy, the links of its object property assertions,
+/// whether a negative object property assertion denies one of them, whether
+/// every question goes to the completion forest, and whether two members of an
+/// inequality share a node.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
     pub same: Vec<usize>,
     pub parts: Parts,
     pub facts: Vec<Fact>,
+    pub bound: Vec<Fact>,
     pub roles: RoleHierarchy,
     pub links: Vec<Link>,
     pub denied: bool,
-    pub negative: bool,
-    pub counting: bool,
+    pub forest: bool,
     pub clash: bool,
-    pub different: bool,
 }
 /// Read an axiom closure for queries; `None` when it is outside the supported
 /// fragment or a list would exceed the `usize` range.
@@ -1134,12 +1409,24 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         Some(nodes) => nodes,
         None => return None,
     };
-    let start = identity_from(nodes.len() + 1, 0, Vec::new());
-    let same = equalities_from(items, &nodes, 0, start);
     let parts = match class_parts(items) {
         Some(parts) => parts,
         None => return None,
     };
+    let nodes = match nominal_individuals(nodes, &parts.axioms) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let nodes = match definition_individuals(nodes, &parts.definitions, 0) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let nodes = match assertion_individuals(items, 0, nodes) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let start = identity_from(nodes.len() + 1, 0, Vec::new());
+    let same = equalities_from(items, &nodes, 0, start);
     let facts = match assertions_from(items, &nodes, &same, 0, Vec::new()) {
         Some(facts) => facts,
         None => return None,
@@ -1155,57 +1442,71 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
     {
         return None;
     }
-    if has_negative(items, 0) && !(roles.inclusions.len() == 0 && roles.transitive.len() == 0) {
-        return None;
-    }
     let links = match links_from(items, &nodes, &same, 0, Vec::new()) {
         Some(links) => links,
         None => return None,
     };
+    let bound = match assertions_from(items, &nodes, &same, 0, Vec::new()) {
+        Some(bound) => bound,
+        None => return None,
+    };
+    let bound = match named_from(&nodes, &same, 0, bound) {
+        Some(bound) => bound,
+        None => return None,
+    };
+    let bound = match unequal_from(items, &nodes, &same, 0, bound) {
+        Some(bound) => bound,
+        None => return None,
+    };
+    let bound = match refused_from(items, &nodes, &same, 0, bound) {
+        Some(bound) => bound,
+        None => return None,
+    };
     let denied = denied_from(items, &nodes, &same, &links, 0);
-    let negative = has_negative(items, 0);
-    let counting = closure_counts(&parts, &facts);
+    let forest =
+        closure_counts(&parts, &facts) || closure_nominal(&parts, &facts) || tangled(items, &roles);
     let clash = clash_from(items, &nodes, &same, 0);
-    let different = has_different(items, 0);
     Some(Prepared {
         nodes,
         same,
         parts,
         facts,
+        bound,
         roles,
         links,
         denied,
-        negative,
-        counting,
+        forest,
         clash,
-        different,
     })
 }
-/// Whether the prepared closure or the extra facts count.
-fn question_counts(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
-    prepared.counting || facts_count(extra, 0)
+/// Whether the question goes to the completion forest: the prepared closure
+/// does, or the extra facts count or have a nominal.
+fn question_forest(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
+    prepared.forest || facts_count(extra, 0) || facts_nominal(extra, 0)
 }
 /// Whether the prepared closure has a model with elements for its individuals
 /// and one more element, in which the `extra` facts hold at their nodes: node 0
 /// is the further element and node `i + 1` the individual `nodes[i]`, which
 /// sits at the node of its representative. An inequality two of whose members
-/// share a node rules out every model; a question that counts goes to the
-/// completion forest.
+/// share a node rules out every model. A question that counts or has a
+/// nominal, or about a closure with negative assertions next to role axioms,
+/// goes to the completion forest with the facts it also gets; every other
+/// question to the completion graph tableau.
 fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
     if !facts_proper(extra, 0) {
+        return None;
+    }
+    if !facts_known(&prepared.nodes, extra, 0) {
         return None;
     }
     if prepared.clash {
         return Some(false);
     }
-    if question_counts(prepared, extra) {
-        if prepared.negative || prepared.different {
-            return None;
-        }
+    if question_forest(prepared, extra) {
         return forest::satisfiable(
             prepared.nodes.len() + 1,
             extra,
-            &prepared.facts,
+            &prepared.bound,
             &prepared.links,
             &prepared.parts.axioms,
             &prepared.parts.definitions,

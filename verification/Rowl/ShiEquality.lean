@@ -6,9 +6,8 @@ of a `SameIndividual` or `DifferentIndividuals` axiom gets a node, and the nodes
 of the members of each equality are joined under one representative by a union
 of classes. Every node's representative is joined to the node by a chain of
 equalities, so every OWL model gives a node and its representative one element,
-and the members of each equality share their representative. The checks for an
-inequality two of whose members share a representative, and for inequalities at
-all, are exact.
+and the members of each equality share their representative. The check for an
+inequality two of whose members share a representative is exact.
 -/
 namespace Rowl.ShiEquality
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -23,11 +22,6 @@ def MembersOf : Axiom → List Individual
   | .SameIndividual xs => xs.elements
   | .DifferentIndividuals xs => xs.elements
   | _ => []
-
-/-- An individual inequality. -/
-def Different : Axiom → Prop
-  | .DifferentIndividuals _ => True
-  | _ => False
 
 /-- The positions of two members of one equality. -/
 noncomputable def Equal (items : List AnnotatedAxiom) (nodes : List Individual) (i j : Nat) : Prop :=
@@ -838,36 +832,6 @@ theorem clash_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : alloc
         bind_ok,item,advance,later]
       congr 1
       exact decide_eq_decide.mpr ⟨fun rest => .inr rest,fun both => both.resolve_left (by simp [Clashes])⟩
-  · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
-termination_by items.val.length - index.val
-decreasing_by all_goals omega
-
-/-- The check for inequalities is exact. -/
-theorem has_different_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) :
-    shi_ontology.has_different items index =
-      .ok (decide (∃ item ∈ items.val.drop index.val, Different item.axiom)) := by
-  rw [shi_ontology.has_different]
-  by_cases more : index.val < items.val.length
-  · have lookup : items.index_usize index = .ok items.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
-    have split : items.val.drop index.val = items.val[index.val] :: items.val.drop (index.val+1) :=
-      List.drop_eq_getElem_cons more
-    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextIndex : next.val = index.val+1 := by simpa using nextValue
-    have later := has_different_correct items next
-    rw [nextIndex] at later
-    rw [split]
-    simp only [List.mem_cons,exists_eq_or_imp]
-    cases item : items.val[index.val].axiom with
-    | DifferentIndividuals xs =>
-      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,item,Different]
-    | _ =>
-      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
-        bind_ok,item,advance,later]
-      congr 1
-      exact decide_eq_decide.mpr ⟨fun rest => .inr rest,fun both => both.resolve_left (by simp [Different])⟩
   · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
 termination_by items.val.length - index.val

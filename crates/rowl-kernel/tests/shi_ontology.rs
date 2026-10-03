@@ -272,11 +272,12 @@ fn negative_assertions_and_unsupported_inputs() {
         )),
     ];
     assert_eq!(consistent(&items), Some(true));
-    // Negative assertions next to role axioms, property chains, built-in
-    // properties and other constructors have no answer.
+    // Next to role axioms the completion forest decides negative assertions.
     let mut with_roles = items;
     with_roles.push(axiom(Axiom::SymmetricObjectProperty(property(b"r"))));
-    assert_eq!(consistent(&with_roles), None);
+    assert_eq!(consistent(&with_roles), Some(false));
+    // Property chains, built-in properties, other constructors and nominals of
+    // individuals the closure does not have get no answer.
     let chain = vec![axiom(Axiom::SubObjectPropertyOf(
         SubObjectPropertyExpression::Chain(two(property(b"r"), property(b"r"), Vec::new())),
         property(b"r"),
@@ -785,17 +786,21 @@ fn number_restrictions_and_functional_properties() {
         instance_of(&plain, &individual(b"a"), &at_least(2, b"r", thing())),
         Some(false)
     );
-    // Negative assertions next to counting, and counting along a transitive
-    // role, have no answer.
+    // Negative assertions next to counting are decided; counting along a
+    // transitive role has no answer.
     let negative = vec![
         functional(),
+        related(property(b"r"), a(), named(b"c")),
         axiom(Axiom::NegativeObjectPropertyAssertion(
             property(b"r"),
             a(),
             b(),
         )),
     ];
-    assert_eq!(consistent(&negative), None);
+    assert_eq!(consistent(&negative), Some(true));
+    let mut merged = negative;
+    merged.push(same(vec![b(), named(b"c")]));
+    assert_eq!(consistent(&merged), Some(false));
     let transitive = vec![
         axiom(Axiom::TransitiveObjectProperty(property(b"r"))),
         sub(class(b"A"), at_most(1, b"r", thing())),
@@ -904,14 +909,31 @@ fn different_individuals_stay_apart() {
         asserted(not(class(b"A")), b()),
     ];
     assert_eq!(consistent(&items), Some(true));
-    // A counting question with an inequality gets no answer yet.
+    // A counting question keeps different individuals apart too.
     let items = vec![
         axiom(Axiom::FunctionalObjectProperty(property(b"r"))),
         related(property(b"r"), c(), a()),
         related(property(b"r"), c(), b()),
         different(vec![a(), b()]),
     ];
-    assert_eq!(consistent(&items), None);
+    assert_eq!(consistent(&items), Some(false));
+    let items = vec![
+        axiom(Axiom::FunctionalObjectProperty(property(b"r"))),
+        related(property(b"r"), c(), a()),
+        related(property(b"r"), c(), b()),
+    ];
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(
+            &items,
+            &individual(b"a"),
+            &ClassExpression::ObjectOneOf(NonEmpty {
+                first: b(),
+                rest: Vec::new(),
+            })
+        ),
+        Some(true)
+    );
     // One preparation answers questions about equal and different individuals.
     let items = vec![
         same(vec![a(), b()]),
@@ -928,4 +950,308 @@ fn different_individuals_stay_apart() {
         prepared_instance_of(&prepared, &individual(b"c"), &class(b"A")),
         Some(false)
     );
+}
+
+fn one_of(members: Vec<Individual>) -> ClassExpression {
+    let mut members = members.into_iter();
+    let first = members.next().expect("one member");
+    ClassExpression::ObjectOneOf(NonEmpty {
+        first,
+        rest: members.collect(),
+    })
+}
+fn has_value(r: &[u8], a: Individual) -> ClassExpression {
+    ClassExpression::ObjectHasValue(property(r), a)
+}
+fn refused(r: &[u8], a: Individual, b: Individual) -> AnnotatedAxiom {
+    axiom(Axiom::NegativeObjectPropertyAssertion(property(r), a, b))
+}
+
+#[test]
+fn nominals_name_their_individuals() {
+    let a = || named(b"a");
+    let b = || named(b"b");
+    let c = || named(b"c");
+    // An enumeration of one individual makes its instances that individual.
+    let items = vec![
+        sub(class(b"A"), one_of(vec![a()])),
+        asserted(class(b"A"), b()),
+        asserted(class(b"B"), a()),
+    ];
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &class(b"B")),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &one_of(vec![a()])),
+        Some(true)
+    );
+    let mut apart = items;
+    apart.push(different(vec![a(), b()]));
+    assert_eq!(consistent(&apart), Some(false));
+    // A value restriction relates to the individual itself.
+    let items = vec![
+        asserted(has_value(b"r", a()), b()),
+        asserted(class(b"A"), a()),
+    ];
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &some(b"r", class(b"A"))),
+        Some(true)
+    );
+    let mut refusing = items;
+    refusing.push(refused(b"r", b(), a()));
+    assert_eq!(consistent(&refusing), Some(false));
+    // A domain of two individuals cannot hold three different successors.
+    let items = vec![
+        sub(class(THING), one_of(vec![a(), b()])),
+        asserted(at_least(3, b"r", thing()), a()),
+    ];
+    assert_eq!(consistent(&items), Some(false));
+    let items = vec![
+        sub(class(THING), one_of(vec![a(), b()])),
+        asserted(at_least(2, b"r", thing()), a()),
+    ];
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(&items, &individual(b"a"), &has_value(b"r", b())),
+        Some(true)
+    );
+    // Questions with nominals of the closure's individuals are decided, and
+    // classes that differ only in their nominals are told apart.
+    let items = vec![
+        asserted(class(b"A"), a()),
+        asserted(not(class(b"A")), b()),
+        related(property(b"r"), c(), a()),
+    ];
+    assert_eq!(
+        subsumed(&items, &one_of(vec![a()]), &class(b"A")),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(&items, &one_of(vec![a(), b()]), &class(b"A")),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&items, &and(one_of(vec![b()]), class(b"A"))),
+        Some(false)
+    );
+    assert_eq!(
+        instance_of(&items, &individual(b"c"), &has_value(b"r", a())),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(&items, &individual(b"c"), &has_value(b"r", b())),
+        Some(false)
+    );
+    // One preparation answers questions with and without nominals.
+    let prepared = prepare(&items).expect("supported axioms");
+    assert_eq!(prepared_consistent(&prepared), Some(true));
+    assert_eq!(
+        prepared_subsumed(&prepared, &one_of(vec![b()]), &not(class(b"A"))),
+        Some(true)
+    );
+    assert_eq!(
+        prepared_instance_of(&prepared, &individual(b"a"), &class(b"A")),
+        Some(true)
+    );
+    // Nominals of individuals the closure does not have, and of anonymous
+    // individuals, get no answer.
+    assert_eq!(class_satisfiable(&items, &one_of(vec![named(b"d")])), None);
+    let anonymous = Individual::Anonymous(AnonymousIndividual {
+        scope: Vec::new(),
+        label: b"x".to_vec(),
+    });
+    assert_eq!(
+        consistent(&vec![sub(class(b"A"), one_of(vec![anonymous]))]),
+        None
+    );
+}
+
+/// A finite OWL interpretation of A, B and R with the individuals a and b.
+struct Named<'a> {
+    base: &'a Finite,
+    a: usize,
+    b: usize,
+}
+fn individual_at(i: &Named, x: &Individual) -> usize {
+    match x {
+        Individual::Named(n) if n.iri.spelling == b"a" => i.a,
+        Individual::Named(n) if n.iri.spelling == b"b" => i.b,
+        _ => panic!("unknown test individual"),
+    }
+}
+/// The Direct Semantics of a class expression with nominals.
+fn denotes_named(i: &Named, e: &ClassExpression, x: usize) -> bool {
+    match e {
+        ClassExpression::ObjectIntersectionOf(xs) => {
+            denotes_named(i, &xs.first, x)
+                && denotes_named(i, &xs.second, x)
+                && xs.rest.iter().all(|e| denotes_named(i, e, x))
+        }
+        ClassExpression::ObjectUnionOf(xs) => {
+            denotes_named(i, &xs.first, x)
+                || denotes_named(i, &xs.second, x)
+                || xs.rest.iter().any(|e| denotes_named(i, e, x))
+        }
+        ClassExpression::ObjectComplementOf(e) => !denotes_named(i, e, x),
+        ClassExpression::ObjectSomeValuesFrom(r, e) => {
+            (0..i.base.size).any(|y| edge(i.base, r, x, y) && denotes_named(i, e, y))
+        }
+        ClassExpression::ObjectAllValuesFrom(r, e) => {
+            (0..i.base.size).all(|y| !edge(i.base, r, x, y) || denotes_named(i, e, y))
+        }
+        ClassExpression::ObjectOneOf(xs) => {
+            individual_at(i, &xs.first) == x || xs.rest.iter().any(|m| individual_at(i, m) == x)
+        }
+        ClassExpression::ObjectHasValue(r, m) => edge(i.base, r, x, individual_at(i, m)),
+        _ => denotes(i.base, e, x),
+    }
+}
+fn satisfied_named(i: &Named, item: &AnnotatedAxiom) -> bool {
+    match &item.axiom {
+        Axiom::SubClassOf(sub, sup) => {
+            (0..i.base.size).all(|x| !denotes_named(i, sub, x) || denotes_named(i, sup, x))
+        }
+        Axiom::ClassAssertion(e, m) => denotes_named(i, e, individual_at(i, m)),
+        Axiom::ObjectPropertyAssertion(r, s, t) => {
+            edge(i.base, r, individual_at(i, s), individual_at(i, t))
+        }
+        Axiom::NegativeObjectPropertyAssertion(r, s, t) => {
+            !edge(i.base, r, individual_at(i, s), individual_at(i, t))
+        }
+        Axiom::SameIndividual(xs) => individual_at(i, &xs.first) == individual_at(i, &xs.second),
+        Axiom::DifferentIndividuals(xs) => {
+            individual_at(i, &xs.first) != individual_at(i, &xs.second)
+        }
+        _ => panic!("outside the test axioms"),
+    }
+}
+fn next(seed: &mut u64) -> u64 {
+    *seed = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    *seed >> 33
+}
+fn random_member(seed: &mut u64) -> Individual {
+    if next(seed).is_multiple_of(2) {
+        named(b"a")
+    } else {
+        named(b"b")
+    }
+}
+/// A random class expression over A, B, R and nominals of a and b.
+fn random_nominal_expression(seed: &mut u64, depth: u32) -> ClassExpression {
+    match next(seed) % if depth == 0 { 4 } else { 10 } {
+        0 => class(b"A"),
+        1 => class(b"B"),
+        2 => one_of(vec![random_member(seed)]),
+        3 => has_value(b"R", random_member(seed)),
+        4 => and(
+            random_nominal_expression(seed, depth - 1),
+            random_nominal_expression(seed, depth - 1),
+        ),
+        5 => or(
+            random_nominal_expression(seed, depth - 1),
+            random_nominal_expression(seed, depth - 1),
+        ),
+        6 => not(random_nominal_expression(seed, depth - 1)),
+        7 => some(b"R", random_nominal_expression(seed, depth - 1)),
+        8 => all(b"R", random_nominal_expression(seed, depth - 1)),
+        _ => one_of(vec![named(b"a"), named(b"b")]),
+    }
+}
+fn random_nominal_axiom(seed: &mut u64) -> AnnotatedAxiom {
+    match next(seed) % 7 {
+        0 | 1 => sub(
+            random_nominal_expression(seed, 1),
+            random_nominal_expression(seed, 1),
+        ),
+        2 | 3 => asserted(random_nominal_expression(seed, 2), random_member(seed)),
+        4 => related(property(b"R"), random_member(seed), random_member(seed)),
+        5 => refused(b"R", random_member(seed), random_member(seed)),
+        _ => {
+            if next(seed).is_multiple_of(2) {
+                same(vec![named(b"a"), named(b"b")])
+            } else {
+                different(vec![named(b"a"), named(b"b")])
+            }
+        }
+    }
+}
+
+fn thing() -> ClassExpression {
+    class(THING)
+}
+fn with_stack(body: fn()) {
+    std::thread::Builder::new()
+        .stack_size(256 << 20)
+        .spawn(body)
+        .expect("a test thread")
+        .join()
+        .expect("the test body passes");
+}
+
+#[test]
+fn nominal_closures_agree_with_small_models() {
+    with_stack(nominal_closures_agree_with_small_models_body);
+}
+fn nominal_closures_agree_with_small_models_body() {
+    let finite = interpretations();
+    let mut seed = 101;
+    let mut consistent_small = 0;
+    let mut inconsistent = 0;
+    let mut refuted = 0;
+    for _ in 0..300 {
+        let mut items: Vec<AnnotatedAxiom> =
+            (0..3).map(|_| random_nominal_axiom(&mut seed)).collect();
+        // Both individuals have nodes, so every question about them is asked.
+        items.push(asserted(thing(), named(b"a")));
+        items.push(asserted(thing(), named(b"b")));
+        let query = random_nominal_expression(&mut seed, 2);
+        let models: Vec<Named> = finite
+            .iter()
+            .flat_map(|base| {
+                (0..base.size).flat_map(move |a| (0..base.size).map(move |b| Named { base, a, b }))
+            })
+            .filter(|i| items.iter().all(|item| satisfied_named(i, item)))
+            .collect();
+        let answer = consistent(&items);
+        if !models.is_empty() {
+            assert_ne!(
+                answer,
+                Some(false),
+                "a model exists, so the closure is consistent"
+            );
+            consistent_small += 1;
+        }
+        if answer == Some(false) {
+            inconsistent += 1;
+        }
+        // An instance answer must hold in every small model.
+        if instance_of(&items, &individual(b"a"), &query) == Some(true) {
+            assert!(
+                models.iter().all(|i| denotes_named(i, &query, i.a)),
+                "an entailed instance holds in every model"
+            );
+        }
+        // A satisfiable class has an instance in some model, so a small model
+        // with one refutes an unsatisfiability answer.
+        if models
+            .iter()
+            .any(|i| (0..i.base.size).any(|x| denotes_named(i, &query, x)))
+        {
+            assert_ne!(class_satisfiable(&items, &query), Some(false));
+            refuted += 1;
+        }
+    }
+    assert!(
+        consistent_small > 50,
+        "the sample must exercise consistent closures"
+    );
+    assert!(
+        inconsistent > 20,
+        "the sample must exercise inconsistent closures"
+    );
+    assert!(refuted > 50, "the sample must exercise satisfiable classes");
 }

@@ -3448,3 +3448,41 @@ labels with nominals. The ontology queries still reject nominals as not proper.
 This block adds 9 public theorems and 5 independent definitions. Totals are
 1416 audited theorems, 844 definitions, 433 Rust regressions and 1609 ledger
 obligations.
+
+## Reasoner: nominals in the ontology queries
+
+The ontology queries (`shi_ontology`) now take nominals. A concept is proper
+when its nominals are of named individuals (IsNamed), which a reinterpretation
+of the anonymous individuals leaves in place (denote_with_anonymous). The
+individuals of the nominals of the TBox concept, the definitions and the class
+assertions get nodes after the other individuals (ShiNominals:
+nominal_individuals_correct, definition_individuals_correct,
+assertion_individuals_correct), before the representatives are computed. A
+question's nominals must be of individuals the closure has (facts_known).
+
+A question goes to the completion forest when it counts, has a nominal, or is
+about a closure with negative assertions next to role axioms (question_forest,
+tangled); every other question goes to the completion graph tableau as before.
+The forest gets, besides the facts of the class assertions, the nominal `{a}` of
+every individual at its node (named_from_correct), the members of every
+`DifferentIndividuals` axiom outside the nominals of the later members
+(apart_members_correct, unequal_from_correct), and `∀r.¬{b}` at the node of `a`
+for every negative assertion `¬r(a, b)` (refused_from_correct). `PreparedData`
+records where each of these facts comes from and that every individual,
+inequality and negative assertion has its facts.
+
+prepared_sound reads the forest's model: the nominal fact of an individual puts
+the individual where its node is, so the OWL model built from the forest's
+model agrees with it on proper concepts whose nominals' individuals have nodes
+(owl_model_agrees, now with that agreement as a hypothesis); an inequality's
+complements keep its members apart and a negative assertion's restriction keeps
+its individuals unrelated. prepared_complete shows that every OWL model of the
+closure satisfies these facts, so it forces acceptance as before. The
+consistency, satisfiability, subsumption and instance theorems, and the queries
+from source bytes, keep their statements; inequalities and negative assertions
+next to counting or role axioms are now answered, and so are enumerations and
+value restrictions of named individuals.
+
+This block adds 21 public theorems, removes 2, adds 3 independent definitions
+and removes 1. Totals are 1435 audited theorems, 846 definitions, 435 Rust
+regressions and 1628 ledger obligations.

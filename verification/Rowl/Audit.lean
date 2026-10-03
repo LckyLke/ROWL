@@ -108,6 +108,7 @@ import Rowl.ForestModel
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiEquality
+import Rowl.ShiNominals
 import Rowl.ShiOntology
 
 #print axioms Rowl.next_valuation_total_correct
@@ -1253,7 +1254,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.definitions_count_correct
 #print axioms Rowl.ShiOntology.facts_count_correct
 #print axioms Rowl.ShiOntology.closure_counts_correct
-#print axioms Rowl.ShiOntology.question_counts_correct
+#print axioms Rowl.ShiOntology.question_forest_correct
 #print axioms Rowl.ShiOntology.definitions_proper_correct
 #print axioms Rowl.ShiOntology.facts_proper_correct
 #print axioms Rowl.ShiOntology.members_proper_correct
@@ -1268,6 +1269,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.owl_model_relation
 #print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
+#print axioms Rowl.ShiOntology.tangled_correct
 #print axioms Rowl.ShiOntology.prepare_correct
 #print axioms Rowl.ShiOntology.prepared_supported
 #print axioms Rowl.ShiOntology.placement_representative
@@ -1525,7 +1527,25 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiEquality.repeats_correct
 #print axioms Rowl.ShiEquality.shares_correct
 #print axioms Rowl.ShiEquality.clash_from_correct
-#print axioms Rowl.ShiEquality.has_different_correct
+#print axioms Rowl.ShiNominals.not_mentions
+#print axioms Rowl.ShiNominals.nominal_correct
+#print axioms Rowl.ShiNominals.definitions_nominal_correct
+#print axioms Rowl.ShiNominals.facts_nominal_correct
+#print axioms Rowl.ShiNominals.closure_nominal_correct
+#print axioms Rowl.ShiNominals.positionOf_ne_zero
+#print axioms Rowl.ShiNominals.known_correct
+#print axioms Rowl.ShiNominals.facts_known_correct
+#print axioms Rowl.ShiNominals.nominal_individuals_correct
+#print axioms Rowl.ShiNominals.definition_individuals_correct
+#print axioms Rowl.ShiNominals.class_individuals_correct
+#print axioms Rowl.ShiNominals.assertion_individuals_correct
+#print axioms Rowl.ShiNominals.add_fact_correct
+#print axioms Rowl.ShiNominals.named_from_correct
+#print axioms Rowl.ShiNominals.apart_rest_correct
+#print axioms Rowl.ShiNominals.apart_within_correct
+#print axioms Rowl.ShiNominals.apart_members_correct
+#print axioms Rowl.ShiNominals.unequal_from_correct
+#print axioms Rowl.ShiNominals.refused_from_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2357,7 +2377,6 @@ import Rowl.ShiOntology
 #print axioms Rowl.FunctionalModel.EnumerationModel
 #print axioms Rowl.FunctionalModel.IndividualMembersModel
 #print axioms Rowl.ShiEquality.MembersOf
-#print axioms Rowl.ShiEquality.Different
 #print axioms Rowl.ShiEquality.Equal
 #print axioms Rowl.ShiEquality.Representative
 #print axioms Rowl.ShiEquality.RepOf
@@ -2370,3 +2389,6 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.NominalOkFor
 #print axioms Rowl.ForestSearch.NominalOkAt
 #print axioms Rowl.ForestModel.nominalPlace
+#print axioms Rowl.ShiNominals.IsNamed
+#print axioms Rowl.ShiNominals.Mentions
+#print axioms Rowl.ShiNominals.Nominal
