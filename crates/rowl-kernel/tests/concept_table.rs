@@ -41,6 +41,8 @@ fn show(entries: &[Entry], index: usize) -> String {
         Entry::Bottom => "⊥".into(),
         Entry::Atom(c) => String::from_utf8_lossy(&c.iri.spelling).into_owned(),
         Entry::NotAtom(c) => format!("¬{}", String::from_utf8_lossy(&c.iri.spelling)),
+        Entry::One(_) => "{a}".into(),
+        Entry::NotOne(_) => "¬{a}".into(),
         Entry::And(a, b) => format!("({} ⊓ {})", show(entries, *a), show(entries, *b)),
         Entry::Or(a, b) => format!("({} ⊔ {})", show(entries, *a), show(entries, *b)),
         Entry::Exists(r, c) => format!("∃{}.{}", role(r), show(entries, *c)),

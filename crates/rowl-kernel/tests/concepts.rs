@@ -46,7 +46,14 @@ fn role_name(r: &ObjectPropertyExpression) -> String {
         }
     }
 }
-/// Render a concept with ¬ only on named classes and inverse roles marked ⁻.
+fn individual_name(individual: &Individual) -> String {
+    match individual {
+        Individual::Named(named) => String::from_utf8_lossy(&named.iri.spelling).into(),
+        Individual::Anonymous(node) => format!("_:{}", String::from_utf8_lossy(&node.label)),
+    }
+}
+/// Render a concept with ¬ only on named classes and nominals and inverse roles
+/// marked ⁻.
 fn show(c: &Concept) -> String {
     let name = |class: &Class| String::from_utf8_lossy(&class.iri.spelling).into_owned();
     match c {
@@ -54,6 +61,8 @@ fn show(c: &Concept) -> String {
         Concept::Bottom => "⊥".into(),
         Concept::Atom(class) => name(class),
         Concept::NotAtom(class) => format!("¬{}", name(class)),
+        Concept::One(individual) => format!("{{{}}}", individual_name(individual)),
+        Concept::NotOne(individual) => format!("¬{{{}}}", individual_name(individual)),
         Concept::And(a, b) => format!("({} ⊓ {})", show(a), show(b)),
         Concept::Or(a, b) => format!("({} ⊔ {})", show(a), show(b)),
         Concept::Exists(r, c) => format!("∃{}.{}", role_name(r), show(c)),
@@ -85,6 +94,34 @@ fn inverse_restrictions_are_translated_with_their_orientation() {
     // Expressions outside ALCI have no translation.
     let one_of = ClassExpression::ObjectHasSelf(named(b"hasPart"));
     assert!(translate(&one_of, true).is_none());
+}
+
+#[test]
+fn enumerations_and_value_restrictions_become_nominals() {
+    let individual = |s: &[u8]| Individual::Named(NamedIndividual { iri: iri(s) });
+    let enumeration = ClassExpression::ObjectOneOf(NonEmpty {
+        first: individual(b"red"),
+        rest: vec![individual(b"green"), individual(b"blue")],
+    });
+    assert_eq!(
+        translated(&enumeration, true),
+        "(({red} ⊔ {green}) ⊔ {blue})"
+    );
+    // The complement of an enumeration excludes each of its individuals.
+    assert_eq!(
+        translated(&enumeration, false),
+        "((¬{red} ⊓ ¬{green}) ⊓ ¬{blue})"
+    );
+    let single = ClassExpression::ObjectOneOf(NonEmpty {
+        first: individual(b"red"),
+        rest: Vec::new(),
+    });
+    assert_eq!(translated(&single, true), "{red}");
+    let value = ClassExpression::ObjectHasValue(inverted(b"hasPart"), individual(b"pump1"));
+    assert_eq!(translated(&value, true), "∃hasPart⁻.{pump1}");
+    assert_eq!(translated(&value, false), "∀hasPart⁻.¬{pump1}");
+    let complemented = negate(&translate(&value, true).expect("translated")).expect("negated");
+    assert_eq!(show(&complemented), "∀hasPart⁻.¬{pump1}");
 }
 
 #[test]

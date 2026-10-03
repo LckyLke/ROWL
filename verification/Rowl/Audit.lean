@@ -1077,6 +1077,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Concepts.copy_role_identity
 #print axioms Rowl.Concepts.inverse_correct
 #print axioms Rowl.Concepts.same_role_correct
+#print axioms Rowl.Concepts.copy_individual_identity
 #print axioms Rowl.Concepts.copy_concept_identity
 #print axioms Rowl.Concepts.atLeast_zero
 #print axioms Rowl.Concepts.atLeast_congr
@@ -1264,7 +1265,6 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.linked_from_correct
 #print axioms Rowl.ShiOntology.denied_from_correct
 #print axioms Rowl.ShiOntology.denote_with_anonymous
-#print axioms Rowl.ShiOntology.translated_meaning
 #print axioms Rowl.ShiOntology.owl_model_relation
 #print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
@@ -2186,7 +2186,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.AlcOntology.Negative
 #print axioms Rowl.Concepts.denote
 #print axioms Rowl.Concepts.inv
-#print axioms Rowl.Concepts.InAlciq
+#print axioms Rowl.Concepts.Translatable
 #print axioms Rowl.Concepts.Agrees
 #print axioms Rowl.Concepts.Correct
 #print axioms Rowl.Hierarchy.inclusionList

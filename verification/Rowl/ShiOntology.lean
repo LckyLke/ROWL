@@ -25,7 +25,7 @@ open Rowl.Owl (Interpretation classDenote objectRelation thing nothing topObject
   ValueEmbedding Vocabulary IsVocabulary IsInterpretation Model Consistent ClassSatisfiable Subsumed InstanceOf
   withAnonymous)
 open Rowl.Nnf (Fixes Polar fixes_of_interpretation)
-open Rowl.Concepts (denote inv relation_inv InAlciq Correct translate_total_correct translate_meaning inverse_correct
+open Rowl.Concepts (denote inv relation_inv Translatable Correct translate_total_correct translate_meaning inverse_correct
   copy_role_identity same_role_correct)
 open Rowl.Hierarchy (Below Closed Respects)
 open Rowl.Internalization (Assertion)
@@ -49,6 +49,8 @@ def Proper : concepts.Concept → Prop
   | .Bottom => True
   | .Atom c => c ≠ thing ∧ c ≠ nothing
   | .NotAtom c => c ≠ thing ∧ c ≠ nothing
+  | .One _ => False
+  | .NotOne _ => False
   | .And a b => Proper a ∧ Proper b
   | .Or a b => Proper a ∧ Proper b
   | .Exists r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
@@ -103,6 +105,8 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
   | Bottom => rw [shi_ontology.proper]; simp [Proper]
   | Atom k => rw [shi_ontology.proper]; simp [Proper,builtin_class_correct]
   | NotAtom k => rw [shi_ontology.proper]; simp [Proper,builtin_class_correct]
+  | One a => rw [shi_ontology.proper]; simp [Proper]
+  | NotOne a => rw [shi_ontology.proper]; simp [Proper]
   | And a b iha ihb =>
     rw [shi_ontology.proper]
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
@@ -157,6 +161,8 @@ theorem counts_correct (c : concepts.Concept) : shi_ontology.counts c = .ok (dec
   | Bottom => rw [shi_ontology.counts]; simp [Counts]
   | Atom k => rw [shi_ontology.counts]; simp [Counts]
   | NotAtom k => rw [shi_ontology.counts]; simp [Counts]
+  | One a => rw [shi_ontology.counts]; simp [Counts]
+  | NotOne a => rw [shi_ontology.counts]; simp [Counts]
   | And a b iha ihb =>
     rw [shi_ontology.counts]
     by_cases left : Counts a <;> simp [Counts,iha,ihb,left]
@@ -757,27 +763,21 @@ theorem denied_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (nodes : allo
 termination_by items.val.length - index.val
 decreasing_by all_goals omega
 
-/-- Reinterpreting anonymous individuals leaves every concept's meaning unchanged. -/
+/-- Reinterpreting anonymous individuals leaves the meaning of every proper
+    concept unchanged. -/
 theorem denote_with_anonymous {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
     (assignment : AnonymousIndividual → Object) :
-    ∀ c x, denote (withAnonymous I assignment) c x ↔ denote I c x := by
+    ∀ c, Proper c → ∀ x, denote (withAnonymous I assignment) c x ↔ denote I c x := by
   intro c
   induction c with
-  | Top | Bottom | Atom _ | NotAtom _ => intro x; exact Iff.rfl
-  | And a b iha ihb => intro x; simp only [denote,iha x,ihb x]
-  | Or a b iha ihb => intro x; simp only [denote,iha x,ihb x]
-  | Exists r c ih => intro x; simp only [denote,ih]; exact Iff.rfl
-  | Forall r c ih => intro x; simp only [denote,ih]; exact Iff.rfl
-  | AtLeast n r c ih => intro x; simp only [denote,ih]; exact Iff.rfl
-  | AtMost n r c ih => intro x; simp only [denote,ih]; exact Iff.rfl
-
-/-- A translated expression means the same with any reinterpretation of the
-    anonymous individuals. -/
-theorem translated_meaning {Object : Type u} {Value : Type v} {I : Interpretation Object Value} (fixes : Fixes I)
-    (g : AnonymousIndividual → Object) (e : ClassExpression) (positive : Bool) (concept : concepts.Concept)
-    (read : concepts.translate e positive = .ok (some concept)) (x : Object) :
-    denote (withAnonymous I g) concept x ↔ Polar positive (classDenote I e x) :=
-  (denote_with_anonymous I g concept x).trans (translate_meaning e positive concept read I fixes x)
+  | Top | Bottom | Atom _ | NotAtom _ => intro _ x; exact Iff.rfl
+  | One _ | NotOne _ => intro proper; exact proper.elim
+  | And a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
+  | Or a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
+  | Exists r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
+  | Forall r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
+  | AtLeast n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
+  | AtMost n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
 
 /-- The OWL interpretation of a tableau model relates along every object
     property expression without a built-in property as the tableau model does. -/
@@ -816,6 +816,7 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
   | Bottom => intro _ x; simp [denote]
   | Atom k => intro proper x; simp [denote,owlModel,proper.1,proper.2]
   | NotAtom k => intro proper x; simp [denote,owlModel,proper.1,proper.2]
+  | One _ | NotOne _ => intro proper; exact proper.elim
   | And a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
   | Or a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
   | Exists r c ih =>
@@ -1382,11 +1383,11 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
     (g : AnonymousIndividual → Object) (satisfied : Rowl.Owl.satisfiesClosure (withAnonymous I g) items.val)
     (f : Nat → Object)
     (placedAt : ∀ a ∈ p.nodes.val, f (PositionOf p.nodes.val a) = Rowl.Owl.individual (withAnonymous I g) a)
-    (extraHolds : ∀ q ∈ extra.val, denote (withAnonymous I g) q.concept (f q.node.val)) : answer = true := by
+    (extraHolds : ∀ q ∈ extra.val, denote I q.concept (f q.node.val)) : answer = true := by
   obtain ⟨result,run,spec⟩ := prepared_correct items p data extra extraIn
   rw [answered] at run
   cases Result.ok_injective run
-  obtain ⟨_,count,countIs,outcome⟩ := spec answer rfl
+  obtain ⟨properExtra,count,countIs,outcome⟩ := spec answer rfl
   obtain ⟨factsIn,linksIn⟩ := prepared_in data
   obtain ⟨assertResult,assertRun',assertSpec⟩ :=
     assertions_from_correct items p.nodes p.same 0#usize (alloc.vec.Vec.new _)
@@ -1447,7 +1448,7 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
       partsHold.1,partsHold.2,?_,linkHolds⟩
     intro q member
     rcases List.mem_append.mp member with given | old
-    · exact extraHolds q given
+    · exact (denote_with_anonymous I g q.concept (properExtra q given) _).mpr (extraHolds q given)
     · rcases origin q old with impossible | ⟨item,itemIn,C,m,statement,qNode,qRead⟩
       · simp at impossible
       · rw [zero,List.drop_zero] at itemIn
@@ -1556,7 +1557,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     some OWL model of the closure has an instance of the expression. -/
 theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
     (data : PreparedData items p) (e : ClassExpression) :
-    ∃ result, shi_ontology.prepared_class_satisfiable p e = .ok result ∧ (result.isSome → InAlciq e) ∧
+    ∃ result, shi_ontology.prepared_class_satisfiable p e = .ok result ∧ (result.isSome → Translatable e) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e true
@@ -1586,14 +1587,14 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           simp only [extraValue,List.mem_singleton] at qIn
           subst qIn
           simp only [placement_zero]
-          exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+          exact (translate_meaning e true concept translatedRead I fixes x).mpr member)
 
 /-- Subsumption with respect to a prepared closure: the query terminates, it
     answers only on ALCI expressions, and an answer is whether every instance of
     `sub` is an instance of `sup` in every OWL model of the closure. -/
 theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
     (data : PreparedData items p) (sub sup : ClassExpression) :
-    ∃ result, shi_ontology.prepared_subsumed p sub sup = .ok result ∧ (result.isSome → InAlciq sub ∧ InAlciq sup) ∧
+    ∃ result, shi_ontology.prepared_subsumed p sub sup = .ok result ∧ (result.isSome → Translatable sub ∧ Translatable sup) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   obtain ⟨insideResult,insideRead,insideCorrect⟩ := translate_total_correct.{0,0} sub true
@@ -1633,9 +1634,9 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : sh
                 simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
                 rcases qIn with rfl | rfl
                 · simp only [placement_zero]
-                  exact (translated_meaning fixes g sub true inside insideRead x).mpr member
+                  exact (translate_meaning sub true inside insideRead I fixes x).mpr member
                 · simp only [placement_zero]
-                  exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
+                  exact (translate_meaning sup false outside outsideRead I fixes x).mpr outsideSup)
             simp [accepted] at yes
           · intro subsumed
             cases satisfiable with
@@ -1657,7 +1658,7 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : sh
     closure. -/
 theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
     (data : PreparedData items p) (a : NamedIndividual) (e : ClassExpression) :
-    ∃ result, shi_ontology.prepared_instance_of p a e = .ok result ∧ (result.isSome → InAlciq e) ∧
+    ∃ result, shi_ontology.prepared_instance_of p a e = .ok result ∧ (result.isSome → Translatable e) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   obtain ⟨translated,translatedRead,translatedCorrect⟩ := translate_total_correct.{0,0} e false
@@ -1705,7 +1706,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
               rw [extraValue,List.mem_singleton] at qIn
               subst qIn
               simp only [nodeValue,located]
-              exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
+              exact (translate_meaning e false outside translatedRead I fixes _).mpr outsideClass)
           simp [accepted] at yes
         · intro instance'
           cases satisfiable with
@@ -1759,7 +1760,7 @@ theorem prepared_class_satisfiable_complete (items : alloc.vec.Vec AnnotatedAxio
         simp only [extraValue,List.mem_singleton] at qIn
         subst qIn
         simp only [placement_zero]
-        exact (translated_meaning fixes g e true concept translatedRead x).mpr member)
+        exact (translate_meaning e true concept translatedRead I fixes x).mpr member)
 
 /-- A positive subsumption answer of a prepared closure holds in every OWL model
     of the closure, in any universes and for any vocabulary. -/
@@ -1798,9 +1799,9 @@ theorem prepared_subsumed_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_
             simp only [List.mem_cons,List.mem_singleton,List.not_mem_nil,or_false] at qIn
             rcases qIn with rfl | rfl
             · simp only [placement_zero]
-              exact (translated_meaning fixes g sub true inside insideRead x).mpr member
+              exact (translate_meaning sub true inside insideRead I fixes x).mpr member
             · simp only [placement_zero]
-              exact (translated_meaning fixes g sup false outside outsideRead x).mpr outsideSup)
+              exact (translate_meaning sup false outside outsideRead I fixes x).mpr outsideSup)
         cases accepted
 
 /-- A positive instance answer of a prepared closure holds in every OWL model of
@@ -1850,7 +1851,7 @@ theorem prepared_instance_of_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : s
           rw [extraValue,List.mem_singleton] at qIn
           subst qIn
           simp only [nodeValue,located]
-          exact (translated_meaning fixes g e false outside translatedRead _).mpr outsideClass)
+          exact (translate_meaning e false outside translatedRead I fixes _).mpr outsideClass)
       cases accepted
 
 /-- Consistency of a SHI axiom closure with assertions: the query terminates, it
@@ -1876,7 +1877,7 @@ theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     closure has an instance of the expression. -/
 theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
     ∃ result, shi_ontology.class_satisfiable items e = .ok result ∧
-      (result.isSome → InAlciq e ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
+      (result.isSome → Translatable e ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
@@ -1894,7 +1895,7 @@ theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : Cl
     instance of `sup` in every OWL model of the closure. -/
 theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
     ∃ result, shi_ontology.subsumed items sub sup = .ok result ∧
-      (result.isSome → InAlciq sub ∧ InAlciq sup ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
+      (result.isSome → Translatable sub ∧ Translatable sup ∧ ∀ a ∈ items.val, SupportedAxiom a.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items
@@ -1913,7 +1914,7 @@ theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : Class
     instance of the expression in every OWL model of the closure. -/
 theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
     ∃ result, shi_ontology.instance_of items a e = .ok result ∧
-      (result.isSome → InAlciq e ∧ ∀ item ∈ items.val, SupportedAxiom item.axiom) ∧
+      (result.isSome → Translatable e ∧ ∀ item ∈ items.val, SupportedAxiom item.axiom) ∧
       ∀ answer, result = some answer → ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary),
         IsVocabulary D V → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   obtain ⟨prepared,prepareRun,prepareSpec⟩ := prepare_correct items

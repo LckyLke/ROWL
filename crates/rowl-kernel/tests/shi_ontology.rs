@@ -484,6 +484,7 @@ fn holds(i: &Finite, c: &Concept, x: usize) -> bool {
         Concept::Bottom => false,
         Concept::Atom(a) => member(i, &a.iri.spelling, x),
         Concept::NotAtom(a) => !member(i, &a.iri.spelling, x),
+        Concept::One(_) | Concept::NotOne(_) => panic!("the samples have no nominals"),
         Concept::And(a, b) => holds(i, a, x) && holds(i, b, x),
         Concept::Or(a, b) => holds(i, a, x) || holds(i, b, x),
         Concept::Exists(r, c) => (0..i.size).any(|y| edge(i, r, x, y) && holds(i, c, y)),

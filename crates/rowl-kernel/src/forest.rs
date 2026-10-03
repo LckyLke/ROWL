@@ -1149,6 +1149,8 @@ fn add(
                     Entry::Or(left, right) => branch(
                         problem, roles, graph, node, *left, *right, next, deps, depth,
                     ),
+                    Entry::One(_) => None,
+                    Entry::NotOne(_) => None,
                     _ => add_literal(problem, roles, graph, node, concept, next, deps, depth),
                 }
             } else {

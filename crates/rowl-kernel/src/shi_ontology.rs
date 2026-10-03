@@ -90,6 +90,8 @@ fn proper(concept: &Concept) -> bool {
         Concept::Bottom => true,
         Concept::Atom(class) => !builtin_class(class),
         Concept::NotAtom(class) => !builtin_class(class),
+        Concept::One(_) => false,
+        Concept::NotOne(_) => false,
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),

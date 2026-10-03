@@ -3388,3 +3388,28 @@ and the queries from source bytes, keep their statements.
 This block adds 22 public theorems and 9 independent definitions. Totals are
 1407 audited theorems, 839 definitions, 430 Rust regressions and 1600 ledger
 obligations.
+
+## Reasoner: nominals in concepts and the concept table
+
+The concepts (`concepts::Concept`) gain the nominal `{a}` of an individual and
+its complement `¬{a}`, which Concepts reads with the individual's meaning in
+the OWL interpretation. `concepts::translate` covers ALCIQO: an enumeration
+becomes the union of the nominals of its individuals, or the intersection of
+their complements for the complement, and a value restriction `∃r.{a}`, or
+`∀r.¬{a}` for the complement (one_of_correct, has_value_correct). The supported
+fragment is now `Translatable`, the former InAlciq with enumerations and value
+restrictions, and translate_total_correct keeps its form. `negate` and the
+copies are proved for nominals.
+
+The concept table interns `{a}` and `¬{a}` as entries compared structurally,
+and rebuilds them exactly. Both tableaux treat a nominal that reaches a label
+as outside what they decide: the completion graph tableau gives no answer, like
+for cardinality restrictions, and so does the completion forest until it has
+its nominal rules; their invariants keep nominals out of labels, so their
+models and theorems are unchanged. The ontology queries reject nominals as not
+proper, and the reinterpretation of anonymous individuals now speaks of proper
+concepts (denote_with_anonymous), so the query proofs read their concepts in the
+OWL model itself and translated_meaning is no longer needed.
+
+This block adds 1 public theorem and removes 1. Totals are 1407 audited
+theorems, 839 definitions, 431 Rust regressions and 1600 ledger obligations.

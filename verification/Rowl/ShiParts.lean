@@ -18,7 +18,7 @@ namespace Rowl.ShiParts
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation classDenote thing nothing objectRelation)
 open Rowl.Nnf (Fixes Polar)
-open Rowl.Concepts (denote inv relation_inv InAlciq Correct translate_total_correct inverse_correct
+open Rowl.Concepts (denote inv relation_inv Translatable Correct translate_total_correct inverse_correct
   copy_role_identity)
 open Rowl.Internalization (Assertion all_equal_iff pairwise_disjoint_iff)
 open Rowl.AlcOntology (builtin_class_correct)
@@ -34,12 +34,12 @@ universe u v
     facts and links. -/
 def SupportedAxiom : Axiom → Prop
   | .Declaration _ => True
-  | .SubClassOf a b => InAlciq a ∧ InAlciq b
-  | .EquivalentClasses xs => ∀ e ∈ xs.elements, InAlciq e
-  | .DisjointClasses xs => ∀ e ∈ xs.elements, InAlciq e
-  | .DisjointUnion _ xs => ∀ e ∈ xs.elements, InAlciq e
-  | .ObjectPropertyDomain _ e => InAlciq e
-  | .ObjectPropertyRange _ e => InAlciq e
+  | .SubClassOf a b => Translatable a ∧ Translatable b
+  | .EquivalentClasses xs => ∀ e ∈ xs.elements, Translatable e
+  | .DisjointClasses xs => ∀ e ∈ xs.elements, Translatable e
+  | .DisjointUnion _ xs => ∀ e ∈ xs.elements, Translatable e
+  | .ObjectPropertyDomain _ e => Translatable e
+  | .ObjectPropertyRange _ e => Translatable e
   | .FunctionalObjectProperty _ => True
   | .InverseFunctionalObjectProperty _ => True
   | .SubObjectPropertyOf (.Single _) _ => True
@@ -137,7 +137,7 @@ decreasing_by
     does not. -/
 theorem fail_from_correct (values : alloc.vec.Vec ClassExpression) (index : Usize) (joined : concepts.Concept) :
     ∃ r, shi_ontology.fail_from values index joined = .ok r ∧
-      (r.isSome ↔ ∀ e ∈ values.val.drop index.val, InAlciq e) ∧
+      (r.isSome ↔ ∀ e ∈ values.val.drop index.val, Translatable e) ∧
       ∀ c, r = some c → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I →
         ∀ x, (denote I c x ↔ denote I joined x ∨ ∃ e ∈ values.val.drop index.val, ¬ classDenote I e x) := by
   rw [shi_ontology.fail_from]
@@ -179,7 +179,7 @@ decreasing_by all_goals omega
     does, and for an absorbable `sub` it is computed exactly on ALCI. -/
 theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
     ∃ r, shi_ontology.absorb sub sup = .ok r ∧
-      (shi_ontology.absorbable sub = .ok true → (r.isSome ↔ InAlciq sub)) ∧
+      (shi_ontology.absorbable sub = .ok true → (r.isSome ↔ Translatable sub)) ∧
       ∀ d, r = some d → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I →
         ((∀ x, I.classes d.class x → denote I d.concept x) ↔ (∀ x, classDenote I sub x → denote I sup x)) := by
   cases h : sub with
@@ -188,7 +188,7 @@ theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
     · rw [shi_ontology.absorb]
       simp [Rowl.Nnf.copy_iri_identity]
     · intro _
-      simp [InAlciq]
+      simp [Translatable]
     · intro d same Object Value I fixes
       cases same
       simp [classDenote]
@@ -199,7 +199,7 @@ theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
       refine ⟨none,by rw [shi_ontology.absorb]; simp [secondRun],?_,by simp⟩
       intro _
       simp only [Correct] at secondCorrect
-      simp [InAlciq,secondCorrect]
+      simp [Translatable,secondCorrect]
     | some secondConcept =>
       obtain ⟨others,othersRun,othersSupport,othersMeaning⟩ :=
         fail_from_correct.{u,v} xs.rest 0#usize secondConcept
@@ -208,7 +208,7 @@ theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
         refine ⟨none,by rw [shi_ontology.absorb]; simp [secondRun,othersRun],?_,by simp⟩
         intro _
         simp only [Option.isSome_none,Bool.false_eq_true,false_iff] at othersSupport
-        simp [InAlciq]
+        simp [Translatable]
         intro _ _
         simpa using othersSupport
       | some othersConcept =>
@@ -218,9 +218,9 @@ theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
           have firstRun : shi_ontology.absorbable xs.first = .ok true := by
             rw [shi_ontology.absorbable] at absorbableRun
             exact absorbableRun
-          have restIn : ∀ e ∈ xs.rest.val, InAlciq e := by simpa using othersSupport.mp rfl
-          have fragment : InAlciq (.ObjectIntersectionOf xs) ↔ ∀ e ∈ xs.elements, InAlciq e := by
-            simp [InAlciq,AtLeastTwo.elements]
+          have restIn : ∀ e ∈ xs.rest.val, Translatable e := by simpa using othersSupport.mp rfl
+          have fragment : Translatable (.ObjectIntersectionOf xs) ↔ ∀ e ∈ xs.elements, Translatable e := by
+            simp [Translatable,AtLeastTwo.elements]
           rw [support firstRun,fragment]
           simp only [AtLeastTwo.elements,List.forall_mem_cons]
           exact ⟨fun first => ⟨first,secondCorrect.1,restIn⟩,fun every => every.1⟩
@@ -245,7 +245,7 @@ theorem absorb_correct (sub : ClassExpression) (sup : concepts.Concept) :
     · intro absorbableRun
       rw [shi_ontology.absorbable] at absorbableRun
       rw [support absorbableRun]
-      simp [InAlciq]
+      simp [Translatable]
     · intro d same Object Value I fixes
       rw [meaning d same Object Value I fixes]
       simp only [denote,relation_inv]
@@ -277,8 +277,8 @@ decreasing_by
     definitions fit, and adds at most one definition. -/
 theorem include_correct (sub : ClassExpression) (sup : concepts.Concept) (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.include sub sup parts = .ok r ∧
-      (r.isSome → InAlciq sub) ∧
-      (InAlciq sub → parts.definitions.val.length < Usize.max → r.isSome) ∧
+      (r.isSome → Translatable sub) ∧
+      (Translatable sub → parts.definitions.val.length < Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' → parts'.definitions.val.length ≤ parts.definitions.val.length + 1 ∧
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I →
           (PartsHold I parts' ↔ PartsHold I parts ∧ ∀ x, classDenote I sub x → denote I sup x) := by
@@ -347,8 +347,8 @@ theorem include_correct (sub : ClassExpression) (sup : concepts.Concept) (parts 
     they held before and the classes are equivalent. -/
 theorem include_both_correct (left right : ClassExpression) (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.include_both left right parts = .ok r ∧
-      (r.isSome → InAlciq left ∧ InAlciq right) ∧
-      (InAlciq left → InAlciq right → parts.definitions.val.length + 2 ≤ Usize.max → r.isSome) ∧
+      (r.isSome → Translatable left ∧ Translatable right) ∧
+      (Translatable left → Translatable right → parts.definitions.val.length + 2 ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' → parts'.definitions.val.length ≤ parts.definitions.val.length + 2 ∧
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I →
           (PartsHold I parts' ↔ PartsHold I parts ∧ ∀ x, (classDenote I left x ↔ classDenote I right x)) := by
@@ -401,8 +401,8 @@ theorem include_both_correct (left right : ClassExpression) (parts : shi_ontolog
 theorem equal_from_correct (first : ClassExpression) (values : alloc.vec.Vec ClassExpression) (index : Usize)
     (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.equal_from first values index parts = .ok r ∧
-      (r.isSome → ∀ e ∈ values.val.drop index.val, InAlciq first ∧ InAlciq e) ∧
-      (InAlciq first → (∀ e ∈ values.val.drop index.val, InAlciq e) →
+      (r.isSome → ∀ e ∈ values.val.drop index.val, Translatable first ∧ Translatable e) ∧
+      (Translatable first → (∀ e ∈ values.val.drop index.val, Translatable e) →
         parts.definitions.val.length + 2 * (values.val.length - index.val) ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
         parts'.definitions.val.length ≤ parts.definitions.val.length + 2 * (values.val.length - index.val) ∧
@@ -483,8 +483,8 @@ theorem all_equal_star {Object : Type u} {Value : Type v} (I : Interpretation Ob
     and the members are equivalent. -/
 theorem equivalent_correct (members : AtLeastTwo ClassExpression) (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.equivalent members parts = .ok r ∧
-      (r.isSome → ∀ e ∈ members.elements, InAlciq e) ∧
-      ((∀ e ∈ members.elements, InAlciq e) →
+      (r.isSome → ∀ e ∈ members.elements, Translatable e) ∧
+      ((∀ e ∈ members.elements, Translatable e) →
         parts.definitions.val.length + 2 * members.elements.length ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
         parts'.definitions.val.length ≤ parts.definitions.val.length + 2 * members.elements.length ∧
@@ -531,8 +531,8 @@ theorem equivalent_correct (members : AtLeastTwo ClassExpression) (parts : shi_o
 theorem apart_from_correct (member : ClassExpression) (values : alloc.vec.Vec ClassExpression) (index : Usize)
     (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.apart_from member values index parts = .ok r ∧
-      (r.isSome → ∀ e ∈ values.val.drop index.val, InAlciq member ∧ InAlciq e) ∧
-      (InAlciq member → (∀ e ∈ values.val.drop index.val, InAlciq e) →
+      (r.isSome → ∀ e ∈ values.val.drop index.val, Translatable member ∧ Translatable e) ∧
+      (Translatable member → (∀ e ∈ values.val.drop index.val, Translatable e) →
         parts.definitions.val.length + (values.val.length - index.val) ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
         parts'.definitions.val.length ≤ parts.definitions.val.length + (values.val.length - index.val) ∧
@@ -600,7 +600,7 @@ decreasing_by all_goals omega
 theorem pairwise_from_correct (values : alloc.vec.Vec ClassExpression) (index : Usize)
     (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.pairwise_from values index parts = .ok r ∧
-      ((∀ e ∈ values.val.drop index.val, InAlciq e) →
+      ((∀ e ∈ values.val.drop index.val, Translatable e) →
         parts.definitions.val.length + (values.val.length - index.val) * (values.val.length - index.val) ≤
           Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
@@ -659,8 +659,8 @@ decreasing_by all_goals omega
     and the members are pairwise disjoint. -/
 theorem disjoint_correct (members : AtLeastTwo ClassExpression) (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.disjoint members parts = .ok r ∧
-      (r.isSome → ∀ e ∈ members.elements, InAlciq e) ∧
-      ((∀ e ∈ members.elements, InAlciq e) →
+      (r.isSome → ∀ e ∈ members.elements, Translatable e) ∧
+      ((∀ e ∈ members.elements, Translatable e) →
         parts.definitions.val.length + members.elements.length * members.elements.length ≤ Usize.max →
           r.isSome) ∧
       ∀ parts', r = some parts' →
@@ -749,7 +749,7 @@ theorem disjoint_correct (members : AtLeastTwo ClassExpression) (parts : shi_ont
     and otherwise holds where `joined` or some class from `index` on does. -/
 theorem some_from_correct (values : alloc.vec.Vec ClassExpression) (index : Usize) (joined : concepts.Concept) :
     ∃ r, shi_ontology.some_from values index joined = .ok r ∧
-      (r.isSome ↔ ∀ e ∈ values.val.drop index.val, InAlciq e) ∧
+      (r.isSome ↔ ∀ e ∈ values.val.drop index.val, Translatable e) ∧
       ∀ c, r = some c → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value), Fixes I →
         ∀ x, (denote I c x ↔ denote I joined x ∨ ∃ e ∈ values.val.drop index.val, classDenote I e x) := by
   rw [shi_ontology.some_from]
@@ -791,8 +791,8 @@ decreasing_by all_goals omega
 theorem within_from_correct (values : alloc.vec.Vec ClassExpression) (index : Usize) (whole : ClassExpression)
     (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.within_from values index whole parts = .ok r ∧
-      (r.isSome → ∀ e ∈ values.val.drop index.val, InAlciq e) ∧
-      (InAlciq whole → (∀ e ∈ values.val.drop index.val, InAlciq e) →
+      (r.isSome → ∀ e ∈ values.val.drop index.val, Translatable e) ∧
+      (Translatable whole → (∀ e ∈ values.val.drop index.val, Translatable e) →
         parts.definitions.val.length + (values.val.length - index.val) ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
         parts'.definitions.val.length ≤ parts.definitions.val.length + (values.val.length - index.val) ∧
@@ -857,8 +857,8 @@ decreasing_by all_goals omega
     disjoint. -/
 theorem disjoint_union_correct (c : Class) (members : AtLeastTwo ClassExpression) (parts : shi_ontology.Parts) :
     ∃ r, shi_ontology.disjoint_union c members parts = .ok r ∧
-      (r.isSome → ∀ e ∈ members.elements, InAlciq e) ∧
-      ((∀ e ∈ members.elements, InAlciq e) →
+      (r.isSome → ∀ e ∈ members.elements, Translatable e) ∧
+      ((∀ e ∈ members.elements, Translatable e) →
         parts.definitions.val.length + Inclusions (.DisjointUnion c members) ≤ Usize.max → r.isSome) ∧
       ∀ parts', r = some parts' →
         parts'.definitions.val.length ≤ parts.definitions.val.length + Inclusions (.DisjointUnion c members) ∧
@@ -871,7 +871,7 @@ theorem disjoint_union_correct (c : Class) (members : AtLeastTwo ClassExpression
   have secondIn : members.second ∈ members.elements := by simp [AtLeastTwo.elements]
   have restIn : ∀ e ∈ members.rest.val, e ∈ members.elements := fun e member => by
     simp [AtLeastTwo.elements,member]
-  have wholeIn : InAlciq (.Class c) := by simp [InAlciq]
+  have wholeIn : Translatable (.Class c) := by simp [Translatable]
   have count : Inclusions (.DisjointUnion c members) =
       3 + members.rest.val.length + members.elements.length * members.elements.length := by
     simp only [Inclusions]

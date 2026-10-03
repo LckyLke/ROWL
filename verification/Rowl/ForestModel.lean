@@ -751,6 +751,15 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
         rw [labIs] at member listed
         exact shape.clashFree x i member j listed (.NotAtom k) (.Atom k) (by rw [value]; exact at_c) at_j
           (show Complementary (.NotAtom k) (.Atom k) from rfl)
+      | One _ | NotOne _ =>
+        -- Labels list only literals, and a nominal is none yet.
+        exfalso
+        obtain ⟨i,member,value⟩ := holds
+        rw [labIs] at member
+        obtain ⟨e',at_i,literal⟩ := shape.literals x i member
+        rw [value,at_c] at at_i
+        cases at_i
+        exact literal
       | And a b =>
         simp only at holds
         rw [dif_pos (below a.val (by simp [parts])),dif_pos (below b.val (by simp [parts]))] at holds

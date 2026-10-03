@@ -69,7 +69,7 @@ theorem holds_same (entries : List concept_table.Entry) (L L' : List Usize) (sam
           · rw [dif_pos first,dif_neg second,dif_pos first,dif_neg second]
         · rw [dif_neg first,dif_neg first]
       | Top | Bottom => rfl
-      | Atom _ | NotAtom _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ | AtMost _ _ _ _ =>
+      | Atom _ | NotAtom _ | One _ | NotOne _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ | AtMost _ _ _ _ =>
         simp only
         constructor
         · rintro ⟨i,member,value⟩; exact ⟨i,(same i).mp member,value⟩
@@ -581,8 +581,9 @@ theorem truth (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Na
                 (below_refl h t)
               exact ⟨holds,through t transitive (below_refl h t) (below_refl h t) ⟨j.val,at_j⟩⟩
           exact (along y steps).1
-      | AtLeast m r f | AtMost m r f _ =>
-        -- Labels list only literals, and a cardinality restriction is none.
+      | AtLeast m r f | AtMost m r f _ | One _ | NotOne _ =>
+        -- Labels list only literals, and neither a cardinality restriction nor a
+        -- nominal is one.
         exfalso
         obtain ⟨i,member,value⟩ := holds
         obtain ⟨y,labelIs,_⟩ := lab_node x

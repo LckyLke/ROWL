@@ -758,8 +758,15 @@ progress. Full OWL parsing and executable reasoning are still future work.
   `DifferentIndividuals` axiom holds exactly unless two of its members share a
   node, which refutes the closure. A question that counts goes to the
   completion forest with equal individuals merged; next to a
-  `DifferentIndividuals` axiom it gets no answer yet. Enumerations and value
-  restrictions are read but not yet answered.
+  `DifferentIndividuals` axiom it gets no answer yet. The concepts and the
+  concept table now have nominals `{a}` and their complements, read with the
+  individual's OWL meaning: concepts::translate covers ALCIQO, turning an
+  enumeration into the union of the nominals of its individuals and a value
+  restriction into `∃r.{a}`, proved exact for the Direct Semantics. The
+  completion graph tableau gives no answer when a nominal reaches a label, the
+  completion forest gives none until it has its nominal rules, and the ontology
+  queries reject nominals as not proper, so enumerations and value restrictions
+  are not yet answered.
 - 1407 audited public theorems and 839 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -771,7 +778,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Documents with enumerations and value restrictions are read and mapped into
   the model, but get no answer yet. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 430 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 431 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality

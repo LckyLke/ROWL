@@ -1336,7 +1336,7 @@ theorem counting_from_correct (P : completion.Problem) (h : hierarchy.RoleHierar
                       obtain ⟨rfl,rfl,rfl,rfl⟩ := at_i
                       exact fun excessive => over (excess.mp excessive)
                     · exact absent none i (by rw [labelIs,nextIndex]; exact later) n' role' d d' at_i
-        | Top | Bottom | Atom _ | NotAtom _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ =>
+        | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ =>
           refine ⟨r,?_,found,skip (by intro n role c c' at_i; rw [at_item,entry] at at_i; cases at_i)⟩
           simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,entry,
             advance,run]

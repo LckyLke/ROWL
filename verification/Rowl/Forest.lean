@@ -351,6 +351,15 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           have here := extras (fun k member => member) c (List.mem_cons_self ..)
           rw [meaning_at P.entries.val wf c.val _ at_c,entry] at here
           exact here
+      | One a =>
+        -- Nominals wait for the nominal rules: no answer yet.
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [forest.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+      | NotOne a =>
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [forest.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
       | And a b =>
         rw [entry] at below
         have aBelow : a.val < c.val := below a.val (by simp [parts])
@@ -1163,7 +1172,7 @@ theorem counting_simple_correct (entries : alloc.vec.Vec concept_table.Entry) (h
       by_cases s' : ∀ t ∈ h.transitive.val, ¬ Below h t role
       · simp only [decide_eq_true s',↓reduceIte,advance,bind_ok,rest,Bool.true_and]
       · simp only [decide_eq_false s',Bool.false_eq_true,↓reduceIte,Bool.false_and]
-    | Top | Bottom | Atom _ | NotAtom _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ =>
+    | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ =>
       simp [CountsSimply,advance,rest]
   · have empty : entries.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]

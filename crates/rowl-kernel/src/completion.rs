@@ -1023,6 +1023,8 @@ fn add(
                     ),
                     Entry::AtLeast(_, _, _) => None,
                     Entry::AtMost(_, _, _, _) => None,
+                    Entry::One(_) => None,
+                    Entry::NotOne(_) => None,
                     _ => add_literal(problem, roles, nodes, node, concept, next, deps, depth),
                 }
             } else {

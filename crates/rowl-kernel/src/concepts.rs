@@ -1,20 +1,25 @@
 //! Concepts in negation normal form with inverse roles, and their translation
 //! from OWL class expressions.
 //!
-//! The supported fragment is ALCIQ: named classes, intersections, unions,
-//! complements, existential and universal restrictions, and minimum, maximum and
-//! exact cardinality restrictions on object property expressions, named or
-//! inverse, with cardinalities below `usize::MAX`. `owl:Thing` and `owl:Nothing`
-//! become the top and bottom concepts. Every other expression returns `None`.
-//! Negation is pushed inward, so it only occurs on named classes: the complement
-//! of `≥n r.C` is `≤(n-1) r.C` (`⊥` for `n = 0`) and the complement of `≤n r.C`
-//! is `≥(n+1) r.C`. The completion graph tableau decides the concepts without
-//! cardinality restrictions; `nnf` keeps the inverse-free concepts of the
-//! earlier tableaux.
+//! The supported fragment is ALCIQO: named classes, intersections, unions,
+//! complements, enumerations of individuals, existential and universal
+//! restrictions, individual value restrictions, and minimum, maximum and exact
+//! cardinality restrictions on object property expressions, named or inverse,
+//! with cardinalities below `usize::MAX`. `owl:Thing` and `owl:Nothing` become
+//! the top and bottom concepts, an enumeration the union of the nominals `{a}`
+//! of its individuals, and a value restriction `∃r.{a}`. Every other expression
+//! returns `None`. Negation is pushed inward, so it only occurs on named classes
+//! and nominals: the complement of `≥n r.C` is `≤(n-1) r.C` (`⊥` for `n = 0`)
+//! and the complement of `≤n r.C` is `≥(n+1) r.C`. The completion graph tableau
+//! decides the concepts without cardinality restrictions and nominals; `nnf`
+//! keeps the inverse-free concepts of the earlier tableaux.
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::manual_map)] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::class_equality::{is_nothing, is_thing};
-use crate::model::{AtLeastTwo, Class, ClassExpression, ObjectProperty, ObjectPropertyExpression};
-use crate::nnf::copy_iri;
+use crate::model::{
+    AnonymousIndividual, AtLeastTwo, Class, ClassExpression, Individual, NamedIndividual, NonEmpty,
+    ObjectProperty, ObjectPropertyExpression,
+};
+use crate::nnf::{copy_bytes, copy_iri};
 use crate::probes::Natural;
 use crate::symbols::same_spelling;
 
@@ -25,6 +30,10 @@ pub enum Concept {
     Bottom,
     Atom(Class),
     NotAtom(Class),
+    /// The nominal of an individual: exactly the individual.
+    One(Individual),
+    /// Everything but the individual.
+    NotOne(Individual),
     And(Box<Concept>, Box<Concept>),
     Or(Box<Concept>, Box<Concept>),
     Exists(ObjectPropertyExpression, Box<Concept>),
@@ -65,6 +74,18 @@ pub fn inverse(role: &ObjectPropertyExpression) -> ObjectPropertyExpression {
         }
     }
 }
+/// A copy of an individual.
+pub(crate) fn copy_individual(individual: &Individual) -> Individual {
+    match individual {
+        Individual::Named(named) => Individual::Named(NamedIndividual {
+            iri: copy_iri(&named.iri),
+        }),
+        Individual::Anonymous(anonymous) => Individual::Anonymous(AnonymousIndividual {
+            scope: copy_bytes(&anonymous.scope),
+            label: copy_bytes(&anonymous.label),
+        }),
+    }
+}
 /// A copy of a concept.
 pub(crate) fn copy_concept(concept: &Concept) -> Concept {
     match concept {
@@ -76,6 +97,8 @@ pub(crate) fn copy_concept(concept: &Concept) -> Concept {
         Concept::NotAtom(class) => Concept::NotAtom(Class {
             iri: copy_iri(&class.iri),
         }),
+        Concept::One(individual) => Concept::One(copy_individual(individual)),
+        Concept::NotOne(individual) => Concept::NotOne(copy_individual(individual)),
         Concept::And(left, right) => {
             Concept::And(Box::new(copy_concept(left)), Box::new(copy_concept(right)))
         }
@@ -121,6 +144,8 @@ pub fn negate(concept: &Concept) -> Option<Concept> {
         Concept::NotAtom(class) => Some(Concept::Atom(Class {
             iri: copy_iri(&class.iri),
         })),
+        Concept::One(individual) => Some(Concept::NotOne(copy_individual(individual))),
+        Concept::NotOne(individual) => Some(Concept::One(copy_individual(individual))),
         Concept::And(left, right) => negate_pair(left, right, false),
         Concept::Or(left, right) => negate_pair(left, right, true),
         Concept::Exists(role, filler) => match negate(filler) {
@@ -245,6 +270,43 @@ fn connect(
         join(conjunctive, first, second),
     )
 }
+/// The nominal of an individual (`positive`) or its complement.
+fn nominal(individual: &Individual, positive: bool) -> Concept {
+    if positive {
+        Concept::One(copy_individual(individual))
+    } else {
+        Concept::NotOne(copy_individual(individual))
+    }
+}
+/// Join the nominals of `values[index..]` onto `joined`: a union, or for the
+/// complement the intersection of their complements.
+fn nominals_from(
+    values: &Vec<Individual>,
+    index: usize,
+    positive: bool,
+    joined: Concept,
+) -> Concept {
+    if index < values.len() {
+        let next = nominal(&values[index], positive);
+        nominals_from(values, index + 1, positive, join(!positive, joined, next))
+    } else {
+        joined
+    }
+}
+/// An enumeration: the union of the nominals of its individuals.
+fn one_of(members: &NonEmpty<Individual>, positive: bool) -> Concept {
+    let first = nominal(&members.first, positive);
+    nominals_from(&members.rest, 0, positive, first)
+}
+/// A value restriction `∃r.{a}`, or its complement `∀r.¬{a}`.
+fn has_value(property: &ObjectPropertyExpression, value: &Individual, positive: bool) -> Concept {
+    let inner = nominal(value, positive);
+    if positive {
+        Concept::Exists(copy_role(property), Box::new(inner))
+    } else {
+        Concept::Forall(copy_role(property), Box::new(inner))
+    }
+}
 /// An existential or universal restriction on an object property expression.
 fn restriction(
     property: &ObjectPropertyExpression,
@@ -344,19 +406,24 @@ fn exactly(
 /// Translate a class expression (`positive`) or its complement (`!positive`)
 /// into negation normal form. De Morgan's laws turn negated intersections into
 /// unions and back, negated existential restrictions into universal ones and
-/// back, and negated cardinality restrictions into the opposite bound. Returns
-/// `None` outside the supported ALCIQ fragment.
+/// back, negated enumerations into intersections of complemented nominals, and
+/// negated cardinality restrictions into the opposite bound. Returns `None`
+/// outside the supported ALCIQO fragment.
 pub fn translate(expression: &ClassExpression, positive: bool) -> Option<Concept> {
     match expression {
         ClassExpression::Class(class) => Some(named(expression, class, positive)),
         ClassExpression::ObjectIntersectionOf(members) => connect(members, positive, positive),
         ClassExpression::ObjectUnionOf(members) => connect(members, positive, !positive),
         ClassExpression::ObjectComplementOf(inner) => translate(inner, !positive),
+        ClassExpression::ObjectOneOf(members) => Some(one_of(members, positive)),
         ClassExpression::ObjectSomeValuesFrom(property, filler) => {
             restriction(property, filler, positive, positive)
         }
         ClassExpression::ObjectAllValuesFrom(property, filler) => {
             restriction(property, filler, positive, !positive)
+        }
+        ClassExpression::ObjectHasValue(property, value) => {
+            Some(has_value(property, value, positive))
         }
         ClassExpression::ObjectMinCardinality(n, property, filler) => {
             cardinality(n, property, filler, positive, true)

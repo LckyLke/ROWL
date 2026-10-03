@@ -7,9 +7,10 @@
 //! universal restriction `∀q.d` in the table and every transitive role `t`
 //! included in `q`: the restrictions that transitive roles pass along a path.
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::collapsible_match)] // Indexed operations and explicit branches for the pinned extraction subset.
-use crate::concepts::{copy_role, negate, same_role, Concept};
+use crate::assertion_equality::same_individual_value;
+use crate::concepts::{copy_individual, copy_role, negate, same_role, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
-use crate::model::{Class, ObjectPropertyExpression};
+use crate::model::{Class, Individual, ObjectPropertyExpression};
 use crate::nnf::copy_iri;
 use crate::symbols::same_spelling;
 
@@ -19,6 +20,10 @@ pub enum Entry {
     Bottom,
     Atom(Class),
     NotAtom(Class),
+    /// The nominal of an individual.
+    One(Individual),
+    /// The complement of the nominal of an individual.
+    NotOne(Individual),
     And(usize, usize),
     Or(usize, usize),
     Exists(ObjectPropertyExpression, usize),
@@ -38,6 +43,8 @@ pub(crate) fn same_entry(left: &Entry, right: &Entry) -> bool {
         (Entry::Bottom, Entry::Bottom) => true,
         (Entry::Atom(a), Entry::Atom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
         (Entry::NotAtom(a), Entry::NotAtom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
+        (Entry::One(a), Entry::One(b)) => same_individual_value(a, b),
+        (Entry::NotOne(a), Entry::NotOne(b)) => same_individual_value(a, b),
         (Entry::And(a1, b1), Entry::And(a2, b2)) => *a1 == *a2 && *b1 == *b2,
         (Entry::Or(a1, b1), Entry::Or(a2, b2)) => *a1 == *a2 && *b1 == *b2,
         (Entry::Exists(r1, c1), Entry::Exists(r2, c2)) => {
@@ -191,6 +198,8 @@ pub fn intern(entries: Vec<Entry>, concept: &Concept) -> Option<(Vec<Entry>, usi
                 iri: copy_iri(&class.iri),
             }),
         ),
+        Concept::One(individual) => add(entries, Entry::One(copy_individual(individual))),
+        Concept::NotOne(individual) => add(entries, Entry::NotOne(copy_individual(individual))),
         Concept::And(left, right) => intern_pair(entries, left, right, true),
         Concept::Or(left, right) => intern_pair(entries, left, right, false),
         Concept::Exists(role, filler) => intern_restriction(entries, role, filler, true),
