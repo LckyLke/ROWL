@@ -1760,21 +1760,143 @@ def doneOf (nodes : List forest.Node) (x : Nat) : List Usize :=
   | some n => n.done.val
   | none => []
 
-theorem unexpanded_correct (P : completion.Problem) (F : forest.Forest) (x index : Usize) :
-    ∃ r, forest.unexpanded P F x index = .ok r ∧
-      (∀ i, r = some i → i ∈ (labelOf F.nodes.val x.val).drop index.val ∧
-        (∃ e, P.entries.val[i.val]? = some e ∧ Generating e) ∧ i ∉ doneOf F.nodes.val x.val) ∧
-      (r = none → ∀ i ∈ (labelOf F.nodes.val x.val).drop index.val, ∀ e, P.entries.val[i.val]? = some e →
-        Generating e → i ∈ doneOf F.nodes.val x.val) := by
-  rw [forest.unexpanded]
+/-- The role, the number of neighbours and the filler of an entry that creates
+    neighbours: an existential restriction asks for one. -/
+def generatorOf : concept_table.Entry → Option (ObjectPropertyExpression × Usize × Usize)
+  | .Exists r c => some (r,1#usize,c)
+  | .AtLeast n r c => some (r,n,c)
+  | _ => none
+
+theorem generator_of_correct (entries : alloc.vec.Vec concept_table.Entry) (g : Usize) :
+    forest.generator_of entries g = .ok (match entries.val[g.val]? with
+      | some e => generatorOf e
+      | none => none) := by
+  rw [forest.generator_of]
+  by_cases inside : g.val < entries.val.length
+  · have lookup : entries.index_usize g = .ok entries.val[g.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+      bind_ok,List.getElem?_eq_getElem inside]
+    cases entries.val[g.val] <;> simp [generatorOf,copy_role_identity]
+  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,List.getElem?_eq_none_iff.mpr
+      (show entries.val.length ≤ g.val by omega)]
+
+/-- At least `n` neighbours along `r` satisfy `c`. -/
+def Enough (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
+    (r : ObjectPropertyExpression) (c n : Usize) : Prop :=
+  ∃ list : List Usize, list.Nodup ∧ n.val ≤ list.length ∧
+    ∀ z ∈ list, Neighbour P h F x r z.val ∧ Holds P.entries.val (labelOf F.nodes.val z.val) c.val
+
+/-- Enough neighbours satisfy the filler exactly when the filter is long enough. -/
+theorem enough_iff (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
+    (r : ObjectPropertyExpression) (c n : Usize) (list : List Usize)
+    (members : ∀ z : Usize, z ∈ list ↔ Neighbour P h F x r z.val) (nodup : list.Nodup) :
+    Enough P h F x r c n ↔
+      n.val ≤ (list.filter (fun y => decide (Holds P.entries.val (labelOf F.nodes.val y.val) c.val))).length := by
+  constructor
+  · rintro ⟨many,manyNodup,longer,inside⟩
+    have sub : many ⊆ list.filter (fun y => decide (Holds P.entries.val (labelOf F.nodes.val y.val) c.val)) := by
+      intro z member
+      obtain ⟨neighbour,holds⟩ := inside z member
+      exact List.mem_filter.mpr ⟨(members z).mpr neighbour,by simpa using holds⟩
+    have := (manyNodup.subperm sub).length_le
+    omega
+  · intro longer
+    refine ⟨_,nodup.filter _,longer,?_⟩
+    intro z member
+    obtain ⟨listed,holds⟩ := List.mem_filter.mp member
+    exact ⟨(members z).mp listed,by simpa using holds⟩
+
+theorem enough_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x g : Usize) :
+    ∃ r, forest.enough P h F x g = .ok r ∧ ∀ b, r = some b → ∃ e role c n, P.entries.val[g.val]? = some e ∧
+      generatorOf e = some (role,n,c) ∧ (b = true ↔ Enough P h F x.val role c n) := by
+  rw [forest.enough,generator_of_correct]
+  cases at_g : P.entries.val[g.val]? with
+  | none => exact ⟨none,by simp,by simp⟩
+  | some e =>
+    cases gen : generatorOf e with
+    | none => exact ⟨none,by simp [gen],by simp⟩
+    | some found =>
+      obtain ⟨role,n,c⟩ := found
+      obtain ⟨list,listRun,listSpec⟩ := neighbours_correct P h F x role
+      cases list with
+      | none => exact ⟨none,by simp [gen,listRun],by simp⟩
+      | some list =>
+        obtain ⟨members,nodup⟩ := listSpec list rfl
+        obtain ⟨many,manyRun,manySpec⟩ := satisfying_correct P.entries F list c 0#usize (alloc.vec.Vec.new Usize)
+        cases many with
+        | none => exact ⟨none,by simp [gen,listRun,manyRun],by simp⟩
+        | some kept =>
+          have keptIs : kept.val = list.val.filter
+              (fun y => decide (Holds P.entries.val (labelOf F.nodes.val y.val) c.val)) := by
+            simpa using manySpec kept rfl
+          refine ⟨some (decide (n.val ≤ kept.val.length)),?_,?_⟩
+          · simp [gen,listRun,manyRun]
+          · intro b same
+            cases same
+            refine ⟨e,role,c,n,rfl,gen,?_⟩
+            rw [enough_iff P h F x.val role c n list.val members nodup,← keptIs]
+            simp
+
+/-- The entry creates neighbours and, when `expand`, was not expanded at the node. -/
+def Candidate (P : completion.Problem) (F : forest.Forest) (x : Nat) (i : Usize) (expand : Bool) : Prop :=
+  x < F.nodes.val.length ∧ (∃ e role c n, P.entries.val[i.val]? = some e ∧ generatorOf e = some (role,n,c)) ∧
+    (expand = true → i ∉ doneOf F.nodes.val x)
+
+theorem generating_iff (e : concept_table.Entry) : Generating e ↔ ∃ role c n, generatorOf e = some (role,n,c) := by
+  cases e <;> simp [Generating,generatorOf]
+
+theorem candidate_correct (P : completion.Problem) (F : forest.Forest) (x i : Usize) (expand : Bool) :
+    forest.candidate P F x i expand = .ok (decide (Candidate P F x.val i expand)) := by
+  rw [forest.candidate]
+  by_cases itemInside : i.val < P.entries.val.length
+  · by_cases inside : x.val < F.nodes.val.length
+    · have entryLookup : P.entries.index_usize i = .ok P.entries.val[i.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem itemInside]
+      have nodeLookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+      have doneIs : doneOf F.nodes.val x.val = F.nodes.val[x.val].done.val := by
+        simp [doneOf,List.getElem?_eq_getElem inside]
+      have genIff : (∃ e role c n, P.entries.val[i.val]? = some e ∧ generatorOf e = some (role,n,c)) ↔
+          Generating P.entries.val[i.val] := by
+        rw [generating_iff]
+        simp [List.getElem?_eq_getElem itemInside]
+      unfold Candidate
+      rw [genIff,doneIs]
+      by_cases gen : Generating P.entries.val[i.val]
+      · cases expand with
+        | true =>
+          by_cases listed : i ∈ F.nodes.val[x.val].done.val
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,inside,entryLookup,generating_correct,gen,
+              nodeLookup,contains_correct,listed]
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,inside,entryLookup,generating_correct,gen,
+              nodeLookup,contains_correct,listed]
+        | false =>
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,inside,entryLookup,generating_correct,gen]
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,inside,entryLookup,generating_correct,gen]
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,inside,Candidate]
+  · have absent : ¬ ∃ e role c n, P.entries.val[i.val]? = some e ∧ generatorOf e = some (role,n,c) := by
+      rintro ⟨e,_,_,_,at_e,_⟩
+      have := (List.getElem?_eq_some_iff.mp at_e).1
+      omega
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,itemInside,Candidate,absent]
+
+theorem lacking_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Usize)
+    (expand : Bool) (index : Usize) :
+    ∃ r, forest.lacking P h F x expand index = .ok r ∧
+      (∀ i, r = some (some i) → i ∈ (labelOf F.nodes.val x.val).drop index.val ∧ ∃ e role c n,
+        P.entries.val[i.val]? = some e ∧ generatorOf e = some (role,n,c) ∧ (expand = true → i ∉ doneOf F.nodes.val x.val) ∧
+        ¬ Enough P h F x.val role c n) ∧
+      (r = some none → ∀ i ∈ (labelOf F.nodes.val x.val).drop index.val, ∀ e role c n,
+        P.entries.val[i.val]? = some e → generatorOf e = some (role,n,c) →
+        (expand = true → i ∉ doneOf F.nodes.val x.val) → Enough P h F x.val role c n) := by
+  rw [forest.lacking]
   by_cases inside : x.val < F.nodes.val.length
   · have lookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
     have labelIs : labelOf F.nodes.val x.val = F.nodes.val[x.val].label.val := by
       simp [labelOf,List.getElem?_eq_getElem inside]
-    have doneIs : doneOf F.nodes.val x.val = F.nodes.val[x.val].done.val := by
-      simp [doneOf,List.getElem?_eq_getElem inside]
-    rw [labelIs,doneIs]
+    rw [labelIs]
     by_cases more : index.val < F.nodes.val[x.val].label.val.length
     · have itemLookup : F.nodes.val[x.val].label.index_usize index =
           .ok F.nodes.val[x.val].label.val[index.val] := by
@@ -1785,68 +1907,94 @@ theorem unexpanded_correct (P : completion.Problem) (F : forest.Forest) (x index
       obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
         (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
       have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-      obtain ⟨r,run,found,absent⟩ := unexpanded_correct P F x index'
-      rw [labelIs,doneIs,nextIndex] at found absent
+      obtain ⟨r,run,found,absent⟩ := lacking_correct P h F x expand index'
+      rw [labelIs,nextIndex] at found absent
       obtain ⟨item,itemIs⟩ : ∃ item, F.nodes.val[x.val].label.val[index.val] = item := ⟨_,rfl⟩
       rw [itemIs] at itemLookup split
-      by_cases missing : (∃ e, P.entries.val[item.val]? = some e ∧ Generating e) ∧ item ∉ F.nodes.val[x.val].done.val
-      · obtain ⟨⟨e,at_e,gen⟩,notDone⟩ := missing
-        have itemInside : item.val < P.entries.val.length := (List.getElem?_eq_some_iff.mp at_e).1
-        have eIs : P.entries.val[item.val] = e := by
-          rw [List.getElem?_eq_getElem itemInside] at at_e; exact Option.some.inj at_e
-        have entryLookup : P.entries.index_usize item = .ok e := by
-          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem itemInside,eIs]
-        refine ⟨some item,?_,?_,by simp⟩
-        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,
-            generating_correct,gen,contains_correct,notDone]
-        · intro i same
-          cases same
-          exact ⟨by rw [split]; exact List.mem_cons_self ..,⟨e,at_e,gen⟩,notDone⟩
-      · refine ⟨r,?_,?_,?_⟩
-        · by_cases itemInside : item.val < P.entries.val.length
-          · have entryLookup : P.entries.index_usize item = .ok P.entries.val[item.val] := by
-              simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem itemInside]
-            by_cases gen : Generating P.entries.val[item.val]
-            · have isDone : item ∈ F.nodes.val[x.val].done.val := by
-                by_contra notDone
-                exact missing ⟨⟨_,List.getElem?_eq_getElem itemInside,gen⟩,notDone⟩
-              simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,
-                generating_correct,gen,contains_correct,isDone,advance,run]
-            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,
-                generating_correct,gen,advance,run]
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,advance,run]
-        · intro i same
-          obtain ⟨member,rest⟩ := found i same
-          exact ⟨by rw [split]; exact List.mem_cons_of_mem _ member,rest⟩
-        · intro none i member e at_i gen
-          rw [split] at member
-          rcases List.mem_cons.mp member with rfl | later
-          · by_contra notDone
-            exact missing ⟨⟨e,at_i,gen⟩,notDone⟩
-          · exact absent none i later e at_i gen
-    · refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more],by simp,?_⟩
+      have candRun := candidate_correct P F x item expand
+      have foundRest : ∀ i, r = some (some i) → i ∈ F.nodes.val[x.val].label.val.drop index.val ∧ ∃ e role c n,
+          P.entries.val[i.val]? = some e ∧ generatorOf e = some (role,n,c) ∧
+          (expand = true → i ∉ doneOf F.nodes.val x.val) ∧ ¬ Enough P h F x.val role c n := by
+        intro i same
+        obtain ⟨member,rest⟩ := found i same
+        exact ⟨by rw [split]; exact List.mem_cons_of_mem _ member,rest⟩
+      have absentRest : (∀ e role c n, P.entries.val[item.val]? = some e → generatorOf e = some (role,n,c) →
+          (expand = true → item ∉ doneOf F.nodes.val x.val) → Enough P h F x.val role c n) →
+          r = some none → ∀ i ∈ F.nodes.val[x.val].label.val.drop index.val, ∀ e role c n,
+            P.entries.val[i.val]? = some e → generatorOf e = some (role,n,c) →
+            (expand = true → i ∉ doneOf F.nodes.val x.val) → Enough P h F x.val role c n := by
+        intro here none i member e role c n at_i gen notDone
+        rw [split] at member
+        rcases List.mem_cons.mp member with rfl | rest
+        · exact here e role c n at_i gen notDone
+        · exact absent none i rest e role c n at_i gen notDone
+      by_cases cand : Candidate P F x.val item expand
+      · obtain ⟨_,⟨e,role,c,n,at_e,gen⟩,notDone⟩ := cand
+        obtain ⟨b,bRun,bSpec⟩ := enough_correct P h F x item
+        cases b with
+        | none =>
+          refine ⟨none,?_,by simp,by simp⟩
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,candRun,
+            show Candidate P F x.val item expand from ⟨inside,⟨e,role,c,n,at_e,gen⟩,notDone⟩,bRun]
+        | some b =>
+          obtain ⟨e',role',c',n',at_e',gen',enoughIff⟩ := bSpec b rfl
+          rw [at_e] at at_e'
+          cases at_e'
+          rw [gen] at gen'
+          simp only [Option.some.injEq,Prod.mk.injEq] at gen'
+          obtain ⟨rfl,rfl,rfl⟩ := gen'
+          cases b with
+          | true =>
+            refine ⟨r,?_,foundRest,absentRest (fun e' role' c' n' at_e' gen'' _ => ?_)⟩
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,candRun,
+                show Candidate P F x.val item expand from ⟨inside,⟨e,role,c,n,at_e,gen⟩,notDone⟩,bRun,advance,run]
+            · rw [at_e] at at_e'
+              cases at_e'
+              rw [gen] at gen''
+              simp only [Option.some.injEq,Prod.mk.injEq] at gen''
+              obtain ⟨rfl,rfl,rfl⟩ := gen''
+              exact enoughIff.mp rfl
+          | false =>
+            refine ⟨some (some item),?_,?_,by simp⟩
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,candRun,
+                show Candidate P F x.val item expand from ⟨inside,⟨e,role,c,n,at_e,gen⟩,notDone⟩,bRun]
+            · intro i same
+              cases same
+              refine ⟨by rw [split]; exact List.mem_cons_self ..,e,role,c,n,at_e,gen,notDone,?_⟩
+              intro enough
+              have := enoughIff.mpr enough
+              cases this
+      · refine ⟨r,?_,foundRest,absentRest ?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,candRun,cand,advance,run]
+        · intro e role c n at_e gen notDone
+          exact absurd ⟨inside,⟨e,role,c,n,at_e,gen⟩,notDone⟩ cand
+    · refine ⟨some none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more],by simp,?_⟩
       intro _ i member
       rw [List.drop_eq_nil_iff.mpr (by omega)] at member
       cases member
   · have empty : labelOf F.nodes.val x.val = [] := by
       simp [labelOf,List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
-    refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside],by simp,?_⟩
+    refine ⟨some none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside],by simp,?_⟩
     intro _ i member
     rw [empty] at member
     simp at member
 termination_by (labelOf F.nodes.val x.val).length - index.val
 decreasing_by
-  simp only [labelOf,List.getElem?_eq_getElem inside]
-  omega
+  all_goals
+    simp only [labelOf,List.getElem?_eq_getElem inside]
+    omega
 
-theorem missing_successor_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) :
-    ∃ r, forest.missing_successor P F index = .ok r ∧
-      (∀ x i, r = some (x,i) → Active F.nodes.val x.val ∧ ¬ Blocked F.nodes.val x.val ∧
-        i ∈ labelOf F.nodes.val x.val ∧ (∃ e, P.entries.val[i.val]? = some e ∧ Generating e) ∧
-        i ∉ doneOf F.nodes.val x.val) ∧
-      (r = none → ∀ y, index.val ≤ y → Active F.nodes.val y → ¬ Blocked F.nodes.val y →
-        ∀ i ∈ labelOf F.nodes.val y, ∀ e, P.entries.val[i.val]? = some e → Generating e →
-          i ∈ doneOf F.nodes.val y) := by
+theorem missing_successor_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest)
+    (expand : Bool) (index : Usize) :
+    ∃ r, forest.missing_successor P h F expand index = .ok r ∧
+      (∀ x i, r = some (some (x,i)) → Active F.nodes.val x.val ∧ ¬ Blocked F.nodes.val x.val ∧
+        i ∈ labelOf F.nodes.val x.val ∧ ∃ e role c n, P.entries.val[i.val]? = some e ∧
+        generatorOf e = some (role,n,c) ∧ (expand = true → i ∉ doneOf F.nodes.val x.val) ∧
+        ¬ Enough P h F x.val role c n) ∧
+      (r = some none → ∀ y, index.val ≤ y → Active F.nodes.val y → ¬ Blocked F.nodes.val y →
+        ∀ i ∈ labelOf F.nodes.val y, ∀ e role c n, P.entries.val[i.val]? = some e →
+          generatorOf e = some (role,n,c) → (expand = true → i ∉ doneOf F.nodes.val y) →
+          Enough P h F y role c n) := by
   rw [forest.missing_successor]
   by_cases more : index.val < F.nodes.val.length
   · have lookup : F.nodes.index_usize index = .ok F.nodes.val[index.val] := by
@@ -1855,40 +2003,43 @@ theorem missing_successor_correct (P : completion.Problem) (F : forest.Forest) (
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨r,run,found,absent⟩ := missing_successor_correct P F index'
+    obtain ⟨r,run,found,absent⟩ := missing_successor_correct P h F expand index'
     have skip : (Active F.nodes.val index.val → ¬ Blocked F.nodes.val index.val →
-        ∀ i ∈ labelOf F.nodes.val index.val, ∀ e, P.entries.val[i.val]? = some e → Generating e →
-          i ∈ doneOf F.nodes.val index.val) → r = none → ∀ y, index.val ≤ y → Active F.nodes.val y →
-        ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e, P.entries.val[i.val]? = some e →
-          Generating e → i ∈ doneOf F.nodes.val y := by
+        ∀ i ∈ labelOf F.nodes.val index.val, ∀ e role c n, P.entries.val[i.val]? = some e →
+          generatorOf e = some (role,n,c) → (expand = true → i ∉ doneOf F.nodes.val index.val) →
+          Enough P h F index.val role c n) → r = some none → ∀ y, index.val ≤ y → Active F.nodes.val y →
+        ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e role c n, P.entries.val[i.val]? = some e →
+          generatorOf e = some (role,n,c) → (expand = true → i ∉ doneOf F.nodes.val y) →
+          Enough P h F y role c n := by
       intro here none y low isActive free
       by_cases same : y = index.val
       · subst same
         exact here isActive free
       · exact absent none y (by omega) isActive free
+    have blockedRun := blocked_correct F index.val index rfl
     by_cases active : F.nodes.val[index.val].active = true
-    · obtain ⟨u,uRun,uFound,uAbsent⟩ := unexpanded_correct P F index 0#usize
-      simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at uFound uAbsent
-      cases u with
-      | none =>
-        refine ⟨r,?_,found,skip ?_⟩
-        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,uRun,advance,run]
-        · intro _ _ i member e at_i gen
-          exact uAbsent rfl i member e at_i gen
-      | some i =>
-        have blockedRun := blocked_correct F index.val index rfl
-        by_cases blocked : Blocked F.nodes.val index.val
-        · refine ⟨r,?_,found,skip ?_⟩
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,uRun,blockedRun,blocked,advance,run]
-          · intro _ free
-            exact absurd blocked free
-        · refine ⟨some (index,i),?_,?_,by simp⟩
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,uRun,blockedRun,blocked]
-          · intro x i' same
-            simp only [Option.some.injEq,Prod.mk.injEq] at same
-            obtain ⟨rfl,rfl⟩ := same
-            obtain ⟨member,gen,notDone⟩ := uFound i rfl
-            exact ⟨⟨_,at_index,active⟩,blocked,member,gen,notDone⟩
+    · by_cases blocked : Blocked F.nodes.val index.val
+      · refine ⟨r,?_,found,skip (fun _ free => absurd blocked free)⟩
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,blockedRun,blocked,advance,run]
+      · obtain ⟨l,lRun,lFound,lAbsent⟩ := lacking_correct P h F index expand 0#usize
+        simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at lFound lAbsent
+        cases l with
+        | none =>
+          refine ⟨none,?_,by simp,by simp⟩
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,blockedRun,blocked,lRun]
+        | some item =>
+          cases item with
+          | none =>
+            refine ⟨r,?_,found,skip (fun _ _ => lAbsent rfl)⟩
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,blockedRun,blocked,lRun,advance,run]
+          | some i =>
+            refine ⟨some (some (index,i)),?_,?_,by simp⟩
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,blockedRun,blocked,lRun]
+            · intro x i' same
+              simp only [Option.some.injEq,Prod.mk.injEq] at same
+              obtain ⟨rfl,rfl⟩ := same
+              obtain ⟨member,rest⟩ := lFound i rfl
+              exact ⟨⟨_,at_index,active⟩,blocked,member,rest⟩
     · refine ⟨r,?_,found,skip ?_⟩
       · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,advance,run]
       · intro isActive
@@ -1896,24 +2047,24 @@ theorem missing_successor_correct (P : completion.Problem) (F : forest.Forest) (
         rw [at_index] at at_n
         cases at_n
         exact absurd yes active
-  · refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
+  · refine ⟨some none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
     intro _ y low ⟨n,at_n,_⟩
     have := (List.getElem?_eq_some_iff.mp at_n).1
     omega
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
 
-/-- Something a node or an edge requires of node `y`. -/
+/-- Something an active node or an edge requires of node `y`. -/
 def AddNeeds (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (y : Nat) (c : Usize) :
     Prop :=
-  NodeNeeds P F y c ∨ TreeNeeds P.entries.val h F.nodes.val y c ∨
+  (Active F.nodes.val y ∧ NodeNeeds P F y c) ∨ TreeNeeds P.entries.val h F.nodes.val y c ∨
     LinkNeeds P.entries.val h F (linkEnds P.links.val) y c ∨ LinkNeeds P.entries.val h F (edgeEnds F.edges.val) y c
 
 /-- No rule applies: every active node has what it needs, every edge gives each
     end what the other requires, every neighbour that a maximum restriction
     counts decides its filler, no maximum restriction counts too many
-    neighbours, and every unblocked active node has expanded its existential and
-    minimum restrictions. -/
+    neighbours, and every existential and minimum restriction of an unblocked
+    active node has enough neighbours satisfying its filler. -/
 def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) : Prop :=
   (∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c → Holds P.entries.val (labelOf F.nodes.val y) c.val) ∧
   (∀ child n, F.nodes.val[child]? = some n → n.tree = true → n.active = true →
@@ -1922,8 +2073,8 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.
       EdgeOk P.entries.val h (labelOf F.nodes.val child) (inv s) (labelOf F.nodes.val n.parent.val)) ∧
   LinksOk P.entries.val h F (linkEnds P.links.val) ∧ LinksOk P.entries.val h F (edgeEnds F.edges.val) ∧
   (∀ y, Active F.nodes.val y → CountOk P h F true y) ∧ (∀ y, Active F.nodes.val y → CountOk P h F false y) ∧
-  (∀ y, Active F.nodes.val y → ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e,
-    P.entries.val[i.val]? = some e → Generating e → i ∈ doneOf F.nodes.val y)
+  (∀ y, Active F.nodes.val y → ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e role c n,
+    P.entries.val[i.val]? = some e → generatorOf e = some (role,n,c) → Enough P h F y role c n)
 
 /-- The rule search returns a concept that a node lacks and that a node or edge
     requires, a neighbour to decide, a maximum restriction with too many
@@ -1937,8 +2088,8 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
         CountStep P h F true x (.Choose y c c')) ∧
       (∀ x i, r = some (.Merge x i) → Active F.nodes.val x.val ∧ CountStep P h F false x (.Merge x i)) ∧
       (∀ x i, r = some (.Create x i) → Active F.nodes.val x.val ∧ ¬ Blocked F.nodes.val x.val ∧
-        i ∈ labelOf F.nodes.val x.val ∧ (∃ e, P.entries.val[i.val]? = some e ∧ Generating e) ∧
-        i ∉ doneOf F.nodes.val x.val) ∧
+        i ∈ labelOf F.nodes.val x.val ∧ ∃ e role c n, P.entries.val[i.val]? = some e ∧
+        generatorOf e = some (role,n,c) ∧ i ∉ doneOf F.nodes.val x.val ∧ ¬ Enough P h F x.val role c n) ∧
       (r = some .Done → Complete P h F) := by
   rw [forest.next_step]
   have zero : (0#usize).val = 0 := rfl
@@ -1946,12 +2097,12 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   cases r0 with
   | some pair =>
     obtain ⟨y,c⟩ := pair
-    obtain ⟨⟨n,at_y,_⟩,needs,fails⟩ := found0 y c rfl
+    obtain ⟨⟨n,at_y,act⟩,needs,fails⟩ := found0 y c rfl
     refine ⟨some (.Add y c),by simp [run0],?_,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
-    exact ⟨(List.getElem?_eq_some_iff.mp at_y).1,.inl needs,fails⟩
+    exact ⟨(List.getElem?_eq_some_iff.mp at_y).1,.inl ⟨⟨n,at_y,act⟩,needs⟩,fails⟩
   | none =>
   obtain ⟨r1,run1,found1,absent1⟩ := missing_tree_correct P h F 0#usize
   cases r1 with
@@ -2014,17 +2165,29 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     obtain ⟨rfl,rfl⟩ := same
     exact ⟨active,i,member,n,role,c,c',at_i,rfl,excess⟩
   | none =>
-  obtain ⟨r8,run8,found8,absent8⟩ := missing_successor_correct P F 0#usize
+  obtain ⟨r8,run8,found8,absent8⟩ := missing_successor_correct P h F true 0#usize
   cases r8 with
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run4,run6,run8],by simp,by simp,by simp,by simp,by simp⟩
+  | some r9 =>
+  cases r9 with
   | some pair =>
     obtain ⟨x,i⟩ := pair
     refine ⟨some (.Create x i),by simp [run0,run1,run2,run3,run4,run6,run8],by simp,by simp,by simp,?_,by simp⟩
     intro x' i' same
     simp only [Option.some.injEq,forest.Step.Create.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
-    exact found8 x i rfl
+    obtain ⟨active,free,member,e,role,c,n,at_i,gen,notDone,short⟩ := found8 x i rfl
+    exact ⟨active,free,member,e,role,c,n,at_i,gen,notDone rfl,short⟩
   | none =>
-  refine ⟨some .Done,by simp [run0,run1,run2,run3,run4,run6,run8],by simp,by simp,by simp,by simp,?_⟩
+  obtain ⟨r10,run10,found10,absent10⟩ := missing_successor_correct P h F false 0#usize
+  cases r10 with
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp⟩
+  | some r11 =>
+  cases r11 with
+  | some pair => exact ⟨some .Stuck,by simp [run0,run1,run2,run3,run4,run6,run8,run10],by simp,by simp,by simp,by simp,
+      by simp⟩
+  | none =>
+  refine ⟨some .Done,by simp [run0,run1,run2,run3,run4,run6,run8,run10],by simp,by simp,by simp,by simp,?_⟩
   intro _
   rw [zero] at absent2 absent3
   refine ⟨fun y isActive c needs => absent0 rfl y (Nat.zero_le _) isActive c needs,
@@ -2033,6 +2196,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     by simpa using absent2 rfl,by simpa using absent3 rfl,
     fun y isActive => absent4 rfl y (Nat.zero_le _) isActive,
     fun y isActive => absent6 rfl y (Nat.zero_le _) isActive,
-    fun y isActive free => absent8 rfl y (Nat.zero_le _) isActive free⟩
+    fun y isActive free i member e role c n at_i gen =>
+      absent10 rfl y (Nat.zero_le _) isActive free i member e role c n at_i gen (by simp)⟩
 
 end Rowl.ForestSearch

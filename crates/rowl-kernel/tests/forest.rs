@@ -578,3 +578,47 @@ fn role_copy(role: &ObjectPropertyExpression) -> ObjectPropertyExpression {
         ObjectPropertyExpression::Inverse(p) => inverted(&p.iri.spelling),
     }
 }
+
+#[test]
+fn every_input_is_answered() {
+    // The final check that every restriction has enough neighbours never fails:
+    // the nodes a restriction created differ, so they are never merged.
+    with_stack(|| {
+        let mut seed = 101;
+        for round in 0..1000 {
+            let c = random_concept(&mut seed, 3, true);
+            let tbox = random_concept(&mut seed, 1, true);
+            assert!(
+                concept_sat(c, &tbox, &none()).is_some(),
+                "stuck in round {round}"
+            );
+        }
+        let mut seed = 103;
+        for round in 0..200 {
+            let tbox = random_concept(&mut seed, 1, true);
+            let facts: Vec<Fact> = (0..3)
+                .map(|node| fact(node, random_concept(&mut seed, 2, true)))
+                .collect();
+            let mut links = Vec::new();
+            for _ in 0..3 {
+                seed = seed
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let role = if (seed >> 40).is_multiple_of(2) {
+                    r()
+                } else {
+                    back()
+                };
+                links.push(link(
+                    role,
+                    ((seed >> 33) % 3) as usize,
+                    ((seed >> 36) % 3) as usize,
+                ));
+            }
+            assert!(
+                abox(3, facts, links, &tbox).is_some(),
+                "stuck in abox round {round}"
+            );
+        }
+    });
+}

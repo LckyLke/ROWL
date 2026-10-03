@@ -15,9 +15,15 @@
 //! 4. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
 //!    turn; when all of them differ, it is a clash;
-//! 5. every `∃r.C` and `≥n r.C` of an unblocked node that was not expanded
-//!    yet creates new tree nodes with the filler as their seed, pairwise
-//!    different.
+//! 5. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
+//!    neighbours along `r` satisfying `C` than it requires, and was not
+//!    expanded yet, creates new tree nodes with the filler as their seed,
+//!    pairwise different.
+//!
+//! When no rule applies, every such restriction of an unblocked node is checked
+//! to have enough neighbours; the differences between the nodes a restriction
+//! created keep them from being merged, so the check passes, and otherwise
+//! there is no answer.
 //!
 //! A merge moves a tree node into a sibling, into its grandparent or into a
 //! named node, or a named node into another one. The target receives the label,
@@ -121,6 +127,7 @@ pub enum Step {
         node: usize,
         generator: usize,
     },
+    Stuck,
     Done,
 }
 
@@ -782,59 +789,107 @@ fn generating(entry: &Entry) -> bool {
         _ => false,
     }
 }
-/// The first restriction of `label[index..]` of `node` that creates
-/// neighbours and was not expanded.
-fn unexpanded(problem: &Problem, graph: &Forest, node: usize, index: usize) -> Option<usize> {
+/// Whether `node` has as many neighbours along the role of the restriction
+/// `generator` that satisfy its filler as the restriction requires; `None` when
+/// there is no room or the entry creates no neighbours.
+fn enough(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    generator: usize,
+) -> Option<bool> {
+    let (role, count, filler) = match generator_of(&problem.entries, generator) {
+        Some(found) => found,
+        None => return None,
+    };
+    let list = match neighbours(problem, roles, graph, node, &role) {
+        Some(list) => list,
+        None => return None,
+    };
+    match satisfying(&problem.entries, graph, &list, filler, 0, Vec::new()) {
+        Some(many) => Some(count <= many.len()),
+        None => None,
+    }
+}
+/// Whether the entry `item` creates neighbours and, when `expand`, was not
+/// expanded at `node`.
+fn candidate(problem: &Problem, graph: &Forest, node: usize, item: usize, expand: bool) -> bool {
+    if item < problem.entries.len() && node < graph.nodes.len() {
+        if generating(&problem.entries[item]) {
+            if expand {
+                !contains(&graph.nodes[node].done, item, 0)
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+/// The first restriction of `label[index..]` of `node` that creates neighbours,
+/// lacks some, and (when `expand`) was not expanded; `None` when there is no
+/// room.
+fn lacking(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    expand: bool,
+    index: usize,
+) -> Option<Option<usize>> {
     if node < graph.nodes.len() {
         if index < graph.nodes[node].label.len() {
             let item = graph.nodes[node].label[index];
-            let mut missing = false;
-            if item < problem.entries.len() {
-                if generating(&problem.entries[item]) {
-                    missing = !contains(&graph.nodes[node].done, item, 0);
+            if candidate(problem, graph, node, item, expand) {
+                match enough(problem, roles, graph, node, item) {
+                    Some(true) => {}
+                    Some(false) => return Some(Some(item)),
+                    None => return None,
                 }
             }
-            if missing {
-                Some(item)
-            } else {
-                unexpanded(problem, graph, node, index + 1)
-            }
+            lacking(problem, roles, graph, node, expand, index + 1)
         } else {
-            None
+            Some(None)
         }
     } else {
-        None
+        Some(None)
     }
 }
-/// The first active, unblocked node of `nodes[index..]` with a restriction to
-/// expand, and that restriction.
-fn missing_successor(problem: &Problem, graph: &Forest, index: usize) -> Option<(usize, usize)> {
+/// The first active, unblocked node of `nodes[index..]` with a restriction that
+/// lacks neighbours (and, when `expand`, was not expanded), and that
+/// restriction; `None` when there is no room.
+fn missing_successor(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    expand: bool,
+    index: usize,
+) -> Option<Option<(usize, usize)>> {
     if index < graph.nodes.len() {
-        let found = if graph.nodes[index].active {
-            match unexpanded(problem, graph, index, 0) {
-                Some(item) => {
-                    if blocked(graph, index) {
-                        None
-                    } else {
-                        Some(item)
-                    }
+        let mut found = None;
+        if graph.nodes[index].active {
+            if !blocked(graph, index) {
+                match lacking(problem, roles, graph, index, expand, 0) {
+                    Some(item) => found = item,
+                    None => return None,
                 }
-                None => None,
             }
-        } else {
-            None
-        };
+        }
         match found {
-            Some(item) => Some((index, item)),
-            None => missing_successor(problem, graph, index + 1),
+            Some(item) => Some(Some((index, item))),
+            None => missing_successor(problem, roles, graph, expand, index + 1),
         }
     } else {
-        None
+        Some(None)
     }
 }
 /// The next rule: a missing concept of a node or an edge, else a neighbour to
-/// decide, else a merge, else restrictions to expand, else none; `None` when
-/// there is no room.
+/// decide, else a merge, else a restriction to expand; when none applies, the
+/// check that every restriction has enough neighbours (`Stuck` when one has
+/// not); `None` when there is no room.
 fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option<Step> {
     match missing_node(problem, graph, 0) {
         Some((node, concept)) => return Some(Step::Add { node, concept }),
@@ -862,9 +917,14 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option
         Some(None) => {}
         None => return None,
     }
-    match missing_successor(problem, graph, 0) {
-        Some((node, generator)) => Some(Step::Create { node, generator }),
-        None => Some(Step::Done),
+    match missing_successor(problem, roles, graph, true, 0) {
+        Some(Some((node, generator))) => Some(Step::Create { node, generator }),
+        Some(None) => match missing_successor(problem, roles, graph, false, 0) {
+            Some(Some(_)) => Some(Step::Stuck),
+            Some(None) => Some(Step::Done),
+            None => None,
+        },
+        None => None,
     }
 }
 fn copy_roles(
@@ -1173,17 +1233,11 @@ fn pairwise(graph: Forest, node: usize, deps: &Vec<usize>) -> Option<Forest> {
         Some(graph)
     }
 }
-/// Expand a restriction of `node`: new tree nodes along its role with its filler
-/// as their seed, pairwise different, depending on the points of `node`.
-fn create(
-    problem: &Problem,
-    roles: &RoleHierarchy,
-    graph: Forest,
-    node: usize,
-    generator: usize,
-    depth: usize,
-) -> Option<Outcome> {
-    let (role, count, filler) = match generator_of(&problem.entries, generator) {
+/// The forest after expanding the restriction `generator` of `node`: new tree
+/// nodes along its role with its filler as their seed, pairwise different,
+/// depending on the points of `node`, and the restriction marked as expanded.
+fn expanded(entries: &Vec<Entry>, graph: Forest, node: usize, generator: usize) -> Option<Forest> {
+    let (role, count, filler) = match generator_of(entries, generator) {
         Some(found) => found,
         None => return None,
     };
@@ -1200,12 +1254,26 @@ fn create(
         };
         if graph.nodes[node].done.len() < usize::MAX {
             graph.nodes[node].done.push(generator);
-            run(problem, roles, graph, depth)
+            Some(graph)
         } else {
             None
         }
     } else {
         None
+    }
+}
+/// Expand a restriction of `node`, then continue the run.
+fn create(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: Forest,
+    node: usize,
+    generator: usize,
+    depth: usize,
+) -> Option<Outcome> {
+    match expanded(&problem.entries, graph, node, generator) {
+        Some(graph) => run(problem, roles, graph, depth),
+        None => None,
     }
 }
 /// `out` with the points of the end of every link and edge of `node`, read
@@ -1441,111 +1509,149 @@ fn first_nodes(list: &Vec<usize>, count: usize, index: usize, mut out: Vec<usize
         out
     }
 }
-/// The forest where the tree node `node` also has the inverses of the roles of
-/// `from`: a child of `node` merged into the parent of `node`.
-fn upward(
-    mut graph: Forest,
-    node: usize,
-    from: usize,
+/// `out` with the roles of `list[index..]`, inverted when `invert`; `None`
+/// when there is no room.
+fn add_roles(
+    list: &Vec<ObjectPropertyExpression>,
+    invert: bool,
     index: usize,
-    deps: &Vec<usize>,
-) -> Option<Forest> {
-    if node < graph.nodes.len() && from < graph.nodes.len() {
-        if index < graph.nodes[from].roles.len() {
-            let back = inverse(&graph.nodes[from].roles[index]);
-            if graph.nodes[node].roles.len() < usize::MAX {
-                graph.nodes[node].roles.push(back);
-                upward(graph, node, from, index + 1, deps)
+    mut out: Vec<ObjectPropertyExpression>,
+) -> Option<Vec<ObjectPropertyExpression>> {
+    if index < list.len() {
+        if out.len() < usize::MAX {
+            let role = if invert {
+                inverse(&list[index])
             } else {
-                None
-            }
+                copy_role(&list[index])
+            };
+            out.push(role);
+            add_roles(list, invert, index + 1, out)
         } else {
-            match join(&graph.nodes[node].deps, deps) {
-                Some(joined) => {
-                    graph.nodes[node].deps = joined;
-                    Some(graph)
-                }
-                None => None,
-            }
+            None
         }
+    } else {
+        Some(out)
+    }
+}
+/// The forest where the tree node `node` also has the inverses of the roles of
+/// `from` and depends on `deps`: a child of `node` merged into the parent of
+/// `node`.
+fn upward(mut graph: Forest, node: usize, from: usize, deps: &Vec<usize>) -> Option<Forest> {
+    if node < graph.nodes.len() && from < graph.nodes.len() {
+        let start = copy_roles(&graph.nodes[node].roles, 0, Vec::new());
+        let added = match add_roles(&graph.nodes[from].roles, true, 0, start) {
+            Some(added) => added,
+            None => return None,
+        };
+        let joined = match join(&graph.nodes[node].deps, deps) {
+            Some(joined) => joined,
+            None => return None,
+        };
+        graph.nodes[node].roles = added;
+        graph.nodes[node].deps = joined;
+        Some(graph)
     } else {
         None
     }
 }
 /// The forest where the tree node `into` also has the roles of its sibling
 /// `from`.
-fn sideways(mut graph: Forest, from: usize, into: usize, index: usize) -> Option<Forest> {
+fn sideways(mut graph: Forest, from: usize, into: usize) -> Option<Forest> {
     if from < graph.nodes.len() && into < graph.nodes.len() {
-        if index < graph.nodes[from].roles.len() {
-            let role = copy_role(&graph.nodes[from].roles[index]);
-            if graph.nodes[into].roles.len() < usize::MAX {
-                graph.nodes[into].roles.push(role);
-                sideways(graph, from, into, index + 1)
-            } else {
-                None
-            }
-        } else {
-            Some(graph)
-        }
+        let start = copy_roles(&graph.nodes[into].roles, 0, Vec::new());
+        let added = match add_roles(&graph.nodes[from].roles, false, 0, start) {
+            Some(added) => added,
+            None => return None,
+        };
+        graph.nodes[into].roles = added;
+        Some(graph)
     } else {
         None
     }
 }
+/// `out` with an edge from `node` to `into` along every role of
+/// `list[index..]`, depending on `deps`; `None` when there is no room.
+fn add_edges(
+    list: &Vec<ObjectPropertyExpression>,
+    node: usize,
+    into: usize,
+    deps: &Vec<usize>,
+    index: usize,
+    mut out: Vec<Edge>,
+) -> Option<Vec<Edge>> {
+    if index < list.len() {
+        if out.len() < usize::MAX {
+            out.push(Edge {
+                role: copy_role(&list[index]),
+                from: node,
+                to: into,
+                deps: copy_label(deps, 0, Vec::new()),
+            });
+            add_edges(list, node, into, deps, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
 /// The forest with an edge from the named node `node` to the named node `into`
-/// along every role of the tree node `from`.
+/// along every role of the tree node `from`, depending on `deps`.
 fn linked(
     mut graph: Forest,
     node: usize,
     from: usize,
     into: usize,
-    index: usize,
     deps: &Vec<usize>,
 ) -> Option<Forest> {
     if from < graph.nodes.len() {
-        if index < graph.nodes[from].roles.len() {
-            let role = copy_role(&graph.nodes[from].roles[index]);
-            if graph.edges.len() < usize::MAX {
-                graph.edges.push(Edge {
-                    role,
-                    from: node,
-                    to: into,
-                    deps: copy_label(deps, 0, Vec::new()),
-                });
-                linked(graph, node, from, into, index + 1, deps)
-            } else {
-                None
-            }
-        } else {
-            Some(graph)
-        }
+        let start = copy_edges(&graph.edges, 0, Vec::new());
+        let added = match add_edges(&graph.nodes[from].roles, node, into, deps, 0, start) {
+            Some(added) => added,
+            None => return None,
+        };
+        graph.edges = added;
+        Some(graph)
     } else {
         None
     }
 }
-/// The forest where every individual merged into `from` is merged into `into`.
-fn renamed(mut graph: Forest, from: usize, into: usize, index: usize) -> Forest {
-    if index < graph.same.len() {
-        if graph.same[index] == from {
-            graph.same[index] = into;
-        }
-        renamed(graph, from, into, index + 1)
-    } else {
-        graph
-    }
-}
-/// The forest where `into` also differs from every node that a difference of
-/// `distinct[index..limit]` says `from` differs from.
-fn inherit(
-    mut graph: Forest,
+/// `out` with the representatives of `same[index..]`, `into` in place of
+/// `from`.
+fn renamed(
+    same: &Vec<usize>,
     from: usize,
     into: usize,
     index: usize,
-    limit: usize,
+    mut out: Vec<usize>,
+) -> Vec<usize> {
+    if index < same.len() {
+        if out.len() < usize::MAX {
+            if same[index] == from {
+                out.push(into);
+            } else {
+                out.push(same[index]);
+            }
+        }
+        renamed(same, from, into, index + 1, out)
+    } else {
+        out
+    }
+}
+/// `out` with a difference between `into` and every node that a difference of
+/// `distinct[index..]` says `from` differs from, also depending on `deps`;
+/// `None` when there is no room.
+fn inherit(
+    distinct: &Vec<Distinct>,
+    from: usize,
+    into: usize,
     deps: &Vec<usize>,
-) -> Option<Forest> {
-    if index < limit && index < graph.distinct.len() {
-        let left = graph.distinct[index].left;
-        let right = graph.distinct[index].right;
+    index: usize,
+    mut out: Vec<Distinct>,
+) -> Option<Vec<Distinct>> {
+    if index < distinct.len() {
+        let left = distinct[index].left;
+        let right = distinct[index].right;
         let other = if left == from {
             Some(right)
         } else if right == from {
@@ -1555,42 +1661,55 @@ fn inherit(
         };
         match other {
             Some(other) => {
-                let joined = match join(&graph.distinct[index].deps, deps) {
+                let joined = match join(&distinct[index].deps, deps) {
                     Some(joined) => joined,
                     None => return None,
                 };
-                if graph.distinct.len() < usize::MAX {
-                    graph.distinct.push(Distinct {
+                if out.len() < usize::MAX {
+                    out.push(Distinct {
                         left: into,
                         right: other,
                         deps: joined,
                     });
-                    inherit(graph, from, into, index + 1, limit, deps)
+                    inherit(distinct, from, into, deps, index + 1, out)
                 } else {
                     None
                 }
             }
-            None => inherit(graph, from, into, index + 1, limit, deps),
+            None => inherit(distinct, from, into, deps, index + 1, out),
         }
     } else {
-        Some(graph)
+        Some(out)
     }
 }
-/// The forest where every tree node of `nodes[index..]` whose parent is no
-/// longer active is pruned.
-fn prune(mut graph: Forest, index: usize) -> Forest {
-    if index < graph.nodes.len() {
-        if graph.nodes[index].tree {
-            let parent = graph.nodes[index].parent;
-            if parent < graph.nodes.len() {
-                if !graph.nodes[parent].active {
-                    graph.nodes[index].active = false;
+/// `out` with copies of the nodes of `nodes[index..]`, where a tree node whose
+/// parent among the copies is not active is not active either.
+fn pruned(nodes: &Vec<Node>, index: usize, mut out: Vec<Node>) -> Vec<Node> {
+    if index < nodes.len() {
+        if out.len() < usize::MAX {
+            let mut active = nodes[index].active;
+            if nodes[index].tree {
+                let parent = nodes[index].parent;
+                if parent < out.len() {
+                    if !out[parent].active {
+                        active = false;
+                    }
                 }
             }
+            out.push(Node {
+                label: copy_label(&nodes[index].label, 0, Vec::new()),
+                parent: nodes[index].parent,
+                roles: copy_roles(&nodes[index].roles, 0, Vec::new()),
+                seed: nodes[index].seed,
+                tree: nodes[index].tree,
+                active,
+                done: copy_label(&nodes[index].done, 0, Vec::new()),
+                deps: copy_label(&nodes[index].deps, 0, Vec::new()),
+            });
         }
-        prune(graph, index + 1)
+        pruned(nodes, index + 1, out)
     } else {
-        graph
+        out
     }
 }
 /// The label of `node` as pending entries, from `label[index..]` on.
@@ -1604,10 +1723,77 @@ fn pending_from(label: &Vec<usize>, index: usize) -> Pending {
         Pending::Empty
     }
 }
+/// The forest where the neighbour `from` of `node` hands its edge over to its
+/// neighbour `into`: a merged tree node's edge goes onto the parent of `node`
+/// (`upward`), onto a sibling (`sideways`) or onto a named node (`linked`), and
+/// a merged named node passes its individuals on.
+fn moved(
+    graph: Forest,
+    node: usize,
+    from: usize,
+    into: usize,
+    joined: &Vec<usize>,
+) -> Option<Forest> {
+    if node < graph.nodes.len() && from < graph.nodes.len() && into < graph.nodes.len() {
+        if graph.nodes[from].tree {
+            if graph.nodes[node].tree {
+                if graph.nodes[node].parent == into {
+                    upward(graph, node, from, joined)
+                } else {
+                    sideways(graph, from, into)
+                }
+            } else if graph.nodes[into].tree {
+                sideways(graph, from, into)
+            } else {
+                linked(graph, node, from, into, joined)
+            }
+        } else {
+            let same = renamed(&graph.same, from, into, 0, Vec::new());
+            let mut graph = graph;
+            graph.same = same;
+            Some(graph)
+        }
+    } else {
+        None
+    }
+}
+/// The forest after merging the neighbour `from` of `node` into its neighbour
+/// `into`, which then depends on `joined`: `into` gets the edge and the
+/// differences of `from`, and `from` is pruned with its subtree.
+fn merged(
+    graph: Forest,
+    node: usize,
+    from: usize,
+    into: usize,
+    joined: &Vec<usize>,
+) -> Option<Forest> {
+    let mut graph = match moved(graph, node, from, into, joined) {
+        Some(graph) => graph,
+        None => return None,
+    };
+    if from < graph.nodes.len() && into < graph.nodes.len() {
+        let start = copy_distinct(&graph.distinct, 0, Vec::new());
+        let distinct = match inherit(&graph.distinct, from, into, joined, 0, start) {
+            Some(distinct) => distinct,
+            None => return None,
+        };
+        graph.distinct = distinct;
+        graph.nodes[from].active = false;
+        let nodes = pruned(&graph.nodes, 0, Vec::new());
+        graph.nodes = nodes;
+        match join(&graph.nodes[into].deps, joined) {
+            Some(depends) => {
+                graph.nodes[into].deps = depends;
+                Some(graph)
+            }
+            None => None,
+        }
+    } else {
+        None
+    }
+}
 /// Merge the neighbour `from` of `node` into its neighbour `into`, which
-/// depends on `deps`: `into` gets the edge and the differences of `from`,
-/// `from` is pruned with its subtree, and the label of `from` is added to
-/// `into`.
+/// depends on `deps`, then add the label of `from` to `into`.
 fn merge(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -1618,52 +1804,22 @@ fn merge(
     deps: Vec<usize>,
     depth: usize,
 ) -> Option<Outcome> {
-    if node < graph.nodes.len() && from < graph.nodes.len() && into < graph.nodes.len() {
+    if from < graph.nodes.len() {
         let label = copy_label(&graph.nodes[from].label, 0, Vec::new());
         let joined = match join(&deps, &graph.nodes[from].deps) {
             Some(joined) => joined,
             None => return None,
         };
-        let graph = if graph.nodes[from].tree {
-            if graph.nodes[node].tree {
-                if graph.nodes[node].parent == into {
-                    upward(graph, node, from, 0, &joined)
-                } else {
-                    sideways(graph, from, into, 0)
-                }
-            } else if graph.nodes[into].tree {
-                sideways(graph, from, into, 0)
-            } else {
-                linked(graph, node, from, into, 0, &joined)
-            }
-        } else {
-            Some(renamed(graph, from, into, 0))
-        };
-        let graph = match graph {
-            Some(graph) => graph,
-            None => return None,
-        };
-        let limit = graph.distinct.len();
-        let graph = match inherit(graph, from, into, 0, limit, &joined) {
-            Some(graph) => graph,
-            None => return None,
-        };
-        let mut graph = graph;
-        graph.nodes[from].active = false;
-        let mut graph = prune(graph, 0);
-        match join(&graph.nodes[into].deps, &joined) {
-            Some(depends) => {
-                graph.nodes[into].deps = depends;
-                add(
-                    problem,
-                    roles,
-                    graph,
-                    into,
-                    pending_from(&label, 0),
-                    joined,
-                    depth,
-                )
-            }
+        match merged(graph, node, from, into, &joined) {
+            Some(graph) => add(
+                problem,
+                roles,
+                graph,
+                into,
+                pending_from(&label, 0),
+                joined,
+                depth,
+            ),
             None => None,
         }
     } else {
@@ -1857,6 +2013,7 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
         Some(Step::Create { node, generator }) => {
             create(problem, roles, graph, node, generator, depth)
         }
+        Some(Step::Stuck) => None,
         Some(Step::Done) => Some(Outcome::Accepted),
         None => None,
     }

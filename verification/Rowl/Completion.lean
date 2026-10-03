@@ -19,7 +19,7 @@ open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv relation_inv denote)
 open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below)
-open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild TransitiveClosed parts)
+open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild TransitiveClosed parts Complements)
 open Rowl.CompletionSearch
 open Rowl.CompletionModel (Shape Literal model_of_complete holds_literal treePath_tree blocked_down treePath_parent
   treePath_self treePath_named)
@@ -2129,7 +2129,7 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
     (corresponds : Corresponds (earlier ++ facts.val.take index.val) entries.val out.val) :
     ∃ r, completion.intern_facts entries facts index out = .ok r ∧ ∀ t requirements, r = some (t,requirements) →
       WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧
-        Corresponds (earlier ++ facts.val) t.val requirements.val := by
+        Corresponds (earlier ++ facts.val) t.val requirements.val ∧ (Complements entries.val → Complements t.val) := by
   rw [completion.intern_facts]
   by_cases more : index.val < facts.val.length
   · have lookup : facts.index_usize index = .ok facts.val[index.val] := by
@@ -2141,7 +2141,7 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun]
     | some pair =>
       obtain ⟨t1,k⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,_⟩ := internSpec t1 k rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,keeps1⟩ := internSpec t1 k rfl
       by_cases room : out.val.length < Usize.max
       · obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists
           (alloc.vec.Vec.push_spec out ⟨facts.val[index.val].node,k⟩ room)
@@ -2174,8 +2174,8 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
         · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
             bind_ok,internRun,uncurry_apply_pair,usize_max_val,room,push,advance,run]
         · intro t requirements same
-          obtain ⟨wf2,⟨more2,grows2⟩,result⟩ := spec t requirements same
-          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,result⟩
+          obtain ⟨wf2,⟨more2,grows2⟩,result,keeps2⟩ := spec t requirements same
+          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,result,fun c => keeps2 (keeps1 c)⟩
       · refine ⟨none,?_,by simp⟩
         simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun,usize_max_val,room]
   · refine ⟨some (entries,out),?_,?_⟩
@@ -2183,7 +2183,7 @@ theorem intern_facts_correct (facts : alloc.vec.Vec completion.Fact) (index : Us
     · intro t requirements same
       simp only [Option.some.injEq,Prod.mk.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
-      refine ⟨wf,⟨[],by simp⟩,?_⟩
+      refine ⟨wf,⟨[],by simp⟩,?_,id⟩
       rwa [List.take_of_length_le (by omega)] at corresponds
 termination_by facts.val.length - index.val
 decreasing_by omega
@@ -2194,7 +2194,8 @@ theorem intern_definitions_correct (definitions : alloc.vec.Vec completion.Defin
     (unfolds : Unfolds (definitions.val.take index.val) entries.val out.val) :
     ∃ r, completion.intern_definitions entries definitions index out = .ok r ∧ ∀ t unfoldings,
       r = some (t,unfoldings) →
-      WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ Unfolds definitions.val t.val unfoldings.val := by
+      WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ Unfolds definitions.val t.val unfoldings.val ∧
+        (Complements entries.val → Complements t.val) := by
   rw [completion.intern_definitions]
   by_cases more : index.val < definitions.val.length
   · have lookup : definitions.index_usize index = .ok definitions.val[index.val] := by
@@ -2207,7 +2208,7 @@ theorem intern_definitions_correct (definitions : alloc.vec.Vec completion.Defin
       simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun]
     | some pair =>
       obtain ⟨t1,k⟩ := pair
-      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,_⟩ := internSpec t1 k rfl
+      obtain ⟨wf1,⟨more1,grows1⟩,kIn,means,keeps1⟩ := internSpec t1 k rfl
       by_cases room : out.val.length < Usize.max
       · obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists
           (alloc.vec.Vec.push_spec out ⟨definitions.val[index.val].class,k⟩ room)
@@ -2242,8 +2243,8 @@ theorem intern_definitions_correct (definitions : alloc.vec.Vec completion.Defin
         · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
             bind_ok,internRun,uncurry_apply_pair,usize_max_val,room,Rowl.Nnf.copy_iri_identity,copied,push,advance,run]
         · intro t unfoldings same
-          obtain ⟨wf2,⟨more2,grows2⟩,result⟩ := spec t unfoldings same
-          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,result⟩
+          obtain ⟨wf2,⟨more2,grows2⟩,result,keeps2⟩ := spec t unfoldings same
+          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,result,fun c => keeps2 (keeps1 c)⟩
       · refine ⟨none,?_,by simp⟩
         simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,internRun,usize_max_val,room]
   · refine ⟨some (entries,out),?_,?_⟩
@@ -2251,7 +2252,7 @@ theorem intern_definitions_correct (definitions : alloc.vec.Vec completion.Defin
     · intro t unfoldings same
       simp only [Option.some.injEq,Prod.mk.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
-      refine ⟨wf,⟨[],by simp⟩,?_⟩
+      refine ⟨wf,⟨[],by simp⟩,?_,id⟩
       rwa [List.take_of_length_le (by omega)] at unfolds
 termination_by definitions.val.length - index.val
 decreasing_by omega
@@ -2323,21 +2324,21 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq],by simp,by simp⟩
   | some pairq =>
   obtain ⟨tq,requirementsq⟩ := pairq
-  obtain ⟨wfq,⟨moreq,growsq⟩,correspondsq⟩ := specq tq requirementsq rfl
+  obtain ⟨wfq,⟨moreq,growsq⟩,correspondsq,_⟩ := specq tq requirementsq rfl
   obtain ⟨r1,run1,spec1⟩ := intern_facts_correct facts 0#usize tq requirementsq query.val wfq (by simp)
     (by simpa using correspondsq)
   cases r1 with
   | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1],by simp,by simp⟩
   | some pair1 =>
   obtain ⟨t1,requirements⟩ := pair1
-  obtain ⟨wf1,⟨more1,grows1⟩,corresponds1⟩ := spec1 t1 requirements rfl
+  obtain ⟨wf1,⟨more1,grows1⟩,corresponds1,_⟩ := spec1 t1 requirements rfl
   obtain ⟨r2,run2,spec2⟩ := intern_definitions_correct definitions 0#usize t1
     (alloc.vec.Vec.new completion.Unfolding) wf1 (by simp) (by simp [Unfolds])
   cases r2 with
   | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1,run2],by simp,by simp⟩
   | some pair2 =>
   obtain ⟨t2,unfoldings⟩ := pair2
-  obtain ⟨wf2,⟨more2,grows2⟩,unfolds2⟩ := spec2 t2 unfoldings rfl
+  obtain ⟨wf2,⟨more2,grows2⟩,unfolds2,_⟩ := spec2 t2 unfoldings rfl
   obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h t2 wf2
   cases r3 with
   | none => exact ⟨none,by rw [completion.satisfiable]; simp [run0,runq,run1,run2,run3],by simp,by simp⟩

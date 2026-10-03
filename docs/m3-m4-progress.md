@@ -3187,12 +3187,69 @@ it reports Done exactly for a complete forest (Complete). blocked_correct shows
 that `forest::blocked` decides pairwise blocking (Blocked).
 
 Randomized regressions compare the forest with the completion graph on inputs
-without counting, and check that every concept, and every set of facts and links
+without counting, check that every concept, and every set of facts and links
 about three individuals, that has a model with at most three elements is
-accepted. The rules that apply the steps, termination, soundness and
-completeness are the next steps; no query uses the forest yet.
+accepted, and check that random inputs with counting always get an answer.
 
-This block adds 34 public theorems and 24 independent definitions. Totals are
-1198 audited theorems, 771 definitions, 424 Rust regressions and 1391 ledger
+This block adds 37 public theorems and 24 independent definitions.
+
+## Reasoner: the completion forest's run
+
+ForestOps proves the operations the rules apply exact: copying, adding an item
+to a label, creating children with their differences, the branch points a rule
+rests on, the pairs of counted neighbours not known to differ and their
+orientation, and the parts of a merge, which move the roles of a merged child
+onto the parent edge or a sibling, add edges between named nodes, rename an
+individual's representative, inherit differences and prune the merged subtree.
+The merge and the expansion of a restriction are separate functions
+(`forest::merged`, `forest::expanded`) so that their structure is proved apart
+from the recursion.
+
+ForestInv defines the invariant `run` keeps (Inv): a well-formed table whose
+maximum restrictions record the complements of their fillers and count along
+simple roles, closed under the restrictions of transitive roles; roots exactly
+for the named individuals and every individual read through the merges as an
+active root; active tree nodes below active parents with smaller indices;
+clash-free labels of literals without repetitions; the expanded restrictions
+among the label; and edge roles among the roles of the existential and minimum
+restrictions and their inverses. The termination measure weights every active
+node by `base^(bound + 2 − depth)` times the room left in its label and its
+expanded restrictions, where `bound` counts the different labels, parents'
+labels and role sets; pairwise blocking keeps the depth of an unblocked node
+within `bound` (depth_le_bound). A model of a forest under a set of branch
+points (Models) places every node in an interpretation that respects the role
+hierarchy, where the TBox concept and the unfoldings hold everywhere, the
+requirements and links hold for the individuals, each individual sits where its
+representative does, and labels, tree edges and seeds, added edges and
+differences hold when the points they depend on are in the set.
+
+ForestSteps proves the two structural steps. Expanding a restriction keeps the
+invariant, costs the node more weight than all its new children carry
+(created_measure), and a model of the restriction provides different witnesses
+for the children (created_models). A merge, oriented as `forest::orient` does
+(orient_shape), keeps the invariant, removes the merged node from the measure,
+and a model that places both nodes on one element models the merged forest
+with the merged node's label at its target (merged_models).
+
+Forest proves the run. run_correct: on every forest that keeps the invariant,
+`run` terminates; an acceptance comes with a complete forest that keeps the
+invariant, and a rejection with branch points below the next free one rules
+out every model, in any universes, under those points. branch_correct covers
+both the disjunction and the choose rule, retrying the second alternative only
+when the first failure depends on the new branch point. merge_rule_correct
+shows that in every model of a maximum restriction with too many counted
+neighbours two of its first `n + 1` neighbours coincide, so that some pair not
+known to differ is merged; choices_correct tries those pairs in turn and
+accumulates the branch points of the failures that depend on the choice.
+satisfiable_answers shows that `forest::satisfiable` answers unless a structure
+would exceed the `usize` range or a number restriction counts along a role that
+is not simple, that false answers rule out every model of the role hierarchy,
+the TBox concept, the definitions, the facts and the links, and that true
+answers come with a complete forest that keeps the invariant for the interned
+input. Turning a complete forest into a model (unravelling under pairwise
+blocking) is the next step; no query uses the forest yet.
+
+This block adds 127 public theorems and 40 independent definitions. Totals are
+1330 audited theorems, 811 definitions, 425 Rust regressions and 1523 ledger
 obligations.
 

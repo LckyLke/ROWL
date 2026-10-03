@@ -125,6 +125,10 @@ import Rowl.CompletionSearch
 import Rowl.CompletionModel
 import Rowl.Completion
 import Rowl.ForestSearch
+import Rowl.ForestOps
+import Rowl.ForestInv
+import Rowl.ForestSteps
+import Rowl.Forest
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiOntology

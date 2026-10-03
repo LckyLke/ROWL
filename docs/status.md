@@ -719,10 +719,22 @@ progress. Full OWL parsing and executable reasoning are still future work.
   edges, merges of tree nodes into siblings, grandparents or named nodes and
   of named nodes into each other, pairwise blocking, and backjumping over the
   choices of which nodes to merge. Its rule search is proved exact
-  (forest::next_step and the neighbour lists it counts); the rules that apply
-  its steps, its termination, and its soundness and completeness are not
-  proved yet, and no query uses it.
-- 1198 audited public theorems and 771 audited semantic definitions. Consistency,
+  (forest::next_step and the neighbour lists it counts), and so are the
+  operations its rules apply. forest::run is proved to terminate on every
+  forest that keeps its invariant: each rule adds a literal to an active node,
+  expands a restriction of an unblocked node (pairwise blocking bounds the
+  depth) or merges two neighbours, and each decreases a measure. Its
+  rejections are proved sound: a rejection rules out every model, in any
+  universes, under the branch points it reports, including the backjumping
+  over branches and over the pairs a maximum restriction merges.
+  forest::satisfiable is proved to answer unless a structure would exceed the
+  `usize` range or a number restriction counts along a role that is not
+  simple, and its false answers to rule out every model of the role hierarchy,
+  TBox concept, definitions, facts and links. Its true answers come with a
+  complete forest that keeps the invariant; the model of a complete forest,
+  and with it the exactness of true answers, is not proved yet, and no query
+  uses the forest.
+- 1330 audited public theorems and 811 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -730,7 +742,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   property expressions (SHI), also directly from Functional Syntax source
   bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 424 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 425 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -743,7 +755,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1391-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1523-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

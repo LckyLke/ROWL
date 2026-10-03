@@ -14261,7 +14261,7 @@ def encoding.encode
   else ok none
 
 /-- [rowl_kernel::forest::Node]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 62:0-77:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 68:0-83:1
     Visibility: public -/
 structure forest.Node where
   label : alloc.vec.Vec Std.Usize
@@ -14274,7 +14274,7 @@ structure forest.Node where
   deps : alloc.vec.Vec Std.Usize
 
 /-- [rowl_kernel::forest::Edge]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 79:0-84:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 85:0-90:1
     Visibility: public -/
 structure forest.Edge where
   role : model.ObjectPropertyExpression
@@ -14283,7 +14283,7 @@ structure forest.Edge where
   deps : alloc.vec.Vec Std.Usize
 
 /-- [rowl_kernel::forest::Distinct]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 86:0-90:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 92:0-96:1
     Visibility: public -/
 structure forest.Distinct where
   left : Std.Usize
@@ -14291,14 +14291,14 @@ structure forest.Distinct where
   deps : alloc.vec.Vec Std.Usize
 
 /-- [rowl_kernel::forest::Pair]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 92:0-95:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 98:0-101:1
     Visibility: public -/
 structure forest.Pair where
   first : Std.Usize
   second : Std.Usize
 
 /-- [rowl_kernel::forest::Forest]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 99:0-104:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 105:0-110:1
     Visibility: public -/
 structure forest.Forest where
   nodes : alloc.vec.Vec forest.Node
@@ -14307,7 +14307,7 @@ structure forest.Forest where
   same : alloc.vec.Vec Std.Usize
 
 /-- [rowl_kernel::forest::Step]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 106:0-125:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 112:0-132:1
     Visibility: public -/
 @[discriminant isize]
 inductive forest.Step where
@@ -14315,10 +14315,11 @@ inductive forest.Step where
 | Choose : Std.Usize → Std.Usize → Std.Usize → forest.Step
 | Merge : Std.Usize → Std.Usize → forest.Step
 | Create : Std.Usize → Std.Usize → forest.Step
+| Stuck : forest.Step
 | Done : forest.Step
 
 /-- [rowl_kernel::forest::along_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 129:0-151:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 136:0-158:1 -/
 def forest.along_from
   (roles : hierarchy.RoleHierarchy)
   (list : alloc.vec.Vec model.ObjectPropertyExpression)
@@ -14353,7 +14354,7 @@ def forest.along_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::with_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 153:0-162:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 160:0-169:1 -/
 def forest.with_node
   (out : alloc.vec.Vec Std.Usize) (node : Std.Usize) :
   Result (Option (alloc.vec.Vec Std.Usize))
@@ -14369,7 +14370,7 @@ def forest.with_node
     else ok none
 
 /-- [rowl_kernel::forest::representative]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 164:0-170:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 171:0-177:1 -/
 def forest.representative
   (graph : forest.Forest) (named : Std.Usize) : Result Std.Usize := do
   let i := alloc.vec.Vec.len graph.same
@@ -14380,7 +14381,7 @@ def forest.representative
   else ok named
 
 /-- [rowl_kernel::forest::children_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 173:0-202:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 180:0-209:1 -/
 def forest.children_along
   (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (index : Std.Usize)
@@ -14418,7 +14419,7 @@ def forest.children_along
 partial_fixpoint
 
 /-- [rowl_kernel::forest::parent_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 205:0-220:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 212:0-227:1 -/
 def forest.parent_along
   (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (out : alloc.vec.Vec Std.Usize) :
@@ -14440,7 +14441,7 @@ def forest.parent_along
   else ok (some out)
 
 /-- [rowl_kernel::forest::ends]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 224:0-252:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 231:0-259:1 -/
 def forest.ends
   (roles : hierarchy.RoleHierarchy) (out : alloc.vec.Vec Std.Usize)
   («from» : Std.Usize) («to» : Std.Usize)
@@ -14485,7 +14486,7 @@ def forest.ends
     else ok (some out)
 
 /-- [rowl_kernel::forest::links_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 255:0-274:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 262:0-281:1 -/
 def forest.links_along
   (graph : forest.Forest) (roles : hierarchy.RoleHierarchy)
   (links : alloc.vec.Vec completion.Link) (node : Std.Usize)
@@ -14511,7 +14512,7 @@ def forest.links_along
 partial_fixpoint
 
 /-- [rowl_kernel::forest::edges_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 277:0-295:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 284:0-302:1 -/
 def forest.edges_along
   (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (index : Std.Usize)
@@ -14536,7 +14537,7 @@ def forest.edges_along
 partial_fixpoint
 
 /-- [rowl_kernel::forest::neighbours]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 298:0-318:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 305:0-325:1 -/
 def forest.neighbours
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize)
@@ -14560,7 +14561,7 @@ def forest.neighbours
       | some out2 => forest.edges_along graph roles node role 0#usize out2
 
 /-- [rowl_kernel::forest::label_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 320:0-326:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 327:0-333:1 -/
 def forest.label_of
   (graph : forest.Forest) (node : Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -14575,7 +14576,7 @@ def forest.label_of
   else ok (alloc.vec.Vec.new Std.Usize)
 
 /-- [rowl_kernel::forest::satisfying]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 329:0-350:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 336:0-357:1 -/
 def forest.satisfying
   (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
   (list : alloc.vec.Vec Std.Usize) (concept : Std.Usize) (index : Std.Usize)
@@ -14606,7 +14607,7 @@ def forest.satisfying
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_requirement]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 353:0-375:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 360:0-382:1 -/
 def forest.missing_requirement
   (problem : completion.Problem) (graph : forest.Forest)
   (label : alloc.vec.Vec Std.Usize) (node : Std.Usize) (index : Std.Usize) :
@@ -14635,7 +14636,7 @@ def forest.missing_requirement
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_at]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 378:0-404:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 385:0-411:1 -/
 def forest.missing_at
   (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
   Result (Option Std.Usize)
@@ -14668,7 +14669,7 @@ def forest.missing_at
   else ok none
 
 /-- [rowl_kernel::forest::missing_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 406:0-420:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 413:0-427:1 -/
 def forest.missing_node
   (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
   Result (Option (Std.Usize × Std.Usize))
@@ -14691,7 +14692,7 @@ def forest.missing_node
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_edge]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 423:0-459:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 430:0-466:1 -/
 def forest.missing_edge
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (graph : forest.Forest)
@@ -14726,7 +14727,7 @@ def forest.missing_edge
   else ok none
 
 /-- [rowl_kernel::forest::missing_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 462:0-488:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 469:0-495:1 -/
 def forest.missing_roles
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (graph : forest.Forest) (node : Std.Usize)
@@ -14756,7 +14757,7 @@ def forest.missing_roles
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_tree]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 491:0-514:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 498:0-521:1 -/
 def forest.missing_tree
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (index : Std.Usize) :
@@ -14788,7 +14789,7 @@ def forest.missing_tree
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_link]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 517:0-539:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 524:0-546:1 -/
 def forest.missing_link
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (index : Std.Usize) :
@@ -14812,7 +14813,7 @@ def forest.missing_link
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_added]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 542:0-563:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 549:0-570:1 -/
 def forest.missing_added
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (index : Std.Usize) :
@@ -14836,7 +14837,7 @@ def forest.missing_added
 partial_fixpoint
 
 /-- [rowl_kernel::forest::undecided]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 566:0-586:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 573:0-593:1 -/
 def forest.undecided
   (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
   (list : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize)
@@ -14866,7 +14867,7 @@ def forest.undecided
 partial_fixpoint
 
 /-- [rowl_kernel::forest::counting_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 591:0-655:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 598:0-662:1 -/
 def forest.counting_from
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (choose : Bool)
@@ -14964,7 +14965,7 @@ def forest.counting_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::counting]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 658:0-681:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 665:0-688:1 -/
 def forest.counting
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (choose : Bool) (index : Std.Usize) :
@@ -14994,7 +14995,7 @@ def forest.counting
 partial_fixpoint
 
 /-- [rowl_kernel::forest::role_listed]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 683:0-697:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 690:0-704:1 -/
 def forest.role_listed
   (list : alloc.vec.Vec model.ObjectPropertyExpression)
   (role : model.ObjectPropertyExpression) (index : Std.Usize) :
@@ -15015,7 +15016,7 @@ def forest.role_listed
 partial_fixpoint
 
 /-- [rowl_kernel::forest::roles_within]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 699:0-713:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 706:0-720:1 -/
 def forest.roles_within
   (small : alloc.vec.Vec model.ObjectPropertyExpression)
   (large : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
@@ -15036,7 +15037,7 @@ def forest.roles_within
 partial_fixpoint
 
 /-- [rowl_kernel::forest::same_pair]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 716:0-735:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 723:0-742:1 -/
 def forest.same_pair
   (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize) :
   Result Bool
@@ -15083,7 +15084,7 @@ def forest.same_pair
   else ok false
 
 /-- [rowl_kernel::forest::repeats_above]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 738:0-754:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 745:0-761:1 -/
 def forest.repeats_above
   (graph : forest.Forest) (node : Std.Usize) (ancestor : Std.Usize) :
   Result Bool
@@ -15108,7 +15109,7 @@ def forest.repeats_above
 partial_fixpoint
 
 /-- [rowl_kernel::forest::blocked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 757:0-776:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 764:0-783:1 -/
 def forest.blocked
   (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len graph.nodes
@@ -15131,7 +15132,7 @@ def forest.blocked
 partial_fixpoint
 
 /-- [rowl_kernel::forest::generating]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 778:0-784:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 785:0-791:1 -/
 def forest.generating (entry : concept_table.Entry) : Result Bool := do
   match entry with
   | concept_table.Entry.Top => ok false
@@ -15145,12 +15146,97 @@ def forest.generating (entry : concept_table.Entry) : Result Bool := do
   | concept_table.Entry.AtLeast _ _ _ => ok true
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
-/-- [rowl_kernel::forest::unexpanded]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 787:0-808:1 -/
-def forest.unexpanded
+/-- [rowl_kernel::forest::generator_of]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1162:0-1175:1 -/
+def forest.generator_of
+  (entries : alloc.vec.Vec concept_table.Entry) (generator : Std.Usize) :
+  Result (Option (model.ObjectPropertyExpression × Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len entries
+  if generator < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries generator
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists role filler =>
+      let ope ← concepts.copy_role role
+      ok (some (ope, 1#usize, filler))
+    | concept_table.Entry.Forall _ _ => ok none
+    | concept_table.Entry.AtLeast n role filler =>
+      let ope ← concepts.copy_role role
+      ok (some (ope, n, filler))
+    | concept_table.Entry.AtMost _ _ _ _ => ok none
+  else ok none
+
+/-- [rowl_kernel::forest::enough]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 795:0-814:1 -/
+def forest.enough
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let o ← forest.generator_of problem.entries generator
+  match o with
+  | none => ok none
+  | some found =>
+    let (role, count, filler) := found
+    let o1 ← forest.neighbours problem roles graph node role
+    match o1 with
+    | none => ok none
+    | some list =>
+      let o2 ←
+        forest.satisfying problem.entries graph list filler 0#usize
+          (alloc.vec.Vec.new Std.Usize)
+      match o2 with
+      | none => ok none
+      | some many => let i := alloc.vec.Vec.len many
+                     ok (some (count <= i))
+
+/-- [rowl_kernel::forest::candidate]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 817:0-831:1 -/
+def forest.candidate
   (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize)
+  (item : Std.Usize) (expand : Bool) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if item < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if node < i1
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) problem.entries item
+      let b ← forest.generating e
+      if b
+      then
+        if expand
+        then
+          let n ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes node
+          let b1 ← completion.contains n.done item 0#usize
+          ok (¬ b1)
+        else ok true
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::forest::lacking]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 835:0-860:1 -/
+def forest.lacking
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (expand : Bool)
   (index : Std.Usize) :
-  Result (Option Std.Usize)
+  Result (Option (Option Std.Usize))
   := do
   let i := alloc.vec.Vec.len graph.nodes
   if node < i
@@ -15164,33 +15250,31 @@ def forest.unexpanded
       let item ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
           n.label index
-      let i2 := alloc.vec.Vec.len problem.entries
-      let missing ←
-        if item < i2
-        then
-          do
-          let e ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              concept_table.Entry) problem.entries item
-          let b ← forest.generating e
-          if b
-          then let b1 ← completion.contains n.done item 0#usize
-               ok (¬ b1)
-          else ok false
-        else ok false
-      if missing
-      then ok (some item)
-      else let i3 ← index + 1#usize
-           forest.unexpanded problem graph node i3
-    else ok none
-  else ok none
+      let b ← forest.candidate problem graph node item expand
+      if b
+      then
+        let o ← forest.enough problem roles graph node item
+        match o with
+        | none => ok none
+        | some b1 =>
+          if b1
+          then
+            let i2 ← index + 1#usize
+            forest.lacking problem roles graph node expand i2
+          else ok (some (some item))
+      else
+        let i2 ← index + 1#usize
+        forest.lacking problem roles graph node expand i2
+    else ok (some none)
+  else ok (some none)
 partial_fixpoint
 
 /-- [rowl_kernel::forest::missing_successor]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 811:0-834:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 864:0-888:1 -/
 def forest.missing_successor
-  (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (expand : Bool) (index : Std.Usize) :
+  Result (Option (Option (Std.Usize × Std.Usize)))
   := do
   let i := alloc.vec.Vec.len graph.nodes
   if index < i
@@ -15198,29 +15282,31 @@ def forest.missing_successor
     let n ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
         graph.nodes index
-    let found ←
-      if n.active
+    if n.active
+    then
+      let b ← forest.blocked graph index
+      if b
       then
-        do
-        let o ← forest.unexpanded problem graph index 0#usize
+        let i1 ← index + 1#usize
+        forest.missing_successor problem roles graph expand i1
+      else
+        let o ← forest.lacking problem roles graph index expand 0#usize
         match o with
         | none => ok none
-        | some _ =>
-          let b ← forest.blocked graph index
-          if b
-          then ok none
-          else ok o
-      else ok none
-    match found with
-    | none =>
+        | some item =>
+          match item with
+          | none =>
+            let i1 ← index + 1#usize
+            forest.missing_successor problem roles graph expand i1
+          | some item1 => ok (some (some (index, item1)))
+    else
       let i1 ← index + 1#usize
-      forest.missing_successor problem graph i1
-    | some item => ok (some (index, item))
-  else ok none
+      forest.missing_successor problem roles graph expand i1
+  else ok (some none)
 partial_fixpoint
 
 /-- [rowl_kernel::forest::next_step]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 838:0-869:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 893:0-929:1 -/
 def forest.next_step
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) :
@@ -15250,12 +15336,25 @@ def forest.next_step
               | some o7 =>
                 match o7 with
                 | none =>
-                  let o8 ← forest.missing_successor problem graph 0#usize
+                  let o8 ←
+                    forest.missing_successor problem roles graph true 0#usize
                   match o8 with
-                  | none => ok (some forest.Step.Done)
-                  | some p =>
-                    let (node, generator) := p
-                    ok (some (forest.Step.Create node generator))
+                  | none => ok none
+                  | some o9 =>
+                    match o9 with
+                    | none =>
+                      let o10 ←
+                        forest.missing_successor problem roles graph false
+                          0#usize
+                      match o10 with
+                      | none => ok none
+                      | some o11 =>
+                        match o11 with
+                        | none => ok (some forest.Step.Done)
+                        | some _ => ok (some forest.Step.Stuck)
+                    | some p =>
+                      let (node, generator) := p
+                      ok (some (forest.Step.Create node generator))
                 | some _ => ok o7
             | some _ => ok o5
         | some p =>
@@ -15271,7 +15370,7 @@ def forest.next_step
               ok (some (forest.Step.Add node concept))
 
 /-- [rowl_kernel::forest::copy_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 870:0-883:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 930:0-943:1 -/
 def forest.copy_roles
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -15297,7 +15396,7 @@ def forest.copy_roles
 partial_fixpoint
 
 /-- [rowl_kernel::forest::copy_nodes]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 884:0-902:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 944:0-962:1 -/
 def forest.copy_nodes
   (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
   (out : alloc.vec.Vec forest.Node) :
@@ -15342,7 +15441,7 @@ def forest.copy_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::forest::copy_edges]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 903:0-917:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 963:0-977:1 -/
 def forest.copy_edges
   (edges : alloc.vec.Vec forest.Edge) (index : Std.Usize)
   (out : alloc.vec.Vec forest.Edge) :
@@ -15371,7 +15470,7 @@ def forest.copy_edges
 partial_fixpoint
 
 /-- [rowl_kernel::forest::copy_distinct]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 918:0-931:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 978:0-991:1 -/
 def forest.copy_distinct
   (distinct : alloc.vec.Vec forest.Distinct) (index : Std.Usize)
   (out : alloc.vec.Vec forest.Distinct) :
@@ -15398,7 +15497,7 @@ def forest.copy_distinct
 partial_fixpoint
 
 /-- [rowl_kernel::forest::copy_forest]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 932:0-939:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 992:0-999:1 -/
 def forest.copy_forest (graph : forest.Forest) : Result forest.Forest := do
   let v ←
     forest.copy_nodes graph.nodes 0#usize (alloc.vec.Vec.new forest.Node)
@@ -15412,7 +15511,7 @@ def forest.copy_forest (graph : forest.Forest) : Result forest.Forest := do
   ok { nodes := v, edges := v1, distinct := v2, same := v3 }
 
 /-- [rowl_kernel::forest::insert]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 942:0-959:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1002:0-1019:1 -/
 def forest.insert
   (graph : forest.Forest) (node : Std.Usize) (item : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -15445,7 +15544,7 @@ def forest.insert
   else ok none
 
 /-- [rowl_kernel::forest::orient]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1676:0-1695:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1832:0-1851:1 -/
 def forest.orient
   (graph : forest.Forest) (node : Std.Usize) (pair : forest.Pair) :
   Result (Std.Usize × Std.Usize)
@@ -15490,8 +15589,387 @@ def forest.orient
     else ok (pair.second, pair.first)
   else ok (pair.second, pair.first)
 
+/-- [rowl_kernel::forest::renamed]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1621:0-1640:1 -/
+def forest.renamed
+  (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len same
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            same index
+        if i2 = «from»
+        then alloc.vec.Vec.push out into
+        else alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    forest.renamed same «from» into i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::add_edges]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1574:0-1597:1 -/
+def forest.add_edges
+  (list : alloc.vec.Vec model.ObjectPropertyExpression) (node : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Edge) :
+  Result (Option (alloc.vec.Vec forest.Edge))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) list index
+      let ope1 ← concepts.copy_role ope
+      let v ←
+        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let out1 ←
+        alloc.vec.Vec.push out
+          ({ role := ope1, «from» := node, «to» := into, deps := v } :
+          forest.Edge)
+      let i2 ← index + 1#usize
+      forest.add_edges list node into deps i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::linked]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1600:0-1618:1 -/
+def forest.linked
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let start ←
+      forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes «from»
+    let o ← forest.add_edges n.roles node into deps 0#usize start
+    match o with
+    | none => ok none
+    | some added => ok (some { graph with edges := added })
+  else ok none
+
+/-- [rowl_kernel::forest::add_roles]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1514:0-1535:1 -/
+def forest.add_roles
+  (list : alloc.vec.Vec model.ObjectPropertyExpression) (invert : Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let role ←
+        if invert
+        then
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) list index
+          concepts.inverse ope
+        else
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) list index
+          concepts.copy_role ope
+      let out1 ← alloc.vec.Vec.push out role
+      let i2 ← index + 1#usize
+      forest.add_roles list invert i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::sideways]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1559:0-1571:1 -/
+def forest.sideways
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if into < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes into
+      let start ←
+        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      let o ← forest.add_roles n1.roles false 0#usize start
+      match o with
+      | none => ok none
+      | some added =>
+        let (n2, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes into
+        let v := index_mut_back { n2 with roles := added }
+        ok (some { graph with nodes := v })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::upward]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1539:0-1556:1 -/
+def forest.upward
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if «from» < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let start ←
+        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      let o ← forest.add_roles n1.roles true 0#usize start
+      match o with
+      | none => ok none
+      | some added =>
+        let o1 ← completion.join n.deps deps
+        match o1 with
+        | none => ok none
+        | some joined =>
+          let (n2, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes node
+          let v := index_mut_back { n2 with roles := added }
+          let (n3, index_mut_back1) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) v node
+          let v1 := index_mut_back1 { n3 with deps := joined }
+          ok (some { graph with nodes := v1 })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::moved]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1730:0-1759:1 -/
+def forest.moved
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (into : Std.Usize) (joined : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if «from» < i1
+    then
+      let i2 := alloc.vec.Vec.len graph.nodes
+      if into < i2
+      then
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes «from»
+        if n.tree
+        then
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes node
+          if n1.tree
+          then
+            if n1.parent = into
+            then forest.upward graph node «from» joined
+            else forest.sideways graph «from» into
+          else
+            let n2 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) graph.nodes into
+            if n2.tree
+            then forest.sideways graph «from» into
+            else forest.linked graph node «from» into joined
+        else
+          let same ←
+            forest.renamed graph.same «from» into 0#usize (alloc.vec.Vec.new
+              Std.Usize)
+          ok (some { graph with same })
+      else ok none
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::pruned]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1687:0-1714:1 -/
+def forest.pruned
+  (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Node) :
+  Result (alloc.vec.Vec forest.Node)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) nodes index
+        let active ←
+          if n.tree
+          then
+            let i2 := alloc.vec.Vec.len out
+            if n.parent < i2
+            then
+              do
+              let n1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  forest.Node) out n.parent
+              if n1.active
+              then ok n.active
+              else ok false
+            else ok n.active
+          else ok n.active
+        let v ←
+          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v1 ←
+          forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+            model.ObjectPropertyExpression)
+        let v2 ←
+          completion.copy_label n.done 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v3 ←
+          completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          {
+            n
+              with
+              label := v,
+              roles := v1,
+              seed := n.seed,
+              tree := n.tree,
+              active,
+              done := v2,
+              deps := v3
+          }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.pruned nodes i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::inherit]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1644:0-1684:1 -/
+def forest.inherit
+  (distinct : alloc.vec.Vec forest.Distinct) («from» : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Distinct) :
+  Result (Option (alloc.vec.Vec forest.Distinct))
+  := do
+  let i := alloc.vec.Vec.len distinct
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        forest.Distinct) distinct index
+    let other ←
+      if d.left = «from»
+      then ok (some d.right)
+      else if d.right = «from»
+           then ok (some d.left)
+           else ok none
+    match other with
+    | none =>
+      let i1 ← index + 1#usize
+      forest.inherit distinct «from» into deps i1 out
+    | some other1 =>
+      let o ← completion.join d.deps deps
+      match o with
+      | none => ok none
+      | some joined =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({ left := into, right := other1, deps := joined } :
+              forest.Distinct)
+          let i2 ← index + 1#usize
+          forest.inherit distinct «from» into deps i2 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::merged]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1763:0-1794:1 -/
+def forest.merged
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (into : Std.Usize) (joined : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let o ← forest.moved graph node «from» into joined
+  match o with
+  | none => ok none
+  | some graph1 =>
+    let i := alloc.vec.Vec.len graph1.nodes
+    if «from» < i
+    then
+      let i1 := alloc.vec.Vec.len graph1.nodes
+      if into < i1
+      then
+        let start ←
+          forest.copy_distinct graph1.distinct 0#usize (alloc.vec.Vec.new
+            forest.Distinct)
+        let o1 ←
+          forest.inherit graph1.distinct «from» into joined 0#usize start
+        match o1 with
+        | none => ok none
+        | some distinct =>
+          let (n, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph1.nodes «from»
+          let v := index_mut_back { n with active := false }
+          let nodes ← forest.pruned v 0#usize (alloc.vec.Vec.new forest.Node)
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) nodes into
+          let o2 ← completion.join n1.deps joined
+          match o2 with
+          | none => ok none
+          | some depends =>
+            let (n2, index_mut_back1) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) nodes into
+            let nodes1 := index_mut_back1 { n2 with deps := depends }
+            ok (some { graph1 with nodes := nodes1, distinct })
+      else ok none
+    else ok none
+
 /-- [rowl_kernel::forest::pending_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1597:0-1606:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1716:0-1725:1 -/
 def forest.pending_from
   (label : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
   Result completion.Pending
@@ -15508,246 +15986,8 @@ def forest.pending_from
   else ok completion.Pending.Empty
 partial_fixpoint
 
-/-- [rowl_kernel::forest::prune]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1581:0-1595:1 -/
-def forest.prune
-  (graph : forest.Forest) (index : Std.Usize) : Result forest.Forest := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let v ←
-      if n.tree
-      then
-        let i1 := alloc.vec.Vec.len graph.nodes
-        if n.parent < i1
-        then
-          do
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes n.parent
-          if n1.active
-          then ok graph.nodes
-          else
-            let (n2, index_mut_back) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                forest.Node) graph.nodes index
-            ok (index_mut_back { n2 with active := false })
-        else ok graph.nodes
-      else ok graph.nodes
-    let i1 ← index + 1#usize
-    forest.prune { graph with nodes := v } i1
-  else ok graph
-partial_fixpoint
-
-/-- [rowl_kernel::forest::inherit]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1538:0-1578:1 -/
-def forest.inherit
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (index : Std.Usize) (limit : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  if index < limit
-  then
-    let i := alloc.vec.Vec.len graph.distinct
-    if index < i
-    then
-      let d ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          forest.Distinct) graph.distinct index
-      let other ←
-        if d.left = «from»
-        then ok (some d.right)
-        else if d.right = «from»
-             then ok (some d.left)
-             else ok none
-      match other with
-      | none =>
-        let i1 ← index + 1#usize
-        forest.inherit graph «from» into i1 limit deps
-      | some other1 =>
-        let o ← completion.join d.deps deps
-        match o with
-        | none => ok none
-        | some joined =>
-          let i1 := alloc.vec.Vec.len graph.distinct
-          if i1 < core.num.Usize.MAX
-          then
-            let v ←
-              alloc.vec.Vec.push graph.distinct
-                ({ left := into, right := other1, deps := joined } :
-                forest.Distinct)
-            let i2 ← index + 1#usize
-            forest.inherit { graph with distinct := v } «from» into i2 limit
-              deps
-          else ok none
-    else ok (some graph)
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::renamed]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1526:0-1535:1 -/
-def forest.renamed
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (index : Std.Usize) :
-  Result forest.Forest
-  := do
-  let i := alloc.vec.Vec.len graph.same
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        graph.same index
-    let v ←
-      if i1 = «from»
-      then
-        do
-        let (_, index_mut_back) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            Std.Usize) graph.same index
-        ok (index_mut_back into)
-      else ok graph.same
-    let i2 ← index + 1#usize
-    forest.renamed { graph with same := v } «from» into i2
-  else ok graph
-partial_fixpoint
-
-/-- [rowl_kernel::forest::linked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1496:0-1524:1 -/
-def forest.linked
-  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
-  (into : Std.Usize) (index : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes «from»
-    let i1 := alloc.vec.Vec.len n.roles
-    if index < i1
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) n.roles index
-      let role ← concepts.copy_role ope
-      let i2 := alloc.vec.Vec.len graph.edges
-      if i2 < core.num.Usize.MAX
-      then
-        let v ←
-          completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v1 ←
-          alloc.vec.Vec.push graph.edges
-            ({ role, «from» := node, «to» := into, deps := v } :
-            forest.Edge)
-        let i3 ← index + 1#usize
-        forest.linked { graph with edges := v1 } node «from» into i3 deps
-      else ok none
-    else ok (some graph)
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::sideways]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1477:0-1493:1 -/
-def forest.sideways
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if into < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      let i2 := alloc.vec.Vec.len n.roles
-      if index < i2
-      then
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) n.roles index
-        let role ← concepts.copy_role ope
-        let n1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes into
-        let i3 := alloc.vec.Vec.len n1.roles
-        if i3 < core.num.Usize.MAX
-        then
-          let (n2, index_mut_back) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes into
-          let v ← alloc.vec.Vec.push n2.roles role
-          let v1 := index_mut_back { n2 with roles := v }
-          let i4 ← index + 1#usize
-          forest.sideways { graph with nodes := v1 } «from» into i4
-        else ok none
-      else ok (some graph)
-    else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::upward]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1446:0-1474:1 -/
-def forest.upward
-  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
-  (index : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if «from» < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      let i2 := alloc.vec.Vec.len n.roles
-      if index < i2
-      then
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) n.roles index
-        let back ← concepts.inverse ope
-        let n1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes node
-        let i3 := alloc.vec.Vec.len n1.roles
-        if i3 < core.num.Usize.MAX
-        then
-          let (n2, index_mut_back) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes node
-          let v ← alloc.vec.Vec.push n2.roles back
-          let v1 := index_mut_back { n2 with roles := v }
-          let i4 ← index + 1#usize
-          forest.upward { graph with nodes := v1 } node «from» i4 deps
-        else ok none
-      else
-        let n1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes node
-        let o ← completion.join n1.deps deps
-        match o with
-        | none => ok none
-        | some joined =>
-          let (n2, index_mut_back) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes node
-          let v := index_mut_back { n2 with deps := joined }
-          ok (some { graph with nodes := v })
-    else ok none
-  else ok none
-partial_fixpoint
-
 /-- [rowl_kernel::forest::first_nodes]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1432:0-1443:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1500:0-1511:1 -/
 def forest.first_nodes
   (list : alloc.vec.Vec Std.Usize) (count : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -15770,7 +16010,7 @@ def forest.first_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::forest::differ]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1339:0-1357:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1407:0-1425:1 -/
 def forest.differ
   (graph : forest.Forest) (left : Std.Usize) (right : Std.Usize)
   (index : Std.Usize) :
@@ -15796,7 +16036,7 @@ def forest.differ
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairs_with]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1387:0-1413:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1455:0-1481:1 -/
 def forest.pairs_with
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (first : Std.Usize) (second : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
@@ -15834,7 +16074,7 @@ def forest.pairs_with
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairs_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1416:0-1430:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1484:0-1498:1 -/
 def forest.pairs_from
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (first : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
@@ -15852,7 +16092,7 @@ def forest.pairs_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::differences_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1360:0-1384:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1428:0-1452:1 -/
 def forest.differences_deps
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -15883,7 +16123,7 @@ def forest.differences_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::children_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1288:0-1310:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1356:0-1378:1 -/
 def forest.children_deps
   (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -15915,7 +16155,7 @@ def forest.children_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::end_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1279:0-1285:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1347:0-1353:1 -/
 def forest.end_deps
   (graph : forest.Forest) («end» : Std.Usize) (out : alloc.vec.Vec Std.Usize)
   :
@@ -15931,7 +16171,7 @@ def forest.end_deps
   else ok (some out)
 
 /-- [rowl_kernel::forest::edge_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1246:0-1277:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1314:0-1345:1 -/
 def forest.edge_deps
   (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -15973,7 +16213,7 @@ def forest.edge_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::linked_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1213:0-1243:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1281:0-1311:1 -/
 def forest.linked_deps
   (graph : forest.Forest) (links : alloc.vec.Vec completion.Link)
   (node : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -16020,7 +16260,7 @@ def forest.linked_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::rule_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1313:0-1337:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1381:0-1405:1 -/
 def forest.rule_deps
   (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
   Result (Option (alloc.vec.Vec Std.Usize))
@@ -16051,7 +16291,7 @@ def forest.rule_deps
   else ok none
 
 /-- [rowl_kernel::forest::differ_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1149:0-1164:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1209:0-1224:1 -/
 def forest.differ_from
   (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -16075,7 +16315,7 @@ def forest.differ_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairwise]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1166:0-1175:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1226:0-1235:1 -/
 def forest.pairwise
   (graph : forest.Forest) (node : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
   Result (Option forest.Forest)
@@ -16092,7 +16332,7 @@ def forest.pairwise
 partial_fixpoint
 
 /-- [rowl_kernel::forest::children]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1118:0-1147:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1178:0-1207:1 -/
 def forest.children
   (graph : forest.Forest) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : Std.Usize)
@@ -16128,39 +16368,54 @@ def forest.children
   else ok (some graph)
 partial_fixpoint
 
-/-- [rowl_kernel::forest::generator_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1102:0-1115:1 -/
-def forest.generator_of
-  (entries : alloc.vec.Vec concept_table.Entry) (generator : Std.Usize) :
-  Result (Option (model.ObjectPropertyExpression × Std.Usize × Std.Usize))
+/-- [rowl_kernel::forest::expanded]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1239:0-1264:1 -/
+def forest.expanded
+  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
+  (node : Std.Usize) (generator : Std.Usize) :
+  Result (Option forest.Forest)
   := do
-  let i := alloc.vec.Vec.len entries
-  if generator < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries generator
-    match e with
-    | concept_table.Entry.Top => ok none
-    | concept_table.Entry.Bottom => ok none
-    | concept_table.Entry.Atom _ => ok none
-    | concept_table.Entry.NotAtom _ => ok none
-    | concept_table.Entry.And _ _ => ok none
-    | concept_table.Entry.Or _ _ => ok none
-    | concept_table.Entry.Exists role filler =>
-      let ope ← concepts.copy_role role
-      ok (some (ope, 1#usize, filler))
-    | concept_table.Entry.Forall _ _ => ok none
-    | concept_table.Entry.AtLeast n role filler =>
-      let ope ← concepts.copy_role role
-      ok (some (ope, n, filler))
-    | concept_table.Entry.AtMost _ _ _ _ => ok none
-  else ok none
+  let o ← forest.generator_of entries generator
+  match o with
+  | none => ok none
+  | some found =>
+    let (role, count, filler) := found
+    let i := alloc.vec.Vec.len graph.nodes
+    if node < i
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let deps ←
+        completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let first := alloc.vec.Vec.len graph.nodes
+      let o1 ← forest.children graph node role filler deps count
+      match o1 with
+      | none => ok none
+      | some graph1 =>
+        let o2 ← forest.pairwise graph1 first deps
+        match o2 with
+        | none => ok none
+        | some graph2 =>
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph2.nodes node
+          let i1 := alloc.vec.Vec.len n1.done
+          if i1 < core.num.Usize.MAX
+          then
+            let (n2, index_mut_back) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) graph2.nodes node
+            let v ← alloc.vec.Vec.push n2.done generator
+            let v1 := index_mut_back { n2 with done := v }
+            ok (some { graph2 with nodes := v1 })
+          else ok none
+    else ok none
 
 mutual
 
 /-- [rowl_kernel::forest::branch]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 964:0-1024:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1024:0-1084:1 -/
 def forest.branch
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (left : Std.Usize)
@@ -16204,7 +16459,7 @@ def forest.branch
 partial_fixpoint
 
 /-- [rowl_kernel::forest::add_literal]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1028:0-1055:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1088:0-1115:1 -/
 def forest.add_literal
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (concept : Std.Usize)
@@ -16238,7 +16493,7 @@ def forest.add_literal
 partial_fixpoint
 
 /-- [rowl_kernel::forest::add]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1058:0-1099:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1118:0-1159:1 -/
 def forest.add
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (pending : completion.Pending)
@@ -16280,53 +16535,21 @@ def forest.add
 partial_fixpoint
 
 /-- [rowl_kernel::forest::create]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1178:0-1210:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1266:0-1278:1 -/
 def forest.create
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize)
   (depth : Std.Usize) :
   Result (Option completion.Outcome)
   := do
-  let o ← forest.generator_of problem.entries generator
+  let o ← forest.expanded problem.entries graph node generator
   match o with
   | none => ok none
-  | some found =>
-    let (role, count, filler) := found
-    let i := alloc.vec.Vec.len graph.nodes
-    if node < i
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes node
-      let deps ←
-        completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-      let first := alloc.vec.Vec.len graph.nodes
-      let o1 ← forest.children graph node role filler deps count
-      match o1 with
-      | none => ok none
-      | some graph1 =>
-        let o2 ← forest.pairwise graph1 first deps
-        match o2 with
-        | none => ok none
-        | some graph2 =>
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph2.nodes node
-          let i1 := alloc.vec.Vec.len n1.done
-          if i1 < core.num.Usize.MAX
-          then
-            let (n2, index_mut_back) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                forest.Node) graph2.nodes node
-            let v ← alloc.vec.Vec.push n2.done generator
-            let v1 := index_mut_back { n2 with done := v }
-            forest.run problem roles { graph2 with nodes := v1 } depth
-          else ok none
-    else ok none
+  | some graph1 => forest.run problem roles graph1 depth
 partial_fixpoint
 
 /-- [rowl_kernel::forest::merge]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1611:0-1672:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1797:0-1828:1 -/
 def forest.merge
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
@@ -16334,81 +16557,28 @@ def forest.merge
   Result (Option completion.Outcome)
   := do
   let i := alloc.vec.Vec.len graph.nodes
-  if node < i
+  if «from» < i
   then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if «from» < i1
-    then
-      let i2 := alloc.vec.Vec.len graph.nodes
-      if into < i2
-      then
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes «from»
-        let label ←
-          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
-        let o ← completion.join deps n.deps
-        match o with
-        | none => ok none
-        | some joined =>
-          let graph1 ←
-            if n.tree
-            then
-              do
-              let n1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) graph.nodes node
-              if n1.tree
-              then
-                if n1.parent = into
-                then forest.upward graph node «from» 0#usize joined
-                else forest.sideways graph «from» into 0#usize
-              else
-                let n2 ←
-                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                    forest.Node) graph.nodes into
-                if n2.tree
-                then forest.sideways graph «from» into 0#usize
-                else forest.linked graph node «from» into 0#usize joined
-            else
-              do
-              let f ← forest.renamed graph «from» into 0#usize
-              ok (some f)
-          match graph1 with
-          | none => ok none
-          | some graph2 =>
-            let limit := alloc.vec.Vec.len graph2.distinct
-            let o1 ← forest.inherit graph2 «from» into 0#usize limit joined
-            match o1 with
-            | none => ok none
-            | some graph3 =>
-              let (n1, index_mut_back) ←
-                alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) graph3.nodes «from»
-              let v := index_mut_back { n1 with active := false }
-              let graph4 ← forest.prune { graph3 with nodes := v } 0#usize
-              let n2 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) graph4.nodes into
-              let o2 ← completion.join n2.deps joined
-              match o2 with
-              | none => ok none
-              | some depends =>
-                let (n3, index_mut_back1) ←
-                  alloc.vec.Vec.index_mut
-                    (core.slice.index.SliceIndexUsizeSlice forest.Node)
-                    graph4.nodes into
-                let v1 := index_mut_back1 { n3 with deps := depends }
-                let p ← forest.pending_from label 0#usize
-                forest.add problem roles { graph4 with nodes := v1 } into p
-                  joined depth
-      else ok none
-    else ok none
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes «from»
+    let label ←
+      completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+    let o ← completion.join deps n.deps
+    match o with
+    | none => ok none
+    | some joined =>
+      let o1 ← forest.merged graph node «from» into joined
+      match o1 with
+      | none => ok none
+      | some graph1 =>
+        let p ← forest.pending_from label 0#usize
+        forest.add problem roles graph1 into p joined depth
   else ok none
 partial_fixpoint
 
 /-- [rowl_kernel::forest::choices]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1700:0-1762:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1856:0-1918:1 -/
 def forest.choices
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize)
@@ -16473,7 +16643,7 @@ def forest.choices
 partial_fixpoint
 
 /-- [rowl_kernel::forest::merge_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1766:0-1820:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1922:0-1976:1 -/
 def forest.merge_rule
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
@@ -16533,7 +16703,7 @@ def forest.merge_rule
 partial_fixpoint
 
 /-- [rowl_kernel::forest::run]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1823:0-1863:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1979:0-2020:1 -/
 def forest.run
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (depth : Std.Usize) :
@@ -16562,13 +16732,14 @@ def forest.run
       forest.merge_rule problem roles graph node restriction depth
     | forest.Step.Create node generator =>
       forest.create problem roles graph node generator depth
+    | forest.Step.Stuck => ok none
     | forest.Step.Done => ok (some completion.Outcome.Accepted)
 partial_fixpoint
 
 end
 
 /-- [rowl_kernel::forest::simple_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1866:0-1876:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2023:0-2033:1 -/
 def forest.simple_from
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
   (index : Std.Usize) :
@@ -16589,7 +16760,7 @@ def forest.simple_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::counting_simple]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1878:0-1893:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2035:0-2050:1 -/
 def forest.counting_simple
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (index : Std.Usize) :
@@ -16623,7 +16794,7 @@ def forest.counting_simple
 partial_fixpoint
 
 /-- [rowl_kernel::forest::roots]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1895:0-1917:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2052:0-2074:1 -/
 def forest.roots
   (count : Std.Usize) (graph : forest.Forest) :
   Result (Option forest.Forest)
@@ -16654,7 +16825,7 @@ def forest.roots
 partial_fixpoint
 
 /-- [rowl_kernel::forest::satisfiable]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1926:0-1982:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2083:0-2139:1
     Visibility: public -/
 def forest.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
