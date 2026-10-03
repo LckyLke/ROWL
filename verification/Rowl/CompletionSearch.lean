@@ -36,10 +36,12 @@ def Holds (entries : List concept_table.Entry) (label : List Usize) (c : Nat) : 
   | none => False
 termination_by c
 
-/-- A named class and its complement. -/
+/-- A named class or a nominal and its complement. -/
 def Complementary : concept_table.Entry → concept_table.Entry → Prop
   | .Atom x, .NotAtom y => x = y
   | .NotAtom x, .Atom y => x = y
+  | .One a, .NotOne b => a = b
+  | .NotOne a, .One b => a = b
   | _, _ => False
 
 /-- Some listed entry is the complement of entry `item`. -/
@@ -186,6 +188,20 @@ theorem complementary_correct (a b : concept_table.Entry) :
     | Atom y =>
       rw [completion.complementary,Rowl.Symbols.same_spelling_total_correct]
       simp only [Complementary,class_eq_iff]
+    | _ => rw [completion.complementary]; simp [Complementary]
+  | One x =>
+    cases b with
+    | NotOne y =>
+      rw [completion.complementary,Rowl.AssertionEquality.same_individual_value_total_correct]
+      simp only [Complementary]
+      congr 1
+    | _ => rw [completion.complementary]; simp [Complementary]
+  | NotOne x =>
+    cases b with
+    | One y =>
+      rw [completion.complementary,Rowl.AssertionEquality.same_individual_value_total_correct]
+      simp only [Complementary]
+      congr 1
     | _ => rw [completion.complementary]; simp [Complementary]
   | _ => rw [completion.complementary]; simp [Complementary]
 

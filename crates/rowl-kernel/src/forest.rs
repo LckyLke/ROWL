@@ -1,4 +1,4 @@
-//! A completion forest tableau for SHIQ with named individuals.
+//! A completion forest tableau for SHOIQ with named individuals.
 //!
 //! The forest has one root per named individual and trees of anonymous nodes
 //! below them. Labels are lists of literal entries of the concept table, as in
@@ -10,12 +10,17 @@
 //!    node the filler it was created for (its seed);
 //! 2. along every edge, in both directions, universal restrictions pass their
 //!    filler on, and through transitive roles the restriction itself;
-//! 3. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
+//! 3. a node whose label has the nominal `{a}` is merged into the named node of
+//!    `a`, the node of the first requirement with `{a}`, unless they are known
+//!    to differ, which is a clash; only named nodes and their children are
+//!    merged this way, and a nominal deeper in a tree, or a nominal or the
+//!    complement of one whose individual has no named node, gives no answer;
+//! 4. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
 //!    (the choose rule);
-//! 4. when more than `n` of those neighbours satisfy `C`, two of the first
+//! 5. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
 //!    turn; when all of them differ, it is a clash;
-//! 5. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
+//! 6. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
 //!    neighbours along `r` satisfying `C` than it requires, and was not
 //!    expanded yet, creates new tree nodes with the filler as their seed,
 //!    pairwise different.
@@ -36,7 +41,8 @@
 //! Backjumping works as in the completion graph: nodes, edges and differences
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
-//! `usize` range or that a number restriction is on a role that is not simple.
+//! `usize` range, that a number restriction is on a role that is not simple, or
+//! that a nominal is outside what rule 3 handles.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -54,6 +60,7 @@
     clippy::too_many_arguments,
     clippy::vec_init_then_push
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
+use crate::assertion_equality::same_individual_value;
 use crate::completion::{
     clashes, contains, copy_label, copy_links, copy_pending, holds, intern_definitions,
     intern_facts, join, join_from, missing_along, missing_unfolding, same_label, without_from,
@@ -62,7 +69,7 @@ use crate::completion::{
 use crate::concept_table::{close, intern, Entry};
 use crate::concepts::{copy_role, inverse, same_role, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
-use crate::model::ObjectPropertyExpression;
+use crate::model::{Individual, ObjectPropertyExpression};
 
 /// A node of the forest.
 pub struct Node {
@@ -122,6 +129,10 @@ pub enum Step {
     Merge {
         node: usize,
         restriction: usize,
+    },
+    Nominal {
+        node: usize,
+        root: usize,
     },
     Create {
         node: usize,
@@ -886,10 +897,100 @@ fn missing_successor(
         Some(None)
     }
 }
-/// The next rule: a missing concept of a node or an edge, else a neighbour to
-/// decide, else a merge, else a restriction to expand; when none applies, the
-/// check that every restriction has enough neighbours (`Stuck` when one has
-/// not); `None` when there is no room.
+/// Whether the entry `concept` is the nominal of `individual`.
+fn names(problem: &Problem, concept: usize, individual: &Individual) -> bool {
+    if concept < problem.entries.len() {
+        match &problem.entries[concept] {
+            Entry::One(other) => same_individual_value(other, individual),
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+/// The named node of `individual`: the node of the first requirement of
+/// `requirements[index..]` with its nominal, read through the merges; `None`
+/// when there is none.
+fn nominal_root(
+    problem: &Problem,
+    graph: &Forest,
+    individual: &Individual,
+    index: usize,
+) -> Option<usize> {
+    if index < problem.requirements.len() {
+        if names(problem, problem.requirements[index].concept, individual) {
+            Some(representative(graph, problem.requirements[index].node))
+        } else {
+            nominal_root(problem, graph, individual, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// The named node of a nominal of `label[index..]` of `node`, when it is not
+/// `node` itself; `None` when the individual of a nominal, or of the complement
+/// of one, has no named node.
+fn nominal_at(
+    problem: &Problem,
+    graph: &Forest,
+    node: usize,
+    index: usize,
+) -> Option<Option<usize>> {
+    if node < graph.nodes.len() {
+        if index < graph.nodes[node].label.len() {
+            let item = graph.nodes[node].label[index];
+            if item < problem.entries.len() {
+                match &problem.entries[item] {
+                    Entry::One(individual) => match nominal_root(problem, graph, individual, 0) {
+                        Some(root) => {
+                            if root != node {
+                                return Some(Some(root));
+                            }
+                        }
+                        None => return None,
+                    },
+                    Entry::NotOne(individual) => {
+                        match nominal_root(problem, graph, individual, 0) {
+                            Some(_) => {}
+                            None => return None,
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            nominal_at(problem, graph, node, index + 1)
+        } else {
+            Some(None)
+        }
+    } else {
+        Some(None)
+    }
+}
+/// The first active node of `nodes[index..]` with a nominal of another named
+/// node, and that node; `None` when a nominal has no named node.
+fn nominal_node(problem: &Problem, graph: &Forest, index: usize) -> Option<Option<(usize, usize)>> {
+    if index < graph.nodes.len() {
+        let found = if graph.nodes[index].active {
+            match nominal_at(problem, graph, index, 0) {
+                Some(found) => found,
+                None => return None,
+            }
+        } else {
+            None
+        };
+        match found {
+            Some(root) => Some(Some((index, root))),
+            None => nominal_node(problem, graph, index + 1),
+        }
+    } else {
+        Some(None)
+    }
+}
+/// The next rule: a missing concept of a node or an edge, else a nominal to
+/// merge, else a neighbour to decide, else a merge, else a restriction to
+/// expand; when none applies, the check that every restriction has enough
+/// neighbours (`Stuck` when one has not); `None` when there is no room or a
+/// nominal has no named node.
 fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option<Step> {
     match missing_node(problem, graph, 0) {
         Some((node, concept)) => return Some(Step::Add { node, concept }),
@@ -906,6 +1007,11 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option
     match missing_added(problem, roles, graph, 0) {
         Some((node, concept)) => return Some(Step::Add { node, concept }),
         None => {}
+    }
+    match nominal_node(problem, graph, 0) {
+        Some(Some((node, root))) => return Some(Step::Nominal { node, root }),
+        Some(None) => {}
+        None => return None,
     }
     match counting(problem, roles, graph, true, 0) {
         Some(Some(step)) => return Some(step),
@@ -1149,8 +1255,6 @@ fn add(
                     Entry::Or(left, right) => branch(
                         problem, roles, graph, node, *left, *right, next, deps, depth,
                     ),
-                    Entry::One(_) => None,
-                    Entry::NotOne(_) => None,
                     _ => add_literal(problem, roles, graph, node, concept, next, deps, depth),
                 }
             } else {
@@ -1976,6 +2080,47 @@ fn merge_rule(
         None
     }
 }
+/// Merge `node`, whose label has a nominal on the named node `root`, into
+/// `root`: a named node directly, a child of a named node with its edge; a
+/// difference between them is a clash, and a node deeper in a tree gives no
+/// answer.
+fn nominal(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: Forest,
+    node: usize,
+    root: usize,
+    depth: usize,
+) -> Option<Outcome> {
+    if node < graph.nodes.len() && root < graph.nodes.len() {
+        let deps = match join(&graph.nodes[node].deps, &graph.nodes[root].deps) {
+            Some(deps) => deps,
+            None => return None,
+        };
+        if differ(&graph, node, root, 0) {
+            let mut pair = Vec::new();
+            pair.push(node);
+            pair.push(root);
+            return match differences_deps(&graph, &pair, 0, deps) {
+                Some(clash) => Some(Outcome::Rejected(clash)),
+                None => None,
+            };
+        }
+        if graph.nodes[node].tree {
+            let parent = graph.nodes[node].parent;
+            if parent < graph.nodes.len() {
+                if !graph.nodes[parent].tree {
+                    return merge(problem, roles, graph, parent, node, root, deps, depth);
+                }
+            }
+            None
+        } else {
+            merge(problem, roles, graph, node, node, root, deps, depth)
+        }
+    } else {
+        None
+    }
+}
 /// Apply rules until a clash, a complete forest, or no room; `depth` is the
 /// next free branch point.
 fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) -> Option<Outcome> {
@@ -2012,6 +2157,7 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
         Some(Step::Merge { node, restriction }) => {
             merge_rule(problem, roles, graph, node, restriction, depth)
         }
+        Some(Step::Nominal { node, root }) => nominal(problem, roles, graph, node, root, depth),
         Some(Step::Create { node, generator }) => {
             create(problem, roles, graph, node, generator, depth)
         }

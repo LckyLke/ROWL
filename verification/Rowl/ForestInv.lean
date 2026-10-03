@@ -31,7 +31,7 @@ universe u v
 
 /-- The entries a label of the forest lists: all but `⊤`, `⊥`, `⊓` and `⊔`. -/
 def Literal : concept_table.Entry → Prop
-  | .Atom _ | .NotAtom _ | .Exists _ _ | .Forall _ _ | .AtLeast _ _ _ | .AtMost _ _ _ _ => True
+  | .Atom _ | .NotAtom _ | .One _ | .NotOne _ | .Exists _ _ | .Forall _ _ | .AtLeast _ _ _ | .AtMost _ _ _ _ => True
   | _ => False
 
 /-- Every number restriction of the table counts along a simple role: no

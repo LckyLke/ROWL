@@ -1644,9 +1644,8 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
                   j listed
                 rw [meaning_at P.entries.val wf c.val e at_c'] at here
                 rw [meaning_at P.entries.val wf j.val e' at_j] at there
-                cases e <;> cases e' <;> simp only [Complementary] at complementary
-                · subst complementary; exact there here
-                · subst complementary; exact here there
+                cases e <;> cases e' <;> simp only [Complementary] at complementary <;>
+                  first | (subst complementary; exact there here) | (subst complementary; exact here there)
           · obtain ⟨inserted,insertRun,insertSpec⟩ := insert_correct nodes x c deps
             cases inserted with
             | none =>

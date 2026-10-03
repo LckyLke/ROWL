@@ -3413,3 +3413,38 @@ OWL model itself and translated_meaning is no longer needed.
 
 This block adds 1 public theorem and removes 1. Totals are 1407 audited
 theorems, 839 definitions, 431 Rust regressions and 1600 ledger obligations.
+
+## Reasoner: the nominal rule of the completion forest
+
+The completion forest (`forest.rs`) now takes nominals into its labels: `{a}`
+and `¬{a}` are literals, and a label with both is a clash (complementary). The
+named node of an individual is the representative of the node of the first
+requirement with its nominal (forest::nominal_root, NominalRoot); it is keyed by
+the individual, so equal nominals at different entries of the table share it.
+After the missing concepts, the rule search looks for an active node whose label
+has a nominal whose named node is another node (forest::nominal_node, proved
+exact by nominal_node_correct). It gives no answer when the individual of a
+nominal, or of the complement of one, in the label of an active node has no
+named node. A complete forest (Complete) now also has every nominal of an active
+node on the named node of its individual (NominalOkAt).
+
+The nominal rule (forest::nominal) merges the node into the named node: a named
+node directly, a child of a named node through its parent, while a nominal
+below a tree node gives no answer. Every model under the branch points of both
+nodes places them on the individual, since the label of the node and the
+requirement of the named node both have the nominal; so a recorded difference
+between them is a clash, and the merge, whose rejections rule out models that
+keep the two apart, is forced (nominal_correct). The merge decreases the measure
+as before, so the run keeps terminating.
+
+The model of a complete forest places an individual with a named node on the
+path of that node (nominalPlace). A path whose label has `{a}` is that path,
+since a nominal is only on the named node of its individual, which is a named
+node and so never a tree node of a longer path; a path whose label has `¬{a}`
+is not, since the named node of `a` also lists the nominal of its requirement,
+which would clash (truth). satisfiable_correct keeps its statement, now for
+labels with nominals. The ontology queries still reject nominals as not proper.
+
+This block adds 9 public theorems and 5 independent definitions. Totals are
+1416 audited theorems, 844 definitions, 433 Rust regressions and 1609 ledger
+obligations.

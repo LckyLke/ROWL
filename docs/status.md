@@ -763,11 +763,17 @@ progress. Full OWL parsing and executable reasoning are still future work.
   individual's OWL meaning: concepts::translate covers ALCIQO, turning an
   enumeration into the union of the nominals of its individuals and a value
   restriction into `∃r.{a}`, proved exact for the Direct Semantics. The
-  completion graph tableau gives no answer when a nominal reaches a label, the
-  completion forest gives none until it has its nominal rules, and the ontology
-  queries reject nominals as not proper, so enumerations and value restrictions
-  are not yet answered.
-- 1407 audited public theorems and 839 audited semantic definitions. Consistency,
+  completion graph tableau gives no answer when a nominal reaches a label. The
+  completion forest has the nominal rule: a named node, or a child of one,
+  whose label has `{a}` is merged into the named node of `a` (the node of the
+  first requirement with `{a}`), and a difference between them is a clash.
+  Every model places both on `a`, so the rejections stay sound, and the model
+  of a complete forest places each individual on the path of its named node,
+  so the acceptances stay exact. A nominal below a tree node, or an individual
+  of a nominal or its complement without a named node, gets no answer. The
+  ontology queries still reject nominals as not proper, so enumerations and
+  value restrictions are not yet answered.
+- 1416 audited public theorems and 844 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQ class, domain and range axioms with number restrictions on simple
@@ -778,7 +784,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Documents with enumerations and value restrictions are read and mapped into
   the model, but get no answer yet. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 431 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 433 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -792,7 +798,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1600-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1609-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -44,6 +44,7 @@
     clippy::too_many_arguments,
     clippy::vec_init_then_push
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
+use crate::assertion_equality::same_individual_value;
 use crate::concept_table::{close, intern, universal_from, universal_is, Entry};
 use crate::concepts::{copy_role, inverse, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
@@ -161,11 +162,13 @@ pub(crate) fn holds(entries: &Vec<Entry>, label: &Vec<usize>, concept: usize) ->
         false
     }
 }
-/// Whether the entries are a named class and its complement.
+/// Whether the entries are a named class or a nominal and its complement.
 fn complementary(left: &Entry, right: &Entry) -> bool {
     match (left, right) {
         (Entry::Atom(a), Entry::NotAtom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
         (Entry::NotAtom(a), Entry::Atom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
+        (Entry::One(a), Entry::NotOne(b)) => same_individual_value(a, b),
+        (Entry::NotOne(a), Entry::One(b)) => same_individual_value(a, b),
         _ => false,
     }
 }

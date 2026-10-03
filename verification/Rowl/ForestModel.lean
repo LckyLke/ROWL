@@ -5,15 +5,17 @@ The model of a complete completion forest, independent of how the forest was
 built: its unravelling under pairwise blocking. The elements are the paths from
 an active named node through active children, newest first, where a blocked
 child stands for the node above it whose pair it repeats. A named class holds
-where the label of a path's newest node lists it; an object property relates a
-path to its extensions along the roles of the child's edge, back to its prefix
-along the inverses, and named nodes along links and added edges, closed under
-the transitive roles it includes. Every neighbour of a node in the forest
+where the label of a path's newest node lists it, and an individual with a named
+node is the path of that node; an object property relates a path to its
+extensions along the roles of the child's edge, back to its prefix along the
+inverses, and named nodes along links and added edges, closed under the
+transitive roles it includes. Every neighbour of a node in the forest
 corresponds to exactly one neighbour path with the same label, so when the
 forest is complete, every path satisfies every entry its label satisfies,
-including the number restrictions on simple roles, and the model respects the
-role hierarchy and satisfies the TBox concept, the unfoldings, the
-requirements and the links.
+including the number restrictions on simple roles and the nominals, which only
+the named node of their individual lists, and the model respects the role
+hierarchy and satisfies the TBox concept, the unfoldings, the requirements and
+the links.
 -/
 namespace Rowl.ForestModel
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -21,7 +23,7 @@ open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote negate_correct)
 open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild parts TransitiveClosed Complements)
-open Rowl.CompletionSearch (Holds Complementary HasAtom EdgeOk EdgeNeeds HasUniversal SameLabel)
+open Rowl.CompletionSearch (Holds Complementary HasAtom EdgeOk EdgeNeeds HasUniversal SameLabel holds_listed)
 open Rowl.CompletionModel (holds_same edgeOk_same edgeOk_mono below_inv_iff)
 open Rowl.ForestSearch
 open Rowl.ForestOps
@@ -286,8 +288,17 @@ def Rel (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Fores
     (r : ObjectPropertyExpression) (p q : Element count F.nodes.val) : Prop :=
   Step P h F count r p q ∨ ∃ t ∈ transitives h, Below h t r ∧ Relation.TransGen (Step P h F count t) p q
 
-/-- The model of a forest: a named class holds where the label lists it, and a
-    named object property relates along `Rel`. -/
+/-- The element of an individual: the path of its named node, when it has one. -/
+noncomputable def nominalPlace (P : completion.Problem) (F : forest.Forest) (count : Nat)
+    (root : Element count F.nodes.val) (a : Individual) : Element count F.nodes.val :=
+  if found : ∃ r : Usize, NominalRoot P F a = some r ∧ r.val < count ∧ Active F.nodes.val r.val then
+    ⟨[((Classical.choose found).val,(Classical.choose found).val)],
+      IsPath.root _ (Classical.choose_spec found).2.1 (Classical.choose_spec found).2.2⟩
+  else root
+
+/-- The model of a forest: a named class holds where the label lists it, a
+    named object property relates along `Rel`, and an individual is the path of
+    its named node. -/
 noncomputable def model (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (count : Nat)
     (root : Element count F.nodes.val) : Interpretation (Element count F.nodes.val) Unit where
   objectsNonempty := ⟨root⟩
@@ -295,12 +306,34 @@ noncomputable def model (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
   classes k p := HasAtom P.entries.val (lab p) k
   objectProperties pr p q := Rel P h F count (.Property pr) p q
   dataProperties _ _ _ := False
-  namedIndividuals _ := root
-  anonymousIndividuals _ := root
+  namedIndividuals a := nominalPlace P F count root (.Named a)
+  anonymousIndividuals a := nominalPlace P F count root (.Anonymous a)
   datatypes _ _ := False
   literals _ := ()
   facets _ _ := False
   named _ := False
+
+theorem individual_model (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (count : Nat)
+    (root : Element count F.nodes.val) (a : Individual) :
+    Rowl.Owl.individual (model P h F count root) a = nominalPlace P F count root a := by
+  cases a <;> rfl
+
+/-- An individual with a named node is the path of that node. -/
+theorem nominalPlace_val {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (root : Element count F.nodes.val) (a : Individual) (r : Usize)
+    (found : NominalRoot P F a = some r) : (nominalPlace P F count root a).val = [(r.val,r.val)] := by
+  obtain ⟨q,qIn,_,repIs⟩ := nominalRoot_some found
+  obtain ⟨below,active⟩ := rep_in shape q.node (shape.requirements q qIn)
+  rw [repIs] at below active
+  have exists' : ∃ r' : Usize, NominalRoot P F a = some r' ∧ r'.val < count ∧ Active F.nodes.val r'.val :=
+    ⟨r,found,below,active⟩
+  have chosen : Classical.choose exists' = r := by
+    have both : some (Classical.choose exists') = some r := (Classical.choose_spec exists').1.symm.trans found
+    exact Option.some.inj both
+  unfold nominalPlace
+  rw [dif_pos exists']
+  show [((Classical.choose exists').val,(Classical.choose exists').val)] = _
+  rw [chosen]
 
 theorem linkAlong_inv (h : hierarchy.RoleHierarchy) (closed : Closed h) (F : forest.Forest)
     (links : List (ObjectPropertyExpression × Usize × Usize)) (r : ObjectPropertyExpression) (a b : Nat) :
@@ -729,7 +762,7 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
   induction c using Nat.strong_induction_on with
   | _ c ih =>
     intro p holds
-    obtain ⟨x,x0,rest,pIs,activeX,freeX,_⟩ := path_shape inv p.val p.property
+    obtain ⟨x,x0,rest,pIs,activeX,freeX,form⟩ := path_shape inv p.val p.property
     have tailIs : tailOf p.val = x := by rw [pIs]; rfl
     have labIs : lab p = labelOf F.nodes.val x := by unfold lab; rw [tailIs]
     rw [Holds.eq_def] at holds
@@ -751,15 +784,52 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
         rw [labIs] at member listed
         exact shape.clashFree x i member j listed (.NotAtom k) (.Atom k) (by rw [value]; exact at_c) at_j
           (show Complementary (.NotAtom k) (.Atom k) from rfl)
-      | One _ | NotOne _ =>
-        -- Labels list only literals, and a nominal is none yet.
-        exfalso
+      | One a =>
         obtain ⟨i,member,value⟩ := holds
+        have at_i : P.entries.val[i.val]? = some (.One a) := by rw [value]; exact at_c
         rw [labIs] at member
-        obtain ⟨e',at_i,literal⟩ := shape.literals x i member
-        rw [value,at_c] at at_i
-        cases at_i
-        exact literal
+        obtain ⟨named,namedIs,namedVal⟩ := (complete.2.2.2.2.2.2.2 x activeX i member).1 a at_i
+        obtain ⟨q,qIn,_,repIs⟩ := nominalRoot_some namedIs
+        have namedBelow := (rep_in shape q.node (shape.requirements q qIn)).1
+        rw [repIs] at namedBelow
+        -- The node is the named node of the individual, so the path is its root path.
+        have rootPath : p.val = [(x,x)] := by
+          rcases form with ⟨empty,same,_⟩ | ⟨w,w0,rest',_,n0,_,_,_,_,_,nx,at_x,treeX,_⟩
+          · rw [pIs,empty,same]
+          · exfalso
+            have named' := (shape.named x nx at_x).mpr (by rw [← namedVal]; exact namedBelow)
+            rw [treeX] at named'
+            cases named'
+        show Rowl.Owl.individual (model P h F count root) a = p
+        rw [individual_model]
+        apply Subtype.ext
+        rw [nominalPlace_val shape root a named namedIs,rootPath,namedVal]
+      | NotOne a =>
+        obtain ⟨i,member,value⟩ := holds
+        have at_i : P.entries.val[i.val]? = some (.NotOne a) := by rw [value]; exact at_c
+        rw [labIs] at member
+        obtain ⟨named,namedIs⟩ := (complete.2.2.2.2.2.2.2 x activeX i member).2 a at_i
+        obtain ⟨q,qIn,names,repIs⟩ := nominalRoot_some namedIs
+        have activeNamed := (rep_in shape q.node (shape.requirements q qIn)).2
+        rw [repIs] at activeNamed
+        show Rowl.Owl.individual (model P h F count root) a ≠ p
+        rw [individual_model]
+        intro same
+        have path : p.val = [(named.val,named.val)] := by
+          rw [← same]
+          exact nominalPlace_val shape root a named namedIs
+        have xIs : x = named.val := by
+          rw [pIs] at path
+          simp only [List.cons.injEq,Prod.mk.injEq] at path
+          exact path.1.1
+        -- The named node lists the nominal of its requirement too: a clash.
+        have needs := complete.1 named.val activeNamed q.concept (.inl ⟨q,qIn,by rw [repIs],rfl⟩)
+        obtain ⟨j,listed,jVal⟩ := (holds_listed P.entries.val _ q.concept.val _ names
+          (fun _ _ => ⟨by simp,by simp⟩) (by simp) (by simp)).mp needs
+        have at_j : P.entries.val[j.val]? = some (.One a) := by rw [jVal]; exact names
+        rw [xIs] at member
+        exact shape.clashFree named.val i member j listed (.NotOne a) (.One a) at_i at_j
+          (show Complementary (.NotOne a) (.One a) from rfl)
       | And a b =>
         simp only at holds
         rw [dif_pos (below a.val (by simp [parts])),dif_pos (below b.val (by simp [parts]))] at holds
@@ -774,7 +844,7 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
         obtain ⟨i,member,value⟩ := holds
         have at_i : P.entries.val[i.val]? = some (.Exists r f) := by rw [value]; exact at_c
         rw [labIs] at member
-        obtain ⟨list,_,longEnough,each⟩ := complete.2.2.2.2.2.2 x activeX freeX i member _ r f 1#usize at_i rfl
+        obtain ⟨list,_,longEnough,each⟩ := complete.2.2.2.2.2.2.1 x activeX freeX i member _ r f 1#usize at_i rfl
         obtain ⟨y,yIn⟩ : ∃ y, y ∈ list := by
           cases list with
           | nil => simp at longEnough
@@ -808,7 +878,7 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
         obtain ⟨i,member,value⟩ := holds
         have at_i : P.entries.val[i.val]? = some (.AtLeast m r f) := by rw [value]; exact at_c
         have memberX : i ∈ labelOf F.nodes.val x := by rw [← labIs]; exact member
-        obtain ⟨list,nodup,longEnough,each⟩ := complete.2.2.2.2.2.2 x activeX freeX i memberX _ r f m at_i rfl
+        obtain ⟨list,nodup,longEnough,each⟩ := complete.2.2.2.2.2.2.1 x activeX freeX i memberX _ r f m at_i rfl
         have pick : ∀ k : Fin m.val, ∃ q : Element count F.nodes.val, Step P h F count r p q ∧
             SameLabel (labelOf F.nodes.val (list[k.val]'(Nat.lt_of_lt_of_le k.isLt longEnough)).val) (lab q) ∧
             Corr F.nodes.val p.val q.val (list[k.val]'(Nat.lt_of_lt_of_le k.isLt longEnough)).val := by
@@ -939,9 +1009,11 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
       place_val shape root l.to inside.2,
       .inl ⟨(l.role,l.from,l.to),(linkEnds_mem _ _).mpr ⟨l,member,rfl⟩,.inl ⟨rfl,below_refl h l.role,rfl⟩⟩⟩))
 
-/-- The completion forest decides SHIQ problems with named individuals: it
-    answers unless a structure would exceed the `usize` range or a number
-    restriction counts along a role that is not simple; an acceptance comes
+/-- The completion forest decides SHOIQ problems with named individuals: it
+    answers unless a structure would exceed the `usize` range, a number
+    restriction counts along a role that is not simple, a nominal is below a
+    tree node, or the individual of a nominal or of the complement of one has
+    no named node; an acceptance comes
     with a model in `Type` of the role hierarchy where the TBox concept and
     every definition hold everywhere and every fact and link holds at the
     elements of its individuals, and a rejection rules out every such model,

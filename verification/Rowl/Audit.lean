@@ -1325,6 +1325,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.candidate_correct
 #print axioms Rowl.ForestSearch.lacking_correct
 #print axioms Rowl.ForestSearch.missing_successor_correct
+#print axioms Rowl.ForestSearch.nominalRoot_some
+#print axioms Rowl.ForestSearch.nominalRootIn_cons
+#print axioms Rowl.ForestSearch.names_correct
+#print axioms Rowl.ForestSearch.nominal_root_correct
+#print axioms Rowl.ForestSearch.nominal_at_correct
+#print axioms Rowl.ForestSearch.nominal_node_correct
 #print axioms Rowl.ForestSearch.next_step_correct
 #print axioms Rowl.ForestOps.copy_roles_correct
 #print axioms Rowl.ForestOps.copy_nodes_correct
@@ -1447,6 +1453,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Forest.choices_correct
 #print axioms Rowl.Forest.merge_rule_correct
 #print axioms Rowl.Forest.create_correct
+#print axioms Rowl.Forest.nominal_correct
 #print axioms Rowl.Forest.run_correct
 #print axioms Rowl.Forest.simple_from_correct
 #print axioms Rowl.Forest.counting_simple_correct
@@ -1465,6 +1472,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.extension_facts
 #print axioms Rowl.ForestModel.root_facts
 #print axioms Rowl.ForestModel.tailOf_cons
+#print axioms Rowl.ForestModel.individual_model
+#print axioms Rowl.ForestModel.nominalPlace_val
 #print axioms Rowl.ForestModel.linkAlong_inv
 #print axioms Rowl.ForestModel.linkAlong_mono
 #print axioms Rowl.ForestModel.step_inv
@@ -2356,3 +2365,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiEquality.Joins
 #print axioms Rowl.ShiEquality.Clashes
 #print axioms Rowl.ShiParts.Equality
+#print axioms Rowl.ForestSearch.NominalRootIn
+#print axioms Rowl.ForestSearch.NominalRoot
+#print axioms Rowl.ForestSearch.NominalOkFor
+#print axioms Rowl.ForestSearch.NominalOkAt
+#print axioms Rowl.ForestModel.nominalPlace

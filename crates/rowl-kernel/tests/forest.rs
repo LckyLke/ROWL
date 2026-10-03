@@ -624,3 +624,217 @@ fn every_input_is_answered() {
         }
     });
 }
+
+fn individual(s: &[u8]) -> Individual {
+    Individual::Named(NamedIndividual { iri: iri(s) })
+}
+fn one(s: &[u8]) -> Concept {
+    Concept::One(individual(s))
+}
+fn not_one(s: &[u8]) -> Concept {
+    Concept::NotOne(individual(s))
+}
+
+#[test]
+fn nominals_merge_into_their_named_node() {
+    with_stack(|| {
+        let top = Concept::Top;
+        // Each individual's node carries its nominal; a node with another
+        // individual's nominal is that individual.
+        let nominals = || vec![fact(1, one(b"a")), fact(2, one(b"b"))];
+        let mut facts = nominals();
+        facts.push(fact(1, one(b"b")));
+        facts.push(fact(1, atom(b"A")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        let mut facts = nominals();
+        facts.push(fact(1, one(b"b")));
+        facts.push(fact(1, atom(b"A")));
+        facts.push(fact(2, no(b"A")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        // A nominal and its complement clash.
+        let mut facts = nominals();
+        facts.push(fact(1, not_one(b"a")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        let mut facts = nominals();
+        facts.push(fact(1, not_one(b"b")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // ∃r.{b} at a: the new successor is b, which then gets ∀r's filler.
+        let mut facts = nominals();
+        facts.push(fact(1, and(some(r(), one(b"b")), all(r(), atom(b"A")))));
+        facts.push(fact(2, no(b"A")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        let mut facts = nominals();
+        facts.push(fact(1, and(some(r(), one(b"b")), all(r(), atom(b"A")))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // Two different successors cannot both be b.
+        let mut facts = nominals();
+        facts.push(fact(
+            1,
+            and(at_least(2, r(), Concept::Top), all(r(), one(b"b"))),
+        ));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        let mut facts = nominals();
+        facts.push(fact(
+            1,
+            and(
+                at_least(2, r(), Concept::Top),
+                all(r(), or(one(b"a"), one(b"b"))),
+            ),
+        ));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // An enumeration of two individuals has at most two instances.
+        let mut facts = nominals();
+        facts.push(fact(0, at_least(3, r(), or(one(b"a"), one(b"b")))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        // A nominal deeper in a tree gets no answer yet, and so does a nominal
+        // without a named node.
+        let mut facts = nominals();
+        facts.push(fact(0, some(r(), some(r(), one(b"b")))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), None);
+        let facts = vec![fact(1, some(r(), one(b"c")))];
+        assert_eq!(abox(3, facts, Vec::new(), &top), None);
+        // A requirement {c} makes its node the named node of c.
+        let facts = vec![fact(1, one(b"c")), fact(2, some(r(), one(b"c")))];
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+    });
+}
+
+/// A pseudo-random concept over A, r and its inverse, and the nominals of a
+/// and b.
+fn random_nominal_concept(seed: &mut u64, depth: u32) -> Concept {
+    *seed = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    let choice = (*seed >> 33) % if depth == 0 { 6 } else { 14 };
+    let role = if (*seed >> 40).is_multiple_of(2) {
+        r()
+    } else {
+        back()
+    };
+    let n = ((*seed >> 44) % 2) as usize;
+    match choice {
+        0 => atom(b"A"),
+        1 => no(b"A"),
+        2 => one(b"a"),
+        3 => one(b"b"),
+        4 => not_one(b"a"),
+        5 => Concept::Top,
+        6 | 7 => and(
+            random_nominal_concept(seed, depth - 1),
+            random_nominal_concept(seed, depth - 1),
+        ),
+        8 => or(
+            random_nominal_concept(seed, depth - 1),
+            random_nominal_concept(seed, depth - 1),
+        ),
+        9 | 10 => some(role, random_nominal_concept(seed, depth - 1)),
+        11 => all(role, random_nominal_concept(seed, depth - 1)),
+        12 => at_least(n + 1, role, random_nominal_concept(seed, depth - 1)),
+        _ => at_most(n, role, random_nominal_concept(seed, depth - 1)),
+    }
+}
+/// The meaning of a concept with nominals, a and b placed at `na` and `nb`.
+fn nominal_holds(i: &Finite, na: usize, nb: usize, c: &Concept, x: usize) -> bool {
+    let edge = |role: &ObjectPropertyExpression, x: usize, y: usize| match role {
+        ObjectPropertyExpression::Property(_) => i.r >> (x * i.size + y) & 1 == 1,
+        ObjectPropertyExpression::Inverse(_) => i.r >> (y * i.size + x) & 1 == 1,
+    };
+    let place = |individual: &Individual| match individual {
+        Individual::Named(named) if named.iri.spelling == b"a" => na,
+        _ => nb,
+    };
+    let count = |role: &ObjectPropertyExpression, c: &Concept| {
+        (0..i.size)
+            .filter(|&y| edge(role, x, y) && nominal_holds(i, na, nb, c, y))
+            .count()
+    };
+    match c {
+        Concept::Top => true,
+        Concept::Bottom => false,
+        Concept::Atom(_) => i.a >> x & 1 == 1,
+        Concept::NotAtom(_) => i.a >> x & 1 == 0,
+        Concept::One(individual) => place(individual) == x,
+        Concept::NotOne(individual) => place(individual) != x,
+        Concept::And(a, b) => nominal_holds(i, na, nb, a, x) && nominal_holds(i, na, nb, b, x),
+        Concept::Or(a, b) => nominal_holds(i, na, nb, a, x) || nominal_holds(i, na, nb, b, x),
+        Concept::Exists(r, c) => count(r, c) >= 1,
+        Concept::Forall(r, c) => {
+            (0..i.size).all(|y| !edge(r, x, y) || nominal_holds(i, na, nb, c, y))
+        }
+        Concept::AtLeast(n, r, c) => count(r, c) >= *n,
+        Concept::AtMost(n, r, c) => count(r, c) <= *n,
+    }
+}
+fn nominal_copy(c: &Concept) -> Concept {
+    match c {
+        Concept::Top => Concept::Top,
+        Concept::Bottom => Concept::Bottom,
+        Concept::Atom(_) => atom(b"A"),
+        Concept::NotAtom(_) => no(b"A"),
+        Concept::One(Individual::Named(named)) => one(&named.iri.spelling),
+        Concept::NotOne(Individual::Named(named)) => not_one(&named.iri.spelling),
+        Concept::One(_) | Concept::NotOne(_) => panic!("the samples name their individuals"),
+        Concept::And(a, b) => and(nominal_copy(a), nominal_copy(b)),
+        Concept::Or(a, b) => or(nominal_copy(a), nominal_copy(b)),
+        Concept::Exists(r, c) => some(role_copy(r), nominal_copy(c)),
+        Concept::Forall(r, c) => all(role_copy(r), nominal_copy(c)),
+        Concept::AtLeast(n, r, c) => at_least(*n, role_copy(r), nominal_copy(c)),
+        Concept::AtMost(n, r, c) => at_most(*n, role_copy(r), nominal_copy(c)),
+    }
+}
+
+#[test]
+fn no_nominal_input_with_a_small_model_is_rejected() {
+    with_stack(no_nominal_input_with_a_small_model_is_rejected_body);
+}
+fn no_nominal_input_with_a_small_model_is_rejected_body() {
+    let mut seed = 89;
+    let mut with_model = 0;
+    let mut accepted = 0;
+    let mut rejected = 0;
+    for _ in 0..600 {
+        let c = and(
+            random_nominal_concept(&mut seed, 3),
+            random_nominal_concept(&mut seed, 2),
+        );
+        let tbox = random_nominal_concept(&mut seed, 1);
+        let small = (1..=3usize).any(|size| {
+            (0..1u32 << size).any(|a| {
+                (0..1u32 << (size * size)).any(|r| {
+                    let i = Finite { size, a, b: 0, r };
+                    (0..size).any(|na| {
+                        (0..size).any(|nb| {
+                            (0..size).all(|x| nominal_holds(&i, na, nb, &tbox, x))
+                                && (0..size).any(|x| nominal_holds(&i, na, nb, &c, x))
+                        })
+                    })
+                })
+            })
+        });
+        let facts = vec![
+            fact(1, one(b"a")),
+            fact(2, one(b"b")),
+            fact(0, nominal_copy(&c)),
+        ];
+        let answer = abox(3, facts, Vec::new(), &tbox);
+        if small {
+            assert_ne!(
+                answer,
+                Some(false),
+                "a model exists, so the forest must not reject"
+            );
+            with_model += 1;
+        }
+        match answer {
+            Some(true) => accepted += 1,
+            Some(false) => rejected += 1,
+            None => {}
+        }
+    }
+    assert!(
+        with_model > 50,
+        "the sample must exercise satisfiable inputs"
+    );
+    assert!(accepted > 50, "the sample must exercise acceptances");
+    assert!(rejected > 20, "the sample must exercise rejections");
+}

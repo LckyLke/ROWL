@@ -3,7 +3,8 @@ import Rowl.ForestSteps
 /-!
 The completion forest's run: totality and the meaning of its rejections. Every
 rule application adds a literal to the label of an active node, expands a
-restriction of an unblocked node, or merges two neighbours, and each of these
+restriction of an unblocked node, merges two neighbours, or merges a named node
+or a child of one into the named node of its nominal, and each of these
 decreases the measure, so `run` terminates on every forest that keeps the
 invariant. An acceptance comes with a complete forest that keeps the
 invariant; a rejection with a set of branch points rules out every model, in
@@ -11,7 +12,9 @@ any universes, that holds under those points. Branching on a disjunction or on
 a neighbour's choice for a maximum restriction retries the second alternative
 only when the first failure depends on the new branch point; merging tries the
 pairs of neighbours that are not known to differ in turn, since in every model
-of a maximum restriction two of its counted neighbours coincide.
+of a maximum restriction two of its counted neighbours coincide. Every model
+places a node with a nominal and the named node of its individual on the
+individual, so their merge is forced and a difference between them is a clash.
 -/
 namespace Rowl.Forest
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -267,9 +270,8 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
                     (fun k member => (members k).mpr (.inl (by rw [← depsIs]; exact member))) j listed
                   rw [meaning_at P.entries.val wf c.val e at_c'] at here
                   rw [meaning_at P.entries.val wf j.val e' at_j] at there
-                  cases e <;> cases e' <;> simp only [Complementary] at complementary
-                  · subst complementary; exact there here
-                  · subst complementary; exact here there
+                  cases e <;> cases e' <;> simp only [Complementary] at complementary <;>
+                    first | (subst complementary; exact there here) | (subst complementary; exact here there)
           · obtain ⟨inserted,insertRun,insertSpec⟩ := insert_correct F x c deps
             have clash' : ¬ Clashes P.entries.val F.nodes.val[x.val].label.val c := by rwa [← labelIs]
             cases inserted with
@@ -352,14 +354,17 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           rw [meaning_at P.entries.val wf c.val _ at_c,entry] at here
           exact here
       | One a =>
-        -- Nominals wait for the nominal rules: no answer yet.
-        refine ⟨none,?_,by simp,by simp⟩
+        obtain ⟨r,run,answers⟩ := literalCase (by rw [entry]; trivial)
+        refine ⟨r,?_,answers⟩
         rw [forest.add]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,entry,run]
       | NotOne a =>
-        refine ⟨none,?_,by simp,by simp⟩
+        obtain ⟨r,run,answers⟩ := literalCase (by rw [entry]; trivial)
+        refine ⟨r,?_,answers⟩
         rw [forest.add]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,entry,run]
       | And a b =>
         rw [entry] at below
         have aBelow : a.val < c.val := below a.val (by simp [parts])
@@ -983,6 +988,152 @@ theorem create_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (c
   obtain ⟨π',models'⟩ := created_models inv.shape created e at_i gen member models
   exact none ⟨Object,Value,I,π',models',by simp⟩
 
+/-- The nominal rule for a nominal of an active node whose named node is another
+    node terminates and means what `Answers` says: every model under the points
+    of both nodes places them on the individual of the nominal, so a recorded
+    difference between them is a clash; otherwise a named node, or a child of a
+    named node, is merged into the named node of the nominal. A deeper tree node
+    has no answer. -/
+theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
+    (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
+      FreshForest F fresh.val →
+      ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r)
+    (F : forest.Forest) (x named fresh : Usize) (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M)
+    (freshF : FreshForest F fresh.val) (active : Active F.nodes.val x.val) (i : Usize)
+    (member : i ∈ labelOf F.nodes.val x.val) (a : Individual) (at_i : P.entries.val[i.val]? = some (.One a))
+    (namedIs : NominalRoot P F a = some named) (different : named ≠ x) :
+    ∃ res, forest.nominal P h F x named fresh = .ok res ∧ Answers.{u,v} P h count F 0 [] [] fresh.val res := by
+  have xIn := active_inside active
+  obtain ⟨q,qIn,names,repIs⟩ := nominalRoot_some namedIs
+  obtain ⟨namedBelow,activeNamed⟩ := rep_in inv.shape q.node (inv.shape.requirements q qIn)
+  rw [repIs] at namedBelow activeNamed
+  have namedIn := active_inside activeNamed
+  have at_x : F.nodes.val[x.val]? = some F.nodes.val[x.val] := List.getElem?_eq_getElem xIn
+  have at_named : F.nodes.val[named.val]? = some F.nodes.val[named.val] := List.getElem?_eq_getElem namedIn
+  have lookupX : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+    simp [alloc.vec.Vec.index_usize,at_x]
+  have lookupNamed : F.nodes.index_usize named = .ok F.nodes.val[named.val] := by
+    simp [alloc.vec.Vec.index_usize,at_named]
+  have xDeps : nodeDeps F x.val = F.nodes.val[x.val].deps.val := by simp [nodeDeps,at_x]
+  have namedDeps : nodeDeps F named.val = F.nodes.val[named.val].deps.val := by simp [nodeDeps,at_named]
+  have xActive : F.nodes.val[x.val].active = true := by
+    obtain ⟨n,at_n,yes⟩ := active
+    rw [at_x,Option.some.injEq] at at_n
+    rw [at_n]
+    exact yes
+  have apart : x.val ≠ named.val := fun same => different (UScalar.eq_of_val_eq same.symm)
+  -- Every model under the points of both nodes places them on the individual.
+  have meets : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+      (D : List Usize), Sub (nodeDeps F x.val) D → Sub (nodeDeps F named.val) D → Models P h F I π D →
+        π x.val = π named.val := by
+    intro Object Value I π D subX subNamed models
+    have here := models.labels x.val subX i member
+    rw [meaning_at P.entries.val inv.shape.wellFormed i.val _ at_i] at here
+    have there := models.requirements q qIn
+    rw [meaning_at P.entries.val inv.shape.wellFormed q.concept.val _ names] at there
+    have same := models.same q.node (by rw [repIs]; exact subNamed)
+    rw [repIs] at same
+    simp only [rebuild,denote] at here there
+    rw [← here,there]
+    exact same
+  rw [forest.nominal]
+  obtain ⟨joinedResult,joinRun,joinSpec⟩ := join_correct F.nodes.val[x.val].deps F.nodes.val[named.val].deps
+  simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,namedIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookupX,
+    lookupNamed,bind_ok,joinRun]
+  cases joinedResult with
+  | none => exact ⟨none,by simp,by simp,by simp⟩
+  | some deps =>
+  have depsIs := joinSpec deps rfl
+  have freshDeps : ∀ k ∈ deps.val, k.val < fresh.val := by
+    intro k listed
+    rcases (depsIs k).mp listed with old | old
+    · exact freshF.1 x.val k (by rw [xDeps]; exact old)
+    · exact freshF.1 named.val k (by rw [namedDeps]; exact old)
+  -- Under the points of the rule, every model places both nodes on one element.
+  have meet : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+      (D : List Usize), Sub deps.val D → Models P h F I π D → π x.val = π named.val := by
+    intro Object Value I π D sub models
+    refine meets Object Value I π D ?_ ?_ models
+    · intro k listed
+      rw [xDeps] at listed
+      exact sub k ((depsIs k).mpr (.inl listed))
+    · intro k listed
+      rw [namedDeps] at listed
+      exact sub k ((depsIs k).mpr (.inr listed))
+  by_cases differ : ∃ d ∈ F.distinct.val, (d.left = x ∧ d.right = named) ∨ (d.left = named ∧ d.right = x)
+  · obtain ⟨pair,pushPair,pairIs⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec (alloc.vec.Vec.new Usize) x (by simp; scalar_tac))
+    obtain ⟨pair1,pushPair1,pair1Is⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec pair named (by simp [pairIs]; scalar_tac))
+    obtain ⟨clashResult,clashRun,clashSpec⟩ := differences_deps_correct F pair1 0#usize deps
+    simp only [differ_correct,show (0#usize).val = 0 from rfl,List.drop_zero,decide_eq_true differ,↓reduceIte,
+      pushPair,pushPair1,clashRun,bind_ok]
+    cases clashResult with
+    | none => exact ⟨none,by simp,by simp,by simp⟩
+    | some clash =>
+    have clashMembers := clashSpec clash rfl
+    refine ⟨some (.Rejected clash),by simp,by simp,?_⟩
+    intro D same
+    simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+    subst same
+    refine ⟨?_,?_⟩
+    · intro k listed
+      rcases (clashMembers k).mp listed with old | ⟨d,dIn,_,_,kIn⟩
+      · exact freshDeps k old
+      · exact freshF.2.2 d (List.mem_of_mem_drop dIn) k kIn
+    · rintro ⟨Object,Value,I,π,models,_⟩
+      obtain ⟨d,dIn,ends⟩ := differ
+      have dDeps : Sub d.deps.val clash.val := by
+        intro k kIn
+        apply (clashMembers k).mpr
+        refine .inr ⟨d,by simpa using dIn,?_,?_,kIn⟩
+        · rcases ends with ⟨l,_⟩ | ⟨l,_⟩ <;> simp [pair1Is,pairIs,l]
+        · rcases ends with ⟨_,r'⟩ | ⟨_,r'⟩ <;> simp [pair1Is,pairIs,r']
+      have separate := models.distinct d dIn dDeps
+      have equal := meet Object Value I π clash.val (fun k listed => (clashMembers k).mpr (.inl listed)) models
+      rcases ends with ⟨l,r'⟩ | ⟨l,r'⟩
+      · rw [l,r'] at separate
+        exact separate equal
+      · rw [l,r'] at separate
+        exact separate equal.symm
+  · simp only [differ_correct,show (0#usize).val = 0 from rfl,List.drop_zero,decide_eq_false differ,bind_ok,
+      Bool.false_eq_true,↓reduceIte]
+    -- A merge of `x` into the named node: every model places them on one element.
+    have merged : ∀ y : Usize, MergeShape count F y.val x.val named.val →
+        ∃ res, forest.merge P h F y x named deps fresh = .ok res ∧
+          Answers.{u,v} P h count F 0 [] [] fresh.val res := by
+      intro y shape
+      obtain ⟨r,run,sound,complete⟩ := merge_correct.{u,v} P h count M IH F y x named deps fresh inv shape small
+        freshF freshDeps
+      refine ⟨r,run,sound,?_⟩
+      intro D rejected
+      obtain ⟨bound,rules⟩ := complete D rejected
+      refine ⟨bound,?_⟩
+      rintro ⟨Object,Value,I,π,models,_⟩
+      obtain ⟨sub,separate⟩ := rules Object Value I π models
+      exact separate (meet Object Value I π D.val sub models)
+    by_cases tree : F.nodes.val[x.val].tree = true
+    · have parentBelow := inv.shape.parents x.val _ at_x tree
+      have parentIn : F.nodes.val[x.val].parent.val < F.nodes.val.length := by omega
+      have at_parent : F.nodes.val[F.nodes.val[x.val].parent.val]? =
+          some F.nodes.val[F.nodes.val[x.val].parent.val] := List.getElem?_eq_getElem parentIn
+      have lookupParent : F.nodes.index_usize F.nodes.val[x.val].parent =
+          .ok F.nodes.val[F.nodes.val[x.val].parent.val] := by
+        simp [alloc.vec.Vec.index_usize,at_parent]
+      simp only [tree,↓reduceIte,alloc.vec.Vec.len_val,UScalar.lt_equiv,parentIn,alloc.vec.Vec.index_slice_index,
+        lookupParent,bind_ok]
+      by_cases parentTree : F.nodes.val[F.nodes.val[x.val].parent.val].tree = true
+      · exact ⟨none,by simp [parentTree],by simp,by simp⟩
+      · simp only [parentTree,Bool.false_eq_true,↓reduceIte]
+        have activeParent := inv.shape.activeParents x.val _ at_x tree xActive
+        have parentNamed : F.nodes.val[x.val].parent.val < count :=
+          (inv.shape.named _ _ at_parent).mp (by simpa using parentTree)
+        exact merged _ ⟨apart,activeParent,active,activeNamed,
+          .inl ⟨_,at_x,tree,rfl,.inr (.inr ⟨parentNamed,namedBelow⟩)⟩⟩
+    · have xNamed : x.val < count := (inv.shape.named _ _ at_x).mp (by simpa using tree)
+      simp only [tree,Bool.false_eq_true,↓reduceIte]
+      exact merged x ⟨apart,active,active,activeNamed,.inr ⟨xNamed,namedBelow⟩⟩
+
 /-- The main loop terminates on every forest that keeps the invariant and whose
     points are below `fresh`, and its answer means what `Answers` says. -/
 theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) :
@@ -998,7 +1149,7 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       ∃ r, forest.run P h F' fresh' = .ok r ∧ Answers.{u,v} P h count F' 0 [] [] fresh'.val r :=
     fun F' fresh' smaller inv' fresh'' => ih _ smaller F' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
-  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,createCase,doneCase⟩ := next_step_correct P h F
+  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nominalCase,createCase,doneCase⟩ := next_step_correct P h F
   rw [forest.run,stepRun]
   cases step with
   | none => exact ⟨none,by simp,by simp,by simp⟩
@@ -1094,6 +1245,11 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
     subst stepIs
     obtain ⟨res,run,answers⟩ := merge_rule_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX
       member n r c c' at_i excess
+    exact ⟨res,by simp [run],answers⟩
+  | Nominal x named =>
+    obtain ⟨activeX,i,member,a,at_i,namedIs,different⟩ := nominalCase x named rfl
+    obtain ⟨res,run,answers⟩ := nominal_correct.{u,v} P h count m IH F x named fresh inv (by omega) freshF activeX i
+      member a at_i namedIs different
     exact ⟨res,by simp [run],answers⟩
   | Create x i =>
     obtain ⟨activeX,free,member,_,_,_,_,_,_,notDone,_⟩ := createCase x i rfl

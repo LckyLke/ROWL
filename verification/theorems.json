@@ -1838,6 +1838,12 @@
         "Rowl.ForestSearch.candidate_correct",
         "Rowl.ForestSearch.lacking_correct",
         "Rowl.ForestSearch.missing_successor_correct",
+        "Rowl.ForestSearch.nominalRoot_some",
+        "Rowl.ForestSearch.nominalRootIn_cons",
+        "Rowl.ForestSearch.names_correct",
+        "Rowl.ForestSearch.nominal_root_correct",
+        "Rowl.ForestSearch.nominal_at_correct",
+        "Rowl.ForestSearch.nominal_node_correct",
         "Rowl.ForestSearch.next_step_correct"
       ]
     },
@@ -1984,6 +1990,7 @@
         "Rowl.Forest.choices_correct",
         "Rowl.Forest.merge_rule_correct",
         "Rowl.Forest.create_correct",
+        "Rowl.Forest.nominal_correct",
         "Rowl.Forest.run_correct",
         "Rowl.Forest.simple_from_correct",
         "Rowl.Forest.counting_simple_correct",
@@ -2008,6 +2015,8 @@
         "Rowl.ForestModel.extension_facts",
         "Rowl.ForestModel.root_facts",
         "Rowl.ForestModel.tailOf_cons",
+        "Rowl.ForestModel.individual_model",
+        "Rowl.ForestModel.nominalPlace_val",
         "Rowl.ForestModel.linkAlong_inv",
         "Rowl.ForestModel.linkAlong_mono",
         "Rowl.ForestModel.step_inv",
@@ -2914,6 +2923,11 @@
     "Rowl.ShiEquality.Reps",
     "Rowl.ShiEquality.Joins",
     "Rowl.ShiEquality.Clashes",
-    "Rowl.ShiParts.Equality"
+    "Rowl.ShiParts.Equality",
+    "Rowl.ForestSearch.NominalRootIn",
+    "Rowl.ForestSearch.NominalRoot",
+    "Rowl.ForestSearch.NominalOkFor",
+    "Rowl.ForestSearch.NominalOkAt",
+    "Rowl.ForestModel.nominalPlace"
   ]
 }
