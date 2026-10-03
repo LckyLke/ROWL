@@ -75,6 +75,7 @@ import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
+import Rowl.FunctionalIndividuals
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
@@ -923,6 +924,9 @@ import Rowl.ShiOntology
 #print axioms Rowl.FunctionalModel.identity_correct
 #print axioms Rowl.FunctionalModel.annotation_correct
 #print axioms Rowl.FunctionalModel.annotations_from_correct
+#print axioms Rowl.FunctionalModel.individuals_from_correct
+#print axioms Rowl.FunctionalModel.enumeration_correct
+#print axioms Rowl.FunctionalModel.individual_members_correct
 #print axioms Rowl.FunctionalModel.class_correct
 #print axioms Rowl.FunctionalModel.rest_from_correct
 #print axioms Rowl.FunctionalModel.members_of_correct
@@ -964,14 +968,16 @@ import Rowl.ShiOntology
 #print axioms Rowl.SourceReasoning.source_instance_of_correct
 #print axioms Rowl.SourceReasoning.source_instance_of_sound
 #print axioms Rowl.FunctionalAssertions.assertion_form_total_correct
-#print axioms Rowl.FunctionalAssertions.individual_kind_total_correct
 #print axioms Rowl.FunctionalAssertions.expected_terminal_total_correct
 #print axioms Rowl.FunctionalAssertions.take_expected_total_correct
 #print axioms Rowl.FunctionalAssertions.take_expected_result_iff
 #print axioms Rowl.FunctionalAssertions.take_progress
-#print axioms Rowl.FunctionalAssertions.read_individual_total_correct
-#print axioms Rowl.FunctionalAssertions.read_individual_result_iff
-#print axioms Rowl.FunctionalAssertions.individual_progress
+#print axioms Rowl.FunctionalAssertions.read_member_total_correct
+#print axioms Rowl.FunctionalAssertions.read_member_result_iff
+#print axioms Rowl.FunctionalAssertions.member_progress
+#print axioms Rowl.FunctionalAssertions.read_members_total_correct
+#print axioms Rowl.FunctionalAssertions.read_members_result_iff
+#print axioms Rowl.FunctionalAssertions.members_progress
 #print axioms Rowl.FunctionalAssertions.read_class_total_correct
 #print axioms Rowl.FunctionalAssertions.read_class_result_iff
 #print axioms Rowl.FunctionalAssertions.read_property_total_correct
@@ -1476,6 +1482,18 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.place_val
 #print axioms Rowl.ForestModel.model_of_complete
 #print axioms Rowl.ForestModel.satisfiable_correct
+#print axioms Rowl.FunctionalIndividuals.individual_kind_total_correct
+#print axioms Rowl.FunctionalIndividuals.closes_total_correct
+#print axioms Rowl.FunctionalIndividuals.position_total_correct
+#print axioms Rowl.FunctionalIndividuals.read_individual_total_correct
+#print axioms Rowl.FunctionalIndividuals.read_individual_result_iff
+#print axioms Rowl.FunctionalIndividuals.individual_progress
+#print axioms Rowl.FunctionalIndividuals.read_individuals_total_correct
+#print axioms Rowl.FunctionalIndividuals.individuals_execution
+#print axioms Rowl.FunctionalIndividuals.read_individuals_result_iff
+#print axioms Rowl.FunctionalIndividuals.read_individual_list_total_correct
+#print axioms Rowl.FunctionalIndividuals.read_individual_list_result_iff
+#print axioms Rowl.FunctionalIndividuals.list_progress
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2070,10 +2088,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.SourceReasoning.Read
 #print axioms Rowl.SourceReasoning.SourceOntology
 #print axioms Rowl.FunctionalAssertions.FormOf
-#print axioms Rowl.FunctionalAssertions.IndividualKindOf
 #print axioms Rowl.FunctionalAssertions.Expected
 #print axioms Rowl.FunctionalAssertions.TakeRun
-#print axioms Rowl.FunctionalAssertions.IndividualRun
 #print axioms Rowl.FunctionalAssertions.ClassStep
 #print axioms Rowl.FunctionalAssertions.PropertyStep
 #print axioms Rowl.FunctionalAssertions.EdgeRun
@@ -2299,3 +2315,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.Corr
 #print axioms Rowl.ForestModel.place
 #print axioms Rowl.ShiOntology.Counts
+#print axioms Rowl.FunctionalIndividuals.IndividualKindOf
+#print axioms Rowl.FunctionalIndividuals.Position
+#print axioms Rowl.FunctionalIndividuals.IndividualRun
+#print axioms Rowl.FunctionalIndividuals.IndividualsRun
+#print axioms Rowl.FunctionalIndividuals.ListRun
+#print axioms Rowl.FunctionalAssertions.MemberStep
+#print axioms Rowl.FunctionalAssertions.MembersStep
+#print axioms Rowl.FunctionalModel.EnumerationModel
+#print axioms Rowl.FunctionalModel.IndividualMembersModel

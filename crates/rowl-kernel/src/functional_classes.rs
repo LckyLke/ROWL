@@ -1,14 +1,19 @@
-//! Functional Syntax class expressions of the reasoner's ALC fragment.
+//! Functional Syntax class expressions of the reasoner's fragment.
 //!
 //! Reads named classes, `ObjectIntersectionOf`, `ObjectUnionOf`,
-//! `ObjectComplementOf`, `ObjectSomeValuesFrom` and `ObjectAllValuesFrom`, with
-//! object property expressions `IRI` or `ObjectInverseOf( IRI )`. The other
-//! twelve class-expression forms are reported as unsupported at their keyword;
-//! later stages read them. Records keep the original keyword and IRI tokens and
-//! the IRIs resolved through the checked prefix table.
+//! `ObjectComplementOf`, `ObjectOneOf`, `ObjectSomeValuesFrom`,
+//! `ObjectAllValuesFrom` and `ObjectHasValue`, with object property expressions
+//! `IRI` or `ObjectInverseOf( IRI )` and individuals read by the proved
+//! individual reader. The other ten class-expression forms are reported as
+//! unsupported at their keyword; later stages read them. Records keep the
+//! original keyword and IRI tokens and the IRIs resolved through the checked
+//! prefix table.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal, Token};
 use crate::functional_header::{iri_kind, HeaderIri};
+use crate::functional_individuals::{
+    read_individual, read_individual_list, IndividualError, SourceIndividual,
+};
 use crate::functional_iris::{resolve_span, SourceIriError};
 use crate::functional_lexer::Tokens;
 use crate::prefixes::PrefixTable;
@@ -19,7 +24,8 @@ pub enum SourceObjectProperty {
     Inverse { keyword: Token, property: HeaderIri },
 }
 /// A class expression of the supported forms. Intersections and unions keep
-/// their members, at least two, in source order.
+/// their members, at least two, in source order; enumerations keep their
+/// individuals, at least one, in source order.
 pub enum SourceClass {
     Named(HeaderIri),
     IntersectionOf {
@@ -44,10 +50,20 @@ pub enum SourceClass {
         property: SourceObjectProperty,
         filler: Box<SourceClass>,
     },
+    OneOf {
+        keyword: Token,
+        members: Vec<SourceIndividual>,
+    },
+    HasValue {
+        keyword: Token,
+        property: SourceObjectProperty,
+        individual: SourceIndividual,
+    },
 }
 /// `depth` bounds connective nesting: 0 permits only named classes, because
 /// each level uses the physical stack. `count` bounds the members of each
-/// intersection or union. `iri` bounds every final IRI.
+/// intersection, union and enumeration. `iri` bounds every final IRI and node
+/// ID.
 pub struct ClassLimits {
     pub depth: usize,
     pub count: usize,
@@ -67,6 +83,7 @@ pub enum ClassError {
         offset: usize,
     },
     Iri(SourceIriError),
+    Individual(IndividualError),
     /// A class-expression form that this stage does not read yet.
     Unsupported {
         offset: usize,
@@ -79,12 +96,15 @@ pub enum ClassError {
     },
 }
 /// A supported connective: an intersection (`true`) or union (`false`), a
-/// complement, or an existential (`true`) or universal (`false`) restriction.
+/// complement, an existential (`true`) or universal (`false`) restriction, an
+/// enumeration of individuals, or a restriction to one individual value.
 #[derive(Clone, Copy)]
 enum ClassForm {
     Junction(bool),
     Complement,
     Restriction(bool),
+    OneOf,
+    HasValue,
 }
 enum ClassKeyword {
     Connective(ClassForm),
@@ -108,8 +128,8 @@ fn class_keyword(terminal: Terminal) -> ClassKeyword {
         Terminal::Keyword(Keyword::ObjectAllValuesFrom) => {
             ClassKeyword::Connective(ClassForm::Restriction(false))
         }
-        Terminal::Keyword(Keyword::ObjectOneOf) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::ObjectHasValue) => ClassKeyword::Unsupported,
+        Terminal::Keyword(Keyword::ObjectOneOf) => ClassKeyword::Connective(ClassForm::OneOf),
+        Terminal::Keyword(Keyword::ObjectHasValue) => ClassKeyword::Connective(ClassForm::HasValue),
         Terminal::Keyword(Keyword::ObjectHasSelf) => ClassKeyword::Unsupported,
         Terminal::Keyword(Keyword::ObjectMinCardinality) => ClassKeyword::Unsupported,
         Terminal::Keyword(Keyword::ObjectMaxCardinality) => ClassKeyword::Unsupported,
@@ -358,6 +378,40 @@ fn read_connective(
                 ))
             }
         }
+        ClassForm::OneOf => {
+            let (members, tokens) =
+                match read_individual_list(table, bytes, tokens, 1, limits.count, limits.iri) {
+                    Ok(value) => value,
+                    Err(error) => return Err(ClassError::Individual(error)),
+                };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((SourceClass::OneOf { keyword, members }, remaining))
+        }
+        ClassForm::HasValue => {
+            let (property, tokens) = match read_object_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (individual, tokens) = match read_individual(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(ClassError::Individual(error)),
+            };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((
+                SourceClass::HasValue {
+                    keyword,
+                    property,
+                    individual,
+                },
+                remaining,
+            ))
+        }
     }
 }
 /// The maximal member sequence, stopping before `)` or at the end.
@@ -390,14 +444,16 @@ pub(crate) fn read_members(
         }
     }
 }
-/// Read exactly one class expression of the supported forms. Named classes and
-/// object properties resolve their original IRI spans through the checked
-/// prefix table with the `iri` limit. Errors report the first failing step in
-/// source order with original offsets (EOF errors use the source length): at a
-/// connective keyword the nesting depth, then `(`, the operands in order (each
-/// member of an intersection or union after checking the member count), then the
-/// two-member minimum, then `)`. The unchanged suffix after the expression is
-/// returned. The other class-expression forms are reported as unsupported.
+/// Read exactly one class expression of the supported forms. Named classes,
+/// object properties and individuals resolve their original spans through the
+/// checked prefix table with the `iri` limit. Errors report the first failing
+/// step in source order with original offsets (EOF errors use the source
+/// length): at a connective keyword the nesting depth, then `(`, the operands in
+/// order (each member of an intersection, union or enumeration after checking
+/// the member count), then the two-member minimum of an intersection or union or
+/// the one-member minimum of an enumeration, then `)`. The unchanged suffix
+/// after the expression is returned. The other class-expression forms are
+/// reported as unsupported.
 pub fn read_class_expression(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,

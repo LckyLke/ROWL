@@ -99,6 +99,7 @@ pub mod functional_classes;
 pub mod functional_declarations;
 pub mod functional_document;
 pub mod functional_header;
+pub mod functional_individuals;
 pub mod functional_iris;
 pub mod functional_lexer;
 pub mod functional_literals;

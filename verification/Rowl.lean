@@ -101,6 +101,7 @@ import Rowl.FunctionalDeclarations
 import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
+import Rowl.FunctionalIndividuals
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource

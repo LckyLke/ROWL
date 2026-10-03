@@ -10,9 +10,10 @@ import Rowl.FunctionalPrefixes
 Whole Functional Syntax documents, proved total and exact against an
 independent grammar that composes the proved stage grammars: the ontology
 header, the ontology annotations, the axiom loop (declarations, annotation
-axioms, the class, domain and range axioms, the object property axioms and the
-class and object property assertions; the other logical axioms are reported as
-unsupported), the closing parenthesis and the end of the source.
+axioms, the class, domain and range axioms, the object property axioms, and the
+individual equality, inequality, class and object property assertions; the
+other logical axioms are reported as unsupported), the closing parenthesis and
+the end of the source.
 The prefix declarations and their normative table check compose with it through
 their own proved readers.
 -/
@@ -36,8 +37,8 @@ set_option maxHeartbeats 3000000
 
 /-- The 37 axiom keywords by family: declarations, the four annotation axioms,
     the six class, domain and range axioms, the eleven object property axioms
-    and the three class and object property assertions read here, and the other
-    logical axiom forms. -/
+    and the five individual equality, inequality, class and object property
+    assertions read here, and the other logical axiom forms. -/
 def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .Declaration => some .Declaration
   | .Keyword .AnnotationAssertion => some .Annotation
@@ -69,8 +70,8 @@ def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .FunctionalDataProperty => some .Unsupported
   | .Keyword .DatatypeDefinition => some .Unsupported
   | .Keyword .HasKey => some .Unsupported
-  | .Keyword .SameIndividual => some .Unsupported
-  | .Keyword .DifferentIndividuals => some .Unsupported
+  | .Keyword .SameIndividual => some .Assertion
+  | .Keyword .DifferentIndividuals => some .Assertion
   | .Keyword .ClassAssertion => some .Assertion
   | .Keyword .ObjectPropertyAssertion => some .Assertion
   | .Keyword .NegativeObjectPropertyAssertion => some .Assertion

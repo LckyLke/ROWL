@@ -1,24 +1,29 @@
 import Rowl.FunctionalHeaderIdentity
+import Rowl.FunctionalIndividuals
 
 /-!
-Functional Syntax class expressions of the reasoner's ALC fragment, proved
-total and exact against an independent recursive grammar: named classes,
-intersections, unions, complements, existential and universal restrictions, and
-object property expressions. Every result and first error has its independent
-derivation, and every derivation is the actual result.
+Functional Syntax class expressions of the reasoner's fragment, proved total
+and exact against an independent recursive grammar: named classes,
+intersections, unions, complements, enumerations of individuals, existential
+and universal restrictions, individual value restrictions, and object property
+expressions, with individuals read by the independent individual grammar. Every
+result and first error has its independent derivation, and every derivation is
+the actual result.
 -/
 namespace Rowl.FunctionalClasses
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open RowlRust.functional_classes
 open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_individuals (IndividualError SourceIndividual)
 open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalHeaderIdentity (Kind iri_kind_total_correct)
 open Rowl.FunctionalLexer (TokenCount)
+open Rowl.FunctionalIndividuals (IndividualRun ListRun)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
-/-- The class-expression keywords: the five supported connectives, the twelve
+/-- The class-expression keywords: the seven supported connectives, the ten
     forms read by later stages, and every other terminal. -/
 def KeywordOf : Terminal → ClassKeyword
   | .Keyword .ObjectIntersectionOf => .Connective (.Junction true)
@@ -26,8 +31,8 @@ def KeywordOf : Terminal → ClassKeyword
   | .Keyword .ObjectComplementOf => .Connective .Complement
   | .Keyword .ObjectSomeValuesFrom => .Connective (.Restriction true)
   | .Keyword .ObjectAllValuesFrom => .Connective (.Restriction false)
-  | .Keyword .ObjectOneOf => .Unsupported
-  | .Keyword .ObjectHasValue => .Unsupported
+  | .Keyword .ObjectOneOf => .Connective .OneOf
+  | .Keyword .ObjectHasValue => .Connective .HasValue
   | .Keyword .ObjectHasSelf => .Unsupported
   | .Keyword .ObjectMinCardinality => .Unsupported
   | .Keyword .ObjectMaxCardinality => .Unsupported
@@ -360,7 +365,9 @@ inductive ClassRun (rows : List prefixes.Declaration) (source : List U8) (eof : 
 /-- Independent connective bodies after `(`. Intersections and unions read the
     maximal member sequence, then require two members, then `)`. Complements read
     one operand and `)`. Restrictions read an object property expression, the
-    filler and `)`. -/
+    filler and `)`. Enumerations read an individual list of at least one member
+    and `)`; value restrictions read an object property expression, one
+    individual and `)`. -/
 inductive ConnectiveRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (count limit : Nat) :
     Nat → Token → ClassForm → Tokens → core.result.Result (SourceClass × Tokens) ClassError → Prop
   | membersError {depth : Nat} {keyword : Token} {conjunctive : Bool} {tokens : Tokens} {error : ClassError}
@@ -418,6 +425,40 @@ inductive ConnectiveRun (rows : List prefixes.Declaration) (source : List U8) (e
       ConnectiveRun rows source eof count limit depth keyword (.Restriction existential) tokens
         (.Ok (if existential then .SomeValuesFrom keyword property filler
           else .AllValuesFrom keyword property filler,remaining))
+  | oneOfError {depth : Nat} {keyword : Token} {tokens : Tokens} {error : IndividualError}
+      (list : ListRun rows source eof 1 count limit tokens (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .OneOf tokens (.Err (.Individual error))
+  | oneOfCloseError {depth : Nat} {keyword : Token} {tokens rest : Tokens}
+      {members : alloc.vec.Vec SourceIndividual} {error : ClassError}
+      (list : ListRun rows source eof 1 count limit tokens (.Ok (members,rest)))
+      (failure : TakeRun eof .Close rest (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .OneOf tokens (.Err error)
+  | oneOf {depth : Nat} {keyword close : Token} {tokens rest remaining : Tokens}
+      {members : alloc.vec.Vec SourceIndividual}
+      (list : ListRun rows source eof 1 count limit tokens (.Ok (members,rest)))
+      (closing : TakeRun eof .Close rest (.Ok (close,remaining))) :
+      ConnectiveRun rows source eof count limit depth keyword .OneOf tokens (.Ok (.OneOf keyword members,remaining))
+  | valuePropertyError {depth : Nat} {keyword : Token} {tokens : Tokens} {error : ClassError}
+      (property : PropertyRun rows source eof limit tokens (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .HasValue tokens (.Err error)
+  | valueError {depth : Nat} {keyword : Token} {tokens rest : Tokens} {property : SourceObjectProperty}
+      {error : IndividualError}
+      (propertyRun : PropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (failure : IndividualRun rows source eof limit rest (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .HasValue tokens (.Err (.Individual error))
+  | valueCloseError {depth : Nat} {keyword : Token} {tokens rest after : Tokens} {property : SourceObjectProperty}
+      {individual : SourceIndividual} {error : ClassError}
+      (propertyRun : PropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (valueRun : IndividualRun rows source eof limit rest (.Ok (individual,after)))
+      (failure : TakeRun eof .Close after (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .HasValue tokens (.Err error)
+  | hasValue {depth : Nat} {keyword close : Token} {tokens rest after remaining : Tokens}
+      {property : SourceObjectProperty} {individual : SourceIndividual}
+      (propertyRun : PropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (valueRun : IndividualRun rows source eof limit rest (.Ok (individual,after)))
+      (closing : TakeRun eof .Close after (.Ok (close,remaining))) :
+      ConnectiveRun rows source eof count limit depth keyword .HasValue tokens
+        (.Ok (.HasValue keyword property individual,remaining))
 /-- Independent maximal member sequence: it stops before `)` or at the end;
     otherwise the member count is checked, then one class expression is read and
     appended in source order. -/
@@ -611,6 +652,64 @@ theorem read_connective_total_correct (table : prefixes.PrefixTable) (bytes : al
             cases same
             try simp only [TokenCount] at *
             omega
+  | OneOf =>
+    obtain ⟨list,listRead,listCorrect,listProgress⟩ :=
+      Rowl.FunctionalIndividuals.read_individual_list_total_correct table bytes tokens 1#usize limits.count limits.iri
+    have one : (1#usize).val = 1 := rfl
+    rw [one] at listCorrect
+    cases list with
+    | Err error =>
+      exact ⟨.Err (.Individual error),by simp [listRead],.oneOfError listCorrect,
+        by intro value rest impossible; cases impossible⟩
+    | Ok pair =>
+      obtain ⟨members,rest⟩ := pair
+      obtain ⟨closed,closeRead,closeCorrect⟩ := take_expected_total_correct rest .Close bytes.len
+      cases closed with
+      | Err error =>
+        exact ⟨.Err error,by simp [listRead,closeRead],.oneOfCloseError listCorrect closeCorrect,
+          by intro value rest impossible; cases impossible⟩
+      | Ok pair =>
+        obtain ⟨close,remaining⟩ := pair
+        refine ⟨.Ok (.OneOf keyword members,remaining),by simp [listRead,closeRead],
+          .oneOf listCorrect closeCorrect,?_⟩
+        intro value rest' same
+        have scanned := listProgress members rest rfl
+        have closed := take_progress closeCorrect
+        cases same
+        omega
+  | HasValue =>
+    obtain ⟨property,propertyRead,propertyCorrect⟩ :=
+      read_object_property_total_correct table bytes tokens limits.iri
+    cases property with
+    | Err error =>
+      exact ⟨.Err error,by simp [propertyRead],.valuePropertyError propertyCorrect,
+        by intro value rest impossible; cases impossible⟩
+    | Ok pair =>
+      obtain ⟨property,rest⟩ := pair
+      have propertyStep := property_progress propertyCorrect
+      obtain ⟨individual,individualRead,individualCorrect⟩ :=
+        Rowl.FunctionalIndividuals.read_individual_total_correct table bytes rest limits.iri
+      cases individual with
+      | Err error =>
+        exact ⟨.Err (.Individual error),by simp [propertyRead,individualRead],
+          .valueError propertyCorrect individualCorrect,by intro value rest impossible; cases impossible⟩
+      | Ok pair =>
+        obtain ⟨individual,after⟩ := pair
+        have individualStep := Rowl.FunctionalIndividuals.individual_progress individualCorrect
+        obtain ⟨closed,closeRead,closeCorrect⟩ := take_expected_total_correct after .Close bytes.len
+        cases closed with
+        | Err error =>
+          exact ⟨.Err error,by simp [propertyRead,individualRead,closeRead],
+            .valueCloseError propertyCorrect individualCorrect closeCorrect,
+            by intro value rest impossible; cases impossible⟩
+        | Ok pair =>
+          obtain ⟨close,remaining⟩ := pair
+          refine ⟨.Ok (.HasValue keyword property individual,remaining),
+            by simp [propertyRead,individualRead,closeRead],.hasValue propertyCorrect individualCorrect closeCorrect,?_⟩
+          intro value rest' same
+          have closed := take_progress closeCorrect
+          cases same
+          omega
 termination_by (TokenCount tokens,2)
 decreasing_by
   all_goals
@@ -778,6 +877,38 @@ theorem connective_execution (table : prefixes.PrefixTable) (bytes : alloc.vec.V
     cases ‹Bool› <;>
       simp [(read_object_property_result_iff table bytes _ limits.iri _).mpr propertyRun,fillerRead,
         (take_expected_result_iff _ .Close bytes.len _).mpr closing]
+  | oneOfError list =>
+    have listRead :=
+      (Rowl.FunctionalIndividuals.read_individual_list_result_iff table bytes _ 1#usize limits.count limits.iri _).mpr list
+    rw [read_connective.eq_def]
+    simp [listRead]
+  | oneOfCloseError list failure =>
+    have listRead :=
+      (Rowl.FunctionalIndividuals.read_individual_list_result_iff table bytes _ 1#usize limits.count limits.iri _).mpr list
+    rw [read_connective.eq_def]
+    simp [listRead,(take_expected_result_iff _ .Close bytes.len _).mpr failure]
+  | oneOf list closing =>
+    have listRead :=
+      (Rowl.FunctionalIndividuals.read_individual_list_result_iff table bytes _ 1#usize limits.count limits.iri _).mpr list
+    rw [read_connective.eq_def]
+    simp [listRead,(take_expected_result_iff _ .Close bytes.len _).mpr closing]
+  | valuePropertyError property =>
+    rw [read_connective.eq_def]
+    simp [(read_object_property_result_iff table bytes _ limits.iri _).mpr property]
+  | valueError propertyRun failure =>
+    rw [read_connective.eq_def]
+    simp [(read_object_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalIndividuals.read_individual_result_iff table bytes _ limits.iri _).mpr failure]
+  | valueCloseError propertyRun valueRun failure =>
+    rw [read_connective.eq_def]
+    simp [(read_object_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalIndividuals.read_individual_result_iff table bytes _ limits.iri _).mpr valueRun,
+      (take_expected_result_iff _ .Close bytes.len _).mpr failure]
+  | hasValue propertyRun valueRun closing =>
+    rw [read_connective.eq_def]
+    simp [(read_object_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalIndividuals.read_individual_result_iff table bytes _ limits.iri _).mpr valueRun,
+      (take_expected_result_iff _ .Close bytes.len _).mpr closing]
 termination_by (TokenCount tokens,2)
 decreasing_by
   all_goals

@@ -78,6 +78,8 @@ fn class(class: &SourceClass) -> String {
         SourceClass::AllValuesFrom {
             property, filler, ..
         } => format!("all({},{})", self::property(property), self::class(filler)),
+        SourceClass::OneOf { members, .. } => format!("one[{}]", members.len()),
+        SourceClass::HasValue { property, .. } => format!("value({})", self::property(property)),
     }
 }
 fn list(members: &[SourceClass]) -> String {

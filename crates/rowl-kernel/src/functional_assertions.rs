@@ -1,11 +1,10 @@
 //! Functional Syntax assertions about individuals, with their axiom annotations.
 //!
-//! Reads `ClassAssertion`, `ObjectPropertyAssertion` and
-//! `NegativeObjectPropertyAssertion` at a caller-supplied axiom position, using
-//! the proved annotation, class-expression and object-property readers. An
-//! individual is a named individual's IRI, resolved through the checked prefix
-//! table, or a node ID with its exact label. The other assertion forms remain
-//! separate stages.
+//! Reads `SameIndividual`, `DifferentIndividuals`, `ClassAssertion`,
+//! `ObjectPropertyAssertion` and `NegativeObjectPropertyAssertion` at a
+//! caller-supplied axiom position, using the proved annotation,
+//! class-expression, object-property and individual readers. The data property
+//! assertions remain a separate stage.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal, Token};
 use crate::functional_annotations::{
@@ -15,19 +14,17 @@ use crate::functional_classes::{
     read_class_expression, read_object_property, ClassError, ClassLimits, SourceClass,
     SourceObjectProperty,
 };
-use crate::functional_header::HeaderIri;
-use crate::functional_iris::{resolve_span, SourceIriError, SourceIriKind};
+use crate::functional_individuals::{
+    read_individual, read_individual_list, IndividualError, SourceIndividual,
+};
 use crate::functional_lexer::Tokens;
-use crate::functional_names::{read_span, NameError, NameKind};
 use crate::prefixes::PrefixTable;
 
-/// A named individual's IRI or an anonymous individual's node ID. Node labels
-/// exclude `_:`; their scopes are assigned when the document is mapped.
-pub enum SourceIndividual {
-    Named(HeaderIri),
-    Anonymous { token: Token, label: Vec<u8> },
-}
+/// An assertion body. Individual equalities and inequalities keep their
+/// individuals, at least two, in source order.
 pub enum SourceAssertionBody {
+    SameIndividual(Vec<SourceIndividual>),
+    DifferentIndividuals(Vec<SourceIndividual>),
     ClassAssertion {
         class: SourceClass,
         individual: SourceIndividual,
@@ -52,7 +49,6 @@ pub struct SourceAssertion {
 pub enum AssertionExpected {
     Axiom,
     Open,
-    Individual,
     Close,
 }
 pub enum AssertionError {
@@ -62,21 +58,20 @@ pub enum AssertionError {
     },
     Annotation(AnnotationError),
     Class(ClassError),
-    Iri(SourceIriError),
-    Anonymous(NameError),
+    Individual(IndividualError),
 }
 #[derive(Clone, Copy)]
 enum AssertionForm {
+    Same,
+    Different,
     Class,
     Property,
     NegativeProperty,
 }
-enum IndividualKind {
-    Named(SourceIriKind),
-    Anonymous,
-}
 fn assertion_form(terminal: Terminal) -> Option<AssertionForm> {
     match terminal {
+        Terminal::Keyword(Keyword::SameIndividual) => Some(AssertionForm::Same),
+        Terminal::Keyword(Keyword::DifferentIndividuals) => Some(AssertionForm::Different),
         Terminal::Keyword(Keyword::ClassAssertion) => Some(AssertionForm::Class),
         Terminal::Keyword(Keyword::ObjectPropertyAssertion) => Some(AssertionForm::Property),
         Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion) => {
@@ -85,19 +80,10 @@ fn assertion_form(terminal: Terminal) -> Option<AssertionForm> {
         _ => None,
     }
 }
-fn individual_kind(terminal: Terminal) -> Option<IndividualKind> {
-    match terminal {
-        Terminal::FullIri => Some(IndividualKind::Named(SourceIriKind::Full)),
-        Terminal::AbbreviatedIri => Some(IndividualKind::Named(SourceIriKind::Abbreviated)),
-        Terminal::NodeId => Some(IndividualKind::Anonymous),
-        _ => None,
-    }
-}
 fn expected_terminal(expected: AssertionExpected, terminal: Terminal) -> bool {
     match expected {
         AssertionExpected::Axiom => assertion_form(terminal).is_some(),
         AssertionExpected::Open => matches!(terminal, Terminal::Open),
-        AssertionExpected::Individual => individual_kind(terminal).is_some(),
         AssertionExpected::Close => matches!(terminal, Terminal::Close),
     }
 }
@@ -145,39 +131,29 @@ fn read_property(
         Err(error) => Err(AssertionError::Class(error)),
     }
 }
-/// One individual: an IRI resolved through the checked prefix table, or a node
-/// ID with its exact label; both are bounded by `limit`.
-fn read_individual(
+/// One individual, bounded by `limit`, with its errors wrapped.
+fn read_member(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
     tokens: Tokens,
     limit: usize,
 ) -> Result<(SourceIndividual, Tokens), AssertionError> {
-    let (token, remaining) = match take_expected(tokens, AssertionExpected::Individual, bytes.len())
-    {
-        Ok(value) => value,
-        Err(error) => return Err(error),
-    };
-    match individual_kind(token.terminal) {
-        Some(IndividualKind::Named(kind)) => {
-            match resolve_span(table, kind, bytes, token.start, token.end, limit) {
-                Ok(value) => Ok((
-                    SourceIndividual::Named(HeaderIri { token, value }),
-                    remaining,
-                )),
-                Err(error) => Err(AssertionError::Iri(error)),
-            }
-        }
-        Some(IndividualKind::Anonymous) => {
-            match read_span(NameKind::NodeId, bytes, token.start, token.end, limit) {
-                Ok(label) => Ok((SourceIndividual::Anonymous { token, label }, remaining)),
-                Err(error) => Err(AssertionError::Anonymous(error)),
-            }
-        }
-        None => Err(AssertionError::Expected {
-            expected: AssertionExpected::Individual,
-            offset: token.start,
-        }),
+    match read_individual(table, bytes, tokens, limit) {
+        Ok(value) => Ok(value),
+        Err(error) => Err(AssertionError::Individual(error)),
+    }
+}
+/// At least two and at most `count` individuals before `)`, with their errors
+/// wrapped.
+fn read_members(
+    table: &PrefixTable<'_>,
+    bytes: &Vec<u8>,
+    tokens: Tokens,
+    limits: &ClassLimits,
+) -> Result<(Vec<SourceIndividual>, Tokens), AssertionError> {
+    match read_individual_list(table, bytes, tokens, 2, limits.count, limits.iri) {
+        Ok(value) => Ok(value),
+        Err(error) => Err(AssertionError::Individual(error)),
     }
 }
 /// An object property expression and its source and target individuals.
@@ -197,11 +173,11 @@ fn read_edge(
         Ok(value) => value,
         Err(error) => return Err(error),
     };
-    let (source, tokens) = match read_individual(table, bytes, tokens, limits.iri) {
+    let (source, tokens) = match read_member(table, bytes, tokens, limits.iri) {
         Ok(value) => value,
         Err(error) => return Err(error),
     };
-    match read_individual(table, bytes, tokens, limits.iri) {
+    match read_member(table, bytes, tokens, limits.iri) {
         Ok((target, remaining)) => Ok(((property, source, target), remaining)),
         Err(error) => Err(error),
     }
@@ -214,12 +190,25 @@ fn read_body(
     limits: &ClassLimits,
 ) -> Result<(SourceAssertionBody, Tokens), AssertionError> {
     match form {
+        AssertionForm::Same => match read_members(table, bytes, tokens, limits) {
+            Ok((members, remaining)) => {
+                Ok((SourceAssertionBody::SameIndividual(members), remaining))
+            }
+            Err(error) => Err(error),
+        },
+        AssertionForm::Different => match read_members(table, bytes, tokens, limits) {
+            Ok((members, remaining)) => Ok((
+                SourceAssertionBody::DifferentIndividuals(members),
+                remaining,
+            )),
+            Err(error) => Err(error),
+        },
         AssertionForm::Class => {
             let (class, tokens) = match read_class(table, bytes, tokens, limits) {
                 Ok(value) => value,
                 Err(error) => return Err(error),
             };
-            match read_individual(table, bytes, tokens, limits.iri) {
+            match read_member(table, bytes, tokens, limits.iri) {
                 Ok((individual, remaining)) => Ok((
                     SourceAssertionBody::ClassAssertion { class, individual },
                     remaining,
@@ -251,14 +240,17 @@ fn read_body(
         },
     }
 }
-/// Read exactly one assertion: `ClassAssertion( {Annotation} ClassExpression
-/// Individual )`, `ObjectPropertyAssertion( {Annotation} ObjectPropertyExpression
-/// Individual Individual )` or the negative object property assertion of the
-/// same shape. Axiom annotations use the proved annotation reader with
-/// `annotations`; class expressions and object properties use the proved readers
-/// with `classes`, and individuals use its `iri` limit. Errors report the first
-/// failing step in source order with original offsets (EOF errors use the source
-/// length): the keyword, `(`, the annotations, the body in order, then `)`. The
+/// Read exactly one assertion: `SameIndividual( {Annotation} Individual
+/// Individual {Individual} )`, `DifferentIndividuals` of the same shape,
+/// `ClassAssertion( {Annotation} ClassExpression Individual )`,
+/// `ObjectPropertyAssertion( {Annotation} ObjectPropertyExpression Individual
+/// Individual )` or the negative object property assertion of the same shape.
+/// Axiom annotations use the proved annotation reader with `annotations`; class
+/// expressions and object properties use the proved readers with `classes`,
+/// individuals its `iri` limit and individual lists its `count` limit. Errors
+/// report the first failing step in source order with original offsets (EOF
+/// errors use the source length): the keyword, `(`, the annotations, the body in
+/// order (an individual list before its two-member minimum), then `)`. The
 /// unchanged suffix after the assertion is returned.
 pub fn read_assertion(
     table: &PrefixTable<'_>,

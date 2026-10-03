@@ -1,12 +1,12 @@
 use rowl_frontend::functional_annotations::{read_annotations, AnnotationLimits};
 use rowl_frontend::functional_assertions::{
     read_assertion, AssertionError, AssertionExpected, SourceAssertion, SourceAssertionBody,
-    SourceIndividual,
 };
 use rowl_frontend::functional_classes::{
     ClassError, ClassLimits, SourceClass, SourceObjectProperty,
 };
 use rowl_frontend::functional_header::read_header_tail;
+use rowl_frontend::functional_individuals::{IndividualError, SourceIndividual};
 use rowl_frontend::functional_iris::SourceIriError;
 use rowl_frontend::functional_lexer::Tokens;
 use rowl_frontend::functional_prefixes::read_prefix_header;
@@ -93,8 +93,15 @@ fn class(class: &SourceClass) -> String {
         _ => "other".to_string(),
     }
 }
+fn individuals(members: &[SourceIndividual]) -> String {
+    members.iter().map(individual).collect::<Vec<_>>().join(",")
+}
 fn shape(assertion: &SourceAssertion) -> String {
     match &assertion.body {
+        SourceAssertionBody::SameIndividual(members) => format!("same({})", individuals(members)),
+        SourceAssertionBody::DifferentIndividuals(members) => {
+            format!("different({})", individuals(members))
+        }
         SourceAssertionBody::ClassAssertion {
             class: value,
             individual: member,
@@ -142,6 +149,11 @@ fn every_assertion_form_reads_its_individuals_in_order() {
             "NegativeObjectPropertyAssertion(:hasPart :motor1 :pump1))",
             "not hasPart(motor1,pump1)",
         ),
+        ("SameIndividual(:pump1 :p1))", "same(pump1,p1)"),
+        (
+            "DifferentIndividuals(:pump1 _:spare :pump2))",
+            "different(pump1,_:spare,pump2)",
+        ),
     ];
     for (body, expected) in cases {
         assert_eq!(shape(&ready(body)), expected, "{body}");
@@ -166,29 +178,51 @@ fn errors_report_the_first_failing_step() {
     // A missing individual.
     let (bytes, result) = read("ClassAssertion(:Pump))");
     match result {
-        Err(AssertionError::Expected {
-            expected: AssertionExpected::Individual,
-            offset: at,
-        }) => assert_eq!(at, offset(&bytes, "))", 0)),
+        Err(AssertionError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "))", 0))
+        }
         _ => panic!("a missing individual is reported at the closing parenthesis"),
     }
     // A literal where the target individual belongs.
     let (bytes, result) = read("ObjectPropertyAssertion(:hasPart :pump1 \"motor\"))");
     match result {
-        Err(AssertionError::Expected {
-            expected: AssertionExpected::Individual,
-            offset: at,
-        }) => assert_eq!(at, offset(&bytes, "\"motor\"", 0)),
+        Err(AssertionError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "\"motor\"", 0))
+        }
         _ => panic!("a literal is not an individual"),
     }
     // An undeclared prefix in an individual.
     let (_, result) = read("ClassAssertion(:Pump other:pump1))");
     assert!(matches!(
         result,
-        Err(AssertionError::Iri(SourceIriError::UndeclaredPrefix { .. }))
+        Err(AssertionError::Individual(IndividualError::Iri(
+            SourceIriError::UndeclaredPrefix { .. }
+        )))
     ));
+    // An equality needs two individuals and stops before `)`.
+    let (bytes, result) = read("SameIndividual(:pump1))");
+    match result {
+        Err(AssertionError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "))", 0))
+        }
+        _ => panic!("a second individual is expected"),
+    }
+    let (bytes, result) = read("DifferentIndividuals(:a :b :c :d :e :f :g :h :i :j :k))");
+    match result {
+        Err(AssertionError::Individual(IndividualError::CountLimit { offset: at })) => {
+            assert_eq!(at, offset(&bytes, ":k", 0))
+        }
+        _ => panic!("individuals beyond the count are reported"),
+    }
+    let (bytes, result) = read("SameIndividual(:pump1 :Pump(:p)))");
+    match result {
+        Err(AssertionError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "(:p)", 0))
+        }
+        _ => panic!("only individuals belong in the list"),
+    }
     // A class expression error keeps the class stage.
-    let (_, result) = read("ClassAssertion(ObjectOneOf(:a) :pump1))");
+    let (_, result) = read("ClassAssertion(ObjectHasSelf(:p) :pump1))");
     assert!(matches!(
         result,
         Err(AssertionError::Class(ClassError::Unsupported { .. }))

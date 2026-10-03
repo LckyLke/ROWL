@@ -1342,6 +1342,9 @@
         "Rowl.FunctionalModel.identity_correct",
         "Rowl.FunctionalModel.annotation_correct",
         "Rowl.FunctionalModel.annotations_from_correct",
+        "Rowl.FunctionalModel.individuals_from_correct",
+        "Rowl.FunctionalModel.enumeration_correct",
+        "Rowl.FunctionalModel.individual_members_correct",
         "Rowl.FunctionalModel.class_correct",
         "Rowl.FunctionalModel.rest_from_correct",
         "Rowl.FunctionalModel.members_of_correct",
@@ -1395,14 +1398,16 @@
       "namespace": "Rowl.FunctionalAssertions",
       "theorems": [
         "Rowl.FunctionalAssertions.assertion_form_total_correct",
-        "Rowl.FunctionalAssertions.individual_kind_total_correct",
         "Rowl.FunctionalAssertions.expected_terminal_total_correct",
         "Rowl.FunctionalAssertions.take_expected_total_correct",
         "Rowl.FunctionalAssertions.take_expected_result_iff",
         "Rowl.FunctionalAssertions.take_progress",
-        "Rowl.FunctionalAssertions.read_individual_total_correct",
-        "Rowl.FunctionalAssertions.read_individual_result_iff",
-        "Rowl.FunctionalAssertions.individual_progress",
+        "Rowl.FunctionalAssertions.read_member_total_correct",
+        "Rowl.FunctionalAssertions.read_member_result_iff",
+        "Rowl.FunctionalAssertions.member_progress",
+        "Rowl.FunctionalAssertions.read_members_total_correct",
+        "Rowl.FunctionalAssertions.read_members_result_iff",
+        "Rowl.FunctionalAssertions.members_progress",
         "Rowl.FunctionalAssertions.read_class_total_correct",
         "Rowl.FunctionalAssertions.read_class_result_iff",
         "Rowl.FunctionalAssertions.read_property_total_correct",
@@ -2022,6 +2027,24 @@
         "Rowl.ForestModel.model_of_complete",
         "Rowl.ForestModel.satisfiable_correct"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalIndividuals",
+      "namespace": "Rowl.FunctionalIndividuals",
+      "theorems": [
+        "Rowl.FunctionalIndividuals.individual_kind_total_correct",
+        "Rowl.FunctionalIndividuals.closes_total_correct",
+        "Rowl.FunctionalIndividuals.position_total_correct",
+        "Rowl.FunctionalIndividuals.read_individual_total_correct",
+        "Rowl.FunctionalIndividuals.read_individual_result_iff",
+        "Rowl.FunctionalIndividuals.individual_progress",
+        "Rowl.FunctionalIndividuals.read_individuals_total_correct",
+        "Rowl.FunctionalIndividuals.individuals_execution",
+        "Rowl.FunctionalIndividuals.read_individuals_result_iff",
+        "Rowl.FunctionalIndividuals.read_individual_list_total_correct",
+        "Rowl.FunctionalIndividuals.read_individual_list_result_iff",
+        "Rowl.FunctionalIndividuals.list_progress"
+      ]
     }
   ],
   "specifications": [
@@ -2619,10 +2642,8 @@
     "Rowl.SourceReasoning.Read",
     "Rowl.SourceReasoning.SourceOntology",
     "Rowl.FunctionalAssertions.FormOf",
-    "Rowl.FunctionalAssertions.IndividualKindOf",
     "Rowl.FunctionalAssertions.Expected",
     "Rowl.FunctionalAssertions.TakeRun",
-    "Rowl.FunctionalAssertions.IndividualRun",
     "Rowl.FunctionalAssertions.ClassStep",
     "Rowl.FunctionalAssertions.PropertyStep",
     "Rowl.FunctionalAssertions.EdgeRun",
@@ -2847,6 +2868,15 @@
     "Rowl.ForestModel.model",
     "Rowl.ForestModel.Corr",
     "Rowl.ForestModel.place",
-    "Rowl.ShiOntology.Counts"
+    "Rowl.ShiOntology.Counts",
+    "Rowl.FunctionalIndividuals.IndividualKindOf",
+    "Rowl.FunctionalIndividuals.Position",
+    "Rowl.FunctionalIndividuals.IndividualRun",
+    "Rowl.FunctionalIndividuals.IndividualsRun",
+    "Rowl.FunctionalIndividuals.ListRun",
+    "Rowl.FunctionalAssertions.MemberStep",
+    "Rowl.FunctionalAssertions.MembersStep",
+    "Rowl.FunctionalModel.EnumerationModel",
+    "Rowl.FunctionalModel.IndividualMembersModel"
   ]
 }

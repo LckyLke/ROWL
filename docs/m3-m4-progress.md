@@ -3319,3 +3319,38 @@ This block adds 7 public theorems and 1 independent definition. Totals are 1368
 audited theorems, 823 definitions, 426 Rust regressions and 1561 ledger
 obligations.
 
+
+## M3: individual equalities, enumerations and value restrictions
+
+The reader now takes the four forms that name individuals: `SameIndividual`
+and `DifferentIndividuals` as assertions, and `ObjectOneOf` and
+`ObjectHasValue` as class expressions. Individuals have their own proved
+reader (`functional_individuals`): an IRI resolved through the checked prefix
+table or a node ID with its exact label, as before, and individual lists, the
+maximal individual sequence before `)` with the member-count bound checked
+before each further member, followed by the caller's minimum length. An
+equality or inequality needs two individuals and an enumeration one; a shorter
+list expects an individual where it stops. The class-expression and assertion
+readers wrap its errors (`ClassError::Individual`, `AssertionError::Individual`),
+which replaces the assertion reader's own individual errors, and an
+enumeration or a value restriction uses one nesting level like the other
+connectives. FunctionalIndividuals proves the individual grammar exact, and
+FunctionalClasses, FunctionalAssertions and FunctionalDocument extend their
+grammars and proofs; the document loop now sends both equality keywords to the
+assertion reader.
+
+The model mapping carries the anonymous-individual scope into class
+expressions, since enumerations and value restrictions may name node IDs.
+Enumerations map to `ObjectOneOf` with their individuals in order, value
+restrictions to `ObjectHasValue`, and equalities and inequalities to
+`SameIndividual` and `DifferentIndividuals` (EnumerationModel,
+IndividualMembersModel). The independent shape invariants now require one
+individual in each enumeration and two in each equality or inequality, which
+the grammar guarantees, so every read document still maps. The OWL 2 position
+restrictions on anonymous individuals in these forms stay the separate
+`anonymous` check. The reasoner does not answer questions about these forms yet:
+the ontology queries return no answer for them.
+
+This block adds 17 public theorems and 7 independent definitions. Totals are
+1385 audited theorems, 830 definitions, 428 Rust regressions and 1578 ledger
+obligations.

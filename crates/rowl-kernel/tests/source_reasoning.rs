@@ -227,16 +227,67 @@ fn the_model_keeps_every_source_record() {
 }
 
 #[test]
+fn equalities_and_individual_classes_map_with_their_individuals() {
+    let model = ontology(
+        "Prefix(:=<https://example.org/>)\nOntology(\n SameIndividual(:a _:x :c)\n DifferentIndividuals(:a :b)\n SubClassOf(ObjectOneOf(:a _:y) ObjectHasValue(ObjectInverseOf(:p) :b))\n)",
+        b"doc-2",
+    );
+    let name = |individual: &Individual| match individual {
+        Individual::Named(named) => named.iri.spelling.clone(),
+        Individual::Anonymous(node) => {
+            assert_eq!(node.scope, b"doc-2");
+            [b"_:".to_vec(), node.label.clone()].concat()
+        }
+    };
+    assert_eq!(model.axioms.len(), 3);
+    match &model.axioms[0].axiom {
+        Axiom::SameIndividual(members) => {
+            assert_eq!(name(&members.first), b"https://example.org/a");
+            assert_eq!(name(&members.second), b"_:x");
+            assert_eq!(members.rest.len(), 1);
+            assert_eq!(name(&members.rest[0]), b"https://example.org/c");
+        }
+        _ => panic!("the individual equality"),
+    }
+    match &model.axioms[1].axiom {
+        Axiom::DifferentIndividuals(members) => {
+            assert_eq!(name(&members.first), b"https://example.org/a");
+            assert_eq!(name(&members.second), b"https://example.org/b");
+            assert!(members.rest.is_empty());
+        }
+        _ => panic!("the individual inequality"),
+    }
+    match &model.axioms[2].axiom {
+        Axiom::SubClassOf(
+            ClassExpression::ObjectOneOf(members),
+            ClassExpression::ObjectHasValue(ObjectPropertyExpression::Inverse(property), value),
+        ) => {
+            assert_eq!(name(&members.first), b"https://example.org/a");
+            assert_eq!(members.rest.len(), 1);
+            assert_eq!(name(&members.rest[0]), b"_:y");
+            assert_eq!(property.iri.spelling, b"https://example.org/p");
+            assert_eq!(name(value), b"https://example.org/b");
+        }
+        _ => panic!("the enumeration and the value restriction"),
+    }
+}
+
+#[test]
 fn errors_and_unsupported_axioms_give_no_answer() {
     let scope = b"s".to_vec();
     // A document error is the reader's first error.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n HasKey(:A () ())\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(
         source_consistent(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
+    // Individual equalities and enumerations are read but not answered yet.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:a :b)\n ClassAssertion(ObjectOneOf(:a) :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
     // Object property axioms outside the supported role axioms are read but not answered.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ReflexiveObjectProperty(:p)\n)"
         .as_bytes()
@@ -514,9 +565,10 @@ fn one_reading_answers_many_questions() {
         );
     }
     // A document error is the reader's first error, for reading and preparing alike.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SameIndividual(:a :b)\n)"
-        .as_bytes()
-        .to_vec();
+    let bytes =
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n HasKey(:A () ())\n)"
+            .as_bytes()
+            .to_vec();
     assert!(matches!(
         source_ontology(&bytes, &limits(), &scope),
         Err(DocumentError::UnsupportedAxiom { .. })

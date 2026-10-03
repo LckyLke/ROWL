@@ -459,27 +459,31 @@ progress. Full OWL parsing and executable reasoning are still future work.
   section and at least five consumed tokens. With declarations, this covers every
   non-logical axiom; the other logical axioms remain pending.
 - M3 Functional Syntax class expressions and class axioms. The actual readers
-  take one class expression of the reasoner's ALC fragment (named classes,
-  intersections, unions, complements, and existential and universal restrictions
-  on an object property or its `ObjectInverseOf`), or one `SubClassOf`,
-  `EquivalentClasses`, `DisjointClasses`, `DisjointUnion`, `ObjectPropertyDomain`
-  or `ObjectPropertyRange` axiom with its annotations, at a caller-supplied
-  position. The other twelve class-expression forms are reported as unsupported.
+  take one class expression of the reasoner's fragment (named classes,
+  intersections, unions, complements, enumerations of individuals with
+  `ObjectOneOf`, existential and universal restrictions on an object property or
+  its `ObjectInverseOf`, and individual value restrictions with
+  `ObjectHasValue`), or one `SubClassOf`, `EquivalentClasses`,
+  `DisjointClasses`, `DisjointUnion`, `ObjectPropertyDomain` or
+  `ObjectPropertyRange` axiom with its annotations, at a caller-supplied
+  position. Individuals and individual lists have their own proved reader. The
+  other ten class-expression forms are reported as unsupported.
   Nesting depth and member counts have explicit limits. Errors report the first
   failing step in source order with original offsets. The recursive reader is
   proved total by well-founded recursion on the token count, and both readers
   have exact result/error equivalence to an independent grammar. Source
   composition uses the namespace rows parsed from the same bytes. The other
   logical axioms remain pending.
-- M3 Functional Syntax assertions. The actual reader takes one `ClassAssertion`,
-  `ObjectPropertyAssertion` or `NegativeObjectPropertyAssertion` with its axiom
-  annotations at a caller-supplied position. Class and object property
-  expressions reuse the proved readers; an individual is an IRI resolved through
-  the checked prefix table or a node ID with its exact label. Errors report the
-  first failing step in source order with original offsets. Totality and exact
-  result/error equivalence to an independent grammar are proved, and every
-  accepted assertion consumes at least two tokens. `SameIndividual`,
-  `DifferentIndividuals` and the data property assertions remain pending.
+- M3 Functional Syntax assertions. The actual reader takes one `SameIndividual`,
+  `DifferentIndividuals`, `ClassAssertion`, `ObjectPropertyAssertion` or
+  `NegativeObjectPropertyAssertion` with its axiom annotations at a
+  caller-supplied position. Class and object property expressions reuse the
+  proved readers; an individual is an IRI resolved through the checked prefix
+  table or a node ID with its exact label, and an equality or inequality lists
+  at least two. Errors report the first failing step in source order with
+  original offsets. Totality and exact result/error equivalence to an
+  independent grammar are proved, and every accepted assertion consumes at least
+  two tokens. The data property assertions remain pending.
 - M3 Functional Syntax object property axioms. The actual reader takes one of the
   eleven object property axioms with its axiom annotations at a caller-supplied
   position: `SubObjectPropertyOf` (whose sub-property may be an
@@ -508,14 +512,15 @@ progress. Full OWL parsing and executable reasoning are still future work.
   annotations and axioms with their annotations, in source order. IRIs and
   literals keep their exact bytes, node IDs become anonymous individuals of a
   caller-supplied scope, and original tokens are dropped. Assertions keep their
-  class expression or property and their named or anonymous individuals, and
-  object property axioms their properties, chains and member lists. Every
-  mapping is proved total, and every result corresponds to its source records
-  under an independent
-  structural correspondence. The mapping declines only a member list or property
-  chain with fewer than two members. Independent grammar invariants prove that
-  every list and chain in an accepted document has at least two members, so
-  every read document maps.
+  class expression or property and their named or anonymous individuals,
+  enumerations, value restrictions, `SameIndividual` and `DifferentIndividuals`
+  their individuals in source order, and object property axioms their
+  properties, chains and member lists. Every mapping is proved total, and every
+  result corresponds to its source records under an independent structural
+  correspondence. The mapping declines only a member list, property chain or
+  individual list with fewer than two members or an enumeration without
+  members. Independent grammar invariants prove that every such list in an
+  accepted document is long enough, so every read document maps.
   Anonymous scopes across an import closure and the other axiom forms remain
   pending.
 - Reasoner track, first stage: negation normal form for the ALC fragment. The
@@ -740,16 +745,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   for the Direct Semantics. Negative object property assertions next to a
   question that counts, and number restrictions along roles that are not
   simple, get no answer.
-- 1368 audited public theorems and 823 audited semantic definitions. Consistency,
+- 1385 audited public theorems and 830 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQ class, domain and range axioms with number restrictions on simple
   roles, functional and inverse functional object properties, class and object
   property assertions, and inclusions, equivalences, inverses, symmetry and
   transitivity of object property expressions (SHIQ), also directly from
-  Functional Syntax source bytes. No full OWL decision procedure is proved yet. See
+  Functional Syntax source bytes. Documents with individual equalities,
+  inequalities, enumerations and value restrictions are read and mapped into the
+  model, but get no answer yet. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 426 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 428 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -763,7 +770,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1561-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1578-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

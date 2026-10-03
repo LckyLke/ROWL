@@ -117,12 +117,12 @@ fn axioms_keep_their_family_and_order() {
 fn errors_report_the_first_failing_stage() {
     // An axiom form this stage does not read yet.
     let (bytes, result) = read(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n)",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n HasKey(:A () ())\n)",
         10,
     );
     match result {
         Err(DocumentError::UnsupportedAxiom { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "SameIndividual"))
+            assert_eq!(at, offset(&bytes, "HasKey"))
         }
         _ => panic!("the other logical axioms are reported as unsupported"),
     }

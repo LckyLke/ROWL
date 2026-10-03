@@ -5,6 +5,7 @@ use rowl_frontend::functional_classes::{
     SourceClass, SourceObjectProperty,
 };
 use rowl_frontend::functional_header::read_header_tail;
+use rowl_frontend::functional_individuals::{IndividualError, SourceIndividual};
 use rowl_frontend::functional_iris::SourceIriError;
 use rowl_frontend::functional_lexer::Tokens;
 use rowl_frontend::functional_prefixes::read_prefix_header;
@@ -65,6 +66,17 @@ fn property_text(property: &SourceObjectProperty) -> String {
         SourceObjectProperty::Inverse { property, .. } => format!("inv({})", name(&property.value)),
     }
 }
+fn individual_text(individual: &SourceIndividual) -> String {
+    match individual {
+        SourceIndividual::Named(iri) => name(&iri.value),
+        SourceIndividual::Anonymous { label, .. } => {
+            format!(
+                "_:{}",
+                String::from_utf8(label.clone()).expect("labels are UTF-8")
+            )
+        }
+    }
+}
 /// A compact rendering of the parsed tree, for comparing shapes.
 fn text(class: &SourceClass) -> String {
     match class {
@@ -88,6 +100,23 @@ fn text(class: &SourceClass) -> String {
         SourceClass::AllValuesFrom {
             property, filler, ..
         } => format!("all({},{})", property_text(property), text(filler)),
+        SourceClass::OneOf { members, .. } => format!(
+            "one({})",
+            members
+                .iter()
+                .map(individual_text)
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+        SourceClass::HasValue {
+            property,
+            individual,
+            ..
+        } => format!(
+            "value({},{})",
+            property_text(property),
+            individual_text(individual)
+        ),
     }
 }
 fn expected(result: Result<(SourceClass, Tokens), ClassError>) -> (&'static str, usize) {
@@ -150,6 +179,82 @@ fn inverse_properties_and_universal_restrictions() {
     );
     let (class, _) = result.unwrap_or_else(|_| panic!("fixture must be accepted"));
     assert_eq!(text(&class), "all(inv(partOf),all(hasPart,Part))");
+}
+
+#[test]
+fn enumerations_and_individual_values_keep_their_individuals() {
+    let (bytes, result) = read(
+        "ObjectUnionOf(ObjectOneOf(:pump1 _:spare <https://example.org/other#p>) ObjectHasValue(ObjectInverseOf(:hasPart) :motor1))",
+        &limits(5, 10),
+    );
+    let (class, _) = result.unwrap_or_else(|_| panic!("fixture must be accepted"));
+    assert_eq!(
+        text(&class),
+        "or(one(pump1,_:spare,https://example.org/other#p),value(inv(hasPart),motor1))"
+    );
+    match &class {
+        SourceClass::UnionOf { members, .. } => match &members[0] {
+            SourceClass::OneOf { keyword, members } => {
+                assert!(matches!(
+                    keyword.terminal,
+                    Terminal::Keyword(Keyword::ObjectOneOf)
+                ));
+                assert_eq!(keyword.start, offset(&bytes, "ObjectOneOf", 0));
+                assert_eq!(members.len(), 3);
+            }
+            _ => panic!("the first member is an enumeration"),
+        },
+        _ => panic!("the outer expression is a union"),
+    }
+    let (_, result) = read("ObjectOneOf(:pump1)", &limits(1, 10));
+    let (class, _) = result.unwrap_or_else(|_| panic!("one individual suffices"));
+    assert_eq!(text(&class), "one(pump1)");
+    // An empty enumeration expects an individual where it stops.
+    let (bytes, result) = read("ObjectOneOf()", &limits(5, 10));
+    match result {
+        Err(ClassError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, ")", 1))
+        }
+        _ => panic!("an enumeration needs an individual"),
+    }
+    // A class where the individual value belongs.
+    let (bytes, result) = read("ObjectHasValue(:hasPart :Motor :extra)", &limits(5, 10));
+    match result {
+        Err(ClassError::Expected {
+            expected: ClassExpected::Close,
+            offset: at,
+        }) => assert_eq!(at, offset(&bytes, ":extra", 0)),
+        _ => panic!("one individual value is followed by `)`"),
+    }
+    let (bytes, result) = read("ObjectHasValue(:hasPart \"motor\")", &limits(5, 10));
+    match result {
+        Err(ClassError::Individual(IndividualError::Expected { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "\"motor\"", 0))
+        }
+        _ => panic!("a literal is not an individual"),
+    }
+    let (bytes, result) = read("ObjectOneOf(:a undeclared:b)", &limits(5, 10));
+    match result {
+        Err(ClassError::Individual(IndividualError::Iri(SourceIriError::UndeclaredPrefix {
+            offset: at,
+        }))) => assert_eq!(at, offset(&bytes, "undeclared:b", 0)),
+        _ => panic!("undeclared prefixes in individuals are reported with their offset"),
+    }
+    // Enumerations share the member count and the nesting allowance.
+    let (bytes, result) = read("ObjectOneOf(:a :b :c)", &limits(5, 2));
+    match result {
+        Err(ClassError::Individual(IndividualError::CountLimit { offset: at })) => {
+            assert_eq!(at, offset(&bytes, ":c", 0))
+        }
+        _ => panic!("individuals beyond the count are reported"),
+    }
+    let (bytes, result) = read("ObjectHasValue(:p :a)", &limits(0, 10));
+    match result {
+        Err(ClassError::DepthLimit { offset: at }) => {
+            assert_eq!(at, offset(&bytes, "ObjectHasValue", 0))
+        }
+        _ => panic!("value restrictions use one nesting level"),
+    }
 }
 
 #[test]

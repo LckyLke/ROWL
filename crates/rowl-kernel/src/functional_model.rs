@@ -3,17 +3,18 @@
 //! Every source record maps to the structural model with its exact IRI and
 //! literal bytes; node IDs become anonymous individuals in the caller's scope,
 //! and original tokens are dropped. The mapping fails only on a member list
-//! with fewer than two members, which the proved document reader never
-//! produces.
+//! with fewer than two members or an empty enumeration, which the proved
+//! document reader never produces.
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::manual_map)] // Explicit branches for the pinned extraction subset.
 use crate::functional_annotation_axioms::{SourceAnnotationAxiomBody, SourceAnnotationSubject};
 use crate::functional_annotations::{SourceAnnotation, SourceAnnotationValue};
-use crate::functional_assertions::{SourceAssertionBody, SourceIndividual};
+use crate::functional_assertions::SourceAssertionBody;
 use crate::functional_class_axioms::SourceClassAxiomBody;
 use crate::functional_classes::{SourceClass, SourceObjectProperty};
 use crate::functional_declarations::{SourceEntity, SourceEntityKind};
 use crate::functional_document::{SourceAxiom, SourceDocument};
 use crate::functional_header::{HeaderIri, ImportReference, SourceOntologyIdentity};
+use crate::functional_individuals::SourceIndividual;
 use crate::functional_literals::SourceLiteral;
 use crate::functional_property_axioms::{
     PropertyCharacteristic, SourcePropertyAxiomBody, SourceSubProperty,
@@ -21,7 +22,7 @@ use crate::functional_property_axioms::{
 use crate::model::{
     AnnotatedAxiom, Annotation, AnnotationProperty, AnnotationSubject, AnnotationValue,
     AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, Datatype, Entity,
-    Individual, Iri, Literal, NamedIndividual, ObjectProperty, ObjectPropertyExpression,
+    Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty, ObjectPropertyExpression,
     OntologyIdentity, RawOntology, SubObjectPropertyExpression,
 };
 
@@ -98,24 +99,73 @@ fn property(source: &SourceObjectProperty) -> ObjectPropertyExpression {
         }
     }
 }
-fn class(source: &SourceClass) -> Option<ClassExpression> {
+fn individual(source: &SourceIndividual, scope: &Vec<u8>) -> Individual {
+    match source {
+        SourceIndividual::Named(name) => Individual::Named(NamedIndividual { iri: iri(name) }),
+        SourceIndividual::Anonymous { label, .. } => Individual::Anonymous(anonymous(label, scope)),
+    }
+}
+/// The model of `values[index..]` after `out`.
+fn individuals_from(
+    values: &Vec<SourceIndividual>,
+    index: usize,
+    mut out: Vec<Individual>,
+    scope: &Vec<u8>,
+) -> Vec<Individual> {
+    if index < values.len() && out.len() < values.len() {
+        out.push(individual(&values[index], scope));
+        individuals_from(values, index + 1, out, scope)
+    } else {
+        out
+    }
+}
+/// An enumeration of at least one individual.
+#[allow(clippy::len_zero)] // Vec::is_empty lacks a model in the pinned extraction.
+fn enumeration(values: &Vec<SourceIndividual>, scope: &Vec<u8>) -> Option<NonEmpty<Individual>> {
+    if values.len() < 1 {
+        return None;
+    }
+    Some(NonEmpty {
+        first: individual(&values[0], scope),
+        rest: individuals_from(values, 1, Vec::new(), scope),
+    })
+}
+/// A member list of at least two individuals.
+fn individual_members(
+    values: &Vec<SourceIndividual>,
+    scope: &Vec<u8>,
+) -> Option<AtLeastTwo<Individual>> {
+    if values.len() < 2 {
+        return None;
+    }
+    Some(AtLeastTwo {
+        first: individual(&values[0], scope),
+        second: individual(&values[1], scope),
+        rest: individuals_from(values, 2, Vec::new(), scope),
+    })
+}
+fn class(source: &SourceClass, scope: &Vec<u8>) -> Option<ClassExpression> {
     match source {
         SourceClass::Named(name) => Some(ClassExpression::Class(Class { iri: iri(name) })),
-        SourceClass::IntersectionOf { members, .. } => match members_of(members) {
+        SourceClass::IntersectionOf { members, .. } => match members_of(members, scope) {
             Some(members) => Some(ClassExpression::ObjectIntersectionOf(Box::new(members))),
             None => None,
         },
-        SourceClass::UnionOf { members, .. } => match members_of(members) {
+        SourceClass::UnionOf { members, .. } => match members_of(members, scope) {
             Some(members) => Some(ClassExpression::ObjectUnionOf(Box::new(members))),
             None => None,
         },
-        SourceClass::ComplementOf { operand, .. } => match class(operand) {
+        SourceClass::ComplementOf { operand, .. } => match class(operand, scope) {
             Some(operand) => Some(ClassExpression::ObjectComplementOf(Box::new(operand))),
+            None => None,
+        },
+        SourceClass::OneOf { members, .. } => match enumeration(members, scope) {
+            Some(members) => Some(ClassExpression::ObjectOneOf(members)),
             None => None,
         },
         SourceClass::SomeValuesFrom {
             property, filler, ..
-        } => match class(filler) {
+        } => match class(filler, scope) {
             Some(filler) => Some(ClassExpression::ObjectSomeValuesFrom(
                 self::property(property),
                 Box::new(filler),
@@ -124,25 +174,34 @@ fn class(source: &SourceClass) -> Option<ClassExpression> {
         },
         SourceClass::AllValuesFrom {
             property, filler, ..
-        } => match class(filler) {
+        } => match class(filler, scope) {
             Some(filler) => Some(ClassExpression::ObjectAllValuesFrom(
                 self::property(property),
                 Box::new(filler),
             )),
             None => None,
         },
+        SourceClass::HasValue {
+            property,
+            individual: value,
+            ..
+        } => Some(ClassExpression::ObjectHasValue(
+            self::property(property),
+            individual(value, scope),
+        )),
     }
 }
 fn rest_from(
     values: &Vec<SourceClass>,
     index: usize,
     mut out: Vec<ClassExpression>,
+    scope: &Vec<u8>,
 ) -> Option<Vec<ClassExpression>> {
     if index < values.len() {
-        match class(&values[index]) {
+        match class(&values[index], scope) {
             Some(value) => {
                 out.push(value);
-                rest_from(values, index + 1, out)
+                rest_from(values, index + 1, out, scope)
             }
             None => None,
         }
@@ -150,19 +209,19 @@ fn rest_from(
         Some(out)
     }
 }
-fn members_of(values: &Vec<SourceClass>) -> Option<AtLeastTwo<ClassExpression>> {
+fn members_of(values: &Vec<SourceClass>, scope: &Vec<u8>) -> Option<AtLeastTwo<ClassExpression>> {
     if values.len() < 2 {
         return None;
     }
-    let first = match class(&values[0]) {
+    let first = match class(&values[0], scope) {
         Some(first) => first,
         None => return None,
     };
-    let second = match class(&values[1]) {
+    let second = match class(&values[1], scope) {
         Some(second) => second,
         None => return None,
     };
-    match rest_from(values, 2, Vec::new()) {
+    match rest_from(values, 2, Vec::new(), scope) {
         Some(rest) => Some(AtLeastTwo {
             first,
             second,
@@ -222,44 +281,48 @@ fn annotation_axiom(source: &SourceAnnotationAxiomBody, scope: &Vec<u8>) -> Axio
         }
     }
 }
-fn class_axiom(source: &SourceClassAxiomBody) -> Option<Axiom> {
+fn class_axiom(source: &SourceClassAxiomBody, scope: &Vec<u8>) -> Option<Axiom> {
     match source {
         SourceClassAxiomBody::SubClassOf { sub, sup } => {
-            let sub = match class(sub) {
+            let sub = match class(sub, scope) {
                 Some(sub) => sub,
                 None => return None,
             };
-            match class(sup) {
+            match class(sup, scope) {
                 Some(sup) => Some(Axiom::SubClassOf(sub, sup)),
                 None => None,
             }
         }
-        SourceClassAxiomBody::EquivalentClasses(members) => match members_of(members) {
+        SourceClassAxiomBody::EquivalentClasses(members) => match members_of(members, scope) {
             Some(members) => Some(Axiom::EquivalentClasses(members)),
             None => None,
         },
-        SourceClassAxiomBody::DisjointClasses(members) => match members_of(members) {
+        SourceClassAxiomBody::DisjointClasses(members) => match members_of(members, scope) {
             Some(members) => Some(Axiom::DisjointClasses(members)),
             None => None,
         },
         SourceClassAxiomBody::DisjointUnion {
             class: name,
             members,
-        } => match members_of(members) {
+        } => match members_of(members, scope) {
             Some(members) => Some(Axiom::DisjointUnion(Class { iri: iri(name) }, members)),
             None => None,
         },
-        SourceClassAxiomBody::ObjectPropertyDomain { property, domain } => match class(domain) {
-            Some(domain) => Some(Axiom::ObjectPropertyDomain(
-                self::property(property),
-                domain,
-            )),
-            None => None,
-        },
-        SourceClassAxiomBody::ObjectPropertyRange { property, range } => match class(range) {
-            Some(range) => Some(Axiom::ObjectPropertyRange(self::property(property), range)),
-            None => None,
-        },
+        SourceClassAxiomBody::ObjectPropertyDomain { property, domain } => {
+            match class(domain, scope) {
+                Some(domain) => Some(Axiom::ObjectPropertyDomain(
+                    self::property(property),
+                    domain,
+                )),
+                None => None,
+            }
+        }
+        SourceClassAxiomBody::ObjectPropertyRange { property, range } => {
+            match class(range, scope) {
+                Some(range) => Some(Axiom::ObjectPropertyRange(self::property(property), range)),
+                None => None,
+            }
+        }
     }
 }
 /// The model of `values[index..]` after `out`.
@@ -340,18 +403,22 @@ fn property_axiom(source: &SourcePropertyAxiomBody) -> Option<Axiom> {
         } => Some(characteristic_axiom(*characteristic, property(value))),
     }
 }
-fn individual(source: &SourceIndividual, scope: &Vec<u8>) -> Individual {
-    match source {
-        SourceIndividual::Named(name) => Individual::Named(NamedIndividual { iri: iri(name) }),
-        SourceIndividual::Anonymous { label, .. } => Individual::Anonymous(anonymous(label, scope)),
-    }
-}
 fn assertion(source: &SourceAssertionBody, scope: &Vec<u8>) -> Option<Axiom> {
     match source {
+        SourceAssertionBody::SameIndividual(members) => match individual_members(members, scope) {
+            Some(members) => Some(Axiom::SameIndividual(members)),
+            None => None,
+        },
+        SourceAssertionBody::DifferentIndividuals(members) => {
+            match individual_members(members, scope) {
+                Some(members) => Some(Axiom::DifferentIndividuals(members)),
+                None => None,
+            }
+        }
         SourceAssertionBody::ClassAssertion {
             class: expression,
             individual: member,
-        } => match class(expression) {
+        } => match class(expression, scope) {
             Some(expression) => Some(Axiom::ClassAssertion(expression, individual(member, scope))),
             None => None,
         },
@@ -385,7 +452,7 @@ fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
             annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
             axiom: annotation_axiom(&record.body, scope),
         }),
-        SourceAxiom::Class(record) => match class_axiom(&record.body) {
+        SourceAxiom::Class(record) => match class_axiom(&record.body, scope) {
             Some(axiom) => Some(AnnotatedAxiom {
                 annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
                 axiom,

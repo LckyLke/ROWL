@@ -16,6 +16,7 @@ pub use rowl_kernel::functional_classes;
 pub use rowl_kernel::functional_declarations;
 pub use rowl_kernel::functional_document;
 pub use rowl_kernel::functional_header;
+pub use rowl_kernel::functional_individuals;
 pub use rowl_kernel::functional_iris;
 pub use rowl_kernel::functional_lexer;
 pub use rowl_kernel::functional_literals;

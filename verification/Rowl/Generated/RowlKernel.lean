@@ -22048,21 +22048,21 @@ def functional_annotations.AnnotationExpected.Insts.CoreMarkerCopy :
   cloneInst := functional_annotations.AnnotationExpected.Insts.CoreCloneClone
 }
 
-/-- [rowl_kernel::functional_assertions::SourceIndividual]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 26:0-29:1
+/-- [rowl_kernel::functional_individuals::SourceIndividual]
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 18:0-21:1
     Visibility: public -/
 @[discriminant isize]
-inductive functional_assertions.SourceIndividual where
+inductive functional_individuals.SourceIndividual where
 | Named :
   functional_header.HeaderIri →
-  functional_assertions.SourceIndividual
+  functional_individuals.SourceIndividual
 | Anonymous :
   functional.Token →
   alloc.vec.Vec Std.U8 →
-  functional_assertions.SourceIndividual
+  functional_individuals.SourceIndividual
 
 /-- [rowl_kernel::functional_classes::SourceObjectProperty]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 17:0-20:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 22:0-25:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_classes.SourceObjectProperty where
@@ -22075,7 +22075,7 @@ inductive functional_classes.SourceObjectProperty where
   functional_classes.SourceObjectProperty
 
 /-- [rowl_kernel::functional_classes::SourceClass]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 23:0-47:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 29:0-62:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_classes.SourceClass where
@@ -22102,29 +22102,44 @@ inductive functional_classes.SourceClass where
   functional_classes.SourceObjectProperty →
   functional_classes.SourceClass →
   functional_classes.SourceClass
+| OneOf :
+  functional.Token →
+  alloc.vec.Vec functional_individuals.SourceIndividual →
+  functional_classes.SourceClass
+| HasValue :
+  functional.Token →
+  functional_classes.SourceObjectProperty →
+  functional_individuals.SourceIndividual →
+  functional_classes.SourceClass
 
 /-- [rowl_kernel::functional_assertions::SourceAssertionBody]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 30:0-45:1
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 25:0-42:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_assertions.SourceAssertionBody where
+| SameIndividual :
+  alloc.vec.Vec functional_individuals.SourceIndividual →
+  functional_assertions.SourceAssertionBody
+| DifferentIndividuals :
+  alloc.vec.Vec functional_individuals.SourceIndividual →
+  functional_assertions.SourceAssertionBody
 | ClassAssertion :
   functional_classes.SourceClass →
-  functional_assertions.SourceIndividual →
+  functional_individuals.SourceIndividual →
   functional_assertions.SourceAssertionBody
 | ObjectPropertyAssertion :
   functional_classes.SourceObjectProperty →
-  functional_assertions.SourceIndividual →
-  functional_assertions.SourceIndividual →
+  functional_individuals.SourceIndividual →
+  functional_individuals.SourceIndividual →
   functional_assertions.SourceAssertionBody
 | NegativeObjectPropertyAssertion :
   functional_classes.SourceObjectProperty →
-  functional_assertions.SourceIndividual →
-  functional_assertions.SourceIndividual →
+  functional_individuals.SourceIndividual →
+  functional_individuals.SourceIndividual →
   functional_assertions.SourceAssertionBody
 
 /-- [rowl_kernel::functional_assertions::SourceAssertion]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 46:0-50:1
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 43:0-47:1
     Visibility: public -/
 structure functional_assertions.SourceAssertion where
   keyword : functional.Token
@@ -22132,17 +22147,16 @@ structure functional_assertions.SourceAssertion where
   body : functional_assertions.SourceAssertionBody
 
 /-- [rowl_kernel::functional_assertions::AssertionExpected]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 52:0-57:1
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 49:0-53:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_assertions.AssertionExpected where
 | Axiom : functional_assertions.AssertionExpected
 | Open : functional_assertions.AssertionExpected
-| Individual : functional_assertions.AssertionExpected
 | Close : functional_assertions.AssertionExpected
 
 /-- [rowl_kernel::functional_assertions::{impl core::clone::Clone for rowl_kernel::functional_assertions::AssertionExpected}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 51:9-51:14
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 48:9-48:14
     Visibility: public -/
 def functional_assertions.AssertionExpected.Insts.CoreCloneClone.clone
   (self : functional_assertions.AssertionExpected) :
@@ -22151,7 +22165,7 @@ def functional_assertions.AssertionExpected.Insts.CoreCloneClone.clone
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional_assertions::{impl core::clone::Clone for rowl_kernel::functional_assertions::AssertionExpected}]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 51:9-51:14 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 48:9-48:14 -/
 @[reducible]
 def functional_assertions.AssertionExpected.Insts.CoreCloneClone :
   core.clone.Clone functional_assertions.AssertionExpected := {
@@ -22159,15 +22173,29 @@ def functional_assertions.AssertionExpected.Insts.CoreCloneClone :
 }
 
 /-- Trait implementation: [rowl_kernel::functional_assertions::{impl core::marker::Copy for rowl_kernel::functional_assertions::AssertionExpected}]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 51:16-51:20 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 48:16-48:20 -/
 @[reducible]
 def functional_assertions.AssertionExpected.Insts.CoreMarkerCopy :
   core.marker.Copy functional_assertions.AssertionExpected := {
   cloneInst := functional_assertions.AssertionExpected.Insts.CoreCloneClone
 }
 
+/-- [rowl_kernel::functional_individuals::IndividualError]
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 22:0-34:1
+    Visibility: public -/
+@[discriminant isize]
+inductive functional_individuals.IndividualError where
+| Expected : Std.Usize → functional_individuals.IndividualError
+| Iri :
+  functional_iris.SourceIriError →
+  functional_individuals.IndividualError
+| Anonymous :
+  functional_names.NameError →
+  functional_individuals.IndividualError
+| CountLimit : Std.Usize → functional_individuals.IndividualError
+
 /-- [rowl_kernel::functional_classes::ClassExpected]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 57:0-63:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 73:0-79:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_classes.ClassExpected where
@@ -22178,7 +22206,7 @@ inductive functional_classes.ClassExpected where
 | Close : functional_classes.ClassExpected
 
 /-- [rowl_kernel::functional_classes::ClassError]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 64:0-80:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 80:0-97:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_classes.ClassError where
@@ -22187,12 +22215,15 @@ inductive functional_classes.ClassError where
   Std.Usize →
   functional_classes.ClassError
 | Iri : functional_iris.SourceIriError → functional_classes.ClassError
+| Individual :
+  functional_individuals.IndividualError →
+  functional_classes.ClassError
 | Unsupported : Std.Usize → functional_classes.ClassError
 | DepthLimit : Std.Usize → functional_classes.ClassError
 | CountLimit : Std.Usize → functional_classes.ClassError
 
 /-- [rowl_kernel::functional_assertions::AssertionError]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 58:0-67:1
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 54:0-62:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional_assertions.AssertionError where
@@ -22206,21 +22237,22 @@ inductive functional_assertions.AssertionError where
 | Class :
   functional_classes.ClassError →
   functional_assertions.AssertionError
-| Iri : functional_iris.SourceIriError → functional_assertions.AssertionError
-| Anonymous :
-  functional_names.NameError →
+| Individual :
+  functional_individuals.IndividualError →
   functional_assertions.AssertionError
 
 /-- [rowl_kernel::functional_assertions::AssertionForm]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 69:0-73:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 64:0-70:1 -/
 @[discriminant isize]
 inductive functional_assertions.AssertionForm where
+| Same : functional_assertions.AssertionForm
+| Different : functional_assertions.AssertionForm
 | Class : functional_assertions.AssertionForm
 | Property : functional_assertions.AssertionForm
 | NegativeProperty : functional_assertions.AssertionForm
 
 /-- [rowl_kernel::functional_assertions::{impl core::clone::Clone for rowl_kernel::functional_assertions::AssertionForm}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 68:9-68:14
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 63:9-63:14
     Visibility: public -/
 def functional_assertions.AssertionForm.Insts.CoreCloneClone.clone
   (self : functional_assertions.AssertionForm) :
@@ -22229,7 +22261,7 @@ def functional_assertions.AssertionForm.Insts.CoreCloneClone.clone
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional_assertions::{impl core::clone::Clone for rowl_kernel::functional_assertions::AssertionForm}]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 68:9-68:14 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 63:9-63:14 -/
 @[reducible]
 def functional_assertions.AssertionForm.Insts.CoreCloneClone : core.clone.Clone
   functional_assertions.AssertionForm := {
@@ -22237,24 +22269,15 @@ def functional_assertions.AssertionForm.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [rowl_kernel::functional_assertions::{impl core::marker::Copy for rowl_kernel::functional_assertions::AssertionForm}]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 68:16-68:20 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 63:16-63:20 -/
 @[reducible]
 def functional_assertions.AssertionForm.Insts.CoreMarkerCopy : core.marker.Copy
   functional_assertions.AssertionForm := {
   cloneInst := functional_assertions.AssertionForm.Insts.CoreCloneClone
 }
 
-/-- [rowl_kernel::functional_assertions::IndividualKind]
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 74:0-77:1 -/
-@[discriminant isize]
-inductive functional_assertions.IndividualKind where
-| Named :
-  functional_iris.SourceIriKind →
-  functional_assertions.IndividualKind
-| Anonymous : functional_assertions.IndividualKind
-
 /-- [rowl_kernel::functional_assertions::assertion_form]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 78:0-87:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 71:0-82:1 -/
 def functional_assertions.assertion_form
   (terminal : functional.Terminal) :
   Result (Option functional_assertions.AssertionForm)
@@ -22326,8 +22349,10 @@ def functional_assertions.assertion_form
     | functional.Keyword.FunctionalDataProperty => ok none
     | functional.Keyword.DatatypeDefinition => ok none
     | functional.Keyword.HasKey => ok none
-    | functional.Keyword.SameIndividual => ok none
-    | functional.Keyword.DifferentIndividuals => ok none
+    | functional.Keyword.SameIndividual =>
+      ok (some functional_assertions.AssertionForm.Same)
+    | functional.Keyword.DifferentIndividuals =>
+      ok (some functional_assertions.AssertionForm.Different)
     | functional.Keyword.ClassAssertion =>
       ok (some functional_assertions.AssertionForm.Class)
     | functional.Keyword.ObjectPropertyAssertion =>
@@ -22350,35 +22375,8 @@ def functional_assertions.assertion_form
   | functional.Terminal.Whitespace => ok none
   | functional.Terminal.Comment => ok none
 
-/-- [rowl_kernel::functional_assertions::individual_kind]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 88:0-95:1 -/
-def functional_assertions.individual_kind
-  (terminal : functional.Terminal) :
-  Result (Option functional_assertions.IndividualKind)
-  := do
-  match terminal with
-  | functional.Terminal.Keyword _ => ok none
-  | functional.Terminal.Open => ok none
-  | functional.Terminal.Close => ok none
-  | functional.Terminal.Equals => ok none
-  | functional.Terminal.DatatypeIndicator => ok none
-  | functional.Terminal.Integer => ok none
-  | functional.Terminal.QuotedString => ok none
-  | functional.Terminal.LanguageTag => ok none
-  | functional.Terminal.NodeId =>
-    ok (some functional_assertions.IndividualKind.Anonymous)
-  | functional.Terminal.FullIri =>
-    ok (some (functional_assertions.IndividualKind.Named
-      functional_iris.SourceIriKind.Full))
-  | functional.Terminal.PrefixName => ok none
-  | functional.Terminal.AbbreviatedIri =>
-    ok (some (functional_assertions.IndividualKind.Named
-      functional_iris.SourceIriKind.Abbreviated))
-  | functional.Terminal.Whitespace => ok none
-  | functional.Terminal.Comment => ok none
-
 /-- [rowl_kernel::functional_assertions::expected_terminal]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 96:0-103:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 83:0-89:1 -/
 def functional_assertions.expected_terminal
   (expected : functional_assertions.AssertionExpected)
   (terminal : functional.Terminal) :
@@ -22404,9 +22402,6 @@ def functional_assertions.expected_terminal
     | functional.Terminal.AbbreviatedIri => ok false
     | functional.Terminal.Whitespace => ok false
     | functional.Terminal.Comment => ok false
-  | functional_assertions.AssertionExpected.Individual =>
-    let o ← functional_assertions.individual_kind terminal
-    ok (core.option.Option.is_some o)
   | functional_assertions.AssertionExpected.Close =>
     match terminal with
     | functional.Terminal.Keyword _ => ok false
@@ -22425,7 +22420,7 @@ def functional_assertions.expected_terminal
     | functional.Terminal.Comment => ok false
 
 /-- [rowl_kernel::functional_assertions::take_expected]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 104:0-125:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 90:0-111:1 -/
 def functional_assertions.take_expected
   (tokens : functional_lexer.Tokens)
   (expected : functional_assertions.AssertionExpected) (eof : Std.Usize) :
@@ -22444,8 +22439,183 @@ def functional_assertions.take_expected
       ok (core.result.Result.Err (functional_assertions.AssertionError.Expected
         expected token.start))
 
+/-- [rowl_kernel::functional_individuals::IndividualKind]
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 35:0-38:1 -/
+@[discriminant isize]
+inductive functional_individuals.IndividualKind where
+| Named :
+  functional_iris.SourceIriKind →
+  functional_individuals.IndividualKind
+| Anonymous : functional_individuals.IndividualKind
+
+/-- [rowl_kernel::functional_individuals::individual_kind]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 39:0-46:1 -/
+def functional_individuals.individual_kind
+  (terminal : functional.Terminal) :
+  Result (Option functional_individuals.IndividualKind)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId =>
+    ok (some functional_individuals.IndividualKind.Anonymous)
+  | functional.Terminal.FullIri =>
+    ok (some (functional_individuals.IndividualKind.Named
+      functional_iris.SourceIriKind.Full))
+  | functional.Terminal.PrefixName => ok none
+  | functional.Terminal.AbbreviatedIri =>
+    ok (some (functional_individuals.IndividualKind.Named
+      functional_iris.SourceIriKind.Abbreviated))
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
+/-- [rowl_kernel::functional_individuals::read_individual]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 60:0-88:1
+    Visibility: public -/
+def functional_individuals.read_individual
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
+  Result (core.result.Result (functional_individuals.SourceIndividual ×
+    functional_lexer.Tokens) functional_individuals.IndividualError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    let i := alloc.vec.Vec.len bytes
+    ok (core.result.Result.Err (functional_individuals.IndividualError.Expected
+      i))
+  | functional_lexer.Tokens.Cons token next =>
+    let o ← functional_individuals.individual_kind token.terminal
+    match o with
+    | none =>
+      ok (core.result.Result.Err
+        (functional_individuals.IndividualError.Expected token.start))
+    | some ik =>
+      match ik with
+      | functional_individuals.IndividualKind.Named kind =>
+        let r ←
+          functional_iris.resolve_span table kind bytes token.start token.end
+            limit
+        match r with
+        | core.result.Result.Ok value =>
+          ok (core.result.Result.Ok
+            (functional_individuals.SourceIndividual.Named { token, value },
+            next))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_individuals.IndividualError.Iri error))
+      | functional_individuals.IndividualKind.Anonymous =>
+        let r ←
+          functional_names.read_span functional_names.NameKind.NodeId bytes
+            token.start token.end limit
+        match r with
+        | core.result.Result.Ok label =>
+          ok (core.result.Result.Ok
+            (functional_individuals.SourceIndividual.Anonymous token label,
+            next))
+        | core.result.Result.Err error =>
+          ok (core.result.Result.Err
+            (functional_individuals.IndividualError.Anonymous error))
+
+/-- [rowl_kernel::functional_individuals::closes]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 47:0-49:1 -/
+def functional_individuals.closes
+  (terminal : functional.Terminal) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok false
+  | functional.Terminal.Open => ok false
+  | functional.Terminal.Close => ok true
+  | functional.Terminal.Equals => ok false
+  | functional.Terminal.DatatypeIndicator => ok false
+  | functional.Terminal.Integer => ok false
+  | functional.Terminal.QuotedString => ok false
+  | functional.Terminal.LanguageTag => ok false
+  | functional.Terminal.NodeId => ok false
+  | functional.Terminal.FullIri => ok false
+  | functional.Terminal.PrefixName => ok false
+  | functional.Terminal.AbbreviatedIri => ok false
+  | functional.Terminal.Whitespace => ok false
+  | functional.Terminal.Comment => ok false
+
+/-- [rowl_kernel::functional_individuals::read_individuals]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 91:0-119:1
+    Visibility: public -/
+def functional_individuals.read_individuals
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens)
+  (members : alloc.vec.Vec functional_individuals.SourceIndividual)
+  (count : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec
+    functional_individuals.SourceIndividual) × functional_lexer.Tokens)
+    functional_individuals.IndividualError)
+  := do
+  match tokens with
+  | functional_lexer.Tokens.Empty =>
+    ok (core.result.Result.Ok (members, functional_lexer.Tokens.Empty))
+  | functional_lexer.Tokens.Cons token _ =>
+    let b ← functional_individuals.closes token.terminal
+    if b
+    then ok (core.result.Result.Ok (members, tokens))
+    else
+      let i := alloc.vec.Vec.len members
+      if i >= count
+      then
+        ok (core.result.Result.Err
+          (functional_individuals.IndividualError.CountLimit token.start))
+      else
+        let r ←
+          functional_individuals.read_individual table bytes tokens limit
+        match r with
+        | core.result.Result.Ok value =>
+          let (member, remaining) := value
+          let members1 ← alloc.vec.Vec.push members member
+          functional_individuals.read_individuals table bytes remaining
+            members1 count limit
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+partial_fixpoint
+
+/-- [rowl_kernel::functional_individuals::position]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 51:0-56:1 -/
+def functional_individuals.position
+  (tokens : functional_lexer.Tokens) (eof : Std.Usize) : Result Std.Usize := do
+  match tokens with
+  | functional_lexer.Tokens.Empty => ok eof
+  | functional_lexer.Tokens.Cons token _ => ok token.start
+
+/-- [rowl_kernel::functional_individuals::read_individual_list]:
+    Source: 'crates/rowl-kernel/src/functional_individuals.rs', lines 123:0-141:1
+    Visibility: public -/
+def functional_individuals.read_individual_list
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (least : Std.Usize) (count : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec
+    functional_individuals.SourceIndividual) × functional_lexer.Tokens)
+    functional_individuals.IndividualError)
+  := do
+  let r ←
+    functional_individuals.read_individuals table bytes tokens
+      (alloc.vec.Vec.new functional_individuals.SourceIndividual) count limit
+  match r with
+  | core.result.Result.Ok value =>
+    let (members, rest) := value
+    let i := alloc.vec.Vec.len members
+    if i < least
+    then
+      let i1 := alloc.vec.Vec.len bytes
+      let i2 ← functional_individuals.position rest i1
+      ok (core.result.Result.Err
+        (functional_individuals.IndividualError.Expected i2))
+    else ok r
+  | core.result.Result.Err _ => ok r
+
 /-- [rowl_kernel::functional_classes::resolve]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 175:0-192:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 195:0-212:1 -/
 def functional_classes.resolve
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (token : functional.Token) (expected : functional_classes.ClassExpected)
@@ -22469,7 +22639,7 @@ def functional_classes.resolve
       ok (core.result.Result.Err (functional_classes.ClassError.Iri error))
 
 /-- [rowl_kernel::functional_classes::closes]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 129:0-131:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 149:0-151:1 -/
 def functional_classes.closes
   (terminal : functional.Terminal) : Result Bool := do
   match terminal with
@@ -22489,7 +22659,7 @@ def functional_classes.closes
   | functional.Terminal.Comment => ok false
 
 /-- [rowl_kernel::functional_classes::inverse_keyword]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 126:0-128:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 146:0-148:1 -/
 def functional_classes.inverse_keyword
   (terminal : functional.Terminal) : Result Bool := do
   match terminal with
@@ -22581,15 +22751,17 @@ def functional_classes.inverse_keyword
   | functional.Terminal.Comment => ok false
 
 /-- [rowl_kernel::functional_classes::ClassForm]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 84:0-88:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 102:0-108:1 -/
 @[discriminant isize]
 inductive functional_classes.ClassForm where
 | Junction : Bool → functional_classes.ClassForm
 | Complement : functional_classes.ClassForm
 | Restriction : Bool → functional_classes.ClassForm
+| OneOf : functional_classes.ClassForm
+| HasValue : functional_classes.ClassForm
 
 /-- [rowl_kernel::functional_classes::ClassKeyword]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 89:0-93:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 109:0-113:1 -/
 @[discriminant isize]
 inductive functional_classes.ClassKeyword where
 | Connective : functional_classes.ClassForm → functional_classes.ClassKeyword
@@ -22597,7 +22769,7 @@ inductive functional_classes.ClassKeyword where
 | Other : functional_classes.ClassKeyword
 
 /-- [rowl_kernel::functional_classes::class_keyword]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 94:0-125:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 114:0-145:1 -/
 def functional_classes.class_keyword
   (terminal : functional.Terminal) :
   Result functional_classes.ClassKeyword
@@ -22650,7 +22822,8 @@ def functional_classes.class_keyword
       ok (functional_classes.ClassKeyword.Connective
         functional_classes.ClassForm.Complement)
     | functional.Keyword.ObjectOneOf =>
-      ok functional_classes.ClassKeyword.Unsupported
+      ok (functional_classes.ClassKeyword.Connective
+        functional_classes.ClassForm.OneOf)
     | functional.Keyword.ObjectSomeValuesFrom =>
       ok (functional_classes.ClassKeyword.Connective
         (functional_classes.ClassForm.Restriction true))
@@ -22658,7 +22831,8 @@ def functional_classes.class_keyword
       ok (functional_classes.ClassKeyword.Connective
         (functional_classes.ClassForm.Restriction false))
     | functional.Keyword.ObjectHasValue =>
-      ok functional_classes.ClassKeyword.Unsupported
+      ok (functional_classes.ClassKeyword.Connective
+        functional_classes.ClassForm.HasValue)
     | functional.Keyword.ObjectHasSelf =>
       ok functional_classes.ClassKeyword.Unsupported
     | functional.Keyword.ObjectMinCardinality =>
@@ -22761,7 +22935,7 @@ def functional_classes.class_keyword
   | functional.Terminal.Comment => ok functional_classes.ClassKeyword.Other
 
 /-- [rowl_kernel::functional_classes::expected_terminal]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 132:0-143:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 152:0-163:1 -/
 def functional_classes.expected_terminal
   (expected : functional_classes.ClassExpected)
   (terminal : functional.Terminal) :
@@ -22806,7 +22980,7 @@ def functional_classes.expected_terminal
     functional_classes.closes terminal
 
 /-- [rowl_kernel::functional_classes::take_expected]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 144:0-165:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 164:0-185:1 -/
 def functional_classes.take_expected
   (tokens : functional_lexer.Tokens)
   (expected : functional_classes.ClassExpected) (eof : Std.Usize) :
@@ -22826,7 +23000,7 @@ def functional_classes.take_expected
         expected token.start))
 
 /-- [rowl_kernel::functional_classes::read_object_property]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 195:0-240:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 215:0-260:1
     Visibility: public -/
 def functional_classes.read_object_property
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
@@ -22887,7 +23061,7 @@ def functional_classes.read_object_property
       | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::functional_classes::offset_of]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 167:0-172:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 187:0-192:1 -/
 def functional_classes.offset_of
   (tokens : functional_lexer.Tokens) (eof : Std.Usize) : Result Std.Usize := do
   match tokens with
@@ -22895,7 +23069,7 @@ def functional_classes.offset_of
   | functional_lexer.Tokens.Cons token _ => ok token.start
 
 /-- [rowl_kernel::functional_classes::ClassLimits]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 51:0-55:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 67:0-71:1
     Visibility: public -/
 structure functional_classes.ClassLimits where
   depth : Std.Usize
@@ -22905,7 +23079,7 @@ structure functional_classes.ClassLimits where
 mutual
 
 /-- [rowl_kernel::functional_classes::read_class]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 241:0-277:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 261:0-297:1 -/
 def functional_classes.read_class
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens) (depth : Std.Usize)
@@ -22953,7 +23127,7 @@ def functional_classes.read_class
 partial_fixpoint
 
 /-- [rowl_kernel::functional_classes::read_connective]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 279:0-362:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 299:0-416:1 -/
 def functional_classes.read_connective
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (keyword : functional.Token) (form : functional_classes.ClassForm)
@@ -23040,10 +23214,55 @@ def functional_classes.read_connective
         | core.result.Result.Err error => ok (core.result.Result.Err error)
       | core.result.Result.Err _ => ok r1
     | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_classes.ClassForm.OneOf =>
+    let r ←
+      functional_individuals.read_individual_list table bytes tokens 1#usize
+        limits.count limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let (members, tokens1) := value
+      let i := alloc.vec.Vec.len bytes
+      let r1 ←
+        functional_classes.take_expected tokens1
+          functional_classes.ClassExpected.Close i
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (_, remaining) := value1
+        ok (core.result.Result.Ok (functional_classes.SourceClass.OneOf keyword
+          members, remaining))
+      | core.result.Result.Err error => ok (core.result.Result.Err error)
+    | core.result.Result.Err error =>
+      ok (core.result.Result.Err (functional_classes.ClassError.Individual
+        error))
+  | functional_classes.ClassForm.HasValue =>
+    let r ←
+      functional_classes.read_object_property table bytes tokens limits.iri
+    match r with
+    | core.result.Result.Ok value =>
+      let (property, tokens1) := value
+      let r1 ←
+        functional_individuals.read_individual table bytes tokens1 limits.iri
+      match r1 with
+      | core.result.Result.Ok value1 =>
+        let (individual, tokens2) := value1
+        let i := alloc.vec.Vec.len bytes
+        let r2 ←
+          functional_classes.take_expected tokens2
+            functional_classes.ClassExpected.Close i
+        match r2 with
+        | core.result.Result.Ok value2 =>
+          let (_, remaining) := value2
+          ok (core.result.Result.Ok (functional_classes.SourceClass.HasValue
+            keyword property individual, remaining))
+        | core.result.Result.Err error => ok (core.result.Result.Err error)
+      | core.result.Result.Err error =>
+        ok (core.result.Result.Err (functional_classes.ClassError.Individual
+          error))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
 partial_fixpoint
 
 /-- [rowl_kernel::functional_classes::read_members]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 364:0-392:1 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 418:0-446:1 -/
 def functional_classes.read_members
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens)
@@ -23079,7 +23298,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::functional_classes::read_class_expression]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 401:0-408:1
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 457:0-464:1
     Visibility: public -/
 def functional_classes.read_class_expression
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
@@ -23091,7 +23310,7 @@ def functional_classes.read_class_expression
   functional_classes.read_class table bytes tokens limits.depth limits
 
 /-- [rowl_kernel::functional_assertions::read_class]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 126:0-136:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 112:0-122:1 -/
 def functional_assertions.read_class
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
@@ -23107,7 +23326,7 @@ def functional_assertions.read_class
       error))
 
 /-- [rowl_kernel::functional_assertions::read_property]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 137:0-147:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 123:0-133:1 -/
 def functional_assertions.read_property
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
@@ -23121,76 +23340,61 @@ def functional_assertions.read_property
     ok (core.result.Result.Err (functional_assertions.AssertionError.Class
       error))
 
-/-- [rowl_kernel::functional_assertions::read_individual]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 150:0-182:1 -/
-def functional_assertions.read_individual
+/-- [rowl_kernel::functional_assertions::read_member]:
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 135:0-145:1 -/
+def functional_assertions.read_member
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens) (limit : Std.Usize) :
-  Result (core.result.Result (functional_assertions.SourceIndividual ×
+  Result (core.result.Result (functional_individuals.SourceIndividual ×
     functional_lexer.Tokens) functional_assertions.AssertionError)
   := do
-  let i := alloc.vec.Vec.len bytes
-  let r ←
-    functional_assertions.take_expected tokens
-      functional_assertions.AssertionExpected.Individual i
+  let r ← functional_individuals.read_individual table bytes tokens limit
   match r with
-  | core.result.Result.Ok value =>
-    let (token, remaining) := value
-    let o ← functional_assertions.individual_kind token.terminal
-    match o with
-    | none =>
-      ok (core.result.Result.Err (functional_assertions.AssertionError.Expected
-        functional_assertions.AssertionExpected.Individual token.start))
-    | some ik =>
-      match ik with
-      | functional_assertions.IndividualKind.Named kind =>
-        let r1 ←
-          functional_iris.resolve_span table kind bytes token.start token.end
-            limit
-        match r1 with
-        | core.result.Result.Ok value1 =>
-          ok (core.result.Result.Ok
-            (functional_assertions.SourceIndividual.Named
-            { token, value := value1 }, remaining))
-        | core.result.Result.Err error =>
-          ok (core.result.Result.Err (functional_assertions.AssertionError.Iri
-            error))
-      | functional_assertions.IndividualKind.Anonymous =>
-        let r1 ←
-          functional_names.read_span functional_names.NameKind.NodeId bytes
-            token.start token.end limit
-        match r1 with
-        | core.result.Result.Ok label =>
-          ok (core.result.Result.Ok
-            (functional_assertions.SourceIndividual.Anonymous token label,
-            remaining))
-        | core.result.Result.Err error =>
-          ok (core.result.Result.Err
-            (functional_assertions.AssertionError.Anonymous error))
-  | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_assertions.AssertionError.Individual
+      error))
+
+/-- [rowl_kernel::functional_assertions::read_members]:
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 148:0-158:1 -/
+def functional_assertions.read_members
+  (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
+  (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
+  :
+  Result (core.result.Result ((alloc.vec.Vec
+    functional_individuals.SourceIndividual) × functional_lexer.Tokens)
+    functional_assertions.AssertionError)
+  := do
+  let r ←
+    functional_individuals.read_individual_list table bytes tokens 2#usize
+      limits.count limits.iri
+  match r with
+  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
+  | core.result.Result.Err error =>
+    ok (core.result.Result.Err (functional_assertions.AssertionError.Individual
+      error))
 
 /-- [rowl_kernel::functional_assertions::read_edge]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 184:0-208:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 160:0-184:1 -/
 def functional_assertions.read_edge
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (tokens : functional_lexer.Tokens) (limits : functional_classes.ClassLimits)
   :
   Result (core.result.Result ((functional_classes.SourceObjectProperty ×
-    functional_assertions.SourceIndividual ×
-    functional_assertions.SourceIndividual) × functional_lexer.Tokens)
+    functional_individuals.SourceIndividual ×
+    functional_individuals.SourceIndividual) × functional_lexer.Tokens)
     functional_assertions.AssertionError)
   := do
   let r ← functional_assertions.read_property table bytes tokens limits.iri
   match r with
   | core.result.Result.Ok value =>
     let (property, tokens1) := value
-    let r1 ←
-      functional_assertions.read_individual table bytes tokens1 limits.iri
+    let r1 ← functional_assertions.read_member table bytes tokens1 limits.iri
     match r1 with
     | core.result.Result.Ok value1 =>
       let (source, tokens2) := value1
       let r2 ←
-        functional_assertions.read_individual table bytes tokens2 limits.iri
+        functional_assertions.read_member table bytes tokens2 limits.iri
       match r2 with
       | core.result.Result.Ok p =>
         let (target, remaining) := p
@@ -23200,7 +23404,7 @@ def functional_assertions.read_edge
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::functional_assertions::read_body]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 209:0-253:1 -/
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 185:0-242:1 -/
 def functional_assertions.read_body
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
   (form : functional_assertions.AssertionForm)
@@ -23210,13 +23414,31 @@ def functional_assertions.read_body
     functional_lexer.Tokens) functional_assertions.AssertionError)
   := do
   match form with
+  | functional_assertions.AssertionForm.Same =>
+    let r ← functional_assertions.read_members table bytes tokens limits
+    match r with
+    | core.result.Result.Ok p =>
+      let (members, remaining) := p
+      ok (core.result.Result.Ok
+        (functional_assertions.SourceAssertionBody.SameIndividual members,
+        remaining))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
+  | functional_assertions.AssertionForm.Different =>
+    let r ← functional_assertions.read_members table bytes tokens limits
+    match r with
+    | core.result.Result.Ok p =>
+      let (members, remaining) := p
+      ok (core.result.Result.Ok
+        (functional_assertions.SourceAssertionBody.DifferentIndividuals
+        members, remaining))
+    | core.result.Result.Err error => ok (core.result.Result.Err error)
   | functional_assertions.AssertionForm.Class =>
     let r ← functional_assertions.read_class table bytes tokens limits
     match r with
     | core.result.Result.Ok value =>
       let («class», tokens1) := value
       let r1 ←
-        functional_assertions.read_individual table bytes tokens1 limits.iri
+        functional_assertions.read_member table bytes tokens1 limits.iri
       match r1 with
       | core.result.Result.Ok p =>
         let (individual, remaining) := p
@@ -23245,7 +23467,7 @@ def functional_assertions.read_body
     | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::functional_assertions::read_assertion]:
-    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 263:0-307:1
+    Source: 'crates/rowl-kernel/src/functional_assertions.rs', lines 255:0-299:1
     Visibility: public -/
 def functional_assertions.read_assertion
   (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec Std.U8)
@@ -23829,7 +24051,7 @@ def functional_class_axioms.read_class_axiom
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::functional_classes::{impl core::clone::Clone for rowl_kernel::functional_classes::ClassExpected}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 56:9-56:14
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 72:9-72:14
     Visibility: public -/
 def functional_classes.ClassExpected.Insts.CoreCloneClone.clone
   (self : functional_classes.ClassExpected) :
@@ -23838,7 +24060,7 @@ def functional_classes.ClassExpected.Insts.CoreCloneClone.clone
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional_classes::{impl core::clone::Clone for rowl_kernel::functional_classes::ClassExpected}]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 56:9-56:14 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 72:9-72:14 -/
 @[reducible]
 def functional_classes.ClassExpected.Insts.CoreCloneClone : core.clone.Clone
   functional_classes.ClassExpected := {
@@ -23846,7 +24068,7 @@ def functional_classes.ClassExpected.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [rowl_kernel::functional_classes::{impl core::marker::Copy for rowl_kernel::functional_classes::ClassExpected}]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 56:16-56:20 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 72:16-72:20 -/
 @[reducible]
 def functional_classes.ClassExpected.Insts.CoreMarkerCopy : core.marker.Copy
   functional_classes.ClassExpected := {
@@ -23854,7 +24076,7 @@ def functional_classes.ClassExpected.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [rowl_kernel::functional_classes::{impl core::clone::Clone for rowl_kernel::functional_classes::ClassForm}::clone]:
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 83:9-83:14
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 101:9-101:14
     Visibility: public -/
 def functional_classes.ClassForm.Insts.CoreCloneClone.clone
   (self : functional_classes.ClassForm) :
@@ -23863,7 +24085,7 @@ def functional_classes.ClassForm.Insts.CoreCloneClone.clone
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional_classes::{impl core::clone::Clone for rowl_kernel::functional_classes::ClassForm}]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 83:9-83:14 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 101:9-101:14 -/
 @[reducible]
 def functional_classes.ClassForm.Insts.CoreCloneClone : core.clone.Clone
   functional_classes.ClassForm := {
@@ -23871,7 +24093,7 @@ def functional_classes.ClassForm.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [rowl_kernel::functional_classes::{impl core::marker::Copy for rowl_kernel::functional_classes::ClassForm}]
-    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 83:16-83:20 -/
+    Source: 'crates/rowl-kernel/src/functional_classes.rs', lines 101:16-101:20 -/
 @[reducible]
 def functional_classes.ClassForm.Insts.CoreMarkerCopy : core.marker.Copy
   functional_classes.ClassForm := {
@@ -24815,9 +25037,9 @@ def functional_document.axiom_family
     | functional.Keyword.HasKey =>
       ok (some functional_document.AxiomFamily.Unsupported)
     | functional.Keyword.SameIndividual =>
-      ok (some functional_document.AxiomFamily.Unsupported)
+      ok (some functional_document.AxiomFamily.Assertion)
     | functional.Keyword.DifferentIndividuals =>
-      ok (some functional_document.AxiomFamily.Unsupported)
+      ok (some functional_document.AxiomFamily.Assertion)
     | functional.Keyword.ClassAssertion =>
       ok (some functional_document.AxiomFamily.Assertion)
     | functional.Keyword.ObjectPropertyAssertion =>
@@ -27169,7 +27391,7 @@ def functional_literals.LiteralExpected.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [rowl_kernel::functional_model::copy_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 28:0-35:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 29:0-36:1 -/
 def functional_model.copy_from
   (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
   (target : alloc.vec.Vec Std.U8) :
@@ -27188,20 +27410,20 @@ def functional_model.copy_from
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::copy_bytes]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 36:0-38:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 37:0-39:1 -/
 def functional_model.copy_bytes
   (source : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
   functional_model.copy_from source 0#usize (alloc.vec.Vec.new Std.U8)
 
 /-- [rowl_kernel::functional_model::iri]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 39:0-43:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 40:0-44:1 -/
 def functional_model.iri
   (source : functional_header.HeaderIri) : Result model.Iri := do
   let v ← functional_model.copy_bytes source.value
   ok { spelling := v }
 
 /-- [rowl_kernel::functional_model::anonymous]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 44:0-49:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 45:0-50:1 -/
 def functional_model.anonymous
   (label : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
   Result model.AnonymousIndividual
@@ -27211,7 +27433,7 @@ def functional_model.anonymous
   ok { scope := v, label := v1 }
 
 /-- [rowl_kernel::functional_model::literal]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 50:0-59:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 51:0-60:1 -/
 def functional_model.literal
   (source : functional_literals.SourceLiteral) : Result model.Literal := do
   let v ← functional_model.copy_bytes source.lexical
@@ -27219,7 +27441,7 @@ def functional_model.literal
   ok { lexical := v, datatype := { iri := { spelling := v1 } } }
 
 /-- [rowl_kernel::functional_model::annotation_value]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 60:0-68:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 61:0-69:1 -/
 def functional_model.annotation_value
   (source : functional_annotations.SourceAnnotationValue)
   (scope : alloc.vec.Vec Std.U8) :
@@ -27239,7 +27461,7 @@ def functional_model.annotation_value
 mutual
 
 /-- [rowl_kernel::functional_model::annotation]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 69:0-77:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 70:0-78:1 -/
 def functional_model.annotation
   (source : functional_annotations.SourceAnnotation)
   (scope : alloc.vec.Vec Std.U8) :
@@ -27254,7 +27476,7 @@ def functional_model.annotation
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::annotations_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 78:0-90:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 79:0-91:1 -/
 def functional_model.annotations_from
   (values : alloc.vec.Vec functional_annotations.SourceAnnotation)
   (index : Std.Usize) (out : alloc.vec.Vec model.Annotation)
@@ -27277,7 +27499,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::functional_model::property]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 91:0-100:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 92:0-101:1 -/
 def functional_model.property
   (source : functional_classes.SourceObjectProperty) :
   Result model.ObjectPropertyExpression
@@ -27290,12 +27512,97 @@ def functional_model.property
     let i ← functional_model.iri property
     ok (model.ObjectPropertyExpression.Inverse { iri := i })
 
+/-- [rowl_kernel::functional_model::individual]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 102:0-107:1 -/
+def functional_model.individual
+  (source : functional_individuals.SourceIndividual)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result model.Individual
+  := do
+  match source with
+  | functional_individuals.SourceIndividual.Named «name» =>
+    let i ← functional_model.iri «name»
+    ok (model.Individual.Named { iri := i })
+  | functional_individuals.SourceIndividual.Anonymous _ label =>
+    let ai ← functional_model.anonymous label scope
+    ok (model.Individual.Anonymous ai)
+
+/-- [rowl_kernel::functional_model::individuals_from]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 109:0-121:1 -/
+def functional_model.individuals_from
+  (values : alloc.vec.Vec functional_individuals.SourceIndividual)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Individual)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec model.Individual)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let i2 := alloc.vec.Vec.len values
+    if i1 < i2
+    then
+      let si ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          functional_individuals.SourceIndividual) values index
+      let i3 ← functional_model.individual si scope
+      let out1 ← alloc.vec.Vec.push out i3
+      let i4 ← index + 1#usize
+      functional_model.individuals_from values i4 out1 scope
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::functional_model::enumeration]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 124:0-132:1 -/
+def functional_model.enumeration
+  (values : alloc.vec.Vec functional_individuals.SourceIndividual)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (Option (model.NonEmpty model.Individual))
+  := do
+  let i := alloc.vec.Vec.len values
+  if i < 1#usize
+  then ok none
+  else
+    let si ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_individuals.SourceIndividual) values 0#usize
+    let i1 ← functional_model.individual si scope
+    let v ←
+      functional_model.individuals_from values 1#usize (alloc.vec.Vec.new
+        model.Individual) scope
+    ok (some { first := i1, rest := v })
+
+/-- [rowl_kernel::functional_model::individual_members]:
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 134:0-146:1 -/
+def functional_model.individual_members
+  (values : alloc.vec.Vec functional_individuals.SourceIndividual)
+  (scope : alloc.vec.Vec Std.U8) :
+  Result (Option (model.AtLeastTwo model.Individual))
+  := do
+  let i := alloc.vec.Vec.len values
+  if i < 2#usize
+  then ok none
+  else
+    let si ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_individuals.SourceIndividual) values 0#usize
+    let i1 ← functional_model.individual si scope
+    let si1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        functional_individuals.SourceIndividual) values 1#usize
+    let i2 ← functional_model.individual si1 scope
+    let v ←
+      functional_model.individuals_from values 2#usize (alloc.vec.Vec.new
+        model.Individual) scope
+    ok (some { first := i1, second := i2, rest := v })
+
 mutual
 
 /-- [rowl_kernel::functional_model::class]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 101:0-135:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 147:0-193:1 -/
 def functional_model.class
-  (source : functional_classes.SourceClass) :
+  (source : functional_classes.SourceClass) (scope : alloc.vec.Vec Std.U8) :
   Result (Option model.ClassExpression)
   := do
   match source with
@@ -27303,43 +27610,52 @@ def functional_model.class
     let i ← functional_model.iri «name»
     ok (some (model.ClassExpression.Class { iri := i }))
   | functional_classes.SourceClass.IntersectionOf _ members =>
-    let o ← functional_model.members_of members
+    let o ← functional_model.members_of members scope
     match o with
     | none => ok none
     | some members1 =>
       ok (some (model.ClassExpression.ObjectIntersectionOf members1))
   | functional_classes.SourceClass.UnionOf _ members =>
-    let o ← functional_model.members_of members
+    let o ← functional_model.members_of members scope
     match o with
     | none => ok none
     | some members1 => ok (some (model.ClassExpression.ObjectUnionOf members1))
   | functional_classes.SourceClass.ComplementOf _ operand =>
-    let o ← functional_model.class operand
+    let o ← functional_model.class operand scope
     match o with
     | none => ok none
     | some operand1 =>
       ok (some (model.ClassExpression.ObjectComplementOf operand1))
   | functional_classes.SourceClass.SomeValuesFrom _ property filler =>
-    let o ← functional_model.class filler
+    let o ← functional_model.class filler scope
     match o with
     | none => ok none
     | some filler1 =>
       let ope ← functional_model.property property
       ok (some (model.ClassExpression.ObjectSomeValuesFrom ope filler1))
   | functional_classes.SourceClass.AllValuesFrom _ property filler =>
-    let o ← functional_model.class filler
+    let o ← functional_model.class filler scope
     match o with
     | none => ok none
     | some filler1 =>
       let ope ← functional_model.property property
       ok (some (model.ClassExpression.ObjectAllValuesFrom ope filler1))
+  | functional_classes.SourceClass.OneOf _ members =>
+    let o ← functional_model.enumeration members scope
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.ClassExpression.ObjectOneOf members1))
+  | functional_classes.SourceClass.HasValue _ property value =>
+    let ope ← functional_model.property property
+    let i ← functional_model.individual value scope
+    ok (some (model.ClassExpression.ObjectHasValue ope i))
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::rest_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 136:0-152:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 194:0-211:1 -/
 def functional_model.rest_from
   (values : alloc.vec.Vec functional_classes.SourceClass) (index : Std.Usize)
-  (out : alloc.vec.Vec model.ClassExpression) :
+  (out : alloc.vec.Vec model.ClassExpression) (scope : alloc.vec.Vec Std.U8) :
   Result (Option (alloc.vec.Vec model.ClassExpression))
   := do
   let i := alloc.vec.Vec.len values
@@ -27348,20 +27664,21 @@ def functional_model.rest_from
     let sc ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
         functional_classes.SourceClass) values index
-    let o ← functional_model.class sc
+    let o ← functional_model.class sc scope
     match o with
     | none => ok none
     | some value =>
       let out1 ← alloc.vec.Vec.push out value
       let i1 ← index + 1#usize
-      functional_model.rest_from values i1 out1
+      functional_model.rest_from values i1 out1 scope
   else ok (some out)
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::members_of]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 153:0-173:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 212:0-232:1 -/
 def functional_model.members_of
-  (values : alloc.vec.Vec functional_classes.SourceClass) :
+  (values : alloc.vec.Vec functional_classes.SourceClass)
+  (scope : alloc.vec.Vec Std.U8) :
   Result (Option (model.AtLeastTwo model.ClassExpression))
   := do
   let i := alloc.vec.Vec.len values
@@ -27371,20 +27688,20 @@ def functional_model.members_of
     let sc ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
         functional_classes.SourceClass) values 0#usize
-    let o ← functional_model.class sc
+    let o ← functional_model.class sc scope
     match o with
     | none => ok none
     | some first =>
       let sc1 ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
           functional_classes.SourceClass) values 1#usize
-      let o1 ← functional_model.class sc1
+      let o1 ← functional_model.class sc1 scope
       match o1 with
       | none => ok none
       | some second =>
         let o2 ←
           functional_model.rest_from values 2#usize (alloc.vec.Vec.new
-            model.ClassExpression)
+            model.ClassExpression) scope
         match o2 with
         | none => ok none
         | some rest => ok (some { first, second, rest })
@@ -27393,7 +27710,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::functional_model::entity]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 174:0-186:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 233:0-245:1 -/
 def functional_model.entity
   (source : functional_declarations.SourceEntity) : Result model.Entity := do
   let «name» ← functional_model.iri source.iri
@@ -27412,7 +27729,7 @@ def functional_model.entity
     ok (model.Entity.NamedIndividual { iri := «name» })
 
 /-- [rowl_kernel::functional_model::subject]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 187:0-194:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 246:0-253:1 -/
 def functional_model.subject
   (source : functional_annotation_axioms.SourceAnnotationSubject)
   (scope : alloc.vec.Vec Std.U8) :
@@ -27427,7 +27744,7 @@ def functional_model.subject
     ok (model.AnnotationSubject.Anonymous ai)
 
 /-- [rowl_kernel::functional_model::annotation_axiom]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 195:0-224:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 254:0-283:1 -/
 def functional_model.annotation_axiom
   (source : functional_annotation_axioms.SourceAnnotationAxiomBody)
   (scope : alloc.vec.Vec Std.U8) :
@@ -27457,34 +27774,35 @@ def functional_model.annotation_axiom
     ok (model.Axiom.AnnotationPropertyRange { iri := i } i1)
 
 /-- [rowl_kernel::functional_model::class_axiom]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 225:0-264:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 284:0-327:1 -/
 def functional_model.class_axiom
-  (source : functional_class_axioms.SourceClassAxiomBody) :
+  (source : functional_class_axioms.SourceClassAxiomBody)
+  (scope : alloc.vec.Vec Std.U8) :
   Result (Option model.Axiom)
   := do
   match source with
   | functional_class_axioms.SourceClassAxiomBody.SubClassOf sub sup =>
-    let o ← functional_model.class sub
+    let o ← functional_model.class sub scope
     match o with
     | none => ok none
     | some sub1 =>
-      let o1 ← functional_model.class sup
+      let o1 ← functional_model.class sup scope
       match o1 with
       | none => ok none
       | some sup1 => ok (some (model.Axiom.SubClassOf sub1 sup1))
   | functional_class_axioms.SourceClassAxiomBody.EquivalentClasses members =>
-    let o ← functional_model.members_of members
+    let o ← functional_model.members_of members scope
     match o with
     | none => ok none
     | some members1 => ok (some (model.Axiom.EquivalentClasses members1))
   | functional_class_axioms.SourceClassAxiomBody.DisjointClasses members =>
-    let o ← functional_model.members_of members
+    let o ← functional_model.members_of members scope
     match o with
     | none => ok none
     | some members1 => ok (some (model.Axiom.DisjointClasses members1))
   | functional_class_axioms.SourceClassAxiomBody.DisjointUnion «name» members
     =>
-    let o ← functional_model.members_of members
+    let o ← functional_model.members_of members scope
     match o with
     | none => ok none
     | some members1 =>
@@ -27492,7 +27810,7 @@ def functional_model.class_axiom
       ok (some (model.Axiom.DisjointUnion { iri := i } members1))
   | functional_class_axioms.SourceClassAxiomBody.ObjectPropertyDomain property
     domain =>
-    let o ← functional_model.class domain
+    let o ← functional_model.class domain scope
     match o with
     | none => ok none
     | some domain1 =>
@@ -27500,7 +27818,7 @@ def functional_model.class_axiom
       ok (some (model.Axiom.ObjectPropertyDomain ope domain1))
   | functional_class_axioms.SourceClassAxiomBody.ObjectPropertyRange property
     range =>
-    let o ← functional_model.class range
+    let o ← functional_model.class range scope
     match o with
     | none => ok none
     | some range1 =>
@@ -27508,7 +27826,7 @@ def functional_model.class_axiom
       ok (some (model.Axiom.ObjectPropertyRange ope range1))
 
 /-- [rowl_kernel::functional_model::properties_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 266:0-277:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 329:0-340:1 -/
 def functional_model.properties_from
   (values : alloc.vec.Vec functional_classes.SourceObjectProperty)
   (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -27533,7 +27851,7 @@ def functional_model.properties_from
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::property_members]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 279:0-290:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 342:0-353:1 -/
 def functional_model.property_members
   (values : alloc.vec.Vec functional_classes.SourceObjectProperty) :
   Result (Option (model.AtLeastTwo model.ObjectPropertyExpression))
@@ -27556,7 +27874,7 @@ def functional_model.property_members
     ok (some { first := ope, second := ope1, rest := v })
 
 /-- [rowl_kernel::functional_model::sub_property]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 291:0-301:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 354:0-364:1 -/
 def functional_model.sub_property
   (source : functional_property_axioms.SourceSubProperty) :
   Result (Option model.SubObjectPropertyExpression)
@@ -27573,7 +27891,7 @@ def functional_model.sub_property
       ok (some (model.SubObjectPropertyExpression.Chain members1))
 
 /-- [rowl_kernel::functional_model::characteristic_axiom]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 302:0-315:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 365:0-378:1 -/
 def functional_model.characteristic_axiom
   (characteristic : functional_property_axioms.PropertyCharacteristic)
   (value : model.ObjectPropertyExpression) :
@@ -27596,7 +27914,7 @@ def functional_model.characteristic_axiom
     ok (model.Axiom.TransitiveObjectProperty value)
 
 /-- [rowl_kernel::functional_model::property_axiom]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 316:0-342:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 379:0-405:1 -/
 def functional_model.property_axiom
   (source : functional_property_axioms.SourcePropertyAxiomBody) :
   Result (Option model.Axiom)
@@ -27636,32 +27954,27 @@ def functional_model.property_axiom
     let a ← functional_model.characteristic_axiom characteristic ope
     ok (some a)
 
-/-- [rowl_kernel::functional_model::individual]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 343:0-348:1 -/
-def functional_model.individual
-  (source : functional_assertions.SourceIndividual)
-  (scope : alloc.vec.Vec Std.U8) :
-  Result model.Individual
-  := do
-  match source with
-  | functional_assertions.SourceIndividual.Named «name» =>
-    let i ← functional_model.iri «name»
-    ok (model.Individual.Named { iri := i })
-  | functional_assertions.SourceIndividual.Anonymous _ label =>
-    let ai ← functional_model.anonymous label scope
-    ok (model.Individual.Anonymous ai)
-
 /-- [rowl_kernel::functional_model::assertion]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 349:0-377:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 406:0-444:1 -/
 def functional_model.assertion
   (source : functional_assertions.SourceAssertionBody)
   (scope : alloc.vec.Vec Std.U8) :
   Result (Option model.Axiom)
   := do
   match source with
+  | functional_assertions.SourceAssertionBody.SameIndividual members =>
+    let o ← functional_model.individual_members members scope
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.Axiom.SameIndividual members1))
+  | functional_assertions.SourceAssertionBody.DifferentIndividuals members =>
+    let o ← functional_model.individual_members members scope
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.Axiom.DifferentIndividuals members1))
   | functional_assertions.SourceAssertionBody.ClassAssertion expression member
     =>
-    let o ← functional_model.class expression
+    let o ← functional_model.class expression scope
     match o with
     | none => ok none
     | some expression1 =>
@@ -27681,7 +27994,7 @@ def functional_model.assertion
     ok (some (model.Axiom.NegativeObjectPropertyAssertion ope i i1))
 
 /-- [rowl_kernel::functional_model::axiom]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 378:0-410:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 445:0-477:1 -/
 def functional_model.axiom
   (source : functional_document.SourceAxiom) (scope : alloc.vec.Vec Std.U8) :
   Result (Option model.AnnotatedAxiom)
@@ -27700,7 +28013,7 @@ def functional_model.axiom
     let a ← functional_model.annotation_axiom record.body scope
     ok (some { annotations := v, «axiom» := a })
   | functional_document.SourceAxiom.Class record =>
-    let o ← functional_model.class_axiom record.body
+    let o ← functional_model.class_axiom record.body scope
     match o with
     | none => ok none
     | some «axiom» =>
@@ -27728,7 +28041,7 @@ def functional_model.axiom
       ok (some { annotations := v, «axiom» })
 
 /-- [rowl_kernel::functional_model::axioms_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 411:0-428:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 478:0-495:1 -/
 def functional_model.axioms_from
   (values : alloc.vec.Vec functional_document.SourceAxiom) (index : Std.Usize)
   (out : alloc.vec.Vec model.AnnotatedAxiom) (scope : alloc.vec.Vec Std.U8) :
@@ -27751,7 +28064,7 @@ def functional_model.axioms_from
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::imports_from]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 429:0-436:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 496:0-503:1 -/
 def functional_model.imports_from
   (values : alloc.vec.Vec functional_header.ImportReference)
   (index : Std.Usize) (out : alloc.vec.Vec model.Iri) :
@@ -27771,7 +28084,7 @@ def functional_model.imports_from
 partial_fixpoint
 
 /-- [rowl_kernel::functional_model::identity]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 437:0-448:1 -/
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 504:0-515:1 -/
 def functional_model.identity
   (source : functional_header.SourceOntologyIdentity) :
   Result model.OntologyIdentity
@@ -27788,7 +28101,7 @@ def functional_model.identity
       ok (model.OntologyIdentity.Named i (some i1))
 
 /-- [rowl_kernel::functional_model::document_ontology]:
-    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 452:0-462:1
+    Source: 'crates/rowl-kernel/src/functional_model.rs', lines 519:0-529:1
     Visibility: public -/
 def functional_model.document_ontology
   (document : functional_document.SourceDocument)

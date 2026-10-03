@@ -2,54 +2,47 @@ import Rowl.FunctionalClasses
 import Rowl.FunctionalAnnotations
 
 /-!
-Functional Syntax class assertions and positive and negative object property
-assertions, proved total and exact against an independent grammar that
-composes the proved annotation, class-expression and object-property grammars
-with an independent individual grammar. Every result and first error has its
-independent derivation, and every derivation is the actual result.
+Functional Syntax individual equalities and inequalities, class assertions and
+positive and negative object property assertions, proved total and exact
+against an independent grammar that composes the proved annotation,
+class-expression, object-property and individual grammars. Every result and
+first error has its independent derivation, and every derivation is the actual
+result.
 -/
 namespace Rowl.FunctionalAssertions
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open RowlRust.functional_assertions
 open RowlRust.functional_classes (ClassError ClassLimits SourceClass SourceObjectProperty)
 open RowlRust.functional_annotations (AnnotationLimits SourceAnnotations)
-open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_individuals (IndividualError SourceIndividual)
 open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalLexer (TokenCount)
 open Rowl.FunctionalClasses (ClassRun PropertyRun)
+open Rowl.FunctionalIndividuals (IndividualRun ListRun)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
-/-- The three assertion keywords this stage reads. -/
+/-- The five assertion keywords this stage reads. -/
 def FormOf : Terminal → Option AssertionForm
+  | .Keyword .SameIndividual => some .Same
+  | .Keyword .DifferentIndividuals => some .Different
   | .Keyword .ClassAssertion => some .Class
   | .Keyword .ObjectPropertyAssertion => some .Property
   | .Keyword .NegativeObjectPropertyAssertion => some .NegativeProperty
-  | _ => none
-/-- The two individual families: a named individual's IRI or a node ID. -/
-def IndividualKindOf : Terminal → Option IndividualKind
-  | .FullIri => some (.Named .Full)
-  | .AbbreviatedIri => some (.Named .Abbreviated)
-  | .NodeId => some .Anonymous
   | _ => none
 /-- Independent first-terminal class required at each assertion position. -/
 def Expected : AssertionExpected → Terminal → Prop
   | .Axiom, terminal => ∃ form, FormOf terminal = some form
   | .Open, terminal => terminal = .Open
-  | .Individual, terminal => ∃ kind, IndividualKindOf terminal = some kind
   | .Close, terminal => terminal = .Close
 
 theorem assertion_form_total_correct (terminal : Terminal) : assertion_form terminal = .ok (FormOf terminal) := by
   cases terminal <;> first | rfl | (rename_i keyword; cases keyword <;> rfl)
-theorem individual_kind_total_correct (terminal : Terminal) :
-    individual_kind terminal = .ok (IndividualKindOf terminal) := by
-  cases terminal <;> rfl
 theorem expected_terminal_total_correct (expected : AssertionExpected) (terminal : Terminal) :
     expected_terminal expected terminal = .ok (decide (Expected expected terminal)) := by
   cases expected <;> cases terminal <;> (try (rename_i keyword; cases keyword)) <;>
-    simp [expected_terminal,Expected,assertion_form_total_correct,individual_kind_total_correct,FormOf,
-      IndividualKindOf,core.option.Option.is_some]
+    simp [expected_terminal,Expected,assertion_form_total_correct,FormOf,core.option.Option.is_some]
 
 /-- One syntax step: the first token must belong to the expected class. A
     missing token reports the original source length, a wrong one its start. -/
@@ -90,102 +83,94 @@ theorem take_progress {eof : Usize} {expected : AssertionExpected} {tokens rest 
   cases taken
   rfl
 
-/-- Independent individual grammar: an IRI resolves through the checked prefix
-    rows; a node ID keeps its exact label without `_:`. -/
-inductive IndividualRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (limit : Nat) :
+/-- An individual at an assertion position: the independent individual
+    grammar, with its errors wrapped. -/
+inductive MemberStep (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (limit : Nat) :
     Tokens → core.result.Result (SourceIndividual × Tokens) AssertionError → Prop
-  | syntaxError {tokens : Tokens} {error : AssertionError} (failure : TakeRun eof .Individual tokens (.Err error)) :
-      IndividualRun rows source eof limit tokens (.Err error)
-  | iriError {token : Token} {rest : Tokens} {kind : functional_iris.SourceIriKind}
-      {error : functional_iris.SourceIriError} (individualKind : IndividualKindOf token.terminal = some (.Named kind))
-      (failure : Rowl.FunctionalIris.ErrorCorrect rows kind source token.start.val token.end.val limit error) :
-      IndividualRun rows source eof limit (.Cons token rest) (.Err (.Iri error))
-  | named {token : Token} {rest : Tokens} {kind : functional_iris.SourceIriKind} {value : alloc.vec.Vec U8}
-      (individualKind : IndividualKindOf token.terminal = some (.Named kind))
-      (valueSource : Rowl.FunctionalIris.Success rows kind source token.start.val token.end.val limit value) :
-      IndividualRun rows source eof limit (.Cons token rest) (.Ok (.Named ⟨token,value⟩,rest))
-  | anonymousError {token : Token} {rest : Tokens} {error : functional_names.NameError}
-      (individualKind : IndividualKindOf token.terminal = some .Anonymous)
-      (failure : Rowl.FunctionalNames.ErrorCorrect .NodeId source token.start.val token.end.val limit error) :
-      IndividualRun rows source eof limit (.Cons token rest) (.Err (.Anonymous error))
-  | anonymous {token : Token} {rest : Tokens} {label : alloc.vec.Vec U8}
-      (individualKind : IndividualKindOf token.terminal = some .Anonymous)
-      (labelValue : Rowl.FunctionalNames.Correct .NodeId source token.start.val token.end.val limit (.Ok label)) :
-      IndividualRun rows source eof limit (.Cons token rest) (.Ok (.Anonymous token label,rest))
+  | error {tokens : Tokens} {error : IndividualError} (run : IndividualRun rows source eof limit tokens (.Err error)) :
+      MemberStep rows source eof limit tokens (.Err (.Individual error))
+  | ok {tokens rest : Tokens} {value : SourceIndividual}
+      (run : IndividualRun rows source eof limit tokens (.Ok (value,rest))) :
+      MemberStep rows source eof limit tokens (.Ok (value,rest))
+/-- The individuals of an equality or inequality: the independent individual
+    list of at least two members, with its errors wrapped. -/
+inductive MembersStep (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (count limit : Nat) :
+    Tokens → core.result.Result (alloc.vec.Vec SourceIndividual × Tokens) AssertionError → Prop
+  | error {tokens : Tokens} {error : IndividualError}
+      (run : ListRun rows source eof 2 count limit tokens (.Err error)) :
+      MembersStep rows source eof count limit tokens (.Err (.Individual error))
+  | ok {tokens rest : Tokens} {members : alloc.vec.Vec SourceIndividual}
+      (run : ListRun rows source eof 2 count limit tokens (.Ok (members,rest))) :
+      MembersStep rows source eof count limit tokens (.Ok (members,rest))
 
-/-- Individual reading is total; its fallback after a checked individual token is unreachable. -/
-theorem read_individual_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
-    (tokens : Tokens) (limit : Usize) :
-    ∃ result, read_individual table bytes tokens limit = .ok result ∧
-      IndividualRun table.declarations.val bytes.val bytes.len limit.val tokens result := by
-  obtain ⟨taken,takeRead,takeCorrect⟩ := take_expected_total_correct tokens .Individual bytes.len
-  rw [read_individual]
-  simp only [takeRead,bind_ok]
-  cases taken with
-  | Err error => exact ⟨.Err error,rfl,.syntaxError takeCorrect⟩
-  | Ok pair =>
-    obtain ⟨token,rest⟩ := pair
-    cases takeCorrect with
-    | taken _ _ accepted =>
-      obtain ⟨kind,classified⟩ := accepted
-      simp only [uncurry_apply_pair,individual_kind_total_correct,classified,bind_ok]
-      cases kind with
-      | Named family =>
-        obtain ⟨result,executed,correct⟩ :=
-          Rowl.FunctionalIris.resolve_span_total_correct table family bytes token.start token.end limit
-        simp only [executed,bind_ok]
-        cases result with
-        | Ok value => exact ⟨.Ok (.Named ⟨token,value⟩,rest),rfl,.named classified correct⟩
-        | Err error => exact ⟨.Err (.Iri error),rfl,.iriError classified correct⟩
-      | Anonymous =>
-        obtain ⟨result,executed,correct⟩ :=
-          Rowl.FunctionalNames.read_span_total_correct .NodeId bytes token.start token.end limit
-        simp only [executed,bind_ok]
-        cases result with
-        | Ok label => exact ⟨.Ok (.Anonymous token label,rest),rfl,.anonymous classified correct⟩
-        | Err error => exact ⟨.Err (.Anonymous error),rfl,.anonymousError classified correct⟩
-/-- Every exact individual and first error is equivalent to its independent derivation. -/
-theorem read_individual_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
-    (tokens : Tokens) (limit : Usize)
-    (result : core.result.Result (SourceIndividual × Tokens) AssertionError) :
-    read_individual table bytes tokens limit = .ok result ↔
-      IndividualRun table.declarations.val bytes.val bytes.len limit.val tokens result := by
+theorem read_member_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limit : Usize) :
+    ∃ result, read_member table bytes tokens limit = .ok result ∧
+      MemberStep table.declarations.val bytes.val bytes.len limit.val tokens result := by
+  obtain ⟨result,executed,correct⟩ := Rowl.FunctionalIndividuals.read_individual_total_correct table bytes tokens limit
+  rw [read_member]
+  cases result with
+  | Err error => exact ⟨.Err (.Individual error),by simp [executed],.error correct⟩
+  | Ok pair => exact ⟨.Ok pair,by simp [executed],.ok correct⟩
+theorem read_member_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limit : Usize) (result : core.result.Result (SourceIndividual × Tokens) AssertionError) :
+    read_member table bytes tokens limit = .ok result ↔
+      MemberStep table.declarations.val bytes.val bytes.len limit.val tokens result := by
   constructor
   · intro output
-    obtain ⟨actual,executed,correct⟩ := read_individual_total_correct table bytes tokens limit
+    obtain ⟨actual,executed,correct⟩ := read_member_total_correct table bytes tokens limit
     have same := Result.ok_injective (executed.symm.trans output)
     simpa [same] using correct
   · intro source
+    rw [read_member]
     cases source with
-    | syntaxError failure =>
-      have takeRead := (take_expected_result_iff tokens .Individual bytes.len _).mpr failure
-      simp [read_individual,takeRead]
-    | @iriError token rest kind error individualKind failure =>
-      have takeRead := (take_expected_result_iff (.Cons token rest) .Individual bytes.len (.Ok (token,rest))).mpr
-        (.taken token rest ⟨_,individualKind⟩)
-      have iriRead := (Rowl.FunctionalIris.resolve_span_error_iff table kind bytes token.start token.end limit error).mpr failure
-      simp [read_individual,takeRead,individual_kind_total_correct,individualKind,iriRead]
-    | @named token rest kind value individualKind valueSource =>
-      have takeRead := (take_expected_result_iff (.Cons token rest) .Individual bytes.len (.Ok (token,rest))).mpr
-        (.taken token rest ⟨_,individualKind⟩)
-      have iriRead := (Rowl.FunctionalIris.resolve_span_value_iff table kind bytes token.start token.end limit value).mpr valueSource
-      simp [read_individual,takeRead,individual_kind_total_correct,individualKind,iriRead]
-    | @anonymousError token rest error individualKind failure =>
-      have takeRead := (take_expected_result_iff (.Cons token rest) .Individual bytes.len (.Ok (token,rest))).mpr
-        (.taken token rest ⟨_,individualKind⟩)
-      have labelRead := (Rowl.FunctionalNames.read_span_error_iff .NodeId bytes token.start token.end limit error).mpr failure
-      simp [read_individual,takeRead,individual_kind_total_correct,individualKind,labelRead]
-    | @anonymous token rest label individualKind labelValue =>
-      have takeRead := (take_expected_result_iff (.Cons token rest) .Individual bytes.len (.Ok (token,rest))).mpr
-        (.taken token rest ⟨_,individualKind⟩)
-      have labelRead := (Rowl.FunctionalNames.read_span_accepted_iff .NodeId bytes token.start token.end limit label).mpr labelValue
-      simp [read_individual,takeRead,individual_kind_total_correct,individualKind,labelRead]
+    | error run => simp [(Rowl.FunctionalIndividuals.read_individual_result_iff table bytes tokens limit _).mpr run]
+    | ok run => simp [(Rowl.FunctionalIndividuals.read_individual_result_iff table bytes tokens limit _).mpr run]
 /-- An accepted individual consumes exactly its one token. -/
-theorem individual_progress {rows : List prefixes.Declaration} {source : List U8} {eof : Usize} {limit : Nat}
+theorem member_progress {rows : List prefixes.Declaration} {source : List U8} {eof : Usize} {limit : Nat}
     {tokens rest : Tokens} {individual : SourceIndividual}
-    (accepted : IndividualRun rows source eof limit tokens (.Ok (individual,rest))) :
+    (accepted : MemberStep rows source eof limit tokens (.Ok (individual,rest))) :
     TokenCount tokens = 1+TokenCount rest := by
-  cases accepted <;> rfl
+  cases accepted with
+  | ok run => exact Rowl.FunctionalIndividuals.individual_progress run
+
+theorem read_members_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limits : ClassLimits) :
+    ∃ result, functional_assertions.read_members table bytes tokens limits = .ok result ∧
+      MembersStep table.declarations.val bytes.val bytes.len limits.count.val limits.iri.val tokens result := by
+  obtain ⟨result,executed,correct,_⟩ :=
+    Rowl.FunctionalIndividuals.read_individual_list_total_correct table bytes tokens 2#usize limits.count limits.iri
+  have two : (2#usize).val = 2 := rfl
+  rw [two] at correct
+  rw [functional_assertions.read_members]
+  cases result with
+  | Err error => exact ⟨.Err (.Individual error),by simp [executed],.error correct⟩
+  | Ok pair => exact ⟨.Ok pair,by simp [executed],.ok correct⟩
+theorem read_members_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limits : ClassLimits) (result : core.result.Result (alloc.vec.Vec SourceIndividual × Tokens) AssertionError) :
+    functional_assertions.read_members table bytes tokens limits = .ok result ↔
+      MembersStep table.declarations.val bytes.val bytes.len limits.count.val limits.iri.val tokens result := by
+  constructor
+  · intro output
+    obtain ⟨actual,executed,correct⟩ := read_members_total_correct table bytes tokens limits
+    have same := Result.ok_injective (executed.symm.trans output)
+    simpa [same] using correct
+  · intro source
+    rw [functional_assertions.read_members]
+    cases source with
+    | error run =>
+      simp [(Rowl.FunctionalIndividuals.read_individual_list_result_iff table bytes tokens 2#usize limits.count
+        limits.iri _).mpr run]
+    | ok run =>
+      simp [(Rowl.FunctionalIndividuals.read_individual_list_result_iff table bytes tokens 2#usize limits.count
+        limits.iri _).mpr run]
+/-- An accepted individual list never consumes more tokens than it is given. -/
+theorem members_progress {rows : List prefixes.Declaration} {source : List U8} {eof : Usize} {count limit : Nat}
+    {tokens rest : Tokens} {members : alloc.vec.Vec SourceIndividual}
+    (accepted : MembersStep rows source eof count limit tokens (.Ok (members,rest))) :
+    TokenCount rest ≤ TokenCount tokens := by
+  cases accepted with
+  | ok run => exact Rowl.FunctionalIndividuals.list_progress run
 
 /-- A class expression at an assertion position: the independent class grammar
     at the full nesting allowance, with its errors wrapped. -/
@@ -214,34 +199,46 @@ inductive EdgeRun (rows : List prefixes.Declaration) (source : List U8) (eof : U
       EdgeRun rows source eof limit tokens (.Err error)
   | sourceError {tokens rest : Tokens} {property : SourceObjectProperty} {error : AssertionError}
       (propertyRun : PropertyStep rows source eof limit tokens (.Ok (property,rest)))
-      (failure : IndividualRun rows source eof limit rest (.Err error)) :
+      (failure : MemberStep rows source eof limit rest (.Err error)) :
       EdgeRun rows source eof limit tokens (.Err error)
   | targetError {tokens rest after : Tokens} {property : SourceObjectProperty} {subject : SourceIndividual}
       {error : AssertionError}
       (propertyRun : PropertyStep rows source eof limit tokens (.Ok (property,rest)))
-      (sourceRun : IndividualRun rows source eof limit rest (.Ok (subject,after)))
-      (failure : IndividualRun rows source eof limit after (.Err error)) :
+      (sourceRun : MemberStep rows source eof limit rest (.Ok (subject,after)))
+      (failure : MemberStep rows source eof limit after (.Err error)) :
       EdgeRun rows source eof limit tokens (.Err error)
   | ok {tokens rest after remaining : Tokens} {property : SourceObjectProperty} {subject object : SourceIndividual}
       (propertyRun : PropertyStep rows source eof limit tokens (.Ok (property,rest)))
-      (sourceRun : IndividualRun rows source eof limit rest (.Ok (subject,after)))
-      (targetRun : IndividualRun rows source eof limit after (.Ok (object,remaining))) :
+      (sourceRun : MemberStep rows source eof limit rest (.Ok (subject,after)))
+      (targetRun : MemberStep rows source eof limit after (.Ok (object,remaining))) :
       EdgeRun rows source eof limit tokens (.Ok ((property,subject,object),remaining))
 /-- Independent assertion bodies after the axiom annotations, in source order:
-    a class expression and an individual, or an object property expression and
-    two individuals. -/
+    an individual list of at least two members, a class expression and an
+    individual, or an object property expression and two individuals. -/
 inductive BodyRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (count limit depth : Nat) :
     AssertionForm → Tokens → core.result.Result (SourceAssertionBody × Tokens) AssertionError → Prop
+  | sameError {tokens : Tokens} {error : AssertionError}
+      (members : MembersStep rows source eof count limit tokens (.Err error)) :
+      BodyRun rows source eof count limit depth .Same tokens (.Err error)
+  | same {tokens remaining : Tokens} {members : alloc.vec.Vec SourceIndividual}
+      (membersRun : MembersStep rows source eof count limit tokens (.Ok (members,remaining))) :
+      BodyRun rows source eof count limit depth .Same tokens (.Ok (.SameIndividual members,remaining))
+  | differentError {tokens : Tokens} {error : AssertionError}
+      (members : MembersStep rows source eof count limit tokens (.Err error)) :
+      BodyRun rows source eof count limit depth .Different tokens (.Err error)
+  | different {tokens remaining : Tokens} {members : alloc.vec.Vec SourceIndividual}
+      (membersRun : MembersStep rows source eof count limit tokens (.Ok (members,remaining))) :
+      BodyRun rows source eof count limit depth .Different tokens (.Ok (.DifferentIndividuals members,remaining))
   | classError {tokens : Tokens} {error : AssertionError}
       (classRun : ClassStep rows source eof count limit depth tokens (.Err error)) :
       BodyRun rows source eof count limit depth .Class tokens (.Err error)
   | individualError {tokens rest : Tokens} {value : SourceClass} {error : AssertionError}
       (classRun : ClassStep rows source eof count limit depth tokens (.Ok (value,rest)))
-      (failure : IndividualRun rows source eof limit rest (.Err error)) :
+      (failure : MemberStep rows source eof limit rest (.Err error)) :
       BodyRun rows source eof count limit depth .Class tokens (.Err error)
   | classAssertion {tokens rest remaining : Tokens} {value : SourceClass} {individual : SourceIndividual}
       (classRun : ClassStep rows source eof count limit depth tokens (.Ok (value,rest)))
-      (individualRun : IndividualRun rows source eof limit rest (.Ok (individual,remaining))) :
+      (individualRun : MemberStep rows source eof limit rest (.Ok (individual,remaining))) :
       BodyRun rows source eof count limit depth .Class tokens (.Ok (.ClassAssertion value individual,remaining))
   | propertyError {tokens : Tokens} {error : AssertionError}
       (edge : EdgeRun rows source eof limit tokens (.Err error)) :
@@ -318,12 +315,12 @@ theorem read_edge_total_correct (table : prefixes.PrefixTable) (bytes : alloc.ve
   | Err error => exact ⟨.Err error,by simp [propertyRead],.propertyError propertyCorrect⟩
   | Ok pair =>
     obtain ⟨property,rest⟩ := pair
-    obtain ⟨subject,subjectRead,subjectCorrect⟩ := read_individual_total_correct table bytes rest limits.iri
+    obtain ⟨subject,subjectRead,subjectCorrect⟩ := read_member_total_correct table bytes rest limits.iri
     cases subject with
     | Err error => exact ⟨.Err error,by simp [propertyRead,subjectRead],.sourceError propertyCorrect subjectCorrect⟩
     | Ok pair =>
       obtain ⟨subject,after⟩ := pair
-      obtain ⟨object,objectRead,objectCorrect⟩ := read_individual_total_correct table bytes after limits.iri
+      obtain ⟨object,objectRead,objectCorrect⟩ := read_member_total_correct table bytes after limits.iri
       cases object with
       | Err error =>
         exact ⟨.Err error,by simp [propertyRead,subjectRead,objectRead],
@@ -349,15 +346,15 @@ theorem read_edge_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.V
     | propertyError property => simp [(read_property_result_iff table bytes tokens limits.iri _).mpr property]
     | sourceError propertyRun failure =>
       simp [(read_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr failure]
+        (read_member_result_iff table bytes _ limits.iri _).mpr failure]
     | targetError propertyRun sourceRun failure =>
       simp [(read_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr sourceRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr failure]
+        (read_member_result_iff table bytes _ limits.iri _).mpr sourceRun,
+        (read_member_result_iff table bytes _ limits.iri _).mpr failure]
     | ok propertyRun sourceRun targetRun =>
       simp [(read_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr sourceRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr targetRun]
+        (read_member_result_iff table bytes _ limits.iri _).mpr sourceRun,
+        (read_member_result_iff table bytes _ limits.iri _).mpr targetRun]
 
 /-- The actual body reader terminates and follows the independent grammar. -/
 theorem read_body_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (form : AssertionForm)
@@ -367,13 +364,27 @@ theorem read_body_total_correct (table : prefixes.PrefixTable) (bytes : alloc.ve
         result := by
   rw [read_body.eq_def]
   cases form with
+  | Same =>
+    obtain ⟨members,membersRead,membersCorrect⟩ := read_members_total_correct table bytes tokens limits
+    cases members with
+    | Err error => exact ⟨.Err error,by simp [membersRead],.sameError membersCorrect⟩
+    | Ok pair =>
+      obtain ⟨members,remaining⟩ := pair
+      exact ⟨.Ok (.SameIndividual members,remaining),by simp [membersRead],.same membersCorrect⟩
+  | Different =>
+    obtain ⟨members,membersRead,membersCorrect⟩ := read_members_total_correct table bytes tokens limits
+    cases members with
+    | Err error => exact ⟨.Err error,by simp [membersRead],.differentError membersCorrect⟩
+    | Ok pair =>
+      obtain ⟨members,remaining⟩ := pair
+      exact ⟨.Ok (.DifferentIndividuals members,remaining),by simp [membersRead],.different membersCorrect⟩
   | Class =>
     obtain ⟨value,valueRead,valueCorrect⟩ := read_class_total_correct table bytes tokens limits
     cases value with
     | Err error => exact ⟨.Err error,by simp [valueRead],.classError valueCorrect⟩
     | Ok pair =>
       obtain ⟨value,rest⟩ := pair
-      obtain ⟨individual,individualRead,individualCorrect⟩ := read_individual_total_correct table bytes rest limits.iri
+      obtain ⟨individual,individualRead,individualCorrect⟩ := read_member_total_correct table bytes rest limits.iri
       cases individual with
       | Err error =>
         exact ⟨.Err error,by simp [valueRead,individualRead],.individualError valueCorrect individualCorrect⟩
@@ -412,19 +423,23 @@ theorem read_body_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.V
   · intro source
     rw [read_body.eq_def]
     cases source with
+    | sameError members => simp [(read_members_result_iff table bytes _ limits _).mpr members]
+    | same membersRun => simp [(read_members_result_iff table bytes _ limits _).mpr membersRun]
+    | differentError members => simp [(read_members_result_iff table bytes _ limits _).mpr members]
+    | different membersRun => simp [(read_members_result_iff table bytes _ limits _).mpr membersRun]
     | classError classRun => simp [(read_class_result_iff table bytes _ limits _).mpr classRun]
     | individualError classRun failure =>
       simp [(read_class_result_iff table bytes _ limits _).mpr classRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr failure]
+        (read_member_result_iff table bytes _ limits.iri _).mpr failure]
     | classAssertion classRun individualRun =>
       simp [(read_class_result_iff table bytes _ limits _).mpr classRun,
-        (read_individual_result_iff table bytes _ limits.iri _).mpr individualRun]
+        (read_member_result_iff table bytes _ limits.iri _).mpr individualRun]
     | propertyError edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
     | propertyAssertion edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
     | negativeError edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
     | negativeAssertion edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
 
-/-- Independent assertion grammar in source order: one of the three keywords,
+/-- Independent assertion grammar in source order: one of the five keywords,
     `(`, the maximal axiom-annotation sequence (the independent annotation
     grammar with the caller's annotation limits), the body with the caller's
     class limits, then `)`. -/
@@ -598,8 +613,8 @@ theorem assertion_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec
     | ok propertyRun sourceRun targetRun =>
       injection outputEq with same; injection same with _ restSame; subst restSame
       have one := propertyStep propertyRun
-      have two := individual_progress sourceRun
-      have three := individual_progress targetRun
+      have two := member_progress sourceRun
+      have three := member_progress targetRun
       omega
     | propertyError | sourceError | targetError => cases outputEq
   have bodyStep : ∀ {form : AssertionForm} {start after : Tokens} {body : SourceAssertionBody},
@@ -608,10 +623,16 @@ theorem assertion_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec
     intro form start after body step
     generalize outputEq : core.result.Result.Ok (body,after) = output at step
     cases step with
+    | same membersRun =>
+      injection outputEq with same; injection same with _ restSame; subst restSame
+      exact members_progress membersRun
+    | different membersRun =>
+      injection outputEq with same; injection same with _ restSame; subst restSame
+      exact members_progress membersRun
     | classAssertion classRun individualRun =>
       injection outputEq with same; injection same with _ restSame; subst restSame
       have one := classStep classRun
-      have two := individual_progress individualRun
+      have two := member_progress individualRun
       omega
     | propertyAssertion edge =>
       injection outputEq with same; injection same with _ restSame; subst restSame
@@ -619,7 +640,7 @@ theorem assertion_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec
     | negativeAssertion edge =>
       injection outputEq with same; injection same with _ restSame; subst restSame
       exact edgeStep edge
-    | classError | individualError | propertyError | negativeError => cases outputEq
+    | sameError | differentError | classError | individualError | propertyError | negativeError => cases outputEq
   generalize outputEq : core.result.Result.Ok (record,rest) = output at run
   cases run with
   | keywordError | openError | annotationError | bodyError | closeError => cases outputEq

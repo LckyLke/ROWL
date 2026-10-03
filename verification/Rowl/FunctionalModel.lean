@@ -5,17 +5,19 @@ The kernel's raw OWL model of a read Functional Syntax document, proved against
 an independent structural correspondence. Every mapping terminates; whenever it
 succeeds, each model value corresponds to its source record: exact IRI and
 literal bytes, node IDs as anonymous individuals of the caller's scope, and
-nested annotations, member lists and axioms in source order. The mapping
-declines only a member list or property chain with fewer than two members, and
-every axiom the independent document grammar accepts has at least two members in
-each, so every read document maps.
+nested annotations, member lists, individual lists and axioms in source order.
+The mapping declines only a member list, property chain or individual list with
+fewer than two members or an enumeration without members, and every axiom the
+independent document grammar accepts has at least that many members in each, so
+every read document maps.
 -/
 namespace Rowl.FunctionalModel
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open RowlRust.functional_model
 open RowlRust.functional_annotations (SourceAnnotation SourceAnnotationValue)
 open RowlRust.functional_annotation_axioms (SourceAnnotationAxiomBody SourceAnnotationSubject)
-open RowlRust.functional_assertions (SourceAssertionBody SourceIndividual)
+open RowlRust.functional_assertions (SourceAssertionBody)
+open RowlRust.functional_individuals (SourceIndividual)
 open RowlRust.functional_classes (SourceClass SourceObjectProperty)
 open RowlRust.functional_class_axioms (SourceClassAxiomBody)
 open RowlRust.functional_property_axioms (SourcePropertyAxiomBody SourceSubProperty PropertyCharacteristic)
@@ -45,6 +47,17 @@ def SubjectOf (scope : alloc.vec.Vec U8) : SourceAnnotationSubject → model.Ann
 def IndividualOf (scope : alloc.vec.Vec U8) : SourceIndividual → model.Individual
   | .Named iri => .Named ⟨IriOf iri⟩
   | .Anonymous _ label => .Anonymous (AnonymousOf scope label)
+/-- A model enumeration corresponds to a source individual list: its first and
+    remaining members are the models of the source individuals, in order. -/
+def EnumerationModel (scope : alloc.vec.Vec U8) (members : List SourceIndividual)
+    (target : model.NonEmpty model.Individual) : Prop :=
+  target.first :: target.rest.val = members.map (IndividualOf scope)
+/-- A model individual list corresponds to a source individual list: its first,
+    second and remaining members are the models of the source individuals, in
+    order. -/
+def IndividualMembersModel (scope : alloc.vec.Vec U8) (members : List SourceIndividual)
+    (target : model.AtLeastTwo model.Individual) : Prop :=
+  target.first :: target.second :: target.rest.val = members.map (IndividualOf scope)
 def PropertyOf : SourceObjectProperty → model.ObjectPropertyExpression
   | .Named iri => .Property ⟨IriOf iri⟩
   | .Inverse _ iri => .Inverse ⟨IriOf iri⟩
@@ -85,68 +98,82 @@ end
 
 mutual
 /-- A model class expression corresponds to a source class expression with the
-    same constructor, exact IRIs and corresponding operands. -/
-inductive ClassModel : SourceClass → model.ClassExpression → Prop
-  | named {iri : HeaderIri} : ClassModel (.Named iri) (.Class ⟨IriOf iri⟩)
+    same constructor, exact IRIs, the models of its individuals in the caller's
+    scope and corresponding operands. -/
+inductive ClassModel (scope : alloc.vec.Vec U8) : SourceClass → model.ClassExpression → Prop
+  | named {iri : HeaderIri} : ClassModel scope (.Named iri) (.Class ⟨IriOf iri⟩)
   | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceClass}
       {target : model.AtLeastTwo model.ClassExpression}
-      (inner : MembersModel members.val target) :
-      ClassModel (.IntersectionOf keyword members) (.ObjectIntersectionOf target)
+      (inner : MembersModel scope members.val target) :
+      ClassModel scope (.IntersectionOf keyword members) (.ObjectIntersectionOf target)
   | union {keyword : functional.Token} {members : alloc.vec.Vec SourceClass}
       {target : model.AtLeastTwo model.ClassExpression}
-      (inner : MembersModel members.val target) :
-      ClassModel (.UnionOf keyword members) (.ObjectUnionOf target)
+      (inner : MembersModel scope members.val target) :
+      ClassModel scope (.UnionOf keyword members) (.ObjectUnionOf target)
   | complement {keyword : functional.Token} {operand : SourceClass} {target : model.ClassExpression}
-      (inner : ClassModel operand target) :
-      ClassModel (.ComplementOf keyword operand) (.ObjectComplementOf target)
+      (inner : ClassModel scope operand target) :
+      ClassModel scope (.ComplementOf keyword operand) (.ObjectComplementOf target)
   | some {keyword : functional.Token} {property : SourceObjectProperty} {filler : SourceClass}
-      {target : model.ClassExpression} (inner : ClassModel filler target) :
-      ClassModel (.SomeValuesFrom keyword property filler) (.ObjectSomeValuesFrom (PropertyOf property) target)
+      {target : model.ClassExpression} (inner : ClassModel scope filler target) :
+      ClassModel scope (.SomeValuesFrom keyword property filler) (.ObjectSomeValuesFrom (PropertyOf property) target)
   | all {keyword : functional.Token} {property : SourceObjectProperty} {filler : SourceClass}
-      {target : model.ClassExpression} (inner : ClassModel filler target) :
-      ClassModel (.AllValuesFrom keyword property filler) (.ObjectAllValuesFrom (PropertyOf property) target)
+      {target : model.ClassExpression} (inner : ClassModel scope filler target) :
+      ClassModel scope (.AllValuesFrom keyword property filler) (.ObjectAllValuesFrom (PropertyOf property) target)
+  | oneOf {keyword : functional.Token} {members : alloc.vec.Vec SourceIndividual}
+      {target : model.NonEmpty model.Individual} (inner : EnumerationModel scope members.val target) :
+      ClassModel scope (.OneOf keyword members) (.ObjectOneOf target)
+  | value {keyword : functional.Token} {property : SourceObjectProperty} {individual : SourceIndividual} :
+      ClassModel scope (.HasValue keyword property individual)
+        (.ObjectHasValue (PropertyOf property) (IndividualOf scope individual))
 /-- A member list of at least two expressions corresponds to the model's first,
     second and remaining members, in order. -/
-inductive MembersModel : List SourceClass → model.AtLeastTwo model.ClassExpression → Prop
+inductive MembersModel (scope : alloc.vec.Vec U8) : List SourceClass → model.AtLeastTwo model.ClassExpression → Prop
   | mk {first second : SourceClass} {rest : List SourceClass} {firstTarget secondTarget : model.ClassExpression}
       {restTargets : alloc.vec.Vec model.ClassExpression}
-      (one : ClassModel first firstTarget) (two : ClassModel second secondTarget)
-      (others : RestModel rest restTargets.val) :
-      MembersModel (first :: second :: rest) ⟨firstTarget,secondTarget,restTargets⟩
+      (one : ClassModel scope first firstTarget) (two : ClassModel scope second secondTarget)
+      (others : RestModel scope rest restTargets.val) :
+      MembersModel scope (first :: second :: rest) ⟨firstTarget,secondTarget,restTargets⟩
 /-- Remaining members correspond element by element, in order. -/
-inductive RestModel : List SourceClass → List model.ClassExpression → Prop
-  | nil : RestModel [] []
+inductive RestModel (scope : alloc.vec.Vec U8) : List SourceClass → List model.ClassExpression → Prop
+  | nil : RestModel scope [] []
   | cons {source : SourceClass} {sources : List SourceClass} {target : model.ClassExpression}
       {targets : List model.ClassExpression}
-      (head : ClassModel source target) (tail : RestModel sources targets) :
-      RestModel (source :: sources) (target :: targets)
+      (head : ClassModel scope source target) (tail : RestModel scope sources targets) :
+      RestModel scope (source :: sources) (target :: targets)
 end
 
 /-- A model class axiom corresponds to a source class axiom with the same form. -/
-inductive ClassAxiomModel : SourceClassAxiomBody → model.Axiom → Prop
+inductive ClassAxiomModel (scope : alloc.vec.Vec U8) : SourceClassAxiomBody → model.Axiom → Prop
   | subClassOf {sub sup : SourceClass} {subTarget supTarget : model.ClassExpression}
-      (one : ClassModel sub subTarget) (two : ClassModel sup supTarget) :
-      ClassAxiomModel (.SubClassOf sub sup) (.SubClassOf subTarget supTarget)
+      (one : ClassModel scope sub subTarget) (two : ClassModel scope sup supTarget) :
+      ClassAxiomModel scope (.SubClassOf sub sup) (.SubClassOf subTarget supTarget)
   | equivalent {members : alloc.vec.Vec SourceClass} {target : model.AtLeastTwo model.ClassExpression}
-      (inner : MembersModel members.val target) :
-      ClassAxiomModel (.EquivalentClasses members) (.EquivalentClasses target)
+      (inner : MembersModel scope members.val target) :
+      ClassAxiomModel scope (.EquivalentClasses members) (.EquivalentClasses target)
   | disjoint {members : alloc.vec.Vec SourceClass} {target : model.AtLeastTwo model.ClassExpression}
-      (inner : MembersModel members.val target) :
-      ClassAxiomModel (.DisjointClasses members) (.DisjointClasses target)
+      (inner : MembersModel scope members.val target) :
+      ClassAxiomModel scope (.DisjointClasses members) (.DisjointClasses target)
   | disjointUnion {named : HeaderIri} {members : alloc.vec.Vec SourceClass}
-      {target : model.AtLeastTwo model.ClassExpression} (inner : MembersModel members.val target) :
-      ClassAxiomModel (.DisjointUnion named members) (.DisjointUnion ⟨IriOf named⟩ target)
+      {target : model.AtLeastTwo model.ClassExpression} (inner : MembersModel scope members.val target) :
+      ClassAxiomModel scope (.DisjointUnion named members) (.DisjointUnion ⟨IriOf named⟩ target)
   | domain {property : SourceObjectProperty} {domain : SourceClass} {target : model.ClassExpression}
-      (inner : ClassModel domain target) :
-      ClassAxiomModel (.ObjectPropertyDomain property domain) (.ObjectPropertyDomain (PropertyOf property) target)
+      (inner : ClassModel scope domain target) :
+      ClassAxiomModel scope (.ObjectPropertyDomain property domain)
+        (.ObjectPropertyDomain (PropertyOf property) target)
   | range {property : SourceObjectProperty} {range : SourceClass} {target : model.ClassExpression}
-      (inner : ClassModel range target) :
-      ClassAxiomModel (.ObjectPropertyRange property range) (.ObjectPropertyRange (PropertyOf property) target)
+      (inner : ClassModel scope range target) :
+      ClassAxiomModel scope (.ObjectPropertyRange property range) (.ObjectPropertyRange (PropertyOf property) target)
 /-- A model assertion corresponds to a source assertion of the same form, with
-    the model of its class expression or property and its individuals. -/
+    the models of its individuals, class expression or property. -/
 inductive AssertionModel (scope : alloc.vec.Vec U8) : SourceAssertionBody → model.Axiom → Prop
+  | same {members : alloc.vec.Vec SourceIndividual} {target : model.AtLeastTwo model.Individual}
+      (inner : IndividualMembersModel scope members.val target) :
+      AssertionModel scope (.SameIndividual members) (.SameIndividual target)
+  | different {members : alloc.vec.Vec SourceIndividual} {target : model.AtLeastTwo model.Individual}
+      (inner : IndividualMembersModel scope members.val target) :
+      AssertionModel scope (.DifferentIndividuals members) (.DifferentIndividuals target)
   | classAssertion {expression : SourceClass} {member : SourceIndividual} {target : model.ClassExpression}
-      (inner : ClassModel expression target) :
+      (inner : ClassModel scope expression target) :
       AssertionModel scope (.ClassAssertion expression member) (.ClassAssertion target (IndividualOf scope member))
   | propertyAssertion {property : SourceObjectProperty} {subject object : SourceIndividual} :
       AssertionModel scope (.ObjectPropertyAssertion property subject object)
@@ -207,7 +234,8 @@ inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.Annotate
       AxiomModel scope (.Annotation record) ⟨annotations,AnnotationAxiomOf scope record.body⟩
   | «class» {record : functional_class_axioms.SourceClassAxiom} {annotations : alloc.vec.Vec model.Annotation}
       {target : model.Axiom}
-      (inner : AnnotationsModel scope record.annotations.val annotations.val) (body : ClassAxiomModel record.body target) :
+      (inner : AnnotationsModel scope record.annotations.val annotations.val)
+      (body : ClassAxiomModel scope record.body target) :
       AxiomModel scope (.Class record) ⟨annotations,target⟩
   | property {record : functional_property_axioms.SourcePropertyAxiom} {annotations : alloc.vec.Vec model.Annotation}
       {target : model.Axiom}
@@ -228,7 +256,8 @@ def OntologyModel (scope : alloc.vec.Vec U8) (tail : SourceDocumentTail) (ontolo
   List.Forall₂ (AxiomModel scope) tail.axioms.val ontology.axioms.val
 
 /-- Every intersection and union in a class expression has at least two
-    members: the shape the class grammar accepts and model member lists need. -/
+    members and every enumeration at least one: the shape the class grammar
+    accepts and model member lists need. -/
 inductive Shaped : SourceClass → Prop
   | named {iri : HeaderIri} : Shaped (.Named iri)
   | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceClass}
@@ -243,6 +272,10 @@ inductive Shaped : SourceClass → Prop
       (inner : Shaped filler) : Shaped (.SomeValuesFrom keyword property filler)
   | all {keyword : functional.Token} {property : SourceObjectProperty} {filler : SourceClass}
       (inner : Shaped filler) : Shaped (.AllValuesFrom keyword property filler)
+  | oneOf {keyword : functional.Token} {members : alloc.vec.Vec SourceIndividual}
+      (enough : 1 ≤ members.val.length) : Shaped (.OneOf keyword members)
+  | value {keyword : functional.Token} {property : SourceObjectProperty} {individual : SourceIndividual} :
+      Shaped (.HasValue keyword property individual)
 /-- A class axiom whose member lists have at least two members and whose class
     expressions are shaped. -/
 def ShapedAxiom : SourceClassAxiomBody → Prop
@@ -252,8 +285,11 @@ def ShapedAxiom : SourceClassAxiomBody → Prop
   | .DisjointUnion _ members => 2 ≤ members.val.length ∧ ∀ member ∈ members.val, Shaped member
   | .ObjectPropertyDomain _ domain => Shaped domain
   | .ObjectPropertyRange _ range => Shaped range
-/-- An assertion whose class expression is shaped. -/
+/-- An assertion whose individual list has at least two members and whose class
+    expression is shaped. -/
 def ShapedAssertion : SourceAssertionBody → Prop
+  | .SameIndividual members => 2 ≤ members.val.length
+  | .DifferentIndividuals members => 2 ≤ members.val.length
   | .ClassAssertion expression _ => Shaped expression
   | _ => True
 /-- A sub-property whose chain, if any, has at least two members. -/
@@ -424,36 +460,130 @@ private theorem two_shape {α : Type} : ∀ {values : List α} (enough : 2 ≤ v
   | [], enough => by simp at enough
   | [_], enough => by simp at enough
   | _ :: _ :: _, _ => rfl
-private theorem rest_snoc {source : SourceClass} {target : model.ClassExpression}
-    (last : ClassModel source target) :
+private theorem rest_snoc {scope : alloc.vec.Vec U8} {source : SourceClass} {target : model.ClassExpression}
+    (last : ClassModel scope source target) :
     ∀ {sources : List SourceClass} {targets : List model.ClassExpression},
-      RestModel sources targets → RestModel (sources++[source]) (targets++[target])
+      RestModel scope sources targets → RestModel scope (sources++[source]) (targets++[target])
   | [], _, relation => by cases relation; exact .cons last .nil
   | _ :: _, _, relation => by
     cases relation with
     | cons head tail => exact .cons head (rest_snoc last tail)
-private theorem rest_length :
+private theorem rest_length {scope : alloc.vec.Vec U8} :
     ∀ {sources : List SourceClass} {targets : List model.ClassExpression},
-      RestModel sources targets → targets.length = sources.length
+      RestModel scope sources targets → targets.length = sources.length
   | [], _, relation => by cases relation; rfl
   | _ :: _, _, relation => by
     cases relation with
     | cons head tail => simp [rest_length tail]
 
+/-- The remaining individuals of a list map one by one after the models already
+    collected. -/
+theorem individuals_from_correct (values : alloc.vec.Vec SourceIndividual) (index : Usize)
+    (out : alloc.vec.Vec model.Individual) (scope : alloc.vec.Vec U8) (start : Nat) (first : start ≤ index.val)
+    (collected : out.val = ((values.val.drop start).take (index.val-start)).map (IndividualOf scope))
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, individuals_from values index out scope = .ok result ∧
+      result.val = (values.val.drop start).map (IndividualOf scope) := by
+  rw [individuals_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-start := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (IndividualOf scope values.val[index.val]) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop start).take (next.val-start) =
+        (values.val.drop start).take (index.val-start) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-start = (index.val-start)+1 by omega]
+      have bound : index.val-start < (values.val.drop start).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show start+(index.val-start) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := individuals_from_correct values next appended scope start (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,individual_correct,push,advance,finalRead],finalList⟩
+  · have full : (values.val.drop start).take (index.val-start) = values.val.drop start :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+/-- An enumeration maps exactly when it has a member, to the models of its
+    individuals in order. -/
+theorem enumeration_correct (values : alloc.vec.Vec SourceIndividual) (scope : alloc.vec.Vec U8) :
+    ∃ result, enumeration values scope = .ok result ∧
+      (∀ target, result = some target → EnumerationModel scope values.val target) ∧
+      (1 ≤ values.val.length → result.isSome) := by
+  rw [enumeration]
+  by_cases few : values.val.length < 1
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few],
+      (by intro target impossible; cases impossible),fun enough => absurd enough (by omega)⟩
+  · have zero : 0 < values.val.length := by omega
+    have first : values.index_usize 0#usize = .ok values.val[0] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+    obtain ⟨rest,restRead,restList⟩ := individuals_from_correct values 1#usize
+      (alloc.vec.Vec.new model.Individual) scope 1 (by simp) (by simp) (by simp; omega)
+    refine ⟨some ⟨IndividualOf scope values.val[0],rest⟩,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,
+      first,individual_correct,restRead],?_,fun _ => rfl⟩
+    intro target same
+    cases same
+    obtain ⟨a,r,shape⟩ : ∃ a r, values.val = a :: r := by
+      rcases hv : values.val with _ | ⟨a,r⟩
+      · rw [hv] at zero; simp at zero
+      · exact ⟨a,r,rfl⟩
+    unfold EnumerationModel
+    rw [restList]
+    simp [shape]
+/-- An individual list maps exactly when it has two members, to the models of
+    its individuals in order. -/
+theorem individual_members_correct (values : alloc.vec.Vec SourceIndividual) (scope : alloc.vec.Vec U8) :
+    ∃ result, individual_members values scope = .ok result ∧
+      (∀ target, result = some target → IndividualMembersModel scope values.val target) ∧
+      (2 ≤ values.val.length → result.isSome) := by
+  rw [individual_members]
+  by_cases few : values.val.length < 2
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,Nat.lt_succ_iff.mp few],
+      (by intro target impossible; cases impossible),fun enough => absurd enough (by omega)⟩
+  · have enough : 2 ≤ values.val.length := by omega
+    have zero : 0 < values.val.length := by omega
+    have one : 1 < values.val.length := by omega
+    have first : values.index_usize 0#usize = .ok values.val[0] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+    have second : values.index_usize 1#usize = .ok values.val[1] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+    obtain ⟨rest,restRead,restList⟩ := individuals_from_correct values 2#usize
+      (alloc.vec.Vec.new model.Individual) scope 2 (by simp) (by simp) (by simpa using enough)
+    refine ⟨some ⟨IndividualOf scope values.val[0],IndividualOf scope values.val[1],rest⟩,
+      by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,second,
+        individual_correct,restRead],?_,fun _ => rfl⟩
+    intro target same
+    cases same
+    obtain ⟨a,b,r,shape⟩ : ∃ a b r, values.val = a :: b :: r := by
+      rcases hv : values.val with _ | ⟨a,_ | ⟨b,r⟩⟩
+      · rw [hv] at enough; simp at enough
+      · rw [hv] at enough; simp at enough
+      · exact ⟨a,b,r,rfl⟩
+    unfold IndividualMembersModel
+    rw [restList]
+    simp [shape]
 
 mutual
 /-- Every source class expression maps, when it maps, to its corresponding
     model class expression; every shaped expression maps. -/
-theorem class_correct (source : SourceClass) :
-    ∃ result, functional_model.class source = .ok result ∧
-      (∀ target, result = some target → ClassModel source target) ∧ (Shaped source → result.isSome) := by
+theorem class_correct (source : SourceClass) (scope : alloc.vec.Vec U8) :
+    ∃ result, functional_model.class source scope = .ok result ∧
+      (∀ target, result = some target → ClassModel scope source target) ∧ (Shaped source → result.isSome) := by
   rw [functional_model.class.eq_def]
   cases source with
   | Named named =>
     exact ⟨some (.Class ⟨IriOf named⟩),by simp [iri_correct],(by intro target same; cases same; exact .named),
       fun _ => rfl⟩
   | IntersectionOf keyword members =>
-    obtain ⟨result,read,correct,total⟩ := members_of_correct members
+    obtain ⟨result,read,correct,total⟩ := members_of_correct members scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -462,7 +592,7 @@ theorem class_correct (source : SourceClass) :
       exact ⟨some (.ObjectIntersectionOf target),by simp [read],
         (by intro target' same; cases same; exact .intersection (correct target rfl)),fun _ => rfl⟩
   | UnionOf keyword members =>
-    obtain ⟨result,read,correct,total⟩ := members_of_correct members
+    obtain ⟨result,read,correct,total⟩ := members_of_correct members scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -471,7 +601,7 @@ theorem class_correct (source : SourceClass) :
       exact ⟨some (.ObjectUnionOf target),by simp [read],
         (by intro target' same; cases same; exact .union (correct target rfl)),fun _ => rfl⟩
   | ComplementOf keyword operand =>
-    obtain ⟨result,read,correct,total⟩ := class_correct operand
+    obtain ⟨result,read,correct,total⟩ := class_correct operand scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -480,7 +610,7 @@ theorem class_correct (source : SourceClass) :
       exact ⟨some (.ObjectComplementOf target),by simp [read],
         (by intro target' same; cases same; exact .complement (correct target rfl)),fun _ => rfl⟩
   | SomeValuesFrom keyword property filler =>
-    obtain ⟨result,read,correct,total⟩ := class_correct filler
+    obtain ⟨result,read,correct,total⟩ := class_correct filler scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -489,7 +619,7 @@ theorem class_correct (source : SourceClass) :
       exact ⟨some (.ObjectSomeValuesFrom (PropertyOf property) target),by simp [read,property_correct],
         (by intro target' same; cases same; exact .some (correct target rfl)),fun _ => rfl⟩
   | AllValuesFrom keyword property filler =>
-    obtain ⟨result,read,correct,total⟩ := class_correct filler
+    obtain ⟨result,read,correct,total⟩ := class_correct filler scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -497,6 +627,18 @@ theorem class_correct (source : SourceClass) :
     | some target =>
       exact ⟨some (.ObjectAllValuesFrom (PropertyOf property) target),by simp [read,property_correct],
         (by intro target' same; cases same; exact .all (correct target rfl)),fun _ => rfl⟩
+  | OneOf keyword members =>
+    obtain ⟨result,read,correct,total⟩ := enumeration_correct members scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | oneOf enough => exact absurd (total enough) (by simp)⟩
+    | some target =>
+      exact ⟨some (.ObjectOneOf target),by simp [read],
+        (by intro target' same; cases same; exact .oneOf (correct target rfl)),fun _ => rfl⟩
+  | HasValue keyword property value =>
+    exact ⟨some (.ObjectHasValue (PropertyOf property) (IndividualOf scope value)),
+      by simp [property_correct,individual_correct],(by intro target same; cases same; exact .value),fun _ => rfl⟩
 termination_by (sizeOf source,0)
 decreasing_by
   all_goals
@@ -507,10 +649,11 @@ decreasing_by
 /-- Remaining members map element by element, extending the models already
     collected; they all map when every member is shaped. -/
 theorem rest_from_correct (values : alloc.vec.Vec SourceClass) (index : Usize) (out : alloc.vec.Vec model.ClassExpression)
-    (start : 2 ≤ index.val) (collected : RestModel ((values.val.drop 2).take (index.val-2)) out.val)
+    (scope : alloc.vec.Vec U8) (start : 2 ≤ index.val)
+    (collected : RestModel scope ((values.val.drop 2).take (index.val-2)) out.val)
     (inside : index.val ≤ values.val.length) :
-    ∃ result, rest_from values index out = .ok result ∧
-      (∀ targets, result = some targets → RestModel (values.val.drop 2) targets.val) ∧
+    ∃ result, rest_from values index out scope = .ok result ∧
+      (∀ targets, result = some targets → RestModel scope (values.val.drop 2) targets.val) ∧
       ((∀ member ∈ values.val, Shaped member) → result.isSome) := by
   rw [rest_from.eq_def]
   by_cases more : index.val < values.val.length
@@ -518,7 +661,7 @@ theorem rest_from_correct (values : alloc.vec.Vec SourceClass) (index : Usize) (
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
     have member : values.val[index.val] ∈ values.val := List.getElem_mem more
     have smaller := vec_mem_size values member
-    obtain ⟨result,read,correct,total⟩ := class_correct values.val[index.val]
+    obtain ⟨result,read,correct,total⟩ := class_correct values.val[index.val] scope
     cases result with
     | none =>
       exact ⟨none,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,
@@ -536,7 +679,7 @@ theorem rest_from_correct (values : alloc.vec.Vec SourceClass) (index : Usize) (
         have bound : index.val-2 < (values.val.drop 2).length := by simp; omega
         rw [List.take_succ_eq_append_getElem bound]
         simp [List.getElem_drop,show 2+(index.val-2) = index.val by omega]
-      obtain ⟨final,finalRead,finalCorrect,finalTotal⟩ := rest_from_correct values next appended (by omega)
+      obtain ⟨final,finalRead,finalCorrect,finalTotal⟩ := rest_from_correct values next appended scope (by omega)
         (by rw [step,contents]; exact rest_snoc (correct target rfl) collected) (by omega)
       exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,
         alloc.vec.Vec.index_slice_index,lookup,bind_ok,read,push,advance,finalRead],finalCorrect,finalTotal⟩
@@ -555,9 +698,9 @@ decreasing_by
 /-- A member list maps exactly when it has two members whose expressions map and
     whose remaining members map; the result corresponds to the list, and a list
     of at least two shaped members maps. -/
-theorem members_of_correct (values : alloc.vec.Vec SourceClass) :
-    ∃ result, members_of values = .ok result ∧
-      (∀ target, result = some target → MembersModel values.val target) ∧
+theorem members_of_correct (values : alloc.vec.Vec SourceClass) (scope : alloc.vec.Vec U8) :
+    ∃ result, members_of values scope = .ok result ∧
+      (∀ target, result = some target → MembersModel scope values.val target) ∧
       (2 ≤ values.val.length → (∀ member ∈ values.val, Shaped member) → result.isSome) := by
   rw [members_of.eq_def]
   by_cases few : values.val.length < 2
@@ -572,14 +715,14 @@ theorem members_of_correct (values : alloc.vec.Vec SourceClass) :
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
     have firstSmaller := vec_mem_size values (List.getElem_mem zero)
     have secondSmaller := vec_mem_size values (List.getElem_mem one)
-    obtain ⟨firstResult,firstRead,firstCorrect,firstTotal⟩ := class_correct values.val[0]
+    obtain ⟨firstResult,firstRead,firstCorrect,firstTotal⟩ := class_correct values.val[0] scope
     cases firstResult with
     | none =>
       exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,
         firstRead],(by intro target impossible; cases impossible),
         fun _ all => absurd (firstTotal (all _ (List.getElem_mem zero))) (by simp)⟩
     | some firstTarget =>
-      obtain ⟨secondResult,secondRead,secondCorrect,secondTotal⟩ := class_correct values.val[1]
+      obtain ⟨secondResult,secondRead,secondCorrect,secondTotal⟩ := class_correct values.val[1] scope
       cases secondResult with
       | none =>
         exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,
@@ -587,7 +730,7 @@ theorem members_of_correct (values : alloc.vec.Vec SourceClass) :
           fun _ all => absurd (secondTotal (all _ (List.getElem_mem one))) (by simp)⟩
       | some secondTarget =>
         obtain ⟨restResult,restRead,restCorrect,restTotal⟩ := rest_from_correct values 2#usize
-          (alloc.vec.Vec.new model.ClassExpression) (by simp) (by simpa using .nil) (by simpa using enough)
+          (alloc.vec.Vec.new model.ClassExpression) scope (by simp) (by simpa using .nil) (by simpa using enough)
         cases restResult with
         | none =>
           exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,
@@ -612,19 +755,20 @@ end
 
 /-- Every class axiom maps, when it maps, to its corresponding model axiom;
     every shaped class axiom maps. -/
-theorem class_axiom_correct (source : SourceClassAxiomBody) :
-    ∃ result, class_axiom source = .ok result ∧
-      (∀ target, result = some target → ClassAxiomModel source target) ∧ (ShapedAxiom source → result.isSome) := by
+theorem class_axiom_correct (source : SourceClassAxiomBody) (scope : alloc.vec.Vec U8) :
+    ∃ result, class_axiom source scope = .ok result ∧
+      (∀ target, result = some target → ClassAxiomModel scope source target) ∧
+      (ShapedAxiom source → result.isSome) := by
   rw [class_axiom.eq_def]
   cases source with
   | SubClassOf sub sup =>
-    obtain ⟨subResult,subRead,subCorrect,subTotal⟩ := class_correct sub
+    obtain ⟨subResult,subRead,subCorrect,subTotal⟩ := class_correct sub scope
     cases subResult with
     | none =>
       exact ⟨none,by simp [subRead],(by intro target impossible; cases impossible),
         fun shaped => absurd (subTotal shaped.1) (by simp)⟩
     | some subTarget =>
-      obtain ⟨supResult,supRead,supCorrect,supTotal⟩ := class_correct sup
+      obtain ⟨supResult,supRead,supCorrect,supTotal⟩ := class_correct sup scope
       cases supResult with
       | none =>
         exact ⟨none,by simp [subRead,supRead],(by intro target impossible; cases impossible),
@@ -633,7 +777,7 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
         exact ⟨some (.SubClassOf subTarget supTarget),by simp [subRead,supRead],
           (by intro target same; cases same; exact .subClassOf (subCorrect _ rfl) (supCorrect _ rfl)),fun _ => rfl⟩
   | EquivalentClasses members =>
-    obtain ⟨result,read,correct,total⟩ := members_of_correct members
+    obtain ⟨result,read,correct,total⟩ := members_of_correct members scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -642,7 +786,7 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
       exact ⟨some (.EquivalentClasses target),by simp [read],
         (by intro target' same; cases same; exact .equivalent (correct _ rfl)),fun _ => rfl⟩
   | DisjointClasses members =>
-    obtain ⟨result,read,correct,total⟩ := members_of_correct members
+    obtain ⟨result,read,correct,total⟩ := members_of_correct members scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -651,7 +795,7 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
       exact ⟨some (.DisjointClasses target),by simp [read],
         (by intro target' same; cases same; exact .disjoint (correct _ rfl)),fun _ => rfl⟩
   | DisjointUnion named members =>
-    obtain ⟨result,read,correct,total⟩ := members_of_correct members
+    obtain ⟨result,read,correct,total⟩ := members_of_correct members scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -660,7 +804,7 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
       exact ⟨some (.DisjointUnion ⟨IriOf named⟩ target),by simp [read,iri_correct],
         (by intro target' same; cases same; exact .disjointUnion (correct _ rfl)),fun _ => rfl⟩
   | ObjectPropertyDomain property domain =>
-    obtain ⟨result,read,correct,total⟩ := class_correct domain
+    obtain ⟨result,read,correct,total⟩ := class_correct domain scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -669,7 +813,7 @@ theorem class_axiom_correct (source : SourceClassAxiomBody) :
       exact ⟨some (.ObjectPropertyDomain (PropertyOf property) target),by simp [read,property_correct],
         (by intro target' same; cases same; exact .domain (correct _ rfl)),fun _ => rfl⟩
   | ObjectPropertyRange property range =>
-    obtain ⟨result,read,correct,total⟩ := class_correct range
+    obtain ⟨result,read,correct,total⟩ := class_correct range scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -686,8 +830,26 @@ theorem assertion_correct (source : SourceAssertionBody) (scope : alloc.vec.Vec 
       (ShapedAssertion source → result.isSome) := by
   rw [assertion.eq_def]
   cases source with
+  | SameIndividual members =>
+    obtain ⟨result,read,correct,total⟩ := individual_members_correct members scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.SameIndividual target),by simp [read],
+        (by intro target' same; cases same; exact .same (correct target rfl)),fun _ => rfl⟩
+  | DifferentIndividuals members =>
+    obtain ⟨result,read,correct,total⟩ := individual_members_correct members scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DifferentIndividuals target),by simp [read],
+        (by intro target' same; cases same; exact .different (correct target rfl)),fun _ => rfl⟩
   | ClassAssertion expression member =>
-    obtain ⟨result,read,correct,total⟩ := class_correct expression
+    obtain ⟨result,read,correct,total⟩ := class_correct expression scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -859,7 +1021,7 @@ theorem axiom_correct (source : SourceAxiom) (scope : alloc.vec.Vec U8) :
     exact ⟨some ⟨annotations,AnnotationAxiomOf scope record.body⟩,by simp [annotationsRead,annotation_axiom_correct],
       (by intro target same; cases same; exact .annotation annotationsModel),fun _ => rfl⟩
   | Class record =>
-    obtain ⟨result,read,correct,total⟩ := class_axiom_correct record.body
+    obtain ⟨result,read,correct,total⟩ := class_axiom_correct record.body scope
     cases result with
     | none =>
       exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
@@ -1038,6 +1200,16 @@ theorem connective_run_shaped {count limit : Nat} :
     cases existential
     · exact .all inner
     · exact .some inner
+  | _, _, _, _, _, .oneOfError _, _, _, same => by cases same
+  | _, _, _, _, _, .oneOfCloseError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .oneOf list _, _, _, same => by
+    cases same
+    cases list with
+    | ok _ enough => exact .oneOf enough
+  | _, _, _, _, _, .valuePropertyError _, _, _, same => by cases same
+  | _, _, _, _, _, .valueError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .valueCloseError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .hasValue _ _ _, _, _, same => by cases same; exact .value
 /-- Every member sequence the independent class grammar accepts extends the
     shaped members before it with shaped members. -/
 theorem members_run_shaped {count limit : Nat} :
@@ -1114,6 +1286,18 @@ theorem assertion_body_run_shaped {count limit depth : Nat} {form : functional_a
     (run : Rowl.FunctionalAssertions.BodyRun rows source eof count limit depth form tokens result)
     (same : result = .Ok (body,rest)) : ShapedAssertion body := by
   cases run with
+  | same membersRun =>
+    cases same
+    cases membersRun with
+    | ok list =>
+      cases list with
+      | ok _ enough => exact enough
+  | different membersRun =>
+    cases same
+    cases membersRun with
+    | ok list =>
+      cases list with
+      | ok _ enough => exact enough
   | classAssertion classRun _ =>
     cases same
     cases classRun with
