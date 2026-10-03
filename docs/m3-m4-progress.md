@@ -3246,10 +3246,48 @@ would exceed the `usize` range or a number restriction counts along a role that
 is not simple, that false answers rule out every model of the role hierarchy,
 the TBox concept, the definitions, the facts and the links, and that true
 answers come with a complete forest that keeps the invariant for the interned
-input. Turning a complete forest into a model (unravelling under pairwise
-blocking) is the next step; no query uses the forest yet.
+input; the next block turns that forest into a model.
 
 This block adds 127 public theorems and 40 independent definitions. Totals are
 1330 audited theorems, 811 definitions, 425 Rust regressions and 1523 ledger
+obligations.
+
+## Reasoner: the model of a complete forest
+
+ForestModel builds a model from any complete forest that keeps the invariant,
+independent of how the forest was built: its unravelling under pairwise
+blocking, as in Horrocks, Sattler and Tobies. The elements are the paths from an
+active named node through active children, newest pair first; a pair holds the
+child and the node it stands for, which is the child itself unless the child
+repeats the label, the parent's label and the roles of a node on its parent's
+path, and then that node (holder). The newest node of a path is always active
+and unblocked, and the node a child stands for has the child's label and roles
+and a parent with the label of the path's previous node (path_shape). A named
+class holds where the label of the newest node lists it; a role relates a path
+to its extension along a role of the child's edge, the extension back to the
+path along an inverse, and named nodes along the links and added edges read
+through the merges, closed under the transitive roles it includes.
+
+The neighbours of a node in the forest and the neighbours of a path correspond
+one to one with the same labels: every forest neighbour has a neighbour path
+(step_of_neighbour), every neighbour path comes from a forest neighbour
+(neighbour_of_step), and neither side has two partners (corr_unique,
+corr_function). With that, the truth lemma (truth) shows that every path
+satisfies every entry its label satisfies. A minimum restriction gets distinct
+witnesses from the neighbours the complete forest has. For a maximum
+restriction, which counts along a simple role, every counted element is a step
+away; its forest neighbour decides the filler by the choose rule, and the
+complement is excluded since it means the filler's negation; so more elements
+than allowed would give more forest neighbours than allowed, which a complete
+forest does not have. model_of_complete adds the role hierarchy, the TBox
+concept, the unfoldings, the requirements and the links, and
+satisfiable_correct shows `forest::satisfiable` exact: its true answers come
+with a model in `Type` of the role hierarchy where the TBox concept and every
+definition hold everywhere and every fact and link holds, and its false answers
+rule out every such model, in any universes. No ontology query uses the forest
+yet.
+
+This block adds 31 public theorems and 11 independent definitions. Totals are
+1361 audited theorems, 822 definitions, 425 Rust regressions and 1554 ledger
 obligations.
 

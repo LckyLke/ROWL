@@ -129,6 +129,7 @@ import Rowl.ForestOps
 import Rowl.ForestInv
 import Rowl.ForestSteps
 import Rowl.Forest
+import Rowl.ForestModel
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiOntology

@@ -103,6 +103,7 @@ import Rowl.ForestOps
 import Rowl.ForestInv
 import Rowl.ForestSteps
 import Rowl.Forest
+import Rowl.ForestModel
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiOntology
@@ -1437,6 +1438,37 @@ import Rowl.ShiOntology
 #print axioms Rowl.Forest.simpleCounting_of
 #print axioms Rowl.Forest.roots_correct
 #print axioms Rowl.Forest.satisfiable_answers
+#print axioms Rowl.ForestModel.blocked_down
+#print axioms Rowl.ForestModel.named_free
+#print axioms Rowl.ForestModel.child_blocked
+#print axioms Rowl.ForestModel.treePath_active
+#print axioms Rowl.ForestModel.holder_found
+#print axioms Rowl.ForestModel.holder_free
+#print axioms Rowl.ForestModel.path_shape
+#print axioms Rowl.ForestModel.path_tail
+#print axioms Rowl.ForestModel.path_step
+#print axioms Rowl.ForestModel.extension_facts
+#print axioms Rowl.ForestModel.root_facts
+#print axioms Rowl.ForestModel.tailOf_cons
+#print axioms Rowl.ForestModel.linkAlong_inv
+#print axioms Rowl.ForestModel.linkAlong_mono
+#print axioms Rowl.ForestModel.step_inv
+#print axioms Rowl.ForestModel.rel_inv
+#print axioms Rowl.ForestModel.relation_model
+#print axioms Rowl.ForestModel.step_mono
+#print axioms Rowl.ForestModel.rel_mono
+#print axioms Rowl.ForestModel.rel_trans
+#print axioms Rowl.ForestModel.model_respects
+#print axioms Rowl.ForestModel.path_nonempty
+#print axioms Rowl.ForestModel.step_of_neighbour
+#print axioms Rowl.ForestModel.neighbour_of_step
+#print axioms Rowl.ForestModel.corr_unique
+#print axioms Rowl.ForestModel.corr_function
+#print axioms Rowl.ForestModel.step_ok
+#print axioms Rowl.ForestModel.truth
+#print axioms Rowl.ForestModel.place_val
+#print axioms Rowl.ForestModel.model_of_complete
+#print axioms Rowl.ForestModel.satisfiable_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2248,3 +2280,14 @@ import Rowl.ShiOntology
 #print axioms Rowl.Forest.CountsSimply
 #print axioms Rowl.Forest.root
 #print axioms Rowl.Forest.Interned
+#print axioms Rowl.ForestModel.parentOf
+#print axioms Rowl.ForestModel.holder
+#print axioms Rowl.ForestModel.IsPath
+#print axioms Rowl.ForestModel.Element
+#print axioms Rowl.ForestModel.tailOf
+#print axioms Rowl.ForestModel.lab
+#print axioms Rowl.ForestModel.Step
+#print axioms Rowl.ForestModel.Rel
+#print axioms Rowl.ForestModel.model
+#print axioms Rowl.ForestModel.Corr
+#print axioms Rowl.ForestModel.place

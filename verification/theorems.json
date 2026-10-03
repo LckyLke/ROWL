@@ -1978,6 +1978,43 @@
         "Rowl.Forest.roots_correct",
         "Rowl.Forest.satisfiable_answers"
       ]
+    },
+    {
+      "module": "Rowl.ForestModel",
+      "namespace": "Rowl.ForestModel",
+      "theorems": [
+        "Rowl.ForestModel.blocked_down",
+        "Rowl.ForestModel.named_free",
+        "Rowl.ForestModel.child_blocked",
+        "Rowl.ForestModel.treePath_active",
+        "Rowl.ForestModel.holder_found",
+        "Rowl.ForestModel.holder_free",
+        "Rowl.ForestModel.path_shape",
+        "Rowl.ForestModel.path_tail",
+        "Rowl.ForestModel.path_step",
+        "Rowl.ForestModel.extension_facts",
+        "Rowl.ForestModel.root_facts",
+        "Rowl.ForestModel.tailOf_cons",
+        "Rowl.ForestModel.linkAlong_inv",
+        "Rowl.ForestModel.linkAlong_mono",
+        "Rowl.ForestModel.step_inv",
+        "Rowl.ForestModel.rel_inv",
+        "Rowl.ForestModel.relation_model",
+        "Rowl.ForestModel.step_mono",
+        "Rowl.ForestModel.rel_mono",
+        "Rowl.ForestModel.rel_trans",
+        "Rowl.ForestModel.model_respects",
+        "Rowl.ForestModel.path_nonempty",
+        "Rowl.ForestModel.step_of_neighbour",
+        "Rowl.ForestModel.neighbour_of_step",
+        "Rowl.ForestModel.corr_unique",
+        "Rowl.ForestModel.corr_function",
+        "Rowl.ForestModel.step_ok",
+        "Rowl.ForestModel.truth",
+        "Rowl.ForestModel.place_val",
+        "Rowl.ForestModel.model_of_complete",
+        "Rowl.ForestModel.satisfiable_correct"
+      ]
     }
   ],
   "specifications": [
@@ -2791,6 +2828,17 @@
     "Rowl.ForestSteps.Merged",
     "Rowl.Forest.CountsSimply",
     "Rowl.Forest.root",
-    "Rowl.Forest.Interned"
+    "Rowl.Forest.Interned",
+    "Rowl.ForestModel.parentOf",
+    "Rowl.ForestModel.holder",
+    "Rowl.ForestModel.IsPath",
+    "Rowl.ForestModel.Element",
+    "Rowl.ForestModel.tailOf",
+    "Rowl.ForestModel.lab",
+    "Rowl.ForestModel.Step",
+    "Rowl.ForestModel.Rel",
+    "Rowl.ForestModel.model",
+    "Rowl.ForestModel.Corr",
+    "Rowl.ForestModel.place"
   ]
 }

@@ -727,14 +727,14 @@ progress. Full OWL parsing and executable reasoning are still future work.
   rejections are proved sound: a rejection rules out every model, in any
   universes, under the branch points it reports, including the backjumping
   over branches and over the pairs a maximum restriction merges.
-  forest::satisfiable is proved to answer unless a structure would exceed the
-  `usize` range or a number restriction counts along a role that is not
-  simple, and its false answers to rule out every model of the role hierarchy,
-  TBox concept, definitions, facts and links. Its true answers come with a
-  complete forest that keeps the invariant; the model of a complete forest,
-  and with it the exactness of true answers, is not proved yet, and no query
-  uses the forest.
-- 1330 audited public theorems and 811 audited semantic definitions. Consistency,
+  forest::satisfiable is proved exact: it answers unless a structure would
+  exceed the `usize` range or a number restriction counts along a role that is
+  not simple; its true answers come with a model, the unravelling of the
+  complete forest under pairwise blocking, of the role hierarchy where the
+  TBox concept and every definition hold everywhere and every fact and link
+  holds; and its false answers rule out every such model, in any universes.
+  No ontology query uses the forest yet.
+- 1361 audited public theorems and 822 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -755,7 +755,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1523-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1554-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
