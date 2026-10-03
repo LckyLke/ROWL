@@ -713,9 +713,16 @@ progress. Full OWL parsing and executable reasoning are still future work.
   to build exact complements. A maximum restriction in the table records the
   complement of its filler; interning is proved to keep that record. The
   completion graph tableau and the ontology queries give no answer when a
-  cardinality restriction occurs, so their answers are unchanged. The
-  completion forest that counts and merges nodes is the next step.
-- 1164 audited public theorems and 747 audited semantic definitions. Consistency,
+  cardinality restriction occurs, so their answers are unchanged. The kernel
+  now also has the completion forest (forest.rs), which counts and merges
+  nodes: roots for named individuals, trees with lists of roles on their
+  edges, merges of tree nodes into siblings, grandparents or named nodes and
+  of named nodes into each other, pairwise blocking, and backjumping over the
+  choices of which nodes to merge. Its rule search is proved exact
+  (forest::next_step and the neighbour lists it counts); the rules that apply
+  its steps, its termination, and its soundness and completeness are not
+  proved yet, and no query uses it.
+- 1198 audited public theorems and 771 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCI class, domain and range axioms, class and object property assertions,
@@ -723,7 +730,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   property expressions (SHI), also directly from Functional Syntax source
   bytes. No full OWL decision procedure is proved yet. See
   m3-m4-progress.md for the input contracts.
-- 415 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 424 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -736,7 +743,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1357-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1391-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

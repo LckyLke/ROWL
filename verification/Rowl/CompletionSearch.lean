@@ -441,7 +441,7 @@ private theorem unfolding_missing_correct (P : completion.Problem) (label : allo
   · rw [decide_eq_false atom]
     simp [atom]
 
-private theorem missing_unfolding_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (index : Usize) :
+theorem missing_unfolding_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (index : Usize) :
     ∃ r, completion.missing_unfolding P label index = .ok r ∧
       (∀ c, r = some c → (∃ u ∈ P.unfoldings.val.drop index.val, HasAtom P.entries.val label.val u.class ∧
         u.concept = c) ∧ ¬ Holds P.entries.val label.val c.val) ∧
@@ -817,7 +817,7 @@ private theorem required_missing (entries : List concept_table.Entry) (h : hiera
     rintro ⟨j,listed,same⟩
     exact missing ⟨j,listed,by rw [same]; exact at_c⟩
 
-private theorem missing_along_correct (entries : alloc.vec.Vec concept_table.Entry) (h : hierarchy.RoleHierarchy)
+theorem missing_along_correct (entries : alloc.vec.Vec concept_table.Entry) (h : hierarchy.RoleHierarchy)
     (label : alloc.vec.Vec Usize) (role : ObjectPropertyExpression) (target : alloc.vec.Vec Usize) (index : Usize) :
     ∃ r, completion.missing_along entries h label role target index = .ok r ∧
       (∀ c, r = some c → EdgeNeeds entries.val h (label.val.drop index.val) role c ∧

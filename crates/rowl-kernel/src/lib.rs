@@ -82,6 +82,8 @@ pub mod concept_table;
 
 pub mod completion;
 
+pub mod forest;
+
 pub mod shi_ontology;
 
 pub mod source_reasoning;

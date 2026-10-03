@@ -124,6 +124,7 @@ import Rowl.ConceptTable
 import Rowl.CompletionSearch
 import Rowl.CompletionModel
 import Rowl.Completion
+import Rowl.ForestSearch
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiOntology

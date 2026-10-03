@@ -115,7 +115,7 @@ pub enum Outcome {
 }
 
 /// Whether `label[index..]` has the item.
-fn contains(label: &Vec<usize>, item: usize, index: usize) -> bool {
+pub(crate) fn contains(label: &Vec<usize>, item: usize, index: usize) -> bool {
     if index < label.len() {
         if label[index] == item {
             true
@@ -128,7 +128,7 @@ fn contains(label: &Vec<usize>, item: usize, index: usize) -> bool {
 }
 /// Whether the label satisfies the entry: conjunctions and disjunctions are read
 /// propositionally, and every other entry must be listed.
-fn holds(entries: &Vec<Entry>, label: &Vec<usize>, concept: usize) -> bool {
+pub(crate) fn holds(entries: &Vec<Entry>, label: &Vec<usize>, concept: usize) -> bool {
     if concept < entries.len() {
         match &entries[concept] {
             Entry::Top => true,
@@ -170,7 +170,7 @@ fn complementary(left: &Entry, right: &Entry) -> bool {
     }
 }
 /// Whether some item of `label[index..]` is complementary to `item`.
-fn clashes(entries: &Vec<Entry>, label: &Vec<usize>, item: usize, index: usize) -> bool {
+pub(crate) fn clashes(entries: &Vec<Entry>, label: &Vec<usize>, item: usize, index: usize) -> bool {
     if index < label.len() {
         let other = label[index];
         let here = if item < entries.len() && other < entries.len() {
@@ -237,7 +237,11 @@ fn missing_requirement(
     }
 }
 /// Whether the label has the unfolding's class but does not satisfy its concept.
-fn unfolding_missing(problem: &Problem, label: &Vec<usize>, unfolding: &Unfolding) -> bool {
+pub(crate) fn unfolding_missing(
+    problem: &Problem,
+    label: &Vec<usize>,
+    unfolding: &Unfolding,
+) -> bool {
     if has_atom(&problem.entries, label, &unfolding.class, 0) {
         !holds(&problem.entries, label, unfolding.concept)
     } else {
@@ -246,7 +250,11 @@ fn unfolding_missing(problem: &Problem, label: &Vec<usize>, unfolding: &Unfoldin
 }
 /// The first unfolding of `unfoldings[index..]` whose class the label has but
 /// whose concept it does not satisfy.
-fn missing_unfolding(problem: &Problem, label: &Vec<usize>, index: usize) -> Option<usize> {
+pub(crate) fn missing_unfolding(
+    problem: &Problem,
+    label: &Vec<usize>,
+    index: usize,
+) -> Option<usize> {
     if index < problem.unfoldings.len() {
         if unfolding_missing(problem, label, &problem.unfoldings[index]) {
             Some(problem.unfoldings[index].concept)
@@ -283,7 +291,7 @@ fn missing_node(problem: &Problem, nodes: &Vec<Node>, index: usize) -> Option<(u
     }
 }
 /// Whether `label[index..]` has an entry `∀role.filler`.
-fn has_universal(
+pub(crate) fn has_universal(
     entries: &Vec<Entry>,
     label: &Vec<usize>,
     role: &ObjectPropertyExpression,
@@ -308,7 +316,7 @@ fn has_universal(
 }
 /// The first restriction `∀t.filler`, for a transitive role `t` of
 /// `roles.transitive[index..]` between `role` and `sup`, that `target` lacks.
-fn missing_transitive(
+pub(crate) fn missing_transitive(
     entries: &Vec<Entry>,
     roles: &RoleHierarchy,
     role: &ObjectPropertyExpression,
@@ -336,7 +344,7 @@ fn missing_transitive(
 }
 /// What the universal restriction `item` requires along `role` that `target`
 /// does not satisfy.
-fn missing_for(
+pub(crate) fn missing_for(
     entries: &Vec<Entry>,
     roles: &RoleHierarchy,
     item: usize,
@@ -364,7 +372,7 @@ fn missing_for(
 }
 /// What the items of `label[index..]` require along `role` that `target` does
 /// not satisfy.
-fn missing_along(
+pub(crate) fn missing_along(
     entries: &Vec<Entry>,
     roles: &RoleHierarchy,
     label: &Vec<usize>,
@@ -681,7 +689,7 @@ fn missing_witness(
     }
 }
 /// Whether every item of `small[index..]` is in `large`.
-fn subset(small: &Vec<usize>, large: &Vec<usize>, index: usize) -> bool {
+pub(crate) fn subset(small: &Vec<usize>, large: &Vec<usize>, index: usize) -> bool {
     if index < small.len() {
         if contains(large, small[index], 0) {
             subset(small, large, index + 1)
@@ -693,7 +701,7 @@ fn subset(small: &Vec<usize>, large: &Vec<usize>, index: usize) -> bool {
     }
 }
 /// Whether the two labels have the same items.
-fn same_label(left: &Vec<usize>, right: &Vec<usize>) -> bool {
+pub(crate) fn same_label(left: &Vec<usize>, right: &Vec<usize>) -> bool {
     if subset(left, right, 0) {
         subset(right, left, 0)
     } else {
@@ -808,7 +816,7 @@ fn insert(mut nodes: Vec<Node>, node: usize, item: usize, deps: &Vec<usize>) -> 
         None
     }
 }
-fn copy_label(label: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Vec<usize> {
+pub(crate) fn copy_label(label: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Vec<usize> {
     if index < label.len() {
         if out.len() < usize::MAX {
             out.push(label[index]);
@@ -834,7 +842,7 @@ fn copy_nodes(nodes: &Vec<Node>, index: usize, mut out: Vec<Node>) -> Vec<Node> 
         out
     }
 }
-fn copy_pending(pending: &Pending) -> Pending {
+pub(crate) fn copy_pending(pending: &Pending) -> Pending {
     match pending {
         Pending::Empty => Pending::Empty,
         Pending::Item { concept, next } => Pending::Item {
@@ -845,7 +853,7 @@ fn copy_pending(pending: &Pending) -> Pending {
 }
 /// `out` with every point of `set[index..]` it does not list; `None` when there
 /// is no room.
-fn join_from(set: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Option<Vec<usize>> {
+pub(crate) fn join_from(set: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Option<Vec<usize>> {
     if index < set.len() {
         if contains(&out, set[index], 0) {
             join_from(set, index + 1, out)
@@ -860,11 +868,16 @@ fn join_from(set: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Option<Vec<
     }
 }
 /// The points of both sets.
-fn join(left: &Vec<usize>, right: &Vec<usize>) -> Option<Vec<usize>> {
+pub(crate) fn join(left: &Vec<usize>, right: &Vec<usize>) -> Option<Vec<usize>> {
     join_from(right, 0, copy_label(left, 0, Vec::new()))
 }
 /// `out` with every point of `set[index..]` other than `point`.
-fn without_from(set: &Vec<usize>, point: usize, index: usize, mut out: Vec<usize>) -> Vec<usize> {
+pub(crate) fn without_from(
+    set: &Vec<usize>,
+    point: usize,
+    index: usize,
+    mut out: Vec<usize>,
+) -> Vec<usize> {
     if index < set.len() {
         if set[index] != point {
             if out.len() < usize::MAX {
@@ -1195,7 +1208,7 @@ fn run(
         Step::Done => Some(Outcome::Accepted),
     }
 }
-fn intern_facts(
+pub(crate) fn intern_facts(
     entries: Vec<Entry>,
     facts: &Vec<Fact>,
     index: usize,
@@ -1219,7 +1232,7 @@ fn intern_facts(
         Some((entries, out))
     }
 }
-fn intern_definitions(
+pub(crate) fn intern_definitions(
     entries: Vec<Entry>,
     definitions: &Vec<Definition>,
     index: usize,
@@ -1264,7 +1277,7 @@ fn named_nodes(count: usize, mut nodes: Vec<Node>) -> Option<Vec<Node>> {
     }
 }
 /// A copy of `links[index..]` after `out`.
-fn copy_links(links: &Vec<Link>, index: usize, mut out: Vec<Link>) -> Vec<Link> {
+pub(crate) fn copy_links(links: &Vec<Link>, index: usize, mut out: Vec<Link>) -> Vec<Link> {
     if index < links.len() {
         if out.len() < usize::MAX {
             out.push(Link {

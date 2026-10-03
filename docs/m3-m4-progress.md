@@ -3150,3 +3150,49 @@ This block adds 6 public theorems and 5 independent definitions. Totals are
 1164 audited theorems, 747 definitions, 415 Rust regressions and 1357 ledger
 obligations.
 
+## Reasoner: the completion forest and its rule search
+
+Counting needs a different tableau. The completion graph's model relates any
+two elements whose labels are compatible, which is harmless for existential and
+universal restrictions but can give an element more neighbours than a maximum
+restriction allows. `forest.rs` is a completion forest for SHIQ with named
+individuals, in the style of Horrocks, Sattler and Tobies. Each named individual
+has a root; anonymous nodes form trees below the roots, and the edge from a
+parent to a tree node carries a list of roles. A tree node remembers the filler
+it was created for (its seed) and which of its existential and minimum
+restrictions it has expanded. Rules apply in a fixed order: missing concepts of
+nodes and edges, the choose rule (every neighbour that a maximum restriction
+counts decides its filler or the filler's complement), the merge rule, and the
+expansion of existential and minimum restrictions at unblocked nodes, which
+creates pairwise different tree nodes. When a maximum restriction counts more
+neighbours than it allows, two of the first `n + 1` that are not known to differ
+are merged, each pair in turn under one branch point with backjumping; when all
+of them differ, it is a clash. A merge moves a tree node into a sibling, into
+its grandparent or into a named node, or a named node into another one, along
+with the roles of its edge and its differences, and prunes its subtree.
+Blocking is pairwise, as counting with inverse roles requires: a tree node is
+blocked when its label, its parent's label and the roles between them repeat
+higher up on its path. Number restrictions must be on simple roles.
+
+ForestSearch proves the rule search exact. neighbours_correct shows that the
+neighbour list of a node along a role contains exactly its neighbours
+(Neighbour), each once: active children along an included role, the parent
+along an included inverse role, and the named nodes that a link or an added
+edge relates to it, read through the merges of named nodes. next_step_correct
+shows that the search returns a concept that an active node lacks and that its
+requirements, the TBox concept, an unfolding, its seed or an edge requires
+(AddNeeds); else a neighbour to decide; else a maximum restriction with too many
+neighbours (Excess); else a restriction to expand at an unblocked node; and that
+it reports Done exactly for a complete forest (Complete). blocked_correct shows
+that `forest::blocked` decides pairwise blocking (Blocked).
+
+Randomized regressions compare the forest with the completion graph on inputs
+without counting, and check that every concept, and every set of facts and links
+about three individuals, that has a model with at most three elements is
+accepted. The rules that apply the steps, termination, soundness and
+completeness are the next steps; no query uses the forest yet.
+
+This block adds 34 public theorems and 24 independent definitions. Totals are
+1198 audited theorems, 771 definitions, 424 Rust regressions and 1391 ledger
+obligations.
+

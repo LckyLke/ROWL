@@ -98,6 +98,7 @@ import Rowl.ConceptTable
 import Rowl.CompletionSearch
 import Rowl.CompletionModel
 import Rowl.Completion
+import Rowl.ForestSearch
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiOntology
@@ -1100,10 +1101,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.CompletionSearch.has_atom_correct
 #print axioms Rowl.CompletionSearch.subset_correct
 #print axioms Rowl.CompletionSearch.same_label_correct
+#print axioms Rowl.CompletionSearch.missing_unfolding_correct
 #print axioms Rowl.CompletionSearch.missing_at_correct
 #print axioms Rowl.CompletionSearch.missing_node_correct
 #print axioms Rowl.CompletionSearch.holds_listed
 #print axioms Rowl.CompletionSearch.has_universal_correct
+#print axioms Rowl.CompletionSearch.missing_along_correct
 #print axioms Rowl.CompletionSearch.missing_edge_correct
 #print axioms Rowl.CompletionSearch.created_role_correct
 #print axioms Rowl.CompletionSearch.missing_link_correct
@@ -1266,6 +1269,38 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.class_satisfiable_complete
 #print axioms Rowl.ShiOntology.subsumed_sound
 #print axioms Rowl.ShiOntology.instance_of_sound
+#print axioms Rowl.ForestSearch.representative_correct
+#print axioms Rowl.ForestSearch.along_from_correct
+#print axioms Rowl.ForestSearch.with_node_correct
+#print axioms Rowl.ForestSearch.children_along_correct
+#print axioms Rowl.ForestSearch.parent_along_correct
+#print axioms Rowl.ForestSearch.ends_correct
+#print axioms Rowl.ForestSearch.links_along_correct
+#print axioms Rowl.ForestSearch.edges_along_correct
+#print axioms Rowl.ForestSearch.neighbours_correct
+#print axioms Rowl.ForestSearch.label_of_correct
+#print axioms Rowl.ForestSearch.satisfying_correct
+#print axioms Rowl.ForestSearch.missing_requirement_correct
+#print axioms Rowl.ForestSearch.missing_at_correct
+#print axioms Rowl.ForestSearch.missing_node_correct
+#print axioms Rowl.ForestSearch.missing_edge_correct
+#print axioms Rowl.ForestSearch.missing_roles_correct
+#print axioms Rowl.ForestSearch.missing_tree_correct
+#print axioms Rowl.ForestSearch.missing_link_correct
+#print axioms Rowl.ForestSearch.missing_added_correct
+#print axioms Rowl.ForestSearch.undecided_correct
+#print axioms Rowl.ForestSearch.excess_iff
+#print axioms Rowl.ForestSearch.counting_from_correct
+#print axioms Rowl.ForestSearch.counting_correct
+#print axioms Rowl.ForestSearch.role_listed_correct
+#print axioms Rowl.ForestSearch.roles_within_correct
+#print axioms Rowl.ForestSearch.same_pair_correct
+#print axioms Rowl.ForestSearch.repeats_above_correct
+#print axioms Rowl.ForestSearch.blocked_correct
+#print axioms Rowl.ForestSearch.generating_correct
+#print axioms Rowl.ForestSearch.unexpanded_correct
+#print axioms Rowl.ForestSearch.missing_successor_correct
+#print axioms Rowl.ForestSearch.next_step_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2013,3 +2048,27 @@ import Rowl.ShiOntology
 #print axioms Rowl.Concepts.Bounded
 #print axioms Rowl.ConceptTable.Complements
 #print axioms Rowl.ConceptTable.size
+#print axioms Rowl.ForestSearch.labelOf
+#print axioms Rowl.ForestSearch.rep
+#print axioms Rowl.ForestSearch.ChildAlong
+#print axioms Rowl.ForestSearch.ParentAlong
+#print axioms Rowl.ForestSearch.LinkAlong
+#print axioms Rowl.ForestSearch.linkEnds
+#print axioms Rowl.ForestSearch.edgeEnds
+#print axioms Rowl.ForestSearch.Neighbour
+#print axioms Rowl.ForestSearch.NodeNeeds
+#print axioms Rowl.ForestSearch.Active
+#print axioms Rowl.ForestSearch.TreeNeeds
+#print axioms Rowl.ForestSearch.LinkNeeds
+#print axioms Rowl.ForestSearch.LinksOk
+#print axioms Rowl.ForestSearch.Excess
+#print axioms Rowl.ForestSearch.CountOkFrom
+#print axioms Rowl.ForestSearch.CountStep
+#print axioms Rowl.ForestSearch.CountOk
+#print axioms Rowl.ForestSearch.SamePair
+#print axioms Rowl.ForestSearch.treePath
+#print axioms Rowl.ForestSearch.Blocked
+#print axioms Rowl.ForestSearch.Generating
+#print axioms Rowl.ForestSearch.doneOf
+#print axioms Rowl.ForestSearch.AddNeeds
+#print axioms Rowl.ForestSearch.Complete
