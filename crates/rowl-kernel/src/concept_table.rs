@@ -24,6 +24,10 @@ pub enum Entry {
     One(Individual),
     /// The complement of the nominal of an individual.
     NotOne(Individual),
+    /// The self restriction along a role.
+    HasSelf(ObjectPropertyExpression),
+    /// The complement of the self restriction along a role.
+    NotSelf(ObjectPropertyExpression),
     And(usize, usize),
     Or(usize, usize),
     Exists(ObjectPropertyExpression, usize),
@@ -45,6 +49,8 @@ pub(crate) fn same_entry(left: &Entry, right: &Entry) -> bool {
         (Entry::NotAtom(a), Entry::NotAtom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
         (Entry::One(a), Entry::One(b)) => same_individual_value(a, b),
         (Entry::NotOne(a), Entry::NotOne(b)) => same_individual_value(a, b),
+        (Entry::HasSelf(a), Entry::HasSelf(b)) => same_role(a, b),
+        (Entry::NotSelf(a), Entry::NotSelf(b)) => same_role(a, b),
         (Entry::And(a1, b1), Entry::And(a2, b2)) => *a1 == *a2 && *b1 == *b2,
         (Entry::Or(a1, b1), Entry::Or(a2, b2)) => *a1 == *a2 && *b1 == *b2,
         (Entry::Exists(r1, c1), Entry::Exists(r2, c2)) => {
@@ -200,6 +206,8 @@ pub fn intern(entries: Vec<Entry>, concept: &Concept) -> Option<(Vec<Entry>, usi
         ),
         Concept::One(individual) => add(entries, Entry::One(copy_individual(individual))),
         Concept::NotOne(individual) => add(entries, Entry::NotOne(copy_individual(individual))),
+        Concept::HasSelf(role) => add(entries, Entry::HasSelf(copy_role(role))),
+        Concept::NotSelf(role) => add(entries, Entry::NotSelf(copy_role(role))),
         Concept::And(left, right) => intern_pair(entries, left, right, true),
         Concept::Or(left, right) => intern_pair(entries, left, right, false),
         Concept::Exists(role, filler) => intern_restriction(entries, role, filler, true),

@@ -55,7 +55,7 @@ def Nominal : concepts.Concept → Prop
 /-- A concept without nominals mentions no individual. -/
 theorem not_mentions (c : concepts.Concept) (none : ¬ Nominal c) (a : Individual) : ¬ Mentions c a := by
   induction c with
-  | Top | Bottom | Atom _ | NotAtom _ => simp [Mentions]
+  | Top | Bottom | Atom _ | NotAtom _ | HasSelf _ | NotSelf _ => simp [Mentions]
   | One _ | NotOne _ => exact absurd trivial none
   | And l r ihl ihr =>
     simp only [Nominal,not_or] at none
@@ -81,6 +81,8 @@ theorem nominal_correct (c : concepts.Concept) : shi_ontology.nominal c = .ok (d
   | NotAtom k => rw [shi_ontology.nominal]; simp [Nominal]
   | One a => rw [shi_ontology.nominal]; simp [Nominal]
   | NotOne a => rw [shi_ontology.nominal]; simp [Nominal]
+  | HasSelf r => rw [shi_ontology.nominal]; simp [Nominal]
+  | NotSelf r => rw [shi_ontology.nominal]; simp [Nominal]
   | And a b iha ihb =>
     rw [shi_ontology.nominal]
     by_cases left : Nominal a <;> simp [Nominal,iha,ihb,left]
@@ -216,6 +218,8 @@ theorem known_correct (nodes : alloc.vec.Vec Individual) (c : concepts.Concept) 
   | NotAtom k => rw [shi_ontology.known]; simp [Mentions]
   | One b => rw [shi_ontology.known]; exact position_known nodes b
   | NotOne b => rw [shi_ontology.known]; exact position_known nodes b
+  | HasSelf r => rw [shi_ontology.known]; simp [Mentions]
+  | NotSelf r => rw [shi_ontology.known]; simp [Mentions]
   | And l r ihl ihr =>
     rw [shi_ontology.known]
     have iff : (∀ a, Mentions (.And l r) a → a ∈ nodes.val) ↔
@@ -283,7 +287,7 @@ theorem nominal_individuals_correct (c : concepts.Concept) :
         (∀ b ∈ nodes.val, b ∈ final.val) ∧ (∀ a, Mentions c a → a ∈ final.val) ∧
         final.val.length ≤ Usize.max-1 := by
   induction c with
-  | Top | Bottom | Atom _ | NotAtom _ =>
+  | Top | Bottom | Atom _ | NotAtom _ | HasSelf _ | NotSelf _ =>
     intro nodes room
     refine ⟨some nodes,by rw [shi_ontology.nominal_individuals],?_⟩
     intro final same

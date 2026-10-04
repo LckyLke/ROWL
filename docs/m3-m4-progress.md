@@ -3582,3 +3582,25 @@ neighbours than it allows, which the tests never reach.
 This block adds 34 public theorems and 11 independent definitions. Totals are
 1500 audited theorems, 865 definitions, 438 Rust regressions and 1693 ledger
 obligations.
+
+## Reasoner: self restrictions in the concepts
+
+The concepts of the tableaux now have the self restriction `∃r.Self` and its
+complement `¬∃r.Self` (concepts::Concept::HasSelf, NotSelf), which hold exactly
+at the elements that `r` relates, or does not relate, to themselves.
+concepts::translate turns `ObjectHasSelf(r)` into `∃r.Self`, and into
+`¬∃r.Self` for the complement (concepts::self_restriction,
+self_restriction_correct), so the translation covers ALCIQO with self
+restrictions (Translatable) and is proved total and exact as before;
+concepts::negate swaps the two, and copying is exact. The concept table interns
+both as entries compared structurally, and a self restriction next to its
+complement along the same role is a clash in both tableaux (Complementary).
+
+Neither tableau has self loops yet: the completion graph tableau and the
+completion forest give no answer when a self restriction reaches a label, and
+the ontology queries treat a concept with a self restriction as not proper
+(Proper), so they give no answer for it. The next blocks give the completion
+forest self loops and the role characteristics that rest on them.
+
+This block adds 1 public theorem. Totals are 1501 audited theorems, 865
+definitions, 438 Rust regressions and 1694 ledger obligations.

@@ -1,11 +1,12 @@
 import Rowl.Tableau
 
 /-!
-Concepts with inverse roles, nominals and cardinality restrictions for the
-tableaux, and their translation from class expressions, proved against the
+Concepts with inverse roles, nominals, self restrictions and cardinality
+restrictions for the tableaux, and their translation from class expressions, proved against the
 independent OWL 2 Direct Semantics. Roles are object property expressions read
 with `objectRelation`, so an inverse role relates the pairs of its property in
-reverse, a nominal `{a}` holds exactly at the individual, and cardinality
+reverse, a nominal `{a}` holds exactly at the individual, a self restriction
+`∃r.Self` holds exactly at the elements related to themselves, and cardinality
 restrictions count with the OWL definitions `AtLeast` and `AtMost`. The
 translation keeps the meaning of every supported class expression (or of its
 complement) in every interpretation that gives owl:Thing and owl:Nothing their
@@ -33,6 +34,8 @@ def denote (I : Interpretation Object Value) : concepts.Concept → Object → P
   | .NotAtom c, x => ¬ I.classes c x
   | .One a, x => Rowl.Owl.individual I a = x
   | .NotOne a, x => Rowl.Owl.individual I a ≠ x
+  | .HasSelf r, x => objectRelation I r x x
+  | .NotSelf r, x => ¬ objectRelation I r x x
   | .And a b, x => denote I a x ∧ denote I b x
   | .Or a b, x => denote I a x ∨ denote I b x
   | .Exists r c, x => ∃ y, objectRelation I r x y ∧ denote I c y
@@ -96,6 +99,7 @@ theorem copy_concept_identity (c : concepts.Concept) : concepts.copy_concept c =
   | Top | Bottom => rw [concepts.copy_concept]
   | Atom k | NotAtom k => cases k; rw [concepts.copy_concept]; simp [copy_iri_identity]
   | One a | NotOne a => rw [concepts.copy_concept]; simp [copy_individual_identity]
+  | HasSelf r | NotSelf r => rw [concepts.copy_concept]; simp [copy_role_identity]
   | And a b ihA ihB | Or a b ihA ihB => rw [concepts.copy_concept]; simp [ihA,ihB]
   | Exists r c ih | Forall r c ih | AtLeast n r c ih | AtMost n r c ih =>
     rw [concepts.copy_concept]; simp [copy_role_identity,ih]
@@ -130,6 +134,12 @@ theorem negate_correct (c : concepts.Concept) :
       by intro c' same; cases same; simp [denote]⟩
   | NotOne a =>
     exact ⟨some (.One a),by rw [concepts.negate]; simp [copy_individual_identity],
+      by intro c' same; cases same; simp [denote]⟩
+  | HasSelf r =>
+    exact ⟨some (.NotSelf r),by rw [concepts.negate]; simp [copy_role_identity],
+      by intro c' same; cases same; simp [denote]⟩
+  | NotSelf r =>
+    exact ⟨some (.HasSelf r),by rw [concepts.negate]; simp [copy_role_identity],
       by intro c' same; cases same; simp [denote]⟩
   | And a b ihA ihB | Or a b ihA ihB =>
     obtain ⟨ra,runA,meanA⟩ := ihA
@@ -250,9 +260,10 @@ private theorem member_size (xs : AtLeastTwo ClassExpression) (child : ClassExpr
     have := rest_size xs
     omega
 
-/-- The supported ALCIQO fragment: named classes, intersections, unions,
-    complements, enumerations of individuals, existential/universal
-    restrictions, individual value restrictions, and minimum, maximum and exact
+/-- The supported ALCIQO fragment with self restrictions: named classes,
+    intersections, unions, complements, enumerations of individuals,
+    existential/universal restrictions, individual value restrictions, self
+    restrictions, and minimum, maximum and exact
     cardinality restrictions with cardinalities below `usize::MAX`, on object
     property expressions, named or inverse. -/
 def Translatable (expression : ClassExpression) : Prop :=
@@ -263,6 +274,7 @@ def Translatable (expression : ClassExpression) : Prop :=
   | .ObjectComplementOf e => Translatable e
   | .ObjectOneOf _ => True
   | .ObjectHasValue _ _ => True
+  | .ObjectHasSelf _ => True
   | .ObjectSomeValuesFrom _ e => Translatable e
   | .ObjectAllValuesFrom _ e => Translatable e
   | .ObjectMinCardinality n _ none | .ObjectMaxCardinality n _ none | .ObjectExactCardinality n _ none =>
@@ -534,6 +546,16 @@ private theorem one_of_correct (members : NonEmpty Individual) (positive : Bool)
     simp only [Bool.false_eq_true,↓reduceIte,denote,Polar,classDenote,NonEmpty.elements,List.mem_cons,
       exists_eq_or_imp,not_or,not_exists,not_and]
 
+/-- A self restriction means that the element is related to itself. -/
+theorem self_restriction_correct (property : ObjectPropertyExpression) (positive : Bool) :
+    ∃ concept, concepts.self_restriction property positive = .ok concept ∧
+      ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) x,
+        (denote I concept x ↔ Polar positive (classDenote I (.ObjectHasSelf property) x)) := by
+  refine ⟨if positive then .HasSelf property else .NotSelf property,?_,?_⟩
+  · cases positive <;> simp [concepts.self_restriction,copy_role_identity]
+  · intro Object Value I x
+    cases positive <;> simp [denote,Polar,classDenote]
+
 /-- A value restriction means that the element is related to the individual. -/
 private theorem has_value_correct (property : ObjectPropertyExpression) (value : Individual) (positive : Bool) :
     ∃ concept, concepts.has_value property value positive = .ok concept ∧
@@ -771,7 +793,7 @@ private theorem every_false_not (members : List ClassExpression) (holds : ClassE
   simp [Every]
 
 /-- The actual translation terminates on every class expression; outside the
-    ALCIQO fragment it returns `None`, and inside it the result means exactly the
+    ALCIQO fragment with self restrictions it returns `None`, and inside it the result means exactly the
     expression (positive polarity) or its complement (negative polarity). -/
 theorem translate_total_correct (expression : ClassExpression) (positive : Bool) :
     ∃ result, concepts.translate expression positive = .ok result ∧ Correct.{u,v} expression positive result := by
@@ -916,7 +938,12 @@ theorem translate_total_correct (expression : ClassExpression) (positive : Bool)
     refine ⟨some concept,by rw [concepts.translate]; simp [executed],by simp [Translatable],?_⟩
     intro Object Value I _ x
     exact meaning Object Value I x
-  | ObjectHasSelf _ | DataSomeValuesFrom _ _ | DataAllValuesFrom _ _ | DataHasValue _ _
+  | ObjectHasSelf property =>
+    obtain ⟨concept,executed,meaning⟩ := self_restriction_correct.{u,v} property positive
+    refine ⟨some concept,by rw [concepts.translate]; simp [executed],by simp [Translatable],?_⟩
+    intro Object Value I _ x
+    exact meaning Object Value I x
+  | DataSomeValuesFrom _ _ | DataAllValuesFrom _ _ | DataHasValue _ _
   | DataMinCardinality _ _ _ | DataMaxCardinality _ _ _ | DataExactCardinality _ _ _ =>
     exact ⟨none,by rw [concepts.translate],by simp [Correct,Translatable]⟩
 termination_by sizeOf expression
@@ -928,7 +955,8 @@ decreasing_by
     Option.some.sizeOf_spec]
   all_goals omega
 
-/-- The translation succeeds exactly on the ALCIQO fragment. -/
+/-- The translation succeeds exactly on the ALCIQO fragment with self
+    restrictions. -/
 theorem translate_supported_iff (expression : ClassExpression) (positive : Bool) :
     (∃ concept, concepts.translate expression positive = .ok (some concept)) ↔ Translatable expression := by
   obtain ⟨result,executed,correct⟩ := translate_total_correct.{0,0} expression positive

@@ -805,7 +805,15 @@ progress. Full OWL parsing and executable reasoning are still future work.
   ontology queries; every random input of the tests with such nominals is
   answered. No answer remains only when a bound has fewer counted named
   neighbours than it allows, which the tests never reach.
-- 1500 audited public theorems and 865 audited semantic definitions. Consistency,
+- Reasoner track, fourteenth stage (in progress): SROIQ role features. The
+  concepts and the concept table have self restrictions `∃r.Self` and their
+  complements, which hold exactly at the elements that `r` relates to
+  themselves, or not: concepts::translate covers `ObjectHasSelf`, proved exact
+  for the Direct Semantics, and a self restriction next to its complement
+  along the same role is a clash in both tableaux. The tableaux give no answer
+  yet when a self restriction reaches a label, and the ontology queries none
+  for self restrictions.
+- 1501 audited public theorems and 865 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -831,7 +839,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1693-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1694-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -10385,7 +10385,7 @@ def collection.axiom_closure_entities
   ok { declarations, uses }
 
 /-- [rowl_kernel::completion::Node]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 57:0-64:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 58:0-65:1
     Visibility: public -/
 structure completion.Node where
   label : alloc.vec.Vec Std.Usize
@@ -10395,7 +10395,7 @@ structure completion.Node where
   deps : alloc.vec.Vec Std.Usize
 
 /-- [rowl_kernel::completion::Link]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 66:0-70:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 67:0-71:1
     Visibility: public -/
 structure completion.Link where
   role : model.ObjectPropertyExpression
@@ -10403,7 +10403,7 @@ structure completion.Link where
   «to» : Std.Usize
 
 /-- [rowl_kernel::concepts::Concept]
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 28:0-45:1
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 30:0-51:1
     Visibility: public -/
 @[discriminant isize]
 inductive concepts.Concept where
@@ -10413,6 +10413,8 @@ inductive concepts.Concept where
 | NotAtom : model.Class → concepts.Concept
 | One : model.Individual → concepts.Concept
 | NotOne : model.Individual → concepts.Concept
+| HasSelf : model.ObjectPropertyExpression → concepts.Concept
+| NotSelf : model.ObjectPropertyExpression → concepts.Concept
 | And : concepts.Concept → concepts.Concept → concepts.Concept
 | Or : concepts.Concept → concepts.Concept → concepts.Concept
 | Exists :
@@ -10435,35 +10437,35 @@ inductive concepts.Concept where
   concepts.Concept
 
 /-- [rowl_kernel::completion::Fact]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 72:0-75:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 73:0-76:1
     Visibility: public -/
 structure completion.Fact where
   node : Std.Usize
   concept : concepts.Concept
 
 /-- [rowl_kernel::completion::Definition]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 77:0-80:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 78:0-81:1
     Visibility: public -/
 structure completion.Definition where
   «class» : model.Class
   concept : concepts.Concept
 
 /-- [rowl_kernel::completion::Requirement]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 82:0-85:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 83:0-86:1
     Visibility: public -/
 structure completion.Requirement where
   node : Std.Usize
   concept : Std.Usize
 
 /-- [rowl_kernel::completion::Unfolding]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 87:0-90:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 88:0-91:1
     Visibility: public -/
 structure completion.Unfolding where
   «class» : model.Class
   concept : Std.Usize
 
 /-- [rowl_kernel::concept_table::Entry]
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 18:0-36:1
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 18:0-40:1
     Visibility: public -/
 @[discriminant isize]
 inductive concept_table.Entry where
@@ -10473,6 +10475,8 @@ inductive concept_table.Entry where
 | NotAtom : model.Class → concept_table.Entry
 | One : model.Individual → concept_table.Entry
 | NotOne : model.Individual → concept_table.Entry
+| HasSelf : model.ObjectPropertyExpression → concept_table.Entry
+| NotSelf : model.ObjectPropertyExpression → concept_table.Entry
 | And : Std.Usize → Std.Usize → concept_table.Entry
 | Or : Std.Usize → Std.Usize → concept_table.Entry
 | Exists : model.ObjectPropertyExpression → Std.Usize → concept_table.Entry
@@ -10490,7 +10494,7 @@ inductive concept_table.Entry where
   concept_table.Entry
 
 /-- [rowl_kernel::completion::Problem]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 93:0-99:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 94:0-100:1
     Visibility: public -/
 structure completion.Problem where
   entries : alloc.vec.Vec concept_table.Entry
@@ -10500,7 +10504,7 @@ structure completion.Problem where
   axioms : Std.Usize
 
 /-- [rowl_kernel::completion::Pending]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 101:0-104:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 102:0-105:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Pending where
@@ -10508,7 +10512,7 @@ inductive completion.Pending where
 | Item : Std.Usize → completion.Pending → completion.Pending
 
 /-- [rowl_kernel::completion::Step]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 106:0-110:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 107:0-111:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Step where
@@ -10517,7 +10521,7 @@ inductive completion.Step where
 | Done : completion.Step
 
 /-- [rowl_kernel::completion::Outcome]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 113:0-116:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 114:0-117:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Outcome where
@@ -10525,7 +10529,7 @@ inductive completion.Outcome where
 | Rejected : alloc.vec.Vec Std.Usize → completion.Outcome
 
 /-- [rowl_kernel::completion::contains]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 119:0-129:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 120:0-130:1 -/
 def completion.contains
   (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
   Result Bool
@@ -10544,7 +10548,7 @@ def completion.contains
 partial_fixpoint
 
 /-- [rowl_kernel::completion::holds]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 132:0-164:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 133:0-165:1 -/
 def completion.holds
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (concept : Std.Usize) :
@@ -10564,6 +10568,10 @@ def completion.holds
       completion.contains label concept 0#usize
     | concept_table.Entry.One _ => completion.contains label concept 0#usize
     | concept_table.Entry.NotOne _ => completion.contains label concept 0#usize
+    | concept_table.Entry.HasSelf _ =>
+      completion.contains label concept 0#usize
+    | concept_table.Entry.NotSelf _ =>
+      completion.contains label concept 0#usize
     | concept_table.Entry.And left right =>
       if left < concept
       then
@@ -10597,8 +10605,28 @@ def completion.holds
   else ok false
 partial_fixpoint
 
+/-- [rowl_kernel::concepts::same_role]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 194:0-204:1
+    Visibility: public -/
+def concepts.same_role
+  (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  match left with
+  | model.ObjectPropertyExpression.Property a =>
+    match right with
+    | model.ObjectPropertyExpression.Property b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | model.ObjectPropertyExpression.Inverse _ => ok false
+  | model.ObjectPropertyExpression.Inverse a =>
+    match right with
+    | model.ObjectPropertyExpression.Property _ => ok false
+    | model.ObjectPropertyExpression.Inverse b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+
 /-- [rowl_kernel::completion::complementary]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 166:0-174:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 167:0-177:1 -/
 def completion.complementary
   (left : concept_table.Entry) (right : concept_table.Entry) :
   Result Bool
@@ -10615,6 +10643,8 @@ def completion.complementary
       symbols.same_spelling a.iri.spelling b.iri.spelling
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -10630,6 +10660,8 @@ def completion.complementary
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -10645,6 +10677,8 @@ def completion.complementary
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne b =>
       assertion_equality.same_individual_value a b
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -10659,6 +10693,40 @@ def completion.complementary
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One b => assertion_equality.same_individual_value a b
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  | concept_table.Entry.HasSelf a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One _ => ok false
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf b => concepts.same_role a b
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  | concept_table.Entry.NotSelf a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One _ => ok false
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf b => concepts.same_role a b
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -10673,7 +10741,7 @@ def completion.complementary
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::completion::clashes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 176:0-192:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 179:0-195:1 -/
 def completion.clashes
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
@@ -10710,7 +10778,7 @@ def completion.clashes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::is_atom]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 194:0-199:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 197:0-202:1 -/
 def completion.is_atom
   (entry : concept_table.Entry) («class» : model.Class) : Result Bool := do
   match entry with
@@ -10721,6 +10789,8 @@ def completion.is_atom
   | concept_table.Entry.NotAtom _ => ok false
   | concept_table.Entry.One _ => ok false
   | concept_table.Entry.NotOne _ => ok false
+  | concept_table.Entry.HasSelf _ => ok false
+  | concept_table.Entry.NotSelf _ => ok false
   | concept_table.Entry.And _ _ => ok false
   | concept_table.Entry.Or _ _ => ok false
   | concept_table.Entry.Exists _ _ => ok false
@@ -10729,7 +10799,7 @@ def completion.is_atom
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::completion::has_atom]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 201:0-217:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 204:0-220:1 -/
 def completion.has_atom
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) («class» : model.Class)
@@ -10761,7 +10831,7 @@ def completion.has_atom
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_requirement]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 220:0-241:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 223:0-244:1 -/
 def completion.missing_requirement
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) (index : Std.Usize) :
@@ -10789,7 +10859,7 @@ def completion.missing_requirement
 partial_fixpoint
 
 /-- [rowl_kernel::completion::unfolding_missing]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 243:0-253:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 246:0-256:1 -/
 def completion.unfolding_missing
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (unfolding : completion.Unfolding) :
@@ -10803,7 +10873,7 @@ def completion.unfolding_missing
   else ok false
 
 /-- [rowl_kernel::completion::missing_unfolding]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 256:0-270:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 259:0-273:1 -/
 def completion.missing_unfolding
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) :
@@ -10825,7 +10895,7 @@ def completion.missing_unfolding
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_at]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 273:0-284:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 276:0-287:1 -/
 def completion.missing_at
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) :
@@ -10841,7 +10911,7 @@ def completion.missing_at
   | some _ => ok o
 
 /-- [rowl_kernel::completion::missing_node]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 286:0-295:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 289:0-298:1 -/
 def completion.missing_node
   (problem : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
   (index : Std.Usize) :
@@ -10862,28 +10932,8 @@ def completion.missing_node
   else ok none
 partial_fixpoint
 
-/-- [rowl_kernel::concepts::same_role]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 184:0-194:1
-    Visibility: public -/
-def concepts.same_role
-  (left : model.ObjectPropertyExpression)
-  (right : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  match left with
-  | model.ObjectPropertyExpression.Property a =>
-    match right with
-    | model.ObjectPropertyExpression.Property b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-    | model.ObjectPropertyExpression.Inverse _ => ok false
-  | model.ObjectPropertyExpression.Inverse a =>
-    match right with
-    | model.ObjectPropertyExpression.Property _ => ok false
-    | model.ObjectPropertyExpression.Inverse b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-
 /-- [rowl_kernel::concept_table::universal_is]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 271:0-282:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 279:0-290:1 -/
 def concept_table.universal_is
   (entry : concept_table.Entry) (role : model.ObjectPropertyExpression)
   (filler : Std.Usize) :
@@ -10896,6 +10946,8 @@ def concept_table.universal_is
   | concept_table.Entry.NotAtom _ => ok false
   | concept_table.Entry.One _ => ok false
   | concept_table.Entry.NotOne _ => ok false
+  | concept_table.Entry.HasSelf _ => ok false
+  | concept_table.Entry.NotSelf _ => ok false
   | concept_table.Entry.And _ _ => ok false
   | concept_table.Entry.Or _ _ => ok false
   | concept_table.Entry.Exists _ _ => ok false
@@ -10907,7 +10959,7 @@ def concept_table.universal_is
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::completion::has_universal]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 297:0-319:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 300:0-322:1 -/
 def completion.has_universal
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (role : model.ObjectPropertyExpression)
@@ -10994,7 +11046,7 @@ def hierarchy.below
   else hierarchy.listed_from roles.inclusions 0#usize sub sup
 
 /-- [rowl_kernel::concept_table::universal_from]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 285:0-300:1
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 293:0-308:1
     Visibility: public -/
 def concept_table.universal_from
   (entries : alloc.vec.Vec concept_table.Entry)
@@ -11018,7 +11070,7 @@ def concept_table.universal_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_transitive]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 322:0-347:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 325:0-350:1 -/
 def completion.missing_transitive
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
@@ -11064,7 +11116,7 @@ def completion.missing_transitive
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_for]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 350:0-375:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 353:0-378:1 -/
 def completion.missing_for
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (item : Std.Usize)
@@ -11084,6 +11136,8 @@ def completion.missing_for
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists _ _ => ok none
@@ -11103,7 +11157,7 @@ def completion.missing_for
   else ok none
 
 /-- [rowl_kernel::completion::missing_along]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 378:0-394:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 381:0-397:1 -/
 def completion.missing_along
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (label : alloc.vec.Vec Std.Usize)
@@ -11127,7 +11181,7 @@ def completion.missing_along
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::inverse]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 63:0-76:1
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 69:0-82:1
     Visibility: public -/
 def concepts.inverse
   (role : model.ObjectPropertyExpression) :
@@ -11142,7 +11196,7 @@ def concepts.inverse
     ok (model.ObjectPropertyExpression.Property { iri := i })
 
 /-- [rowl_kernel::completion::missing_edge]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 397:0-433:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 400:0-436:1 -/
 def completion.missing_edge
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (nodes : alloc.vec.Vec completion.Node)
@@ -11177,7 +11231,7 @@ def completion.missing_edge
   else ok none
 
 /-- [rowl_kernel::completion::missing_link]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 435:0-457:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 438:0-460:1 -/
 def completion.missing_link
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -11201,7 +11255,7 @@ def completion.missing_link
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::copy_role]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 48:0-61:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 54:0-67:1 -/
 def concepts.copy_role
   (role : model.ObjectPropertyExpression) :
   Result model.ObjectPropertyExpression
@@ -11215,7 +11269,7 @@ def concepts.copy_role
     ok (model.ObjectPropertyExpression.Inverse { iri := i })
 
 /-- [rowl_kernel::completion::created_role]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 459:0-468:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 462:0-471:1 -/
 def completion.created_role
   (entries : alloc.vec.Vec concept_table.Entry) (via : Std.Usize) :
   Result (Option model.ObjectPropertyExpression)
@@ -11233,6 +11287,8 @@ def completion.created_role
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists role _ =>
@@ -11244,7 +11300,7 @@ def completion.created_role
   else ok none
 
 /-- [rowl_kernel::completion::missing_tree]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 470:0-499:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 473:0-502:1 -/
 def completion.missing_tree
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -11278,7 +11334,7 @@ def completion.missing_tree
 partial_fixpoint
 
 /-- [rowl_kernel::completion::child_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 502:0-533:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 505:0-536:1 -/
 def completion.child_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11320,7 +11376,7 @@ def completion.child_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::parent_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 537:0-562:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 540:0-565:1 -/
 def completion.parent_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11356,7 +11412,7 @@ def completion.parent_witness
   else ok false
 
 /-- [rowl_kernel::completion::forward_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 565:0-582:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 568:0-585:1 -/
 def completion.forward_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
@@ -11381,7 +11437,7 @@ def completion.forward_witness
   else ok false
 
 /-- [rowl_kernel::completion::backward_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 585:0-603:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 588:0-606:1 -/
 def completion.backward_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
@@ -11407,7 +11463,7 @@ def completion.backward_witness
   else ok false
 
 /-- [rowl_kernel::completion::link_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 606:0-642:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 609:0-645:1 -/
 def completion.link_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11436,7 +11492,7 @@ def completion.link_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::has_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 645:0-660:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 648:0-663:1 -/
 def completion.has_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11454,7 +11510,7 @@ def completion.has_witness
     else completion.link_witness problem roles nodes node role filler 0#usize
 
 /-- [rowl_kernel::completion::missing_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 663:0-693:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 666:0-696:1 -/
 def completion.missing_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11488,6 +11544,8 @@ def completion.missing_witness
           | concept_table.Entry.NotAtom _ => ok false
           | concept_table.Entry.One _ => ok false
           | concept_table.Entry.NotOne _ => ok false
+          | concept_table.Entry.HasSelf _ => ok false
+          | concept_table.Entry.NotSelf _ => ok false
           | concept_table.Entry.And _ _ => ok false
           | concept_table.Entry.Or _ _ => ok false
           | concept_table.Entry.Exists role filler =>
@@ -11508,7 +11566,7 @@ def completion.missing_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::subset]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 695:0-705:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 698:0-708:1 -/
 def completion.subset
   (small : alloc.vec.Vec Std.Usize) (large : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) :
@@ -11529,7 +11587,7 @@ def completion.subset
 partial_fixpoint
 
 /-- [rowl_kernel::completion::same_label]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 707:0-713:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 710:0-716:1 -/
 def completion.same_label
   (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
   Result Bool
@@ -11540,7 +11598,7 @@ def completion.same_label
   else ok false
 
 /-- [rowl_kernel::completion::repeats_above]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 716:0-732:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 719:0-735:1 -/
 def completion.repeats_above
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
   (ancestor : Std.Usize) :
@@ -11573,7 +11631,7 @@ def completion.repeats_above
 partial_fixpoint
 
 /-- [rowl_kernel::completion::blocked]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 735:0-754:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 738:0-757:1 -/
 def completion.blocked
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) :
   Result Bool
@@ -11598,7 +11656,7 @@ def completion.blocked
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_successor]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 757:0-781:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 760:0-784:1 -/
 def completion.missing_successor
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -11626,7 +11684,7 @@ def completion.missing_successor
 partial_fixpoint
 
 /-- [rowl_kernel::completion::next_step]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 784:0-801:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 787:0-804:1 -/
 def completion.next_step
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) :
@@ -11656,7 +11714,7 @@ def completion.next_step
               ok (completion.Step.Add node concept)
 
 /-- [rowl_kernel::completion::join_from]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 859:0-872:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 862:0-875:1 -/
 def completion.join_from
   (set : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -11684,7 +11742,7 @@ def completion.join_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_label]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 822:0-831:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 825:0-834:1 -/
 def completion.copy_label
   (label : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -11709,7 +11767,7 @@ def completion.copy_label
 partial_fixpoint
 
 /-- [rowl_kernel::completion::join]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 874:0-876:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 877:0-879:1 -/
 def completion.join
   (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
   Result (Option (alloc.vec.Vec Std.Usize))
@@ -11718,7 +11776,7 @@ def completion.join
   completion.join_from right 0#usize v
 
 /-- [rowl_kernel::completion::insert]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 804:0-821:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 807:0-824:1 -/
 def completion.insert
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (item : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -11751,7 +11809,7 @@ def completion.insert
   else ok none
 
 /-- [rowl_kernel::completion::copy_nodes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 832:0-847:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 835:0-850:1 -/
 def completion.copy_nodes
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Node) :
@@ -11781,7 +11839,7 @@ def completion.copy_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_pending]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 848:0-856:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 851:0-859:1 -/
 def completion.copy_pending
   (pending : completion.Pending) : Result completion.Pending := do
   match pending with
@@ -11792,7 +11850,7 @@ def completion.copy_pending
 partial_fixpoint
 
 /-- [rowl_kernel::completion::without_from]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 878:0-894:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 881:0-897:1 -/
 def completion.without_from
   (set : alloc.vec.Vec Std.Usize) (point : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -11818,7 +11876,7 @@ def completion.without_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::end_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1123:0-1129:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1128:0-1134:1 -/
 def completion.end_deps
   (nodes : alloc.vec.Vec completion.Node) («end» : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -11834,7 +11892,7 @@ def completion.end_deps
   else ok (some out)
 
 /-- [rowl_kernel::completion::linked_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1132:0-1164:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1137:0-1169:1 -/
 def completion.linked_deps
   (links : alloc.vec.Vec completion.Link)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -11867,7 +11925,7 @@ def completion.linked_deps
 partial_fixpoint
 
 /-- [rowl_kernel::completion::children_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1098:0-1121:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1103:0-1126:1 -/
 def completion.children_deps
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -11896,7 +11954,7 @@ def completion.children_deps
 partial_fixpoint
 
 /-- [rowl_kernel::completion::rule_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1167:0-1185:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1172:0-1190:1 -/
 def completion.rule_deps
   (problem : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
   (node : Std.Usize) :
@@ -11925,7 +11983,7 @@ def completion.rule_deps
   else ok none
 
 /-- [rowl_kernel::completion::filler_of]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1040:0-1049:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1045:0-1054:1 -/
 def completion.filler_of
   (entries : alloc.vec.Vec concept_table.Entry) (existential : Std.Usize) :
   Result (Option Std.Usize)
@@ -11943,6 +12001,8 @@ def completion.filler_of
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists _ filler => ok (some filler)
@@ -11954,7 +12014,7 @@ def completion.filler_of
 mutual
 
 /-- [rowl_kernel::completion::branch]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 899:0-959:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 902:0-962:1 -/
 def completion.branch
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (left : Std.Usize)
@@ -11999,7 +12059,7 @@ def completion.branch
 partial_fixpoint
 
 /-- [rowl_kernel::completion::add_literal]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 963:0-990:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 966:0-993:1 -/
 def completion.add_literal
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12034,7 +12094,7 @@ def completion.add_literal
 partial_fixpoint
 
 /-- [rowl_kernel::completion::add]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 993:0-1038:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 996:0-1043:1 -/
 def completion.add
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12062,6 +12122,8 @@ def completion.add
         completion.add_literal problem roles nodes node concept next deps depth
       | concept_table.Entry.One _ => ok none
       | concept_table.Entry.NotOne _ => ok none
+      | concept_table.Entry.HasSelf _ => ok none
+      | concept_table.Entry.NotSelf _ => ok none
       | concept_table.Entry.And left right =>
         completion.add problem roles nodes node (completion.Pending.Item left
           (completion.Pending.Item right next)) deps depth
@@ -12077,7 +12139,7 @@ def completion.add
 partial_fixpoint
 
 /-- [rowl_kernel::completion::create]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1052:0-1096:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1057:0-1101:1 -/
 def completion.create
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12119,7 +12181,7 @@ def completion.create
 partial_fixpoint
 
 /-- [rowl_kernel::completion::run]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1188:0-1215:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1193:0-1220:1 -/
 def completion.run
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (depth : Std.Usize) :
@@ -12142,7 +12204,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::concepts::join]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 220:0-226:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 230:0-236:1 -/
 def concepts.join
   (conjunctive : Bool) (left : concepts.Concept) (right : concepts.Concept) :
   Result concepts.Concept
@@ -12152,7 +12214,7 @@ def concepts.join
   else ok (concepts.Concept.Or left right)
 
 /-- [rowl_kernel::concepts::copy_individual]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 78:0-88:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 84:0-94:1 -/
 def concepts.copy_individual
   (individual : model.Individual) : Result model.Individual := do
   match individual with
@@ -12165,7 +12227,7 @@ def concepts.copy_individual
     ok (model.Individual.Anonymous { scope := v, label := v1 })
 
 /-- [rowl_kernel::concepts::copy_concept]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 90:0-121:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 96:0-129:1 -/
 def concepts.copy_concept
   (concept : concepts.Concept) : Result concepts.Concept := do
   match concept with
@@ -12183,6 +12245,12 @@ def concepts.copy_concept
   | concepts.Concept.NotOne individual =>
     let i ← concepts.copy_individual individual
     ok (concepts.Concept.NotOne i)
+  | concepts.Concept.HasSelf role =>
+    let ope ← concepts.copy_role role
+    ok (concepts.Concept.HasSelf ope)
+  | concepts.Concept.NotSelf role =>
+    let ope ← concepts.copy_role role
+    ok (concepts.Concept.NotSelf ope)
   | concepts.Concept.And left right =>
     let c ← concepts.copy_concept left
     let c1 ← concepts.copy_concept right
@@ -12212,7 +12280,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::concepts::negate_pair]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 124:0-134:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 132:0-142:1 -/
 def concepts.negate_pair
   (left : concepts.Concept) (right : concepts.Concept) (conjunctive : Bool) :
   Result (Option concepts.Concept)
@@ -12230,7 +12298,7 @@ def concepts.negate_pair
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::negate]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 137:0-182:1
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 145:0-192:1
     Visibility: public -/
 def concepts.negate
   (concept : concepts.Concept) : Result (Option concepts.Concept) := do
@@ -12249,6 +12317,12 @@ def concepts.negate
   | concepts.Concept.NotOne individual =>
     let i ← concepts.copy_individual individual
     ok (some (concepts.Concept.One i))
+  | concepts.Concept.HasSelf role =>
+    let ope ← concepts.copy_role role
+    ok (some (concepts.Concept.NotSelf ope))
+  | concepts.Concept.NotSelf role =>
+    let ope ← concepts.copy_role role
+    ok (some (concepts.Concept.HasSelf ope))
   | concepts.Concept.And left right => concepts.negate_pair left right false
   | concepts.Concept.Or left right => concepts.negate_pair left right true
   | concepts.Concept.Exists role filler =>
@@ -12286,7 +12360,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::concept_table::push_new]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 96:0-104:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 102:0-110:1 -/
 def concept_table.push_new
   (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
   Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
@@ -12300,7 +12374,7 @@ def concept_table.push_new
   else ok none
 
 /-- [rowl_kernel::concept_table::same_entry]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 40:0-80:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 44:0-86:1 -/
 def concept_table.same_entry
   (left : concept_table.Entry) (right : concept_table.Entry) :
   Result Bool
@@ -12314,6 +12388,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12328,6 +12404,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12343,6 +12421,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12358,6 +12438,8 @@ def concept_table.same_entry
       symbols.same_spelling a.iri.spelling b.iri.spelling
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12372,6 +12454,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One b => assertion_equality.same_individual_value a b
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12387,6 +12471,40 @@ def concept_table.same_entry
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne b =>
       assertion_equality.same_individual_value a b
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  | concept_table.Entry.HasSelf a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One _ => ok false
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf b => concepts.same_role a b
+    | concept_table.Entry.NotSelf _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  | concept_table.Entry.NotSelf a =>
+    match right with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One _ => ok false
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf b => concepts.same_role a b
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12401,6 +12519,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And a2 b2 =>
       if a1 = a2
       then ok (b1 = b2)
@@ -12418,6 +12538,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or a2 b2 =>
       if a1 = a2
@@ -12435,6 +12557,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists r2 c2 =>
@@ -12452,6 +12576,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12469,6 +12595,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12488,6 +12616,8 @@ def concept_table.same_entry
     | concept_table.Entry.NotAtom _ => ok false
     | concept_table.Entry.One _ => ok false
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -12504,7 +12634,7 @@ def concept_table.same_entry
       else ok false
 
 /-- [rowl_kernel::concept_table::position_from]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 83:0-93:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 89:0-99:1 -/
 def concept_table.position_from
   (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry)
   (index : Std.Usize) :
@@ -12526,7 +12656,7 @@ def concept_table.position_from
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::add]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 107:0-113:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 113:0-119:1 -/
 def concept_table.add
   (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :
   Result (Option ((alloc.vec.Vec concept_table.Entry) × Std.Usize))
@@ -12540,7 +12670,7 @@ def concept_table.add
 mutual
 
 /-- [rowl_kernel::concept_table::intern_pair]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 114:0-133:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 120:0-139:1 -/
 def concept_table.intern_pair
   (entries : alloc.vec.Vec concept_table.Entry) (left : concepts.Concept)
   (right : concepts.Concept) (conjunctive : Bool) :
@@ -12562,7 +12692,7 @@ def concept_table.intern_pair
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::intern_restriction]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 134:0-149:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 140:0-155:1 -/
 def concept_table.intern_restriction
   (entries : alloc.vec.Vec concept_table.Entry)
   (role : model.ObjectPropertyExpression) (filler : concepts.Concept)
@@ -12584,7 +12714,7 @@ def concept_table.intern_restriction
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::intern_at_least]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 150:0-161:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 156:0-167:1 -/
 def concept_table.intern_at_least
   (entries : alloc.vec.Vec concept_table.Entry) (n : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : concepts.Concept) :
@@ -12600,7 +12730,7 @@ def concept_table.intern_at_least
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::intern_at_most]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 162:0-181:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 168:0-187:1 -/
 def concept_table.intern_at_most
   (entries : alloc.vec.Vec concept_table.Entry) (n : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : concepts.Concept) :
@@ -12626,7 +12756,7 @@ def concept_table.intern_at_most
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::intern]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 185:0-210:1
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 191:0-218:1
     Visibility: public -/
 def concept_table.intern
   (entries : alloc.vec.Vec concept_table.Entry) (concept : concepts.Concept) :
@@ -12648,6 +12778,12 @@ def concept_table.intern
   | concepts.Concept.NotOne individual =>
     let i ← concepts.copy_individual individual
     concept_table.add entries (concept_table.Entry.NotOne i)
+  | concepts.Concept.HasSelf role =>
+    let ope ← concepts.copy_role role
+    concept_table.add entries (concept_table.Entry.HasSelf ope)
+  | concepts.Concept.NotSelf role =>
+    let ope ← concepts.copy_role role
+    concept_table.add entries (concept_table.Entry.NotSelf ope)
   | concepts.Concept.And left right =>
     concept_table.intern_pair entries left right true
   | concepts.Concept.Or left right =>
@@ -12665,7 +12801,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::completion::intern_facts]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1216:0-1239:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1221:0-1244:1 -/
 def completion.intern_facts
   (entries : alloc.vec.Vec concept_table.Entry)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
@@ -12697,7 +12833,7 @@ def completion.intern_facts
 partial_fixpoint
 
 /-- [rowl_kernel::completion::intern_definitions]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1240:0-1265:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1245:0-1270:1 -/
 def completion.intern_definitions
   (entries : alloc.vec.Vec concept_table.Entry)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
@@ -12730,7 +12866,7 @@ def completion.intern_definitions
 partial_fixpoint
 
 /-- [rowl_kernel::completion::named_nodes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1266:0-1283:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1271:0-1288:1 -/
 def completion.named_nodes
   (count : Std.Usize) (nodes : alloc.vec.Vec completion.Node) :
   Result (Option (alloc.vec.Vec completion.Node))
@@ -12756,7 +12892,7 @@ def completion.named_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_links]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1285:0-1298:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1290:0-1303:1 -/
 def completion.copy_links
   (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Link) :
@@ -12782,7 +12918,7 @@ def completion.copy_links
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::transitive_restrictions]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 213:0-236:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 221:0-244:1 -/
 def concept_table.transitive_restrictions
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (index : Std.Usize)
@@ -12814,7 +12950,7 @@ def concept_table.transitive_restrictions
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::close_from]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 239:0-263:1 -/
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 247:0-271:1 -/
 def concept_table.close_from
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (index : Std.Usize) (limit : Std.Usize) :
@@ -12836,6 +12972,8 @@ def concept_table.close_from
         | concept_table.Entry.NotAtom _ => ok none
         | concept_table.Entry.One _ => ok none
         | concept_table.Entry.NotOne _ => ok none
+        | concept_table.Entry.HasSelf _ => ok none
+        | concept_table.Entry.NotSelf _ => ok none
         | concept_table.Entry.And _ _ => ok none
         | concept_table.Entry.Or _ _ => ok none
         | concept_table.Entry.Exists _ _ => ok none
@@ -12864,7 +13002,7 @@ def concept_table.close_from
 partial_fixpoint
 
 /-- [rowl_kernel::concept_table::close]:
-    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 266:0-269:1
+    Source: 'crates/rowl-kernel/src/concept_table.rs', lines 274:0-277:1
     Visibility: public -/
 def concept_table.close
   (entries : alloc.vec.Vec concept_table.Entry)
@@ -12875,7 +13013,7 @@ def concept_table.close
   concept_table.close_from entries roles 0#usize limit
 
 /-- [rowl_kernel::completion::satisfiable]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1306:0-1351:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1311:0-1356:1
     Visibility: public -/
 def completion.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
@@ -12938,7 +13076,7 @@ def completion.satisfiable
                 | completion.Outcome.Rejected _ => ok (some false)
 
 /-- [rowl_kernel::concepts::named]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 196:0-219:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 206:0-229:1 -/
 def concepts.named
   (expression : model.ClassExpression) («class» : model.Class)
   (positive : Bool) :
@@ -12963,7 +13101,7 @@ def concepts.named
       else ok (concepts.Concept.NotAtom { iri := i })
 
 /-- [rowl_kernel::concepts::bound]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 329:0-343:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 347:0-361:1 -/
 def concepts.bound (n : probes.Natural) : Result (Option Std.Usize) := do
   match n with
   | probes.Natural.Zero => ok (some 0#usize)
@@ -12979,8 +13117,22 @@ def concepts.bound (n : probes.Natural) : Result (Option Std.Usize) := do
       else ok none
 partial_fixpoint
 
+/-- [rowl_kernel::concepts::self_restriction]:
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 321:0-327:1 -/
+def concepts.self_restriction
+  (property : model.ObjectPropertyExpression) (positive : Bool) :
+  Result concepts.Concept
+  := do
+  if positive
+  then
+    let ope ← concepts.copy_role property
+    ok (concepts.Concept.HasSelf ope)
+  else
+    let ope ← concepts.copy_role property
+    ok (concepts.Concept.NotSelf ope)
+
 /-- [rowl_kernel::concepts::nominal]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 274:0-280:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 284:0-290:1 -/
 def concepts.nominal
   (individual : model.Individual) (positive : Bool) :
   Result concepts.Concept
@@ -12994,7 +13146,7 @@ def concepts.nominal
     ok (concepts.Concept.NotOne i)
 
 /-- [rowl_kernel::concepts::has_value]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 302:0-309:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 312:0-319:1 -/
 def concepts.has_value
   (property : model.ObjectPropertyExpression) (value : model.Individual)
   (positive : Bool) :
@@ -13010,7 +13162,7 @@ def concepts.has_value
     ok (concepts.Concept.Forall ope inner)
 
 /-- [rowl_kernel::concepts::nominals_from]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 283:0-295:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 293:0-305:1 -/
 def concepts.nominals_from
   (values : alloc.vec.Vec model.Individual) (index : Std.Usize)
   (positive : Bool) (joined : concepts.Concept) :
@@ -13030,7 +13182,7 @@ def concepts.nominals_from
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::one_of]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 297:0-300:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 307:0-310:1 -/
 def concepts.one_of
   (members : model.NonEmpty model.Individual) (positive : Bool) :
   Result concepts.Concept
@@ -13041,7 +13193,7 @@ def concepts.one_of
 mutual
 
 /-- [rowl_kernel::concepts::fold_from]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 228:0-250:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 238:0-260:1 -/
 def concepts.fold_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (positive : Bool) (conjunctive : Bool) (joined : concepts.Concept) :
@@ -13064,7 +13216,7 @@ def concepts.fold_from
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::connect]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 252:0-272:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 262:0-282:1 -/
 def concepts.connect
   (members : model.AtLeastTwo model.ClassExpression) (positive : Bool)
   (conjunctive : Bool) :
@@ -13083,7 +13235,7 @@ def concepts.connect
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::restriction]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 311:0-326:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 329:0-344:1 -/
 def concepts.restriction
   (property : model.ObjectPropertyExpression) (filler : model.ClassExpression)
   (positive : Bool) (existential : Bool) :
@@ -13103,7 +13255,7 @@ def concepts.restriction
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::cardinality_filler]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 345:0-350:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 363:0-368:1 -/
 def concepts.cardinality_filler
   (filler : Option model.ClassExpression) :
   Result (Option concepts.Concept)
@@ -13114,7 +13266,7 @@ def concepts.cardinality_filler
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::cardinality]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 353:0-387:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 371:0-405:1 -/
 def concepts.cardinality
   (n : probes.Natural) (property : model.ObjectPropertyExpression)
   (filler : Option model.ClassExpression) (positive : Bool) (minimum : Bool) :
@@ -13156,7 +13308,7 @@ def concepts.cardinality
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::exactly]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 390:0-405:1 -/
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 408:0-423:1 -/
 def concepts.exactly
   (n : probes.Natural) (property : model.ObjectPropertyExpression)
   (filler : Option model.ClassExpression) (positive : Bool) :
@@ -13174,7 +13326,7 @@ def concepts.exactly
 partial_fixpoint
 
 /-- [rowl_kernel::concepts::translate]:
-    Source: 'crates/rowl-kernel/src/concepts.rs', lines 412:0-439:1
+    Source: 'crates/rowl-kernel/src/concepts.rs', lines 430:0-458:1
     Visibility: public -/
 def concepts.translate
   (expression : model.ClassExpression) (positive : Bool) :
@@ -13200,7 +13352,9 @@ def concepts.translate
   | model.ClassExpression.ObjectHasValue property value =>
     let c ← concepts.has_value property value positive
     ok (some c)
-  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectHasSelf property =>
+    let c ← concepts.self_restriction property positive
+    ok (some c)
   | model.ClassExpression.ObjectMinCardinality n property filler =>
     concepts.cardinality n property filler positive true
   | model.ClassExpression.ObjectMaxCardinality n property filler =>
@@ -15441,6 +15595,12 @@ def forest.counting_from
         | concept_table.Entry.NotOne _ =>
           let i3 ← index + 1#usize
           forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.HasSelf _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.NotSelf _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
         | concept_table.Entry.And _ _ =>
           let i3 ← index + 1#usize
           forest.counting_from problem roles graph node choose i3
@@ -15567,6 +15727,8 @@ def forest.generating (entry : concept_table.Entry) : Result Bool := do
   | concept_table.Entry.NotAtom _ => ok false
   | concept_table.Entry.One _ => ok false
   | concept_table.Entry.NotOne _ => ok false
+  | concept_table.Entry.HasSelf _ => ok false
+  | concept_table.Entry.NotSelf _ => ok false
   | concept_table.Entry.And _ _ => ok false
   | concept_table.Entry.Or _ _ => ok false
   | concept_table.Entry.Exists _ _ => ok true
@@ -15575,7 +15737,7 @@ def forest.generating (entry : concept_table.Entry) : Result Bool := do
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::forest::generator_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1480:0-1493:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1482:0-1495:1 -/
 def forest.generator_of
   (entries : alloc.vec.Vec concept_table.Entry) (generator : Std.Usize) :
   Result (Option (model.ObjectPropertyExpression × Std.Usize × Std.Usize))
@@ -15593,6 +15755,8 @@ def forest.generator_of
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists role filler =>
@@ -15756,6 +15920,8 @@ def forest.names
     | concept_table.Entry.One other =>
       assertion_equality.same_individual_value other individual
     | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
     | concept_table.Entry.And _ _ => ok false
     | concept_table.Entry.Or _ _ => ok false
     | concept_table.Entry.Exists _ _ => ok false
@@ -15842,6 +16008,12 @@ def forest.nominal_at
           | some _ =>
             let i3 ← index + 1#usize
             forest.nominal_at problem graph node i3
+        | concept_table.Entry.HasSelf _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.NotSelf _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
         | concept_table.Entry.And _ _ =>
           let i3 ← index + 1#usize
           forest.nominal_at problem graph node i3
@@ -16172,7 +16344,7 @@ def forest.insert
   else ok none
 
 /-- [rowl_kernel::forest::fresh_named]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2470:0-2508:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2472:0-2510:1 -/
 def forest.fresh_named
   (graph : forest.Forest) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : Std.Usize)
@@ -16216,7 +16388,7 @@ def forest.fresh_named
 partial_fixpoint
 
 /-- [rowl_kernel::forest::differ_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1527:0-1542:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1529:0-1544:1 -/
 def forest.differ_from
   (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -16240,7 +16412,7 @@ def forest.differ_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairwise]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1544:0-1553:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1546:0-1555:1 -/
 def forest.pairwise
   (graph : forest.Forest) (node : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
   Result (Option forest.Forest)
@@ -16257,7 +16429,7 @@ def forest.pairwise
 partial_fixpoint
 
 /-- [rowl_kernel::forest::named]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2513:0-2542:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2515:0-2544:1 -/
 def forest.named
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : Std.Usize)
@@ -16285,7 +16457,7 @@ def forest.named
       else ok none
 
 /-- [rowl_kernel::forest::orient]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2244:0-2263:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2246:0-2265:1 -/
 def forest.orient
   (graph : forest.Forest) (node : Std.Usize) (pair : forest.Pair) :
   Result (Std.Usize × Std.Usize)
@@ -16331,14 +16503,14 @@ def forest.orient
   else ok (pair.second, pair.first)
 
 /-- [rowl_kernel::forest::at_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2088:0-2094:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2090:0-2096:1 -/
 def forest.at_node (edge : forest.Edge) (node : Std.Usize) : Result Bool := do
   if edge.from = node
   then ok true
   else ok (edge.to = node)
 
 /-- [rowl_kernel::forest::relink]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2097:0-2114:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2099:0-2116:1 -/
 def forest.relink
   (edge : forest.Edge) («from» : Std.Usize) (into : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -16368,7 +16540,7 @@ def forest.relink
       { role := ope, «from» := source, «to» := target, deps := depends })
 
 /-- [rowl_kernel::forest::relinked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2117:0-2139:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2119:0-2141:1 -/
 def forest.relinked
   (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
@@ -16396,7 +16568,7 @@ def forest.relinked
 partial_fixpoint
 
 /-- [rowl_kernel::forest::carried_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2046:0-2075:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2048:0-2077:1 -/
 def forest.carried_from
   (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
@@ -16432,7 +16604,7 @@ def forest.carried_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::carried]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2077:0-2086:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2079:0-2088:1 -/
 def forest.carried
   (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -16446,7 +16618,7 @@ def forest.carried
   | some edges => ok (some { graph with edges })
 
 /-- [rowl_kernel::forest::renamed]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1939:0-1958:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1941:0-1960:1 -/
 def forest.renamed
   (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -16473,7 +16645,7 @@ def forest.renamed
 partial_fixpoint
 
 /-- [rowl_kernel::forest::add_edges]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1892:0-1915:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1894:0-1917:1 -/
 def forest.add_edges
   (list : alloc.vec.Vec model.ObjectPropertyExpression) (node : Std.Usize)
   (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
@@ -16503,7 +16675,7 @@ def forest.add_edges
 partial_fixpoint
 
 /-- [rowl_kernel::forest::linked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1918:0-1936:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1920:0-1938:1 -/
 def forest.linked
   (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
   (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
@@ -16524,7 +16696,7 @@ def forest.linked
   else ok none
 
 /-- [rowl_kernel::forest::add_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1832:0-1853:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1834:0-1855:1 -/
 def forest.add_roles
   (list : alloc.vec.Vec model.ObjectPropertyExpression) (invert : Bool)
   (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -16558,7 +16730,7 @@ def forest.add_roles
 partial_fixpoint
 
 /-- [rowl_kernel::forest::sideways]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1877:0-1889:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1879:0-1891:1 -/
 def forest.sideways
   (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
   Result (Option forest.Forest)
@@ -16591,7 +16763,7 @@ def forest.sideways
   else ok none
 
 /-- [rowl_kernel::forest::upward]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1857:0-1874:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1859:0-1876:1 -/
 def forest.upward
   (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -16633,7 +16805,7 @@ def forest.upward
   else ok none
 
 /-- [rowl_kernel::forest::moved]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2145:0-2178:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2147:0-2180:1 -/
 def forest.moved
   (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
   (joined : alloc.vec.Vec Std.Usize) :
@@ -16695,7 +16867,7 @@ def forest.moved
   else ok none
 
 /-- [rowl_kernel::forest::pruned]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2005:0-2032:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2007:0-2034:1 -/
 def forest.pruned
   (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
   (out : alloc.vec.Vec forest.Node) :
@@ -16755,7 +16927,7 @@ def forest.pruned
 partial_fixpoint
 
 /-- [rowl_kernel::forest::inherit]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1962:0-2002:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1964:0-2004:1 -/
 def forest.inherit
   (distinct : alloc.vec.Vec forest.Distinct) («from» : Std.Usize)
   (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
@@ -16797,7 +16969,7 @@ def forest.inherit
 partial_fixpoint
 
 /-- [rowl_kernel::forest::merged]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2182:0-2207:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2184:0-2209:1 -/
 def forest.merged
   (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
   (joined : alloc.vec.Vec Std.Usize) :
@@ -16842,7 +17014,7 @@ def forest.merged
     else ok none
 
 /-- [rowl_kernel::forest::pending_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2034:0-2043:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2036:0-2045:1 -/
 def forest.pending_from
   (label : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
   Result completion.Pending
@@ -16860,7 +17032,7 @@ def forest.pending_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::first_nodes]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1818:0-1829:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1820:0-1831:1 -/
 def forest.first_nodes
   (list : alloc.vec.Vec Std.Usize) (count : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -16883,7 +17055,7 @@ def forest.first_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::forest::differ]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1725:0-1743:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1727:0-1745:1 -/
 def forest.differ
   (graph : forest.Forest) (left : Std.Usize) (right : Std.Usize)
   (index : Std.Usize) :
@@ -16909,7 +17081,7 @@ def forest.differ
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairs_with]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1773:0-1799:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1775:0-1801:1 -/
 def forest.pairs_with
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (first : Std.Usize) (second : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
@@ -16947,7 +17119,7 @@ def forest.pairs_with
 partial_fixpoint
 
 /-- [rowl_kernel::forest::pairs_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1802:0-1816:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1804:0-1818:1 -/
 def forest.pairs_from
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (first : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
@@ -16965,7 +17137,7 @@ def forest.pairs_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::differences_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1746:0-1770:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1748:0-1772:1 -/
 def forest.differences_deps
   (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -16996,7 +17168,7 @@ def forest.differences_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::children_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1674:0-1696:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1676:0-1698:1 -/
 def forest.children_deps
   (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -17028,7 +17200,7 @@ def forest.children_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::end_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1665:0-1671:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1667:0-1673:1 -/
 def forest.end_deps
   (graph : forest.Forest) («end» : Std.Usize) (out : alloc.vec.Vec Std.Usize)
   :
@@ -17044,7 +17216,7 @@ def forest.end_deps
   else ok (some out)
 
 /-- [rowl_kernel::forest::edge_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1632:0-1663:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1634:0-1665:1 -/
 def forest.edge_deps
   (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -17086,7 +17258,7 @@ def forest.edge_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::linked_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1599:0-1629:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1601:0-1631:1 -/
 def forest.linked_deps
   (graph : forest.Forest) (links : alloc.vec.Vec completion.Link)
   (node : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -17133,7 +17305,7 @@ def forest.linked_deps
 partial_fixpoint
 
 /-- [rowl_kernel::forest::rule_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1699:0-1723:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1701:0-1725:1 -/
 def forest.rule_deps
   (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
   Result (Option (alloc.vec.Vec Std.Usize))
@@ -17164,7 +17336,7 @@ def forest.rule_deps
   else ok none
 
 /-- [rowl_kernel::forest::children]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1496:0-1525:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1498:0-1527:1 -/
 def forest.children
   (graph : forest.Forest) (node : Std.Usize)
   (role : model.ObjectPropertyExpression) (filler : Std.Usize)
@@ -17201,7 +17373,7 @@ def forest.children
 partial_fixpoint
 
 /-- [rowl_kernel::forest::expanded]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1557:0-1582:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1559:0-1584:1 -/
 def forest.expanded
   (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
   (node : Std.Usize) (generator : Std.Usize) :
@@ -17325,7 +17497,7 @@ def forest.add_literal
 partial_fixpoint
 
 /-- [rowl_kernel::forest::add]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1436:0-1477:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1436:0-1479:1 -/
 def forest.add
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (pending : completion.Pending)
@@ -17354,6 +17526,8 @@ def forest.add
         forest.add_literal problem roles graph node concept next deps depth
       | concept_table.Entry.NotOne _ =>
         forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.HasSelf _ => ok none
+      | concept_table.Entry.NotSelf _ => ok none
       | concept_table.Entry.And left right =>
         forest.add problem roles graph node (completion.Pending.Item left
           (completion.Pending.Item right next)) deps depth
@@ -17371,7 +17545,7 @@ def forest.add
 partial_fixpoint
 
 /-- [rowl_kernel::forest::create]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1584:0-1596:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1586:0-1598:1 -/
 def forest.create
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize)
@@ -17385,7 +17559,7 @@ def forest.create
 partial_fixpoint
 
 /-- [rowl_kernel::forest::merge]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2210:0-2240:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2212:0-2242:1 -/
 def forest.merge
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
@@ -17414,7 +17588,7 @@ def forest.merge
 partial_fixpoint
 
 /-- [rowl_kernel::forest::choices]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2268:0-2330:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2270:0-2332:1 -/
 def forest.choices
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize)
@@ -17477,7 +17651,7 @@ def forest.choices
 partial_fixpoint
 
 /-- [rowl_kernel::forest::merge_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2334:0-2388:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2336:0-2390:1 -/
 def forest.merge_rule
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
@@ -17497,6 +17671,8 @@ def forest.merge_rule
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists _ _ => ok none
@@ -17539,7 +17715,7 @@ def forest.merge_rule
 partial_fixpoint
 
 /-- [rowl_kernel::forest::capped_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2393:0-2467:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2395:0-2469:1 -/
 def forest.capped_rule
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
@@ -17559,6 +17735,8 @@ def forest.capped_rule
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists _ _ => ok none
@@ -17628,7 +17806,7 @@ def forest.capped_rule
 partial_fixpoint
 
 /-- [rowl_kernel::forest::guesses]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2549:0-2624:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2551:0-2626:1 -/
 def forest.guesses
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
@@ -17693,7 +17871,7 @@ def forest.guesses
 partial_fixpoint
 
 /-- [rowl_kernel::forest::name_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2629:0-2664:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2631:0-2666:1 -/
 def forest.name_rule
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
@@ -17713,6 +17891,8 @@ def forest.name_rule
     | concept_table.Entry.NotAtom _ => ok none
     | concept_table.Entry.One _ => ok none
     | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
     | concept_table.Entry.And _ _ => ok none
     | concept_table.Entry.Or _ _ => ok none
     | concept_table.Entry.Exists _ _ => ok none
@@ -17729,7 +17909,7 @@ def forest.name_rule
 partial_fixpoint
 
 /-- [rowl_kernel::forest::nominal]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2667:0-2693:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2669:0-2695:1 -/
 def forest.nominal
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (node : Std.Usize) (root : Std.Usize)
@@ -17767,7 +17947,7 @@ def forest.nominal
 partial_fixpoint
 
 /-- [rowl_kernel::forest::run]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2696:0-2744:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2698:0-2746:1 -/
 def forest.run
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (graph : forest.Forest) (depth : Std.Usize) :
@@ -17809,7 +17989,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::forest::simple_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2747:0-2757:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2749:0-2759:1 -/
 def forest.simple_from
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
   (index : Std.Usize) :
@@ -17830,7 +18010,7 @@ def forest.simple_from
 partial_fixpoint
 
 /-- [rowl_kernel::forest::counting_simple]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2759:0-2774:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2761:0-2776:1 -/
 def forest.counting_simple
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (index : Std.Usize) :
@@ -17850,6 +18030,8 @@ def forest.counting_simple
       | concept_table.Entry.NotAtom _ => ok true
       | concept_table.Entry.One _ => ok true
       | concept_table.Entry.NotOne _ => ok true
+      | concept_table.Entry.HasSelf _ => ok true
+      | concept_table.Entry.NotSelf _ => ok true
       | concept_table.Entry.And _ _ => ok true
       | concept_table.Entry.Or _ _ => ok true
       | concept_table.Entry.Exists _ _ => ok true
@@ -17866,7 +18048,7 @@ def forest.counting_simple
 partial_fixpoint
 
 /-- [rowl_kernel::forest::roots]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2776:0-2798:1 -/
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2778:0-2800:1 -/
 def forest.roots
   (count : Std.Usize) (graph : forest.Forest) :
   Result (Option forest.Forest)
@@ -17897,7 +18079,7 @@ def forest.roots
 partial_fixpoint
 
 /-- [rowl_kernel::forest::satisfiable]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2807:0-2864:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2809:0-2866:1
     Visibility: public -/
 def forest.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
@@ -33839,14 +34021,14 @@ def roles.check_simplicity
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
 /-- [rowl_kernel::shi_ontology::Parts]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 85:0-88:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 86:0-89:1
     Visibility: public -/
 structure shi_ontology.Parts where
   axioms : concepts.Concept
   definitions : alloc.vec.Vec completion.Definition
 
 /-- [rowl_kernel::shi_ontology::named_individual]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 92:0-97:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 93:0-98:1 -/
 def shi_ontology.named_individual
   (individual : model.Individual) : Result Bool := do
   match individual with
@@ -33854,7 +34036,7 @@ def shi_ontology.named_individual
   | model.Individual.Anonymous _ => ok false
 
 /-- [rowl_kernel::shi_ontology::proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 101:0-116:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 103:0-120:1 -/
 def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok true
@@ -33868,6 +34050,8 @@ def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
   | concepts.Concept.One individual => shi_ontology.named_individual individual
   | concepts.Concept.NotOne individual =>
     shi_ontology.named_individual individual
+  | concepts.Concept.HasSelf _ => ok false
+  | concepts.Concept.NotSelf _ => ok false
   | concepts.Concept.And left right =>
     let b ← shi_ontology.proper left
     if b
@@ -33901,7 +34085,7 @@ def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 119:0-129:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 123:0-133:1 -/
 def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok false
@@ -33910,6 +34094,8 @@ def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
   | concepts.Concept.NotAtom _ => ok false
   | concepts.Concept.One _ => ok false
   | concepts.Concept.NotOne _ => ok false
+  | concepts.Concept.HasSelf _ => ok false
+  | concepts.Concept.NotSelf _ => ok false
   | concepts.Concept.And left right =>
     let b ← shi_ontology.counts left
     if b
@@ -33927,7 +34113,7 @@ def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 131:0-137:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 135:0-141:1 -/
 def shi_ontology.definitions_count
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -33948,7 +34134,7 @@ def shi_ontology.definitions_count
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 139:0-145:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 143:0-149:1 -/
 def shi_ontology.facts_count
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -33968,7 +34154,7 @@ def shi_ontology.facts_count
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::closure_counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 147:0-149:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 151:0-153:1 -/
 def shi_ontology.closure_counts
   (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -33983,7 +34169,7 @@ def shi_ontology.closure_counts
     else shi_ontology.facts_count facts 0#usize
 
 /-- [rowl_kernel::shi_ontology::nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 151:0-163:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 155:0-167:1 -/
 def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok false
@@ -33992,6 +34178,8 @@ def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
   | concepts.Concept.NotAtom _ => ok false
   | concepts.Concept.One _ => ok true
   | concepts.Concept.NotOne _ => ok true
+  | concepts.Concept.HasSelf _ => ok false
+  | concepts.Concept.NotSelf _ => ok false
   | concepts.Concept.And left right =>
     let b ← shi_ontology.nominal left
     if b
@@ -34009,7 +34197,7 @@ def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 165:0-171:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 169:0-175:1 -/
 def shi_ontology.definitions_nominal
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -34030,7 +34218,7 @@ def shi_ontology.definitions_nominal
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 173:0-179:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 177:0-183:1 -/
 def shi_ontology.facts_nominal
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -34050,7 +34238,7 @@ def shi_ontology.facts_nominal
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::closure_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 181:0-183:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 185:0-187:1 -/
 def shi_ontology.closure_nominal
   (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -34065,7 +34253,7 @@ def shi_ontology.closure_nominal
     else shi_ontology.facts_nominal facts 0#usize
 
 /-- [rowl_kernel::shi_ontology::known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 185:0-197:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 189:0-201:1 -/
 def shi_ontology.known
   (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
   Result Bool
@@ -34081,6 +34269,8 @@ def shi_ontology.known
   | concepts.Concept.NotOne individual =>
     let i ← alc_ontology.position nodes individual 0#usize
     ok (i != 0#usize)
+  | concepts.Concept.HasSelf _ => ok true
+  | concepts.Concept.NotSelf _ => ok true
   | concepts.Concept.And left right =>
     let b ← shi_ontology.known nodes left
     if b
@@ -34098,7 +34288,7 @@ def shi_ontology.known
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 200:0-206:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 204:0-210:1 -/
 def shi_ontology.facts_known
   (nodes : alloc.vec.Vec model.Individual)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
@@ -34119,7 +34309,7 @@ def shi_ontology.facts_known
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 209:0-216:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 213:0-220:1 -/
 def shi_ontology.definitions_proper
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -34143,7 +34333,7 @@ def shi_ontology.definitions_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 218:0-224:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 222:0-228:1 -/
 def shi_ontology.facts_proper
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -34163,7 +34353,7 @@ def shi_ontology.facts_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::absorbable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 229:0-236:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 233:0-240:1 -/
 def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
   match sub with
   | model.ClassExpression.Class «class» =>
@@ -34191,7 +34381,7 @@ def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::fail_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 239:0-252:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 243:0-256:1 -/
 def shi_ontology.fail_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (joined : concepts.Concept) :
@@ -34213,7 +34403,7 @@ def shi_ontology.fail_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::absorb]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 256:0-280:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 260:0-284:1 -/
 def shi_ontology.absorb
   (sub : model.ClassExpression) (sup : concepts.Concept) :
   Result (Option completion.Definition)
@@ -34253,7 +34443,7 @@ def shi_ontology.absorb
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::include]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 283:0-308:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 287:0-312:1 -/
 def shi_ontology.include
   (sub : model.ClassExpression) (sup : concepts.Concept)
   (parts : shi_ontology.Parts) :
@@ -34290,7 +34480,7 @@ def shi_ontology.include
         })
 
 /-- [rowl_kernel::shi_ontology::include_both]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 310:0-324:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 314:0-328:1 -/
 def shi_ontology.include_both
   (left : model.ClassExpression) (right : model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -34310,7 +34500,7 @@ def shi_ontology.include_both
       | some backward => shi_ontology.include right backward parts1
 
 /-- [rowl_kernel::shi_ontology::equal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 326:0-340:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 330:0-344:1 -/
 def shi_ontology.equal_from
   (first : model.ClassExpression)
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -34333,7 +34523,7 @@ def shi_ontology.equal_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 342:0-347:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 346:0-351:1 -/
 def shi_ontology.equivalent
   (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -34346,7 +34536,7 @@ def shi_ontology.equivalent
     shi_ontology.equal_from members.first members.rest 0#usize parts1
 
 /-- [rowl_kernel::shi_ontology::apart_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 349:0-367:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 353:0-371:1 -/
 def shi_ontology.apart_from
   (member : model.ClassExpression)
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -34373,7 +34563,7 @@ def shi_ontology.apart_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::pairwise_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 369:0-378:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 373:0-382:1 -/
 def shi_ontology.pairwise_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (parts : shi_ontology.Parts) :
@@ -34394,7 +34584,7 @@ def shi_ontology.pairwise_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::disjoint]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 380:0-398:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 384:0-402:1 -/
 def shi_ontology.disjoint
   (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -34420,7 +34610,7 @@ def shi_ontology.disjoint
         | some parts3 => shi_ontology.pairwise_from members.rest 0#usize parts3
 
 /-- [rowl_kernel::shi_ontology::some_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 401:0-414:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 405:0-418:1 -/
 def shi_ontology.some_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (joined : concepts.Concept) :
@@ -34442,7 +34632,7 @@ def shi_ontology.some_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::within_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 416:0-434:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 420:0-438:1 -/
 def shi_ontology.within_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (whole : model.ClassExpression) (parts : shi_ontology.Parts) :
@@ -34468,7 +34658,7 @@ def shi_ontology.within_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::disjoint_union]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 437:0-486:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 441:0-490:1 -/
 def shi_ontology.disjoint_union
   («class» : model.Class) (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -34519,7 +34709,7 @@ def shi_ontology.disjoint_union
                   | some parts4 => shi_ontology.disjoint members parts4
 
 /-- [rowl_kernel::shi_ontology::conjoin]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 488:0-493:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 492:0-497:1 -/
 def shi_ontology.conjoin
   (parts : shi_ontology.Parts) (concept : concepts.Concept) :
   Result shi_ontology.Parts
@@ -34527,7 +34717,7 @@ def shi_ontology.conjoin
   ok { parts with axioms := (concepts.Concept.And parts.axioms concept) }
 
 /-- [rowl_kernel::shi_ontology::axiom_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 497:0-545:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 501:0-549:1 -/
 def shi_ontology.axiom_parts
   («axiom» : model.Axiom) (parts : shi_ontology.Parts) :
   Result (Option shi_ontology.Parts)
@@ -34605,7 +34795,7 @@ def shi_ontology.axiom_parts
   | model.Axiom.AnnotationPropertyRange _ _ => ok (some parts)
 
 /-- [rowl_kernel::shi_ontology::parts_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 547:0-556:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 551:0-560:1 -/
 def shi_ontology.parts_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (parts : shi_ontology.Parts) :
@@ -34627,7 +34817,7 @@ def shi_ontology.parts_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::class_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 559:0-568:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 563:0-572:1
     Visibility: public -/
 def shi_ontology.class_parts
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -34640,7 +34830,7 @@ def shi_ontology.class_parts
     }
 
 /-- [rowl_kernel::shi_ontology::subs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 572:0-592:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 576:0-596:1 -/
 def shi_ontology.subs_from
   (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
   (sup : model.ObjectPropertyExpression)
@@ -34671,7 +34861,7 @@ def shi_ontology.subs_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::sups_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 595:0-615:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 599:0-619:1 -/
 def shi_ontology.sups_from
   (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
   (sub : model.ObjectPropertyExpression)
@@ -34702,7 +34892,7 @@ def shi_ontology.sups_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::row_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 618:0-639:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 622:0-643:1 -/
 def shi_ontology.row_from
   (sub : model.ObjectPropertyExpression)
   (above : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
@@ -34735,7 +34925,7 @@ def shi_ontology.row_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::pairs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 641:0-655:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 645:0-659:1 -/
 def shi_ontology.pairs_from
   (lower : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (above : alloc.vec.Vec model.ObjectPropertyExpression)
@@ -34758,7 +34948,7 @@ def shi_ontology.pairs_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_one]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 659:0-677:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 663:0-681:1 -/
 def shi_ontology.add_one
   (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
   (sup : model.ObjectPropertyExpression) :
@@ -34781,7 +34971,7 @@ def shi_ontology.add_one
     | some upper => shi_ontology.pairs_from lower 0#usize upper roles
 
 /-- [rowl_kernel::shi_ontology::add_inclusion]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 680:0-692:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 684:0-696:1 -/
 def shi_ontology.add_inclusion
   (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
   (sup : model.ObjectPropertyExpression) :
@@ -34796,7 +34986,7 @@ def shi_ontology.add_inclusion
     shi_ontology.add_one roles1 flipped_sub flipped_sup
 
 /-- [rowl_kernel::shi_ontology::add_equal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 694:0-703:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 698:0-707:1 -/
 def shi_ontology.add_equal
   (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
   (right : model.ObjectPropertyExpression) :
@@ -34808,7 +34998,7 @@ def shi_ontology.add_equal
   | some roles1 => shi_ontology.add_inclusion roles1 right left
 
 /-- [rowl_kernel::shi_ontology::same_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 705:0-719:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 709:0-723:1 -/
 def shi_ontology.same_from
   (first : model.ObjectPropertyExpression)
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
@@ -34831,7 +35021,7 @@ def shi_ontology.same_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 721:0-729:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 725:0-733:1 -/
 def shi_ontology.add_equivalent
   (roles : hierarchy.RoleHierarchy)
   (members : model.AtLeastTwo model.ObjectPropertyExpression) :
@@ -34844,7 +35034,7 @@ def shi_ontology.add_equivalent
     shi_ontology.same_from members.first members.rest 0#usize roles1
 
 /-- [rowl_kernel::shi_ontology::add_transitive]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 731:0-744:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 735:0-748:1 -/
 def shi_ontology.add_transitive
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
   Result (Option hierarchy.RoleHierarchy)
@@ -34865,7 +35055,7 @@ def shi_ontology.add_transitive
     else ok none
 
 /-- [rowl_kernel::shi_ontology::hierarchy_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 747:0-776:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 751:0-780:1 -/
 def shi_ontology.hierarchy_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (roles : hierarchy.RoleHierarchy) :
@@ -34937,7 +35127,7 @@ def shi_ontology.hierarchy_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::role_hierarchy]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 778:0-787:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 782:0-791:1
     Visibility: public -/
 def shi_ontology.role_hierarchy
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -34950,7 +35140,7 @@ def shi_ontology.role_hierarchy
     }
 
 /-- [rowl_kernel::shi_ontology::pair_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 789:0-793:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 793:0-797:1 -/
 def shi_ontology.pair_proper
   (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
   :
@@ -34963,7 +35153,7 @@ def shi_ontology.pair_proper
   else ok false
 
 /-- [rowl_kernel::shi_ontology::rest_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 795:0-802:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 799:0-806:1 -/
 def shi_ontology.rest_proper
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
   Result Bool
@@ -34983,7 +35173,7 @@ def shi_ontology.rest_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::members_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 804:0-808:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 808:0-812:1 -/
 def shi_ontology.members_proper
   (members : model.AtLeastTwo model.ObjectPropertyExpression) :
   Result Bool
@@ -34998,7 +35188,7 @@ def shi_ontology.members_proper
   else ok false
 
 /-- [rowl_kernel::shi_ontology::roles_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 811:0-829:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 815:0-833:1 -/
 def shi_ontology.roles_proper
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -35066,7 +35256,7 @@ def shi_ontology.roles_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::intern_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 833:0-846:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 837:0-850:1 -/
 def shi_ontology.intern_rest
   (nodes : alloc.vec.Vec model.Individual)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -35088,7 +35278,7 @@ def shi_ontology.intern_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::intern_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 848:0-861:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 852:0-865:1 -/
 def shi_ontology.intern_members
   (nodes : alloc.vec.Vec model.Individual)
   (members : model.AtLeastTwo model.Individual) :
@@ -35104,7 +35294,7 @@ def shi_ontology.intern_members
     | some nodes2 => shi_ontology.intern_rest nodes2 members.rest 0#usize
 
 /-- [rowl_kernel::shi_ontology::members_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 864:0-882:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 868:0-886:1 -/
 def shi_ontology.members_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (nodes : alloc.vec.Vec model.Individual) :
@@ -35166,7 +35356,7 @@ def shi_ontology.members_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::identity_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 884:0-891:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 888:0-895:1 -/
 def shi_ontology.identity_from
   (count : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -35180,7 +35370,7 @@ def shi_ontology.identity_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::relabel]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 894:0-903:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 898:0-907:1 -/
 def shi_ontology.relabel
   (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
   (index : Std.Usize) :
@@ -35207,7 +35397,7 @@ def shi_ontology.relabel
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::unite]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 906:0-918:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 910:0-922:1 -/
 def shi_ontology.unite
   (same : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -35231,7 +35421,7 @@ def shi_ontology.unite
   else ok same
 
 /-- [rowl_kernel::shi_ontology::unite_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 920:0-934:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 924:0-938:1 -/
 def shi_ontology.unite_rest
   (same : alloc.vec.Vec Std.Usize) (nodes : alloc.vec.Vec model.Individual)
   (first : Std.Usize) (rest : alloc.vec.Vec model.Individual)
@@ -35252,7 +35442,7 @@ def shi_ontology.unite_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::equalities_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 936:0-956:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 940:0-960:1 -/
 def shi_ontology.equalities_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -35315,7 +35505,7 @@ def shi_ontology.equalities_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::representative]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 958:0-964:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 962:0-968:1 -/
 def shi_ontology.representative
   (same : alloc.vec.Vec Std.Usize) (node : Std.Usize) : Result Std.Usize := do
   let i := alloc.vec.Vec.len same
@@ -35326,7 +35516,7 @@ def shi_ontology.representative
   else ok node
 
 /-- [rowl_kernel::shi_ontology::node_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 966:0-968:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 970:0-972:1 -/
 def shi_ontology.node_of
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (individual : model.Individual) :
@@ -35336,7 +35526,7 @@ def shi_ontology.node_of
   shi_ontology.representative same i
 
 /-- [rowl_kernel::shi_ontology::meets]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 970:0-986:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 974:0-990:1 -/
 def shi_ontology.meets
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) (rest : alloc.vec.Vec model.Individual)
@@ -35358,7 +35548,7 @@ def shi_ontology.meets
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::repeats]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 988:0-1004:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 992:0-1008:1 -/
 def shi_ontology.repeats
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -35380,7 +35570,7 @@ def shi_ontology.repeats
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::shares]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1006:0-1018:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1010:0-1022:1 -/
 def shi_ontology.shares
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (members : model.AtLeastTwo model.Individual) :
@@ -35401,7 +35591,7 @@ def shi_ontology.shares
       else shi_ontology.repeats nodes same members.rest 0#usize
 
 /-- [rowl_kernel::shi_ontology::clash_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1020:0-1040:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1024:0-1044:1 -/
 def shi_ontology.clash_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -35534,7 +35724,7 @@ def shi_ontology.clash_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::nominal_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1043:0-1061:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1047:0-1065:1 -/
 def shi_ontology.nominal_individuals
   (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
   Result (Option (alloc.vec.Vec model.Individual))
@@ -35546,6 +35736,8 @@ def shi_ontology.nominal_individuals
   | concepts.Concept.NotAtom _ => ok (some nodes)
   | concepts.Concept.One individual => alc_ontology.intern nodes individual
   | concepts.Concept.NotOne individual => alc_ontology.intern nodes individual
+  | concepts.Concept.HasSelf _ => ok (some nodes)
+  | concepts.Concept.NotSelf _ => ok (some nodes)
   | concepts.Concept.And left right =>
     let o ← shi_ontology.nominal_individuals nodes left
     match o with
@@ -35567,7 +35759,7 @@ def shi_ontology.nominal_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definition_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1064:0-1077:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1068:0-1081:1 -/
 def shi_ontology.definition_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
@@ -35589,7 +35781,7 @@ def shi_ontology.definition_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::class_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1080:0-1085:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1084:0-1089:1 -/
 def shi_ontology.class_individuals
   (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
   :
@@ -35601,7 +35793,7 @@ def shi_ontology.class_individuals
   | some concept => shi_ontology.nominal_individuals nodes concept
 
 /-- [rowl_kernel::shi_ontology::assertion_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1088:0-1105:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1092:0-1109:1 -/
 def shi_ontology.assertion_individuals
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (nodes : alloc.vec.Vec model.Individual) :
@@ -35662,7 +35854,7 @@ def shi_ontology.assertion_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_fact]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1107:0-1114:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1111:0-1118:1 -/
 def shi_ontology.add_fact
   (facts : alloc.vec.Vec completion.Fact) (node : Std.Usize)
   (concept : concepts.Concept) :
@@ -35677,7 +35869,7 @@ def shi_ontology.add_fact
   else ok none
 
 /-- [rowl_kernel::shi_ontology::named_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1117:0-1132:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1121:0-1136:1 -/
 def shi_ontology.named_from
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
@@ -35701,7 +35893,7 @@ def shi_ontology.named_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1135:0-1152:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1139:0-1156:1 -/
 def shi_ontology.apart_rest
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (member : model.Individual) (rest : alloc.vec.Vec model.Individual)
@@ -35726,7 +35918,7 @@ def shi_ontology.apart_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_within]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1155:0-1170:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1159:0-1174:1 -/
 def shi_ontology.apart_within
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -35748,7 +35940,7 @@ def shi_ontology.apart_within
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1173:0-1197:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1177:0-1201:1 -/
 def shi_ontology.apart_members
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (members : model.AtLeastTwo model.Individual)
@@ -35776,7 +35968,7 @@ def shi_ontology.apart_members
         shi_ontology.apart_within nodes same members.rest 0#usize facts3
 
 /-- [rowl_kernel::shi_ontology::unequal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1199:0-1218:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1203:0-1222:1 -/
 def shi_ontology.unequal_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -35838,7 +36030,7 @@ def shi_ontology.unequal_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::refused_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1222:0-1248:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1226:0-1252:1 -/
 def shi_ontology.refused_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -35905,7 +36097,7 @@ def shi_ontology.refused_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::assertions_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1252:0-1280:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1256:0-1284:1 -/
 def shi_ontology.assertions_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -36046,7 +36238,7 @@ def shi_ontology.assertions_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::links_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1283:0-1309:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1287:0-1313:1 -/
 def shi_ontology.links_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -36185,7 +36377,7 @@ def shi_ontology.links_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::link_is]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1311:0-1321:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1315:0-1325:1 -/
 def shi_ontology.link_is
   (link : completion.Link) (role : model.ObjectPropertyExpression)
   (source : Std.Usize) (target : Std.Usize) :
@@ -36198,7 +36390,7 @@ def shi_ontology.link_is
   else ok false
 
 /-- [rowl_kernel::shi_ontology::linked_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1325:0-1344:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1329:0-1348:1 -/
 def shi_ontology.linked_from
   (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
   (role : model.ObjectPropertyExpression)
@@ -36226,7 +36418,7 @@ def shi_ontology.linked_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::denied_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1347:0-1373:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1351:0-1377:1 -/
 def shi_ontology.denied_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -36362,7 +36554,7 @@ def shi_ontology.denied_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::tangled]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1376:0-1378:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1380:0-1382:1 -/
 def shi_ontology.tangled
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (roles : hierarchy.RoleHierarchy) :
@@ -36381,7 +36573,7 @@ def shi_ontology.tangled
   else ok false
 
 /-- [rowl_kernel::shi_ontology::Prepared]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1389:0-1400:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1393:0-1404:1
     Visibility: public -/
 structure shi_ontology.Prepared where
   nodes : alloc.vec.Vec model.Individual
@@ -36396,7 +36588,7 @@ structure shi_ontology.Prepared where
   clash : Bool
 
 /-- [rowl_kernel::shi_ontology::prepare]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1403:0-1481:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1407:0-1485:1
     Visibility: public -/
 def shi_ontology.prepare
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -36525,7 +36717,7 @@ def shi_ontology.prepare
                   else ok none
 
 /-- [rowl_kernel::shi_ontology::question_forest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1484:0-1486:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1488:0-1490:1 -/
 def shi_ontology.question_forest
   (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -36539,7 +36731,7 @@ def shi_ontology.question_forest
     else shi_ontology.facts_nominal extra 0#usize
 
 /-- [rowl_kernel::shi_ontology::prepared_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1495:0-1528:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1499:0-1532:1 -/
 def shi_ontology.prepared_satisfiable
   (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
   Result (Option Bool)
@@ -36572,7 +36764,7 @@ def shi_ontology.prepared_satisfiable
   else ok none
 
 /-- [rowl_kernel::shi_ontology::prepared_consistent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1530:0-1532:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1534:0-1536:1
     Visibility: public -/
 def shi_ontology.prepared_consistent
   (prepared : shi_ontology.Prepared) : Result (Option Bool) := do
@@ -36580,7 +36772,7 @@ def shi_ontology.prepared_consistent
     completion.Fact)
 
 /-- [rowl_kernel::shi_ontology::prepared_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1535:0-1543:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1539:0-1547:1
     Visibility: public -/
 def shi_ontology.prepared_class_satisfiable
   (prepared : shi_ontology.Prepared) («class» : model.ClassExpression) :
@@ -36596,7 +36788,7 @@ def shi_ontology.prepared_class_satisfiable
     shi_ontology.prepared_satisfiable prepared extra
 
 /-- [rowl_kernel::shi_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1546:0-1572:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1550:0-1576:1
     Visibility: public -/
 def shi_ontology.prepared_subsumed
   (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
@@ -36623,7 +36815,7 @@ def shi_ontology.prepared_subsumed
       | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::shi_ontology::prepared_instance_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1575:0-1596:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1579:0-1600:1
     Visibility: public -/
 def shi_ontology.prepared_instance_of
   (prepared : shi_ontology.Prepared) (individual : model.NamedIndividual)
@@ -36647,7 +36839,7 @@ def shi_ontology.prepared_instance_of
     | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::shi_ontology::consistent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1598:0-1603:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1602:0-1607:1
     Visibility: public -/
 def shi_ontology.consistent
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
@@ -36657,7 +36849,7 @@ def shi_ontology.consistent
   | some prepared => shi_ontology.prepared_consistent prepared
 
 /-- [rowl_kernel::shi_ontology::class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1605:0-1610:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1609:0-1614:1
     Visibility: public -/
 def shi_ontology.class_satisfiable
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -36670,7 +36862,7 @@ def shi_ontology.class_satisfiable
   | some prepared => shi_ontology.prepared_class_satisfiable prepared «class»
 
 /-- [rowl_kernel::shi_ontology::subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1613:0-1622:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1617:0-1626:1
     Visibility: public -/
 def shi_ontology.subsumed
   (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
@@ -36683,7 +36875,7 @@ def shi_ontology.subsumed
   | some prepared => shi_ontology.prepared_subsumed prepared sub sup
 
 /-- [rowl_kernel::shi_ontology::instance_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1625:0-1634:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1629:0-1638:1
     Visibility: public -/
 def shi_ontology.instance_of
   (items : alloc.vec.Vec model.AnnotatedAxiom)

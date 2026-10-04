@@ -36,12 +36,14 @@ def Holds (entries : List concept_table.Entry) (label : List Usize) (c : Nat) : 
   | none => False
 termination_by c
 
-/-- A named class or a nominal and its complement. -/
+/-- A named class, a nominal or a self restriction and its complement. -/
 def Complementary : concept_table.Entry → concept_table.Entry → Prop
   | .Atom x, .NotAtom y => x = y
   | .NotAtom x, .Atom y => x = y
   | .One a, .NotOne b => a = b
   | .NotOne a, .One b => a = b
+  | .HasSelf r, .NotSelf s => r = s
+  | .NotSelf r, .HasSelf s => r = s
   | _, _ => False
 
 /-- Some listed entry is the complement of entry `item`. -/
@@ -127,6 +129,16 @@ theorem holds_correct (entries : alloc.vec.Vec concept_table.Entry) (label : all
           lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
         congr 1
         exact decide_eq_decide.mpr (mem_index_iff label.val c)
+      | HasSelf r =>
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
+        congr 1
+        exact decide_eq_decide.mpr (mem_index_iff label.val c)
+      | NotSelf r =>
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
+        congr 1
+        exact decide_eq_decide.mpr (mem_index_iff label.val c)
       | Exists r d =>
         simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
           lookup,bind_ok,e,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero]
@@ -202,6 +214,14 @@ theorem complementary_correct (a b : concept_table.Entry) :
       rw [completion.complementary,Rowl.AssertionEquality.same_individual_value_total_correct]
       simp only [Complementary]
       congr 1
+    | _ => rw [completion.complementary]; simp [Complementary]
+  | HasSelf r =>
+    cases b with
+    | NotSelf s => rw [completion.complementary]; simp [Complementary,same_role_correct]
+    | _ => rw [completion.complementary]; simp [Complementary]
+  | NotSelf r =>
+    cases b with
+    | HasSelf s => rw [completion.complementary]; simp [Complementary,same_role_correct]
     | _ => rw [completion.complementary]; simp [Complementary]
   | _ => rw [completion.complementary]; simp [Complementary]
 

@@ -653,6 +653,12 @@ theorem holds_denote (entries : List concept_table.Entry) (wf : WellFormed entri
       | NotOne a =>
         have := listed holds
         rwa [meaning_at entries wf c _ at_c] at this
+      | HasSelf r =>
+        have := listed holds
+        rwa [meaning_at entries wf c _ at_c] at this
+      | NotSelf r =>
+        have := listed holds
+        rwa [meaning_at entries wf c _ at_c] at this
       | Exists r f =>
         have := listed holds
         rwa [meaning_at entries wf c _ at_c] at this
@@ -797,7 +803,8 @@ theorem holds_mono (entries : List concept_table.Entry) (L L' : List Usize) (sub
           · exact holds.elim
         · exact holds.elim
       | Top | Bottom => exact holds
-      | Atom _ | NotAtom _ | One _ | NotOne _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ | AtMost _ _ _ _ =>
+      | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ | Exists _ _ | Forall _ _ | AtLeast _ _ _
+      | AtMost _ _ _ _ =>
         obtain ⟨i,member,value⟩ := holds
         exact ⟨i,sub i member,value⟩
 
@@ -1739,6 +1746,15 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         rw [completion.add]
         simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
       | NotOne a =>
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [completion.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+      | HasSelf r =>
+        -- This tableau has no self loops: no answer.
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [completion.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+      | NotSelf r =>
         refine ⟨none,?_,by simp,by simp⟩
         rw [completion.add]
         simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]

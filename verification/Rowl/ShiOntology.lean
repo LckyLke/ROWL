@@ -51,7 +51,8 @@ universe u v w
 
 /-- No built-in class occurs as a named class, no built-in object property as a
     role and no anonymous individual in a nominal, so the tableaux's reading of
-    every name is an ordinary one. -/
+    every name is an ordinary one; and no self restriction occurs, which no
+    tableau decides. -/
 def Proper : concepts.Concept → Prop
   | .Top => True
   | .Bottom => True
@@ -59,6 +60,8 @@ def Proper : concepts.Concept → Prop
   | .NotAtom c => c ≠ thing ∧ c ≠ nothing
   | .One a => IsNamed a
   | .NotOne a => IsNamed a
+  | .HasSelf _ => False
+  | .NotSelf _ => False
   | .And a b => Proper a ∧ Proper b
   | .Or a b => Proper a ∧ Proper b
   | .Exists r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
@@ -115,6 +118,8 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
   | NotAtom k => rw [shi_ontology.proper]; simp [Proper,builtin_class_correct]
   | One a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
   | NotOne a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
+  | HasSelf r => rw [shi_ontology.proper]; simp [Proper]
+  | NotSelf r => rw [shi_ontology.proper]; simp [Proper]
   | And a b iha ihb =>
     rw [shi_ontology.proper]
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
@@ -171,6 +176,8 @@ theorem counts_correct (c : concepts.Concept) : shi_ontology.counts c = .ok (dec
   | NotAtom k => rw [shi_ontology.counts]; simp [Counts]
   | One a => rw [shi_ontology.counts]; simp [Counts]
   | NotOne a => rw [shi_ontology.counts]; simp [Counts]
+  | HasSelf r => rw [shi_ontology.counts]; simp [Counts]
+  | NotSelf r => rw [shi_ontology.counts]; simp [Counts]
   | And a b iha ihb =>
     rw [shi_ontology.counts]
     by_cases left : Counts a <;> simp [Counts,iha,ihb,left]
@@ -782,6 +789,7 @@ theorem denote_with_anonymous {Object : Type u} {Value : Type v} (I : Interpreta
   intro c
   induction c with
   | Top | Bottom | Atom _ | NotAtom _ => intro _ x; exact Iff.rfl
+  | HasSelf _ | NotSelf _ => intro proper; exact proper.elim
   | One a =>
     intro proper x
     cases a with
@@ -844,6 +852,7 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
   | Bottom => intro _ _ x; simp [denote]
   | Atom k => intro proper _ x; simp [denote,owlModel,proper.1,proper.2]
   | NotAtom k => intro proper _ x; simp [denote,owlModel,proper.1,proper.2]
+  | HasSelf _ | NotSelf _ => intro proper; exact proper.elim
   | One a =>
     intro _ agree x
     simp only [denote,individual_owl_model,agree a rfl]

@@ -1083,6 +1083,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Concepts.atLeast_zero
 #print axioms Rowl.Concepts.atLeast_congr
 #print axioms Rowl.Concepts.negate_correct
+#print axioms Rowl.Concepts.self_restriction_correct
 #print axioms Rowl.Concepts.translate_total_correct
 #print axioms Rowl.Concepts.translate_supported_iff
 #print axioms Rowl.Concepts.translate_meaning

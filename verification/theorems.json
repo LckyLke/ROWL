@@ -1541,6 +1541,7 @@
         "Rowl.Concepts.atLeast_zero",
         "Rowl.Concepts.atLeast_congr",
         "Rowl.Concepts.negate_correct",
+        "Rowl.Concepts.self_restriction_correct",
         "Rowl.Concepts.translate_total_correct",
         "Rowl.Concepts.translate_supported_iff",
         "Rowl.Concepts.translate_meaning"

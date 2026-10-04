@@ -370,6 +370,15 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         rw [forest.add]
         simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
           bind_ok,entry,run]
+      | HasSelf r' =>
+        -- This forest has no self loops yet: no answer.
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [forest.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+      | NotSelf r' =>
+        refine ⟨none,?_,by simp,by simp⟩
+        rw [forest.add]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
       | And a b =>
         rw [entry] at below
         have aBelow : a.val < c.val := below a.val (by simp [parts])
@@ -1999,7 +2008,8 @@ theorem counting_simple_correct (entries : alloc.vec.Vec concept_table.Entry) (h
       by_cases s' : ∀ t ∈ h.transitive.val, ¬ Below h t role
       · simp only [decide_eq_true s',↓reduceIte,advance,bind_ok,rest,Bool.true_and]
       · simp only [decide_eq_false s',Bool.false_eq_true,↓reduceIte,Bool.false_and]
-    | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ =>
+    | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ | And _ _ | Or _ _ | Exists _ _
+    | Forall _ _ =>
       simp [CountsSimply,advance,rest]
   · have empty : entries.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]

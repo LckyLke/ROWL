@@ -977,6 +977,15 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
       cases e with
       | Top => trivial
       | Bottom => exact holds.elim
+      | HasSelf _ | NotSelf _ =>
+        -- Labels list only literals, and no self restriction is one.
+        exfalso
+        obtain ⟨i,member,value⟩ := holds
+        rw [labIs] at member
+        obtain ⟨e',at_i,literal⟩ := shape.literals x i member
+        rw [value,at_c] at at_i
+        cases at_i
+        exact literal
       | Atom k =>
         obtain ⟨i,member,value⟩ := holds
         exact ⟨i,member,by rw [value]; exact at_c⟩

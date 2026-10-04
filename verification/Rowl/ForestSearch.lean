@@ -2078,7 +2078,8 @@ theorem counting_from_correct (P : completion.Problem) (h : hierarchy.RoleHierar
                         obtain ⟨rfl,rfl,rfl,rfl⟩ := at_i
                         exact ⟨fun excessive => over (excess.mp excessive),alright⟩
                       · exact absent none i (by rw [labelIs,nextIndex]; exact later) n' role' d d' at_i
-        | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ =>
+        | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ | And _ _ | Or _ _ | Exists _ _
+          | Forall _ _ | AtLeast _ _ _ =>
           refine ⟨r,?_,found,skip (by intro n role c c' at_i; rw [at_item,entry] at at_i; cases at_i)⟩
           simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,entry,
             advance,run]
@@ -2665,8 +2666,8 @@ theorem nominal_at_correct (P : completion.Problem) (F : forest.Forest) (node in
             · rw [at_item,Option.some.injEq,concept_table.Entry.NotOne.injEq] at at_a
               subst at_a
               exact ⟨root,rootIs⟩
-        | Top | Bottom | Atom _ | NotAtom _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ | AtLeast _ _ _
-          | AtMost _ _ _ _ =>
+        | Top | Bottom | Atom _ | NotAtom _ | HasSelf _ | NotSelf _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _
+          | AtLeast _ _ _ | AtMost _ _ _ _ =>
           exact ⟨r,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,nodeLookup,more,itemLookup,itemInside,
             entryLookup,advance,moveOn],skip (plain (by simp) (by simp))⟩
       · refine ⟨r,?_,skip ⟨fun a at_a => ?_,fun a at_a => ?_⟩⟩

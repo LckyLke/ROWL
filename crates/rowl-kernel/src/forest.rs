@@ -53,9 +53,9 @@
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
 //! `usize` range, that a number restriction is on a role that is not simple,
-//! that the individual of a nominal has no named node, or that a restriction
-//! with a bound from new named nodes has fewer counted named neighbours than the
-//! bound.
+//! that the individual of a nominal has no named node, that a restriction with
+//! a bound from new named nodes has fewer counted named neighbours than the
+//! bound, or that a self restriction would be added to a label.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -1467,6 +1467,8 @@ fn add(
                     Entry::Or(left, right) => branch(
                         problem, roles, graph, node, *left, *right, next, deps, depth,
                     ),
+                    Entry::HasSelf(_) => None,
+                    Entry::NotSelf(_) => None,
                     _ => add_literal(problem, roles, graph, node, concept, next, deps, depth),
                 }
             } else {

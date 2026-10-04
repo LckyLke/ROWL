@@ -1,18 +1,20 @@
 //! Concepts in negation normal form with inverse roles, and their translation
 //! from OWL class expressions.
 //!
-//! The supported fragment is ALCIQO: named classes, intersections, unions,
-//! complements, enumerations of individuals, existential and universal
-//! restrictions, individual value restrictions, and minimum, maximum and exact
-//! cardinality restrictions on object property expressions, named or inverse,
-//! with cardinalities below `usize::MAX`. `owl:Thing` and `owl:Nothing` become
-//! the top and bottom concepts, an enumeration the union of the nominals `{a}`
-//! of its individuals, and a value restriction `∃r.{a}`. Every other expression
-//! returns `None`. Negation is pushed inward, so it only occurs on named classes
-//! and nominals: the complement of `≥n r.C` is `≤(n-1) r.C` (`⊥` for `n = 0`)
-//! and the complement of `≤n r.C` is `≥(n+1) r.C`. The completion graph tableau
-//! decides the concepts without cardinality restrictions and nominals; `nnf`
-//! keeps the inverse-free concepts of the earlier tableaux.
+//! The supported fragment is ALCIQO with self restrictions: named classes,
+//! intersections, unions, complements, enumerations of individuals, existential
+//! and universal restrictions, individual value restrictions, self restrictions,
+//! and minimum, maximum and exact cardinality restrictions on object property
+//! expressions, named or inverse, with cardinalities below `usize::MAX`.
+//! `owl:Thing` and `owl:Nothing` become the top and bottom concepts, an
+//! enumeration the union of the nominals `{a}` of its individuals, a value
+//! restriction `∃r.{a}`, and a self restriction `∃r.Self`. Every other
+//! expression returns `None`. Negation is pushed inward, so it only occurs on
+//! named classes, nominals and self restrictions: the complement of `≥n r.C` is
+//! `≤(n-1) r.C` (`⊥` for `n = 0`) and the complement of `≤n r.C` is
+//! `≥(n+1) r.C`. The completion graph tableau decides the concepts without
+//! cardinality restrictions, nominals and self restrictions; `nnf` keeps the
+//! inverse-free concepts of the earlier tableaux.
 #![allow(clippy::ptr_arg, clippy::question_mark, clippy::manual_map)] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::class_equality::{is_nothing, is_thing};
 use crate::model::{
@@ -34,6 +36,10 @@ pub enum Concept {
     One(Individual),
     /// Everything but the individual.
     NotOne(Individual),
+    /// The elements related to themselves along the role (`∃r.Self`).
+    HasSelf(ObjectPropertyExpression),
+    /// The elements not related to themselves along the role.
+    NotSelf(ObjectPropertyExpression),
     And(Box<Concept>, Box<Concept>),
     Or(Box<Concept>, Box<Concept>),
     Exists(ObjectPropertyExpression, Box<Concept>),
@@ -99,6 +105,8 @@ pub(crate) fn copy_concept(concept: &Concept) -> Concept {
         }),
         Concept::One(individual) => Concept::One(copy_individual(individual)),
         Concept::NotOne(individual) => Concept::NotOne(copy_individual(individual)),
+        Concept::HasSelf(role) => Concept::HasSelf(copy_role(role)),
+        Concept::NotSelf(role) => Concept::NotSelf(copy_role(role)),
         Concept::And(left, right) => {
             Concept::And(Box::new(copy_concept(left)), Box::new(copy_concept(right)))
         }
@@ -146,6 +154,8 @@ pub fn negate(concept: &Concept) -> Option<Concept> {
         })),
         Concept::One(individual) => Some(Concept::NotOne(copy_individual(individual))),
         Concept::NotOne(individual) => Some(Concept::One(copy_individual(individual))),
+        Concept::HasSelf(role) => Some(Concept::NotSelf(copy_role(role))),
+        Concept::NotSelf(role) => Some(Concept::HasSelf(copy_role(role))),
         Concept::And(left, right) => negate_pair(left, right, false),
         Concept::Or(left, right) => negate_pair(left, right, true),
         Concept::Exists(role, filler) => match negate(filler) {
@@ -307,6 +317,14 @@ fn has_value(property: &ObjectPropertyExpression, value: &Individual, positive: 
         Concept::Forall(copy_role(property), Box::new(inner))
     }
 }
+/// A self restriction `∃r.Self` (`positive`) or its complement.
+fn self_restriction(property: &ObjectPropertyExpression, positive: bool) -> Concept {
+    if positive {
+        Concept::HasSelf(copy_role(property))
+    } else {
+        Concept::NotSelf(copy_role(property))
+    }
+}
 /// An existential or universal restriction on an object property expression.
 fn restriction(
     property: &ObjectPropertyExpression,
@@ -408,7 +426,7 @@ fn exactly(
 /// unions and back, negated existential restrictions into universal ones and
 /// back, negated enumerations into intersections of complemented nominals, and
 /// negated cardinality restrictions into the opposite bound. Returns `None`
-/// outside the supported ALCIQO fragment.
+/// outside the supported fragment.
 pub fn translate(expression: &ClassExpression, positive: bool) -> Option<Concept> {
     match expression {
         ClassExpression::Class(class) => Some(named(expression, class, positive)),
@@ -425,6 +443,7 @@ pub fn translate(expression: &ClassExpression, positive: bool) -> Option<Concept
         ClassExpression::ObjectHasValue(property, value) => {
             Some(has_value(property, value, positive))
         }
+        ClassExpression::ObjectHasSelf(property) => Some(self_restriction(property, positive)),
         ClassExpression::ObjectMinCardinality(n, property, filler) => {
             cardinality(n, property, filler, positive, true)
         }

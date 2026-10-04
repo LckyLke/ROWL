@@ -63,6 +63,8 @@ fn show(c: &Concept) -> String {
         Concept::NotAtom(class) => format!("¬{}", name(class)),
         Concept::One(individual) => format!("{{{}}}", individual_name(individual)),
         Concept::NotOne(individual) => format!("¬{{{}}}", individual_name(individual)),
+        Concept::HasSelf(r) => format!("∃{}.Self", role_name(r)),
+        Concept::NotSelf(r) => format!("¬∃{}.Self", role_name(r)),
         Concept::And(a, b) => format!("({} ⊓ {})", show(a), show(b)),
         Concept::Or(a, b) => format!("({} ⊔ {})", show(a), show(b)),
         Concept::Exists(r, c) => format!("∃{}.{}", role_name(r), show(c)),
@@ -92,8 +94,16 @@ fn inverse_restrictions_are_translated_with_their_orientation() {
     ));
     assert_eq!(translated(&nested, true), "(∃hasPart.¬Part ⊔ ∀contains⁻.⊥)");
     // Expressions outside ALCI have no translation.
-    let one_of = ClassExpression::ObjectHasSelf(named(b"hasPart"));
-    assert!(translate(&one_of, true).is_none());
+    let reflexive = ClassExpression::ObjectHasSelf(named(b"hasPart"));
+    assert_eq!(translated(&reflexive, true), "∃hasPart.Self");
+    // The complement of a self restriction excludes the loop.
+    assert_eq!(
+        translated(
+            &not(ClassExpression::ObjectHasSelf(inverted(b"hasPart"))),
+            true
+        ),
+        "¬∃hasPart⁻.Self"
+    );
 }
 
 #[test]
@@ -207,7 +217,16 @@ fn cardinality_restrictions_are_translated_with_their_bounds() {
     let nested = not(at_most(0, Some(not(class(b"Pump")))));
     assert_eq!(translated(&nested, true), "≥1partOf⁻.¬Pump");
     // A filler outside the fragment has no translation.
-    let unsupported = at_least(1, Some(ClassExpression::ObjectHasSelf(named(b"hasPart"))));
+    let unsupported = at_least(
+        1,
+        Some(ClassExpression::DataMinCardinality(
+            natural(1),
+            DataProperty {
+                iri: iri(b"weight"),
+            },
+            None,
+        )),
+    );
     assert!(translate(&unsupported, true).is_none());
 }
 

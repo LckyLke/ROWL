@@ -51,13 +51,14 @@
 //! and ask once.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside ALCIQO, when a concept, definition, role axiom or
-//! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
-//! fixed meaning the tableaux do not model), when a nominal is of an anonymous
-//! individual or, in a question, of an individual the closure does not have,
-//! when a number restriction counts along a role that is not simple, when a
-//! list would exceed the `usize` range, or when the completion forest cannot
-//! go on, which the tests never reach.
+//! expression is outside ALCIQO or has a self restriction (which `concepts`
+//! translates but no tableau decides yet), when a concept, definition, role
+//! axiom or assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty`
+//! (whose fixed meaning the tableaux do not model), when a nominal is of an
+//! anonymous individual or, in a question, of an individual the closure does
+//! not have, when a number restriction counts along a role that is not simple,
+//! when a list would exceed the `usize` range, or when the completion forest
+//! cannot go on, which the tests never reach.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -97,7 +98,8 @@ fn named_individual(individual: &Individual) -> bool {
 }
 /// Whether no built-in class occurs as a named class, no built-in object
 /// property as a role and no anonymous individual in a nominal, so the tableaux
-/// read every name as an ordinary one.
+/// read every name as an ordinary one, and no self restriction occurs, which no
+/// tableau decides.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -106,6 +108,8 @@ fn proper(concept: &Concept) -> bool {
         Concept::NotAtom(class) => !builtin_class(class),
         Concept::One(individual) => named_individual(individual),
         Concept::NotOne(individual) => named_individual(individual),
+        Concept::HasSelf(_) => false,
+        Concept::NotSelf(_) => false,
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),

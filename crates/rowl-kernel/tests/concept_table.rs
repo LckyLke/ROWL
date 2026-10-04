@@ -43,6 +43,8 @@ fn show(entries: &[Entry], index: usize) -> String {
         Entry::NotAtom(c) => format!("¬{}", String::from_utf8_lossy(&c.iri.spelling)),
         Entry::One(_) => "{a}".into(),
         Entry::NotOne(_) => "¬{a}".into(),
+        Entry::HasSelf(r) => format!("∃{}.Self", role(r)),
+        Entry::NotSelf(r) => format!("¬∃{}.Self", role(r)),
         Entry::And(a, b) => format!("({} ⊓ {})", show(entries, *a), show(entries, *b)),
         Entry::Or(a, b) => format!("({} ⊔ {})", show(entries, *a), show(entries, *b)),
         Entry::Exists(r, c) => format!("∃{}.{}", role(r), show(entries, *c)),

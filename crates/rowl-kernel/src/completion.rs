@@ -28,7 +28,8 @@
 //! branch point, the right disjunct would fail the same way and is skipped;
 //! otherwise it is tried with the points the failure depended on. `None` means
 //! that a structure would exceed the `usize` range, or that a cardinality
-//! restriction would be added to a label: this tableau does not count.
+//! restriction, a nominal or a self restriction would be added to a label: this
+//! tableau neither counts nor has nominals or self loops.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -46,7 +47,7 @@
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::assertion_equality::same_individual_value;
 use crate::concept_table::{close, intern, universal_from, universal_is, Entry};
-use crate::concepts::{copy_role, inverse, Concept};
+use crate::concepts::{copy_role, inverse, same_role, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
 use crate::model::{Class, ObjectPropertyExpression};
 use crate::nnf::copy_iri;
@@ -169,6 +170,8 @@ fn complementary(left: &Entry, right: &Entry) -> bool {
         (Entry::NotAtom(a), Entry::Atom(b)) => same_spelling(&a.iri.spelling, &b.iri.spelling),
         (Entry::One(a), Entry::NotOne(b)) => same_individual_value(a, b),
         (Entry::NotOne(a), Entry::One(b)) => same_individual_value(a, b),
+        (Entry::HasSelf(a), Entry::NotSelf(b)) => same_role(a, b),
+        (Entry::NotSelf(a), Entry::HasSelf(b)) => same_role(a, b),
         _ => false,
     }
 }
@@ -1028,6 +1031,8 @@ fn add(
                     Entry::AtMost(_, _, _, _) => None,
                     Entry::One(_) => None,
                     Entry::NotOne(_) => None,
+                    Entry::HasSelf(_) => None,
+                    Entry::NotSelf(_) => None,
                     _ => add_literal(problem, roles, nodes, node, concept, next, deps, depth),
                 }
             } else {

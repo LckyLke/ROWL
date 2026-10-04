@@ -47,6 +47,8 @@ def meaning (entries : List concept_table.Entry) (i : Nat) : concepts.Concept :=
   | some (.NotAtom c) => .NotAtom c
   | some (.One a) => .One a
   | some (.NotOne a) => .NotOne a
+  | some (.HasSelf r) => .HasSelf r
+  | some (.NotSelf r) => .NotSelf r
   | some (.And a b) =>
     if _first : a.val < i then
       if _second : b.val < i then .And (meaning entries a.val) (meaning entries b.val) else .Top
@@ -70,6 +72,8 @@ def rebuild (entries : List concept_table.Entry) : concept_table.Entry → conce
   | .NotAtom c => .NotAtom c
   | .One a => .One a
   | .NotOne a => .NotOne a
+  | .HasSelf r => .HasSelf r
+  | .NotSelf r => .NotSelf r
   | .And a b => .And (meaning entries a.val) (meaning entries b.val)
   | .Or a b => .Or (meaning entries a.val) (meaning entries b.val)
   | .Exists r c => .Exists r (meaning entries c.val)
@@ -103,7 +107,7 @@ theorem meaning_at (entries : List concept_table.Entry) (wf : WellFormed entries
   | AtMost n r c d =>
     have inner : c.val < k := below c.val (by simp [parts])
     simp only [dif_pos inner,rebuild]
-  | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ => rfl
+  | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ => rfl
 
 /-- Appending entries changes no meaning of a well-formed table. -/
 theorem meaning_append (entries more : List concept_table.Entry) (wf : WellFormed entries) :
@@ -145,7 +149,7 @@ theorem meaning_append (entries more : List concept_table.Entry) (wf : WellForme
         have inner : c.val < i := below c.val (by simp [parts])
         simp only [dif_pos inner]
         rw [ih c.val inner (by omega)]
-      | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ => rfl
+      | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ => rfl
 
 /-- A well-formed table stays well formed when an entry whose parts all come
     before the end is appended. -/
@@ -193,6 +197,14 @@ theorem same_entry_correct (a b : concept_table.Entry) : concept_table.same_entr
     | NotOne a' =>
       rw [concept_table.same_entry,Rowl.AssertionEquality.same_individual_value_total_correct]
       simp
+    | _ => rw [concept_table.same_entry]; simp
+  | HasSelf r1 =>
+    cases b with
+    | HasSelf r2 => rw [concept_table.same_entry]; simp [same_role_correct]
+    | _ => rw [concept_table.same_entry]; simp
+  | NotSelf r1 =>
+    cases b with
+    | NotSelf r2 => rw [concept_table.same_entry]; simp [same_role_correct]
     | _ => rw [concept_table.same_entry]; simp
   | And a1 b1 =>
     cases b with
@@ -388,6 +400,12 @@ theorem negate_size (c : concepts.Concept) : ∀ c', concepts.negate c = .ok (so
     simp only [Rowl.Concepts.copy_individual_identity,bind_ok,Result.ok.injEq,Option.some.injEq] at run
     subst run
     simp [size]
+  | HasSelf r | NotSelf r =>
+    intro c' run
+    rw [concepts.negate] at run
+    simp only [copy_role_identity,bind_ok,Result.ok.injEq,Option.some.injEq] at run
+    subst run
+    simp [size]
   | And a b ihA ihB | Or a b ihA ihB =>
     intro c' run
     rw [concepts.negate,concepts.negate_pair] at run
@@ -535,6 +553,24 @@ theorem intern_correct (concept : concepts.Concept) (entries : alloc.vec.Vec con
     refine ⟨result,?_,?_⟩
     · rw [concept_table.intern]
       simp only [Rowl.Concepts.copy_individual_identity,bind_ok]
+      exact run
+    · intro t k same
+      obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
+  | HasSelf r =>
+    obtain ⟨result,run,spec⟩ := leaf (.HasSelf r) rfl (by intro n r c d impossible; cases impossible)
+    refine ⟨result,?_,?_⟩
+    · rw [concept_table.intern]
+      simp only [copy_role_identity,bind_ok]
+      exact run
+    · intro t k same
+      obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
+      exact ⟨wf',grows,inside,by rw [rebuilt]; rfl,keeps⟩
+  | NotSelf r =>
+    obtain ⟨result,run,spec⟩ := leaf (.NotSelf r) rfl (by intro n r c d impossible; cases impossible)
+    refine ⟨result,?_,?_⟩
+    · rw [concept_table.intern]
+      simp only [copy_role_identity,bind_ok]
       exact run
     · intro t k same
       obtain ⟨wf',grows,inside,rebuilt,keeps⟩ := spec t k same
@@ -889,6 +925,8 @@ private theorem close_from_correct (h : hierarchy.RoleHierarchy) (original : Lis
     | NotAtom c => exact rest (.NotAtom c) entry (by intro q d impossible; cases impossible)
     | One a => exact rest (.One a) entry (by intro q d impossible; cases impossible)
     | NotOne a => exact rest (.NotOne a) entry (by intro q d impossible; cases impossible)
+    | HasSelf r => exact rest (.HasSelf r) entry (by intro q d impossible; cases impossible)
+    | NotSelf r => exact rest (.NotSelf r) entry (by intro q d impossible; cases impossible)
     | And a b => exact rest (.And a b) entry (by intro q d impossible; cases impossible)
     | Or a b => exact rest (.Or a b) entry (by intro q d impossible; cases impossible)
     | Exists r c => exact rest (.Exists r c) entry (by intro q d impossible; cases impossible)
