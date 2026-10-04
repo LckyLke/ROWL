@@ -663,3 +663,23 @@ fn role_chains_are_answered_from_source_bytes() {
         Some(false)
     );
 }
+
+#[test]
+fn the_empty_role_is_answered_from_source_bytes() {
+    let scope = b"roles".to_vec();
+    // A property included in owl:bottomObjectProperty relates nothing.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(:p owl:bottomObjectProperty)\n ObjectPropertyAssertion(:p :a :b)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(:p owl:bottomObjectProperty)\n NegativeObjectPropertyAssertion(owl:bottomObjectProperty :a :b)\n ClassAssertion(:A :a)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+}

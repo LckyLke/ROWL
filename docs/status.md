@@ -848,7 +848,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   self restrictions and disjoint pairs must be on roles that no chain reaches,
   as OWL 2 requires simple roles there, and a hierarchy whose automata would
   nest themselves, which only an irregular one does, gets no answer.
-- 1648 audited public theorems and 906 audited semantic definitions. Consistency,
+- Reasoner track, sixteenth stage: the universal and empty roles. The empty
+  role `owl:bottomObjectProperty` is an ordinary role for the tableaux, and the
+  TBox concept also conjoins `∀B.⊥` for it, so it relates nothing in their
+  models, as OWL requires: the ontology queries take it in every position, in
+  concepts, inclusions, chains, characteristics and assertions, and only
+  `owl:topObjectProperty` still gets no answer.
+- 1652 audited public theorems and 906 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -857,11 +863,11 @@ progress. Full OWL parsing and executable reasoning are still future work.
   properties, class, object property and negative object property
   assertions, individual equalities and inequalities, and inclusions,
   equivalences, inverses, symmetry, transitivity and chains of object property
-  expressions (SROIQ without the universal and empty roles), also directly from
-  Functional Syntax source bytes.
+  expressions, with the empty role (SROIQ without the universal role), also
+  directly from Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 456 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 458 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -876,7 +882,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1841-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1845-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

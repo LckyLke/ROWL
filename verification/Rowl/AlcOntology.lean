@@ -69,7 +69,7 @@ private theorem equal_total (key : alloc.vec.Vec U8) (pattern : Slice U8)
     simp [h,hk,hp]
 termination_by key.val.length - index.val
 decreasing_by omega
-private theorem same_pattern_total (key : alloc.vec.Vec U8) (pattern : Slice U8) :
+theorem same_pattern_total (key : alloc.vec.Vec U8) (pattern : Slice U8) :
     alc_ontology.same_pattern key pattern = .ok (decide (key.val = pattern.val)) := by
   rw [alc_ontology.same_pattern]
   by_cases h : key.val.length = pattern.val.length

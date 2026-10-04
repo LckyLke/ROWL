@@ -4,7 +4,7 @@ import Rowl.ShiOntology
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
 document reader, the proved mapping into the raw OWL model and the proved
-queries for SROIQ without the universal and empty roles, with assertions about
+queries for SROIQ without the universal role, with assertions about
 named and anonymous individuals, inverse properties, role axioms, number
 restrictions, nominals of named individuals, self restrictions with reflexive
 and irreflexive properties, asymmetric and disjoint properties and role chains,

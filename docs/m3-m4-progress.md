@@ -3807,3 +3807,29 @@ chains, all with a model of at most three elements coming out satisfiable.
 This block adds 6 public theorems and 2 independent definitions. Totals are
 1648 audited theorems, 906 definitions, 456 Rust regressions and 1841 ledger
 obligations.
+
+## Reasoner: the empty role
+
+The sixteenth stage adds the universal and empty roles of SROIQ,
+`owl:topObjectProperty` and `owl:bottomObjectProperty`, whose fixed meanings,
+every pair and no pair, the tableaux do not model by themselves. Its first
+block decides the empty role.
+
+The tableaux read `owl:bottomObjectProperty` as an ordinary role, and the
+preparation conjoins `∀B.⊥` onto the TBox concept (withEmpty,
+shi_ontology::empty_role, empty_role_correct), so in every model of the
+tableaux it relates nothing, as in every OWL interpretation
+(with_empty_axioms). The OWL model built from a tableau's model then relates
+along every role other than the universal one as the tableau's model does
+(owl_model_relation), the empty role included, so concepts, inclusions,
+chains, characteristics and assertions with the empty role keep their meaning,
+and every OWL model satisfies the extra conjunct, so the rejections stay exact.
+The properness checks now exclude only `owl:topObjectProperty`
+(shi_ontology::not_top, not_top_correct): a role included in the empty role
+relates nothing, a chain into it forbids its paths, an assertion along it
+contradicts the closure, and the empty role is irreflexive, asymmetric,
+functional and disjoint from every role but not reflexive. The tests decide
+these from axioms and from Functional Syntax source bytes.
+
+This block adds 4 public theorems. Totals are 1652 audited theorems, 906
+definitions, 458 Rust regressions and 1845 ledger obligations.

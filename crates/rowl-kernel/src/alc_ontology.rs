@@ -57,7 +57,7 @@ fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
         true
     }
 }
-fn same_pattern(key: &Vec<u8>, pattern: &[u8]) -> bool {
+pub(crate) fn same_pattern(key: &Vec<u8>, pattern: &[u8]) -> bool {
     key.len() == pattern.len() && equal_from(key, pattern, 0)
 }
 /// `owl:Thing` or `owl:Nothing`.
@@ -674,7 +674,7 @@ fn placed_proper(placed: &Vec<Placed>, index: usize) -> bool {
         true
     }
 }
-fn named_property(property: &ObjectPropertyExpression) -> &ObjectProperty {
+pub(crate) fn named_property(property: &ObjectPropertyExpression) -> &ObjectProperty {
     match property {
         ObjectPropertyExpression::Property(role) => role,
         ObjectPropertyExpression::Inverse(role) => role,

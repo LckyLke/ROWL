@@ -32,7 +32,9 @@
 //! is disjoint from its inverse, and the members of a disjointness axiom are
 //! pairwise disjoint. `SubObjectPropertyOf` with an `ObjectPropertyChain`
 //! becomes a role chain, which the completion forest decides through
-//! `role_chains`.
+//! `role_chains`. `owl:bottomObjectProperty` is an ordinary role for the
+//! tableaux, and the TBox concept also conjoins `∀B.⊥` for it, so it relates
+//! nothing in their models, as OWL requires.
 //!
 //! Every individual of an assertion, equality or inequality, and every
 //! individual of a nominal of the closure, gets a node after node 0, which
@@ -62,9 +64,8 @@
 //!
 //! The answer is `None` when an axiom has any other form, when a class
 //! expression is outside ALCIQO with self restrictions, when a concept,
-//! definition, role axiom or assertion uses `owl:topObjectProperty` or
-//! `owl:bottomObjectProperty` (whose fixed meaning the tableaux do not model),
-//! when a nominal is of an anonymous individual or, in a question, of an
+//! definition, role axiom or assertion uses `owl:topObjectProperty` (whose
+//! fixed meaning the tableaux do not model), when a nominal is of an anonymous individual or, in a question, of an
 //! individual the closure does not have, when a number restriction, the
 //! complement of a self restriction or a disjoint pair is on a role that is not
 //! simple (one that a transitive role or the role of a chain is included in),
@@ -81,14 +82,14 @@
     clippy::single_match
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::alc_ontology::{
-    builtin_class, has_negative, individuals_from, intern, position, role_proper,
+    builtin_class, has_negative, individuals_from, intern, named_property, position, same_pattern,
 };
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
 use crate::hierarchy::{below, is_transitive, Disjoint, Inclusion, RoleHierarchy};
 use crate::model::{
-    AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, Individual, NamedIndividual,
-    ObjectPropertyExpression, SubObjectPropertyExpression,
+    AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, Individual, Iri, NamedIndividual,
+    ObjectProperty, ObjectPropertyExpression, SubObjectPropertyExpression,
 };
 use crate::nnf::copy_iri;
 use crate::role_chains::{self, Chain};
@@ -100,6 +101,37 @@ pub struct Parts {
     pub definitions: Vec<Definition>,
 }
 
+/// Whether the role is not `owl:topObjectProperty`, in either orientation,
+/// whose fixed meaning the tableaux do not model.
+fn not_top(role: &ObjectPropertyExpression) -> bool {
+    !same_pattern(
+        &named_property(role).iri.spelling,
+        b"http://www.w3.org/2002/07/owl#topObjectProperty",
+    )
+}
+/// `out` with the bytes of `pattern[index..]`.
+fn spelled(pattern: &[u8], index: usize, mut out: Vec<u8>) -> Vec<u8> {
+    if index < pattern.len() {
+        if out.len() < usize::MAX {
+            out.push(pattern[index]);
+        }
+        spelled(pattern, index + 1, out)
+    } else {
+        out
+    }
+}
+/// `owl:bottomObjectProperty`, the empty role.
+fn empty_role() -> ObjectPropertyExpression {
+    ObjectPropertyExpression::Property(ObjectProperty {
+        iri: Iri {
+            spelling: spelled(
+                b"http://www.w3.org/2002/07/owl#bottomObjectProperty",
+                0,
+                Vec::new(),
+            ),
+        },
+    })
+}
 /// Whether the individual is a named one, which a reinterpretation of the
 /// anonymous individuals leaves in place.
 fn named_individual(individual: &Individual) -> bool {
@@ -108,9 +140,10 @@ fn named_individual(individual: &Individual) -> bool {
         Individual::Anonymous(_) => false,
     }
 }
-/// Whether no built-in class occurs as a named class, no built-in object
-/// property as a role and no anonymous individual in a nominal, so the tableaux
-/// read every name as an ordinary one.
+/// Whether no built-in class occurs as a named class, `owl:topObjectProperty`
+/// not as a role and no anonymous individual in a nominal, so the tableaux read
+/// every name as an ordinary one; `owl:bottomObjectProperty` relates nothing in
+/// the tableaux's models, as the TBox concept requires.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -119,14 +152,14 @@ fn proper(concept: &Concept) -> bool {
         Concept::NotAtom(class) => !builtin_class(class),
         Concept::One(individual) => named_individual(individual),
         Concept::NotOne(individual) => named_individual(individual),
-        Concept::HasSelf(role) => role_proper(role),
-        Concept::NotSelf(role) => role_proper(role),
+        Concept::HasSelf(role) => not_top(role),
+        Concept::NotSelf(role) => not_top(role),
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
-        Concept::Exists(role, filler) => role_proper(role) && proper(filler),
-        Concept::Forall(role, filler) => role_proper(role) && proper(filler),
-        Concept::AtLeast(_, role, filler) => role_proper(role) && proper(filler),
-        Concept::AtMost(_, role, filler) => role_proper(role) && proper(filler),
+        Concept::Exists(role, filler) => not_top(role) && proper(filler),
+        Concept::Forall(role, filler) => not_top(role) && proper(filler),
+        Concept::AtLeast(_, role, filler) => not_top(role) && proper(filler),
+        Concept::AtMost(_, role, filler) => not_top(role) && proper(filler),
     }
 }
 /// Whether a number restriction or a self restriction occurs, which only the
@@ -976,43 +1009,43 @@ pub fn chains_from(
         Some(out)
     }
 }
-/// Whether neither role of an inclusion is a built-in object property.
+/// Whether neither role of an inclusion is `owl:topObjectProperty`.
 fn pair_proper(sub: &ObjectPropertyExpression, sup: &ObjectPropertyExpression) -> bool {
-    let lower = role_proper(sub);
-    let upper = role_proper(sup);
+    let lower = not_top(sub);
+    let upper = not_top(sup);
     lower && upper
 }
-/// Whether no expression in `values[index..]` names a built-in object property.
+/// Whether no expression in `values[index..]` names `owl:topObjectProperty`.
 fn rest_proper(values: &Vec<ObjectPropertyExpression>, index: usize) -> bool {
     if index < values.len() {
-        let here = role_proper(&values[index]);
+        let here = not_top(&values[index]);
         here && rest_proper(values, index + 1)
     } else {
         true
     }
 }
-/// Whether no member names a built-in object property.
+/// Whether no member names `owl:topObjectProperty`.
 fn members_proper(members: &AtLeastTwo<ObjectPropertyExpression>) -> bool {
-    let first = role_proper(&members.first);
-    let second = role_proper(&members.second);
+    let first = not_top(&members.first);
+    let second = not_top(&members.second);
     first && second && rest_proper(&members.rest, 0)
 }
-/// Whether no role of a chain or its role is a built-in object property.
+/// Whether no role of a chain or its role is `owl:topObjectProperty`.
 fn chain_proper(
     members: &AtLeastTwo<ObjectPropertyExpression>,
     sup: &ObjectPropertyExpression,
 ) -> bool {
     let along = members_proper(members);
-    let upper = role_proper(sup);
+    let upper = not_top(sup);
     along && upper
 }
 /// Whether no object property assertion or role axiom in `items[index..]` uses
-/// a built-in object property.
+/// `owl:topObjectProperty`.
 fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
     if index < items.len() {
         let here = match &items[index].axiom {
-            Axiom::ObjectPropertyAssertion(property, _, _) => role_proper(property),
-            Axiom::NegativeObjectPropertyAssertion(property, _, _) => role_proper(property),
+            Axiom::ObjectPropertyAssertion(property, _, _) => not_top(property),
+            Axiom::NegativeObjectPropertyAssertion(property, _, _) => not_top(property),
             Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(sub), sup) => {
                 pair_proper(sub, sup)
             }
@@ -1021,9 +1054,9 @@ fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
             }
             Axiom::EquivalentObjectProperties(members) => members_proper(members),
             Axiom::InverseObjectProperties(first, second) => pair_proper(first, second),
-            Axiom::SymmetricObjectProperty(property) => role_proper(property),
-            Axiom::TransitiveObjectProperty(property) => role_proper(property),
-            Axiom::AsymmetricObjectProperty(property) => role_proper(property),
+            Axiom::SymmetricObjectProperty(property) => not_top(property),
+            Axiom::TransitiveObjectProperty(property) => not_top(property),
+            Axiom::AsymmetricObjectProperty(property) => not_top(property),
             Axiom::DisjointObjectProperties(members) => members_proper(members),
             _ => true,
         };
@@ -1626,7 +1659,10 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         None => return None,
     };
     let parts = match class_parts(items) {
-        Some(parts) => parts,
+        Some(parts) => conjoin(
+            parts,
+            Concept::Forall(empty_role(), Box::new(Concept::Bottom)),
+        ),
         None => return None,
     };
     let nodes = match nominal_individuals(nodes, &parts.axioms) {

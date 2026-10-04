@@ -1913,3 +1913,94 @@ fn every_class_with_a_small_model_of_role_chains_is_satisfiable() {
     );
     assert!(without > 5, "the sample must exercise unsatisfiable inputs");
 }
+
+const BOTTOM_OBJECT: &[u8] = b"http://www.w3.org/2002/07/owl#bottomObjectProperty";
+
+#[test]
+fn the_empty_role_relates_nothing() {
+    let empty = || property(BOTTOM_OBJECT);
+    // No pair is related along owl:bottomObjectProperty, in either orientation.
+    assert_eq!(
+        consistent(&vec![related(empty(), named(b"a"), named(b"b"))]),
+        Some(false)
+    );
+    assert_eq!(
+        consistent(&vec![axiom(Axiom::NegativeObjectPropertyAssertion(
+            empty(),
+            named(b"a"),
+            named(b"b"),
+        ))]),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(&Vec::new(), &some(BOTTOM_OBJECT, thing())),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&Vec::new(), &some_along(inverse(BOTTOM_OBJECT), thing())),
+        Some(false)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &thing(), &all(BOTTOM_OBJECT, class(b"A"))),
+        Some(true)
+    );
+    // A role included in the empty role relates nothing either.
+    let below = vec![included(property(b"r"), empty())];
+    assert_eq!(class_satisfiable(&below, &some(b"r", thing())), Some(false));
+    let mut asserted_below = below;
+    asserted_below.push(related(property(b"r"), named(b"a"), named(b"b")));
+    assert_eq!(consistent(&asserted_below), Some(false));
+    // The empty role is included in every role, and a chain into it forbids
+    // the chain's paths.
+    let above = vec![included(empty(), property(b"r"))];
+    assert_eq!(class_satisfiable(&above, &some(b"r", thing())), Some(true));
+    let chained = vec![chain_of(vec![property(b"p"), property(b"q")], empty())];
+    assert_eq!(
+        class_satisfiable(&chained, &some(b"p", some(b"q", thing()))),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&chained, &some(b"p", thing())),
+        Some(true)
+    );
+    // Its characteristics: symmetric, transitive, irreflexive and asymmetric,
+    // but not reflexive over a nonempty domain.
+    for characteristic in [
+        Axiom::SymmetricObjectProperty(empty()),
+        Axiom::TransitiveObjectProperty(empty()),
+        Axiom::IrreflexiveObjectProperty(empty()),
+        Axiom::AsymmetricObjectProperty(empty()),
+        Axiom::FunctionalObjectProperty(empty()),
+    ] {
+        assert_eq!(consistent(&vec![axiom(characteristic)]), Some(true));
+    }
+    assert_eq!(
+        consistent(&vec![axiom(Axiom::ReflexiveObjectProperty(empty()))]),
+        Some(false)
+    );
+    // Disjoint from every role, and counted neighbours along it are none.
+    let apart = vec![
+        axiom(Axiom::DisjointObjectProperties(two(
+            empty(),
+            property(b"r"),
+            Vec::new(),
+        ))),
+        related(property(b"r"), named(b"a"), named(b"b")),
+    ];
+    assert_eq!(consistent(&apart), Some(true));
+    assert_eq!(
+        class_satisfiable(&Vec::new(), &at_least(1, BOTTOM_OBJECT, thing())),
+        Some(false)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &thing(), &at_most(0, BOTTOM_OBJECT, thing())),
+        Some(true)
+    );
+    // Its domain and range constrain nothing.
+    let ranged = vec![
+        axiom(Axiom::ObjectPropertyDomain(empty(), class(b"A"))),
+        axiom(Axiom::ObjectPropertyRange(empty(), class(b"B"))),
+    ];
+    assert_eq!(subsumed(&ranged, &thing(), &class(b"A")), Some(false));
+    assert_eq!(subsumed(&ranged, &thing(), &class(b"B")), Some(false));
+}

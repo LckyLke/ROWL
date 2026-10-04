@@ -36,7 +36,7 @@ open Rowl.Concepts (denote inv relation_inv Translatable Correct translate_total
   copy_role_identity same_role_correct)
 open Rowl.Hierarchy (Below Closed Respects Constrained)
 open Rowl.Internalization (Assertion)
-open Rowl.AlcOntology (builtin_class_correct role_proper_correct RoleOf IndividualsOf PositionOf PositionFrom
+open Rowl.AlcOntology (builtin_class_correct RoleOf IndividualsOf PositionOf PositionFrom
   positionOf_le positionOf_present positionFrom_absent position_of individuals_from_correct has_negative_correct
   Negative owlModel owl_model_valid embedding Placement placement_zero placement_at assertion_of_individual)
 open Rowl.ShiParts (SupportedAxiom RoleAxiom ConstraintAxiom ChainAxiom Equality ClassPart PartsHold class_parts_correct)
@@ -63,14 +63,14 @@ def Proper : concepts.Concept → Prop
   | .NotAtom c => c ≠ thing ∧ c ≠ nothing
   | .One a => IsNamed a
   | .NotOne a => IsNamed a
-  | .HasSelf r => RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
-  | .NotSelf r => RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
+  | .HasSelf r => RoleOf r ≠ topObject
+  | .NotSelf r => RoleOf r ≠ topObject
   | .And a b => Proper a ∧ Proper b
   | .Or a b => Proper a ∧ Proper b
-  | .Exists r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
-  | .Forall r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
-  | .AtLeast _ r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
-  | .AtMost _ r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
+  | .Exists r c => (RoleOf r ≠ topObject) ∧ Proper c
+  | .Forall r c => (RoleOf r ≠ topObject) ∧ Proper c
+  | .AtLeast _ r c => (RoleOf r ≠ topObject) ∧ Proper c
+  | .AtMost _ r c => (RoleOf r ≠ topObject) ∧ Proper c
 
 /-- A number restriction or a self restriction occurs, which only the
     completion forest decides. -/
@@ -92,19 +92,19 @@ def DefinitionProper (d : completion.Definition) : Prop :=
 /-- An object property assertion or role axiom that does not use a built-in
     object property. -/
 def RoleProper : Axiom → Prop
-  | .ObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .NegativeObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .SubObjectPropertyOf (.Single sub) sup => (RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject) ∧
-      (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject)
-  | .SubObjectPropertyOf (.Chain xs) sup => (∀ p ∈ xs.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-      (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject)
-  | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .InverseObjectProperties p q => (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-      (RoleOf q ≠ topObject ∧ RoleOf q ≠ bottomObject)
-  | .SymmetricObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .TransitiveObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .AsymmetricObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
-  | .DisjointObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  | .ObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject
+  | .NegativeObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject
+  | .SubObjectPropertyOf (.Single sub) sup => (RoleOf sub ≠ topObject) ∧
+      (RoleOf sup ≠ topObject)
+  | .SubObjectPropertyOf (.Chain xs) sup => (∀ p ∈ xs.elements, RoleOf p ≠ topObject) ∧
+      (RoleOf sup ≠ topObject)
+  | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject
+  | .InverseObjectProperties p q => (RoleOf p ≠ topObject) ∧
+      (RoleOf q ≠ topObject)
+  | .SymmetricObjectProperty p => RoleOf p ≠ topObject
+  | .TransitiveObjectProperty p => RoleOf p ≠ topObject
+  | .AsymmetricObjectProperty p => RoleOf p ≠ topObject
+  | .DisjointObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject
   | _ => True
 
 /-- A negative object property assertion whose individuals' nodes some link
@@ -121,6 +121,62 @@ private theorem new_val_chains : (alloc.vec.Vec.new role_chains.Chain).val = [] 
 private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
   simp [core.num.Usize.MAX]
 
+/-- The check for the universal role is exact. -/
+theorem not_top_correct (r : ObjectPropertyExpression) :
+    shi_ontology.not_top r = .ok (decide (RoleOf r ≠ topObject)) := by
+  rw [shi_ontology.not_top]
+  simp only [Rowl.AlcOntology.named_property_correct,bind_ok,ne_eq,
+    Rowl.Tableau.property_eq_iff (RoleOf r) topObject]
+  by_cases top : (RoleOf r).iri.spelling.val = topObject.iri.spelling.val <;>
+    simp_all [Rowl.AlcOntology.same_pattern_total,Array.to_slice,Array.make,lift,topObject]
+
+/-- Spelling out a pattern appends its bytes from `index` on. -/
+private theorem spelled_correct (pattern : Slice U8) (index : Usize) (out : alloc.vec.Vec U8)
+    (room : out.val.length + (pattern.val.length - index.val) ≤ Usize.max) :
+    ∃ v, shi_ontology.spelled pattern index out = .ok v ∧ v.val = out.val ++ pattern.val.drop index.val := by
+  rw [shi_ontology.spelled]
+  by_cases more : index.val < pattern.val.length
+  · have more' : index < Slice.len pattern := by simp only [UScalar.lt_equiv,Slice.len_val]; exact more
+    have fits : out.val.length < Usize.max := by omega
+    have lookup : Slice.index_usize pattern index = .ok pattern.val[index.val] := by
+      simp [Slice.index_usize,List.getElem?_eq_getElem more]
+      rfl
+    obtain ⟨pushed,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out pattern.val[index.val] fits)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨v,run,value⟩ := spelled_correct pattern next pushed (by rw [contents,nextIndex]; simp; omega)
+    refine ⟨v,?_,?_⟩
+    · simp only [more',↓reduceIte,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,alloc.vec.Vec.length,
+        fits,lookup,bind_ok,push,advance,run]
+    · rw [value,contents,nextIndex,List.drop_eq_getElem_cons more]
+      simp only [List.append_assoc,List.cons_append,List.nil_append]
+      rfl
+  · have more' : ¬ index < Slice.len pattern := by simp only [UScalar.lt_equiv,Slice.len_val]; exact more
+    refine ⟨out,by simp only [more',↓reduceIte],?_⟩
+    simp [List.drop_eq_nil_iff.mpr (show pattern.val.length ≤ index.val by omega)]
+termination_by pattern.val.length - index.val
+decreasing_by omega
+
+/-- The empty role the TBox concept rules out is `owl:bottomObjectProperty`. -/
+theorem empty_role_correct : shi_ontology.empty_role = .ok (.Property bottomObject) := by
+  rw [shi_ontology.empty_role]
+  obtain ⟨v,run,value⟩ := spelled_correct (Array.to_slice (Array.make 50#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8, 79#u8,
+        98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8,
+        101#u8, 114#u8, 116#u8, 121#u8
+        ])) 0#usize (alloc.vec.Vec.new U8) (by simp [Array.to_slice,Array.make]; scalar_tac)
+  simp only [lift,bind_ok,run]
+  congr 2
+  apply (Rowl.Tableau.property_eq_iff _ _).mpr
+  show v.val = _
+  rw [value]
+  simp [Array.to_slice,Array.make,bottomObject]
+
 /-- The properness check is exact. -/
 theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (decide (Proper c)) := by
   induction c with
@@ -131,7 +187,7 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
   | One a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
   | NotOne a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
   | HasSelf r | NotSelf r =>
-    rw [shi_ontology.proper,role_proper_correct]
+    rw [shi_ontology.proper,not_top_correct]
     simp only [Proper]
     exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
   | And a b iha ihb =>
@@ -142,41 +198,41 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
   | Exists r c ih =>
     rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
-    · simp only [role_proper_correct,bind_ok]
+    by_cases role : RoleOf r ≠ topObject
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true role]
       simp [Proper,ih,role]
-    · simp only [role_proper_correct,bind_ok]
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_false role]
       simp only [Bool.false_eq_true,↓reduceIte,Proper]
       simp [role]
   | Forall r c ih =>
     rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
-    · simp only [role_proper_correct,bind_ok]
+    by_cases role : RoleOf r ≠ topObject
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true role]
       simp [Proper,ih,role]
-    · simp only [role_proper_correct,bind_ok]
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_false role]
       simp only [Bool.false_eq_true,↓reduceIte,Proper]
       simp [role]
   | AtLeast n r c ih =>
     rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
-    · simp only [role_proper_correct,bind_ok]
+    by_cases role : RoleOf r ≠ topObject
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true role]
       simp [Proper,ih,role]
-    · simp only [role_proper_correct,bind_ok]
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_false role]
       simp only [Bool.false_eq_true,↓reduceIte,Proper]
       simp [role]
   | AtMost n r c ih =>
     rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
-    · simp only [role_proper_correct,bind_ok]
+    by_cases role : RoleOf r ≠ topObject
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true role]
       simp [Proper,ih,role]
-    · simp only [role_proper_correct,bind_ok]
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_false role]
       simp only [Bool.false_eq_true,↓reduceIte,Proper]
       simp [role]
@@ -362,7 +418,7 @@ decreasing_by omega
 
 private theorem rest_proper_correct (values : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
     shi_ontology.rest_proper values index =
-      .ok (decide (∀ p ∈ values.val.drop index.val, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) := by
+      .ok (decide (∀ p ∈ values.val.drop index.val, RoleOf p ≠ topObject)) := by
   rw [shi_ontology.rest_proper]
   by_cases more : index.val < values.val.length
   · have lookup : values.index_usize index = .ok values.val[index.val] := by
@@ -375,15 +431,15 @@ private theorem rest_proper_correct (values : alloc.vec.Vec ObjectPropertyExpres
     have rest := rest_proper_correct values next
     rw [nextIndex] at rest
     rw [split]
-    by_cases here : RoleOf values.val[index.val] ≠ topObject ∧ RoleOf values.val[index.val] ≠ bottomObject
+    by_cases here : RoleOf values.val[index.val] ≠ topObject
     · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
-        bind_ok,role_proper_correct,advance,rest,List.forall_mem_cons]
+        bind_ok,not_top_correct,advance,rest,List.forall_mem_cons]
       rw [decide_eq_true here]
       simp only [↓reduceIte]
       congr 1
       exact decide_eq_decide.mpr ⟨fun later => ⟨here,later⟩,fun both => both.2⟩
     · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
-        bind_ok,role_proper_correct,List.forall_mem_cons]
+        bind_ok,not_top_correct,List.forall_mem_cons]
       rw [decide_eq_false here]
       simp [here]
   · have empty : values.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
@@ -393,44 +449,44 @@ decreasing_by omega
 
 theorem members_proper_correct (members : AtLeastTwo ObjectPropertyExpression) :
     shi_ontology.members_proper members =
-      .ok (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) := by
+      .ok (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject)) := by
   rw [shi_ontology.members_proper]
   have rest := rest_proper_correct members.rest 0#usize
   simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at rest
-  by_cases first : RoleOf members.first ≠ topObject ∧ RoleOf members.first ≠ bottomObject
-  · by_cases second : RoleOf members.second ≠ topObject ∧ RoleOf members.second ≠ bottomObject
-    · simp only [role_proper_correct,bind_ok]
+  by_cases first : RoleOf members.first ≠ topObject
+  · by_cases second : RoleOf members.second ≠ topObject
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true first,decide_eq_true second]
       simp only [↓reduceIte,rest,AtLeastTwo.elements,List.forall_mem_cons]
       simp [first,second]
-    · simp only [role_proper_correct,bind_ok]
+    · simp only [not_top_correct,bind_ok]
       rw [decide_eq_true first,decide_eq_false second]
       simp only [↓reduceIte,Bool.false_eq_true,AtLeastTwo.elements,List.forall_mem_cons]
       simp [second]
-  · simp only [role_proper_correct,bind_ok]
+  · simp only [not_top_correct,bind_ok]
     rw [decide_eq_false first]
     simp only [↓reduceIte,Bool.false_eq_true,AtLeastTwo.elements,List.forall_mem_cons]
     simp [first]
 
 theorem pair_proper_correct (sub sup : ObjectPropertyExpression) :
-    shi_ontology.pair_proper sub sup = .ok (decide ((RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject) ∧
-      (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject))) := by
+    shi_ontology.pair_proper sub sup = .ok (decide ((RoleOf sub ≠ topObject) ∧
+      (RoleOf sup ≠ topObject))) := by
   rw [shi_ontology.pair_proper]
-  by_cases first : RoleOf sub ≠ topObject ∧ RoleOf sub ≠ bottomObject
-  · simp only [role_proper_correct,bind_ok]
+  by_cases first : RoleOf sub ≠ topObject
+  · simp only [not_top_correct,bind_ok]
     rw [decide_eq_true first]
     simp [first]
-  · simp only [role_proper_correct,bind_ok]
+  · simp only [not_top_correct,bind_ok]
     rw [decide_eq_false first]
     simp [first]
 
 theorem chain_proper_correct (members : AtLeastTwo ObjectPropertyExpression) (sup : ObjectPropertyExpression) :
     shi_ontology.chain_proper members sup =
-      .ok (decide ((∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-        (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject))) := by
-  rw [shi_ontology.chain_proper,members_proper_correct,role_proper_correct]
+      .ok (decide ((∀ p ∈ members.elements, RoleOf p ≠ topObject) ∧
+        (RoleOf sup ≠ topObject))) := by
+  rw [shi_ontology.chain_proper,members_proper_correct,not_top_correct]
   simp only [bind_ok]
-  by_cases along : ∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  by_cases along : ∀ p ∈ members.elements, RoleOf p ≠ topObject
   · rw [decide_eq_true along]
     simp only [↓reduceIte]
     congr 1
@@ -480,50 +536,50 @@ theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usi
     simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,bind_ok]
     cases item : items.val[index.val].axiom with
     | ObjectPropertyAssertion p a b =>
-      simp only [role_proper_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simp only [not_top_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | NegativeObjectPropertyAssertion p a b =>
-      simp only [role_proper_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simp only [not_top_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | SubObjectPropertyOf sub sup =>
       cases sub with
       | Single p =>
         simp only [pair_proper_correct,bind_ok]
-        have := finish (decide ((RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-          (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject))) (by simp [item,RoleProper])
+        have := finish (decide ((RoleOf p ≠ topObject) ∧
+          (RoleOf sup ≠ topObject))) (by simp [item,RoleProper])
         simpa [item] using this
       | Chain c =>
         simp only [chain_proper_correct,bind_ok]
-        have := finish (decide ((∀ p ∈ c.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-          (RoleOf sup ≠ topObject ∧ RoleOf sup ≠ bottomObject))) (by simp [item,RoleProper])
+        have := finish (decide ((∀ p ∈ c.elements, RoleOf p ≠ topObject) ∧
+          (RoleOf sup ≠ topObject))) (by simp [item,RoleProper])
         simpa [item] using this
     | EquivalentObjectProperties members =>
       simp only [members_proper_correct,bind_ok]
-      have := finish (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject))
+      have := finish (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject))
         (by simp [item,RoleProper])
       simpa [item] using this
     | InverseObjectProperties p q =>
       simp only [pair_proper_correct,bind_ok]
-      have := finish (decide ((RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) ∧
-        (RoleOf q ≠ topObject ∧ RoleOf q ≠ bottomObject))) (by simp [item,RoleProper])
+      have := finish (decide ((RoleOf p ≠ topObject) ∧
+        (RoleOf q ≠ topObject))) (by simp [item,RoleProper])
       simpa [item] using this
     | SymmetricObjectProperty p =>
-      simp only [role_proper_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simp only [not_top_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | TransitiveObjectProperty p =>
-      simp only [role_proper_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simp only [not_top_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | AsymmetricObjectProperty p =>
-      simp only [role_proper_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simp only [not_top_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | DisjointObjectProperties members =>
       simp only [members_proper_correct,bind_ok]
-      have := finish (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject))
+      have := finish (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject))
         (by simp [item,RoleProper])
       simpa [item] using this
     | _ =>
@@ -845,19 +901,28 @@ theorem denote_with_anonymous {Object : Type u} {Value : Type v} (I : Interpreta
   | AtLeast n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
   | AtMost n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
 
-/-- The OWL interpretation of a tableau model relates along every object
-    property expression without a built-in property as the tableau model does. -/
+/-- The OWL interpretation of a tableau model in which
+    `owl:bottomObjectProperty` relates nothing relates along every object
+    property expression other than the universal role as the tableau model
+    does. -/
 theorem owl_model_relation {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (r : ObjectPropertyExpression)
-    (top : RoleOf r ≠ topObject) (bottom : RoleOf r ≠ bottomObject) (x y : ULift.{u} Object) :
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (r : ObjectPropertyExpression)
+    (top : RoleOf r ≠ topObject) (x y : ULift.{u} Object) :
     objectRelation (owlModel.{u,v,w} J root place D) r x y ↔ objectRelation J r x.down y.down := by
   cases r with
   | Property p =>
-    simp only [RoleOf] at top bottom
-    simp [objectRelation,owlModel,top,bottom]
+    simp only [RoleOf] at top
+    by_cases bottom : p = bottomObject
+    · subst bottom
+      simp [objectRelation,owlModel,top,empty]
+    · simp [objectRelation,owlModel,top,bottom]
   | Inverse p =>
-    simp only [RoleOf] at top bottom
-    simp [objectRelation,owlModel,top,bottom]
+    simp only [RoleOf] at top
+    by_cases bottom : p = bottomObject
+    · subst bottom
+      simp [objectRelation,owlModel,top,empty]
+    · simp [objectRelation,owlModel,top,bottom]
 
 /-- Counting lifted elements counts the elements they lift. -/
 theorem atLeast_lift {Object : Type} (n : Nat) (P : ULift.{u} Object → Prop) (Q : Object → Prop)
@@ -878,10 +943,10 @@ private theorem individual_owl_model {Object : Type} (J : Interpretation Object 
   cases a <;> rfl
 
 /-- On proper concepts whose nominals' individuals the tableau model places
-    where `place` does, the constructed interpretation agrees with the tableau
-    model. -/
+    where `place` does, the constructed interpretation agrees with a tableau
+    model in which `owl:bottomObjectProperty` relates nothing. -/
 theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root : Object) (place : Individual → Object)
-    {Native : Type w} (D : DatatypeMap Native) :
+    {Native : Type w} (D : DatatypeMap Native) (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
     ∀ c, Proper c → (∀ a, Mentions c a → Rowl.Owl.individual J a = place a) →
       ∀ x, denote (owlModel.{u,v,w} J root place D) c x ↔ denote J c x.down := by
   intro c
@@ -893,11 +958,11 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
   | HasSelf r =>
     intro proper _ x
     simp only [denote]
-    exact owl_model_relation J root place D r proper.1 proper.2 x x
+    exact owl_model_relation J root place D empty r proper x x
   | NotSelf r =>
     intro proper _ x
     simp only [denote]
-    exact not_congr (owl_model_relation J root place D r proper.1 proper.2 x x)
+    exact not_congr (owl_model_relation J root place D empty r proper x x)
   | One a =>
     intro _ agree x
     simp only [denote,individual_owl_model,agree a rfl]
@@ -917,10 +982,10 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
     simp only [denote]
     constructor
     · rintro ⟨y,edge,inner⟩
-      exact ⟨y.down,(owl_model_relation J root place D r proper.1.1 proper.1.2 x y).mp edge,
+      exact ⟨y.down,(owl_model_relation J root place D empty r proper.1 x y).mp edge,
         (ih proper.2 agree y).mp inner⟩
     · rintro ⟨y,edge,inner⟩
-      exact ⟨ULift.up y,(owl_model_relation J root place D r proper.1.1 proper.1.2 x (ULift.up y)).mpr edge,
+      exact ⟨ULift.up y,(owl_model_relation J root place D empty r proper.1 x (ULift.up y)).mpr edge,
         (ih proper.2 agree (ULift.up y)).mpr inner⟩
   | Forall r c ih =>
     intro proper agree x
@@ -928,32 +993,33 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
     constructor
     · intro every y edge
       exact (ih proper.2 agree (ULift.up y)).mp
-        (every (ULift.up y) ((owl_model_relation J root place D r proper.1.1 proper.1.2 x (ULift.up y)).mpr edge))
+        (every (ULift.up y) ((owl_model_relation J root place D empty r proper.1 x (ULift.up y)).mpr edge))
     · intro every y edge
       exact (ih proper.2 agree y).mpr
-        (every y.down ((owl_model_relation J root place D r proper.1.1 proper.1.2 x y).mp edge))
+        (every y.down ((owl_model_relation J root place D empty r proper.1 x y).mp edge))
   | AtLeast n r c ih =>
     intro proper agree x
     simp only [denote]
     exact atLeast_lift n.val _ _ (fun y =>
-      and_congr (owl_model_relation J root place D r proper.1.1 proper.1.2 x y) (ih proper.2 agree y))
+      and_congr (owl_model_relation J root place D empty r proper.1 x y) (ih proper.2 agree y))
   | AtMost n r c ih =>
     intro proper agree x
     simp only [denote,Rowl.Owl.AtMost]
     exact not_congr (atLeast_lift (n.val + 1) _ _ (fun y =>
-      and_congr (owl_model_relation J root place D r proper.1.1 proper.1.2 x y) (ih proper.2 agree y)))
+      and_congr (owl_model_relation J root place D empty r proper.1 x y) (ih proper.2 agree y)))
 
 private theorem with_own_anonymous {Object : Type u} {Value : Type v} (I : Interpretation Object Value) :
     withAnonymous I I.anonymousIndividuals = I := by
   cases I; rfl
 
-/-- A role axiom without built-in properties that holds in the tableau model
+/-- A role axiom without the universal role that holds in the tableau model
     holds in its OWL interpretation. -/
 private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Axiom) (role : RoleAxiom a)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (role : RoleAxiom a)
     (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
     Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D
+  have relation := owl_model_relation.{u,v,w} J root place D empty
   cases a with
   | SubObjectPropertyOf sub sup =>
     cases sub with
@@ -961,8 +1027,8 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
       simp only [RoleProper] at proper
       simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
       intro x y edge
-      exact (relation sup proper.2.1 proper.2.2 x y).mpr
-        (holds x.down y.down ((relation p proper.1.1 proper.1.2 x y).mp edge))
+      exact (relation sup proper.2 x y).mpr
+        (holds x.down y.down ((relation p proper.1 x y).mp edge))
     | Chain _ => simp [RoleAxiom] at role
   | EquivalentObjectProperties members =>
     simp only [RoleProper] at proper
@@ -970,79 +1036,80 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
     intro a aIn b bIn
     have equal := holds a aIn b bIn
     funext x y
-    rw [propext (relation a (proper a aIn).1 (proper a aIn).2 x y),
-      propext (relation b (proper b bIn).1 (proper b bIn).2 x y),equal]
+    rw [propext (relation a (proper a aIn) x y),
+      propext (relation b (proper b bIn) x y),equal]
   | InverseObjectProperties p q =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y
-    rw [relation p proper.1.1 proper.1.2 x y,relation q proper.2.1 proper.2.2 y x]
+    rw [relation p proper.1 x y,relation q proper.2 y x]
     exact holds x.down y.down
   | SymmetricObjectProperty p =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y edge
-    exact (relation p proper.1 proper.2 y x).mpr (holds x.down y.down ((relation p proper.1 proper.2 x y).mp edge))
+    exact (relation p proper y x).mpr (holds x.down y.down ((relation p proper x y).mp edge))
   | TransitiveObjectProperty p =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y z first second
-    exact (relation p proper.1 proper.2 x z).mpr (holds x.down y.down z.down
-      ((relation p proper.1 proper.2 x y).mp first) ((relation p proper.1 proper.2 y z).mp second))
+    exact (relation p proper x z).mpr (holds x.down y.down z.down
+      ((relation p proper x y).mp first) ((relation p proper y z).mp second))
   | _ => simp [RoleAxiom] at role
 
-/-- An asymmetric or disjoint object property without built-in properties that
+/-- An asymmetric or disjoint object property without the universal role that
     holds in the tableau model holds in its OWL interpretation. -/
 private theorem owl_model_constraint_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Axiom)
-    (constraint : ConstraintAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (constraint : ConstraintAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
     Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D
+  have relation := owl_model_relation.{u,v,w} J root place D empty
   cases a with
   | AsymmetricObjectProperty p =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y forward backward
-    exact holds x.down y.down ((relation p proper.1 proper.2 x y).mp forward)
-      ((relation p proper.1 proper.2 y x).mp backward)
+    exact holds x.down y.down ((relation p proper x y).mp forward)
+      ((relation p proper y x).mp backward)
   | DisjointObjectProperties members =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies,Rowl.Owl.pairwiseDisjoint] at holds ⊢
     refine holds.imp_of_mem ?_
     intro a b aIn bIn apart xy both
-    exact apart (xy.1.down,xy.2.down) ⟨(relation a (proper a aIn).1 (proper a aIn).2 xy.1 xy.2).mp both.1,
-      (relation b (proper b bIn).1 (proper b bIn).2 xy.1 xy.2).mp both.2⟩
+    exact apart (xy.1.down,xy.2.down) ⟨(relation a (proper a aIn) xy.1 xy.2).mp both.1,
+      (relation b (proper b bIn) xy.1 xy.2).mp both.2⟩
   | _ => simp [ConstraintAxiom] at constraint
 
-/-- A chain of roles that are not built in relates the lifted pairs of the
-    tableau model in its OWL interpretation. -/
+/-- A chain of roles other than the universal role relates the lifted pairs of
+    the tableau model in its OWL interpretation. -/
 private theorem owl_model_chain {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) :
-    ∀ (w : List ObjectPropertyExpression), (∀ p ∈ w, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject) →
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
+    ∀ (w : List ObjectPropertyExpression), (∀ p ∈ w, RoleOf p ≠ topObject) →
       ∀ (x y : ULift.{u} Object), Rowl.Owl.chainRelation (owlModel.{u,v,w} J root place D) w x y ↔
         Rowl.Owl.chainRelation J w x.down y.down
   | [], _, x, y => by
     simp only [Rowl.Owl.chainRelation]
     exact ⟨fun same => by rw [same],fun same => ULift.ext_iff.mpr same⟩
   | r :: w, proper, x, y => by
-    have relation := owl_model_relation.{u,v,w} J root place D
+    have relation := owl_model_relation.{u,v,w} J root place D empty
     simp only [Rowl.Owl.chainRelation]
     have here := proper r List.mem_cons_self
     constructor
     · rintro ⟨z,first,rest⟩
-      exact ⟨z.down,(relation r here.1 here.2 x z).mp first,
-        (owl_model_chain J root place D w (fun p m => proper p (List.mem_cons_of_mem _ m)) z y).mp rest⟩
+      exact ⟨z.down,(relation r here x z).mp first,
+        (owl_model_chain J root place D empty w (fun p m => proper p (List.mem_cons_of_mem _ m)) z y).mp rest⟩
     · rintro ⟨z,first,rest⟩
-      exact ⟨ULift.up z,(relation r here.1 here.2 x (ULift.up z)).mpr first,
-        (owl_model_chain J root place D w (fun p m => proper p (List.mem_cons_of_mem _ m)) (ULift.up z) y).mpr rest⟩
+      exact ⟨ULift.up z,(relation r here x (ULift.up z)).mpr first,
+        (owl_model_chain J root place D empty w (fun p m => proper p (List.mem_cons_of_mem _ m)) (ULift.up z) y).mpr rest⟩
 
-/-- A property chain without built-in properties that holds in the tableau
+/-- A property chain without the universal role that holds in the tableau
     model holds in its OWL interpretation. -/
 private theorem owl_model_chain_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Axiom)
-    (chain : ChainAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (chain : ChainAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
     Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D
+  have relation := owl_model_relation.{u,v,w} J root place D empty
   cases a with
   | SubObjectPropertyOf sub sup =>
     cases sub with
@@ -1051,13 +1118,31 @@ private theorem owl_model_chain_axiom {Object : Type} (J : Interpretation Object
       simp only [RoleProper] at proper
       simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
       intro x y along
-      exact (relation sup proper.2.1 proper.2.2 x y).mpr
-        (holds x.down y.down ((owl_model_chain J root place D members.elements proper.1 x y).mp along))
+      exact (relation sup proper.2 x y).mpr
+        (holds x.down y.down ((owl_model_chain J root place D empty members.elements proper.1 x y).mp along))
   | _ => simp [ChainAxiom] at chain
+
+/-- The class parts with `∀B.⊥` conjoined onto the TBox concept, for
+    `owl:bottomObjectProperty`: the empty role relates nothing. -/
+def withEmpty (q : shi_ontology.Parts) : shi_ontology.Parts :=
+  ⟨.And q.axioms (.Forall (.Property bottomObject) .Bottom),q.definitions⟩
+
+private theorem conjoin_empty (q : shi_ontology.Parts) :
+    shi_ontology.conjoin q (.Forall (.Property bottomObject) .Bottom) = .ok (withEmpty q) := by
+  rw [Rowl.ShiParts.conjoin_correct]
+  rfl
+
+/-- A TBox concept with `∀B.⊥` conjoined holds exactly where the TBox concept
+    holds, in an interpretation where `owl:bottomObjectProperty` relates
+    nothing; where it holds everywhere, that property relates nothing. -/
+theorem with_empty_axioms {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (q : shi_ontology.Parts) (x : Object) :
+    denote I (withEmpty q).axioms x ↔ denote I q.axioms x ∧ ∀ y, ¬ I.objectProperties bottomObject x y := by
+  simp [withEmpty,denote,objectRelation]
 
 /-- What `prepare` computes from a closure: its individuals, including those of
     the nominals of its class parts and assertions, with room for one more node,
-    the representatives of its equalities, its class parts, the facts of its
+    the representatives of its equalities, its class parts with `∀B.⊥`, the facts of its
     class assertions, the facts the completion forest also gets, its role
     hierarchy and links at the representatives' nodes, every name ordinary,
     whether a negative assertion denies a link, whether every question goes to
@@ -1070,7 +1155,7 @@ structure PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     ∃ q ∈ p.facts.val, Mentions q.concept a) → a ∈ p.nodes.val
   room : p.nodes.val.length ≤ Usize.max-1
   joins : Joins items.val p.nodes.val p.same.val
-  parts : shi_ontology.class_parts items = .ok (some p.parts)
+  parts : ∃ P, shi_ontology.class_parts items = .ok (some P) ∧ p.parts = withEmpty P
   facts : shi_ontology.assertions_from items p.nodes p.same 0#usize (alloc.vec.Vec.new completion.Fact) =
     .ok (some p.facts)
   boundOrigin : ∀ q ∈ p.bound.val, q ∈ p.facts.val ∨
@@ -1194,20 +1279,21 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
   obtain ⟨partsResult,partsRun,_,_,_⟩ := class_parts_correct.{0,0} items
   cases partsResult with
   | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun],by simp⟩
-  | some parts =>
+  | some parts0 =>
+  obtain ⟨parts,partsIs⟩ : ∃ q, withEmpty parts0 = q := ⟨_,rfl⟩
   obtain ⟨r2,run2,spec2⟩ := nominal_individuals_correct parts.axioms nodes1 room1
   cases r2 with
-  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2],by simp⟩
   | some nodes2 =>
   obtain ⟨kept2,axiomsIn,room2⟩ := spec2 nodes2 rfl
   obtain ⟨r3,run3,spec3⟩ := definition_individuals_correct parts.definitions 0#usize nodes2 room2
   cases r3 with
-  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2,run3],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3],by simp⟩
   | some nodes3 =>
   obtain ⟨kept3,definitionsIn,room3⟩ := spec3 nodes3 rfl
   obtain ⟨r4,run4,spec4⟩ := assertion_individuals_correct items 0#usize nodes3 room3
   cases r4 with
-  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2,run3,run4],by simp⟩
+  | none => exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3,run4],by simp⟩
   | some nodes =>
   obtain ⟨kept4,assertionsIn,room⟩ := spec4 nodes rfl
   rw [zero,List.drop_zero] at definitionsIn assertionsIn
@@ -1220,27 +1306,27 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     (alloc.vec.Vec.new _)
   cases assertResult with
   | none =>
-    exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2,run3,run4,countRun,startRun,sameRun,assertRun],
+    exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3,run4,countRun,startRun,sameRun,assertRun],
       by simp⟩
   | some facts =>
   obtain ⟨factsOrigin,_,_⟩ := assertSpec facts rfl
   obtain ⟨roleResult,roleRun,_⟩ := role_hierarchy_correct.{0,0} items
   cases roleResult with
   | none =>
-    exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2,run3,run4,countRun,startRun,sameRun,assertRun,
+    exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3,run4,countRun,startRun,sameRun,assertRun,
       roleRun],by simp⟩
   | some h =>
   obtain ⟨chainsResult,chainsRun,_⟩ := chains_from_correct.{0,0} items 0#usize (alloc.vec.Vec.new role_chains.Chain)
   cases chainsResult with
   | none =>
-    exact ⟨none,by simp [nodesRun,membersRun,partsRun,run2,run3,run4,countRun,startRun,sameRun,assertRun,
+    exact ⟨none,by simp [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3,run4,countRun,startRun,sameRun,assertRun,
       roleRun,chainsRun],by simp⟩
   | some chs =>
   have p2 := definitions_proper_correct parts.definitions 0#usize
   have p3 := facts_proper_correct facts 0#usize
   have p4 := roles_proper_correct items 0#usize
   rw [zero,List.drop_zero] at p2 p3 p4
-  simp only [nodesRun,membersRun,partsRun,run2,run3,run4,countRun,startRun,sameRun,assertRun,roleRun,chainsRun,
+  simp only [nodesRun,membersRun,partsRun,empty_role_correct,conjoin_empty,partsIs,run2,run3,run4,countRun,startRun,sameRun,assertRun,roleRun,chainsRun,
     bind_ok]
   by_cases c1 : Proper parts.axioms
   swap
@@ -1333,7 +1419,7 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
         · simp at impossible
         · rw [zero,List.drop_zero] at itemIn
           exact assertionsIn item itemIn C m statement q.concept read a inFact,
-    room := room, joins := joins, parts := partsRun, facts := assertRun,
+    room := room, joins := joins, parts := ⟨parts0,partsRun,partsIs.symm⟩, facts := assertRun,
     boundOrigin := by
       intro q qIn
       rcases origin11 q qIn with in2 | refused
@@ -1357,7 +1443,8 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
 theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
     (data : PreparedData items p) : ∀ a ∈ items.val, SupportedAxiom a.axiom := by
   obtain ⟨result,run,support,_,_⟩ := class_parts_correct.{0,0} items
-  rw [data.parts] at run
+  obtain ⟨P,partsRun,_⟩ := data.parts
+  rw [partsRun] at run
   cases Result.ok_injective run
   exact support rfl
 
@@ -1694,23 +1781,34 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     · exact properExtra q given
     · exact data.factsProper q old
   let place := fun a => π (RepOf p.same.val p.nodes.val a)
+  obtain ⟨P,partsRun0,partsIs⟩ := data.parts
+  -- The TBox concept has `∀B.⊥`, so the empty role relates nothing.
+  have empty : ∀ x y, ¬ J.objectProperties bottomObject x y := by
+    intro x y
+    have holds := tbox x
+    rw [partsIs,with_empty_axioms] at holds
+    exact holds.2 y
   have valid := owl_model_valid.{u,v,w} J (π 0) place D V
   have fixes := fixes_of_interpretation valid
-  have agrees := owl_model_agrees.{u,v,w} J (π 0) place D
+  have agrees := owl_model_agrees.{u,v,w} J (π 0) place D empty
   have individualAt := individual_owl_model.{u,v,w} J (π 0) place D
-  have relation := owl_model_relation.{u,v,w} J (π 0) place D
+  have relation := owl_model_relation.{u,v,w} J (π 0) place D empty
   obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u, max w v} items
-  rw [data.parts] at partsRun'
+  rw [partsRun0] at partsRun'
   cases Result.ok_injective partsRun'
-  have partsHold : PartsHold (owlModel.{u,v,w} J (π 0) place D) p.parts := by
-    refine ⟨fun x => (agrees p.parts.axioms data.axiomsProper (fun a m => agree a (.inl m)) x).mpr (tbox x.down),?_⟩
+  have partsHold : PartsHold (owlModel.{u,v,w} J (π 0) place D) P := by
+    refine ⟨fun x => ?_,?_⟩
+    · have whole := (agrees p.parts.axioms data.axiomsProper (fun a m => agree a (.inl m)) x).mpr (tbox x.down)
+      rw [partsIs,with_empty_axioms] at whole
+      exact whole.1
     intro d member x classes
-    have proper := data.definitionsProper d member
+    have member' : d ∈ p.parts.definitions.val := by rw [partsIs]; exact member
+    have proper := data.definitionsProper d member'
     have classesJ : J.classes d.class x.down := by
       simpa [owlModel,proper.1.1,proper.1.2] using classes
-    exact (agrees d.concept proper.2 (fun a m => agree a (.inr (.inl ⟨d,member,m⟩))) x).mpr
-      (defs d member x.down classesJ)
-  have classParts := (partsMeaning p.parts rfl _ _ (owlModel.{u,v,w} J (π 0) place D) fixes).mp partsHold
+    exact (agrees d.concept proper.2 (fun a m => agree a (.inr (.inl ⟨d,member',m⟩))) x).mpr
+      (defs d member' x.down classesJ)
+  have classParts := (partsMeaning P rfl _ _ (owlModel.{u,v,w} J (π 0) place D) fixes).mp partsHold
   have rolesHold := (respectsIff Obj Unit J).1.mp respects
   have constraintsHold := (respectsIff Obj Unit J).2.mp constrained
   have chainsHold := (chainsIff Obj J).mp chained
@@ -1737,7 +1835,7 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         rw [statement] at proper
         simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation r proper.1 proper.2]
+        rw [relation r proper]
         rw [role,source,target] at holds
         exact holds
       | NegativeObjectPropertyAssertion r a b =>
@@ -1745,7 +1843,7 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         rw [statement] at proper
         simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation r proper.1 proper.2]
+        rw [relation r proper]
         exact negatives item member r a b statement
       | _ => simp [statement,Assertion] at assertion
     · by_cases equality : Equality item.axiom
@@ -1760,13 +1858,13 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
             (fun {a b} different equal => different (congrArg ULift.down equal))
         | _ => simp [statement,Equality] at equality
       · by_cases role : RoleAxiom item.axiom
-        · exact owl_model_role_axiom J (π 0) place D item.axiom role (data.rolesProper item member)
+        · exact owl_model_role_axiom J (π 0) place D empty item.axiom role (data.rolesProper item member)
             (rolesHold item member role)
         · by_cases constraint : ConstraintAxiom item.axiom
-          · exact owl_model_constraint_axiom J (π 0) place D item.axiom constraint (data.rolesProper item member)
+          · exact owl_model_constraint_axiom J (π 0) place D empty item.axiom constraint (data.rolesProper item member)
               (constraintsHold item member constraint)
           · by_cases chain : ChainAxiom item.axiom
-            · exact owl_model_chain_axiom J (π 0) place D item.axiom chain (data.rolesProper item member)
+            · exact owl_model_chain_axiom J (π 0) place D empty item.axiom chain (data.rolesProper item member)
                 (chainsHold item member chain)
             · rcases classParts item member with assertion' | equality' | role' | constraint' | chain' | holds
               · exact absurd assertion' assertion
@@ -1887,11 +1985,16 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
   rw [data.roles] at roleRun'
   cases Result.ok_injective roleRun'
   obtain ⟨closed,respectsIff⟩ := roleSpec p.roles rfl
+  obtain ⟨P,partsRun0,partsIs⟩ := data.parts
   obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u,v} items
-  rw [data.parts] at partsRun'
+  rw [partsRun0] at partsRun'
   cases Result.ok_injective partsRun'
-  have partsHold := (partsMeaning p.parts rfl _ _ (withAnonymous I g) fixes).mpr
+  have classHold := (partsMeaning P rfl _ _ (withAnonymous I g) fixes).mpr
     (fun item member => .inr (.inr (.inr (.inr (.inr (satisfied item member))))))
+  -- The empty role relates nothing in an OWL model, so `∀B.⊥` holds too.
+  have partsHold : PartsHold (withAnonymous I g) p.parts := by
+    rw [partsIs]
+    exact ⟨fun x => (with_empty_axioms _ P x).mpr ⟨classHold.1 x,valid.2.2.2.1 x⟩,classHold.2⟩
   obtain ⟨chainsResult,chainsRun',chainsSpec⟩ := chains_from_correct.{u,v} items 0#usize
     (alloc.vec.Vec.new role_chains.Chain)
   rw [data.chains] at chainsRun'

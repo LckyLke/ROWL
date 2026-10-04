@@ -810,6 +810,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Internalization.named_members_correct
 #print axioms Rowl.Internalization.axiom_concept_correct
 #print axioms Rowl.Internalization.internalize_correct
+#print axioms Rowl.AlcOntology.same_pattern_total
 #print axioms Rowl.AlcOntology.builtin_class_correct
 #print axioms Rowl.AlcOntology.builtin_role_correct
 #print axioms Rowl.AlcOntology.proper_correct
@@ -1264,6 +1265,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiRoles.chainRelation_along
 #print axioms Rowl.ShiRoles.chain_roles_correct
 #print axioms Rowl.ShiRoles.chains_from_correct
+#print axioms Rowl.ShiOntology.not_top_correct
+#print axioms Rowl.ShiOntology.empty_role_correct
 #print axioms Rowl.ShiOntology.proper_correct
 #print axioms Rowl.ShiOntology.counts_correct
 #print axioms Rowl.ShiOntology.definitions_count_correct
@@ -1285,6 +1288,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.owl_model_relation
 #print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
+#print axioms Rowl.ShiOntology.with_empty_axioms
 #print axioms Rowl.ShiOntology.constrained_correct
 #print axioms Rowl.ShiOntology.chained_correct
 #print axioms Rowl.ShiOntology.tangled_correct

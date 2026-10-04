@@ -1192,6 +1192,7 @@
       "module": "Rowl.AlcOntology",
       "namespace": "Rowl.AlcOntology",
       "theorems": [
+        "Rowl.AlcOntology.same_pattern_total",
         "Rowl.AlcOntology.builtin_class_correct",
         "Rowl.AlcOntology.builtin_role_correct",
         "Rowl.AlcOntology.proper_correct",
@@ -1766,6 +1767,8 @@
       "module": "Rowl.ShiOntology",
       "namespace": "Rowl.ShiOntology",
       "theorems": [
+        "Rowl.ShiOntology.not_top_correct",
+        "Rowl.ShiOntology.empty_role_correct",
         "Rowl.ShiOntology.proper_correct",
         "Rowl.ShiOntology.counts_correct",
         "Rowl.ShiOntology.definitions_count_correct",
@@ -1787,6 +1790,7 @@
         "Rowl.ShiOntology.owl_model_relation",
         "Rowl.ShiOntology.atLeast_lift",
         "Rowl.ShiOntology.owl_model_agrees",
+        "Rowl.ShiOntology.with_empty_axioms",
         "Rowl.ShiOntology.constrained_correct",
         "Rowl.ShiOntology.chained_correct",
         "Rowl.ShiOntology.tangled_correct",
