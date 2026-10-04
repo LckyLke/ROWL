@@ -13379,6 +13379,14607 @@ partial_fixpoint
 
 end
 
+/-- [rowl_kernel::data_ontology::Kinds]
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 68:0-74:1
+    Visibility: public -/
+structure data_ontology.Kinds where
+  integer : Bool
+  decimal : Bool
+  string : Bool
+  plain : Bool
+  boolean : Bool
+
+/-- [rowl_kernel::datatypes::DataValue]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 34:0-45:1
+    Visibility: public -/
+@[discriminant isize]
+inductive datatypes.DataValue where
+| Number :
+  Bool →
+  alloc.vec.Vec Std.U8 →
+  alloc.vec.Vec Std.U8 →
+  datatypes.DataValue
+| Text : alloc.vec.Vec Std.U8 → datatypes.DataValue
+| Tagged :
+  alloc.vec.Vec Std.U8 →
+  alloc.vec.Vec Std.U8 →
+  datatypes.DataValue
+| Truth : Bool → datatypes.DataValue
+
+/-- [rowl_kernel::data_ontology::Context]
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 79:0-84:1
+    Visibility: public -/
+structure data_ontology.Context where
+  values : alloc.vec.Vec datatypes.DataValue
+  kinds : data_ontology.Kinds
+  roles : alloc.vec.Vec model.ObjectProperty
+  data : alloc.vec.Vec model.DataProperty
+
+/-- [rowl_kernel::data_ontology::equal_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 86:0-92:1 -/
+def data_ontology.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         data_ontology.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::same_pattern]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 93:0-95:1 -/
+def data_ontology.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then data_ontology.equal_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::data_ontology::same_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 96:0-102:1 -/
+def data_ontology.same_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           data_ontology.same_from left right i4
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::same_bytes]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 103:0-105:1 -/
+def data_ontology.same_bytes
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then data_ontology.same_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::data_ontology::pattern_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 107:0-114:1 -/
+def data_ontology.pattern_from
+  (pattern : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len pattern
+  if index < i
+  then
+    let i1 ← Slice.index_usize pattern index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    data_ontology.pattern_from pattern i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::reserved]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 116:0-122:1 -/
+def data_ontology.reserved
+  (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len spelling
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        spelling 0#usize
+    ok (i1 = 0#u8)
+  else ok false
+
+/-- [rowl_kernel::data_ontology::is_top_object]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 123:0-128:1 -/
+def data_ontology.is_top_object
+  (property : model.ObjectProperty) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  data_ontology.same_pattern property.iri.spelling s
+
+/-- [rowl_kernel::data_ontology::is_top_data]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 129:0-134:1 -/
+def data_ontology.is_top_data
+  (property : model.DataProperty) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 45#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 68#u8, 97#u8, 116#u8, 97#u8,
+        80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+        ]))
+  data_ontology.same_pattern property.iri.spelling s
+
+/-- [rowl_kernel::data_ontology::is_bottom_data]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 135:0-140:1 -/
+def data_ontology.is_bottom_data
+  (property : model.DataProperty) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 48#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8, 68#u8,
+        97#u8, 116#u8, 97#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+        116#u8, 121#u8
+        ]))
+  data_ontology.same_pattern property.iri.spelling s
+
+/-- [rowl_kernel::data_ontology::is_thing]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 141:0-143:1 -/
+def data_ontology.is_thing («class» : model.Class) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  data_ontology.same_pattern «class».iri.spelling s
+
+/-- [rowl_kernel::data_ontology::is_literal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 144:0-149:1 -/
+def data_ontology.is_literal (datatype : model.Datatype) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8, 100#u8,
+        102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+        76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+        ]))
+  data_ontology.same_pattern datatype.iri.spelling s
+
+/-- [rowl_kernel::data_ontology::named]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 151:0-156:1 -/
+def data_ontology.named
+  (role : model.ObjectPropertyExpression) : Result model.ObjectProperty := do
+  match role with
+  | model.ObjectPropertyExpression.Property property => ok property
+  | model.ObjectPropertyExpression.Inverse property => ok property
+
+/-- [rowl_kernel::data_ontology::universal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 158:0-160:1 -/
+def data_ontology.universal
+  (role : model.ObjectPropertyExpression) : Result Bool := do
+  let op ← data_ontology.named role
+  data_ontology.is_top_object op
+
+/-- [rowl_kernel::data_ontology::any_universal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 168:0-178:1 -/
+def data_ontology.any_universal
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles index
+    let b ← data_ontology.universal ope
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         data_ontology.any_universal roles i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::members_universal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 180:0-182:1 -/
+def data_ontology.members_universal
+  (roles : model.AtLeastTwo model.ObjectPropertyExpression) : Result Bool := do
+  let b ← data_ontology.universal roles.first
+  if b
+  then ok true
+  else
+    let b1 ← data_ontology.universal roles.second
+    if b1
+    then ok true
+    else data_ontology.any_universal roles.rest 0#usize
+
+/-- [rowl_kernel::data_ontology::sub_universal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 184:0-189:1 -/
+def data_ontology.sub_universal
+  (sub : model.SubObjectPropertyExpression) : Result Bool := do
+  match sub with
+  | model.SubObjectPropertyExpression.Single role =>
+    data_ontology.universal role
+  | model.SubObjectPropertyExpression.Chain roles =>
+    data_ontology.members_universal roles
+
+/-- [rowl_kernel::data_ontology::bytes]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 190:0-197:1 -/
+def data_ontology.bytes
+  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if count < 8#usize
+  then
+    let i ← value % 256#usize
+    let i1 ← lift (UScalar.cast .U8 i)
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← value / 256#usize
+    let i3 ← count + 1#usize
+    data_ontology.bytes i2 i3 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::copy_after]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 206:0-213:1 -/
+def data_ontology.copy_after
+  (source : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len source
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) source
+        index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    data_ontology.copy_after source i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::tagged_name]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 199:0-204:1 -/
+def data_ontology.tagged_name
+  (tag : Std.U8) (rest : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 0#u8
+  let spelling1 ← alloc.vec.Vec.push spelling tag
+  data_ontology.copy_after rest 0#usize spelling1
+
+/-- [rowl_kernel::data_ontology::class_named]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 214:0-218:1 -/
+def data_ontology.class_named
+  (spelling : alloc.vec.Vec Std.U8) : Result model.ClassExpression := do
+  ok (model.ClassExpression.Class { iri := { spelling } })
+
+/-- [rowl_kernel::data_ontology::data_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 220:0-222:1 -/
+def data_ontology.data_class : Result model.ClassExpression := do
+  let v ← data_ontology.tagged_name 68#u8 (alloc.vec.Vec.new Std.U8)
+  data_ontology.class_named v
+
+/-- [rowl_kernel::data_ontology::object_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 224:0-226:1 -/
+def data_ontology.object_class : Result model.ClassExpression := do
+  let ce ← data_ontology.data_class
+  ok (model.ClassExpression.ObjectComplementOf ce)
+
+/-- [rowl_kernel::datatypes::Kind]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 49:0-55:1
+    Visibility: public -/
+@[discriminant isize]
+inductive datatypes.Kind where
+| Integer : datatypes.Kind
+| Decimal : datatypes.Kind
+| String : datatypes.Kind
+| Plain : datatypes.Kind
+| Boolean : datatypes.Kind
+
+/-- [rowl_kernel::data_ontology::kind_index]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 229:0-237:1 -/
+def data_ontology.kind_index (kind : datatypes.Kind) : Result Std.U8 := do
+  match kind with
+  | datatypes.Kind.Integer => ok 0#u8
+  | datatypes.Kind.Decimal => ok 1#u8
+  | datatypes.Kind.String => ok 2#u8
+  | datatypes.Kind.Plain => ok 3#u8
+  | datatypes.Kind.Boolean => ok 4#u8
+
+/-- [rowl_kernel::data_ontology::kind_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 239:0-243:1 -/
+def data_ontology.kind_class
+  (kind : datatypes.Kind) : Result model.ClassExpression := do
+  let i ← data_ontology.kind_index kind
+  let rest ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) i
+  let v ← data_ontology.tagged_name 65#u8 rest
+  data_ontology.class_named v
+
+/-- [rowl_kernel::data_ontology::bit_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 245:0-247:1 -/
+def data_ontology.bit_class
+  (position : Std.Usize) : Result model.ClassExpression := do
+  let v ← data_ontology.bytes position 0#usize (alloc.vec.Vec.new Std.U8)
+  let v1 ← data_ontology.tagged_name 66#u8 v
+  data_ontology.class_named v1
+
+/-- [rowl_kernel::data_ontology::value_individual]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 249:0-255:1 -/
+def data_ontology.value_individual
+  (index : Std.Usize) : Result model.Individual := do
+  let v ← data_ontology.bytes index 0#usize (alloc.vec.Vec.new Std.U8)
+  let v1 ← data_ontology.tagged_name 76#u8 v
+  ok (model.Individual.Named { iri := { spelling := v1 } })
+
+/-- [rowl_kernel::data_ontology::object_individual]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 257:0-263:1 -/
+def data_ontology.object_individual : Result model.Individual := do
+  let v ← data_ontology.tagged_name 79#u8 (alloc.vec.Vec.new Std.U8)
+  ok (model.Individual.Named { iri := { spelling := v } })
+
+/-- [rowl_kernel::data_ontology::thing]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 264:0-270:1 -/
+def data_ontology.thing : Result model.ClassExpression := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  let v ← data_ontology.pattern_from s 0#usize (alloc.vec.Vec.new Std.U8)
+  data_ontology.class_named v
+
+/-- [rowl_kernel::data_ontology::no_kinds]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 276:0-284:1 -/
+def data_ontology.no_kinds : Result data_ontology.Kinds := do
+  ok
+    {
+      integer := false,
+      decimal := false,
+      string := false,
+      plain := false,
+      boolean := false
+    }
+
+/-- [rowl_kernel::data_ontology::used]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 286:0-294:1 -/
+def data_ontology.used
+  (kinds : data_ontology.Kinds) (kind : datatypes.Kind) : Result Bool := do
+  match kind with
+  | datatypes.Kind.Integer => ok kinds.integer
+  | datatypes.Kind.Decimal => ok kinds.decimal
+  | datatypes.Kind.String => ok kinds.string
+  | datatypes.Kind.Plain => ok kinds.plain
+  | datatypes.Kind.Boolean => ok kinds.boolean
+
+/-- [rowl_kernel::data_ontology::with_kind]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 296:0-319:1 -/
+def data_ontology.with_kind
+  (kinds : data_ontology.Kinds) (kind : datatypes.Kind) :
+  Result data_ontology.Kinds
+  := do
+  match kind with
+  | datatypes.Kind.Integer => ok { kinds with integer := true }
+  | datatypes.Kind.Decimal => ok { kinds with decimal := true }
+  | datatypes.Kind.String => ok { kinds with string := true }
+  | datatypes.Kind.Plain => ok { kinds with plain := true }
+  | datatypes.Kind.Boolean => ok { kinds with boolean := true }
+
+/-- [rowl_kernel::datatypes::same_bytes_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 307:0-313:1 -/
+def datatypes.same_bytes_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           datatypes.same_bytes_from left right i4
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::same_bytes]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 314:0-316:1 -/
+def datatypes.same_bytes
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then datatypes.same_bytes_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::datatypes::same_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 318:0-337:1
+    Visibility: public -/
+def datatypes.same_value
+  (left : datatypes.DataValue) (right : datatypes.DataValue) :
+  Result Bool
+  := do
+  match left with
+  | datatypes.DataValue.Number a b c =>
+    match right with
+    | datatypes.DataValue.Number d e f =>
+      if a = d
+      then
+        let b1 ← datatypes.same_bytes b e
+        if b1
+        then datatypes.same_bytes c f
+        else ok false
+      else ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Text a =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text b => datatypes.same_bytes a b
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Tagged a b =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged c d =>
+      let b1 ← datatypes.same_bytes a c
+      if b1
+      then datatypes.same_bytes b d
+      else ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Truth a =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth b => ok (a = b)
+
+/-- [rowl_kernel::data_ontology::value_index]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 321:0-331:1 -/
+def data_ontology.value_index
+  (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let dv ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        datatypes.DataValue) values index
+    let b ← datatypes.same_value dv value
+    if b
+    then ok (some index)
+    else let i1 ← index + 1#usize
+         data_ontology.value_index values value i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::add_value]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 333:0-343:1 -/
+def data_ontology.add_value
+  (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue) :
+  Result (alloc.vec.Vec datatypes.DataValue)
+  := do
+  let o ← data_ontology.value_index values value 0#usize
+  match o with
+  | none =>
+    let i := alloc.vec.Vec.len values
+    if i < core.num.Usize.MAX
+    then alloc.vec.Vec.push values value
+    else ok values
+  | some _ => ok values
+
+/-- [rowl_kernel::data_ontology::has_role]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 344:0-354:1 -/
+def data_ontology.has_role
+  (roles : alloc.vec.Vec model.ObjectProperty)
+  (property : model.ObjectProperty) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) roles index
+    let b ← data_ontology.same_bytes op.iri.spelling property.iri.spelling
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         data_ontology.has_role roles property i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::has_data]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 355:0-365:1 -/
+def data_ontology.has_data
+  (data : alloc.vec.Vec model.DataProperty) (property : model.DataProperty)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len data
+  if index < i
+  then
+    let dp ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataProperty) data index
+    let b ← data_ontology.same_bytes dp.iri.spelling property.iri.spelling
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         data_ontology.has_data data property i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::add_role]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 366:0-382:1 -/
+def data_ontology.add_role
+  (context : data_ontology.Context) (role : model.ObjectPropertyExpression) :
+  Result data_ontology.Context
+  := do
+  let property ← data_ontology.named role
+  let b ← data_ontology.is_top_object property
+  if b
+  then ok context
+  else
+    let b1 ← data_ontology.reserved property.iri.spelling
+    if b1
+    then ok context
+    else
+      let b2 ← data_ontology.has_role context.roles property 0#usize
+      if b2
+      then ok context
+      else
+        let i := alloc.vec.Vec.len context.roles
+        if i = core.num.Usize.MAX
+        then ok context
+        else
+          let v ← nnf.copy_bytes property.iri.spelling
+          let v1 ←
+            alloc.vec.Vec.push context.roles ({ iri := { spelling := v } } :
+              model.ObjectProperty)
+          ok { context with roles := v1 }
+
+/-- [rowl_kernel::data_ontology::add_data]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 383:0-398:1 -/
+def data_ontology.add_data
+  (context : data_ontology.Context) (property : model.DataProperty) :
+  Result data_ontology.Context
+  := do
+  let b ← data_ontology.is_top_data property
+  if b
+  then ok context
+  else
+    let b1 ← data_ontology.is_bottom_data property
+    if b1
+    then ok context
+    else
+      let b2 ← data_ontology.has_data context.data property 0#usize
+      if b2
+      then ok context
+      else
+        let i := alloc.vec.Vec.len context.data
+        if i = core.num.Usize.MAX
+        then ok context
+        else
+          let v ← nnf.copy_bytes property.iri.spelling
+          let v1 ←
+            alloc.vec.Vec.push context.data ({ iri := { spelling := v } } :
+              model.DataProperty)
+          ok { context with data := v1 }
+
+/-- [rowl_kernel::datatypes::equal_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 57:0-63:1 -/
+def datatypes.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         datatypes.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::same_pattern]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 64:0-66:1 -/
+def datatypes.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then datatypes.equal_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::datatypes::truth_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 268:0-276:1 -/
+def datatypes.truth_value
+  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+  let b ← datatypes.same_pattern lexical s
+  if b
+  then ok (some (datatypes.DataValue.Truth true))
+  else
+    let s1 ← lift (Array.to_slice (Array.make 1#usize [ 49#u8 ]))
+    let b1 ← datatypes.same_pattern lexical s1
+    if b1
+    then ok (some (datatypes.DataValue.Truth true))
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+      let b2 ← datatypes.same_pattern lexical s2
+      if b2
+      then ok (some (datatypes.DataValue.Truth false))
+      else
+        let s3 ← lift (Array.to_slice (Array.make 1#usize [ 48#u8 ]))
+        let b3 ← datatypes.same_pattern lexical s3
+        if b3
+        then ok (some (datatypes.DataValue.Truth false))
+        else ok none
+
+/-- [rowl_kernel::unicode::continuation]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
+def unicode.continuation (byte : Std.U8) : Result Bool := do
+  ok ((byte >= 128#u8) && (byte <= 191#u8))
+
+/-- [rowl_kernel::unicode::four]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
+def unicode.four
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let b ← unicode.continuation second
+  let b1 ← unicode.continuation third
+  let b2 ← unicode.continuation fourth
+  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
+    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
+    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 240#u32
+    let i2 ← i1 * 262144#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 4096#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i8 * 64#u32
+    let i10 ← i6 + i9
+    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
+    let i12 ← i11 - 128#u32
+    let i13 ← i10 + i12
+    ok (some i13)
+  else ok none
+
+/-- [rowl_kernel::unicode::three]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
+def unicode.three
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let tail ← unicode.continuation second
+  let b ← unicode.continuation third
+  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
+    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
+    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
+    (first <= 239#u8)) && tail)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 224#u32
+    let i2 ← i1 * 4096#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 64#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i6 + i8
+    ok (some i9)
+  else ok none
+
+/-- [rowl_kernel::unicode::two]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
+def unicode.two
+  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
+  let b ← unicode.continuation second
+  if ((first >= 194#u8) && (first <= 223#u8)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 192#u32
+    let i2 ← i1 * 64#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i2 + i4
+    ok (some i5)
+  else ok none
+
+/-- [rowl_kernel::unicode::TextError]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextError where
+| InvalidPosition : Std.Usize → unicode.TextError
+| InvalidUtf8 : Std.Usize → unicode.TextError
+| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
+
+/-- [rowl_kernel::unicode::Decoded]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Decoded where
+| End : unicode.Decoded
+| Scalar : Std.U32 → Std.Usize → unicode.Decoded
+| Error : unicode.TextError → unicode.Decoded
+
+/-- [rowl_kernel::unicode::decode_next]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
+    Visibility: public -/
+def unicode.decode_next
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.Decoded
+  := do
+  let length := alloc.vec.Vec.len bytes
+  if offset > length
+  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
+  else
+    if offset = length
+    then ok unicode.Decoded.End
+    else
+      let first ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes offset
+      if first < 128#u8
+      then
+        let i ← lift (core.convert.num.FromU32U8.from first)
+        let i1 ← offset + 1#usize
+        ok (unicode.Decoded.Scalar i i1)
+      else
+        let remaining ← length - offset
+        if first < 224#u8
+        then
+          if remaining >= 2#usize
+          then
+            let i ← offset + 1#usize
+            let i1 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                Std.U8) bytes i
+            let o ← unicode.two first i1
+            match o with
+            | none =>
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+            | some codepoint =>
+              let i2 ← offset + 2#usize
+              ok (unicode.Decoded.Scalar codepoint i2)
+          else
+            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+        else
+          if first < 240#u8
+          then
+            if remaining >= 3#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let o ← unicode.three first i1 i3
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i4 ← offset + 3#usize
+                ok (unicode.Decoded.Scalar codepoint i4)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+          else
+            if remaining >= 4#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let i4 ← offset + 3#usize
+              let i5 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i4
+              let o ← unicode.four first i1 i3 i5
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i6 ← offset + 4#usize
+                ok (unicode.Decoded.Scalar codepoint i6)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+
+/-- [rowl_kernel::regular::Expression]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.Expression where
+| Empty : regular.Expression
+| Epsilon : regular.Expression
+| Interval : Std.U32 → Std.U32 → regular.Expression
+| Alternative :
+  regular.Expression →
+  regular.Expression →
+  regular.Expression
+| Sequence : regular.Expression → regular.Expression → regular.Expression
+| Repeat : regular.Expression → regular.Expression
+
+/-- [rowl_kernel::regular::repeat]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 71:0-76:1
+    Visibility: public -/
+def regular.repeat
+  (expression : regular.Expression) : Result regular.Expression := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Epsilon
+  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+  | regular.Expression.Interval _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Alternative _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Sequence _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Repeat _ => ok (regular.Expression.Repeat expression)
+
+/-- [rowl_kernel::regular::sequence]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 62:0-69:1
+    Visibility: public -/
+def regular.sequence
+  (left : regular.Expression) (right : regular.Expression) :
+  Result regular.Expression
+  := do
+  match left with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+    | regular.Expression.Interval _ _ => ok right
+    | regular.Expression.Alternative _ _ => ok right
+    | regular.Expression.Sequence _ _ => ok right
+    | regular.Expression.Repeat _ => ok right
+  | regular.Expression.Interval _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Alternative _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Sequence _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Repeat _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+
+/-- [rowl_kernel::regular::alternate]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 54:0-60:1
+    Visibility: public -/
+def regular.alternate
+  (left : regular.Expression) (right : regular.Expression) :
+  Result regular.Expression
+  := do
+  match left with
+  | regular.Expression.Empty => ok right
+  | regular.Expression.Epsilon =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Epsilon
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon
+        regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+  | regular.Expression.Interval _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Alternative _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Sequence _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Repeat _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+
+/-- [rowl_kernel::regular::nullable]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 45:0-52:1
+    Visibility: public -/
+def regular.nullable (expression : regular.Expression) : Result Bool := do
+  match expression with
+  | regular.Expression.Empty => ok false
+  | regular.Expression.Epsilon => ok true
+  | regular.Expression.Interval _ _ => ok false
+  | regular.Expression.Alternative left right =>
+    let b ← regular.nullable left
+    if b
+    then ok true
+    else regular.nullable right
+  | regular.Expression.Sequence left right =>
+    let b ← regular.nullable left
+    if b
+    then regular.nullable right
+    else ok false
+  | regular.Expression.Repeat _ => ok true
+partial_fixpoint
+
+/-- [rowl_kernel::regular::copy_expression]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 25:0-43:1
+    Visibility: public -/
+def regular.copy_expression
+  (expression : regular.Expression) : Result regular.Expression := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+  | regular.Expression.Interval _ _ => ok expression
+  | regular.Expression.Alternative left right =>
+    let e ← regular.copy_expression left
+    let e1 ← regular.copy_expression right
+    ok (regular.Expression.Alternative e e1)
+  | regular.Expression.Sequence left right =>
+    let e ← regular.copy_expression left
+    let e1 ← regular.copy_expression right
+    ok (regular.Expression.Sequence e e1)
+  | regular.Expression.Repeat inner =>
+    let e ← regular.copy_expression inner
+    ok (regular.Expression.Repeat e)
+partial_fixpoint
+
+/-- [rowl_kernel::regular::derivative]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 80:0-108:1
+    Visibility: public -/
+def regular.derivative
+  (expression : regular.Expression) (codepoint : Std.U32) :
+  Result regular.Expression
+  := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon => ok regular.Expression.Empty
+  | regular.Expression.Interval lower upper =>
+    if lower <= codepoint
+    then
+      if codepoint <= upper
+      then ok regular.Expression.Epsilon
+      else ok regular.Expression.Empty
+    else ok regular.Expression.Empty
+  | regular.Expression.Alternative left right =>
+    let e ← regular.derivative left codepoint
+    let e1 ← regular.derivative right codepoint
+    regular.alternate e e1
+  | regular.Expression.Sequence left right =>
+    let accepts_empty ← regular.nullable left
+    let right_derivative ←
+      if accepts_empty
+      then
+        do
+        let e ← regular.copy_expression right
+        regular.derivative e codepoint
+      else ok regular.Expression.Empty
+    let e ← regular.derivative left codepoint
+    let joined ← regular.sequence e right
+    regular.alternate joined right_derivative
+  | regular.Expression.Repeat inner =>
+    let original ← regular.copy_expression inner
+    let e ← regular.derivative inner codepoint
+    let e1 ← regular.repeat original
+    regular.sequence e e1
+partial_fixpoint
+
+/-- [rowl_kernel::regular::MatchResult]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.MatchResult where
+| Matched : Bool → regular.MatchResult
+| MalformedUtf8 : unicode.TextError → regular.MatchResult
+
+/-- [rowl_kernel::regular::match_from]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 110:0-118:1 -/
+def regular.match_from
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
+  (offset : Std.Usize) :
+  Result regular.MatchResult
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End =>
+    let b ← regular.nullable expression
+    ok (regular.MatchResult.Matched b)
+  | unicode.Decoded.Scalar codepoint next =>
+    let e ← regular.derivative expression codepoint
+    regular.match_from e bytes next
+  | unicode.Decoded.Error error => ok (regular.MatchResult.MalformedUtf8 error)
+partial_fixpoint
+
+/-- [rowl_kernel::regular::matches_utf8]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 123:0-125:1
+    Visibility: public -/
+def regular.matches_utf8
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
+  Result regular.MatchResult
+  := do
+  regular.match_from expression bytes 0#usize
+
+/-- [rowl_kernel::langtag::cat]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 16:0-18:1 -/
+def langtag.cat
+  (a : regular.Expression) (b : regular.Expression) :
+  Result regular.Expression
+  := do
+  ok (regular.Expression.Sequence a b)
+
+/-- [rowl_kernel::langtag::range]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 7:0-9:1 -/
+def langtag.range
+  (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
+  ok (regular.Expression.Interval lower upper)
+
+/-- [rowl_kernel::langtag::ch]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 10:0-12:1 -/
+def langtag.ch (cp : Std.U32) : Result regular.Expression := do
+  langtag.range cp cp
+
+/-- [rowl_kernel::langtag::dashed]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 63:0-65:1 -/
+def langtag.dashed (a : regular.Expression) : Result regular.Expression := do
+  let e ← langtag.ch 45#u32
+  langtag.cat e a
+
+/-- [rowl_kernel::langtag::digit]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 48:0-50:1 -/
+def langtag.digit : Result regular.Expression := do
+  langtag.range 48#u32 57#u32
+
+/-- [rowl_kernel::langtag::alt]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 13:0-15:1 -/
+def langtag.alt
+  (a : regular.Expression) (b : regular.Expression) :
+  Result regular.Expression
+  := do
+  ok (regular.Expression.Alternative a b)
+
+/-- [rowl_kernel::langtag::alpha]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 45:0-47:1 -/
+def langtag.alpha : Result regular.Expression := do
+  let e ← langtag.range 65#u32 90#u32
+  let e1 ← langtag.range 97#u32 122#u32
+  langtag.alt e e1
+
+/-- [rowl_kernel::langtag::alnum]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 51:0-53:1 -/
+def langtag.alnum : Result regular.Expression := do
+  let e ← langtag.alpha
+  let e1 ← langtag.digit
+  langtag.alt e e1
+
+/-- [rowl_kernel::langtag::opt]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 19:0-21:1 -/
+def langtag.opt (a : regular.Expression) : Result regular.Expression := do
+  langtag.alt regular.Expression.Epsilon a
+
+/-- [rowl_kernel::langtag::up_to]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 35:0-41:1 -/
+def langtag.up_to
+  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
+  if n = 0#u8
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression a
+    let i ← n - 1#u8
+    let e1 ← langtag.up_to a i
+    let e2 ← langtag.cat e e1
+    langtag.opt e2
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::exact]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 28:0-34:1 -/
+def langtag.exact
+  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
+  if n = 0#u8
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression a
+    let i ← n - 1#u8
+    let e1 ← langtag.exact a i
+    langtag.cat e e1
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::between]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 42:0-44:1 -/
+def langtag.between
+  (a : regular.Expression) (lower : Std.U8) (extra : Std.U8) :
+  Result regular.Expression
+  := do
+  let e ← langtag.exact a lower
+  let e1 ← langtag.up_to a extra
+  langtag.cat e e1
+
+/-- [rowl_kernel::langtag::star]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 22:0-24:1 -/
+def langtag.star (a : regular.Expression) : Result regular.Expression := do
+  ok (regular.Expression.Repeat a)
+
+/-- [rowl_kernel::langtag::plus]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 25:0-27:1 -/
+def langtag.plus (a : regular.Expression) : Result regular.Expression := do
+  let e ← regular.copy_expression a
+  let e1 ← langtag.star a
+  langtag.cat e e1
+
+/-- [rowl_kernel::langtag::private_use]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 106:0-108:1 -/
+def langtag.private_use : Result regular.Expression := do
+  let e ← langtag.ch 120#u32
+  let e1 ← langtag.ch 88#u32
+  let e2 ← langtag.alt e e1
+  let e3 ← langtag.alnum
+  let e4 ← langtag.between e3 1#u8 7#u8
+  let e5 ← langtag.dashed e4
+  let e6 ← langtag.plus e5
+  langtag.cat e2 e6
+
+/-- [rowl_kernel::langtag::singleton]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 54:0-62:1 -/
+def langtag.singleton : Result regular.Expression := do
+  let e ← langtag.digit
+  let e1 ← langtag.range 65#u32 87#u32
+  let e2 ← langtag.range 89#u32 90#u32
+  let e3 ← langtag.alt e1 e2
+  let e4 ← langtag.range 97#u32 119#u32
+  let e5 ← langtag.range 121#u32 122#u32
+  let e6 ← langtag.alt e4 e5
+  let e7 ← langtag.alt e3 e6
+  langtag.alt e e7
+
+/-- [rowl_kernel::langtag::extension]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 103:0-105:1 -/
+def langtag.extension : Result regular.Expression := do
+  let e ← langtag.singleton
+  let e1 ← langtag.alnum
+  let e2 ← langtag.between e1 2#u8 6#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.plus e3
+  langtag.cat e e4
+
+/-- [rowl_kernel::langtag::variant]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 100:0-102:1 -/
+def langtag.variant : Result regular.Expression := do
+  let e ← langtag.alnum
+  let e1 ← langtag.between e 5#u8 3#u8
+  let e2 ← langtag.digit
+  let e3 ← langtag.exact e 3#u8
+  let e4 ← langtag.cat e2 e3
+  langtag.alt e1 e4
+
+/-- [rowl_kernel::langtag::language]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 93:0-99:1 -/
+def langtag.language : Result regular.Expression := do
+  let e ← langtag.alpha
+  let e1 ← langtag.exact e 3#u8
+  let e2 ← langtag.exact e 3#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.up_to e3 2#u8
+  let extlang ← langtag.cat e1 e4
+  let e5 ← langtag.between e 2#u8 1#u8
+  let e6 ← langtag.dashed extlang
+  let e7 ← langtag.opt e6
+  let e8 ← langtag.cat e5 e7
+  let e9 ← langtag.exact e 4#u8
+  let e10 ← langtag.between e 5#u8 3#u8
+  let e11 ← langtag.alt e9 e10
+  langtag.alt e8 e11
+
+/-- [rowl_kernel::langtag::langtag]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 109:0-123:1 -/
+def langtag.langtag : Result regular.Expression := do
+  let e ← langtag.language
+  let e1 ← langtag.alpha
+  let e2 ← langtag.exact e1 4#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.opt e3
+  let e5 ← langtag.exact e1 2#u8
+  let e6 ← langtag.digit
+  let e7 ← langtag.exact e6 3#u8
+  let e8 ← langtag.alt e5 e7
+  let e9 ← langtag.dashed e8
+  let e10 ← langtag.opt e9
+  let e11 ← langtag.variant
+  let e12 ← langtag.dashed e11
+  let e13 ← langtag.star e12
+  let e14 ← langtag.extension
+  let e15 ← langtag.dashed e14
+  let e16 ← langtag.star e15
+  let e17 ← langtag.private_use
+  let e18 ← langtag.dashed e17
+  let e19 ← langtag.opt e18
+  let e20 ← langtag.cat e16 e19
+  let e21 ← langtag.cat e13 e20
+  let e22 ← langtag.cat e10 e21
+  let e23 ← langtag.cat e4 e22
+  langtag.cat e e23
+
+/-- [rowl_kernel::langtag::literal_from]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 66:0-78:1 -/
+def langtag.literal_from
+  (bytes : Slice Std.U8) (position : Std.Usize) :
+  Result regular.Expression
+  := do
+  let i := Slice.len bytes
+  if position = i
+  then ok regular.Expression.Epsilon
+  else
+    let i1 ← Slice.index_usize bytes position
+    let value ← lift (core.convert.num.FromU32U8.from i1)
+    let token ←
+      if value >= 97#u32
+      then
+        if value <= 122#u32
+        then
+          do
+          let e ← langtag.ch value
+          let i2 ← value - 32#u32
+          let e1 ← langtag.ch i2
+          langtag.alt e e1
+        else langtag.ch value
+      else langtag.ch value
+    let i2 ← position + 1#usize
+    let e ← langtag.literal_from bytes i2
+    langtag.cat token e
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::literal]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 79:0-81:1 -/
+def langtag.literal (bytes : Slice Std.U8) : Result regular.Expression := do
+  langtag.literal_from bytes 0#usize
+
+/-- [rowl_kernel::langtag::grandfathered]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 82:0-92:1 -/
+def langtag.grandfathered : Result regular.Expression := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        101#u8, 110#u8, 45#u8, 103#u8, 98#u8, 45#u8, 111#u8, 101#u8, 100#u8
+        ]))
+  let e ← langtag.literal s
+  let s1 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 97#u8, 109#u8, 105#u8 ]))
+  let e1 ← langtag.literal s1
+  let s2 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 98#u8, 110#u8, 110#u8 ]))
+  let e2 ← langtag.literal s2
+  let s3 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        105#u8, 45#u8, 100#u8, 101#u8, 102#u8, 97#u8, 117#u8, 108#u8, 116#u8
+        ]))
+  let e3 ← langtag.literal s3
+  let s4 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        105#u8, 45#u8, 101#u8, 110#u8, 111#u8, 99#u8, 104#u8, 105#u8, 97#u8,
+        110#u8
+        ]))
+  let e4 ← langtag.literal s4
+  let s5 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 104#u8, 97#u8, 107#u8 ]))
+  let e5 ← langtag.literal s5
+  let s6 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        105#u8, 45#u8, 107#u8, 108#u8, 105#u8, 110#u8, 103#u8, 111#u8, 110#u8
+        ]))
+  let e6 ← langtag.literal s6
+  let s7 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 108#u8, 117#u8, 120#u8 ]))
+  let e7 ← langtag.literal s7
+  let s8 ←
+    lift (Array.to_slice
+      (Array.make 7#usize [
+        105#u8, 45#u8, 109#u8, 105#u8, 110#u8, 103#u8, 111#u8
+        ]))
+  let e8 ← langtag.literal s8
+  let s9 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        105#u8, 45#u8, 110#u8, 97#u8, 118#u8, 97#u8, 106#u8, 111#u8
+        ]))
+  let e9 ← langtag.literal s9
+  let s10 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 112#u8, 119#u8, 110#u8 ]))
+  let e10 ← langtag.literal s10
+  let s11 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 111#u8 ]))
+  let e11 ← langtag.literal s11
+  let s12 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 121#u8 ]))
+  let e12 ← langtag.literal s12
+  let s13 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 115#u8, 117#u8 ]))
+  let e13 ← langtag.literal s13
+  let s14 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 102#u8, 114#u8
+        ]))
+  let e14 ← langtag.literal s14
+  let s15 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 110#u8, 108#u8
+        ]))
+  let e15 ← langtag.literal s15
+  let s16 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 99#u8, 104#u8, 45#u8, 100#u8, 101#u8
+        ]))
+  let e16 ← langtag.literal s16
+  let s17 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        97#u8, 114#u8, 116#u8, 45#u8, 108#u8, 111#u8, 106#u8, 98#u8, 97#u8,
+        110#u8
+        ]))
+  let e17 ← langtag.literal s17
+  let s18 ←
+    lift (Array.to_slice
+      (Array.make 11#usize [
+        99#u8, 101#u8, 108#u8, 45#u8, 103#u8, 97#u8, 117#u8, 108#u8, 105#u8,
+        115#u8, 104#u8
+        ]))
+  let e18 ← langtag.literal s18
+  let s19 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 98#u8, 111#u8, 107#u8 ]))
+  let e19 ← langtag.literal s19
+  let s20 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 110#u8, 121#u8, 110#u8 ]))
+  let e20 ← langtag.literal s20
+  let s21 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 103#u8, 117#u8, 111#u8, 121#u8, 117#u8
+        ]))
+  let e21 ← langtag.literal s21
+  let s22 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 104#u8, 97#u8, 107#u8, 107#u8, 97#u8
+        ]))
+  let e22 ← langtag.literal s22
+  let s23 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8 ]))
+  let e23 ← langtag.literal s23
+  let s24 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8, 45#u8, 110#u8, 97#u8,
+        110#u8
+        ]))
+  let e24 ← langtag.literal s24
+  let s25 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 120#u8, 105#u8, 97#u8, 110#u8, 103#u8
+        ]))
+  let e25 ← langtag.literal s25
+  let e26 ← langtag.alt e24 e25
+  let e27 ← langtag.alt e23 e26
+  let e28 ← langtag.alt e22 e27
+  let e29 ← langtag.alt e21 e28
+  let e30 ← langtag.alt e20 e29
+  let e31 ← langtag.alt e19 e30
+  let e32 ← langtag.alt e18 e31
+  let e33 ← langtag.alt e17 e32
+  let e34 ← langtag.alt e16 e33
+  let e35 ← langtag.alt e15 e34
+  let e36 ← langtag.alt e14 e35
+  let e37 ← langtag.alt e13 e36
+  let e38 ← langtag.alt e12 e37
+  let e39 ← langtag.alt e11 e38
+  let e40 ← langtag.alt e10 e39
+  let e41 ← langtag.alt e9 e40
+  let e42 ← langtag.alt e8 e41
+  let e43 ← langtag.alt e7 e42
+  let e44 ← langtag.alt e6 e43
+  let e45 ← langtag.alt e5 e44
+  let e46 ← langtag.alt e4 e45
+  let e47 ← langtag.alt e3 e46
+  let e48 ← langtag.alt e2 e47
+  let e49 ← langtag.alt e1 e48
+  langtag.alt e e49
+
+/-- [rowl_kernel::langtag::grammar]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 126:0-128:1
+    Visibility: public -/
+def langtag.grammar : Result regular.Expression := do
+  let e ← langtag.langtag
+  let e1 ← langtag.private_use
+  let e2 ← langtag.grandfathered
+  let e3 ← langtag.alt e1 e2
+  langtag.alt e e3
+
+/-- [rowl_kernel::langtag::well_formed]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 135:0-137:1
+    Visibility: public -/
+def langtag.well_formed (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let e ← langtag.grammar
+  let mr ← regular.matches_utf8 e bytes
+  match mr with
+  | regular.MatchResult.Matched b => if b
+                                     then ok true
+                                     else ok false
+  | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::datatypes::lower]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 223:0-229:1 -/
+def datatypes.lower (byte : Std.U8) : Result Std.U8 := do
+  if (65#u8 <= byte) && (byte <= 90#u8)
+  then byte + 32#u8
+  else ok byte
+
+/-- [rowl_kernel::datatypes::lower_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 231:0-238:1 -/
+def datatypes.lower_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i2 ← datatypes.lower i1
+    let out1 ← alloc.vec.Vec.push out i2
+    let i3 ← index + 1#usize
+    datatypes.lower_from bytes i3 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::tagged_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 240:0-248:1 -/
+def datatypes.tagged_value
+  (text : alloc.vec.Vec Std.U8) (tag : alloc.vec.Vec Std.U8) :
+  Result (Option datatypes.DataValue)
+  := do
+  let i := alloc.vec.Vec.len tag
+  if i = 0#usize
+  then ok (some (datatypes.DataValue.Text text))
+  else
+    let b ← langtag.well_formed tag
+    if b
+    then
+      let v ← datatypes.lower_from tag 0#usize (alloc.vec.Vec.new Std.U8)
+      ok (some (datatypes.DataValue.Tagged text v))
+    else ok none
+
+/-- [rowl_kernel::datatypes::last_byte]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 211:0-221:1 -/
+def datatypes.last_byte
+  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if 0#usize < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if «end» <= i
+    then
+      let i1 ← «end» - 1#usize
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes i1
+      if i2 = byte
+      then ok i1
+      else datatypes.last_byte bytes byte i1
+    else ok (alloc.vec.Vec.len bytes)
+  else ok (alloc.vec.Vec.len bytes)
+partial_fixpoint
+
+/-- [rowl_kernel::unicode::xml_character]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 137:0-144:1
+    Visibility: public -/
+def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
+  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
+    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
+    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
+    (codepoint <= 1114111#u32)))
+
+/-- [rowl_kernel::unicode::Scalars]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Scalars where
+| Empty : unicode.Scalars
+| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
+
+/-- [rowl_kernel::unicode::TextScan]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextScan where
+| Valid : unicode.Scalars → unicode.TextScan
+| Invalid : unicode.TextError → unicode.TextScan
+
+/-- [rowl_kernel::unicode::read_from]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
+def unicode.read_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.TextScan
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
+  | unicode.Decoded.Scalar codepoint next =>
+    let b ← unicode.xml_character codepoint
+    if b
+    then
+      let ts ← unicode.read_from bytes next
+      match ts with
+      | unicode.TextScan.Valid tail =>
+        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
+          tail))
+      | unicode.TextScan.Invalid _ => ok ts
+    else
+      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
+        codepoint))
+  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
+partial_fixpoint
+
+/-- [rowl_kernel::unicode::read_text]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
+    Visibility: public -/
+def unicode.read_text
+  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
+  unicode.read_from bytes 0#usize
+
+/-- [rowl_kernel::datatypes::xml_text]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 204:0-209:1 -/
+def datatypes.xml_text (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let ts ← unicode.read_text bytes
+  match ts with
+  | unicode.TextScan.Valid _ => ok true
+  | unicode.TextScan.Invalid _ => ok false
+
+/-- [rowl_kernel::datatypes::copy_range]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 128:0-135:1 -/
+def datatypes.copy_range
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      let out1 ← alloc.vec.Vec.push out i1
+      let i2 ← index + 1#usize
+      datatypes.copy_range bytes i2 «end» out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::plain_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 251:0-266:1 -/
+def datatypes.plain_value
+  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
+  let i := alloc.vec.Vec.len lexical
+  let «at» ← datatypes.last_byte lexical 64#u8 i
+  let i1 := alloc.vec.Vec.len lexical
+  if «at» < i1
+  then
+    let text ←
+      datatypes.copy_range lexical 0#usize «at» (alloc.vec.Vec.new Std.U8)
+    let b ← datatypes.xml_text text
+    if b
+    then
+      let i2 ← «at» + 1#usize
+      let i3 := alloc.vec.Vec.len lexical
+      let v ← datatypes.copy_range lexical i2 i3 (alloc.vec.Vec.new Std.U8)
+      datatypes.tagged_value text v
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::datatypes::is_digit]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 88:0-90:1 -/
+def datatypes.is_digit (byte : Std.U8) : Result Bool := do
+  ok ((48#u8 <= byte) && (byte <= 57#u8))
+
+/-- [rowl_kernel::datatypes::digits_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 92:0-102:1 -/
+def datatypes.digits_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      let b ← datatypes.is_digit i1
+      if b
+      then let i2 ← index + 1#usize
+           datatypes.digits_from bytes i2 «end»
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::shaped]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 183:0-189:1 -/
+def datatypes.shaped
+  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) (start : Std.Usize)
+  (dot : Std.Usize) (after : Std.Usize) :
+  Result Bool
+  := do
+  let length := alloc.vec.Vec.len lexical
+  if whole
+  then
+    if dot < length
+    then ok false
+    else
+      let b ← datatypes.digits_from lexical start dot
+      if b
+      then
+        let b1 ← datatypes.digits_from lexical after length
+        if b1
+        then
+          let b2 ← if dot = start
+                     then ok (after = length)
+                     else ok false
+          ok (¬ b2)
+        else ok false
+      else ok false
+  else
+    let b ← datatypes.digits_from lexical start dot
+    if b
+    then
+      let b1 ← datatypes.digits_from lexical after length
+      if b1
+      then
+        let b2 ← if dot = start
+                   then ok (after = length)
+                   else ok false
+        ok (¬ b2)
+      else ok false
+    else ok false
+
+/-- [rowl_kernel::datatypes::trim_zeros]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 116:0-126:1 -/
+def datatypes.trim_zeros
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if start < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if «end» <= i
+    then
+      let i1 ← «end» - 1#usize
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes i1
+      if i2 = 48#u8
+      then datatypes.trim_zeros bytes start i1
+      else ok «end»
+    else ok start
+  else ok start
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::skip_zeros]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 104:0-114:1 -/
+def datatypes.skip_zeros
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      if i1 = 48#u8
+      then let i2 ← index + 1#usize
+           datatypes.skip_zeros bytes i2 «end»
+      else ok index
+    else ok «end»
+  else ok «end»
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::number_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 166:0-179:1 -/
+def datatypes.number_from
+  (lexical : alloc.vec.Vec Std.U8) (negative : Bool) (start : Std.Usize)
+  (dot : Std.Usize) (after : Std.Usize) :
+  Result datatypes.DataValue
+  := do
+  let first ← datatypes.skip_zeros lexical start dot
+  let i := alloc.vec.Vec.len lexical
+  let last ← datatypes.trim_zeros lexical after i
+  let integer ←
+    datatypes.copy_range lexical first dot (alloc.vec.Vec.new Std.U8)
+  let fraction ←
+    datatypes.copy_range lexical after last (alloc.vec.Vec.new Std.U8)
+  let i1 := alloc.vec.Vec.len integer
+  let zero ←
+    if i1 = 0#usize
+    then let i2 := alloc.vec.Vec.len fraction
+         ok (i2 = 0#usize)
+    else ok false
+  if negative
+  then ok (datatypes.DataValue.Number (¬ zero) integer fraction)
+  else ok (datatypes.DataValue.Number false integer fraction)
+
+/-- [rowl_kernel::datatypes::minus]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 157:0-163:1 -/
+def datatypes.minus (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len lexical
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        lexical 0#usize
+    ok (i1 = 45#u8)
+  else ok false
+
+/-- [rowl_kernel::datatypes::signed]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 149:0-155:1 -/
+def datatypes.signed (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len lexical
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        lexical 0#usize
+    if i1 = 43#u8
+    then ok true
+    else ok (i1 = 45#u8)
+  else ok false
+
+/-- [rowl_kernel::datatypes::find_byte]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 137:0-147:1 -/
+def datatypes.find_byte
+  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = byte
+    then ok index
+    else let i2 ← index + 1#usize
+         datatypes.find_byte bytes byte i2
+  else ok (alloc.vec.Vec.len bytes)
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::number_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 192:0-202:1 -/
+def datatypes.number_value
+  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) :
+  Result (Option datatypes.DataValue)
+  := do
+  let length := alloc.vec.Vec.len lexical
+  let b ← datatypes.signed lexical
+  let start ← if b
+                then ok 1#usize
+                else ok 0#usize
+  let dot ← datatypes.find_byte lexical 46#u8 start
+  let after ← if dot < length
+                then dot + 1#usize
+                else ok length
+  let b1 ← datatypes.shaped lexical whole start dot after
+  if b1
+  then
+    let b2 ← datatypes.minus lexical
+    let dv ← datatypes.number_from lexical b2 start dot after
+    ok (some dv)
+  else ok none
+
+/-- [rowl_kernel::datatypes::kind_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 279:0-298:1
+    Visibility: public -/
+def datatypes.kind_value
+  (kind : datatypes.Kind) (lexical : alloc.vec.Vec Std.U8) :
+  Result (Option datatypes.DataValue)
+  := do
+  match kind with
+  | datatypes.Kind.Integer => datatypes.number_value lexical true
+  | datatypes.Kind.Decimal => datatypes.number_value lexical false
+  | datatypes.Kind.String =>
+    let b ← datatypes.xml_text lexical
+    if b
+    then
+      let i := alloc.vec.Vec.len lexical
+      let v ←
+        datatypes.copy_range lexical 0#usize i (alloc.vec.Vec.new Std.U8)
+      ok (some (datatypes.DataValue.Text v))
+    else ok none
+  | datatypes.Kind.Plain => datatypes.plain_value lexical
+  | datatypes.Kind.Boolean => datatypes.truth_value lexical
+
+/-- [rowl_kernel::datatypes::kind_of]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 68:0-86:1
+    Visibility: public -/
+def datatypes.kind_of
+  (datatype : model.Datatype) : Result (Option datatypes.Kind) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8,
+        103#u8, 101#u8, 114#u8
+        ]))
+  let b ← datatypes.same_pattern datatype.iri.spelling s
+  if b
+  then ok (some datatypes.Kind.Integer)
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 40#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+          104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 101#u8, 99#u8, 105#u8,
+          109#u8, 97#u8, 108#u8
+          ]))
+    let b1 ← datatypes.same_pattern datatype.iri.spelling s1
+    if b1
+    then ok (some datatypes.Kind.Decimal)
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 39#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8,
+            116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+            ]))
+      let b2 ← datatypes.same_pattern datatype.iri.spelling s2
+      if b2
+      then ok (some datatypes.Kind.String)
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 55#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+              115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
+              105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+              ]))
+        let b3 ← datatypes.same_pattern datatype.iri.spelling s3
+        if b3
+        then ok (some datatypes.Kind.Plain)
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 40#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+                76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+                98#u8, 111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
+                ]))
+          let b4 ← datatypes.same_pattern datatype.iri.spelling s4
+          if b4
+          then ok (some datatypes.Kind.Boolean)
+          else ok none
+
+/-- [rowl_kernel::datatypes::literal_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 301:0-306:1
+    Visibility: public -/
+def datatypes.literal_value
+  (literal : model.Literal) : Result (Option datatypes.DataValue) := do
+  let o ← datatypes.kind_of literal.datatype
+  match o with
+  | none => ok none
+  | some kind => datatypes.kind_value kind literal.lexical
+
+/-- [rowl_kernel::data_ontology::add_literal]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 399:0-407:1 -/
+def data_ontology.add_literal
+  (context : data_ontology.Context) (literal : model.Literal) :
+  Result data_ontology.Context
+  := do
+  let o ← datatypes.literal_value literal
+  match o with
+  | none => ok context
+  | some value =>
+    let v ← data_ontology.add_value context.values value
+    ok { context with values := v }
+
+/-- [rowl_kernel::data_ontology::literals_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 408:0-414:1 -/
+def data_ontology.literals_context
+  (context : data_ontology.Context) (literals : alloc.vec.Vec model.Literal)
+  (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len literals
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Literal)
+        literals index
+    let c ← data_ontology.add_literal context l
+    let i1 ← index + 1#usize
+    data_ontology.literals_context c literals i1
+  else ok context
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::range_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 415:0-436:1 -/
+def data_ontology.range_context
+  (context : data_ontology.Context) (range : model.DataRange) :
+  Result data_ontology.Context
+  := do
+  match range with
+  | model.DataRange.Datatype datatype =>
+    let o ← datatypes.kind_of datatype
+    match o with
+    | none => ok context
+    | some kind =>
+      let k ← data_ontology.with_kind context.kinds kind
+      ok { context with kinds := k }
+  | model.DataRange.Intersection members =>
+    let context1 ← data_ontology.range_context context members.first
+    let context2 ← data_ontology.range_context context1 members.second
+    data_ontology.ranges_context context2 members.rest 0#usize
+  | model.DataRange.Union members =>
+    let context1 ← data_ontology.range_context context members.first
+    let context2 ← data_ontology.range_context context1 members.second
+    data_ontology.ranges_context context2 members.rest 0#usize
+  | model.DataRange.Complement inner =>
+    data_ontology.range_context context inner
+  | model.DataRange.OneOf literals =>
+    let context1 ← data_ontology.add_literal context literals.first
+    data_ontology.literals_context context1 literals.rest 0#usize
+  | model.DataRange.Restriction _ _ => ok context
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::ranges_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 437:0-443:1 -/
+def data_ontology.ranges_context
+  (context : data_ontology.Context) (ranges : alloc.vec.Vec model.DataRange)
+  (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len ranges
+  if index < i
+  then
+    let dr ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataRange) ranges index
+    let c ← data_ontology.range_context context dr
+    let i1 ← index + 1#usize
+    data_ontology.ranges_context c ranges i1
+  else ok context
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::optional_range_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 444:0-449:1 -/
+def data_ontology.optional_range_context
+  (context : data_ontology.Context) (range : Option model.DataRange) :
+  Result data_ontology.Context
+  := do
+  match range with
+  | none => ok context
+  | some range1 => data_ontology.range_context context range1
+
+mutual
+
+/-- [rowl_kernel::data_ontology::class_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 450:0-485:1 -/
+def data_ontology.class_context
+  (context : data_ontology.Context) («class» : model.ClassExpression) :
+  Result data_ontology.Context
+  := do
+  match «class» with
+  | model.ClassExpression.Class _ => ok context
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    data_ontology.members_context context members
+  | model.ClassExpression.ObjectUnionOf members =>
+    data_ontology.members_context context members
+  | model.ClassExpression.ObjectComplementOf inner =>
+    data_ontology.class_context context inner
+  | model.ClassExpression.ObjectOneOf _ => ok context
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let c ← data_ontology.add_role context role
+    data_ontology.class_context c filler
+  | model.ClassExpression.ObjectAllValuesFrom role filler =>
+    let c ← data_ontology.add_role context role
+    data_ontology.class_context c filler
+  | model.ClassExpression.ObjectHasValue role _ =>
+    data_ontology.add_role context role
+  | model.ClassExpression.ObjectHasSelf role =>
+    data_ontology.add_role context role
+  | model.ClassExpression.ObjectMinCardinality _ role filler =>
+    let context1 ← data_ontology.add_role context role
+    match filler with
+    | none => ok context1
+    | some filler1 => data_ontology.class_context context1 filler1
+  | model.ClassExpression.ObjectMaxCardinality _ role filler =>
+    let context1 ← data_ontology.add_role context role
+    match filler with
+    | none => ok context1
+    | some filler1 => data_ontology.class_context context1 filler1
+  | model.ClassExpression.ObjectExactCardinality _ role filler =>
+    let context1 ← data_ontology.add_role context role
+    match filler with
+    | none => ok context1
+    | some filler1 => data_ontology.class_context context1 filler1
+  | model.ClassExpression.DataSomeValuesFrom property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.range_context c range
+  | model.ClassExpression.DataAllValuesFrom property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.range_context c range
+  | model.ClassExpression.DataHasValue property literal =>
+    let c ← data_ontology.add_data context property
+    data_ontology.add_literal c literal
+  | model.ClassExpression.DataMinCardinality _ property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.optional_range_context c range
+  | model.ClassExpression.DataMaxCardinality _ property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.optional_range_context c range
+  | model.ClassExpression.DataExactCardinality _ property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.optional_range_context c range
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::classes_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 486:0-492:1 -/
+def data_ontology.classes_context
+  (context : data_ontology.Context)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let c ← data_ontology.class_context context ce
+    let i1 ← index + 1#usize
+    data_ontology.classes_context c classes i1
+  else ok context
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::members_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 493:0-497:1 -/
+def data_ontology.members_context
+  (context : data_ontology.Context)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result data_ontology.Context
+  := do
+  let context1 ← data_ontology.class_context context members.first
+  let context2 ← data_ontology.class_context context1 members.second
+  data_ontology.classes_context context2 members.rest 0#usize
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::roles_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 498:0-504:1 -/
+def data_ontology.roles_context
+  (context : data_ontology.Context)
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles index
+    let c ← data_ontology.add_role context ope
+    let i1 ← index + 1#usize
+    data_ontology.roles_context c roles i1
+  else ok context
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::role_members_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 505:0-509:1 -/
+def data_ontology.role_members_context
+  (context : data_ontology.Context)
+  (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result data_ontology.Context
+  := do
+  let context1 ← data_ontology.add_role context roles.first
+  let context2 ← data_ontology.add_role context1 roles.second
+  data_ontology.roles_context context2 roles.rest 0#usize
+
+/-- [rowl_kernel::data_ontology::data_list_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 510:0-516:1 -/
+def data_ontology.data_list_context
+  (context : data_ontology.Context) (data : alloc.vec.Vec model.DataProperty)
+  (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len data
+  if index < i
+  then
+    let dp ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataProperty) data index
+    let c ← data_ontology.add_data context dp
+    let i1 ← index + 1#usize
+    data_ontology.data_list_context c data i1
+  else ok context
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::axiom_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 517:0-566:1 -/
+def data_ontology.axiom_context
+  (context : data_ontology.Context) («axiom» : model.Axiom) :
+  Result data_ontology.Context
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok context
+  | model.Axiom.SubClassOf sub sup =>
+    let c ← data_ontology.class_context context sub
+    data_ontology.class_context c sup
+  | model.Axiom.EquivalentClasses members =>
+    data_ontology.members_context context members
+  | model.Axiom.DisjointClasses members =>
+    data_ontology.members_context context members
+  | model.Axiom.DisjointUnion _ members =>
+    data_ontology.members_context context members
+  | model.Axiom.SubObjectPropertyOf sub sup =>
+    let context1 ←
+      match sub with
+      | model.SubObjectPropertyExpression.Single role =>
+        data_ontology.add_role context role
+      | model.SubObjectPropertyExpression.Chain roles =>
+        data_ontology.role_members_context context roles
+    data_ontology.add_role context1 sup
+  | model.Axiom.EquivalentObjectProperties roles =>
+    data_ontology.role_members_context context roles
+  | model.Axiom.DisjointObjectProperties roles =>
+    data_ontology.role_members_context context roles
+  | model.Axiom.InverseObjectProperties first second =>
+    let c ← data_ontology.add_role context first
+    data_ontology.add_role c second
+  | model.Axiom.ObjectPropertyDomain role «class» =>
+    let c ← data_ontology.add_role context role
+    data_ontology.class_context c «class»
+  | model.Axiom.ObjectPropertyRange role «class» =>
+    let c ← data_ontology.add_role context role
+    data_ontology.class_context c «class»
+  | model.Axiom.FunctionalObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.InverseFunctionalObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.ReflexiveObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.IrreflexiveObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.SymmetricObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.AsymmetricObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.TransitiveObjectProperty role =>
+    data_ontology.add_role context role
+  | model.Axiom.SubDataPropertyOf sub sup =>
+    let c ← data_ontology.add_data context sub
+    data_ontology.add_data c sup
+  | model.Axiom.EquivalentDataProperties data =>
+    let context1 ← data_ontology.add_data context data.first
+    let context2 ← data_ontology.add_data context1 data.second
+    data_ontology.data_list_context context2 data.rest 0#usize
+  | model.Axiom.DisjointDataProperties data =>
+    let context1 ← data_ontology.add_data context data.first
+    let context2 ← data_ontology.add_data context1 data.second
+    data_ontology.data_list_context context2 data.rest 0#usize
+  | model.Axiom.DataPropertyDomain property «class» =>
+    let c ← data_ontology.add_data context property
+    data_ontology.class_context c «class»
+  | model.Axiom.DataPropertyRange property range =>
+    let c ← data_ontology.add_data context property
+    data_ontology.range_context c range
+  | model.Axiom.FunctionalDataProperty property =>
+    data_ontology.add_data context property
+  | model.Axiom.DatatypeDefinition _ _ => ok context
+  | model.Axiom.HasKey _ _ _ => ok context
+  | model.Axiom.SameIndividual _ => ok context
+  | model.Axiom.DifferentIndividuals _ => ok context
+  | model.Axiom.ClassAssertion «class» _ =>
+    data_ontology.class_context context «class»
+  | model.Axiom.ObjectPropertyAssertion role _ _ =>
+    data_ontology.add_role context role
+  | model.Axiom.NegativeObjectPropertyAssertion role _ _ =>
+    data_ontology.add_role context role
+  | model.Axiom.DataPropertyAssertion property _ literal =>
+    let c ← data_ontology.add_data context property
+    data_ontology.add_literal c literal
+  | model.Axiom.NegativeDataPropertyAssertion property _ literal =>
+    let c ← data_ontology.add_data context property
+    data_ontology.add_literal c literal
+  | model.Axiom.AnnotationAssertion _ _ _ => ok context
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok context
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok context
+  | model.Axiom.AnnotationPropertyRange _ _ => ok context
+
+/-- [rowl_kernel::data_ontology::items_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 567:0-577:1 -/
+def data_ontology.items_context
+  (context : data_ontology.Context)
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result data_ontology.Context
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let c ← data_ontology.axiom_context context aa.axiom
+    let i1 ← index + 1#usize
+    data_ontology.items_context c items i1
+  else ok context
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::closure_context]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 579:0-590:1 -/
+def data_ontology.closure_context
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result data_ontology.Context
+  := do
+  let k ← data_ontology.no_kinds
+  data_ontology.items_context
+    {
+      values := (alloc.vec.Vec.new datatypes.DataValue),
+      kinds := k,
+      roles := (alloc.vec.Vec.new model.ObjectProperty),
+      data := (alloc.vec.Vec.new model.DataProperty)
+    } items 0#usize
+
+/-- [rowl_kernel::data_ontology::with_truths]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 593:0-599:1 -/
+def data_ontology.with_truths
+  (context : data_ontology.Context) : Result data_ontology.Context := do
+  if context.kinds.boolean
+  then
+    let v ←
+      data_ontology.add_value context.values (datatypes.DataValue.Truth true)
+    let v1 ← data_ontology.add_value v (datatypes.DataValue.Truth false)
+    ok { context with values := v1 }
+  else ok context
+
+/-- [rowl_kernel::data_ontology::copy_natural]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 605:0-610:1 -/
+def data_ontology.copy_natural
+  (value : probes.Natural) : Result probes.Natural := do
+  match value with
+  | probes.Natural.Zero => ok probes.Natural.Zero
+  | probes.Natural.Succ inner =>
+    let n ← data_ontology.copy_natural inner
+    ok (probes.Natural.Succ n)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::positive]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 611:0-616:1 -/
+def data_ontology.positive (value : probes.Natural) : Result Bool := do
+  match value with
+  | probes.Natural.Zero => ok false
+  | probes.Natural.Succ _ => ok true
+
+/-- [rowl_kernel::data_ontology::and]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 617:0-623:1 -/
+def data_ontology.and
+  (left : model.ClassExpression) (right : model.ClassExpression) :
+  Result model.ClassExpression
+  := do
+  ok (model.ClassExpression.ObjectIntersectionOf
+    {
+      first := left,
+      second := right,
+      rest := (alloc.vec.Vec.new model.ClassExpression)
+    })
+
+/-- [rowl_kernel::data_ontology::or]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 624:0-630:1 -/
+def data_ontology.or
+  (left : model.ClassExpression) (right : model.ClassExpression) :
+  Result model.ClassExpression
+  := do
+  ok (model.ClassExpression.ObjectUnionOf
+    {
+      first := left,
+      second := right,
+      rest := (alloc.vec.Vec.new model.ClassExpression)
+    })
+
+/-- [rowl_kernel::data_ontology::object_role]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 633:0-653:1 -/
+def data_ontology.object_role
+  (context : data_ontology.Context) (role : model.ObjectPropertyExpression) :
+  Result (Option model.ObjectPropertyExpression)
+  := do
+  let property ← data_ontology.named role
+  let b ← data_ontology.reserved property.iri.spelling
+  if b
+  then ok none
+  else
+    let b1 ← data_ontology.is_top_object property
+    if b1
+    then
+      let v ← nnf.copy_bytes property.iri.spelling
+      match role with
+      | model.ObjectPropertyExpression.Property _ =>
+        ok (some (model.ObjectPropertyExpression.Property
+          { iri := { spelling := v } }))
+      | model.ObjectPropertyExpression.Inverse _ =>
+        ok (some (model.ObjectPropertyExpression.Inverse
+          { iri := { spelling := v } }))
+    else
+      let b2 ← data_ontology.has_role context.roles property 0#usize
+      if b2
+      then
+        let v ← nnf.copy_bytes property.iri.spelling
+        match role with
+        | model.ObjectPropertyExpression.Property _ =>
+          ok (some (model.ObjectPropertyExpression.Property
+            { iri := { spelling := v } }))
+        | model.ObjectPropertyExpression.Inverse _ =>
+          ok (some (model.ObjectPropertyExpression.Inverse
+            { iri := { spelling := v } }))
+      else ok none
+
+/-- [rowl_kernel::data_ontology::object_individual_of]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 655:0-666:1 -/
+def data_ontology.object_individual_of
+  (individual : model.Individual) : Result (Option model.Individual) := do
+  match individual with
+  | model.Individual.Named named =>
+    let b ← data_ontology.reserved named.iri.spelling
+    if b
+    then ok none
+    else let i ← concepts.copy_individual individual
+         ok (some i)
+  | model.Individual.Anonymous _ =>
+    let i ← concepts.copy_individual individual
+    ok (some i)
+
+/-- [rowl_kernel::data_ontology::individuals_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 667:0-683:1 -/
+def data_ontology.individuals_from
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (out : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) individuals index
+    let o ← data_ontology.object_individual_of i1
+    match o with
+    | none => ok none
+    | some copy =>
+      let out1 ← alloc.vec.Vec.push out copy
+      let i2 ← index + 1#usize
+      data_ontology.individuals_from individuals i2 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::data_role]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 686:0-709:1 -/
+def data_ontology.data_role
+  (context : data_ontology.Context) (property : model.DataProperty) :
+  Result (Option model.ObjectPropertyExpression)
+  := do
+  let b ← data_ontology.is_bottom_data property
+  if b
+  then
+    let s ←
+      lift (Array.to_slice
+        (Array.make 50#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8,
+          79#u8, 98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8,
+          112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+          ]))
+    let v ← data_ontology.pattern_from s 0#usize (alloc.vec.Vec.new Std.U8)
+    ok (some (model.ObjectPropertyExpression.Property
+      { iri := { spelling := v } }))
+  else
+    let b1 ← data_ontology.has_data context.data property 0#usize
+    if b1
+    then
+      let b2 ← data_ontology.reserved property.iri.spelling
+      if b2
+      then ok none
+      else
+        let i := alloc.vec.Vec.len property.iri.spelling
+        let i1 ← core.num.Usize.MAX - 1#usize
+        if i < i1
+        then
+          let v ← nnf.copy_bytes property.iri.spelling
+          let v1 ← data_ontology.tagged_name 80#u8 v
+          ok (some (model.ObjectPropertyExpression.Property
+            { iri := { spelling := v1 } }))
+        else ok none
+    else ok none
+
+/-- [rowl_kernel::data_ontology::literal_individual]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 711:0-719:1 -/
+def data_ontology.literal_individual
+  (context : data_ontology.Context) (literal : model.Literal) :
+  Result (Option model.Individual)
+  := do
+  let o ← datatypes.literal_value literal
+  match o with
+  | none => ok none
+  | some value =>
+    let o1 ← data_ontology.value_index context.values value 0#usize
+    match o1 with
+    | none => ok none
+    | some index => let i ← data_ontology.value_individual index
+                    ok (some i)
+
+/-- [rowl_kernel::data_ontology::literal_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 720:0-737:1 -/
+def data_ontology.literal_individuals
+  (context : data_ontology.Context) (literals : alloc.vec.Vec model.Literal)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len literals
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Literal)
+        literals index
+    let o ← data_ontology.literal_individual context l
+    match o with
+    | none => ok none
+    | some individual =>
+      let out1 ← alloc.vec.Vec.push out individual
+      let i1 ← index + 1#usize
+      data_ontology.literal_individuals context literals i1 out1
+  else ok (some out)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::encode_range]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 739:0-778:1
+    Visibility: public -/
+def data_ontology.encode_range
+  (context : data_ontology.Context) (range : model.DataRange) :
+  Result (Option model.ClassExpression)
+  := do
+  match range with
+  | model.DataRange.Datatype datatype =>
+    let b ← data_ontology.is_literal datatype
+    if b
+    then let ce ← data_ontology.thing
+         ok (some ce)
+    else
+      let o ← datatypes.kind_of datatype
+      match o with
+      | none => ok none
+      | some kind =>
+        let b1 ← data_ontology.used context.kinds kind
+        if b1
+        then let ce ← data_ontology.kind_class kind
+             ok (some ce)
+        else ok none
+  | model.DataRange.Intersection members =>
+    let o ← data_ontology.encode_ranges context members
+    match o with
+    | none => ok none
+    | some members1 =>
+      ok (some (model.ClassExpression.ObjectIntersectionOf members1))
+  | model.DataRange.Union members =>
+    let o ← data_ontology.encode_ranges context members
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.ClassExpression.ObjectUnionOf members1))
+  | model.DataRange.Complement inner =>
+    let o ← data_ontology.encode_range context inner
+    match o with
+    | none => ok none
+    | some inner1 =>
+      ok (some (model.ClassExpression.ObjectComplementOf inner1))
+  | model.DataRange.OneOf literals =>
+    let o ← data_ontology.literal_individual context literals.first
+    match o with
+    | none => ok none
+    | some first =>
+      let o1 ←
+        data_ontology.literal_individuals context literals.rest 0#usize
+          (alloc.vec.Vec.new model.Individual)
+      match o1 with
+      | none => ok none
+      | some rest =>
+        ok (some (model.ClassExpression.ObjectOneOf { first, rest }))
+  | model.DataRange.Restriction _ _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_range_list]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 779:0-796:1 -/
+def data_ontology.encode_range_list
+  (context : data_ontology.Context) (ranges : alloc.vec.Vec model.DataRange)
+  (index : Std.Usize) (out : alloc.vec.Vec model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.ClassExpression))
+  := do
+  let i := alloc.vec.Vec.len ranges
+  if index < i
+  then
+    let dr ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataRange) ranges index
+    let o ← data_ontology.encode_range context dr
+    match o with
+    | none => ok none
+    | some «class» =>
+      let out1 ← alloc.vec.Vec.push out «class»
+      let i1 ← index + 1#usize
+      data_ontology.encode_range_list context ranges i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_ranges]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 797:0-815:1 -/
+def data_ontology.encode_ranges
+  (context : data_ontology.Context)
+  (members : model.AtLeastTwo model.DataRange) :
+  Result (Option (model.AtLeastTwo model.ClassExpression))
+  := do
+  let o ← data_ontology.encode_range context members.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.encode_range context members.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.encode_range_list context members.rest 0#usize
+          (alloc.vec.Vec.new model.ClassExpression)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::encode_optional_range]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 816:0-827:1 -/
+def data_ontology.encode_optional_range
+  (context : data_ontology.Context) (range : Option model.DataRange) :
+  Result (Option (Option model.ClassExpression))
+  := do
+  match range with
+  | none => ok (some none)
+  | some range1 =>
+    let o ← data_ontology.encode_range context range1
+    match o with
+    | none => ok none
+    | some _ => ok (some o)
+
+mutual
+
+/-- [rowl_kernel::data_ontology::encode_counted]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 830:0-848:1 -/
+def data_ontology.encode_counted
+  (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
+  (filler : Option model.ClassExpression) :
+  Result (Option (model.ObjectPropertyExpression × (Option
+    model.ClassExpression)))
+  := do
+  let b ← data_ontology.universal role
+  if b
+  then ok none
+  else
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some copy =>
+      match filler with
+      | none => ok (some (copy, none))
+      | some filler1 =>
+        let o1 ← data_ontology.encode_class context filler1
+        match o1 with
+        | none => ok none
+        | some _ => ok (some (copy, o1))
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_class]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 851:0-1023:1
+    Visibility: public -/
+def data_ontology.encode_class
+  (context : data_ontology.Context) («class» : model.ClassExpression) :
+  Result (Option model.ClassExpression)
+  := do
+  match «class» with
+  | model.ClassExpression.Class named =>
+    let b ← data_ontology.reserved named.iri.spelling
+    if b
+    then ok none
+    else
+      let v ← nnf.copy_bytes named.iri.spelling
+      let ce ← data_ontology.class_named v
+      ok (some ce)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let o ← data_ontology.encode_members context members
+    match o with
+    | none => ok none
+    | some members1 =>
+      ok (some (model.ClassExpression.ObjectIntersectionOf members1))
+  | model.ClassExpression.ObjectUnionOf members =>
+    let o ← data_ontology.encode_members context members
+    match o with
+    | none => ok none
+    | some members1 => ok (some (model.ClassExpression.ObjectUnionOf members1))
+  | model.ClassExpression.ObjectComplementOf inner =>
+    let o ← data_ontology.encode_class context inner
+    match o with
+    | none => ok none
+    | some inner1 =>
+      ok (some (model.ClassExpression.ObjectComplementOf inner1))
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let o ← data_ontology.object_individual_of individuals.first
+    match o with
+    | none => ok none
+    | some first =>
+      let o1 ←
+        data_ontology.individuals_from individuals.rest 0#usize
+          (alloc.vec.Vec.new model.Individual)
+      match o1 with
+      | none => ok none
+      | some rest =>
+        ok (some (model.ClassExpression.ObjectOneOf { first, rest }))
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let o ← data_ontology.object_role context role
+    let o1 ← data_ontology.encode_class context filler
+    match o with
+    | none => ok none
+    | some copy =>
+      match o1 with
+      | none => ok none
+      | some filler1 =>
+        let b ← data_ontology.universal role
+        if b
+        then
+          let ce ← data_ontology.object_class
+          let ce1 ← data_ontology.and filler1 ce
+          ok (some (model.ClassExpression.ObjectSomeValuesFrom copy ce1))
+        else
+          ok (some (model.ClassExpression.ObjectSomeValuesFrom copy filler1))
+  | model.ClassExpression.ObjectAllValuesFrom role filler =>
+    let o ← data_ontology.object_role context role
+    let o1 ← data_ontology.encode_class context filler
+    match o with
+    | none => ok none
+    | some copy =>
+      match o1 with
+      | none => ok none
+      | some filler1 =>
+        let b ← data_ontology.universal role
+        if b
+        then
+          let ce ← data_ontology.data_class
+          let ce1 ← data_ontology.or filler1 ce
+          ok (some (model.ClassExpression.ObjectAllValuesFrom copy ce1))
+        else ok (some (model.ClassExpression.ObjectAllValuesFrom copy filler1))
+  | model.ClassExpression.ObjectHasValue role individual =>
+    let o ← data_ontology.object_role context role
+    let o1 ← data_ontology.object_individual_of individual
+    match o with
+    | none => ok none
+    | some role1 =>
+      match o1 with
+      | none => ok none
+      | some individual1 =>
+        ok (some (model.ClassExpression.ObjectHasValue role1 individual1))
+  | model.ClassExpression.ObjectHasSelf role =>
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some role1 => ok (some (model.ClassExpression.ObjectHasSelf role1))
+  | model.ClassExpression.ObjectMinCardinality count role filler =>
+    let o ← data_ontology.encode_counted context role filler
+    match o with
+    | none => ok none
+    | some p =>
+      let (role1, filler1) := p
+      let n ← data_ontology.copy_natural count
+      ok (some (model.ClassExpression.ObjectMinCardinality n role1 filler1))
+  | model.ClassExpression.ObjectMaxCardinality count role filler =>
+    let o ← data_ontology.encode_counted context role filler
+    match o with
+    | none => ok none
+    | some p =>
+      let (role1, filler1) := p
+      let n ← data_ontology.copy_natural count
+      ok (some (model.ClassExpression.ObjectMaxCardinality n role1 filler1))
+  | model.ClassExpression.ObjectExactCardinality count role filler =>
+    let o ← data_ontology.encode_counted context role filler
+    match o with
+    | none => ok none
+    | some p =>
+      let (role1, filler1) := p
+      let n ← data_ontology.copy_natural count
+      ok (some (model.ClassExpression.ObjectExactCardinality n role1 filler1))
+  | model.ClassExpression.DataSomeValuesFrom property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some filler =>
+        ok (some (model.ClassExpression.ObjectSomeValuesFrom role filler))
+  | model.ClassExpression.DataAllValuesFrom property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some filler =>
+        ok (some (model.ClassExpression.ObjectAllValuesFrom role filler))
+  | model.ClassExpression.DataHasValue property literal =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.literal_individual context literal
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some individual =>
+        ok (some (model.ClassExpression.ObjectHasValue role individual))
+  | model.ClassExpression.DataMinCardinality count property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_optional_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some filler =>
+        let n ← data_ontology.copy_natural count
+        ok (some (model.ClassExpression.ObjectMinCardinality n role filler))
+  | model.ClassExpression.DataMaxCardinality count property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_optional_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some filler =>
+        let n ← data_ontology.copy_natural count
+        ok (some (model.ClassExpression.ObjectMaxCardinality n role filler))
+  | model.ClassExpression.DataExactCardinality count property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_optional_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some filler =>
+        let n ← data_ontology.copy_natural count
+        ok (some (model.ClassExpression.ObjectExactCardinality n role filler))
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_class_list]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1024:0-1041:1 -/
+def data_ontology.encode_class_list
+  (context : data_ontology.Context)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.ClassExpression))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let o ← data_ontology.encode_class context ce
+    match o with
+    | none => ok none
+    | some «class» =>
+      let out1 ← alloc.vec.Vec.push out «class»
+      let i1 ← index + 1#usize
+      data_ontology.encode_class_list context classes i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1042:0-1060:1 -/
+def data_ontology.encode_members
+  (context : data_ontology.Context)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option (model.AtLeastTwo model.ClassExpression))
+  := do
+  let o ← data_ontology.encode_class context members.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.encode_class context members.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.encode_class_list context members.rest 0#usize
+          (alloc.vec.Vec.new model.ClassExpression)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+partial_fixpoint
+
+end
+
+mutual
+
+/-- [rowl_kernel::data_ontology::guarded]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1066:0-1095:1
+    Visibility: public -/
+def data_ontology.guarded
+  («class» : model.ClassExpression) : Result Bool := do
+  match «class» with
+  | model.ClassExpression.Class named =>
+    let b ← data_ontology.is_thing named
+    ok (¬ b)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let b ← data_ontology.guarded members.first
+    if b
+    then ok true
+    else
+      let b1 ← data_ontology.guarded members.second
+      if b1
+      then ok true
+      else data_ontology.any_guarded members.rest 0#usize
+  | model.ClassExpression.ObjectUnionOf members =>
+    let b ← data_ontology.guarded members.first
+    if b
+    then
+      let b1 ← data_ontology.guarded members.second
+      if b1
+      then data_ontology.all_guarded members.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok true
+  | model.ClassExpression.ObjectSomeValuesFrom role _ =>
+    let b ← data_ontology.universal role
+    ok (¬ b)
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue role _ =>
+    let b ← data_ontology.universal role
+    ok (¬ b)
+  | model.ClassExpression.ObjectHasSelf role =>
+    let b ← data_ontology.universal role
+    ok (¬ b)
+  | model.ClassExpression.ObjectMinCardinality count role _ =>
+    let b ← data_ontology.positive count
+    if b
+    then let b1 ← data_ontology.universal role
+         ok (¬ b1)
+    else ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality count role _ =>
+    let b ← data_ontology.positive count
+    if b
+    then let b1 ← data_ontology.universal role
+         ok (¬ b1)
+    else ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok true
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok true
+  | model.ClassExpression.DataMinCardinality count _ _ =>
+    data_ontology.positive count
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality count _ _ =>
+    data_ontology.positive count
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::any_guarded]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1096:0-1106:1 -/
+def data_ontology.any_guarded
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let b ← data_ontology.guarded ce
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         data_ontology.any_guarded classes i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::all_guarded]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1107:0-1117:1 -/
+def data_ontology.all_guarded
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let b ← data_ontology.guarded ce
+    if b
+    then let i1 ← index + 1#usize
+         data_ontology.all_guarded classes i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::encode_object]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1120:0-1131:1 -/
+def data_ontology.encode_object
+  (context : data_ontology.Context) («class» : model.ClassExpression) :
+  Result (Option model.ClassExpression)
+  := do
+  let o ← data_ontology.encode_class context «class»
+  match o with
+  | none => ok none
+  | some encoded =>
+    let b ← data_ontology.guarded «class»
+    if b
+    then ok o
+    else
+      let ce ← data_ontology.object_class
+      let ce1 ← data_ontology.and encoded ce
+      ok (some ce1)
+
+/-- [rowl_kernel::data_ontology::encode_object_list]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1132:0-1149:1 -/
+def data_ontology.encode_object_list
+  (context : data_ontology.Context)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.ClassExpression))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let o ← data_ontology.encode_object context ce
+    match o with
+    | none => ok none
+    | some «class» =>
+      let out1 ← alloc.vec.Vec.push out «class»
+      let i1 ← index + 1#usize
+      data_ontology.encode_object_list context classes i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode_object_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1150:0-1168:1 -/
+def data_ontology.encode_object_members
+  (context : data_ontology.Context)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option (model.AtLeastTwo model.ClassExpression))
+  := do
+  let o ← data_ontology.encode_object context members.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.encode_object context members.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.encode_object_list context members.rest 0#usize
+          (alloc.vec.Vec.new model.ClassExpression)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+
+/-- [rowl_kernel::data_ontology::push]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1175:0-1185:1 -/
+def data_ontology.push
+  (out : alloc.vec.Vec model.AnnotatedAxiom) («axiom» : model.Axiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < core.num.Usize.MAX
+  then
+    let out1 ←
+      alloc.vec.Vec.push out
+        ({ annotations := (alloc.vec.Vec.new model.Annotation), «axiom» } :
+        model.AnnotatedAxiom)
+    ok (some out1)
+  else ok none
+
+/-- [rowl_kernel::data_ontology::object_assertion]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1187:0-1195:1 -/
+def data_ontology.object_assertion
+  (individual : model.Individual) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_individual_of individual
+  match o with
+  | none => ok none
+  | some individual1 =>
+    let ce ← data_ontology.object_class
+    data_ontology.push out (model.Axiom.ClassAssertion ce individual1)
+
+/-- [rowl_kernel::data_ontology::object_assertions]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1196:0-1209:1 -/
+def data_ontology.object_assertions
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) individuals index
+    let o ← data_ontology.object_assertion i1 out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i2 ← index + 1#usize
+      data_ontology.object_assertions individuals i2 out1
+  else ok (some out)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::nominal_objects]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1212:0-1237:1 -/
+def data_ontology.nominal_objects
+  («class» : model.ClassExpression)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  match «class» with
+  | model.ClassExpression.Class _ => ok (some out)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    data_ontology.nominal_members members out
+  | model.ClassExpression.ObjectUnionOf members =>
+    data_ontology.nominal_members members out
+  | model.ClassExpression.ObjectComplementOf inner =>
+    data_ontology.nominal_objects inner out
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let o ← data_ontology.object_assertion individuals.first out
+    match o with
+    | none => ok none
+    | some out1 =>
+      data_ontology.object_assertions individuals.rest 0#usize out1
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    data_ontology.nominal_objects filler out
+  | model.ClassExpression.ObjectAllValuesFrom _ filler =>
+    data_ontology.nominal_objects filler out
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    data_ontology.object_assertion individual out
+  | model.ClassExpression.ObjectHasSelf _ => ok (some out)
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok (some out)
+    | some filler1 => data_ontology.nominal_objects filler1 out
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok (some out)
+    | some filler1 => data_ontology.nominal_objects filler1 out
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok (some out)
+    | some filler1 => data_ontology.nominal_objects filler1 out
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok (some out)
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok (some out)
+  | model.ClassExpression.DataHasValue _ _ => ok (some out)
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok (some out)
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok (some out)
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::nominal_list]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1238:0-1251:1 -/
+def data_ontology.nominal_list
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let o ← data_ontology.nominal_objects ce out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← index + 1#usize
+      data_ontology.nominal_list classes i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::nominal_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1252:0-1263:1 -/
+def data_ontology.nominal_members
+  (members : model.AtLeastTwo model.ClassExpression)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.nominal_objects members.first out
+  match o with
+  | none => ok none
+  | some out1 =>
+    let o1 ← data_ontology.nominal_objects members.second out1
+    match o1 with
+    | none => ok none
+    | some out2 => data_ontology.nominal_list members.rest 0#usize out2
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::data_roles_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1264:0-1281:1 -/
+def data_ontology.data_roles_from
+  (context : data_ontology.Context) (data : alloc.vec.Vec model.DataProperty)
+  (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len data
+  if index < i
+  then
+    let dp ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataProperty) data index
+    let o ← data_ontology.data_role context dp
+    match o with
+    | none => ok none
+    | some role =>
+      let out1 ← alloc.vec.Vec.push out role
+      let i1 ← index + 1#usize
+      data_ontology.data_roles_from context data i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::data_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1282:0-1300:1 -/
+def data_ontology.data_members
+  (context : data_ontology.Context)
+  (data : model.AtLeastTwo model.DataProperty) :
+  Result (Option (model.AtLeastTwo model.ObjectPropertyExpression))
+  := do
+  let o ← data_ontology.data_role context data.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.data_role context data.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.data_roles_from context data.rest 0#usize
+          (alloc.vec.Vec.new model.ObjectPropertyExpression)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+
+/-- [rowl_kernel::data_ontology::object_roles_from]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1301:0-1318:1 -/
+def data_ontology.object_roles_from
+  (context : data_ontology.Context)
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles index
+    let o ← data_ontology.object_role context ope
+    match o with
+    | none => ok none
+    | some role =>
+      let out1 ← alloc.vec.Vec.push out role
+      let i1 ← index + 1#usize
+      data_ontology.object_roles_from context roles i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::object_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1319:0-1337:1 -/
+def data_ontology.object_members
+  (context : data_ontology.Context)
+  (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option (model.AtLeastTwo model.ObjectPropertyExpression))
+  := do
+  let o ← data_ontology.object_role context roles.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.object_role context roles.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.object_roles_from context roles.rest 0#usize
+          (alloc.vec.Vec.new model.ObjectPropertyExpression)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+
+/-- [rowl_kernel::data_ontology::individual_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1338:0-1353:1 -/
+def data_ontology.individual_members
+  (individuals : model.AtLeastTwo model.Individual) :
+  Result (Option (model.AtLeastTwo model.Individual))
+  := do
+  let o ← data_ontology.object_individual_of individuals.first
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← data_ontology.object_individual_of individuals.second
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        data_ontology.individuals_from individuals.rest 0#usize
+          (alloc.vec.Vec.new model.Individual)
+      match o2 with
+      | none => ok none
+      | some rest => ok (some { first, second, rest })
+
+/-- [rowl_kernel::data_ontology::member_objects]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1355:0-1366:1 -/
+def data_ontology.member_objects
+  (individuals : model.AtLeastTwo model.Individual)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_assertion individuals.first out
+  match o with
+  | none => ok none
+  | some out1 =>
+    let o1 ← data_ontology.object_assertion individuals.second out1
+    match o1 with
+    | none => ok none
+    | some out2 =>
+      data_ontology.object_assertions individuals.rest 0#usize out2
+
+/-- [rowl_kernel::data_ontology::with_nominals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1369:0-1378:1 -/
+def data_ontology.with_nominals
+  (out : alloc.vec.Vec model.AnnotatedAxiom) («axiom» : model.Axiom)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.push out «axiom»
+  match o with
+  | none => ok none
+  | some out1 => data_ontology.nominal_members members out1
+
+/-- [rowl_kernel::data_ontology::domain_or_range]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1379:0-1401:1 -/
+def data_ontology.domain_or_range
+  (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
+  («class» : model.ClassExpression) (domain : Bool)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_role context role
+  let o1 ← data_ontology.encode_class context «class»
+  match o with
+  | none => ok none
+  | some copy =>
+    match o1 with
+    | none => ok none
+    | some encoded =>
+      let o2 ← data_ontology.nominal_objects «class» out
+      match o2 with
+      | none => ok none
+      | some out1 =>
+        let b ← data_ontology.universal role
+        if b
+        then
+          let ce ← data_ontology.object_class
+          data_ontology.push out1 (model.Axiom.SubClassOf ce encoded)
+        else
+          if domain
+          then
+            data_ontology.push out1 (model.Axiom.ObjectPropertyDomain copy
+              encoded)
+          else
+            data_ontology.push out1 (model.Axiom.ObjectPropertyRange copy
+              encoded)
+
+/-- [rowl_kernel::data_ontology::role_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1403:0-1428:1 -/
+def data_ontology.role_axiom
+  (context : data_ontology.Context) (role : model.ObjectPropertyExpression)
+  (kind : Std.U8) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_role context role
+  match o with
+  | none => ok none
+  | some copy =>
+    let «axiom» ←
+      if kind = 0#u8
+      then ok (model.Axiom.FunctionalObjectProperty copy)
+      else
+        if kind = 1#u8
+        then ok (model.Axiom.InverseFunctionalObjectProperty copy)
+        else
+          if kind = 2#u8
+          then ok (model.Axiom.IrreflexiveObjectProperty copy)
+          else
+            if kind = 3#u8
+            then ok (model.Axiom.SymmetricObjectProperty copy)
+            else
+              if kind = 4#u8
+              then ok (model.Axiom.AsymmetricObjectProperty copy)
+              else ok (model.Axiom.TransitiveObjectProperty copy)
+    data_ontology.push out «axiom»
+
+/-- [rowl_kernel::data_ontology::related]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1431:0-1454:1 -/
+def data_ontology.related
+  (role : model.ObjectPropertyExpression) (source : model.Individual)
+  (target : model.Individual) (negative : Bool)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_individual_of source
+  let o1 ← data_ontology.object_individual_of target
+  match o with
+  | none => ok none
+  | some «from» =>
+    match o1 with
+    | none => ok none
+    | some «to» =>
+      let o2 ← data_ontology.object_assertion source out
+      match o2 with
+      | none => ok none
+      | some out1 =>
+        let o3 ← data_ontology.object_assertion target out1
+        match o3 with
+        | none => ok none
+        | some out2 =>
+          if negative
+          then
+            data_ontology.push out2
+              (model.Axiom.NegativeObjectPropertyAssertion role «from»
+              «to»)
+          else
+            data_ontology.push out2 (model.Axiom.ObjectPropertyAssertion role
+              «from» «to»)
+
+/-- [rowl_kernel::data_ontology::valued]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1457:0-1480:1 -/
+def data_ontology.valued
+  (role : model.ObjectPropertyExpression) (source : model.Individual)
+  (value : model.Individual) (negative : Bool)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ← data_ontology.object_individual_of source
+  match o with
+  | none => ok none
+  | some «from» =>
+    let o1 ← data_ontology.object_assertion source out
+    match o1 with
+    | none => ok none
+    | some out1 =>
+      if negative
+      then
+        data_ontology.push out1 (model.Axiom.NegativeObjectPropertyAssertion
+          role «from» value)
+      else
+        data_ontology.push out1 (model.Axiom.ObjectPropertyAssertion role
+          «from» value)
+
+/-- [rowl_kernel::data_ontology::encode_sub]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1482:0-1496:1 -/
+def data_ontology.encode_sub
+  (context : data_ontology.Context) (sub : model.SubObjectPropertyExpression) :
+  Result (Option model.SubObjectPropertyExpression)
+  := do
+  match sub with
+  | model.SubObjectPropertyExpression.Single role =>
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some role1 => ok (some (model.SubObjectPropertyExpression.Single role1))
+  | model.SubObjectPropertyExpression.Chain roles =>
+    let o ← data_ontology.object_members context roles
+    match o with
+    | none => ok none
+    | some roles1 => ok (some (model.SubObjectPropertyExpression.Chain roles1))
+
+/-- [rowl_kernel::data_ontology::encode_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1498:0-1727:1 -/
+def data_ontology.encode_axiom
+  (context : data_ontology.Context) (item : model.Axiom)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  match item with
+  | model.Axiom.Declaration _ => ok (some out)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← data_ontology.encode_object context sub
+    let o1 ← data_ontology.encode_class context sup
+    match o with
+    | none => ok none
+    | some left =>
+      match o1 with
+      | none => ok none
+      | some right =>
+        let o2 ← data_ontology.push out (model.Axiom.SubClassOf left right)
+        match o2 with
+        | none => ok none
+        | some out1 =>
+          let o3 ← data_ontology.nominal_objects sub out1
+          match o3 with
+          | none => ok none
+          | some out2 => data_ontology.nominal_objects sup out2
+  | model.Axiom.EquivalentClasses members =>
+    let o ← data_ontology.encode_object_members context members
+    match o with
+    | none => ok none
+    | some encoded =>
+      data_ontology.with_nominals out (model.Axiom.EquivalentClasses encoded)
+        members
+  | model.Axiom.DisjointClasses members =>
+    let o ← data_ontology.encode_object_members context members
+    match o with
+    | none => ok none
+    | some encoded =>
+      data_ontology.with_nominals out (model.Axiom.DisjointClasses encoded)
+        members
+  | model.Axiom.DisjointUnion «class» members =>
+    let b ← data_ontology.is_thing «class»
+    if b
+    then ok none
+    else
+      let b1 ← data_ontology.reserved «class».iri.spelling
+      if b1
+      then ok none
+      else
+        let o ← data_ontology.encode_object_members context members
+        match o with
+        | none => ok none
+        | some encoded =>
+          let v ← nnf.copy_bytes «class».iri.spelling
+          data_ontology.with_nominals out (model.Axiom.DisjointUnion
+            { iri := { spelling := v } } encoded) members
+  | model.Axiom.SubObjectPropertyOf sub sup =>
+    let b ← data_ontology.sub_universal sub
+    if b
+    then
+      let b1 ← data_ontology.universal sup
+      if b1
+      then
+        let o ← data_ontology.encode_sub context sub
+        let o1 ← data_ontology.object_role context sup
+        match o with
+        | none => ok none
+        | some sub1 =>
+          match o1 with
+          | none => ok none
+          | some sup1 =>
+            data_ontology.push out (model.Axiom.SubObjectPropertyOf sub1 sup1)
+      else ok none
+    else
+      let o ← data_ontology.encode_sub context sub
+      let o1 ← data_ontology.object_role context sup
+      match o with
+      | none => ok none
+      | some sub1 =>
+        match o1 with
+        | none => ok none
+        | some sup1 =>
+          data_ontology.push out (model.Axiom.SubObjectPropertyOf sub1 sup1)
+  | model.Axiom.EquivalentObjectProperties roles =>
+    let b ← data_ontology.members_universal roles
+    if b
+    then ok none
+    else
+      let o ← data_ontology.object_members context roles
+      match o with
+      | none => ok none
+      | some roles1 =>
+        data_ontology.push out (model.Axiom.EquivalentObjectProperties roles1)
+  | model.Axiom.DisjointObjectProperties roles =>
+    let o ← data_ontology.object_members context roles
+    match o with
+    | none => ok none
+    | some roles1 =>
+      data_ontology.push out (model.Axiom.DisjointObjectProperties roles1)
+  | model.Axiom.InverseObjectProperties first second =>
+    let b ← data_ontology.universal first
+    if b
+    then ok none
+    else
+      let b1 ← data_ontology.universal second
+      if b1
+      then ok none
+      else
+        let o ← data_ontology.object_role context first
+        let o1 ← data_ontology.object_role context second
+        match o with
+        | none => ok none
+        | some first1 =>
+          match o1 with
+          | none => ok none
+          | some second1 =>
+            data_ontology.push out (model.Axiom.InverseObjectProperties first1
+              second1)
+  | model.Axiom.ObjectPropertyDomain role «class» =>
+    data_ontology.domain_or_range context role «class» true out
+  | model.Axiom.ObjectPropertyRange role «class» =>
+    data_ontology.domain_or_range context role «class» false out
+  | model.Axiom.FunctionalObjectProperty role =>
+    let b ← data_ontology.universal role
+    if b
+    then ok none
+    else data_ontology.role_axiom context role 0#u8 out
+  | model.Axiom.InverseFunctionalObjectProperty role =>
+    let b ← data_ontology.universal role
+    if b
+    then ok none
+    else data_ontology.role_axiom context role 1#u8 out
+  | model.Axiom.ReflexiveObjectProperty role =>
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some copy =>
+      let b ← data_ontology.universal role
+      if b
+      then data_ontology.push out (model.Axiom.ReflexiveObjectProperty copy)
+      else
+        let ce ← data_ontology.object_class
+        data_ontology.push out (model.Axiom.SubClassOf ce
+          (model.ClassExpression.ObjectHasSelf copy))
+  | model.Axiom.IrreflexiveObjectProperty role =>
+    data_ontology.role_axiom context role 2#u8 out
+  | model.Axiom.SymmetricObjectProperty role =>
+    data_ontology.role_axiom context role 3#u8 out
+  | model.Axiom.AsymmetricObjectProperty role =>
+    data_ontology.role_axiom context role 4#u8 out
+  | model.Axiom.TransitiveObjectProperty role =>
+    data_ontology.role_axiom context role 5#u8 out
+  | model.Axiom.SubDataPropertyOf sub sup =>
+    let b ← data_ontology.is_top_data sup
+    if b
+    then
+      let b1 ← data_ontology.reserved sub.iri.spelling
+      if b1
+      then ok none
+      else ok (some out)
+    else
+      let o ← data_ontology.data_role context sub
+      let o1 ← data_ontology.data_role context sup
+      match o with
+      | none => ok none
+      | some sub1 =>
+        match o1 with
+        | none => ok none
+        | some sup1 =>
+          data_ontology.push out (model.Axiom.SubObjectPropertyOf
+            (model.SubObjectPropertyExpression.Single sub1) sup1)
+  | model.Axiom.EquivalentDataProperties data =>
+    let o ← data_ontology.data_members context data
+    match o with
+    | none => ok none
+    | some roles =>
+      data_ontology.push out (model.Axiom.EquivalentObjectProperties roles)
+  | model.Axiom.DisjointDataProperties data =>
+    let o ← data_ontology.data_members context data
+    match o with
+    | none => ok none
+    | some roles =>
+      data_ontology.push out (model.Axiom.DisjointObjectProperties roles)
+  | model.Axiom.DataPropertyDomain property «class» =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_class context «class»
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some encoded =>
+        let o2 ← data_ontology.nominal_objects «class» out
+        match o2 with
+        | none => ok none
+        | some out1 =>
+          data_ontology.push out1 (model.Axiom.ObjectPropertyDomain role
+            encoded)
+  | model.Axiom.DataPropertyRange property range =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.encode_range context range
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some «class» =>
+        data_ontology.push out (model.Axiom.ObjectPropertyRange role «class»)
+  | model.Axiom.FunctionalDataProperty property =>
+    let o ← data_ontology.data_role context property
+    match o with
+    | none => ok none
+    | some role =>
+      data_ontology.push out (model.Axiom.FunctionalObjectProperty role)
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual individuals =>
+    let o ← data_ontology.individual_members individuals
+    match o with
+    | none => ok none
+    | some encoded =>
+      let o1 ← data_ontology.push out (model.Axiom.SameIndividual encoded)
+      match o1 with
+      | none => ok none
+      | some out1 => data_ontology.member_objects individuals out1
+  | model.Axiom.DifferentIndividuals individuals =>
+    let o ← data_ontology.individual_members individuals
+    match o with
+    | none => ok none
+    | some encoded =>
+      let o1 ←
+        data_ontology.push out (model.Axiom.DifferentIndividuals encoded)
+      match o1 with
+      | none => ok none
+      | some out1 => data_ontology.member_objects individuals out1
+  | model.Axiom.ClassAssertion «class» individual =>
+    let o ← data_ontology.encode_class context «class»
+    let o1 ← data_ontology.object_individual_of individual
+    match o with
+    | none => ok none
+    | some encoded =>
+      match o1 with
+      | none => ok none
+      | some copy =>
+        let o2 ← data_ontology.nominal_objects «class» out
+        match o2 with
+        | none => ok none
+        | some out1 =>
+          let ce ← data_ontology.object_class
+          let ce1 ← data_ontology.and encoded ce
+          data_ontology.push out1 (model.Axiom.ClassAssertion ce1 copy)
+  | model.Axiom.ObjectPropertyAssertion role source target =>
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some copy => data_ontology.related copy source target false out
+  | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+    let o ← data_ontology.object_role context role
+    match o with
+    | none => ok none
+    | some copy => data_ontology.related copy source target true out
+  | model.Axiom.DataPropertyAssertion property source literal =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.literal_individual context literal
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some value => data_ontology.valued role source value false out
+  | model.Axiom.NegativeDataPropertyAssertion property source literal =>
+    let o ← data_ontology.data_role context property
+    let o1 ← data_ontology.literal_individual context literal
+    match o with
+    | none => ok none
+    | some role =>
+      match o1 with
+      | none => ok none
+      | some value => data_ontology.valued role source value true out
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some out)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some out)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some out)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some out)
+
+/-- [rowl_kernel::data_ontology::encode_items]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1728:0-1742:1 -/
+def data_ontology.encode_items
+  (context : data_ontology.Context)
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← data_ontology.encode_axiom context aa.axiom out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← index + 1#usize
+      data_ontology.encode_items context items i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::role_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1750:0-1776:1 -/
+def data_ontology.role_axioms
+  (context : data_ontology.Context) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len context.roles
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) context.roles index
+    let v ← nnf.copy_bytes op.iri.spelling
+    let v1 ← nnf.copy_bytes op.iri.spelling
+    let ce ← data_ontology.object_class
+    let o ←
+      data_ontology.push out (model.Axiom.ObjectPropertyDomain
+        (model.ObjectPropertyExpression.Property { iri := { spelling := v } })
+        ce)
+    match o with
+    | none => ok none
+    | some out1 =>
+      let o1 ←
+        data_ontology.push out1 (model.Axiom.ObjectPropertyRange
+          (model.ObjectPropertyExpression.Property
+          { iri := { spelling := v1 } }) ce)
+      match o1 with
+      | none => ok none
+      | some out2 =>
+        let i1 ← index + 1#usize
+        data_ontology.role_axioms context i1 out2
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::data_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1779:0-1803:1 -/
+def data_ontology.data_axioms
+  (context : data_ontology.Context) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len context.data
+  if index < i
+  then
+    let dp ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataProperty) context.data index
+    let o ← data_ontology.data_role context dp
+    let o1 ← data_ontology.data_role context dp
+    match o with
+    | none => ok none
+    | some domain =>
+      match o1 with
+      | none => ok none
+      | some range =>
+        let ce ← data_ontology.object_class
+        let o2 ←
+          data_ontology.push out (model.Axiom.ObjectPropertyDomain domain ce)
+        match o2 with
+        | none => ok none
+        | some out1 =>
+          let ce1 ← data_ontology.data_class
+          let o3 ←
+            data_ontology.push out1 (model.Axiom.ObjectPropertyRange range ce1)
+          match o3 with
+          | none => ok none
+          | some out2 =>
+            let i1 ← index + 1#usize
+            data_ontology.data_axioms context i1 out2
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::kinds_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1806:0-1832:1 -/
+def data_ontology.kinds_axiom
+  (kinds : data_ontology.Kinds) (first : datatypes.Kind)
+  (second : datatypes.Kind) (inclusion : Bool)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let b ← data_ontology.used kinds first
+  if b
+  then
+    let b1 ← data_ontology.used kinds second
+    if b1
+    then
+      if inclusion
+      then
+        let ce ← data_ontology.kind_class first
+        let ce1 ← data_ontology.kind_class second
+        data_ontology.push out (model.Axiom.SubClassOf ce ce1)
+      else
+        let ce ← data_ontology.kind_class first
+        let ce1 ← data_ontology.kind_class second
+        data_ontology.push out (model.Axiom.DisjointClasses
+          {
+            first := ce,
+            second := ce1,
+            rest := (alloc.vec.Vec.new model.ClassExpression)
+          })
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::truth_axiom]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1835:0-1860:1 -/
+def data_ontology.truth_axiom
+  (context : data_ontology.Context) (out : alloc.vec.Vec model.AnnotatedAxiom)
+  :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  if context.kinds.boolean
+  then
+    let o ←
+      data_ontology.value_index context.values (datatypes.DataValue.Truth true)
+        0#usize
+    let o1 ←
+      data_ontology.value_index context.values (datatypes.DataValue.Truth
+        false) 0#usize
+    match o with
+    | none => ok none
+    | some truth =>
+      match o1 with
+      | none => ok none
+      | some falsity =>
+        let i ← data_ontology.value_individual falsity
+        let rest ← alloc.vec.Vec.push (alloc.vec.Vec.new model.Individual) i
+        let ce ← data_ontology.kind_class datatypes.Kind.Boolean
+        let i1 ← data_ontology.value_individual truth
+        data_ontology.push out (model.Axiom.SubClassOf ce
+          (model.ClassExpression.ObjectOneOf { first := i1, rest }))
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::kind_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1863:0-1906:1 -/
+def data_ontology.kind_axioms
+  (context : data_ontology.Context) (out : alloc.vec.Vec model.AnnotatedAxiom)
+  :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ←
+    data_ontology.kinds_axiom context.kinds datatypes.Kind.Integer
+      datatypes.Kind.Decimal true out
+  match o with
+  | none => ok none
+  | some out1 =>
+    let o1 ←
+      data_ontology.kinds_axiom context.kinds datatypes.Kind.String
+        datatypes.Kind.Plain true out1
+    match o1 with
+    | none => ok none
+    | some out2 =>
+      let o2 ←
+        data_ontology.kinds_axiom context.kinds datatypes.Kind.Integer
+          datatypes.Kind.String false out2
+      match o2 with
+      | none => ok none
+      | some out3 =>
+        let o3 ←
+          data_ontology.kinds_axiom context.kinds datatypes.Kind.Integer
+            datatypes.Kind.Plain false out3
+        match o3 with
+        | none => ok none
+        | some out4 =>
+          let o4 ←
+            data_ontology.kinds_axiom context.kinds datatypes.Kind.Integer
+              datatypes.Kind.Boolean false out4
+          match o4 with
+          | none => ok none
+          | some out5 =>
+            let o5 ←
+              data_ontology.kinds_axiom context.kinds datatypes.Kind.Decimal
+                datatypes.Kind.String false out5
+            match o5 with
+            | none => ok none
+            | some out6 =>
+              let o6 ←
+                data_ontology.kinds_axiom context.kinds datatypes.Kind.Decimal
+                  datatypes.Kind.Plain false out6
+              match o6 with
+              | none => ok none
+              | some out7 =>
+                let o7 ←
+                  data_ontology.kinds_axiom context.kinds
+                    datatypes.Kind.Decimal datatypes.Kind.Boolean false out7
+                match o7 with
+                | none => ok none
+                | some out8 =>
+                  let o8 ←
+                    data_ontology.kinds_axiom context.kinds
+                      datatypes.Kind.String datatypes.Kind.Boolean false out8
+                  match o8 with
+                  | none => ok none
+                  | some out9 =>
+                    let o9 ←
+                      data_ontology.kinds_axiom context.kinds
+                        datatypes.Kind.Plain datatypes.Kind.Boolean false out9
+                    match o9 with
+                    | none => ok none
+                    | some out10 => data_ontology.truth_axiom context out10
+
+/-- [rowl_kernel::data_ontology::bit]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1908:0-1914:1 -/
+def data_ontology.bit
+  (value : Std.Usize) (position : Std.Usize) : Result Bool := do
+  if position = 0#usize
+  then let i ← value % 2#usize
+       ok (i = 1#usize)
+  else
+    let i ← value / 2#usize
+    let i1 ← position - 1#usize
+    data_ontology.bit i i1
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::bits_for]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1917:0-1927:1 -/
+def data_ontology.bits_for
+  (count : Std.Usize) (bits : Std.Usize) (power : Std.Usize) :
+  Result Std.Usize
+  := do
+  if power < count
+  then
+    let i ← core.num.Usize.MAX / 2#usize
+    if power <= i
+    then
+      let i1 ← bits + 1#usize
+      let i2 ← power * 2#usize
+      data_ontology.bits_for count i1 i2
+    else bits + 1#usize
+  else ok bits
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::member]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1929:0-1946:1 -/
+def data_ontology.member
+  («class» : model.ClassExpression) (positive : Bool)
+  (individual : model.Individual) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  if positive
+  then data_ontology.push out (model.Axiom.ClassAssertion «class» individual)
+  else
+    data_ontology.push out (model.Axiom.ClassAssertion
+      (model.ClassExpression.ObjectComplementOf «class») individual)
+
+/-- [rowl_kernel::datatypes::in_kind]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 339:0-360:1
+    Visibility: public -/
+def datatypes.in_kind
+  (value : datatypes.DataValue) (kind : datatypes.Kind) : Result Bool := do
+  match value with
+  | datatypes.DataValue.Number _ _ fraction =>
+    match kind with
+    | datatypes.Kind.Integer =>
+      let i := alloc.vec.Vec.len fraction
+      ok (i = 0#usize)
+    | datatypes.Kind.Decimal => ok true
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Text _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok true
+    | datatypes.Kind.Plain => ok true
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Tagged _ _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok true
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Truth _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok true
+
+/-- [rowl_kernel::data_ontology::kind_member]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1949:0-1965:1 -/
+def data_ontology.kind_member
+  (context : data_ontology.Context) (kind : datatypes.Kind) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let b ← data_ontology.used context.kinds kind
+  if b
+  then
+    let i := alloc.vec.Vec.len context.values
+    if index < i
+    then
+      let ce ← data_ontology.kind_class kind
+      let dv ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          datatypes.DataValue) context.values index
+      let b1 ← datatypes.in_kind dv kind
+      let i1 ← data_ontology.value_individual index
+      data_ontology.member ce b1 i1 out
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::data_ontology::bit_members]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1968:0-1987:1 -/
+def data_ontology.bit_members
+  (index : Std.Usize) (position : Std.Usize) (bits : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  if position < bits
+  then
+    let ce ← data_ontology.bit_class position
+    let b ← data_ontology.bit index position
+    let i ← data_ontology.value_individual index
+    let o ← data_ontology.member ce b i out
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← position + 1#usize
+      data_ontology.bit_members index i1 bits out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::value_axioms]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 1990:0-2031:1 -/
+def data_ontology.value_axioms
+  (context : data_ontology.Context) (index : Std.Usize) (bits : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len context.values
+  if index < i
+  then
+    let ce ← data_ontology.data_class
+    let i1 ← data_ontology.value_individual index
+    let o ← data_ontology.push out (model.Axiom.ClassAssertion ce i1)
+    match o with
+    | none => ok none
+    | some out1 =>
+      let o1 ←
+        data_ontology.kind_member context datatypes.Kind.Integer index out1
+      match o1 with
+      | none => ok none
+      | some out2 =>
+        let o2 ←
+          data_ontology.kind_member context datatypes.Kind.Decimal index out2
+        match o2 with
+        | none => ok none
+        | some out3 =>
+          let o3 ←
+            data_ontology.kind_member context datatypes.Kind.String index out3
+          match o3 with
+          | none => ok none
+          | some out4 =>
+            let o4 ←
+              data_ontology.kind_member context datatypes.Kind.Plain index out4
+            match o4 with
+            | none => ok none
+            | some out5 =>
+              let o5 ←
+                data_ontology.kind_member context datatypes.Kind.Boolean index
+                  out5
+              match o5 with
+              | none => ok none
+              | some out6 =>
+                let o6 ← data_ontology.bit_members index 0#usize bits out6
+                match o6 with
+                | none => ok none
+                | some out7 =>
+                  let i2 ← index + 1#usize
+                  data_ontology.value_axioms context i2 bits out7
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::encode]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2035:0-2059:1
+    Visibility: public -/
+def data_ontology.encode
+  (context : data_ontology.Context)
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let o ←
+    data_ontology.encode_items context items 0#usize (alloc.vec.Vec.new
+      model.AnnotatedAxiom)
+  match o with
+  | none => ok none
+  | some out =>
+    let o1 ← data_ontology.role_axioms context 0#usize out
+    match o1 with
+    | none => ok none
+    | some out1 =>
+      let o2 ← data_ontology.data_axioms context 0#usize out1
+      match o2 with
+      | none => ok none
+      | some out2 =>
+        let o3 ← data_ontology.kind_axioms context out2
+        match o3 with
+        | none => ok none
+        | some out3 =>
+          let i := alloc.vec.Vec.len context.values
+          let i1 ← data_ontology.bits_for i 0#usize 1#usize
+          let o4 ← data_ontology.value_axioms context 0#usize i1 out3
+          match o4 with
+          | none => ok none
+          | some out4 =>
+            let ce ← data_ontology.object_class
+            let i2 ← data_ontology.object_individual
+            data_ontology.push out4 (model.Axiom.ClassAssertion ce i2)
+
+/-- [rowl_kernel::data_ontology::list_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2066:0-2079:1 -/
+def data_ontology.list_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) individuals index
+    let o ← alc_ontology.intern nodes i1
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i2 ← index + 1#usize
+      data_ontology.list_individuals nodes1 individuals i2
+  else ok (some nodes)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::class_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2082:0-2102:1 -/
+def data_ontology.class_individuals
+  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
+  :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  match «class» with
+  | model.ClassExpression.Class _ => ok (some nodes)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    data_ontology.members_individuals nodes members
+  | model.ClassExpression.ObjectUnionOf members =>
+    data_ontology.members_individuals nodes members
+  | model.ClassExpression.ObjectComplementOf inner =>
+    data_ontology.class_individuals nodes inner
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      data_ontology.list_individuals nodes1 individuals.rest 0#usize
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    data_ontology.class_individuals nodes filler
+  | model.ClassExpression.ObjectAllValuesFrom _ filler =>
+    data_ontology.class_individuals nodes filler
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    alc_ontology.intern nodes individual
+  | model.ClassExpression.ObjectHasSelf _ => ok (some nodes)
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok (some nodes)
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok (some nodes)
+  | model.ClassExpression.DataHasValue _ _ => ok (some nodes)
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok (some nodes)
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok (some nodes)
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::classes_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2103:0-2116:1 -/
+def data_ontology.classes_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let o ← data_ontology.class_individuals nodes ce
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i1 ← index + 1#usize
+      data_ontology.classes_individuals nodes1 classes i1
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::members_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2117:0-2128:1 -/
+def data_ontology.members_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let o ← data_ontology.class_individuals nodes members.first
+  match o with
+  | none => ok none
+  | some nodes1 =>
+    let o1 ← data_ontology.class_individuals nodes1 members.second
+    match o1 with
+    | none => ok none
+    | some nodes2 =>
+      data_ontology.classes_individuals nodes2 members.rest 0#usize
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::axiom_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2130:0-2166:1 -/
+def data_ontology.axiom_individuals
+  (nodes : alloc.vec.Vec model.Individual) («axiom» : model.Axiom) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some nodes)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← data_ontology.class_individuals nodes sub
+    match o with
+    | none => ok none
+    | some nodes1 => data_ontology.class_individuals nodes1 sup
+  | model.Axiom.EquivalentClasses members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.DisjointClasses members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.DisjointUnion _ members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
+  | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
+  | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
+  | model.Axiom.ObjectPropertyDomain _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.ObjectPropertyRange _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
+  | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
+  | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
+  | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
+  | model.Axiom.DisjointDataProperties _ => ok (some nodes)
+  | model.Axiom.DataPropertyDomain _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
+  | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
+  | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
+  | model.Axiom.HasKey _ _ _ => ok (some nodes)
+  | model.Axiom.SameIndividual individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let o1 ← alc_ontology.intern nodes1 individuals.second
+      match o1 with
+      | none => ok none
+      | some nodes2 =>
+        data_ontology.list_individuals nodes2 individuals.rest 0#usize
+  | model.Axiom.DifferentIndividuals individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let o1 ← alc_ontology.intern nodes1 individuals.second
+      match o1 with
+      | none => ok none
+      | some nodes2 =>
+        data_ontology.list_individuals nodes2 individuals.rest 0#usize
+  | model.Axiom.ClassAssertion «class» individual =>
+    let o ← alc_ontology.intern nodes individual
+    match o with
+    | none => ok none
+    | some nodes1 => data_ontology.class_individuals nodes1 «class»
+  | model.Axiom.ObjectPropertyAssertion _ source target =>
+    let o ← alc_ontology.intern nodes source
+    match o with
+    | none => ok none
+    | some nodes1 => alc_ontology.intern nodes1 target
+  | model.Axiom.NegativeObjectPropertyAssertion _ source target =>
+    let o ← alc_ontology.intern nodes source
+    match o with
+    | none => ok none
+    | some nodes1 => alc_ontology.intern nodes1 target
+  | model.Axiom.DataPropertyAssertion _ source _ =>
+    alc_ontology.intern nodes source
+  | model.Axiom.NegativeDataPropertyAssertion _ source _ =>
+    alc_ontology.intern nodes source
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
+
+/-- [rowl_kernel::data_ontology::items_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2168:0-2181:1 -/
+def data_ontology.items_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← data_ontology.axiom_individuals nodes aa.axiom
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i1 ← index + 1#usize
+      data_ontology.items_individuals nodes1 items i1
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::individual_known]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2183:0-2188:1 -/
+def data_ontology.individual_known
+  (nodes : alloc.vec.Vec model.Individual) (individual : model.Individual) :
+  Result Bool
+  := do
+  match individual with
+  | model.Individual.Named _ =>
+    let i ← alc_ontology.position nodes individual 0#usize
+    ok (i != 0#usize)
+  | model.Individual.Anonymous _ => ok false
+
+/-- [rowl_kernel::data_ontology::individuals_known]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2189:0-2196:1 -/
+def data_ontology.individuals_known
+  (nodes : alloc.vec.Vec model.Individual)
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) individuals index
+    let b ← data_ontology.individual_known nodes i1
+    if b
+    then
+      let i2 ← index + 1#usize
+      data_ontology.individuals_known nodes individuals i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::class_known]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2199:0-2223:1 -/
+def data_ontology.class_known
+  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
+  :
+  Result Bool
+  := do
+  match «class» with
+  | model.ClassExpression.Class _ => ok true
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let b ← data_ontology.class_known nodes members.first
+    if b
+    then
+      let b1 ← data_ontology.class_known nodes members.second
+      if b1
+      then data_ontology.classes_known nodes members.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectUnionOf members =>
+    let b ← data_ontology.class_known nodes members.first
+    if b
+    then
+      let b1 ← data_ontology.class_known nodes members.second
+      if b1
+      then data_ontology.classes_known nodes members.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectComplementOf inner =>
+    data_ontology.class_known nodes inner
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let b ← data_ontology.individual_known nodes individuals.first
+    if b
+    then data_ontology.individuals_known nodes individuals.rest 0#usize
+    else ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    data_ontology.class_known nodes filler
+  | model.ClassExpression.ObjectAllValuesFrom _ filler =>
+    data_ontology.class_known nodes filler
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    data_ontology.individual_known nodes individual
+  | model.ClassExpression.ObjectHasSelf _ => ok true
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some filler1 => data_ontology.class_known nodes filler1
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some filler1 => data_ontology.class_known nodes filler1
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some filler1 => data_ontology.class_known nodes filler1
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok true
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok true
+  | model.ClassExpression.DataHasValue _ _ => ok true
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok true
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok true
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok true
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::classes_known]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2224:0-2230:1 -/
+def data_ontology.classes_known
+  (nodes : alloc.vec.Vec model.Individual)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let b ← data_ontology.class_known nodes ce
+    if b
+    then
+      let i1 ← index + 1#usize
+      data_ontology.classes_known nodes classes i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::shi_ontology::Parts]
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 109:0-112:1
+    Visibility: public -/
+structure shi_ontology.Parts where
+  axioms : concepts.Concept
+  definitions : alloc.vec.Vec completion.Definition
+
+/-- [rowl_kernel::role_chains::Chain]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 70:0-73:1
+    Visibility: public -/
+structure role_chains.Chain where
+  roles : alloc.vec.Vec model.ObjectPropertyExpression
+  sup : model.ObjectPropertyExpression
+
+/-- [rowl_kernel::shi_ontology::Prepared]
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1654:0-1667:1
+    Visibility: public -/
+structure shi_ontology.Prepared where
+  nodes : alloc.vec.Vec model.Individual
+  same : alloc.vec.Vec Std.Usize
+  parts : shi_ontology.Parts
+  facts : alloc.vec.Vec completion.Fact
+  bound : alloc.vec.Vec completion.Fact
+  roles : hierarchy.RoleHierarchy
+  chains : alloc.vec.Vec role_chains.Chain
+  links : alloc.vec.Vec completion.Link
+  denied : Bool
+  forest : Bool
+  universal : Bool
+  clash : Bool
+
+/-- [rowl_kernel::data_ontology::Prepared]
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2239:0-2242:1
+    Visibility: public -/
+@[discriminant isize]
+inductive data_ontology.Prepared where
+| Plain : shi_ontology.Prepared → data_ontology.Prepared
+| Encoded :
+  data_ontology.Context →
+  alloc.vec.Vec model.Individual →
+  shi_ontology.Prepared →
+  data_ontology.Prepared
+
+/-- [rowl_kernel::data_ontology::data_free]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2244:0-2252:1 -/
+def data_ontology.data_free
+  (context : data_ontology.Context) : Result Bool := do
+  let i := alloc.vec.Vec.len context.data
+  if i = 0#usize
+  then
+    let i1 := alloc.vec.Vec.len context.values
+    if i1 = 0#usize
+    then
+      if context.kinds.integer
+      then ok false
+      else
+        if context.kinds.decimal
+        then ok false
+        else
+          if context.kinds.string
+          then ok false
+          else
+            if context.kinds.plain
+            then ok false
+            else ok (¬ context.kinds.boolean)
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::chained]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1640:0-1642:1 -/
+def shi_ontology.chained
+  (chains : alloc.vec.Vec role_chains.Chain) : Result Bool := do
+  let i := alloc.vec.Vec.len chains
+  ok (i != 0#usize)
+
+/-- [rowl_kernel::shi_ontology::constrained]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1635:0-1637:1 -/
+def shi_ontology.constrained
+  (roles : hierarchy.RoleHierarchy) : Result Bool := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  ok (i != 0#usize)
+
+/-- [rowl_kernel::shi_ontology::tangled]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1630:0-1632:1 -/
+def shi_ontology.tangled
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (roles : hierarchy.RoleHierarchy) :
+  Result Bool
+  := do
+  let b ← alc_ontology.has_negative items 0#usize
+  if b
+  then
+    let i := alloc.vec.Vec.len roles.inclusions
+    let b1 ←
+      if i = 0#usize
+      then let i1 := alloc.vec.Vec.len roles.transitive
+           ok (i1 = 0#usize)
+      else ok false
+    ok (¬ b1)
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::link_is]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1565:0-1575:1 -/
+def shi_ontology.link_is
+  (link : completion.Link) (role : model.ObjectPropertyExpression)
+  (source : Std.Usize) (target : Std.Usize) :
+  Result Bool
+  := do
+  if link.from = source
+  then if link.to = target
+       then concepts.same_role link.role role
+       else ok false
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::linked_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1579:0-1598:1 -/
+def shi_ontology.linked_from
+  (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
+  (role : model.ObjectPropertyExpression)
+  (flipped : model.ObjectPropertyExpression) (source : Std.Usize)
+  (target : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len links
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) links index
+    let b ← shi_ontology.link_is l role source target
+    if b
+    then ok true
+    else
+      let b1 ← shi_ontology.link_is l flipped target source
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        shi_ontology.linked_from links i1 role flipped source target
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::representative]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1212:0-1218:1 -/
+def shi_ontology.representative
+  (same : alloc.vec.Vec Std.Usize) (node : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len same
+  if node < i
+  then
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) same
+      node
+  else ok node
+
+/-- [rowl_kernel::shi_ontology::node_of]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1220:0-1222:1 -/
+def shi_ontology.node_of
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (individual : model.Individual) :
+  Result Std.Usize
+  := do
+  let i ← alc_ontology.position nodes individual 0#usize
+  shi_ontology.representative same i
+
+/-- [rowl_kernel::shi_ontology::denied_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1601:0-1627:1 -/
+def shi_ontology.denied_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (links : alloc.vec.Vec completion.Link) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+      let flipped ← concepts.inverse role
+      let i1 ← shi_ontology.node_of nodes same source
+      let i2 ← shi_ontology.node_of nodes same target
+      let here ← shi_ontology.linked_from links 0#usize role flipped i1 i2
+      if here
+      then ok true
+      else
+        let i3 ← index + 1#usize
+        shi_ontology.denied_from items nodes same links i3
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.denied_from items nodes same links i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::links_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1537:0-1563:1 -/
+def shi_ontology.links_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (links : alloc.vec.Vec completion.Link) :
+  Result (Option (alloc.vec.Vec completion.Link))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.ObjectPropertyAssertion role source target =>
+      let i1 := alloc.vec.Vec.len links
+      if i1 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role role
+        let i2 ← shi_ontology.node_of nodes same source
+        let i3 ← shi_ontology.node_of nodes same target
+        let links1 ←
+          alloc.vec.Vec.push links
+            ({ role := ope, «from» := i2, «to» := i3 } : completion.Link)
+        let i4 ← index + 1#usize
+        shi_ontology.links_from items nodes same i4 links1
+      else ok none
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.links_from items nodes same i1 links
+  else ok (some links)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::assertions_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1506:0-1534:1 -/
+def shi_ontology.assertions_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.ClassAssertion «class» member =>
+      let o ← concepts.translate «class» true
+      match o with
+      | none => ok none
+      | some concept =>
+        let i1 := alloc.vec.Vec.len facts
+        if i1 < core.num.Usize.MAX
+        then
+          let i2 ← shi_ontology.node_of nodes same member
+          let facts1 ←
+            alloc.vec.Vec.push facts ({ node := i2, concept } :
+              completion.Fact)
+          let i3 ← index + 1#usize
+          shi_ontology.assertions_from items nodes same i3 facts1
+        else ok none
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertions_from items nodes same i1 facts
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_fact]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1361:0-1368:1 -/
+def shi_ontology.add_fact
+  (facts : alloc.vec.Vec completion.Fact) (node : Std.Usize)
+  (concept : concepts.Concept) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len facts
+  if i < core.num.Usize.MAX
+  then
+    let facts1 ←
+      alloc.vec.Vec.push facts ({ node, concept } : completion.Fact)
+    ok (some facts1)
+  else ok none
+
+/-- [rowl_kernel::shi_ontology::refused_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1476:0-1502:1 -/
+def shi_ontology.refused_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let facts1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some facts)
+      | model.Axiom.SubClassOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentClasses _ => ok (some facts)
+      | model.Axiom.DisjointClasses _ => ok (some facts)
+      | model.Axiom.DisjointUnion _ _ => ok (some facts)
+      | model.Axiom.SubObjectPropertyOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentObjectProperties _ => ok (some facts)
+      | model.Axiom.DisjointObjectProperties _ => ok (some facts)
+      | model.Axiom.InverseObjectProperties _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some facts)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some facts)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some facts)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some facts)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some facts)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some facts)
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some facts)
+      | model.Axiom.TransitiveObjectProperty _ => ok (some facts)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentDataProperties _ => ok (some facts)
+      | model.Axiom.DisjointDataProperties _ => ok (some facts)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.DataPropertyRange _ _ => ok (some facts)
+      | model.Axiom.FunctionalDataProperty _ => ok (some facts)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some facts)
+      | model.Axiom.HasKey _ _ _ => ok (some facts)
+      | model.Axiom.SameIndividual _ => ok (some facts)
+      | model.Axiom.DifferentIndividuals _ => ok (some facts)
+      | model.Axiom.ClassAssertion _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+        do
+        let node ← shi_ontology.node_of nodes same source
+        let ope ← concepts.copy_role role
+        let i1 ← concepts.copy_individual target
+        shi_ontology.add_fact facts node (concepts.Concept.Forall ope
+          (concepts.Concept.NotOne i1))
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some facts)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some facts)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some facts)
+    match facts1 with
+    | none => ok none
+    | some facts2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.refused_from items nodes same i1 facts2
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::apart_rest]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1389:0-1406:1 -/
+def shi_ontology.apart_rest
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (member : model.Individual) (rest : alloc.vec.Vec model.Individual)
+  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let node ← shi_ontology.node_of nodes same member
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let i2 ← concepts.copy_individual i1
+    let o ← shi_ontology.add_fact facts node (concepts.Concept.NotOne i2)
+    match o with
+    | none => ok none
+    | some facts1 =>
+      let i3 ← index + 1#usize
+      shi_ontology.apart_rest nodes same member rest i3 facts1
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::apart_within]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1409:0-1424:1 -/
+def shi_ontology.apart_within
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let i2 ← index + 1#usize
+    let o ← shi_ontology.apart_rest nodes same i1 rest i2 facts
+    match o with
+    | none => ok none
+    | some facts1 => shi_ontology.apart_within nodes same rest i2 facts1
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::apart_members]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1427:0-1451:1 -/
+def shi_ontology.apart_members
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (members : model.AtLeastTwo model.Individual)
+  (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let node ← shi_ontology.node_of nodes same members.first
+  let i ← concepts.copy_individual members.second
+  let o ← shi_ontology.add_fact facts node (concepts.Concept.NotOne i)
+  match o with
+  | none => ok none
+  | some facts1 =>
+    let o1 ←
+      shi_ontology.apart_rest nodes same members.first members.rest 0#usize
+        facts1
+    match o1 with
+    | none => ok none
+    | some facts2 =>
+      let o2 ←
+        shi_ontology.apart_rest nodes same members.second members.rest 0#usize
+          facts2
+      match o2 with
+      | none => ok none
+      | some facts3 =>
+        shi_ontology.apart_within nodes same members.rest 0#usize facts3
+
+/-- [rowl_kernel::shi_ontology::unequal_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1453:0-1472:1 -/
+def shi_ontology.unequal_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let facts1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some facts)
+      | model.Axiom.SubClassOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentClasses _ => ok (some facts)
+      | model.Axiom.DisjointClasses _ => ok (some facts)
+      | model.Axiom.DisjointUnion _ _ => ok (some facts)
+      | model.Axiom.SubObjectPropertyOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentObjectProperties _ => ok (some facts)
+      | model.Axiom.DisjointObjectProperties _ => ok (some facts)
+      | model.Axiom.InverseObjectProperties _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some facts)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some facts)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some facts)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some facts)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some facts)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some facts)
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some facts)
+      | model.Axiom.TransitiveObjectProperty _ => ok (some facts)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some facts)
+      | model.Axiom.EquivalentDataProperties _ => ok (some facts)
+      | model.Axiom.DisjointDataProperties _ => ok (some facts)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.DataPropertyRange _ _ => ok (some facts)
+      | model.Axiom.FunctionalDataProperty _ => ok (some facts)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some facts)
+      | model.Axiom.HasKey _ _ _ => ok (some facts)
+      | model.Axiom.SameIndividual _ => ok (some facts)
+      | model.Axiom.DifferentIndividuals members =>
+        shi_ontology.apart_members nodes same members facts
+      | model.Axiom.ClassAssertion _ _ => ok (some facts)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some facts)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some facts)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some facts)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some facts)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some facts)
+    match facts1 with
+    | none => ok none
+    | some facts2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.unequal_from items nodes same i1 facts2
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::named_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1371:0-1386:1 -/
+def shi_ontology.named_from
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) nodes index
+    let node ← shi_ontology.node_of nodes same i1
+    let i2 ← concepts.copy_individual i1
+    let o ← shi_ontology.add_fact facts node (concepts.Concept.One i2)
+    match o with
+    | none => ok none
+    | some facts1 =>
+      let i3 ← index + 1#usize
+      shi_ontology.named_from nodes same i3 facts1
+  else ok (some facts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::nominal_individuals]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1297:0-1315:1 -/
+def shi_ontology.nominal_individuals
+  (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  match concept with
+  | concepts.Concept.Top => ok (some nodes)
+  | concepts.Concept.Bottom => ok (some nodes)
+  | concepts.Concept.Atom _ => ok (some nodes)
+  | concepts.Concept.NotAtom _ => ok (some nodes)
+  | concepts.Concept.One individual => alc_ontology.intern nodes individual
+  | concepts.Concept.NotOne individual => alc_ontology.intern nodes individual
+  | concepts.Concept.HasSelf _ => ok (some nodes)
+  | concepts.Concept.NotSelf _ => ok (some nodes)
+  | concepts.Concept.And left right =>
+    let o ← shi_ontology.nominal_individuals nodes left
+    match o with
+    | none => ok none
+    | some nodes1 => shi_ontology.nominal_individuals nodes1 right
+  | concepts.Concept.Or left right =>
+    let o ← shi_ontology.nominal_individuals nodes left
+    match o with
+    | none => ok none
+    | some nodes1 => shi_ontology.nominal_individuals nodes1 right
+  | concepts.Concept.Exists _ filler =>
+    shi_ontology.nominal_individuals nodes filler
+  | concepts.Concept.Forall _ filler =>
+    shi_ontology.nominal_individuals nodes filler
+  | concepts.Concept.AtLeast _ _ filler =>
+    shi_ontology.nominal_individuals nodes filler
+  | concepts.Concept.AtMost _ _ filler =>
+    shi_ontology.nominal_individuals nodes filler
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::class_individuals]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1334:0-1339:1 -/
+def shi_ontology.class_individuals
+  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
+  :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let o ← concepts.translate «class» true
+  match o with
+  | none => ok none
+  | some concept => shi_ontology.nominal_individuals nodes concept
+
+/-- [rowl_kernel::shi_ontology::assertion_individuals]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1342:0-1359:1 -/
+def shi_ontology.assertion_individuals
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (nodes : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let nodes1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some nodes)
+      | model.Axiom.SubClassOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentClasses _ => ok (some nodes)
+      | model.Axiom.DisjointClasses _ => ok (some nodes)
+      | model.Axiom.DisjointUnion _ _ => ok (some nodes)
+      | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
+      | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
+      | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some nodes)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
+      | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
+      | model.Axiom.DisjointDataProperties _ => ok (some nodes)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
+      | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
+      | model.Axiom.HasKey _ _ _ => ok (some nodes)
+      | model.Axiom.SameIndividual _ => ok (some nodes)
+      | model.Axiom.DifferentIndividuals _ => ok (some nodes)
+      | model.Axiom.ClassAssertion «class» _ =>
+        shi_ontology.class_individuals nodes «class»
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
+    match nodes1 with
+    | none => ok none
+    | some nodes2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.assertion_individuals items i1 nodes2
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::definition_individuals]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1318:0-1331:1 -/
+def shi_ontology.definition_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let o ← shi_ontology.nominal_individuals nodes d.concept
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.definition_individuals nodes1 definitions i1
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::meets]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1224:0-1240:1 -/
+def shi_ontology.meets
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (node : Std.Usize) (rest : alloc.vec.Vec model.Individual)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let i2 ← shi_ontology.node_of nodes same i1
+    if i2 = node
+    then ok true
+    else let i3 ← index + 1#usize
+         shi_ontology.meets nodes same node rest i3
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::repeats]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1242:0-1258:1 -/
+def shi_ontology.repeats
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let node ← shi_ontology.node_of nodes same i1
+    let i2 ← index + 1#usize
+    let b ← shi_ontology.meets nodes same node rest i2
+    if b
+    then ok true
+    else shi_ontology.repeats nodes same rest i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::shares]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1260:0-1272:1 -/
+def shi_ontology.shares
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (members : model.AtLeastTwo model.Individual) :
+  Result Bool
+  := do
+  let first ← shi_ontology.node_of nodes same members.first
+  let second ← shi_ontology.node_of nodes same members.second
+  if first = second
+  then ok true
+  else
+    let b ← shi_ontology.meets nodes same first members.rest 0#usize
+    if b
+    then ok true
+    else
+      let b1 ← shi_ontology.meets nodes same second members.rest 0#usize
+      if b1
+      then ok true
+      else shi_ontology.repeats nodes same members.rest 0#usize
+
+/-- [rowl_kernel::shi_ontology::clash_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1274:0-1294:1 -/
+def shi_ontology.clash_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SubObjectPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DifferentIndividuals members =>
+      let b ← shi_ontology.shares nodes same members
+      if b
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        shi_ontology.clash_from items nodes same i1
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.clash_from items nodes same i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::relabel]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1148:0-1157:1 -/
+def shi_ontology.relabel
+  (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
+  (index : Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len same
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        same index
+    let same1 ←
+      if i1 = «from»
+      then
+        do
+        let (_, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+            Std.Usize) same index
+        ok (index_mut_back into)
+      else ok same
+    let i2 ← index + 1#usize
+    shi_ontology.relabel same1 «from» into i2
+  else ok same
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::unite]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1160:0-1172:1 -/
+def shi_ontology.unite
+  (same : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len same
+  if left < i
+  then
+    let i1 := alloc.vec.Vec.len same
+    if right < i1
+    then
+      let into ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          same left
+      let «from» ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          same right
+      if into = «from»
+      then ok same
+      else shi_ontology.relabel same «from» into 0#usize
+    else ok same
+  else ok same
+
+/-- [rowl_kernel::shi_ontology::unite_rest]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1174:0-1188:1 -/
+def shi_ontology.unite_rest
+  (same : alloc.vec.Vec Std.Usize) (nodes : alloc.vec.Vec model.Individual)
+  (first : Std.Usize) (rest : alloc.vec.Vec model.Individual)
+  (index : Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let other ← alc_ontology.position nodes i1 0#usize
+    let same1 ← shi_ontology.unite same first other
+    let i2 ← index + 1#usize
+    shi_ontology.unite_rest same1 nodes first rest i2
+  else ok same
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::equalities_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1190:0-1210:1 -/
+def shi_ontology.equalities_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (same : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let same1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok same
+      | model.Axiom.SubClassOf _ _ => ok same
+      | model.Axiom.EquivalentClasses _ => ok same
+      | model.Axiom.DisjointClasses _ => ok same
+      | model.Axiom.DisjointUnion _ _ => ok same
+      | model.Axiom.SubObjectPropertyOf _ _ => ok same
+      | model.Axiom.EquivalentObjectProperties _ => ok same
+      | model.Axiom.DisjointObjectProperties _ => ok same
+      | model.Axiom.InverseObjectProperties _ _ => ok same
+      | model.Axiom.ObjectPropertyDomain _ _ => ok same
+      | model.Axiom.ObjectPropertyRange _ _ => ok same
+      | model.Axiom.FunctionalObjectProperty _ => ok same
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok same
+      | model.Axiom.ReflexiveObjectProperty _ => ok same
+      | model.Axiom.IrreflexiveObjectProperty _ => ok same
+      | model.Axiom.SymmetricObjectProperty _ => ok same
+      | model.Axiom.AsymmetricObjectProperty _ => ok same
+      | model.Axiom.TransitiveObjectProperty _ => ok same
+      | model.Axiom.SubDataPropertyOf _ _ => ok same
+      | model.Axiom.EquivalentDataProperties _ => ok same
+      | model.Axiom.DisjointDataProperties _ => ok same
+      | model.Axiom.DataPropertyDomain _ _ => ok same
+      | model.Axiom.DataPropertyRange _ _ => ok same
+      | model.Axiom.FunctionalDataProperty _ => ok same
+      | model.Axiom.DatatypeDefinition _ _ => ok same
+      | model.Axiom.HasKey _ _ _ => ok same
+      | model.Axiom.SameIndividual members =>
+        do
+        let first ← alc_ontology.position nodes members.first 0#usize
+        let second ← alc_ontology.position nodes members.second 0#usize
+        let same2 ← shi_ontology.unite same first second
+        shi_ontology.unite_rest same2 nodes first members.rest 0#usize
+      | model.Axiom.DifferentIndividuals _ => ok same
+      | model.Axiom.ClassAssertion _ _ => ok same
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok same
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok same
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok same
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok same
+      | model.Axiom.AnnotationAssertion _ _ _ => ok same
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok same
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok same
+      | model.Axiom.AnnotationPropertyRange _ _ => ok same
+    let i1 ← index + 1#usize
+    shi_ontology.equalities_from items nodes i1 same1
+  else ok same
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::identity_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1138:0-1145:1 -/
+def shi_ontology.identity_from
+  (count : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  if index < count
+  then
+    let out1 ← alloc.vec.Vec.push out index
+    let i ← index + 1#usize
+    shi_ontology.identity_from count i out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::intern_rest]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1087:0-1100:1 -/
+def shi_ontology.intern_rest
+  (nodes : alloc.vec.Vec model.Individual)
+  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) rest index
+    let o ← alc_ontology.intern nodes i1
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i2 ← index + 1#usize
+      shi_ontology.intern_rest nodes1 rest i2
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::intern_members]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1102:0-1115:1 -/
+def shi_ontology.intern_members
+  (nodes : alloc.vec.Vec model.Individual)
+  (members : model.AtLeastTwo model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let o ← alc_ontology.intern nodes members.first
+  match o with
+  | none => ok none
+  | some nodes1 =>
+    let o1 ← alc_ontology.intern nodes1 members.second
+    match o1 with
+    | none => ok none
+    | some nodes2 => shi_ontology.intern_rest nodes2 members.rest 0#usize
+
+/-- [rowl_kernel::shi_ontology::members_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1118:0-1136:1 -/
+def shi_ontology.members_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (nodes : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let nodes1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some nodes)
+      | model.Axiom.SubClassOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentClasses _ => ok (some nodes)
+      | model.Axiom.DisjointClasses _ => ok (some nodes)
+      | model.Axiom.DisjointUnion _ _ => ok (some nodes)
+      | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
+      | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
+      | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some nodes)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
+      | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
+      | model.Axiom.DisjointDataProperties _ => ok (some nodes)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
+      | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
+      | model.Axiom.HasKey _ _ _ => ok (some nodes)
+      | model.Axiom.SameIndividual members =>
+        shi_ontology.intern_members nodes members
+      | model.Axiom.DifferentIndividuals members =>
+        shi_ontology.intern_members nodes members
+      | model.Axiom.ClassAssertion _ _ => ok (some nodes)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
+    match nodes1 with
+    | none => ok none
+    | some nodes2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.members_from items i1 nodes2
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::not_top]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 49:0-54:1
+    Visibility: public -/
+def universal.not_top
+  (role : model.ObjectPropertyExpression) : Result Bool := do
+  let op ← alc_ontology.named_property role
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  let b ← alc_ontology.same_pattern op.iri.spelling s
+  ok (¬ b)
+
+/-- [rowl_kernel::shi_ontology::inclusion_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1056:0-1060:1 -/
+def shi_ontology.inclusion_proper
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let lower ← universal.not_top sub
+  let upper ← universal.not_top sup
+  if lower
+  then ok true
+  else ok (¬ upper)
+
+/-- [rowl_kernel::shi_ontology::rest_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1030:0-1037:1 -/
+def shi_ontology.rest_proper
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let here ← universal.not_top ope
+    if here
+    then let i1 ← index + 1#usize
+         shi_ontology.rest_proper values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::members_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1039:0-1043:1 -/
+def shi_ontology.members_proper
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let first ← universal.not_top members.first
+  let second ← universal.not_top members.second
+  if first
+  then
+    if second
+    then shi_ontology.rest_proper members.rest 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::chain_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1046:0-1053:1 -/
+def shi_ontology.chain_proper
+  (members : model.AtLeastTwo model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let along ← shi_ontology.members_proper members
+  let upper ← universal.not_top sup
+  if upper
+  then ok along
+  else ok true
+
+/-- [rowl_kernel::shi_ontology::pair_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1024:0-1028:1 -/
+def shi_ontology.pair_proper
+  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
+  :
+  Result Bool
+  := do
+  let lower ← universal.not_top sub
+  let upper ← universal.not_top sup
+  if lower
+  then ok upper
+  else ok false
+
+/-- [rowl_kernel::shi_ontology::roles_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1064:0-1083:1 -/
+def shi_ontology.roles_proper
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let here ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok true
+      | model.Axiom.SubClassOf _ _ => ok true
+      | model.Axiom.EquivalentClasses _ => ok true
+      | model.Axiom.DisjointClasses _ => ok true
+      | model.Axiom.DisjointUnion _ _ => ok true
+      | model.Axiom.SubObjectPropertyOf sope sup =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single sub =>
+          shi_ontology.inclusion_proper sub sup
+        | model.SubObjectPropertyExpression.Chain members =>
+          shi_ontology.chain_proper members sup
+      | model.Axiom.EquivalentObjectProperties members =>
+        shi_ontology.members_proper members
+      | model.Axiom.DisjointObjectProperties members =>
+        shi_ontology.members_proper members
+      | model.Axiom.InverseObjectProperties first second =>
+        shi_ontology.pair_proper first second
+      | model.Axiom.ObjectPropertyDomain _ _ => ok true
+      | model.Axiom.ObjectPropertyRange _ _ => ok true
+      | model.Axiom.FunctionalObjectProperty _ => ok true
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok true
+      | model.Axiom.ReflexiveObjectProperty _ => ok true
+      | model.Axiom.IrreflexiveObjectProperty _ => ok true
+      | model.Axiom.SymmetricObjectProperty _ => ok true
+      | model.Axiom.AsymmetricObjectProperty property =>
+        universal.not_top property
+      | model.Axiom.TransitiveObjectProperty _ => ok true
+      | model.Axiom.SubDataPropertyOf _ _ => ok true
+      | model.Axiom.EquivalentDataProperties _ => ok true
+      | model.Axiom.DisjointDataProperties _ => ok true
+      | model.Axiom.DataPropertyDomain _ _ => ok true
+      | model.Axiom.DataPropertyRange _ _ => ok true
+      | model.Axiom.FunctionalDataProperty _ => ok true
+      | model.Axiom.DatatypeDefinition _ _ => ok true
+      | model.Axiom.HasKey _ _ _ => ok true
+      | model.Axiom.SameIndividual _ => ok true
+      | model.Axiom.DifferentIndividuals _ => ok true
+      | model.Axiom.ClassAssertion _ _ => ok true
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok true
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok true
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok true
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok true
+      | model.Axiom.AnnotationAssertion _ _ _ => ok true
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok true
+      | model.Axiom.AnnotationPropertyRange _ _ => ok true
+    if here
+    then let i1 ← index + 1#usize
+         shi_ontology.roles_proper items i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::copy_roles_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 898:0-913:1 -/
+def shi_ontology.copy_roles_from
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) values index
+      let ope1 ← concepts.copy_role ope
+      let out1 ← alloc.vec.Vec.push out ope1
+      let i2 ← index + 1#usize
+      shi_ontology.copy_roles_from values i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::chain_roles]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 985:0-992:1 -/
+def shi_ontology.chain_roles
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let ope ← concepts.copy_role members.first
+  let roles ←
+    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
+  let ope1 ← concepts.copy_role members.second
+  let roles1 ← alloc.vec.Vec.push roles ope1
+  shi_ontology.copy_roles_from members.rest 0#usize roles1
+
+/-- [rowl_kernel::shi_ontology::chains_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 995:0-1022:1
+    Visibility: public -/
+def shi_ontology.chains_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (out : alloc.vec.Vec role_chains.Chain) :
+  Result (Option (alloc.vec.Vec role_chains.Chain))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubObjectPropertyOf sope sup =>
+      match sope with
+      | model.SubObjectPropertyExpression.Single _ =>
+        let i1 ← index + 1#usize
+        shi_ontology.chains_from items i1 out
+      | model.SubObjectPropertyExpression.Chain members =>
+        let o ← shi_ontology.chain_roles members
+        match o with
+        | none => ok none
+        | some roles =>
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let ope ← concepts.copy_role sup
+            let out1 ←
+              alloc.vec.Vec.push out ({ roles, sup := ope } :
+                role_chains.Chain)
+            let i2 ← index + 1#usize
+            shi_ontology.chains_from items i2 out1
+          else ok none
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_disjoint]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 849:0-863:1 -/
+def shi_ontology.add_disjoint
+  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  if i < core.num.Usize.MAX
+  then
+    let ope ← concepts.copy_role left
+    let ope1 ← concepts.copy_role right
+    let v ←
+      alloc.vec.Vec.push roles.disjoint ({ left := ope, right := ope1 } :
+        hierarchy.Disjoint)
+    ok (some { roles with disjoint := v })
+  else ok none
+
+/-- [rowl_kernel::shi_ontology::apart_with]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 866:0-880:1 -/
+def shi_ontology.apart_with
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (first : Std.Usize)
+  (index : Std.Usize) (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len values
+  if first < i
+  then
+    let i1 := alloc.vec.Vec.len values
+    if index < i1
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) values first
+      let ope1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) values index
+      let o ← shi_ontology.add_disjoint roles ope ope1
+      match o with
+      | none => ok none
+      | some roles1 =>
+        let i2 ← index + 1#usize
+        shi_ontology.apart_with values first i2 roles1
+    else ok (some roles)
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::roles_apart]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 883:0-896:1 -/
+def shi_ontology.roles_apart
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let o ← shi_ontology.apart_with values index i1 roles
+    match o with
+    | none => ok none
+    | some roles1 => shi_ontology.roles_apart values i1 roles1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_disjoint_members]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 915:0-926:1 -/
+def shi_ontology.add_disjoint_members
+  (roles : hierarchy.RoleHierarchy)
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let ope ← concepts.copy_role members.first
+  let values ←
+    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
+  let ope1 ← concepts.copy_role members.second
+  let values1 ← alloc.vec.Vec.push values ope1
+  let o ← shi_ontology.copy_roles_from members.rest 0#usize values1
+  match o with
+  | none => ok none
+  | some values2 => shi_ontology.roles_apart values2 0#usize roles
+
+/-- [rowl_kernel::shi_ontology::constraints_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 930:0-951:1 -/
+def shi_ontology.constraints_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let roles1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some roles)
+      | model.Axiom.SubClassOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentClasses _ => ok (some roles)
+      | model.Axiom.DisjointClasses _ => ok (some roles)
+      | model.Axiom.DisjointUnion _ _ => ok (some roles)
+      | model.Axiom.SubObjectPropertyOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentObjectProperties _ => ok (some roles)
+      | model.Axiom.DisjointObjectProperties members =>
+        shi_ontology.add_disjoint_members roles members
+      | model.Axiom.InverseObjectProperties _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.SymmetricObjectProperty _ => ok (some roles)
+      | model.Axiom.AsymmetricObjectProperty role =>
+        do
+        let flipped ← concepts.inverse role
+        shi_ontology.add_disjoint roles role flipped
+      | model.Axiom.TransitiveObjectProperty _ => ok (some roles)
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
+      | model.Axiom.DisjointDataProperties _ => ok (some roles)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
+      | model.Axiom.HasKey _ _ _ => ok (some roles)
+      | model.Axiom.SameIndividual _ => ok (some roles)
+      | model.Axiom.DifferentIndividuals _ => ok (some roles)
+      | model.Axiom.ClassAssertion _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
+    match roles1 with
+    | none => ok none
+    | some roles2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.constraints_from items i1 roles2
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::transitive_from]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 60:0-74:1 -/
+def hierarchy.transitive_from
+  (transitive : alloc.vec.Vec model.ObjectPropertyExpression)
+  (index : Std.Usize) (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) transitive index
+    let b ← concepts.same_role ope role
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      hierarchy.transitive_from transitive i1 role
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::hierarchy::is_transitive]:
+    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 76:0-78:1
+    Visibility: public -/
+def hierarchy.is_transitive
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  hierarchy.transitive_from roles.transitive 0#usize role
+
+/-- [rowl_kernel::shi_ontology::add_transitive]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 801:0-814:1 -/
+def shi_ontology.add_transitive
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let b ← hierarchy.is_transitive roles role
+  if b
+  then ok (some roles)
+  else
+    let i := alloc.vec.Vec.len roles.transitive
+    let i1 ← core.num.Usize.MAX - 1#usize
+    if i < i1
+    then
+      let ope ← concepts.copy_role role
+      let v ← alloc.vec.Vec.push roles.transitive ope
+      let ope1 ← concepts.inverse role
+      let v1 ← alloc.vec.Vec.push v ope1
+      ok (some { roles with transitive := v1 })
+    else ok none
+
+/-- [rowl_kernel::shi_ontology::row_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 688:0-709:1 -/
+def shi_ontology.row_from
+  (sub : model.ObjectPropertyExpression)
+  (above : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len above
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) above index
+    let b ← hierarchy.below roles sub ope
+    if b
+    then let i1 ← index + 1#usize
+         shi_ontology.row_from sub above i1 roles
+    else
+      let i1 := alloc.vec.Vec.len roles.inclusions
+      if i1 < core.num.Usize.MAX
+      then
+        let ope1 ← concepts.copy_role sub
+        let ope2 ← concepts.copy_role ope
+        let v ←
+          alloc.vec.Vec.push roles.inclusions ({ sub := ope1, sup := ope2 } :
+            hierarchy.Inclusion)
+        let i2 ← index + 1#usize
+        shi_ontology.row_from sub above i2 { roles with inclusions := v }
+      else ok none
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::pairs_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 711:0-725:1 -/
+def shi_ontology.pairs_from
+  (lower : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (above : alloc.vec.Vec model.ObjectPropertyExpression)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len lower
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) lower index
+    let o ← shi_ontology.row_from ope above 0#usize roles
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.pairs_from lower i1 above roles1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::sups_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 665:0-685:1 -/
+def shi_ontology.sups_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sub : model.ObjectPropertyExpression)
+  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role i1.sub sub
+    if b
+    then
+      let i2 := alloc.vec.Vec.len found
+      if i2 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role i1.sup
+        let found1 ← alloc.vec.Vec.push found ope
+        let i3 ← index + 1#usize
+        shi_ontology.sups_from inclusions i3 sub found1
+      else ok none
+    else
+      let i2 ← index + 1#usize
+      shi_ontology.sups_from inclusions i2 sub found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::subs_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 642:0-662:1 -/
+def shi_ontology.subs_from
+  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
+  (sup : model.ObjectPropertyExpression)
+  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len inclusions
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) inclusions index
+    let b ← concepts.same_role i1.sup sup
+    if b
+    then
+      let i2 := alloc.vec.Vec.len found
+      if i2 < core.num.Usize.MAX
+      then
+        let ope ← concepts.copy_role i1.sub
+        let found1 ← alloc.vec.Vec.push found ope
+        let i3 ← index + 1#usize
+        shi_ontology.subs_from inclusions i3 sup found1
+      else ok none
+    else
+      let i2 ← index + 1#usize
+      shi_ontology.subs_from inclusions i2 sup found
+  else ok (some found)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_one]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 729:0-747:1 -/
+def shi_ontology.add_one
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let ope ← concepts.copy_role sub
+  let start ←
+    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
+  let o ← shi_ontology.subs_from roles.inclusions 0#usize sub start
+  match o with
+  | none => ok none
+  | some lower =>
+    let ope1 ← concepts.copy_role sup
+    let «end» ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression)
+        ope1
+    let o1 ← shi_ontology.sups_from roles.inclusions 0#usize sup «end»
+    match o1 with
+    | none => ok none
+    | some upper => shi_ontology.pairs_from lower 0#usize upper roles
+
+/-- [rowl_kernel::shi_ontology::add_inclusion]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 750:0-762:1 -/
+def shi_ontology.add_inclusion
+  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_one roles sub sup
+  match o with
+  | none => ok none
+  | some roles1 =>
+    let flipped_sub ← concepts.inverse sub
+    let flipped_sup ← concepts.inverse sup
+    shi_ontology.add_one roles1 flipped_sub flipped_sup
+
+/-- [rowl_kernel::shi_ontology::add_equal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 764:0-773:1 -/
+def shi_ontology.add_equal
+  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_inclusion roles left right
+  match o with
+  | none => ok none
+  | some roles1 => shi_ontology.add_inclusion roles1 right left
+
+/-- [rowl_kernel::shi_ontology::same_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 775:0-789:1 -/
+def shi_ontology.same_from
+  (first : model.ObjectPropertyExpression)
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let o ← shi_ontology.add_equal roles first ope
+    match o with
+    | none => ok none
+    | some roles1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.same_from first values i1 roles1
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::add_equivalent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 791:0-799:1 -/
+def shi_ontology.add_equivalent
+  (roles : hierarchy.RoleHierarchy)
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ← shi_ontology.add_equal roles members.first members.second
+  match o with
+  | none => ok none
+  | some roles1 =>
+    shi_ontology.same_from members.first members.rest 0#usize roles1
+
+/-- [rowl_kernel::shi_ontology::hierarchy_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 817:0-846:1 -/
+def shi_ontology.hierarchy_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let roles1 ←
+      match aa.axiom with
+      | model.Axiom.Declaration _ => ok (some roles)
+      | model.Axiom.SubClassOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentClasses _ => ok (some roles)
+      | model.Axiom.DisjointClasses _ => ok (some roles)
+      | model.Axiom.DisjointUnion _ _ => ok (some roles)
+      | model.Axiom.SubObjectPropertyOf sope sup =>
+        match sope with
+        | model.SubObjectPropertyExpression.Single sub =>
+          shi_ontology.add_inclusion roles sub sup
+        | model.SubObjectPropertyExpression.Chain _ => ok (some roles)
+      | model.Axiom.EquivalentObjectProperties members =>
+        shi_ontology.add_equivalent roles members
+      | model.Axiom.DisjointObjectProperties _ => ok (some roles)
+      | model.Axiom.InverseObjectProperties first second =>
+        do
+        let flipped ← concepts.inverse second
+        shi_ontology.add_equal roles first flipped
+      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
+      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
+      | model.Axiom.SymmetricObjectProperty role =>
+        do
+        let flipped ← concepts.inverse role
+        shi_ontology.add_inclusion roles role flipped
+      | model.Axiom.AsymmetricObjectProperty _ => ok (some roles)
+      | model.Axiom.TransitiveObjectProperty role =>
+        shi_ontology.add_transitive roles role
+      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
+      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
+      | model.Axiom.DisjointDataProperties _ => ok (some roles)
+      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
+      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
+      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
+      | model.Axiom.HasKey _ _ _ => ok (some roles)
+      | model.Axiom.SameIndividual _ => ok (some roles)
+      | model.Axiom.DifferentIndividuals _ => ok (some roles)
+      | model.Axiom.ClassAssertion _ _ => ok (some roles)
+      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
+      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
+      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
+      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
+    match roles1 with
+    | none => ok none
+    | some roles2 =>
+      let i1 ← index + 1#usize
+      shi_ontology.hierarchy_from items i1 roles2
+  else ok (some roles)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::role_hierarchy]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 954:0-983:1
+    Visibility: public -/
+def shi_ontology.role_hierarchy
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option hierarchy.RoleHierarchy)
+  := do
+  let o ←
+    shi_ontology.constraints_from items 0#usize
+      {
+        inclusions := (alloc.vec.Vec.new hierarchy.Inclusion),
+        transitive := (alloc.vec.Vec.new model.ObjectPropertyExpression),
+        disjoint := (alloc.vec.Vec.new hierarchy.Disjoint)
+      }
+  match o with
+  | none => ok none
+  | some roles =>
+    let o1 ←
+      shi_ontology.hierarchy_from items 0#usize
+        {
+          inclusions := (alloc.vec.Vec.new hierarchy.Inclusion),
+          transitive := (alloc.vec.Vec.new model.ObjectPropertyExpression),
+          disjoint := (alloc.vec.Vec.new hierarchy.Disjoint)
+        }
+    match o1 with
+    | none => ok none
+    | some roles1 => ok (some { roles1 with disjoint := roles.disjoint })
+
+/-- [rowl_kernel::shi_ontology::conjoin]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 549:0-554:1 -/
+def shi_ontology.conjoin
+  (parts : shi_ontology.Parts) (concept : concepts.Concept) :
+  Result shi_ontology.Parts
+  := do
+  ok { parts with axioms := (concepts.Concept.And parts.axioms concept) }
+
+/-- [rowl_kernel::shi_ontology::fail_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 300:0-313:1 -/
+def shi_ontology.fail_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : concepts.Concept) :
+  Result (Option concepts.Concept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce false
+    match o with
+    | none => ok none
+    | some outside =>
+      let i1 ← index + 1#usize
+      shi_ontology.fail_from values i1 (concepts.Concept.Or joined outside)
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::absorb]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 317:0-341:1 -/
+def shi_ontology.absorb
+  (sub : model.ClassExpression) (sup : concepts.Concept) :
+  Result (Option completion.Definition)
+  := do
+  match sub with
+  | model.ClassExpression.Class «class» =>
+    let i ← nnf.copy_iri «class».iri
+    ok (some { «class» := { iri := i }, concept := sup })
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let o ← concepts.translate members.second false
+    match o with
+    | none => ok none
+    | some second =>
+      let o1 ← shi_ontology.fail_from members.rest 0#usize second
+      match o1 with
+      | none => ok none
+      | some others =>
+        shi_ontology.absorb members.first (concepts.Concept.Or others sup)
+  | model.ClassExpression.ObjectUnionOf _ => ok none
+  | model.ClassExpression.ObjectComplementOf _ => ok none
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let ope ← concepts.inverse role
+    shi_ontology.absorb filler (concepts.Concept.Forall ope sup)
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok none
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::absorbable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 290:0-297:1 -/
+def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
+  match sub with
+  | model.ClassExpression.Class «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    shi_ontology.absorbable members.first
+  | model.ClassExpression.ObjectUnionOf _ => ok false
+  | model.ClassExpression.ObjectComplementOf _ => ok false
+  | model.ClassExpression.ObjectOneOf _ => ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    shi_ontology.absorbable filler
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
+  | model.ClassExpression.ObjectHasValue _ _ => ok false
+  | model.ClassExpression.ObjectHasSelf _ => ok false
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
+  | model.ClassExpression.DataHasValue _ _ => ok false
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::include]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 344:0-369:1 -/
+def shi_ontology.include
+  (sub : model.ClassExpression) (sup : concepts.Concept)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let b ← shi_ontology.absorbable sub
+  if b
+  then
+    let o ← shi_ontology.absorb sub sup
+    match o with
+    | none => ok none
+    | some definition =>
+      let i := alloc.vec.Vec.len parts.definitions
+      if i < core.num.Usize.MAX
+      then
+        let v ← alloc.vec.Vec.push parts.definitions definition
+        ok (some { parts with definitions := v })
+      else ok none
+  else
+    let o ← concepts.translate sub false
+    match o with
+    | none => ok none
+    | some outside =>
+      ok (some
+        {
+          parts
+            with
+            axioms :=
+              (concepts.Concept.And
+                parts.axioms
+                (concepts.Concept.Or
+                outside
+                sup))
+        })
+
+/-- [rowl_kernel::shi_ontology::within_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 477:0-495:1 -/
+def shi_ontology.within_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (whole : model.ClassExpression) (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let o ← concepts.translate whole true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ce ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ClassExpression) values index
+      let o1 ← shi_ontology.include ce inside parts
+      match o1 with
+      | none => ok none
+      | some parts1 =>
+        let i1 ← index + 1#usize
+        shi_ontology.within_from values i1 whole parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::some_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 462:0-475:1 -/
+def shi_ontology.some_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (joined : concepts.Concept) :
+  Result (Option concepts.Concept)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce true
+    match o with
+    | none => ok none
+    | some inside =>
+      let i1 ← index + 1#usize
+      shi_ontology.some_from values i1 (concepts.Concept.Or joined inside)
+  else ok (some joined)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::apart_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 410:0-428:1 -/
+def shi_ontology.apart_from
+  (member : model.ClassExpression)
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← concepts.translate ce false
+    match o with
+    | none => ok none
+    | some outside =>
+      let o1 ← shi_ontology.include member outside parts
+      match o1 with
+      | none => ok none
+      | some parts1 =>
+        let i1 ← index + 1#usize
+        shi_ontology.apart_from member values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::pairwise_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 430:0-439:1 -/
+def shi_ontology.pairwise_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let i1 ← index + 1#usize
+    let o ← shi_ontology.apart_from ce values i1 parts
+    match o with
+    | none => ok none
+    | some parts1 => shi_ontology.pairwise_from values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::disjoint]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 441:0-459:1 -/
+def shi_ontology.disjoint
+  (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← concepts.translate members.second false
+  match o with
+  | none => ok none
+  | some second =>
+    let o1 ← shi_ontology.include members.first second parts
+    match o1 with
+    | none => ok none
+    | some parts1 =>
+      let o2 ←
+        shi_ontology.apart_from members.first members.rest 0#usize parts1
+      match o2 with
+      | none => ok none
+      | some parts2 =>
+        let o3 ←
+          shi_ontology.apart_from members.second members.rest 0#usize parts2
+        match o3 with
+        | none => ok none
+        | some parts3 => shi_ontology.pairwise_from members.rest 0#usize parts3
+
+/-- [rowl_kernel::shi_ontology::disjoint_union]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 498:0-547:1 -/
+def shi_ontology.disjoint_union
+  («class» : model.Class) (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i ← nnf.copy_iri «class».iri
+  let o ← concepts.translate members.first true
+  match o with
+  | none => ok none
+  | some first =>
+    let o1 ← concepts.translate members.second true
+    match o1 with
+    | none => ok none
+    | some second =>
+      let o2 ←
+        shi_ontology.some_from members.rest 0#usize (concepts.Concept.Or first
+          second)
+      match o2 with
+      | none => ok none
+      | some union =>
+        let o3 ←
+          shi_ontology.include (model.ClassExpression.Class { iri := i }) union
+            parts
+        match o3 with
+        | none => ok none
+        | some parts1 =>
+          let o4 ←
+            concepts.translate (model.ClassExpression.Class { iri := i }) true
+          match o4 with
+          | none => ok none
+          | some inside =>
+            let o5 ← shi_ontology.include members.first inside parts1
+            match o5 with
+            | none => ok none
+            | some parts2 =>
+              match o4 with
+              | none => ok none
+              | some inside1 =>
+                let o6 ← shi_ontology.include members.second inside1 parts2
+                match o6 with
+                | none => ok none
+                | some parts3 =>
+                  let o7 ←
+                    shi_ontology.within_from members.rest 0#usize
+                      (model.ClassExpression.Class { iri := i }) parts3
+                  match o7 with
+                  | none => ok none
+                  | some parts4 => shi_ontology.disjoint members parts4
+
+/-- [rowl_kernel::shi_ontology::include_both]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 371:0-385:1 -/
+def shi_ontology.include_both
+  (left : model.ClassExpression) (right : model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← concepts.translate right true
+  match o with
+  | none => ok none
+  | some forward =>
+    let o1 ← shi_ontology.include left forward parts
+    match o1 with
+    | none => ok none
+    | some parts1 =>
+      let o2 ← concepts.translate left true
+      match o2 with
+      | none => ok none
+      | some backward => shi_ontology.include right backward parts1
+
+/-- [rowl_kernel::shi_ontology::equal_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 387:0-401:1 -/
+def shi_ontology.equal_from
+  (first : model.ClassExpression)
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let o ← shi_ontology.include_both first ce parts
+    match o with
+    | none => ok none
+    | some parts1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.equal_from first values i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::equivalent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 403:0-408:1 -/
+def shi_ontology.equivalent
+  (members : model.AtLeastTwo model.ClassExpression)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let o ← shi_ontology.include_both members.first members.second parts
+  match o with
+  | none => ok none
+  | some parts1 =>
+    shi_ontology.equal_from members.first members.rest 0#usize parts1
+
+/-- [rowl_kernel::shi_ontology::axiom_parts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 558:0-615:1 -/
+def shi_ontology.axiom_parts
+  («axiom» : model.Axiom) (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some parts)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← concepts.translate sup true
+    match o with
+    | none => ok none
+    | some inside => shi_ontology.include sub inside parts
+  | model.Axiom.EquivalentClasses members =>
+    shi_ontology.equivalent members parts
+  | model.Axiom.DisjointClasses members => shi_ontology.disjoint members parts
+  | model.Axiom.DisjointUnion «class» members =>
+    shi_ontology.disjoint_union «class» members parts
+  | model.Axiom.SubObjectPropertyOf sope _ =>
+    match sope with
+    | model.SubObjectPropertyExpression.Single _ => ok (some parts)
+    | model.SubObjectPropertyExpression.Chain _ => ok (some parts)
+  | model.Axiom.EquivalentObjectProperties _ => ok (some parts)
+  | model.Axiom.DisjointObjectProperties _ => ok (some parts)
+  | model.Axiom.InverseObjectProperties _ _ => ok (some parts)
+  | model.Axiom.ObjectPropertyDomain property «class» =>
+    let o ← concepts.translate «class» true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ope ← concepts.inverse property
+      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
+      ok (some p)
+  | model.Axiom.ObjectPropertyRange property «class» =>
+    let o ← concepts.translate «class» true
+    match o with
+    | none => ok none
+    | some inside =>
+      let ope ← concepts.copy_role property
+      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
+      ok (some p)
+  | model.Axiom.FunctionalObjectProperty property =>
+    let ope ← concepts.copy_role property
+    let p ←
+      shi_ontology.conjoin parts (concepts.Concept.AtMost 1#usize ope
+        concepts.Concept.Top)
+    ok (some p)
+  | model.Axiom.InverseFunctionalObjectProperty property =>
+    let ope ← concepts.inverse property
+    let p ←
+      shi_ontology.conjoin parts (concepts.Concept.AtMost 1#usize ope
+        concepts.Concept.Top)
+    ok (some p)
+  | model.Axiom.ReflexiveObjectProperty property =>
+    let ope ← concepts.copy_role property
+    let p ← shi_ontology.conjoin parts (concepts.Concept.HasSelf ope)
+    ok (some p)
+  | model.Axiom.IrreflexiveObjectProperty property =>
+    let ope ← concepts.copy_role property
+    let p ← shi_ontology.conjoin parts (concepts.Concept.NotSelf ope)
+    ok (some p)
+  | model.Axiom.SymmetricObjectProperty _ => ok (some parts)
+  | model.Axiom.AsymmetricObjectProperty _ => ok (some parts)
+  | model.Axiom.TransitiveObjectProperty _ => ok (some parts)
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual _ => ok (some parts)
+  | model.Axiom.DifferentIndividuals _ => ok (some parts)
+  | model.Axiom.ClassAssertion _ _ => ok (some parts)
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some parts)
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some parts)
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some parts)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some parts)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some parts)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some parts)
+
+/-- [rowl_kernel::shi_ontology::parts_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 617:0-626:1 -/
+def shi_ontology.parts_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (parts : shi_ontology.Parts) :
+  Result (Option shi_ontology.Parts)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← shi_ontology.axiom_parts aa.axiom parts
+    match o with
+    | none => ok none
+    | some parts1 =>
+      let i1 ← index + 1#usize
+      shi_ontology.parts_from items i1 parts1
+  else ok (some parts)
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::class_parts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 629:0-638:1
+    Visibility: public -/
+def shi_ontology.class_parts
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option shi_ontology.Parts)
+  := do
+  shi_ontology.parts_from items 0#usize
+    {
+      axioms := concepts.Concept.Top,
+      definitions := (alloc.vec.Vec.new completion.Definition)
+    }
+
+/-- [rowl_kernel::shi_ontology::named_individual]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 139:0-144:1 -/
+def shi_ontology.named_individual
+  (individual : model.Individual) : Result Bool := do
+  match individual with
+  | model.Individual.Named _ => ok true
+  | model.Individual.Anonymous _ => ok false
+
+/-- [rowl_kernel::shi_ontology::proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 151:0-168:1 -/
+def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
+  match concept with
+  | concepts.Concept.Top => ok true
+  | concepts.Concept.Bottom => ok true
+  | concepts.Concept.Atom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | concepts.Concept.NotAtom «class» =>
+    let b ← alc_ontology.builtin_class «class»
+    ok (¬ b)
+  | concepts.Concept.One individual => shi_ontology.named_individual individual
+  | concepts.Concept.NotOne individual =>
+    shi_ontology.named_individual individual
+  | concepts.Concept.HasSelf _ => ok true
+  | concepts.Concept.NotSelf _ => ok true
+  | concepts.Concept.And left right =>
+    let b ← shi_ontology.proper left
+    if b
+    then shi_ontology.proper right
+    else ok false
+  | concepts.Concept.Or left right =>
+    let b ← shi_ontology.proper left
+    if b
+    then shi_ontology.proper right
+    else ok false
+  | concepts.Concept.Exists _ filler => shi_ontology.proper filler
+  | concepts.Concept.Forall _ filler => shi_ontology.proper filler
+  | concepts.Concept.AtLeast _ role filler =>
+    let b ← universal.not_top role
+    if b
+    then shi_ontology.proper filler
+    else ok false
+  | concepts.Concept.AtMost _ role filler =>
+    let b ← universal.not_top role
+    if b
+    then shi_ontology.proper filler
+    else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::facts_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 279:0-285:1 -/
+def shi_ontology.facts_proper
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← shi_ontology.proper f.concept
+    if b
+    then let i1 ← index + 1#usize
+         shi_ontology.facts_proper facts i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::definitions_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 270:0-277:1 -/
+def shi_ontology.definitions_proper
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← alc_ontology.builtin_class d.class
+    let here ← if b
+                 then ok false
+                 else shi_ontology.proper d.concept
+    if here
+    then
+      let i1 ← index + 1#usize
+      shi_ontology.definitions_proper definitions i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::nominal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 212:0-224:1 -/
+def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
+  match concept with
+  | concepts.Concept.Top => ok false
+  | concepts.Concept.Bottom => ok false
+  | concepts.Concept.Atom _ => ok false
+  | concepts.Concept.NotAtom _ => ok false
+  | concepts.Concept.One _ => ok true
+  | concepts.Concept.NotOne _ => ok true
+  | concepts.Concept.HasSelf _ => ok false
+  | concepts.Concept.NotSelf _ => ok false
+  | concepts.Concept.And left right =>
+    let b ← shi_ontology.nominal left
+    if b
+    then ok true
+    else shi_ontology.nominal right
+  | concepts.Concept.Or left right =>
+    let b ← shi_ontology.nominal left
+    if b
+    then ok true
+    else shi_ontology.nominal right
+  | concepts.Concept.Exists _ filler => shi_ontology.nominal filler
+  | concepts.Concept.Forall _ filler => shi_ontology.nominal filler
+  | concepts.Concept.AtLeast _ _ filler => shi_ontology.nominal filler
+  | concepts.Concept.AtMost _ _ filler => shi_ontology.nominal filler
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::facts_nominal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 234:0-240:1 -/
+def shi_ontology.facts_nominal
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← shi_ontology.nominal f.concept
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         shi_ontology.facts_nominal facts i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::definitions_nominal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 226:0-232:1 -/
+def shi_ontology.definitions_nominal
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← shi_ontology.nominal d.concept
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      shi_ontology.definitions_nominal definitions i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::closure_nominal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 242:0-244:1 -/
+def shi_ontology.closure_nominal
+  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
+  Result Bool
+  := do
+  let b ← shi_ontology.nominal parts.axioms
+  if b
+  then ok true
+  else
+    let b1 ← shi_ontology.definitions_nominal parts.definitions 0#usize
+    if b1
+    then ok true
+    else shi_ontology.facts_nominal facts 0#usize
+
+/-- [rowl_kernel::universal::universal]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 56:0-68:1
+    Visibility: public -/
+def universal.universal (concept : concepts.Concept) : Result Bool := do
+  match concept with
+  | concepts.Concept.Top => ok false
+  | concepts.Concept.Bottom => ok false
+  | concepts.Concept.Atom _ => ok false
+  | concepts.Concept.NotAtom _ => ok false
+  | concepts.Concept.One _ => ok false
+  | concepts.Concept.NotOne _ => ok false
+  | concepts.Concept.HasSelf role => let b ← universal.not_top role
+                                     ok (¬ b)
+  | concepts.Concept.NotSelf role => let b ← universal.not_top role
+                                     ok (¬ b)
+  | concepts.Concept.And left right =>
+    let b ← universal.universal left
+    if b
+    then ok true
+    else universal.universal right
+  | concepts.Concept.Or left right =>
+    let b ← universal.universal left
+    if b
+    then ok true
+    else universal.universal right
+  | concepts.Concept.Exists role filler =>
+    let b ← universal.not_top role
+    if b
+    then universal.universal filler
+    else ok true
+  | concepts.Concept.Forall role filler =>
+    let b ← universal.not_top role
+    if b
+    then universal.universal filler
+    else ok true
+  | concepts.Concept.AtLeast _ role filler =>
+    let b ← universal.not_top role
+    if b
+    then universal.universal filler
+    else ok true
+  | concepts.Concept.AtMost _ role filler =>
+    let b ← universal.not_top role
+    if b
+    then universal.universal filler
+    else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::universal::definitions_universal]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 79:0-85:1
+    Visibility: public -/
+def universal.definitions_universal
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← universal.universal d.concept
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      universal.definitions_universal definitions i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::universal::facts_universal]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 70:0-76:1
+    Visibility: public -/
+def universal.facts_universal
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← universal.universal f.concept
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         universal.facts_universal facts i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::closure_universal]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 206:0-210:1 -/
+def shi_ontology.closure_universal
+  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
+  Result Bool
+  := do
+  let b ← universal.universal parts.axioms
+  if b
+  then ok true
+  else
+    let b1 ← universal.definitions_universal parts.definitions 0#usize
+    if b1
+    then ok true
+    else universal.facts_universal facts 0#usize
+
+/-- [rowl_kernel::shi_ontology::counts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 171:0-183:1 -/
+def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
+  match concept with
+  | concepts.Concept.Top => ok false
+  | concepts.Concept.Bottom => ok false
+  | concepts.Concept.Atom _ => ok false
+  | concepts.Concept.NotAtom _ => ok false
+  | concepts.Concept.One _ => ok false
+  | concepts.Concept.NotOne _ => ok false
+  | concepts.Concept.HasSelf _ => ok true
+  | concepts.Concept.NotSelf _ => ok true
+  | concepts.Concept.And left right =>
+    let b ← shi_ontology.counts left
+    if b
+    then ok true
+    else shi_ontology.counts right
+  | concepts.Concept.Or left right =>
+    let b ← shi_ontology.counts left
+    if b
+    then ok true
+    else shi_ontology.counts right
+  | concepts.Concept.Exists _ filler => shi_ontology.counts filler
+  | concepts.Concept.Forall _ filler => shi_ontology.counts filler
+  | concepts.Concept.AtLeast _ _ _ => ok true
+  | concepts.Concept.AtMost _ _ _ => ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::facts_count]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 193:0-199:1 -/
+def shi_ontology.facts_count
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← shi_ontology.counts f.concept
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         shi_ontology.facts_count facts i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::definitions_count]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 185:0-191:1 -/
+def shi_ontology.definitions_count
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← shi_ontology.counts d.concept
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      shi_ontology.definitions_count definitions i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::closure_counts]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 201:0-203:1 -/
+def shi_ontology.closure_counts
+  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
+  Result Bool
+  := do
+  let b ← shi_ontology.counts parts.axioms
+  if b
+  then ok true
+  else
+    let b1 ← shi_ontology.definitions_count parts.definitions 0#usize
+    if b1
+    then ok true
+    else shi_ontology.facts_count facts 0#usize
+
+/-- [rowl_kernel::shi_ontology::spelled]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 115:0-124:1 -/
+def shi_ontology.spelled
+  (pattern : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len pattern
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ← Slice.index_usize pattern index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    shi_ontology.spelled pattern i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::empty_role]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 126:0-136:1 -/
+def shi_ontology.empty_role : Result model.ObjectPropertyExpression := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 50#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8, 79#u8,
+        98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8,
+        101#u8, 114#u8, 116#u8, 121#u8
+        ]))
+  let v ← shi_ontology.spelled s 0#usize (alloc.vec.Vec.new Std.U8)
+  ok (model.ObjectPropertyExpression.Property { iri := { spelling := v } })
+
+/-- [rowl_kernel::shi_ontology::prepare]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1670:0-1761:1
+    Visibility: public -/
+def shi_ontology.prepare
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option shi_ontology.Prepared)
+  := do
+  let o ←
+    alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
+      model.Individual)
+  match o with
+  | none => ok none
+  | some nodes =>
+    let o1 ← shi_ontology.members_from items 0#usize nodes
+    match o1 with
+    | none => ok none
+    | some nodes1 =>
+      let o2 ← shi_ontology.class_parts items
+      match o2 with
+      | none => ok none
+      | some parts =>
+        let ope ← shi_ontology.empty_role
+        let parts1 ←
+          shi_ontology.conjoin parts (concepts.Concept.Forall ope
+            concepts.Concept.Bottom)
+        let o3 ← shi_ontology.nominal_individuals nodes1 parts1.axioms
+        match o3 with
+        | none => ok none
+        | some nodes2 =>
+          let o4 ←
+            shi_ontology.definition_individuals nodes2 parts1.definitions
+              0#usize
+          match o4 with
+          | none => ok none
+          | some nodes3 =>
+            let o5 ← shi_ontology.assertion_individuals items 0#usize nodes3
+            match o5 with
+            | none => ok none
+            | some nodes4 =>
+              let i := alloc.vec.Vec.len nodes4
+              let i1 ← i + 1#usize
+              let start ←
+                shi_ontology.identity_from i1 0#usize (alloc.vec.Vec.new
+                  Std.Usize)
+              let same ←
+                shi_ontology.equalities_from items nodes4 0#usize start
+              let o6 ←
+                shi_ontology.assertions_from items nodes4 same 0#usize
+                  (alloc.vec.Vec.new completion.Fact)
+              match o6 with
+              | none => ok none
+              | some facts =>
+                let o7 ← shi_ontology.role_hierarchy items
+                match o7 with
+                | none => ok none
+                | some roles =>
+                  let o8 ←
+                    shi_ontology.chains_from items 0#usize (alloc.vec.Vec.new
+                      role_chains.Chain)
+                  match o8 with
+                  | none => ok none
+                  | some chains =>
+                    let b ← shi_ontology.proper parts1.axioms
+                    if b
+                    then
+                      let b1 ←
+                        shi_ontology.definitions_proper parts1.definitions
+                          0#usize
+                      if b1
+                      then
+                        let b2 ← shi_ontology.facts_proper facts 0#usize
+                        if b2
+                        then
+                          let b3 ← shi_ontology.roles_proper items 0#usize
+                          if b3
+                          then
+                            let o9 ←
+                              shi_ontology.links_from items nodes4 same 0#usize
+                                (alloc.vec.Vec.new completion.Link)
+                            match o9 with
+                            | none => ok none
+                            | some links =>
+                              match o6 with
+                              | none => ok none
+                              | some bound =>
+                                let o10 ←
+                                  shi_ontology.named_from nodes4 same 0#usize
+                                    bound
+                                match o10 with
+                                | none => ok none
+                                | some bound1 =>
+                                  let o11 ←
+                                    shi_ontology.unequal_from items nodes4 same
+                                      0#usize bound1
+                                  match o11 with
+                                  | none => ok none
+                                  | some bound2 =>
+                                    let o12 ←
+                                      shi_ontology.refused_from items nodes4
+                                        same 0#usize bound2
+                                    match o12 with
+                                    | none => ok none
+                                    | some bound3 =>
+                                      let denied ←
+                                        shi_ontology.denied_from items nodes4
+                                          same links 0#usize
+                                      let b4 ←
+                                        shi_ontology.closure_counts parts1
+                                          facts
+                                      let forest ←
+                                        if b4
+                                        then ok true
+                                        else
+                                          do
+                                          let b5 ←
+                                            shi_ontology.closure_nominal parts1
+                                              facts
+                                          if b5
+                                          then ok true
+                                          else
+                                            let b6 ←
+                                              shi_ontology.tangled items roles
+                                            if b6
+                                            then ok true
+                                            else
+                                              let b7 ←
+                                                shi_ontology.constrained roles
+                                              if b7
+                                              then ok true
+                                              else shi_ontology.chained chains
+                                      let universal ←
+                                        shi_ontology.closure_universal parts1
+                                          bound3
+                                      let clash ←
+                                        shi_ontology.clash_from items nodes4
+                                          same 0#usize
+                                      ok (some
+                                        {
+                                          nodes := nodes4,
+                                          same,
+                                          parts := parts1,
+                                          facts,
+                                          bound := bound3,
+                                          roles,
+                                          chains,
+                                          links,
+                                          denied,
+                                          forest,
+                                          universal,
+                                          clash
+                                        })
+                          else ok none
+                        else ok none
+                      else ok none
+                    else ok none
+
+/-- [rowl_kernel::data_ontology::prepare_in]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2255:0-2273:1 -/
+def data_ontology.prepare_in
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (context : data_ontology.Context) :
+  Result (Option data_ontology.Prepared)
+  := do
+  let b ← data_ontology.data_free context
+  if b
+  then
+    let o ← shi_ontology.prepare items
+    match o with
+    | none => ok none
+    | some prepared => ok (some (data_ontology.Prepared.Plain prepared))
+  else
+    let o ← data_ontology.encode context items
+    let o1 ←
+      data_ontology.items_individuals (alloc.vec.Vec.new model.Individual)
+        items 0#usize
+    match o with
+    | none => ok none
+    | some encoded =>
+      match o1 with
+      | none => ok none
+      | some nodes =>
+        let o2 ← shi_ontology.prepare encoded
+        match o2 with
+        | none => ok none
+        | some prepared =>
+          ok (some (data_ontology.Prepared.Encoded context nodes prepared))
+
+/-- [rowl_kernel::data_ontology::prepare]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2276:0-2278:1
+    Visibility: public -/
+def data_ontology.prepare
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option data_ontology.Prepared)
+  := do
+  let c ← data_ontology.closure_context items
+  let c1 ← data_ontology.with_truths c
+  data_ontology.prepare_in items c1
+
+/-- [rowl_kernel::universal::copy_guess]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 466:0-475:1 -/
+def universal.copy_guess
+  (guess : alloc.vec.Vec Bool) (index : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len guess
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let b ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
+            guess index
+        alloc.vec.Vec.push out b
+      else ok out
+    let i2 ← index + 1#usize
+    universal.copy_guess guess i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::universal::witness]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 354:0-361:1 -/
+def universal.witness
+  (query : alloc.vec.Vec completion.Fact) (node : Std.Usize)
+  (concept : concepts.Concept) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len query
+  if i < core.num.Usize.MAX
+  then
+    let query1 ←
+      alloc.vec.Vec.push query ({ node, concept } : completion.Fact)
+    ok (some query1)
+  else ok none
+
+/-- [rowl_kernel::universal::same_concept]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 88:0-144:1 -/
+def universal.same_concept
+  (left : concepts.Concept) (right : concepts.Concept) : Result Bool := do
+  match left with
+  | concepts.Concept.Top =>
+    match right with
+    | concepts.Concept.Top => ok true
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.Bottom =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok true
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.Atom a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.NotAtom a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.One a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One b => assertion_equality.same_individual_value a b
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.NotOne a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne b => assertion_equality.same_individual_value a b
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.HasSelf a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf b => concepts.same_role a b
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.NotSelf a =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf b => concepts.same_role a b
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.And l1 r1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And l2 r2 =>
+      let b ← universal.same_concept l1 l2
+      if b
+      then universal.same_concept r1 r2
+      else ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.Or l1 r1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or l2 r2 =>
+      let b ← universal.same_concept l1 l2
+      if b
+      then universal.same_concept r1 r2
+      else ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.Exists r1 c1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists r2 c2 =>
+      let b ← concepts.same_role r1 r2
+      if b
+      then universal.same_concept c1 c2
+      else ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.Forall r1 c1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall r2 c2 =>
+      let b ← concepts.same_role r1 r2
+      if b
+      then universal.same_concept c1 c2
+      else ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.AtLeast n1 r1 c1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast n2 r2 c2 =>
+      if n1 = n2
+      then
+        let b ← concepts.same_role r1 r2
+        if b
+        then universal.same_concept c1 c2
+        else ok false
+      else ok false
+    | concepts.Concept.AtMost _ _ _ => ok false
+  | concepts.Concept.AtMost n1 r1 c1 =>
+    match right with
+    | concepts.Concept.Top => ok false
+    | concepts.Concept.Bottom => ok false
+    | concepts.Concept.Atom _ => ok false
+    | concepts.Concept.NotAtom _ => ok false
+    | concepts.Concept.One _ => ok false
+    | concepts.Concept.NotOne _ => ok false
+    | concepts.Concept.HasSelf _ => ok false
+    | concepts.Concept.NotSelf _ => ok false
+    | concepts.Concept.And _ _ => ok false
+    | concepts.Concept.Or _ _ => ok false
+    | concepts.Concept.Exists _ _ => ok false
+    | concepts.Concept.Forall _ _ => ok false
+    | concepts.Concept.AtLeast _ _ _ => ok false
+    | concepts.Concept.AtMost n2 r2 c2 =>
+      if n1 = n2
+      then
+        let b ← concepts.same_role r1 r2
+        if b
+        then universal.same_concept c1 c2
+        else ok false
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::universal::atom_index]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 147:0-157:1 -/
+def universal.atom_index
+  (atoms : alloc.vec.Vec concepts.Concept) (concept : concepts.Concept)
+  (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concepts.Concept) atoms index
+    let b ← universal.same_concept c concept
+    if b
+    then ok index
+    else let i1 ← index + 1#usize
+         universal.atom_index atoms concept i1
+  else ok (alloc.vec.Vec.len atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::truth]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 234:0-245:1 -/
+def universal.truth
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
+  (concept : concepts.Concept) :
+  Result concepts.Concept
+  := do
+  let index ← universal.atom_index atoms concept 0#usize
+  let i := alloc.vec.Vec.len guess
+  if index < i
+  then
+    let b ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) guess
+        index
+    if b
+    then ok concepts.Concept.Top
+    else ok concepts.Concept.Bottom
+  else ok concepts.Concept.Bottom
+
+/-- [rowl_kernel::universal::fixed]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 248:0-303:1 -/
+def universal.fixed
+  (concept : concepts.Concept) (atoms : alloc.vec.Vec concepts.Concept)
+  (guess : alloc.vec.Vec Bool) :
+  Result concepts.Concept
+  := do
+  match concept with
+  | concepts.Concept.Top => ok concepts.Concept.Top
+  | concepts.Concept.Bottom => ok concepts.Concept.Bottom
+  | concepts.Concept.Atom «class» =>
+    let i ← nnf.copy_iri «class».iri
+    ok (concepts.Concept.Atom { iri := i })
+  | concepts.Concept.NotAtom «class» =>
+    let i ← nnf.copy_iri «class».iri
+    ok (concepts.Concept.NotAtom { iri := i })
+  | concepts.Concept.One individual =>
+    let i ← concepts.copy_individual individual
+    ok (concepts.Concept.One i)
+  | concepts.Concept.NotOne individual =>
+    let i ← concepts.copy_individual individual
+    ok (concepts.Concept.NotOne i)
+  | concepts.Concept.HasSelf role =>
+    let b ← universal.not_top role
+    if b
+    then let ope ← concepts.copy_role role
+         ok (concepts.Concept.HasSelf ope)
+    else ok concepts.Concept.Top
+  | concepts.Concept.NotSelf role =>
+    let b ← universal.not_top role
+    if b
+    then let ope ← concepts.copy_role role
+         ok (concepts.Concept.NotSelf ope)
+    else ok concepts.Concept.Bottom
+  | concepts.Concept.And left right =>
+    let c ← universal.fixed left atoms guess
+    let c1 ← universal.fixed right atoms guess
+    ok (concepts.Concept.And c c1)
+  | concepts.Concept.Or left right =>
+    let c ← universal.fixed left atoms guess
+    let c1 ← universal.fixed right atoms guess
+    ok (concepts.Concept.Or c c1)
+  | concepts.Concept.Exists role filler =>
+    let b ← universal.not_top role
+    if b
+    then
+      let ope ← concepts.copy_role role
+      let c ← universal.fixed filler atoms guess
+      ok (concepts.Concept.Exists ope c)
+    else universal.truth atoms guess concept
+  | concepts.Concept.Forall role filler =>
+    let b ← universal.not_top role
+    if b
+    then
+      let ope ← concepts.copy_role role
+      let c ← universal.fixed filler atoms guess
+      ok (concepts.Concept.Forall ope c)
+    else universal.truth atoms guess concept
+  | concepts.Concept.AtLeast n role filler =>
+    let ope ← concepts.copy_role role
+    let c ← universal.fixed filler atoms guess
+    ok (concepts.Concept.AtLeast n ope c)
+  | concepts.Concept.AtMost n role filler =>
+    let ope ← concepts.copy_role role
+    let c ← universal.fixed filler atoms guess
+    ok (concepts.Concept.AtMost n ope c)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::require]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 368:0-417:1 -/
+def universal.require
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
+  (base : Std.Usize) (index : Std.Usize) (axioms : concepts.Concept)
+  (query : alloc.vec.Vec completion.Fact) :
+  Result (Option (concepts.Concept × (alloc.vec.Vec completion.Fact)))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len guess
+    if index < i1
+    then
+      let i2 ← core.num.Usize.MAX - base
+      if index < i2
+      then
+        let c ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concepts.Concept) atoms index
+        match c with
+        | concepts.Concept.Top => ok none
+        | concepts.Concept.Bottom => ok none
+        | concepts.Concept.Atom _ => ok none
+        | concepts.Concept.NotAtom _ => ok none
+        | concepts.Concept.One _ => ok none
+        | concepts.Concept.NotOne _ => ok none
+        | concepts.Concept.HasSelf _ => ok none
+        | concepts.Concept.NotSelf _ => ok none
+        | concepts.Concept.And _ _ => ok none
+        | concepts.Concept.Or _ _ => ok none
+        | concepts.Concept.Exists _ filler =>
+          let inside ← universal.fixed filler atoms guess
+          let b ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
+              guess index
+          if b
+          then
+            let i3 ← base + index
+            let o ← universal.witness query i3 inside
+            match o with
+            | none => ok none
+            | some query1 =>
+              let i4 ← index + 1#usize
+              universal.require atoms guess base i4 axioms query1
+          else
+            let o ← concepts.negate inside
+            match o with
+            | none => ok none
+            | some outside =>
+              let i3 ← index + 1#usize
+              universal.require atoms guess base i3 (concepts.Concept.And
+                axioms outside) query
+        | concepts.Concept.Forall _ filler =>
+          let inside ← universal.fixed filler atoms guess
+          let b ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
+              guess index
+          if b
+          then
+            let i3 ← index + 1#usize
+            universal.require atoms guess base i3 (concepts.Concept.And axioms
+              inside) query
+          else
+            let o ← concepts.negate inside
+            match o with
+            | none => ok none
+            | some outside =>
+              let i3 ← base + index
+              let o1 ← universal.witness query i3 outside
+              match o1 with
+              | none => ok none
+              | some query1 =>
+                let i4 ← index + 1#usize
+                universal.require atoms guess base i4 axioms query1
+        | concepts.Concept.AtLeast _ _ _ => ok none
+        | concepts.Concept.AtMost _ _ _ => ok none
+      else
+        let i3 := alloc.vec.Vec.len atoms
+        if index < i3
+        then ok none
+        else ok (some (axioms, query))
+    else
+      let i2 := alloc.vec.Vec.len atoms
+      if index < i2
+      then ok none
+      else ok (some (axioms, query))
+  else
+    let i1 := alloc.vec.Vec.len atoms
+    if index < i1
+    then ok none
+    else ok (some (axioms, query))
+partial_fixpoint
+
+/-- [rowl_kernel::universal::fixed_definitions]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 329:0-351:1 -/
+def universal.fixed_definitions
+  (definitions : alloc.vec.Vec completion.Definition)
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec completion.Definition) :
+  Result (Option (alloc.vec.Vec completion.Definition))
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let d ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Definition) definitions index
+      let i2 ← nnf.copy_iri d.class.iri
+      let c ← universal.fixed d.concept atoms guess
+      let out1 ←
+        alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept := c } :
+          completion.Definition)
+      let i3 ← index + 1#usize
+      universal.fixed_definitions definitions atoms guess i3 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::fixed_facts]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 306:0-326:1 -/
+def universal.fixed_facts
+  (facts : alloc.vec.Vec completion.Fact)
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec completion.Fact) :
+  Result (Option (alloc.vec.Vec completion.Fact))
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let f ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Fact) facts index
+      let c ← universal.fixed f.concept atoms guess
+      let out1 ← alloc.vec.Vec.push out { f with concept := c }
+      let i2 ← index + 1#usize
+      universal.fixed_facts facts atoms guess i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::Filler]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 97:0-100:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.Filler where
+| Base : Std.Usize → role_chains.Filler
+| Atom : Std.Usize → role_chains.Filler
+
+/-- [rowl_kernel::role_chains::same_filler]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 195:0-206:1 -/
+def role_chains.same_filler
+  (left : role_chains.Filler) (right : role_chains.Filler) : Result Bool := do
+  match left with
+  | role_chains.Filler.Base index =>
+    match right with
+    | role_chains.Filler.Base other => ok (index = other)
+    | role_chains.Filler.Atom _ => ok false
+  | role_chains.Filler.Atom index =>
+    match right with
+    | role_chains.Filler.Base _ => ok false
+    | role_chains.Filler.Atom other => ok (index = other)
+
+/-- [rowl_kernel::role_chains::State]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 75:0-81:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.State where
+| Initial : role_chains.State
+| Final : role_chains.State
+| Inside : Std.Usize → Std.Usize → role_chains.State
+
+/-- [rowl_kernel::role_chains::same_state]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 165:0-186:1 -/
+def role_chains.same_state
+  (left : role_chains.State) (right : role_chains.State) : Result Bool := do
+  match left with
+  | role_chains.State.Initial =>
+    match right with
+    | role_chains.State.Initial => ok true
+    | role_chains.State.Final => ok false
+    | role_chains.State.Inside _ _ => ok false
+  | role_chains.State.Final =>
+    match right with
+    | role_chains.State.Initial => ok false
+    | role_chains.State.Final => ok true
+    | role_chains.State.Inside _ _ => ok false
+  | role_chains.State.Inside chain position =>
+    match right with
+    | role_chains.State.Initial => ok false
+    | role_chains.State.Final => ok false
+    | role_chains.State.Inside other place =>
+      if chain = other
+      then ok (position = place)
+      else ok false
+
+/-- [rowl_kernel::role_chains::Atom]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 102:0-106:1
+    Visibility: public -/
+structure role_chains.Atom where
+  role : model.ObjectPropertyExpression
+  state : role_chains.State
+  filler : role_chains.Filler
+
+/-- [rowl_kernel::role_chains::find_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 489:0-509:1 -/
+def role_chains.find_from
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (filler : role_chains.Filler) (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let atom ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Atom) atoms index
+    let b ← concepts.same_role atom.role role
+    if b
+    then
+      let b1 ← role_chains.same_state atom.state state
+      if b1
+      then
+        let b2 ← role_chains.same_filler atom.filler filler
+        if b2
+        then ok index
+        else
+          let i1 ← index + 1#usize
+          role_chains.find_from atoms role state filler i1
+      else
+        let i1 ← index + 1#usize
+        role_chains.find_from atoms role state filler i1
+    else
+      let i1 ← index + 1#usize
+      role_chains.find_from atoms role state filler i1
+  else ok (alloc.vec.Vec.len atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::copy_filler]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 188:0-193:1 -/
+def role_chains.copy_filler
+  (filler : role_chains.Filler) : Result role_chains.Filler := do
+  match filler with
+  | role_chains.Filler.Base _ => ok filler
+  | role_chains.Filler.Atom _ => ok filler
+
+/-- [rowl_kernel::role_chains::copy_state]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 157:0-163:1 -/
+def role_chains.copy_state
+  (state : role_chains.State) : Result role_chains.State := do
+  match state with
+  | role_chains.State.Initial => ok role_chains.State.Initial
+  | role_chains.State.Final => ok role_chains.State.Final
+  | role_chains.State.Inside _ _ => ok state
+
+/-- [rowl_kernel::role_chains::atom_for]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 512:0-532:1 -/
+def role_chains.atom_for
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (filler : role_chains.Filler) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × Std.Usize))
+  := do
+  let found ← role_chains.find_from atoms role state filler 0#usize
+  let i := alloc.vec.Vec.len atoms
+  if found < i
+  then ok (some (atoms, found))
+  else
+    let i1 := alloc.vec.Vec.len atoms
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ← concepts.copy_role role
+      let s ← role_chains.copy_state state
+      let f ← role_chains.copy_filler filler
+      let atoms1 ←
+        alloc.vec.Vec.push atoms ({ role := ope, state := s, filler := f } :
+          role_chains.Atom)
+      ok (some (atoms1, found))
+    else ok none
+
+/-- [rowl_kernel::role_chains::universal]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 534:0-550:1 -/
+def role_chains.universal
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (role : model.ObjectPropertyExpression) (filler : concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len bases
+  if i < core.num.Usize.MAX
+  then
+    let base := alloc.vec.Vec.len bases
+    let bases1 ← alloc.vec.Vec.push bases filler
+    let o ←
+      role_chains.atom_for atoms role role_chains.State.Initial
+        (role_chains.Filler.Base base)
+    match o with
+    | none => ok none
+    | some p => let (atoms1, index) := p
+                ok (some (atoms1, bases1, index))
+  else ok none
+
+/-- [rowl_kernel::role_chains::bytes]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 417:0-426:1 -/
+def role_chains.bytes
+  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if count < 8#usize
+  then
+    let i := alloc.vec.Vec.len out
+    let out1 ←
+      if i < core.num.Usize.MAX
+      then
+        do
+        let i1 ← value % 256#usize
+        let i2 ← lift (UScalar.cast .U8 i1)
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i1 ← value / 256#usize
+    let i2 ← count + 1#usize
+    role_chains.bytes i1 i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::name]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 428:0-436:1
+    Visibility: public -/
+def role_chains.name (index : Std.Usize) : Result model.Class := do
+  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 32#u8
+  let v ← role_chains.bytes index 0#usize spelling
+  ok { iri := { spelling := v } }
+
+/-- [rowl_kernel::role_chains::complex_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 132:0-147:1 -/
+def role_chains.complex_from
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let b ← hierarchy.below roles c.sup role
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      role_chains.complex_from roles chains role i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::complex]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 149:0-155:1
+    Visibility: public -/
+def role_chains.complex
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  role_chains.complex_from roles chains role 0#usize
+
+/-- [rowl_kernel::role_chains::encode]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 554:0-668:1 -/
+def role_chains.encode
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (concept : concepts.Concept) (positive : Bool)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × concepts.Concept))
+  := do
+  match concept with
+  | concepts.Concept.Top =>
+    let c ← concepts.copy_concept concepts.Concept.Top
+    ok (some (atoms, bases, c))
+  | concepts.Concept.Bottom =>
+    let c ← concepts.copy_concept concepts.Concept.Bottom
+    ok (some (atoms, bases, c))
+  | concepts.Concept.Atom _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotAtom _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.One _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotOne _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.HasSelf _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotSelf _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.And left right =>
+    let o ← role_chains.encode roles chains left positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, first) := t
+      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
+      match o1 with
+      | none => ok none
+      | some t1 =>
+        let (atoms2, bases2, second) := t1
+        ok (some (atoms2, bases2, concepts.Concept.And first second))
+  | concepts.Concept.Or left right =>
+    let o ← role_chains.encode roles chains left positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, first) := t
+      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
+      match o1 with
+      | none => ok none
+      | some t1 =>
+        let (atoms2, bases2, second) := t1
+        ok (some (atoms2, bases2, concepts.Concept.Or first second))
+  | concepts.Concept.Exists role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      if positive
+      then
+        let ope ← concepts.copy_role role
+        ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
+      else
+        let b ← role_chains.complex roles chains role
+        if b
+        then
+          let o1 ← concepts.negate inner
+          match o1 with
+          | none => ok none
+          | some complement =>
+            let o2 ← role_chains.universal atoms1 bases1 role complement
+            match o2 with
+            | none => ok none
+            | some t1 =>
+              let (atoms2, bases2, index) := t1
+              let c ← role_chains.name index
+              ok (some (atoms2, bases2, concepts.Concept.NotAtom c))
+        else
+          let ope ← concepts.copy_role role
+          ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
+  | concepts.Concept.Forall role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      if positive
+      then
+        let b ← role_chains.complex roles chains role
+        if b
+        then
+          let o1 ← role_chains.universal atoms1 bases1 role inner
+          match o1 with
+          | none => ok none
+          | some t1 =>
+            let (atoms2, bases2, index) := t1
+            let c ← role_chains.name index
+            ok (some (atoms2, bases2, concepts.Concept.Atom c))
+        else
+          let ope ← concepts.copy_role role
+          ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
+      else
+        let ope ← concepts.copy_role role
+        ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
+  | concepts.Concept.AtLeast n role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      let ope ← concepts.copy_role role
+      ok (some (atoms1, bases1, concepts.Concept.AtLeast n ope inner))
+  | concepts.Concept.AtMost n role filler =>
+    let o ← role_chains.encode roles chains filler (¬ positive) atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      let ope ← concepts.copy_role role
+      ok (some (atoms1, bases1, concepts.Concept.AtMost n ope inner))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::encode_definitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 972:0-1008:1 -/
+def role_chains.encode_definitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (out : alloc.vec.Vec completion.Definition) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × (alloc.vec.Vec completion.Definition)))
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let o ← role_chains.encode roles chains d.concept true atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, concept) := t
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let i2 ← nnf.copy_iri d.class.iri
+        let out1 ←
+          alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept } :
+            completion.Definition)
+        let i3 ← index + 1#usize
+        role_chains.encode_definitions roles chains definitions i3 atoms1
+          bases1 out1
+      else ok none
+  else ok (some (atoms, bases, out))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::encode_facts]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 942:0-969:1 -/
+def role_chains.encode_facts
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (out : alloc.vec.Vec completion.Fact) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × (alloc.vec.Vec completion.Fact)))
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let o ← role_chains.encode roles chains f.concept true atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, concept) := t
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out { f with concept }
+        let i2 ← index + 1#usize
+        role_chains.encode_facts roles chains facts i2 atoms1 bases1 out1
+      else ok none
+  else ok (some (atoms, bases, out))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::spaced]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 438:0-444:1 -/
+def role_chains.spaced («class» : model.Class) : Result Bool := do
+  let i := alloc.vec.Vec.len «class».iri.spelling
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        «class».iri.spelling 0#usize
+    ok (i1 = 32#u8)
+  else ok false
+
+/-- [rowl_kernel::role_chains::fits]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 448:0-486:1 -/
+def role_chains.fits
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (concept : concepts.Concept) :
+  Result Bool
+  := do
+  match concept with
+  | concepts.Concept.Top => ok true
+  | concepts.Concept.Bottom => ok true
+  | concepts.Concept.Atom «class» =>
+    let b ← role_chains.spaced «class»
+    ok (¬ b)
+  | concepts.Concept.NotAtom «class» =>
+    let b ← role_chains.spaced «class»
+    ok (¬ b)
+  | concepts.Concept.One _ => ok true
+  | concepts.Concept.NotOne _ => ok true
+  | concepts.Concept.HasSelf role =>
+    let b ← role_chains.complex roles chains role
+    ok (¬ b)
+  | concepts.Concept.NotSelf role =>
+    let b ← role_chains.complex roles chains role
+    ok (¬ b)
+  | concepts.Concept.And left right =>
+    let b ← role_chains.fits roles chains left
+    if b
+    then role_chains.fits roles chains right
+    else ok false
+  | concepts.Concept.Or left right =>
+    let b ← role_chains.fits roles chains left
+    if b
+    then role_chains.fits roles chains right
+    else ok false
+  | concepts.Concept.Exists _ filler => role_chains.fits roles chains filler
+  | concepts.Concept.Forall _ filler => role_chains.fits roles chains filler
+  | concepts.Concept.AtLeast _ role filler =>
+    let b ← role_chains.complex roles chains role
+    if b
+    then ok false
+    else role_chains.fits roles chains filler
+  | concepts.Concept.AtMost _ role filler =>
+    let b ← role_chains.complex roles chains role
+    if b
+    then ok false
+    else role_chains.fits roles chains filler
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::definitions_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 923:0-940:1 -/
+def role_chains.definitions_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← role_chains.spaced d.class
+    if b
+    then ok false
+    else
+      let b1 ← role_chains.fits roles chains d.concept
+      if b1
+      then
+        let i1 ← index + 1#usize
+        role_chains.definitions_fit roles chains definitions i1
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::facts_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 911:0-921:1 -/
+def role_chains.facts_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← role_chains.fits roles chains f.concept
+    if b
+    then let i1 ← index + 1#usize
+         role_chains.facts_fit roles chains facts i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::pairs_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 896:0-909:1 -/
+def role_chains.pairs_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  if index < i
+  then
+    let pair ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Disjoint) roles.disjoint index
+    let b ← role_chains.complex roles chains pair.left
+    if b
+    then ok false
+    else
+      let b1 ← role_chains.complex roles chains pair.right
+      if b1
+      then ok false
+      else let i1 ← index + 1#usize
+           role_chains.pairs_fit roles chains i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::long_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 884:0-894:1 -/
+def role_chains.long_from
+  (chains : alloc.vec.Vec role_chains.Chain) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let i1 := alloc.vec.Vec.len c.roles
+    if i1 < 2#usize
+    then ok false
+    else let i2 ← index + 1#usize
+         role_chains.long_from chains i2
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::reversed]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 867:0-882:1 -/
+def role_chains.reversed
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (count : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  if 0#usize < count
+  then
+    let i ← count - 1#usize
+    let i1 := alloc.vec.Vec.len roles
+    let out1 ←
+      if i < i1
+      then
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) roles i
+          let ope1 ← concepts.inverse ope
+          alloc.vec.Vec.push out ope1
+        else ok out
+      else ok out
+    role_chains.reversed roles i out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::copied]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 851:0-864:1 -/
+def role_chains.copied
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let ope ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) roles index
+        let ope1 ← concepts.copy_role ope
+        alloc.vec.Vec.push out ope1
+      else ok out
+    let i2 ← index + 1#usize
+    role_chains.copied roles i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::copy_chains]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 822:0-849:1 -/
+def role_chains.copy_chains
+  (chains : alloc.vec.Vec role_chains.Chain) (mirror : Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Chain) :
+  Result (Option (alloc.vec.Vec role_chains.Chain))
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let chain ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let roles ←
+      if mirror
+      then
+        let i1 := alloc.vec.Vec.len chain.roles
+        role_chains.reversed chain.roles i1 (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      else
+        role_chains.copied chain.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+    let sup ←
+      if mirror
+      then concepts.inverse chain.sup
+      else concepts.copy_role chain.sup
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let out1 ← alloc.vec.Vec.push out ({ roles, sup } : role_chains.Chain)
+      let i2 ← index + 1#usize
+      role_chains.copy_chains chains mirror i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::nests]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 686:0-702:1 -/
+def role_chains.nests
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (fuel : Std.Usize) :
+  Result Bool
+  := do
+  if fuel = 0#usize
+  then ok true
+  else
+    let i := alloc.vec.Vec.len atoms
+    if index < i
+    then
+      let a ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          role_chains.Atom) atoms index
+      let b ← concepts.same_role a.role role
+      if b
+      then ok true
+      else
+        match a.filler with
+        | role_chains.Filler.Base _ => ok false
+        | role_chains.Filler.Atom next =>
+          let i1 ← fuel - 1#usize
+          role_chains.nests atoms role next i1
+    else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::Label]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 83:0-90:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.Label where
+| Direct : role_chains.Label
+| Role : model.ObjectPropertyExpression → role_chains.Label
+| Empty : role_chains.Label
+
+/-- [rowl_kernel::role_chains::Transition]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 92:0-95:1
+    Visibility: public -/
+structure role_chains.Transition where
+  label : role_chains.Label
+  target : role_chains.State
+
+/-- [rowl_kernel::role_chains::unfold_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 705:0-761:1 -/
+def role_chains.unfold_from
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (transitions : alloc.vec.Vec role_chains.Transition)
+  (role : model.ObjectPropertyExpression) (filler : role_chains.Filler)
+  (index : Std.Usize) (atoms : alloc.vec.Vec role_chains.Atom)
+  (acc : concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len transitions
+  if index < i
+  then
+    let transition ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Transition) transitions index
+    let o ← role_chains.atom_for atoms role transition.target filler
+    match o with
+    | none => ok none
+    | some p =>
+      let (atoms1, target) := p
+      match transition.label with
+      | role_chains.Label.Direct =>
+        let ope ← concepts.copy_role role
+        let c ← role_chains.name target
+        let i1 ← index + 1#usize
+        role_chains.unfold_from roles chains transitions role filler i1 atoms1
+          (concepts.Concept.And acc (concepts.Concept.Forall ope
+          (concepts.Concept.Atom c)))
+      | role_chains.Label.Role along =>
+        let b ← role_chains.complex roles chains along
+        if b
+        then
+          let i1 := alloc.vec.Vec.len atoms1
+          let b1 ← role_chains.nests atoms1 along target i1
+          if b1
+          then ok none
+          else
+            let o1 ←
+              role_chains.atom_for atoms1 along role_chains.State.Initial
+                (role_chains.Filler.Atom target)
+            match o1 with
+            | none => ok none
+            | some p1 =>
+              let (atoms2, nested) := p1
+              let c ← role_chains.name nested
+              let i2 ← index + 1#usize
+              role_chains.unfold_from roles chains transitions role filler i2
+                atoms2 (concepts.Concept.And acc (concepts.Concept.Atom c))
+        else
+          let ope ← concepts.copy_role along
+          let c ← role_chains.name target
+          let i1 ← index + 1#usize
+          role_chains.unfold_from roles chains transitions role filler i1
+            atoms1 (concepts.Concept.And acc (concepts.Concept.Forall ope
+            (concepts.Concept.Atom c)))
+      | role_chains.Label.Empty =>
+        let c ← role_chains.name target
+        let i1 ← index + 1#usize
+        role_chains.unfold_from roles chains transitions role filler i1 atoms1
+          (concepts.Concept.And acc (concepts.Concept.Atom c))
+  else ok (some (atoms, acc))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::filler_concept]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 670:0-681:1 -/
+def role_chains.filler_concept
+  (bases : alloc.vec.Vec concepts.Concept) (filler : role_chains.Filler) :
+  Result concepts.Concept
+  := do
+  match filler with
+  | role_chains.Filler.Base index =>
+    let i := alloc.vec.Vec.len bases
+    if index < i
+    then
+      let c ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concepts.Concept) bases index
+      concepts.copy_concept c
+    else ok concepts.Concept.Top
+  | role_chains.Filler.Atom index =>
+    let c ← role_chains.name index
+    ok (concepts.Concept.Atom c)
+
+/-- [rowl_kernel::role_chains::Segment]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 109:0-114:1
+    Visibility: public -/
+structure role_chains.Segment where
+  start : role_chains.State
+  «end» : role_chains.State
+  offset : Std.Usize
+  length : Std.Usize
+
+/-- [rowl_kernel::role_chains::step]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 267:0-279:1 -/
+def role_chains.step
+  (chain : role_chains.Chain) (index : Std.Usize)
+  (segment : role_chains.Segment) (position : Std.Usize) :
+  Result role_chains.Transition
+  := do
+  let i ← segment.offset + position
+  let i1 := alloc.vec.Vec.len chain.roles
+  let label ←
+    if i < i1
+    then
+      do
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles i
+      let ope1 ← concepts.copy_role ope
+      ok (role_chains.Label.Role ope1)
+    else ok role_chains.Label.Empty
+  let i2 ← position + 1#usize
+  if i2 = segment.length
+  then let target ← role_chains.copy_state segment.end
+       ok { label, target }
+  else ok { label, target := (role_chains.State.Inside index i2) }
+
+/-- [rowl_kernel::role_chains::equivalent]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 120:0-130:1 -/
+def role_chains.equivalent
+  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← hierarchy.below roles left right
+  if b
+  then hierarchy.below roles right left
+  else ok false
+
+/-- [rowl_kernel::role_chains::segment]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 225:0-264:1 -/
+def role_chains.segment
+  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option role_chains.Segment)
+  := do
+  let length := alloc.vec.Vec.len chain.roles
+  if length < 2#usize
+  then ok none
+  else
+    let b ← role_chains.equivalent roles chain.sup role
+    if b
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles 0#usize
+      let b1 ← role_chains.equivalent roles ope role
+      if b1
+      then
+        if length = 2#usize
+        then
+          let ope1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) chain.roles 1#usize
+          let b2 ← role_chains.equivalent roles ope1 role
+          if b2
+          then ok none
+          else
+            let i ← length - 1#usize
+            ok (some
+              {
+                start := role_chains.State.Final,
+                «end» := role_chains.State.Final,
+                offset := 1#usize,
+                length := i
+              })
+        else
+          let i ← length - 1#usize
+          ok (some
+            {
+              start := role_chains.State.Final,
+              «end» := role_chains.State.Final,
+              offset := 1#usize,
+              length := i
+            })
+      else
+        let i ← length - 1#usize
+        let ope1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) chain.roles i
+        let b2 ← role_chains.equivalent roles ope1 role
+        if b2
+        then
+          ok (some
+            {
+              start := role_chains.State.Initial,
+              «end» := role_chains.State.Initial,
+              offset := 0#usize,
+              length := i
+            })
+        else
+          ok (some
+            {
+              start := role_chains.State.Initial,
+              «end» := role_chains.State.Final,
+              offset := 0#usize,
+              length
+            })
+    else ok none
+
+/-- [rowl_kernel::role_chains::twin]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 208:0-222:1 -/
+def role_chains.twin
+  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chain.roles
+  if i = 2#usize
+  then
+    let b ← role_chains.equivalent roles chain.sup role
+    if b
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles 0#usize
+      let b1 ← role_chains.equivalent roles ope role
+      if b1
+      then
+        let ope1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) chain.roles 1#usize
+        role_chains.equivalent roles ope1 role
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::role_chains::chain_transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 325:0-367:1 -/
+def role_chains.chain_transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Transition) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let chain ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let b ← role_chains.twin roles chain role
+    if b
+    then
+      match state with
+      | role_chains.State.Initial =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role
+          role_chains.State.Initial i1 out
+      | role_chains.State.Final =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({
+                 label := role_chains.Label.Empty,
+                 target := role_chains.State.Initial
+               } : role_chains.Transition)
+          let i2 ← index + 1#usize
+          role_chains.chain_transitions roles chains role
+            role_chains.State.Final i2 out1
+        else ok none
+      | role_chains.State.Inside _ _ =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role state i1 out
+    else
+      let o ← role_chains.segment roles chain role
+      match o with
+      | none =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role state i1 out
+      | some segment =>
+        let b1 ← role_chains.same_state segment.start state
+        if b1
+        then
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let t ← role_chains.step chain index segment 0#usize
+            let out1 ← alloc.vec.Vec.push out t
+            let i2 ← index + 1#usize
+            role_chains.chain_transitions roles chains role state i2 out1
+          else ok none
+        else
+          let i1 ← index + 1#usize
+          role_chains.chain_transitions roles chains role state i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::transitive_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 312:0-322:1 -/
+def role_chains.transitive_from
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles.transitive index
+    let b ← role_chains.equivalent roles ope role
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         role_chains.transitive_from roles role i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::sub_transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 282:0-309:1 -/
+def role_chains.sub_transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec role_chains.Transition) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  let i := alloc.vec.Vec.len roles.inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) roles.inclusions index
+    let b ← concepts.same_role inclusion.sup role
+    if b
+    then
+      let b1 ← role_chains.complex roles chains inclusion.sub
+      if b1
+      then
+        let b2 ← hierarchy.below roles role inclusion.sub
+        if b2
+        then
+          let i1 ← index + 1#usize
+          role_chains.sub_transitions roles chains role i1 out
+        else
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let ope ← concepts.copy_role inclusion.sub
+            let out1 ←
+              alloc.vec.Vec.push out
+                ({
+                   label := (role_chains.Label.Role ope),
+                   target := role_chains.State.Final
+                 } : role_chains.Transition)
+            let i2 ← index + 1#usize
+            role_chains.sub_transitions roles chains role i2 out1
+          else ok none
+      else
+        let i1 ← index + 1#usize
+        role_chains.sub_transitions roles chains role i1 out
+    else
+      let i1 ← index + 1#usize
+      role_chains.sub_transitions roles chains role i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 369:0-414:1
+    Visibility: public -/
+def role_chains.transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  match state with
+  | role_chains.State.Initial =>
+    let out ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
+        ({ label := role_chains.Label.Direct, target := role_chains.State.Final
+         } : role_chains.Transition)
+    let o ← role_chains.sub_transitions roles chains role 0#usize out
+    match o with
+    | none => ok none
+    | some out1 =>
+      role_chains.chain_transitions roles chains role role_chains.State.Initial
+        0#usize out1
+  | role_chains.State.Final =>
+    let b ← role_chains.transitive_from roles role 0#usize
+    let out ←
+      if b
+      then
+        alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
+          ({
+             label := role_chains.Label.Empty,
+             target := role_chains.State.Initial
+           } : role_chains.Transition)
+      else ok (alloc.vec.Vec.new role_chains.Transition)
+    role_chains.chain_transitions roles chains role role_chains.State.Final
+      0#usize out
+  | role_chains.State.Inside index position =>
+    let i := alloc.vec.Vec.len chains
+    if index < i
+    then
+      let c ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          role_chains.Chain) chains index
+      let o ← role_chains.segment roles c role
+      match o with
+      | none => ok (some (alloc.vec.Vec.new role_chains.Transition))
+      | some segment =>
+        if 0#usize < position
+        then
+          if position < segment.length
+          then
+            let t ← role_chains.step c index segment position
+            let out ←
+              alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition) t
+            ok (some out)
+          else ok (some (alloc.vec.Vec.new role_chains.Transition))
+        else ok (some (alloc.vec.Vec.new role_chains.Transition))
+    else ok (some (alloc.vec.Vec.new role_chains.Transition))
+
+/-- [rowl_kernel::role_chains::unfold]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 763:0-787:1 -/
+def role_chains.unfold
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Atom) atoms index
+    let role ← concepts.copy_role a.role
+    let state ← role_chains.copy_state a.state
+    let filler ← role_chains.copy_filler a.filler
+    let start ←
+      match state with
+      | role_chains.State.Initial => ok concepts.Concept.Top
+      | role_chains.State.Final => role_chains.filler_concept bases filler
+      | role_chains.State.Inside _ _ => ok concepts.Concept.Top
+    let o ← role_chains.transitions roles chains role state
+    match o with
+    | none => ok none
+    | some transitions =>
+      role_chains.unfold_from roles chains transitions role filler 0#usize
+        atoms start
+  else ok none
+
+/-- [rowl_kernel::role_chains::LIMIT]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 117:0-117:31 -/
+@[global_simps, irreducible] def role_chains.LIMIT : Std.Usize := 1048576#usize
+
+/-- [rowl_kernel::role_chains::generate]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 790:0-819:1 -/
+def role_chains.generate
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize)
+  (out : alloc.vec.Vec completion.Definition) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    completion.Definition)))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len atoms
+    if role_chains.LIMIT < i1
+    then ok none
+    else
+      let o ← role_chains.unfold roles chains bases atoms index
+      match o with
+      | none => ok none
+      | some p =>
+        let (atoms1, concept) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let c ← role_chains.name index
+          let out1 ←
+            alloc.vec.Vec.push out ({ «class» := c, concept } :
+              completion.Definition)
+          let i3 ← index + 1#usize
+          role_chains.generate roles chains bases atoms1 i3 out1
+        else ok none
+  else ok (some (atoms, out))
+partial_fixpoint
+
+/-- [rowl_kernel::forest::Cap]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 131:0-136:1
+    Visibility: public -/
+structure forest.Cap where
+  node : Std.Usize
+  restriction : Std.Usize
+  bound : Std.Usize
+  deps : alloc.vec.Vec Std.Usize
+
+/-- [rowl_kernel::forest::Distinct]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 123:0-127:1
+    Visibility: public -/
+structure forest.Distinct where
+  left : Std.Usize
+  right : Std.Usize
+  deps : alloc.vec.Vec Std.Usize
+
+/-- [rowl_kernel::forest::Edge]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 116:0-121:1
+    Visibility: public -/
+structure forest.Edge where
+  role : model.ObjectPropertyExpression
+  «from» : Std.Usize
+  «to» : Std.Usize
+  deps : alloc.vec.Vec Std.Usize
+
+/-- [rowl_kernel::forest::Node]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 99:0-114:1
+    Visibility: public -/
+structure forest.Node where
+  label : alloc.vec.Vec Std.Usize
+  parent : Std.Usize
+  roles : alloc.vec.Vec model.ObjectPropertyExpression
+  seed : Std.Usize
+  tree : Bool
+  active : Bool
+  done : alloc.vec.Vec Std.Usize
+  deps : alloc.vec.Vec Std.Usize
+
+/-- [rowl_kernel::forest::Forest]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 145:0-151:1
+    Visibility: public -/
+structure forest.Forest where
+  nodes : alloc.vec.Vec forest.Node
+  edges : alloc.vec.Vec forest.Edge
+  distinct : alloc.vec.Vec forest.Distinct
+  same : alloc.vec.Vec Std.Usize
+  caps : alloc.vec.Vec forest.Cap
+
+/-- [rowl_kernel::forest::roots]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3187:0-3209:1 -/
+def forest.roots
+  (count : Std.Usize) (graph : forest.Forest) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if i < count
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if i1 < core.num.Usize.MAX
+    then
+      let index := alloc.vec.Vec.len graph.nodes
+      let v ←
+        alloc.vec.Vec.push graph.nodes
+          ({
+             label := (alloc.vec.Vec.new Std.Usize),
+             parent := 0#usize,
+             roles := (alloc.vec.Vec.new model.ObjectPropertyExpression),
+             seed := 0#usize,
+             tree := false,
+             active := true,
+             done := (alloc.vec.Vec.new Std.Usize),
+             deps := (alloc.vec.Vec.new Std.Usize)
+           } : forest.Node)
+      let v1 ← alloc.vec.Vec.push graph.same index
+      forest.roots count { graph with nodes := v, same := v1 }
+    else ok none
+  else ok (some graph)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::simple_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3139:0-3149:1 -/
+def forest.simple_from
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles.transitive index
+    let b ← hierarchy.below roles ope role
+    if b
+    then ok false
+    else let i1 ← index + 1#usize
+         forest.simple_from roles role i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::forest::disjoint_simple]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3171:0-3185:1 -/
+def forest.disjoint_simple
+  (roles : hierarchy.RoleHierarchy) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Disjoint) roles.disjoint index
+    let b ← forest.simple_from roles d.left 0#usize
+    if b
+    then
+      let b1 ← forest.simple_from roles d.right 0#usize
+      if b1
+      then let i1 ← index + 1#usize
+           forest.disjoint_simple roles i1
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::forest::counting_simple]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3152:0-3168:1 -/
+def forest.counting_simple
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries index
+    let simple ←
+      match e with
+      | concept_table.Entry.Top => ok true
+      | concept_table.Entry.Bottom => ok true
+      | concept_table.Entry.Atom _ => ok true
+      | concept_table.Entry.NotAtom _ => ok true
+      | concept_table.Entry.One _ => ok true
+      | concept_table.Entry.NotOne _ => ok true
+      | concept_table.Entry.HasSelf _ => ok true
+      | concept_table.Entry.NotSelf role =>
+        forest.simple_from roles role 0#usize
+      | concept_table.Entry.And _ _ => ok true
+      | concept_table.Entry.Or _ _ => ok true
+      | concept_table.Entry.Exists _ _ => ok true
+      | concept_table.Entry.Forall _ _ => ok true
+      | concept_table.Entry.AtLeast _ role _ =>
+        forest.simple_from roles role 0#usize
+      | concept_table.Entry.AtMost _ role _ _ =>
+        forest.simple_from roles role 0#usize
+    if simple
+    then let i1 ← index + 1#usize
+         forest.counting_simple entries roles i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::forest::loop_entries]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3119:0-3136:1 -/
+def forest.loop_entries
+  (entries : alloc.vec.Vec concept_table.Entry) (limit : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec concept_table.Entry))
+  := do
+  if index < limit
+  then
+    let i := alloc.vec.Vec.len entries
+    if index < i
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) entries index
+      let role ←
+        match e with
+        | concept_table.Entry.Top => ok none
+        | concept_table.Entry.Bottom => ok none
+        | concept_table.Entry.Atom _ => ok none
+        | concept_table.Entry.NotAtom _ => ok none
+        | concept_table.Entry.One _ => ok none
+        | concept_table.Entry.NotOne _ => ok none
+        | concept_table.Entry.HasSelf _ => ok none
+        | concept_table.Entry.NotSelf _ => ok none
+        | concept_table.Entry.And _ _ => ok none
+        | concept_table.Entry.Or _ _ => ok none
+        | concept_table.Entry.Exists role1 _ =>
+          do
+          let ope ← concepts.copy_role role1
+          ok (some ope)
+        | concept_table.Entry.Forall _ _ => ok none
+        | concept_table.Entry.AtLeast _ role1 _ =>
+          do
+          let ope ← concepts.copy_role role1
+          ok (some ope)
+        | concept_table.Entry.AtMost _ _ _ _ => ok none
+      match role with
+      | none => let i1 ← index + 1#usize
+                forest.loop_entries entries limit i1
+      | some role1 =>
+        let o ← concept_table.intern entries (concepts.Concept.HasSelf role1)
+        match o with
+        | none => ok none
+        | some p =>
+          let (entries1, _) := p
+          let i1 ← index + 1#usize
+          forest.loop_entries entries1 limit i1
+    else ok (some entries)
+  else ok (some entries)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::fresh_named]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2833:0-2871:1 -/
+def forest.fresh_named
+  (graph : forest.Forest) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (count : Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  if count > 0#usize
+  then
+    let i := alloc.vec.Vec.len graph.nodes
+    if i < core.num.Usize.MAX
+    then
+      let i1 := alloc.vec.Vec.len graph.edges
+      if i1 < core.num.Usize.MAX
+      then
+        let index := alloc.vec.Vec.len graph.nodes
+        let v ←
+          completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v1 ←
+          alloc.vec.Vec.push graph.nodes
+            ({
+               label := (alloc.vec.Vec.new Std.Usize),
+               parent := node,
+               roles := (alloc.vec.Vec.new model.ObjectPropertyExpression),
+               seed := filler,
+               tree := false,
+               active := true,
+               done := (alloc.vec.Vec.new Std.Usize),
+               deps := v
+             } : forest.Node)
+        let ope ← concepts.copy_role role
+        let v2 ←
+          alloc.vec.Vec.push graph.edges
+            ({ role := ope, «from» := node, «to» := index, deps := v } :
+            forest.Edge)
+        let i2 ← count - 1#usize
+        forest.fresh_named { graph with nodes := v1, edges := v2 } node role
+          filler deps i2
+      else ok none
+    else ok none
+  else ok (some graph)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::differ_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1801:0-1816:1 -/
+def forest.differ_from
+  (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if other < i
+  then
+    let i1 := alloc.vec.Vec.len graph.distinct
+    if i1 < core.num.Usize.MAX
+    then
+      let v ←
+        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let v1 ←
+        alloc.vec.Vec.push graph.distinct
+          ({ left := node, right := other, deps := v } : forest.Distinct)
+      let i2 ← other + 1#usize
+      forest.differ_from { graph with distinct := v1 } node i2 deps
+    else ok none
+  else ok (some graph)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::pairwise]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1818:0-1827:1 -/
+def forest.pairwise
+  (graph : forest.Forest) (node : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 ← node + 1#usize
+    let o ← forest.differ_from graph node i1 deps
+    match o with
+    | none => ok none
+    | some graph1 => forest.pairwise graph1 i1 deps
+  else ok (some graph)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::named]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2876:0-2905:1 -/
+def forest.named
+  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (count : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let first := alloc.vec.Vec.len graph.nodes
+  let o ← forest.fresh_named graph node role filler deps count
+  match o with
+  | none => ok none
+  | some graph1 =>
+    let o1 ← forest.pairwise graph1 first deps
+    match o1 with
+    | none => ok none
+    | some graph2 =>
+      let i := alloc.vec.Vec.len graph2.caps
+      if i < core.num.Usize.MAX
+      then
+        let v ←
+          completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v1 ←
+          alloc.vec.Vec.push graph2.caps
+            ({ node, restriction, bound := count, deps := v } : forest.Cap)
+        ok (some { graph2 with caps := v1 })
+      else ok none
+
+/-- [rowl_kernel::forest::Pair]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 138:0-141:1
+    Visibility: public -/
+structure forest.Pair where
+  first : Std.Usize
+  second : Std.Usize
+
+/-- [rowl_kernel::forest::orient]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2601:0-2626:1 -/
+def forest.orient
+  (graph : forest.Forest) (node : Std.Usize) (pair : forest.Pair) :
+  Result (Std.Usize × Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if pair.first < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if pair.second < i1
+    then
+      let i2 := alloc.vec.Vec.len graph.nodes
+      if node < i2
+      then
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes pair.first
+        if n.tree
+        then
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes pair.second
+          if n1.tree
+          then
+            let n2 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) graph.nodes node
+            if n2.tree
+            then
+              if n2.parent = pair.first
+              then ok (pair.second, pair.first)
+              else
+                if pair.first = node
+                then
+                  if n2.parent = pair.second
+                  then ok (pair.first, pair.second)
+                  else ok (pair.second, pair.first)
+                else ok (pair.first, pair.second)
+            else ok (pair.first, pair.second)
+          else ok (pair.first, pair.second)
+        else
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes pair.second
+          if n1.tree
+          then ok (pair.second, pair.first)
+          else ok (pair.second, pair.first)
+      else ok (pair.second, pair.first)
+    else ok (pair.second, pair.first)
+  else ok (pair.second, pair.first)
+
+/-- [rowl_kernel::forest::into_parent]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2544:0-2554:1 -/
+def forest.into_parent
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if into < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      if n.tree
+      then
+        let n1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes into
+        if n1.tree
+        then ok (n.parent = into)
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::forest::loop_for]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2490:0-2501:1 -/
+def forest.loop_for
+  (entry : concept_table.Entry) (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  match entry with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom _ => ok false
+  | concept_table.Entry.NotAtom _ => ok false
+  | concept_table.Entry.One _ => ok false
+  | concept_table.Entry.NotOne _ => ok false
+  | concept_table.Entry.HasSelf own =>
+    let b ← concepts.same_role own role
+    if b
+    then ok true
+    else let ope ← concepts.inverse own
+         concepts.same_role ope role
+  | concept_table.Entry.NotSelf _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok false
+  | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.AtLeast _ _ _ => ok false
+  | concept_table.Entry.AtMost _ _ _ _ => ok false
+
+/-- [rowl_kernel::forest::loop_entry]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2504:0-2518:1 -/
+def forest.loop_entry
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries index
+    let b ← forest.loop_for e role
+    if b
+    then ok (some index)
+    else let i1 ← index + 1#usize
+         forest.loop_entry entries role i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::loops_of]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2521:0-2542:1 -/
+def forest.loops_of
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles index
+    let o ← forest.loop_entry entries ope 0#usize
+    match o with
+    | none => ok none
+    | some found =>
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out found
+        let i2 ← index + 1#usize
+        forest.loops_of entries roles i2 out1
+      else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::at_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2362:0-2368:1 -/
+def forest.at_node (edge : forest.Edge) (node : Std.Usize) : Result Bool := do
+  if edge.from = node
+  then ok true
+  else ok (edge.to = node)
+
+/-- [rowl_kernel::forest::relink]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2371:0-2388:1 -/
+def forest.relink
+  (edge : forest.Edge) («from» : Std.Usize) (into : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Edge)
+  := do
+  let source ← if edge.from = «from»
+                 then ok into
+                 else ok edge.from
+  let target ← if edge.to = «from»
+                 then ok into
+                 else ok edge.to
+  let b ← forest.at_node edge «from»
+  if b
+  then
+    let o ← completion.join edge.deps deps
+    match o with
+    | none => ok none
+    | some depends =>
+      let ope ← concepts.copy_role edge.role
+      ok (some
+        { role := ope, «from» := source, «to» := target, deps := depends })
+  else
+    let depends ←
+      completion.copy_label edge.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+    let ope ← concepts.copy_role edge.role
+    ok (some
+      { role := ope, «from» := source, «to» := target, deps := depends })
+
+/-- [rowl_kernel::forest::relinked]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2391:0-2413:1 -/
+def forest.relinked
+  (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Edge) :
+  Result (Option (alloc.vec.Vec forest.Edge))
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
+        edges index
+    let o ← forest.relink e «from» into deps
+    match o with
+    | none => ok none
+    | some edge =>
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out edge
+        let i2 ← index + 1#usize
+        forest.relinked edges «from» into deps i2 out1
+      else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::carried_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2320:0-2349:1 -/
+def forest.carried_from
+  (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Edge) :
+  Result (Option (alloc.vec.Vec forest.Edge))
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
+        edges index
+    if e.from = «from»
+    then
+      let o ← completion.join e.deps deps
+      match o with
+      | none => ok none
+      | some joined =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let ope ← concepts.copy_role e.role
+          let out1 ←
+            alloc.vec.Vec.push out
+              { e with role := ope, «from» := into, deps := joined }
+          let i2 ← index + 1#usize
+          forest.carried_from edges «from» into deps i2 out1
+        else ok none
+    else
+      let i1 ← index + 1#usize
+      forest.carried_from edges «from» into deps i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::copy_edges]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1539:0-1553:1 -/
+def forest.copy_edges
+  (edges : alloc.vec.Vec forest.Edge) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Edge) :
+  Result (alloc.vec.Vec forest.Edge)
+  := do
+  let i := alloc.vec.Vec.len edges
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Edge) edges index
+        let ope ← concepts.copy_role e.role
+        let v ←
+          completion.copy_label e.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          { e with role := ope, «to» := e.to, deps := v }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.copy_edges edges i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::carried]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2351:0-2360:1 -/
+def forest.carried
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let start ←
+    forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
+  let o ← forest.carried_from graph.edges «from» into deps 0#usize start
+  match o with
+  | none => ok none
+  | some edges => ok (some { graph with edges })
+
+/-- [rowl_kernel::forest::renamed]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2213:0-2232:1 -/
+def forest.renamed
+  (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len same
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            same index
+        if i2 = «from»
+        then alloc.vec.Vec.push out into
+        else alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    forest.renamed same «from» into i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::add_edges]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2166:0-2189:1 -/
+def forest.add_edges
+  (list : alloc.vec.Vec model.ObjectPropertyExpression) (node : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Edge) :
+  Result (Option (alloc.vec.Vec forest.Edge))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) list index
+      let ope1 ← concepts.copy_role ope
+      let v ←
+        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let out1 ←
+        alloc.vec.Vec.push out
+          ({ role := ope1, «from» := node, «to» := into, deps := v } :
+          forest.Edge)
+      let i2 ← index + 1#usize
+      forest.add_edges list node into deps i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::linked]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2192:0-2210:1 -/
+def forest.linked
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let start ←
+      forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes «from»
+    let o ← forest.add_edges n.roles node into deps 0#usize start
+    match o with
+    | none => ok none
+    | some added => ok (some { graph with edges := added })
+  else ok none
+
+/-- [rowl_kernel::forest::add_roles]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2106:0-2127:1 -/
+def forest.add_roles
+  (list : alloc.vec.Vec model.ObjectPropertyExpression) (invert : Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let role ←
+        if invert
+        then
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) list index
+          concepts.inverse ope
+        else
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) list index
+          concepts.copy_role ope
+      let out1 ← alloc.vec.Vec.push out role
+      let i2 ← index + 1#usize
+      forest.add_roles list invert i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::copy_roles]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1506:0-1519:1 -/
+def forest.copy_roles
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let ope ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) roles index
+        let ope1 ← concepts.copy_role ope
+        alloc.vec.Vec.push out ope1
+      else ok out
+    let i2 ← index + 1#usize
+    forest.copy_roles roles i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::sideways]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2151:0-2163:1 -/
+def forest.sideways
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if into < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes into
+      let start ←
+        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      let o ← forest.add_roles n1.roles false 0#usize start
+      match o with
+      | none => ok none
+      | some added =>
+        let (n2, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes into
+        let v := index_mut_back { n2 with roles := added }
+        ok (some { graph with nodes := v })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::upward]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2131:0-2148:1 -/
+def forest.upward
+  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if «from» < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let start ←
+        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      let o ← forest.add_roles n1.roles true 0#usize start
+      match o with
+      | none => ok none
+      | some added =>
+        let o1 ← completion.join n.deps deps
+        match o1 with
+        | none => ok none
+        | some joined =>
+          let (n2, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes node
+          let v := index_mut_back { n2 with roles := added }
+          let (n3, index_mut_back1) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) v node
+          let v1 := index_mut_back1 { n3 with deps := joined }
+          ok (some { graph with nodes := v1 })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::moved]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2420:0-2458:1 -/
+def forest.moved
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
+  (joined : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if into < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      if n.tree
+      then
+        let i2 := alloc.vec.Vec.len graph.nodes
+        if n.parent < i2
+        then
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes n.parent
+          let graph1 ←
+            if n1.tree
+            then
+              if n1.parent = into
+              then forest.upward graph n.parent «from» joined
+              else
+                do
+                let n2 ←
+                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                    forest.Node) graph.nodes into
+                if n2.tree
+                then
+                  if n.parent = into
+                  then ok (some graph)
+                  else forest.sideways graph «from» into
+                else forest.linked graph n.parent «from» into joined
+            else
+              do
+              let n2 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  forest.Node) graph.nodes into
+              if n2.tree
+              then
+                if n.parent = into
+                then ok (some graph)
+                else forest.sideways graph «from» into
+              else forest.linked graph n.parent «from» into joined
+          match graph1 with
+          | none => ok none
+          | some graph2 => forest.carried graph2 «from» into joined
+        else ok none
+      else
+        let same ←
+          forest.renamed graph.same «from» into 0#usize (alloc.vec.Vec.new
+            Std.Usize)
+        let o ←
+          forest.relinked graph.edges «from» into joined 0#usize
+            (alloc.vec.Vec.new forest.Edge)
+        match o with
+        | none => ok none
+        | some edges => ok (some { graph with edges, same })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::pruned]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2279:0-2306:1 -/
+def forest.pruned
+  (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Node) :
+  Result (alloc.vec.Vec forest.Node)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) nodes index
+        let active ←
+          if n.tree
+          then
+            let i2 := alloc.vec.Vec.len out
+            if n.parent < i2
+            then
+              do
+              let n1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  forest.Node) out n.parent
+              if n1.active
+              then ok n.active
+              else ok false
+            else ok n.active
+          else ok n.active
+        let v ←
+          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v1 ←
+          forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+            model.ObjectPropertyExpression)
+        let v2 ←
+          completion.copy_label n.done 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v3 ←
+          completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          {
+            n
+              with
+              label := v,
+              roles := v1,
+              seed := n.seed,
+              tree := n.tree,
+              active,
+              done := v2,
+              deps := v3
+          }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.pruned nodes i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::inherit]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2236:0-2276:1 -/
+def forest.inherit
+  (distinct : alloc.vec.Vec forest.Distinct) («from» : Std.Usize)
+  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Distinct) :
+  Result (Option (alloc.vec.Vec forest.Distinct))
+  := do
+  let i := alloc.vec.Vec.len distinct
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        forest.Distinct) distinct index
+    let other ←
+      if d.left = «from»
+      then ok (some d.right)
+      else if d.right = «from»
+           then ok (some d.left)
+           else ok none
+    match other with
+    | none =>
+      let i1 ← index + 1#usize
+      forest.inherit distinct «from» into deps i1 out
+    | some other1 =>
+      let o ← completion.join d.deps deps
+      match o with
+      | none => ok none
+      | some joined =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({ left := into, right := other1, deps := joined } :
+              forest.Distinct)
+          let i2 ← index + 1#usize
+          forest.inherit distinct «from» into deps i2 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::copy_distinct]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1554:0-1567:1 -/
+def forest.copy_distinct
+  (distinct : alloc.vec.Vec forest.Distinct) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Distinct) :
+  Result (alloc.vec.Vec forest.Distinct)
+  := do
+  let i := alloc.vec.Vec.len distinct
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let d ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Distinct) distinct index
+        let v ←
+          completion.copy_label d.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out { d with right := d.right, deps := v }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.copy_distinct distinct i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::merged]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2462:0-2487:1 -/
+def forest.merged
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
+  (joined : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let o ← forest.moved graph «from» into joined
+  match o with
+  | none => ok none
+  | some graph1 =>
+    let i := alloc.vec.Vec.len graph1.nodes
+    if «from» < i
+    then
+      let i1 := alloc.vec.Vec.len graph1.nodes
+      if into < i1
+      then
+        let start ←
+          forest.copy_distinct graph1.distinct 0#usize (alloc.vec.Vec.new
+            forest.Distinct)
+        let o1 ←
+          forest.inherit graph1.distinct «from» into joined 0#usize start
+        match o1 with
+        | none => ok none
+        | some distinct =>
+          let (n, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph1.nodes «from»
+          let v := index_mut_back { n with active := false }
+          let nodes ← forest.pruned v 0#usize (alloc.vec.Vec.new forest.Node)
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) nodes into
+          let o2 ← completion.join n1.deps joined
+          match o2 with
+          | none => ok none
+          | some depends =>
+            let (n2, index_mut_back1) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) nodes into
+            let nodes1 := index_mut_back1 { n2 with deps := depends }
+            ok (some { graph1 with nodes := nodes1, distinct })
+      else ok none
+    else ok none
+
+/-- [rowl_kernel::forest::pending_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2308:0-2317:1 -/
+def forest.pending_from
+  (label : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result completion.Pending
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let i2 ← index + 1#usize
+    let p ← forest.pending_from label i2
+    ok (completion.Pending.Item i1 p)
+  else ok completion.Pending.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::forest::first_nodes]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2092:0-2103:1 -/
+def forest.first_nodes
+  (list : alloc.vec.Vec Std.Usize) (count : Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < count
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          list index
+      let out1 ← alloc.vec.Vec.push out i2
+      let i3 ← index + 1#usize
+      forest.first_nodes list count i3 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::differ]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1999:0-2017:1 -/
+def forest.differ
+  (graph : forest.Forest) (left : Std.Usize) (right : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len graph.distinct
+  if index < i
+  then
+    let fact ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        forest.Distinct) graph.distinct index
+    let here ←
+      if fact.left = left
+      then ok (fact.right = right)
+      else if fact.left = right
+           then ok (fact.right = left)
+           else ok false
+    if here
+    then ok true
+    else let i1 ← index + 1#usize
+         forest.differ graph left right i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::pairs_with]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2047:0-2073:1 -/
+def forest.pairs_with
+  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
+  (first : Std.Usize) (second : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
+  Result (Option (alloc.vec.Vec forest.Pair))
+  := do
+  let i := alloc.vec.Vec.len chosen
+  if first < i
+  then
+    let i1 := alloc.vec.Vec.len chosen
+    if second < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          chosen first
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          chosen second
+      let b ← forest.differ graph i2 i3 0#usize
+      if b
+      then
+        let i4 ← second + 1#usize
+        forest.pairs_with graph chosen first i4 out
+      else
+        let i4 := alloc.vec.Vec.len out
+        if i4 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out ({ first := i2, second := i3 } :
+              forest.Pair)
+          let i5 ← second + 1#usize
+          forest.pairs_with graph chosen first i5 out1
+        else ok none
+    else ok (some out)
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::pairs_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2076:0-2090:1 -/
+def forest.pairs_from
+  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
+  (first : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
+  Result (Option (alloc.vec.Vec forest.Pair))
+  := do
+  let i := alloc.vec.Vec.len chosen
+  if first < i
+  then
+    let i1 ← first + 1#usize
+    let o ← forest.pairs_with graph chosen first i1 out
+    match o with
+    | none => ok none
+    | some out1 => forest.pairs_from graph chosen i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::differences_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2020:0-2044:1 -/
+def forest.differences_deps
+  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.distinct
+  if index < i
+  then
+    let fact ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        forest.Distinct) graph.distinct index
+    let b ← completion.contains chosen fact.left 0#usize
+    let inside ←
+      if b
+      then completion.contains chosen fact.right 0#usize
+      else ok false
+    if inside
+    then
+      let o ← completion.join_from fact.deps 0#usize out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let i1 ← index + 1#usize
+        forest.differences_deps graph chosen i1 out1
+    else let i1 ← index + 1#usize
+         forest.differences_deps graph chosen i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::children_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1948:0-1970:1 -/
+def forest.children_deps
+  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    let child ←
+      if n.tree
+      then if n.active
+           then ok (n.parent = node)
+           else ok false
+      else ok false
+    if child
+    then
+      let o ← completion.join_from n.deps 0#usize out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let i1 ← index + 1#usize
+        forest.children_deps graph node i1 out1
+    else let i1 ← index + 1#usize
+         forest.children_deps graph node i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::end_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1939:0-1945:1 -/
+def forest.end_deps
+  (graph : forest.Forest) («end» : Std.Usize) (out : alloc.vec.Vec Std.Usize)
+  :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «end» < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes «end»
+    completion.join_from n.deps 0#usize out
+  else ok (some out)
+
+/-- [rowl_kernel::forest::representative]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 230:0-236:1 -/
+def forest.representative
+  (graph : forest.Forest) (named : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len graph.same
+  if named < i
+  then
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+      graph.same named
+  else ok named
+
+/-- [rowl_kernel::forest::edge_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1906:0-1937:1 -/
+def forest.edge_deps
+  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.edges
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
+        graph.edges index
+    let «from» ← forest.representative graph e.from
+    let «to» ← forest.representative graph e.to
+    let «at» ←
+      if «from» = node
+      then ok true
+      else if «to» = node
+           then ok true
+           else ok false
+    if «at»
+    then
+      let o ← completion.join_from e.deps 0#usize out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let o1 ← forest.end_deps graph «from» out1
+        match o1 with
+        | none => ok none
+        | some out2 =>
+          let o2 ← forest.end_deps graph «to» out2
+          match o2 with
+          | none => ok none
+          | some out3 =>
+            let i1 ← index + 1#usize
+            forest.edge_deps graph node i1 out3
+    else let i1 ← index + 1#usize
+         forest.edge_deps graph node i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::linked_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1873:0-1903:1 -/
+def forest.linked_deps
+  (graph : forest.Forest) (links : alloc.vec.Vec completion.Link)
+  (node : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len links
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) links index
+    let «from» ← forest.representative graph l.from
+    let «to» ← forest.representative graph l.to
+    if «from» = node
+    then
+      let o ← forest.end_deps graph «to» out
+      match o with
+      | none => ok none
+      | some out1 =>
+        if «to» = node
+        then
+          let o1 ← forest.end_deps graph «from» out1
+          match o1 with
+          | none => ok none
+          | some out2 =>
+            let i1 ← index + 1#usize
+            forest.linked_deps graph links node i1 out2
+        else
+          let i1 ← index + 1#usize
+          forest.linked_deps graph links node i1 out1
+    else
+      if «to» = node
+      then
+        let o ← forest.end_deps graph «from» out
+        match o with
+        | none => ok none
+        | some out1 =>
+          let i1 ← index + 1#usize
+          forest.linked_deps graph links node i1 out1
+      else
+        let i1 ← index + 1#usize
+        forest.linked_deps graph links node i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::rule_deps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1973:0-1997:1 -/
+def forest.rule_deps
+  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let own ←
+      completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+    let with_parent ←
+      if n.tree
+      then forest.end_deps graph n.parent own
+      else ok (some own)
+    match with_parent with
+    | none => ok none
+    | some out =>
+      let o ← forest.children_deps graph node 0#usize out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let o1 ← forest.linked_deps graph problem.links node 0#usize out1
+        match o1 with
+        | none => ok none
+        | some out2 => forest.edge_deps graph node 0#usize out2
+  else ok none
+
+/-- [rowl_kernel::forest::children]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1770:0-1799:1 -/
+def forest.children
+  (graph : forest.Forest) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (count : Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  if count > 0#usize
+  then
+    let i := alloc.vec.Vec.len graph.nodes
+    if i < core.num.Usize.MAX
+    then
+      let ope ← concepts.copy_role role
+      let list ←
+        alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression)
+          ope
+      let v ←
+        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let v1 ←
+        alloc.vec.Vec.push graph.nodes
+          ({
+             label := (alloc.vec.Vec.new Std.Usize),
+             parent := node,
+             roles := list,
+             seed := filler,
+             tree := true,
+             active := true,
+             done := (alloc.vec.Vec.new Std.Usize),
+             deps := v
+           } : forest.Node)
+      let i1 ← count - 1#usize
+      forest.children { graph with nodes := v1 } node role filler deps i1
+    else ok none
+  else ok (some graph)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::generator_of]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1754:0-1767:1 -/
+def forest.generator_of
+  (entries : alloc.vec.Vec concept_table.Entry) (generator : Std.Usize) :
+  Result (Option (model.ObjectPropertyExpression × Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len entries
+  if generator < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries generator
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.One _ => ok none
+    | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists role filler =>
+      let ope ← concepts.copy_role role
+      ok (some (ope, 1#usize, filler))
+    | concept_table.Entry.Forall _ _ => ok none
+    | concept_table.Entry.AtLeast n role filler =>
+      let ope ← concepts.copy_role role
+      ok (some (ope, n, filler))
+    | concept_table.Entry.AtMost _ _ _ _ => ok none
+  else ok none
+
+/-- [rowl_kernel::forest::expanded]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1831:0-1856:1 -/
+def forest.expanded
+  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
+  (node : Std.Usize) (generator : Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let o ← forest.generator_of entries generator
+  match o with
+  | none => ok none
+  | some found =>
+    let (role, count, filler) := found
+    let i := alloc.vec.Vec.len graph.nodes
+    if node < i
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let deps ←
+        completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+      let first := alloc.vec.Vec.len graph.nodes
+      let o1 ← forest.children graph node role filler deps count
+      match o1 with
+      | none => ok none
+      | some graph1 =>
+        let o2 ← forest.pairwise graph1 first deps
+        match o2 with
+        | none => ok none
+        | some graph2 =>
+          let n1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph2.nodes node
+          let i1 := alloc.vec.Vec.len n1.done
+          if i1 < core.num.Usize.MAX
+          then
+            let (n2, index_mut_back) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                forest.Node) graph2.nodes node
+            let v ← alloc.vec.Vec.push n2.done generator
+            let v1 := index_mut_back { n2 with done := v }
+            ok (some { graph2 with nodes := v1 })
+          else ok none
+    else ok none
+
+/-- [rowl_kernel::forest::insert]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1594:0-1611:1 -/
+def forest.insert
+  (graph : forest.Forest) (node : Std.Usize) (item : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) :
+  Result (Option forest.Forest)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if i1 < core.num.Usize.MAX
+    then
+      let o ← completion.join n.deps deps
+      match o with
+      | none => ok none
+      | some joined =>
+        let (n1, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes node
+        let v ← alloc.vec.Vec.push n1.label item
+        let v1 := index_mut_back { n1 with label := v }
+        let (n2, index_mut_back1) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) v1 node
+        let v2 := index_mut_back1 { n2 with deps := joined }
+        ok (some { graph with nodes := v2 })
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::copy_caps]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1568:0-1582:1 -/
+def forest.copy_caps
+  (caps : alloc.vec.Vec forest.Cap) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Cap) :
+  Result (alloc.vec.Vec forest.Cap)
+  := do
+  let i := alloc.vec.Vec.len caps
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let c ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Cap) caps index
+        let v ←
+          completion.copy_label c.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          { c with restriction := c.restriction, bound := c.bound, deps := v }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.copy_caps caps i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::copy_nodes]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1520:0-1538:1 -/
+def forest.copy_nodes
+  (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
+  (out : alloc.vec.Vec forest.Node) :
+  Result (alloc.vec.Vec forest.Node)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) nodes index
+        let v ←
+          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v1 ←
+          forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
+            model.ObjectPropertyExpression)
+        let v2 ←
+          completion.copy_label n.done 0#usize (alloc.vec.Vec.new Std.Usize)
+        let v3 ←
+          completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out
+          {
+            n
+              with
+              label := v,
+              roles := v1,
+              seed := n.seed,
+              tree := n.tree,
+              active := n.active,
+              done := v2,
+              deps := v3
+          }
+      else ok out
+    let i2 ← index + 1#usize
+    forest.copy_nodes nodes i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::forest::copy_forest]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1583:0-1591:1 -/
+def forest.copy_forest (graph : forest.Forest) : Result forest.Forest := do
+  let v ←
+    forest.copy_nodes graph.nodes 0#usize (alloc.vec.Vec.new forest.Node)
+  let v1 ←
+    forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
+  let v2 ←
+    forest.copy_distinct graph.distinct 0#usize (alloc.vec.Vec.new
+      forest.Distinct)
+  let v3 ←
+    completion.copy_label graph.same 0#usize (alloc.vec.Vec.new Std.Usize)
+  let v4 ← forest.copy_caps graph.caps 0#usize (alloc.vec.Vec.new forest.Cap)
+  ok { nodes := v, edges := v1, distinct := v2, same := v3, caps := v4 }
+
+/-- [rowl_kernel::forest::names]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1357:0-1366:1 -/
+def forest.names
+  (problem : completion.Problem) (concept : Std.Usize)
+  (individual : model.Individual) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if concept < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) problem.entries concept
+    match e with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One other =>
+      assertion_equality.same_individual_value other individual
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf _ => ok false
+    | concept_table.Entry.NotSelf _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  else ok false
+
+/-- [rowl_kernel::forest::nominal_root]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1370:0-1385:1 -/
+def forest.nominal_root
+  (problem : completion.Problem) (graph : forest.Forest)
+  (individual : model.Individual) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len problem.requirements
+  if index < i
+  then
+    let r ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Requirement) problem.requirements index
+    let b ← forest.names problem r.concept individual
+    if b
+    then let i1 ← forest.representative graph r.node
+         ok (some i1)
+    else
+      let i1 ← index + 1#usize
+      forest.nominal_root problem graph individual i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::nominal_at]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1389:0-1424:1 -/
+def forest.nominal_at
+  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option (Option Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let i2 := alloc.vec.Vec.len problem.entries
+      if item < i2
+      then
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concept_table.Entry) problem.entries item
+        match e with
+        | concept_table.Entry.Top =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.Bottom =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.Atom _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.NotAtom _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.One individual =>
+          let o ← forest.nominal_root problem graph individual 0#usize
+          match o with
+          | none => ok none
+          | some root =>
+            if root != node
+            then ok (some o)
+            else
+              let i3 ← index + 1#usize
+              forest.nominal_at problem graph node i3
+        | concept_table.Entry.NotOne individual =>
+          let o ← forest.nominal_root problem graph individual 0#usize
+          match o with
+          | none => ok none
+          | some _ =>
+            let i3 ← index + 1#usize
+            forest.nominal_at problem graph node i3
+        | concept_table.Entry.HasSelf _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.NotSelf _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.And _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.Or _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.Exists _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.Forall _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.AtLeast _ _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+        | concept_table.Entry.AtMost _ _ _ _ =>
+          let i3 ← index + 1#usize
+          forest.nominal_at problem graph node i3
+      else let i3 ← index + 1#usize
+           forest.nominal_at problem graph node i3
+    else ok (some none)
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::nominal_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1427:0-1444:1 -/
+def forest.nominal_node
+  (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Option (Std.Usize × Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    if n.active
+    then
+      let o ← forest.nominal_at problem graph index 0#usize
+      match o with
+      | none => ok none
+      | some found =>
+        match found with
+        | none =>
+          let i1 ← index + 1#usize
+          forest.nominal_node problem graph i1
+        | some root => ok (some (some (index, root)))
+    else let i1 ← index + 1#usize
+         forest.nominal_node problem graph i1
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::generating]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1252:0-1258:1 -/
+def forest.generating (entry : concept_table.Entry) : Result Bool := do
+  match entry with
+  | concept_table.Entry.Top => ok false
+  | concept_table.Entry.Bottom => ok false
+  | concept_table.Entry.Atom _ => ok false
+  | concept_table.Entry.NotAtom _ => ok false
+  | concept_table.Entry.One _ => ok false
+  | concept_table.Entry.NotOne _ => ok false
+  | concept_table.Entry.HasSelf _ => ok false
+  | concept_table.Entry.NotSelf _ => ok false
+  | concept_table.Entry.And _ _ => ok false
+  | concept_table.Entry.Or _ _ => ok false
+  | concept_table.Entry.Exists _ _ => ok true
+  | concept_table.Entry.Forall _ _ => ok false
+  | concept_table.Entry.AtLeast _ _ _ => ok true
+  | concept_table.Entry.AtMost _ _ _ _ => ok false
+
+/-- [rowl_kernel::forest::candidate]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1284:0-1298:1 -/
+def forest.candidate
+  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize)
+  (item : Std.Usize) (expand : Bool) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if item < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if node < i1
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) problem.entries item
+      let b ← forest.generating e
+      if b
+      then
+        if expand
+        then
+          let n ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes node
+          let b1 ← completion.contains n.done item 0#usize
+          ok (¬ b1)
+        else ok true
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::forest::label_of]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 469:0-475:1 -/
+def forest.label_of
+  (graph : forest.Forest) (node : Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+  else ok (alloc.vec.Vec.new Std.Usize)
+
+/-- [rowl_kernel::forest::satisfying]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 478:0-499:1 -/
+def forest.satisfying
+  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
+  (list : alloc.vec.Vec Std.Usize) (concept : Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let label ← forest.label_of graph i1
+    let b ← completion.holds entries label concept
+    if b
+    then
+      let i2 := alloc.vec.Vec.len out
+      if i2 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out i1
+        let i3 ← index + 1#usize
+        forest.satisfying entries graph list concept i3 out1
+      else ok none
+    else
+      let i2 ← index + 1#usize
+      forest.satisfying entries graph list concept i2 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::looping]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 382:0-402:1 -/
+def forest.looping
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (item : Std.Usize)
+  (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len entries
+  if item < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) entries item
+    match e with
+    | concept_table.Entry.Top => ok false
+    | concept_table.Entry.Bottom => ok false
+    | concept_table.Entry.Atom _ => ok false
+    | concept_table.Entry.NotAtom _ => ok false
+    | concept_table.Entry.One _ => ok false
+    | concept_table.Entry.NotOne _ => ok false
+    | concept_table.Entry.HasSelf own =>
+      let b ← hierarchy.below roles own role
+      if b
+      then ok true
+      else let ope ← concepts.inverse own
+           hierarchy.below roles ope role
+    | concept_table.Entry.NotSelf _ => ok false
+    | concept_table.Entry.And _ _ => ok false
+    | concept_table.Entry.Or _ _ => ok false
+    | concept_table.Entry.Exists _ _ => ok false
+    | concept_table.Entry.Forall _ _ => ok false
+    | concept_table.Entry.AtLeast _ _ _ => ok false
+    | concept_table.Entry.AtMost _ _ _ _ => ok false
+  else ok false
+
+/-- [rowl_kernel::forest::self_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 405:0-421:1 -/
+def forest.self_along
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (label : alloc.vec.Vec Std.Usize)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len label
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let b ← forest.looping entries roles i1 role
+    if b
+    then ok true
+    else
+      let i2 ← index + 1#usize
+      forest.self_along entries roles label role i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::with_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 219:0-228:1 -/
+def forest.with_node
+  (out : alloc.vec.Vec Std.Usize) (node : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let b ← completion.contains out node 0#usize
+  if b
+  then ok (some out)
+  else
+    let i := alloc.vec.Vec.len out
+    if i < core.num.Usize.MAX
+    then let out1 ← alloc.vec.Vec.push out node
+         ok (some out1)
+    else ok none
+
+/-- [rowl_kernel::forest::loops_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 424:0-438:1 -/
+def forest.loops_along
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let b ← forest.self_along problem.entries roles n.label role 0#usize
+    if b
+    then forest.with_node out node
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::forest::role_listed]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1156:0-1170:1 -/
+def forest.role_listed
+  (list : alloc.vec.Vec model.ObjectPropertyExpression)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) list index
+    let b ← concepts.same_role ope role
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         forest.role_listed list role i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::roles_within]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1172:0-1186:1 -/
+def forest.roles_within
+  (small : alloc.vec.Vec model.ObjectPropertyExpression)
+  (large : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len small
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) small index
+    let b ← forest.role_listed large ope 0#usize
+    if b
+    then let i1 ← index + 1#usize
+         forest.roles_within small large i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::forest::same_pair]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1190:0-1209:1 -/
+def forest.same_pair
+  (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if other < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes other
+      let i2 := alloc.vec.Vec.len graph.nodes
+      if n.parent < i2
+      then
+        let i3 := alloc.vec.Vec.len graph.nodes
+        if n1.parent < i3
+        then
+          let n2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              forest.Node) graph.nodes n1.parent
+          if n2.tree
+          then
+            let b ← completion.same_label n.label n1.label
+            if b
+            then
+              let n3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  forest.Node) graph.nodes n.parent
+              let b1 ← completion.same_label n3.label n2.label
+              if b1
+              then
+                let b2 ← forest.roles_within n.roles n1.roles 0#usize
+                if b2
+                then forest.roles_within n1.roles n.roles 0#usize
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::forest::repeats_above]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1212:0-1228:1 -/
+def forest.repeats_above
+  (graph : forest.Forest) (node : Std.Usize) (ancestor : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if ancestor < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes ancestor
+    if n.tree
+    then
+      let b ← forest.same_pair graph node ancestor
+      if b
+      then ok true
+      else
+        if n.parent < ancestor
+        then forest.repeats_above graph node n.parent
+        else ok false
+    else ok false
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::blocked]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1231:0-1250:1 -/
+def forest.blocked
+  (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    if n.tree
+    then
+      if n.parent < node
+      then
+        let b ← forest.repeats_above graph node n.parent
+        if b
+        then ok true
+        else forest.blocked graph n.parent
+      else ok false
+    else ok false
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::live]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 343:0-353:1 -/
+def forest.live (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    if n.active
+    then let b ← forest.blocked graph node
+         ok (¬ b)
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::forest::ends]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 290:0-318:1 -/
+def forest.ends
+  (roles : hierarchy.RoleHierarchy) (out : alloc.vec.Vec Std.Usize)
+  («from» : Std.Usize) («to» : Std.Usize)
+  (edge : model.ObjectPropertyExpression) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  if «from» = node
+  then
+    let b ← hierarchy.below roles edge role
+    if b
+    then
+      let o ← forest.with_node out «to»
+      match o with
+      | none => ok none
+      | some out1 =>
+        if «to» = node
+        then
+          let back ← concepts.inverse edge
+          let b1 ← hierarchy.below roles back role
+          if b1
+          then forest.with_node out1 «from»
+          else ok o
+        else ok o
+    else
+      if «to» = node
+      then
+        let back ← concepts.inverse edge
+        let b1 ← hierarchy.below roles back role
+        if b1
+        then forest.with_node out «from»
+        else ok (some out)
+      else ok (some out)
+  else
+    if «to» = node
+    then
+      let back ← concepts.inverse edge
+      let b ← hierarchy.below roles back role
+      if b
+      then forest.with_node out «from»
+      else ok (some out)
+    else ok (some out)
+
+/-- [rowl_kernel::forest::edges_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 356:0-379:1 -/
+def forest.edges_along
+  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.edges
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
+        graph.edges index
+    let «from» ← forest.representative graph e.from
+    let «to» ← forest.representative graph e.to
+    let b ← forest.live graph «from»
+    if b
+    then
+      let o ← forest.ends roles out «from» «to» e.role node role
+      match o with
+      | none => ok none
+      | some out1 =>
+        let i1 ← index + 1#usize
+        forest.edges_along graph roles node role i1 out1
+    else
+      let i1 ← index + 1#usize
+      forest.edges_along graph roles node role i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::links_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 321:0-340:1 -/
+def forest.links_along
+  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy)
+  (links : alloc.vec.Vec completion.Link) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len links
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) links index
+    let «from» ← forest.representative graph l.from
+    let «to» ← forest.representative graph l.to
+    let o ← forest.ends roles out «from» «to» l.role node role
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i1 ← index + 1#usize
+      forest.links_along graph roles links node role i1 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::along_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 195:0-217:1 -/
+def forest.along_from
+  (roles : hierarchy.RoleHierarchy)
+  (list : alloc.vec.Vec model.ObjectPropertyExpression)
+  (role : model.ObjectPropertyExpression) (forward : Bool) (index : Std.Usize)
+  :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let here ←
+      if forward
+      then
+        do
+        let ope ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) list index
+        hierarchy.below roles ope role
+      else
+        do
+        let ope ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) list index
+        let back ← concepts.inverse ope
+        hierarchy.below roles back role
+    if here
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      forest.along_from roles list role forward i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::parent_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 271:0-286:1 -/
+def forest.parent_along
+  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    if n.tree
+    then
+      let b ← forest.along_from roles n.roles role false 0#usize
+      if b
+      then forest.with_node out n.parent
+      else ok (some out)
+    else ok (some out)
+  else ok (some out)
+
+/-- [rowl_kernel::forest::children_along]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 239:0-268:1 -/
+def forest.children_along
+  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    let here ←
+      if n.tree
+      then
+        if n.active
+        then
+          if n.parent = node
+          then forest.along_from roles n.roles role true 0#usize
+          else ok false
+        else ok false
+      else ok false
+    if here
+    then
+      let o ← forest.with_node out index
+      match o with
+      | none => ok none
+      | some out1 =>
+        let i1 ← index + 1#usize
+        forest.children_along graph roles node role i1 out1
+    else
+      let i1 ← index + 1#usize
+      forest.children_along graph roles node role i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::neighbours]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 443:0-467:1 -/
+def forest.neighbours
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let o ←
+    forest.children_along graph roles node role 0#usize (alloc.vec.Vec.new
+      Std.Usize)
+  match o with
+  | none => ok none
+  | some out =>
+    let o1 ← forest.parent_along graph roles node role out
+    match o1 with
+    | none => ok none
+    | some out1 =>
+      let o2 ←
+        forest.links_along graph roles problem.links node role 0#usize out1
+      match o2 with
+      | none => ok none
+      | some out2 =>
+        let o3 ← forest.edges_along graph roles node role 0#usize out2
+        match o3 with
+        | none => ok none
+        | some out3 => forest.loops_along problem roles graph node role out3
+
+/-- [rowl_kernel::forest::enough]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1262:0-1281:1 -/
+def forest.enough
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let o ← forest.generator_of problem.entries generator
+  match o with
+  | none => ok none
+  | some found =>
+    let (role, count, filler) := found
+    let o1 ← forest.neighbours problem roles graph node role
+    match o1 with
+    | none => ok none
+    | some list =>
+      let o2 ←
+        forest.satisfying problem.entries graph list filler 0#usize
+          (alloc.vec.Vec.new Std.Usize)
+      match o2 with
+      | none => ok none
+      | some many => let i := alloc.vec.Vec.len many
+                     ok (some (count <= i))
+
+/-- [rowl_kernel::forest::lacking]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1302:0-1327:1 -/
+def forest.lacking
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (expand : Bool)
+  (index : Std.Usize) :
+  Result (Option (Option Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let b ← forest.candidate problem graph node item expand
+      if b
+      then
+        let o ← forest.enough problem roles graph node item
+        match o with
+        | none => ok none
+        | some b1 =>
+          if b1
+          then
+            let i2 ← index + 1#usize
+            forest.lacking problem roles graph node expand i2
+          else ok (some (some item))
+      else
+        let i2 ← index + 1#usize
+        forest.lacking problem roles graph node expand i2
+    else ok (some none)
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_successor]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1331:0-1355:1 -/
+def forest.missing_successor
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (expand : Bool) (index : Std.Usize) :
+  Result (Option (Option (Std.Usize × Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    if n.active
+    then
+      let b ← forest.blocked graph index
+      if b
+      then
+        let i1 ← index + 1#usize
+        forest.missing_successor problem roles graph expand i1
+      else
+        let o ← forest.lacking problem roles graph index expand 0#usize
+        match o with
+        | none => ok none
+        | some item =>
+          match item with
+          | none =>
+            let i1 ← index + 1#usize
+            forest.missing_successor problem roles graph expand i1
+          | some item1 => ok (some (some (index, item1)))
+    else
+      let i1 ← index + 1#usize
+      forest.missing_successor problem roles graph expand i1
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::named_of]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 981:0-1003:1 -/
+def forest.named_of
+  (graph : forest.Forest) (list : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let i2 := alloc.vec.Vec.len graph.nodes
+    let named ←
+      if i1 < i2
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes i1
+        ok (¬ n.tree)
+      else ok false
+    if named
+    then
+      let i3 := alloc.vec.Vec.len out
+      if i3 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out i1
+        let i4 ← index + 1#usize
+        forest.named_of graph list i4 out1
+      else ok none
+    else let i3 ← index + 1#usize
+         forest.named_of graph list i3 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::cap_at]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 968:0-979:1 -/
+def forest.cap_at
+  (caps : alloc.vec.Vec forest.Cap) (node : Std.Usize)
+  (restriction : Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len caps
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Cap)
+        caps index
+    if c.node = node
+    then
+      if c.restriction = restriction
+      then ok (some index)
+      else let i1 ← index + 1#usize
+           forest.cap_at caps node restriction i1
+    else let i1 ← index + 1#usize
+         forest.cap_at caps node restriction i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::repeated_satisfying]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 939:0-965:1 -/
+def forest.repeated_satisfying
+  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
+  (list : alloc.vec.Vec Std.Usize) (node : Std.Usize) (concept : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let other ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let i1 := alloc.vec.Vec.len graph.nodes
+    let here ←
+      if other < i1
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes other
+        if n.tree
+        then
+          if n.parent != node
+          then completion.holds entries n.label concept
+          else ok false
+        else ok false
+      else ok false
+    if here
+    then ok true
+    else
+      let i2 ← index + 1#usize
+      forest.repeated_satisfying entries graph list node concept i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::undecided]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 915:0-935:1 -/
+def forest.undecided
+  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
+  (list : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let label ← forest.label_of graph i1
+    let b ← completion.holds entries label left
+    if b
+    then
+      let i2 ← index + 1#usize
+      forest.undecided entries graph list left right i2
+    else
+      let b1 ← completion.holds entries label right
+      if b1
+      then
+        let i2 ← index + 1#usize
+        forest.undecided entries graph list left right i2
+      else ok (some i1)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::Step]
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 153:0-191:1
+    Visibility: public -/
+@[discriminant isize]
+inductive forest.Step where
+| Add : Std.Usize → Std.Usize → forest.Step
+| Choose : Std.Usize → Std.Usize → Std.Usize → forest.Step
+| Merge : Std.Usize → Std.Usize → forest.Step
+| Name : Std.Usize → Std.Usize → forest.Step
+| Capped : Std.Usize → Std.Usize → forest.Step
+| Nominal : Std.Usize → Std.Usize → forest.Step
+| Loop : Std.Usize → forest.Step
+| Overlap : Std.Usize → forest.Step
+| Create : Std.Usize → Std.Usize → forest.Step
+| Stuck : forest.Step
+| Done : forest.Step
+
+/-- [rowl_kernel::forest::counting_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1030:0-1128:1 -/
+def forest.counting_from
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (choose : Bool)
+  (index : Std.Usize) :
+  Result (Option (Option forest.Step))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let i2 := alloc.vec.Vec.len problem.entries
+      if item < i2
+      then
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concept_table.Entry) problem.entries item
+        match e with
+        | concept_table.Entry.Top =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.Bottom =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.Atom _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.NotAtom _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.One _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.NotOne _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.HasSelf _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.NotSelf _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.And _ _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.Or _ _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.Exists _ _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.Forall _ _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.AtLeast _ _ _ =>
+          let i3 ← index + 1#usize
+          forest.counting_from problem roles graph node choose i3
+        | concept_table.Entry.AtMost n1 role filler complement =>
+          let o ← forest.neighbours problem roles graph node role
+          match o with
+          | none => ok none
+          | some list =>
+            if choose
+            then
+              let o1 ←
+                forest.undecided problem.entries graph list filler complement
+                  0#usize
+              let found ←
+                match o1 with
+                | none => ok none
+                | some other =>
+                  ok (some (forest.Step.Choose other filler complement))
+              match found with
+              | none =>
+                let i3 ← index + 1#usize
+                forest.counting_from problem roles graph node true i3
+              | some _ => ok (some found)
+            else
+              let o1 ←
+                forest.satisfying problem.entries graph list filler 0#usize
+                  (alloc.vec.Vec.new Std.Usize)
+              match o1 with
+              | none => ok none
+              | some many =>
+                let repeated ←
+                  if n.tree
+                  then ok false
+                  else
+                    forest.repeated_satisfying problem.entries graph list node
+                      filler 0#usize
+                if repeated
+                then
+                  let o2 ← forest.cap_at graph.caps node item 0#usize
+                  match o2 with
+                  | none => ok (some (some (forest.Step.Name node item)))
+                  | some cap =>
+                    let o3 ←
+                      forest.named_of graph many 0#usize (alloc.vec.Vec.new
+                        Std.Usize)
+                    match o3 with
+                    | none => ok none
+                    | some named =>
+                      let c ←
+                        alloc.vec.Vec.index
+                          (core.slice.index.SliceIndexUsizeSlice forest.Cap)
+                          graph.caps cap
+                      let i3 := alloc.vec.Vec.len named
+                      if c.bound <= i3
+                      then ok (some (some (forest.Step.Capped node item)))
+                      else ok none
+                else
+                  let i3 := alloc.vec.Vec.len many
+                  let found ←
+                    if n1 < i3
+                    then ok (some (forest.Step.Merge node item))
+                    else ok none
+                  match found with
+                  | none =>
+                    let i4 ← index + 1#usize
+                    forest.counting_from problem roles graph node false i4
+                  | some _ => ok (some found)
+      else
+        let i3 ← index + 1#usize
+        forest.counting_from problem roles graph node choose i3
+    else ok (some none)
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::counting]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1131:0-1154:1 -/
+def forest.counting
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (choose : Bool) (index : Std.Usize) :
+  Result (Option (Option forest.Step))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    if n.active
+    then
+      let o ← forest.counting_from problem roles graph index choose 0#usize
+      match o with
+      | none => ok none
+      | some found =>
+        match found with
+        | none =>
+          let i1 ← index + 1#usize
+          forest.counting problem roles graph choose i1
+        | some _ => ok o
+    else
+      let i1 ← index + 1#usize
+      forest.counting problem roles graph choose i1
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::common]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 849:0-859:1 -/
+def forest.common
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        left index
+    let b ← completion.contains right i1 0#usize
+    if b
+    then ok true
+    else let i2 ← index + 1#usize
+         forest.common left right i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::forest::overlap_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 862:0-886:1 -/
+def forest.overlap_from
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Disjoint) roles.disjoint index
+    let o ← forest.neighbours problem roles graph node d.left
+    match o with
+    | none => ok none
+    | some left =>
+      let o1 ← forest.neighbours problem roles graph node d.right
+      match o1 with
+      | none => ok none
+      | some right =>
+        let b ← forest.common left right 0#usize
+        if b
+        then ok (some true)
+        else
+          let i1 ← index + 1#usize
+          forest.overlap_from problem roles graph node i1
+  else ok (some false)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::overlap_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 889:0-912:1 -/
+def forest.overlap_node
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Option Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    if n.active
+    then
+      let o ← forest.overlap_from problem roles graph index 0#usize
+      match o with
+      | none => ok none
+      | some here =>
+        if here
+        then ok (some (some index))
+        else
+          let i1 ← index + 1#usize
+          forest.overlap_node problem roles graph i1
+    else let i1 ← index + 1#usize
+         forest.overlap_node problem roles graph i1
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::looped_from]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 789:0-821:1 -/
+def forest.looped_from
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let i2 := alloc.vec.Vec.len problem.entries
+      if item < i2
+      then
+        let e ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            concept_table.Entry) problem.entries item
+        match e with
+        | concept_table.Entry.Top =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.Bottom =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.Atom _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.NotAtom _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.One _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.NotOne _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.HasSelf _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.NotSelf role =>
+          let o ← forest.neighbours problem roles graph node role
+          match o with
+          | none => ok none
+          | some list =>
+            let here ← completion.contains list node 0#usize
+            if here
+            then ok (some true)
+            else
+              let i3 ← index + 1#usize
+              forest.looped_from problem roles graph node i3
+        | concept_table.Entry.And _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.Or _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.Exists _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.Forall _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.AtLeast _ _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+        | concept_table.Entry.AtMost _ _ _ _ =>
+          let i3 ← index + 1#usize
+          forest.looped_from problem roles graph node i3
+      else
+        let i3 ← index + 1#usize
+        forest.looped_from problem roles graph node i3
+    else ok (some false)
+  else ok (some false)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::looped_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 824:0-847:1 -/
+def forest.looped_node
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Option Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    if n.active
+    then
+      let o ← forest.looped_from problem roles graph index 0#usize
+      match o with
+      | none => ok none
+      | some here =>
+        if here
+        then ok (some (some index))
+        else
+          let i1 ← index + 1#usize
+          forest.looped_node problem roles graph i1
+    else let i1 ← index + 1#usize
+         forest.looped_node problem roles graph i1
+  else ok (some none)
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_edge]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 587:0-623:1 -/
+def forest.missing_edge
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest)
+  («from» : Std.Usize) («to» : Std.Usize)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if «to» < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «from»
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes «to»
+      let o ←
+        completion.missing_along entries roles n.label role n1.label 0#usize
+      match o with
+      | none =>
+        let back ← concepts.inverse role
+        let o1 ←
+          completion.missing_along entries roles n1.label back n.label 0#usize
+        match o1 with
+        | none => ok none
+        | some concept => ok (some («from», concept))
+      | some concept => ok (some («to», concept))
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::forest::missing_loop]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 736:0-764:1 -/
+def forest.missing_loop
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest) (node : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.label
+    if index < i1
+    then
+      let item ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          n.label index
+      let i2 := alloc.vec.Vec.len entries
+      let found ←
+        if item < i2
+        then
+          do
+          let e ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              concept_table.Entry) entries item
+          match e with
+          | concept_table.Entry.Top => ok none
+          | concept_table.Entry.Bottom => ok none
+          | concept_table.Entry.Atom _ => ok none
+          | concept_table.Entry.NotAtom _ => ok none
+          | concept_table.Entry.One _ => ok none
+          | concept_table.Entry.NotOne _ => ok none
+          | concept_table.Entry.HasSelf own =>
+            forest.missing_edge entries roles graph node node own
+          | concept_table.Entry.NotSelf _ => ok none
+          | concept_table.Entry.And _ _ => ok none
+          | concept_table.Entry.Or _ _ => ok none
+          | concept_table.Entry.Exists _ _ => ok none
+          | concept_table.Entry.Forall _ _ => ok none
+          | concept_table.Entry.AtLeast _ _ _ => ok none
+          | concept_table.Entry.AtMost _ _ _ _ => ok none
+        else ok none
+      match found with
+      | none =>
+        let i3 ← index + 1#usize
+        forest.missing_loop entries roles graph node i3
+      | some _ => ok found
+    else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_loops]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 766:0-785:1 -/
+def forest.missing_loops
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    let (problem1, found) ←
+      if n.active
+      then
+        do
+        let found1 ←
+          forest.missing_loop problem.entries roles graph index 0#usize
+        ok (problem, found1)
+      else ok (problem, none)
+    match found with
+    | none =>
+      let i1 ← index + 1#usize
+      forest.missing_loops problem1 roles graph i1
+    | some _ => ok found
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_added]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 706:0-733:1 -/
+def forest.missing_added
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.edges
+  if index < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
+        graph.edges index
+    let «from» ← forest.representative graph e.from
+    let b ← forest.live graph «from»
+    let (problem1, found) ←
+      if b
+      then
+        do
+        let i1 ← forest.representative graph e.to
+        let found1 ←
+          forest.missing_edge problem.entries roles graph «from» i1 e.role
+        ok (problem, found1)
+      else ok (problem, none)
+    match found with
+    | none =>
+      let i1 ← index + 1#usize
+      forest.missing_added problem1 roles graph i1
+    | some _ => ok found
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_link]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 681:0-703:1 -/
+def forest.missing_link
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len problem.links
+  if index < i
+  then
+    let link ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Link) problem.links index
+    let i1 ← forest.representative graph link.from
+    let i2 ← forest.representative graph link.to
+    let o ← forest.missing_edge problem.entries roles graph i1 i2 link.role
+    match o with
+    | none =>
+      let i3 ← index + 1#usize
+      forest.missing_link problem roles graph i3
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_roles]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 626:0-652:1 -/
+def forest.missing_roles
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest) (node : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let i1 := alloc.vec.Vec.len n.roles
+    if index < i1
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) n.roles index
+      let o ← forest.missing_edge entries roles graph n.parent node ope
+      match o with
+      | none =>
+        let i2 ← index + 1#usize
+        forest.missing_roles entries roles graph node i2
+      | some _ => ok o
+    else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_tree]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 655:0-678:1 -/
+def forest.missing_tree
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    let (problem1, found) ←
+      if n.tree
+      then
+        if n.active
+        then
+          do
+          let found1 ←
+            forest.missing_roles problem.entries roles graph index 0#usize
+          ok (problem, found1)
+        else ok (problem, none)
+      else ok (problem, none)
+    match found with
+    | none =>
+      let i1 ← index + 1#usize
+      forest.missing_tree problem1 roles graph i1
+    | some _ => ok found
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::seeded]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 527:0-539:1 -/
+def forest.seeded
+  (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    if n.tree
+    then ok true
+    else
+      let i1 := alloc.vec.Vec.len graph.same
+      if node < i1
+      then ok false
+      else ok true
+  else ok false
+
+/-- [rowl_kernel::forest::missing_requirement]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 502:0-524:1 -/
+def forest.missing_requirement
+  (problem : completion.Problem) (graph : forest.Forest)
+  (label : alloc.vec.Vec Std.Usize) (node : Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len problem.requirements
+  if index < i
+  then
+    let requirement ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Requirement) problem.requirements index
+    let i1 ← forest.representative graph requirement.node
+    let missing ←
+      if i1 = node
+      then
+        do
+        let b ← completion.holds problem.entries label requirement.concept
+        ok (¬ b)
+      else ok false
+    if missing
+    then ok (some requirement.concept)
+    else
+      let i2 ← index + 1#usize
+      forest.missing_requirement problem graph label node i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::missing_at]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 542:0-568:1 -/
+def forest.missing_at
+  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let o ← forest.missing_requirement problem graph n.label node 0#usize
+    match o with
+    | none =>
+      let b ← completion.holds problem.entries n.label problem.axioms
+      if b
+      then
+        let o1 ← completion.missing_unfolding problem n.label 0#usize
+        match o1 with
+        | none =>
+          let b1 ← forest.seeded graph node
+          if b1
+          then
+            let b2 ← completion.holds problem.entries n.label n.seed
+            if b2
+            then ok none
+            else ok (some n.seed)
+          else ok none
+        | some _ => ok o1
+      else ok (some problem.axioms)
+    | some _ => ok o
+  else ok none
+
+/-- [rowl_kernel::forest::missing_node]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 570:0-584:1 -/
+def forest.missing_node
+  (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
+  Result (Option (Std.Usize × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes index
+    let found ←
+      if n.active
+      then forest.missing_at problem graph index
+      else ok none
+    match found with
+    | none => let i1 ← index + 1#usize
+              forest.missing_node problem graph i1
+    | some concept => ok (some (index, concept))
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::next_step]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1450:0-1505:1 -/
+def forest.next_step
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) :
+  Result (Option forest.Step)
+  := do
+  let o ← forest.missing_node problem graph 0#usize
+  match o with
+  | none =>
+    let o1 ← forest.missing_tree problem roles graph 0#usize
+    match o1 with
+    | none =>
+      let o2 ← forest.missing_link problem roles graph 0#usize
+      match o2 with
+      | none =>
+        let o3 ← forest.missing_added problem roles graph 0#usize
+        match o3 with
+        | none =>
+          let o4 ← forest.missing_loops problem roles graph 0#usize
+          match o4 with
+          | none =>
+            let o5 ← forest.looped_node problem roles graph 0#usize
+            match o5 with
+            | none => ok none
+            | some o6 =>
+              match o6 with
+              | none =>
+                let o7 ← forest.overlap_node problem roles graph 0#usize
+                match o7 with
+                | none => ok none
+                | some o8 =>
+                  match o8 with
+                  | none =>
+                    let o9 ← forest.nominal_node problem graph 0#usize
+                    match o9 with
+                    | none => ok none
+                    | some o10 =>
+                      match o10 with
+                      | none =>
+                        let o11 ←
+                          forest.counting problem roles graph true 0#usize
+                        match o11 with
+                        | none => ok none
+                        | some o12 =>
+                          match o12 with
+                          | none =>
+                            let o13 ←
+                              forest.counting problem roles graph false 0#usize
+                            match o13 with
+                            | none => ok none
+                            | some o14 =>
+                              match o14 with
+                              | none =>
+                                let o15 ←
+                                  forest.missing_successor problem roles graph
+                                    true 0#usize
+                                match o15 with
+                                | none => ok none
+                                | some o16 =>
+                                  match o16 with
+                                  | none =>
+                                    let o17 ←
+                                      forest.missing_successor problem roles
+                                        graph false 0#usize
+                                    match o17 with
+                                    | none => ok none
+                                    | some o18 =>
+                                      match o18 with
+                                      | none => ok (some forest.Step.Done)
+                                      | some _ => ok (some forest.Step.Stuck)
+                                  | some p =>
+                                    let (node, generator) := p
+                                    ok (some (forest.Step.Create node
+                                      generator))
+                              | some _ => ok o14
+                          | some _ => ok o12
+                      | some p =>
+                        let (node, root) := p
+                        ok (some (forest.Step.Nominal node root))
+                  | some node => ok (some (forest.Step.Overlap node))
+              | some node => ok (some (forest.Step.Loop node))
+          | some p =>
+            let (node, concept) := p
+            ok (some (forest.Step.Add node concept))
+        | some p =>
+          let (node, concept) := p
+          ok (some (forest.Step.Add node concept))
+      | some p =>
+        let (node, concept) := p
+        ok (some (forest.Step.Add node concept))
+    | some p =>
+      let (node, concept) := p
+      ok (some (forest.Step.Add node concept))
+  | some p => let (node, concept) := p
+              ok (some (forest.Step.Add node concept))
+
+/-- [rowl_kernel::forest::first_repeated]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1005:0-1022:1 -/
+def forest.first_repeated
+  (graph : forest.Forest) (list : alloc.vec.Vec Std.Usize) (node : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let other ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let i1 := alloc.vec.Vec.len graph.nodes
+    let here ←
+      if other < i1
+      then
+        do
+        let n ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            forest.Node) graph.nodes other
+        if n.tree
+        then ok (n.parent != node)
+        else ok false
+      else ok false
+    if here
+    then ok (some other)
+    else let i2 ← index + 1#usize
+         forest.first_repeated graph list node i2
+  else ok none
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::forest::branch]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1616:0-1676:1 -/
+def forest.branch
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (left : Std.Usize)
+  (right : Std.Usize) (next : completion.Pending)
+  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  if depth < core.num.Usize.MAX
+  then
+    let other ← forest.copy_forest graph
+    let other_next ← completion.copy_pending next
+    let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
+    let o ← completion.join deps point
+    match o with
+    | none => ok none
+    | some left_deps =>
+      let i ← depth + 1#usize
+      let o1 ←
+        forest.add problem roles graph node (completion.Pending.Item left next)
+          left_deps i
+      match o1 with
+      | none => ok none
+      | some o2 =>
+        match o2 with
+        | completion.Outcome.Accepted => ok o1
+        | completion.Outcome.Rejected clash =>
+          let b ← completion.contains clash depth 0#usize
+          if b
+          then
+            let rest ←
+              completion.without_from clash depth 0#usize (alloc.vec.Vec.new
+                Std.Usize)
+            let o3 ← completion.join deps rest
+            match o3 with
+            | none => ok none
+            | some right_deps =>
+              forest.add problem roles other node (completion.Pending.Item
+                right other_next) right_deps depth
+          else ok o1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::add_literal]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1680:0-1707:1 -/
+def forest.add_literal
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (concept : Std.Usize)
+  (next : completion.Pending) (deps : alloc.vec.Vec Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes node
+    let b ← completion.contains n.label concept 0#usize
+    if b
+    then forest.add problem roles graph node next deps depth
+    else
+      let b1 ← completion.clashes problem.entries n.label concept 0#usize
+      if b1
+      then
+        let o ← completion.join n.deps deps
+        match o with
+        | none => ok none
+        | some clash => ok (some (completion.Outcome.Rejected clash))
+      else
+        let o ← forest.insert graph node concept deps
+        match o with
+        | none => ok none
+        | some graph1 => forest.add problem roles graph1 node next deps depth
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::add]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1710:0-1751:1 -/
+def forest.add
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (pending : completion.Pending)
+  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  match pending with
+  | completion.Pending.Empty => forest.run problem roles graph depth
+  | completion.Pending.Item concept next =>
+    let i := alloc.vec.Vec.len problem.entries
+    if concept < i
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) problem.entries concept
+      match e with
+      | concept_table.Entry.Top =>
+        forest.add problem roles graph node next deps depth
+      | concept_table.Entry.Bottom =>
+        ok (some (completion.Outcome.Rejected deps))
+      | concept_table.Entry.Atom _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.NotAtom _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.One _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.NotOne _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.HasSelf _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.NotSelf _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.And left right =>
+        forest.add problem roles graph node (completion.Pending.Item left
+          (completion.Pending.Item right next)) deps depth
+      | concept_table.Entry.Or left right =>
+        forest.branch problem roles graph node left right next deps depth
+      | concept_table.Entry.Exists _ _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.Forall _ _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.AtLeast _ _ _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+      | concept_table.Entry.AtMost _ _ _ _ =>
+        forest.add_literal problem roles graph node concept next deps depth
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::create]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 1858:0-1870:1 -/
+def forest.create
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let o ← forest.expanded problem.entries graph node generator
+  match o with
+  | none => ok none
+  | some graph1 => forest.run problem roles graph1 depth
+partial_fixpoint
+
+/-- [rowl_kernel::forest::merge]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2558:0-2596:1 -/
+def forest.merge
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if «from» < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+        graph.nodes «from»
+    let label ←
+      completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
+    let b ← forest.into_parent graph «from» into
+    if b
+    then
+      let o ← forest.loops_of problem.entries n.roles 0#usize label
+      match o with
+      | none => ok none
+      | some label1 =>
+        let o1 ← completion.join deps n.deps
+        match o1 with
+        | none => ok none
+        | some joined =>
+          let o2 ← forest.merged graph «from» into joined
+          match o2 with
+          | none => ok none
+          | some graph1 =>
+            let p ← forest.pending_from label1 0#usize
+            forest.add problem roles graph1 into p joined depth
+    else
+      let o ← completion.join deps n.deps
+      match o with
+      | none => ok none
+      | some joined =>
+        let o1 ← forest.merged graph «from» into joined
+        match o1 with
+        | none => ok none
+        | some graph1 =>
+          let p ← forest.pending_from label 0#usize
+          forest.add problem roles graph1 into p joined depth
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::choices]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2631:0-2693:1 -/
+def forest.choices
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize)
+  (pairs : alloc.vec.Vec forest.Pair) (index : Std.Usize)
+  (deps : alloc.vec.Vec Std.Usize) (skipped : alloc.vec.Vec Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len pairs
+  if index < i
+  then
+    let p ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Pair)
+        pairs index
+    let («from», into) ← forest.orient graph node p
+    let i1 ← index + 1#usize
+    let i2 := alloc.vec.Vec.len pairs
+    if i1 < i2
+    then
+      if depth < core.num.Usize.MAX
+      then
+        let other ← forest.copy_forest graph
+        let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
+        let o ← completion.join deps point
+        match o with
+        | none => ok none
+        | some here =>
+          let i3 ← depth + 1#usize
+          let o1 ← forest.merge problem roles graph «from» into here i3
+          match o1 with
+          | none => ok none
+          | some o2 =>
+            match o2 with
+            | completion.Outcome.Accepted => ok o1
+            | completion.Outcome.Rejected clash =>
+              let b ← completion.contains clash depth 0#usize
+              if b
+              then
+                let rest ←
+                  completion.without_from clash depth 0#usize
+                    (alloc.vec.Vec.new Std.Usize)
+                let o3 ← completion.join skipped rest
+                match o3 with
+                | none => ok none
+                | some skipped1 =>
+                  forest.choices problem roles other node pairs i1 deps
+                    skipped1 depth
+              else ok o1
+      else ok none
+    else
+      let o ← completion.join deps skipped
+      match o with
+      | none => ok none
+      | some last => forest.merge problem roles graph «from» into last depth
+  else
+    let o ← completion.join deps skipped
+    match o with
+    | none => ok none
+    | some clash => ok (some (completion.Outcome.Rejected clash))
+partial_fixpoint
+
+/-- [rowl_kernel::forest::merge_rule]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2697:0-2751:1 -/
+def forest.merge_rule
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if restriction < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) problem.entries restriction
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.One _ => ok none
+    | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists _ _ => ok none
+    | concept_table.Entry.Forall _ _ => ok none
+    | concept_table.Entry.AtLeast _ _ _ => ok none
+    | concept_table.Entry.AtMost n role filler _ =>
+      if n < core.num.Usize.MAX
+      then
+        let o ← forest.neighbours problem roles graph node role
+        match o with
+        | none => ok none
+        | some list =>
+          let o1 ←
+            forest.satisfying problem.entries graph list filler 0#usize
+              (alloc.vec.Vec.new Std.Usize)
+          match o1 with
+          | none => ok none
+          | some many =>
+            let i1 ← n + 1#usize
+            let chosen ←
+              forest.first_nodes many i1 0#usize (alloc.vec.Vec.new Std.Usize)
+            let o2 ← forest.rule_deps problem graph node
+            match o2 with
+            | none => ok none
+            | some deps =>
+              let o3 ← forest.differences_deps graph chosen 0#usize deps
+              match o3 with
+              | none => ok none
+              | some deps1 =>
+                let o4 ←
+                  forest.pairs_from graph chosen 0#usize (alloc.vec.Vec.new
+                    forest.Pair)
+                match o4 with
+                | none => ok none
+                | some pairs =>
+                  forest.choices problem roles graph node pairs 0#usize deps1
+                    (alloc.vec.Vec.new Std.Usize) depth
+      else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::capped_rule]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2756:0-2830:1 -/
+def forest.capped_rule
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if restriction < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) problem.entries restriction
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.One _ => ok none
+    | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists _ _ => ok none
+    | concept_table.Entry.Forall _ _ => ok none
+    | concept_table.Entry.AtLeast _ _ _ => ok none
+    | concept_table.Entry.AtMost _ role filler _ =>
+      let o ← forest.cap_at graph.caps node restriction 0#usize
+      match o with
+      | none => ok none
+      | some cap =>
+        let o1 ← forest.neighbours problem roles graph node role
+        match o1 with
+        | none => ok none
+        | some list =>
+          let o2 ←
+            forest.satisfying problem.entries graph list filler 0#usize
+              (alloc.vec.Vec.new Std.Usize)
+          match o2 with
+          | none => ok none
+          | some many =>
+            let o3 ←
+              forest.named_of graph many 0#usize (alloc.vec.Vec.new Std.Usize)
+            match o3 with
+            | none => ok none
+            | some named =>
+              let c ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  forest.Cap) graph.caps cap
+              let chosen ←
+                forest.first_nodes named c.bound 0#usize (alloc.vec.Vec.new
+                  Std.Usize)
+              let i1 := alloc.vec.Vec.len chosen
+              if i1 < c.bound
+              then ok none
+              else
+                let o4 ← forest.first_repeated graph many node 0#usize
+                match o4 with
+                | none => ok none
+                | some other =>
+                  let i2 := alloc.vec.Vec.len chosen
+                  if i2 < core.num.Usize.MAX
+                  then
+                    let chosen1 ← alloc.vec.Vec.push chosen other
+                    let o5 ← forest.rule_deps problem graph node
+                    match o5 with
+                    | none => ok none
+                    | some deps =>
+                      let o6 ← completion.join deps c.deps
+                      match o6 with
+                      | none => ok none
+                      | some deps1 =>
+                        let o7 ←
+                          forest.differences_deps graph chosen1 0#usize deps1
+                        match o7 with
+                        | none => ok none
+                        | some deps2 =>
+                          let o8 ←
+                            forest.pairs_from graph chosen1 0#usize
+                              (alloc.vec.Vec.new forest.Pair)
+                          match o8 with
+                          | none => ok none
+                          | some pairs =>
+                            forest.choices problem roles graph node pairs
+                              0#usize deps2 (alloc.vec.Vec.new Std.Usize) depth
+                  else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::guesses]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2912:0-2987:1 -/
+def forest.guesses
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
+  (role : model.ObjectPropertyExpression) (filler : Std.Usize) (n : Std.Usize)
+  (many : Std.Usize) (deps : alloc.vec.Vec Std.Usize)
+  (skipped : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  if many <= n
+  then
+    if many < n
+    then
+      if depth < core.num.Usize.MAX
+      then
+        let other ← forest.copy_forest graph
+        let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
+        let o ← completion.join deps point
+        match o with
+        | none => ok none
+        | some here =>
+          let o1 ← forest.named graph node restriction role filler many here
+          match o1 with
+          | none => ok none
+          | some made =>
+            let i ← depth + 1#usize
+            let o2 ← forest.run problem roles made i
+            match o2 with
+            | none => ok none
+            | some o3 =>
+              match o3 with
+              | completion.Outcome.Accepted => ok o2
+              | completion.Outcome.Rejected clash =>
+                let b ← completion.contains clash depth 0#usize
+                if b
+                then
+                  let rest ←
+                    completion.without_from clash depth 0#usize
+                      (alloc.vec.Vec.new Std.Usize)
+                  let o4 ← completion.join skipped rest
+                  match o4 with
+                  | none => ok none
+                  | some skipped1 =>
+                    let i1 ← many + 1#usize
+                    forest.guesses problem roles other node restriction role
+                      filler n i1 deps skipped1 depth
+                else ok o2
+      else ok none
+    else
+      let o ← completion.join deps skipped
+      match o with
+      | none => ok none
+      | some last =>
+        let o1 ← forest.named graph node restriction role filler many last
+        match o1 with
+        | none => ok none
+        | some made => forest.run problem roles made depth
+  else
+    let o ← completion.join deps skipped
+    match o with
+    | none => ok none
+    | some clash => ok (some (completion.Outcome.Rejected clash))
+partial_fixpoint
+
+/-- [rowl_kernel::forest::name_rule]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 2992:0-3027:1 -/
+def forest.name_rule
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len problem.entries
+  if restriction < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        concept_table.Entry) problem.entries restriction
+    match e with
+    | concept_table.Entry.Top => ok none
+    | concept_table.Entry.Bottom => ok none
+    | concept_table.Entry.Atom _ => ok none
+    | concept_table.Entry.NotAtom _ => ok none
+    | concept_table.Entry.One _ => ok none
+    | concept_table.Entry.NotOne _ => ok none
+    | concept_table.Entry.HasSelf _ => ok none
+    | concept_table.Entry.NotSelf _ => ok none
+    | concept_table.Entry.And _ _ => ok none
+    | concept_table.Entry.Or _ _ => ok none
+    | concept_table.Entry.Exists _ _ => ok none
+    | concept_table.Entry.Forall _ _ => ok none
+    | concept_table.Entry.AtLeast _ _ _ => ok none
+    | concept_table.Entry.AtMost n role filler _ =>
+      let o ← forest.rule_deps problem graph node
+      match o with
+      | none => ok none
+      | some deps =>
+        forest.guesses problem roles graph node restriction role filler n
+          1#usize deps (alloc.vec.Vec.new Std.Usize) depth
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::nominal]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3030:0-3056:1 -/
+def forest.nominal
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (node : Std.Usize) (root : Std.Usize)
+  (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let i := alloc.vec.Vec.len graph.nodes
+  if node < i
+  then
+    let i1 := alloc.vec.Vec.len graph.nodes
+    if root < i1
+    then
+      let n ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes node
+      let n1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
+          graph.nodes root
+      let o ← completion.join n.deps n1.deps
+      match o with
+      | none => ok none
+      | some deps =>
+        let b ← forest.differ graph node root 0#usize
+        if b
+        then
+          let pair ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) node
+          let pair1 ← alloc.vec.Vec.push pair root
+          let o1 ← forest.differences_deps graph pair1 0#usize deps
+          match o1 with
+          | none => ok none
+          | some clash => ok (some (completion.Outcome.Rejected clash))
+        else forest.merge problem roles graph node root deps depth
+    else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::forest::run]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3059:0-3115:1 -/
+def forest.run
+  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
+  (graph : forest.Forest) (depth : Std.Usize) :
+  Result (Option completion.Outcome)
+  := do
+  let o ← forest.next_step problem roles graph
+  match o with
+  | none => ok none
+  | some s =>
+    match s with
+    | forest.Step.Add node concept =>
+      let o1 ← forest.rule_deps problem graph node
+      match o1 with
+      | none => ok none
+      | some deps =>
+        forest.add problem roles graph node (completion.Pending.Item concept
+          completion.Pending.Empty) deps depth
+    | forest.Step.Choose node left right =>
+      let o1 ← forest.rule_deps problem graph node
+      match o1 with
+      | none => ok none
+      | some deps =>
+        forest.branch problem roles graph node left right
+          completion.Pending.Empty deps depth
+    | forest.Step.Merge node restriction =>
+      forest.merge_rule problem roles graph node restriction depth
+    | forest.Step.Name node restriction =>
+      forest.name_rule problem roles graph node restriction depth
+    | forest.Step.Capped node restriction =>
+      forest.capped_rule problem roles graph node restriction depth
+    | forest.Step.Nominal node root =>
+      forest.nominal problem roles graph node root depth
+    | forest.Step.Loop node =>
+      let o1 ← forest.rule_deps problem graph node
+      match o1 with
+      | none => ok none
+      | some deps => ok (some (completion.Outcome.Rejected deps))
+    | forest.Step.Overlap node =>
+      let o1 ← forest.rule_deps problem graph node
+      match o1 with
+      | none => ok none
+      | some deps => ok (some (completion.Outcome.Rejected deps))
+    | forest.Step.Create node generator =>
+      forest.create problem roles graph node generator depth
+    | forest.Step.Stuck => ok none
+    | forest.Step.Done => ok (some completion.Outcome.Accepted)
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::forest::satisfiable]:
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3219:0-3284:1
+    Visibility: public -/
+def forest.satisfiable
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) :
+  Result (Option Bool)
+  := do
+  let o ← concept_table.intern (alloc.vec.Vec.new concept_table.Entry) axioms
+  match o with
+  | none => ok none
+  | some pair =>
+    let (entries, axioms1) := pair
+    let o1 ←
+      completion.intern_facts entries query 0#usize (alloc.vec.Vec.new
+        completion.Requirement)
+    match o1 with
+    | none => ok none
+    | some pair1 =>
+      let (entries1, requirements) := pair1
+      let o2 ← completion.intern_facts entries1 facts 0#usize requirements
+      match o2 with
+      | none => ok none
+      | some pair2 =>
+        let (entries2, requirements1) := pair2
+        let o3 ←
+          completion.intern_definitions entries2 definitions 0#usize
+            (alloc.vec.Vec.new completion.Unfolding)
+        match o3 with
+        | none => ok none
+        | some pair3 =>
+          let (entries3, unfoldings) := pair3
+          let limit := alloc.vec.Vec.len entries3
+          let o4 ← forest.loop_entries entries3 limit 0#usize
+          match o4 with
+          | none => ok none
+          | some entries4 =>
+            let o5 ← concept_table.close entries4 roles
+            match o5 with
+            | none => ok none
+            | some entries5 =>
+              let b ← forest.counting_simple entries5 roles 0#usize
+              if b
+              then
+                let b1 ← forest.disjoint_simple roles 0#usize
+                if b1
+                then
+                  let o6 ←
+                    forest.roots count
+                      {
+                        nodes := (alloc.vec.Vec.new forest.Node),
+                        edges := (alloc.vec.Vec.new forest.Edge),
+                        distinct := (alloc.vec.Vec.new forest.Distinct),
+                        same := (alloc.vec.Vec.new Std.Usize),
+                        caps := (alloc.vec.Vec.new forest.Cap)
+                      }
+                  match o6 with
+                  | none => ok none
+                  | some graph =>
+                    let v ←
+                      completion.copy_links links 0#usize (alloc.vec.Vec.new
+                        completion.Link)
+                    let o7 ←
+                      forest.run
+                        {
+                          entries := entries5,
+                          links := v,
+                          requirements := requirements1,
+                          unfoldings,
+                          axioms := axioms1
+                        } roles graph 0#usize
+                    match o7 with
+                    | none => ok none
+                    | some o8 =>
+                      match o8 with
+                      | completion.Outcome.Accepted => ok (some true)
+                      | completion.Outcome.Rejected _ => ok (some false)
+                else ok none
+              else ok none
+
+/-- [rowl_kernel::role_chains::satisfiable]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 1013:0-1076:1
+    Visibility: public -/
+def role_chains.satisfiable
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len chains
+  if i = 0#usize
+  then forest.satisfiable count query facts links axioms definitions roles
+  else
+    let b ← role_chains.long_from chains 0#usize
+    if b
+    then
+      let o ←
+        role_chains.copy_chains chains false 0#usize (alloc.vec.Vec.new
+          role_chains.Chain)
+      match o with
+      | none => ok none
+      | some copies =>
+        let o1 ← role_chains.copy_chains chains true 0#usize copies
+        match o1 with
+        | none => ok none
+        | some all =>
+          let b1 ← role_chains.pairs_fit roles all 0#usize
+          if b1
+          then
+            let b2 ← role_chains.fits roles all axioms
+            if b2
+            then
+              let b3 ← role_chains.facts_fit roles all query 0#usize
+              if b3
+              then
+                let b4 ← role_chains.facts_fit roles all facts 0#usize
+                if b4
+                then
+                  let b5 ←
+                    role_chains.definitions_fit roles all definitions 0#usize
+                  if b5
+                  then
+                    let o2 ←
+                      role_chains.encode roles all axioms true
+                        (alloc.vec.Vec.new role_chains.Atom) (alloc.vec.Vec.new
+                        concepts.Concept)
+                    match o2 with
+                    | none => ok none
+                    | some triple =>
+                      let (atoms, bases, axioms1) := triple
+                      let o3 ←
+                        role_chains.encode_facts roles all query 0#usize atoms
+                          bases (alloc.vec.Vec.new completion.Fact)
+                      match o3 with
+                      | none => ok none
+                      | some triple1 =>
+                        let (atoms1, bases1, query1) := triple1
+                        let o4 ←
+                          role_chains.encode_facts roles all facts 0#usize
+                            atoms1 bases1 (alloc.vec.Vec.new completion.Fact)
+                        match o4 with
+                        | none => ok none
+                        | some triple2 =>
+                          let (atoms2, bases2, facts1) := triple2
+                          let o5 ←
+                            role_chains.encode_definitions roles all
+                              definitions 0#usize atoms2 bases2
+                              (alloc.vec.Vec.new completion.Definition)
+                          match o5 with
+                          | none => ok none
+                          | some triple3 =>
+                            let (atoms3, bases3, definitions1) := triple3
+                            let o6 ←
+                              role_chains.generate roles all bases3 atoms3
+                                0#usize definitions1
+                            match o6 with
+                            | none => ok none
+                            | some pair =>
+                              let (_, definitions2) := pair
+                              forest.satisfiable count query1 facts1 links
+                                axioms1 definitions2 roles
+                  else ok none
+                else ok none
+              else ok none
+            else ok none
+          else ok none
+    else ok none
+
+/-- [rowl_kernel::universal::guessed]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 420:0-464:1 -/
+def universal.guessed
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len atoms
+  let i1 ← core.num.Usize.MAX - count
+  if i < i1
+  then
+    let o ←
+      universal.fixed_facts query atoms guess 0#usize (alloc.vec.Vec.new
+        completion.Fact)
+    match o with
+    | none => ok none
+    | some fixed_query =>
+      let fixed_axioms ← universal.fixed axioms atoms guess
+      let o1 ←
+        universal.require atoms guess count 0#usize fixed_axioms fixed_query
+      match o1 with
+      | none => ok none
+      | some required =>
+        let (fixed_axioms1, fixed_query1) := required
+        let o2 ←
+          universal.fixed_facts facts atoms guess 0#usize (alloc.vec.Vec.new
+            completion.Fact)
+        match o2 with
+        | none => ok none
+        | some fixed_facts =>
+          let o3 ←
+            universal.fixed_definitions definitions atoms guess 0#usize
+              (alloc.vec.Vec.new completion.Definition)
+          match o3 with
+          | none => ok none
+          | some fixed_definitions =>
+            let i2 := alloc.vec.Vec.len atoms
+            let i3 ← count + i2
+            role_chains.satisfiable i3 fixed_query1 fixed_facts links
+              fixed_axioms1 fixed_definitions roles chains
+  else ok none
+
+/-- [rowl_kernel::universal::guesses]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 478:0-538:1 -/
+def universal.guesses
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len guess
+  let i1 := alloc.vec.Vec.len atoms
+  if i < i1
+  then
+    let no ← universal.copy_guess guess 0#usize (alloc.vec.Vec.new Bool)
+    let no1 ← alloc.vec.Vec.push no false
+    let o ←
+      universal.guesses count query facts links axioms definitions roles chains
+        atoms no1
+    match o with
+    | none => ok none
+    | some b =>
+      if b
+      then ok o
+      else
+        let guess1 ← alloc.vec.Vec.push guess true
+        universal.guesses count query facts links axioms definitions roles
+          chains atoms guess1
+  else
+    universal.guessed count query facts links axioms definitions roles chains
+      atoms guess
+partial_fixpoint
+
+/-- [rowl_kernel::universal::add_atom]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 160:0-169:1 -/
+def universal.add_atom
+  (atoms : alloc.vec.Vec concepts.Concept) (concept : concepts.Concept) :
+  Result (Option (alloc.vec.Vec concepts.Concept))
+  := do
+  let i ← universal.atom_index atoms concept 0#usize
+  let i1 := alloc.vec.Vec.len atoms
+  if i < i1
+  then ok (some atoms)
+  else
+    let i2 := alloc.vec.Vec.len atoms
+    if i2 < core.num.Usize.MAX
+    then
+      let c ← concepts.copy_concept concept
+      let atoms1 ← alloc.vec.Vec.push atoms c
+      ok (some atoms1)
+    else ok none
+
+/-- [rowl_kernel::universal::collect]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 172:0-206:1 -/
+def universal.collect
+  (concept : concepts.Concept) (atoms : alloc.vec.Vec concepts.Concept) :
+  Result (Option (alloc.vec.Vec concepts.Concept))
+  := do
+  match concept with
+  | concepts.Concept.Top => ok (some atoms)
+  | concepts.Concept.Bottom => ok (some atoms)
+  | concepts.Concept.Atom _ => ok (some atoms)
+  | concepts.Concept.NotAtom _ => ok (some atoms)
+  | concepts.Concept.One _ => ok (some atoms)
+  | concepts.Concept.NotOne _ => ok (some atoms)
+  | concepts.Concept.HasSelf _ => ok (some atoms)
+  | concepts.Concept.NotSelf _ => ok (some atoms)
+  | concepts.Concept.And left right =>
+    let o ← universal.collect left atoms
+    match o with
+    | none => ok none
+    | some atoms1 => universal.collect right atoms1
+  | concepts.Concept.Or left right =>
+    let o ← universal.collect left atoms
+    match o with
+    | none => ok none
+    | some atoms1 => universal.collect right atoms1
+  | concepts.Concept.Exists role filler =>
+    let o ← universal.collect filler atoms
+    match o with
+    | none => ok none
+    | some atoms1 =>
+      let b ← universal.not_top role
+      if b
+      then ok o
+      else universal.add_atom atoms1 concept
+  | concepts.Concept.Forall role filler =>
+    let o ← universal.collect filler atoms
+    match o with
+    | none => ok none
+    | some atoms1 =>
+      let b ← universal.not_top role
+      if b
+      then ok o
+      else universal.add_atom atoms1 concept
+  | concepts.Concept.AtLeast _ _ filler => universal.collect filler atoms
+  | concepts.Concept.AtMost _ _ filler => universal.collect filler atoms
+partial_fixpoint
+
+/-- [rowl_kernel::universal::collect_definitions]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 219:0-232:1 -/
+def universal.collect_definitions
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
+  (atoms : alloc.vec.Vec concepts.Concept) :
+  Result (Option (alloc.vec.Vec concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let o ← universal.collect d.concept atoms
+    match o with
+    | none => ok none
+    | some atoms1 =>
+      let i1 ← index + 1#usize
+      universal.collect_definitions definitions i1 atoms1
+  else ok (some atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::collect_facts]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 208:0-217:1 -/
+def universal.collect_facts
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
+  (atoms : alloc.vec.Vec concepts.Concept) :
+  Result (Option (alloc.vec.Vec concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let o ← universal.collect f.concept atoms
+    match o with
+    | none => ok none
+    | some atoms1 =>
+      let i1 ← index + 1#usize
+      universal.collect_facts facts i1 atoms1
+  else ok (some atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::universal::GUESSES]
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 46:0-46:26 -/
+@[global_simps, irreducible] def universal.GUESSES : Std.Usize := 16#usize
+
+/-- [rowl_kernel::universal::satisfiable]:
+    Source: 'crates/rowl-kernel/src/universal.rs', lines 545:0-587:1
+    Visibility: public -/
+def universal.satisfiable
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  :
+  Result (Option Bool)
+  := do
+  let o ← universal.collect axioms (alloc.vec.Vec.new concepts.Concept)
+  match o with
+  | none => ok none
+  | some atoms =>
+    let o1 ← universal.collect_definitions definitions 0#usize atoms
+    match o1 with
+    | none => ok none
+    | some atoms1 =>
+      let o2 ← universal.collect_facts facts 0#usize atoms1
+      match o2 with
+      | none => ok none
+      | some atoms2 =>
+        let o3 ← universal.collect_facts query 0#usize atoms2
+        match o3 with
+        | none => ok none
+        | some atoms3 =>
+          let i := alloc.vec.Vec.len atoms3
+          if i <= universal.GUESSES
+          then
+            universal.guesses count query facts links axioms definitions roles
+              chains atoms3 (alloc.vec.Vec.new Bool)
+          else ok none
+
+/-- [rowl_kernel::shi_ontology::question_forest]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1764:0-1766:1 -/
+def shi_ontology.question_forest
+  (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
+  Result Bool
+  := do
+  if prepared.forest
+  then ok true
+  else
+    let b ← shi_ontology.facts_count extra 0#usize
+    if b
+    then ok true
+    else shi_ontology.facts_nominal extra 0#usize
+
+/-- [rowl_kernel::shi_ontology::known]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 246:0-258:1 -/
+def shi_ontology.known
+  (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
+  Result Bool
+  := do
+  match concept with
+  | concepts.Concept.Top => ok true
+  | concepts.Concept.Bottom => ok true
+  | concepts.Concept.Atom _ => ok true
+  | concepts.Concept.NotAtom _ => ok true
+  | concepts.Concept.One individual =>
+    let i ← alc_ontology.position nodes individual 0#usize
+    ok (i != 0#usize)
+  | concepts.Concept.NotOne individual =>
+    let i ← alc_ontology.position nodes individual 0#usize
+    ok (i != 0#usize)
+  | concepts.Concept.HasSelf _ => ok true
+  | concepts.Concept.NotSelf _ => ok true
+  | concepts.Concept.And left right =>
+    let b ← shi_ontology.known nodes left
+    if b
+    then shi_ontology.known nodes right
+    else ok false
+  | concepts.Concept.Or left right =>
+    let b ← shi_ontology.known nodes left
+    if b
+    then shi_ontology.known nodes right
+    else ok false
+  | concepts.Concept.Exists _ filler => shi_ontology.known nodes filler
+  | concepts.Concept.Forall _ filler => shi_ontology.known nodes filler
+  | concepts.Concept.AtLeast _ _ filler => shi_ontology.known nodes filler
+  | concepts.Concept.AtMost _ _ filler => shi_ontology.known nodes filler
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::facts_known]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 261:0-267:1 -/
+def shi_ontology.facts_known
+  (nodes : alloc.vec.Vec model.Individual)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← shi_ontology.known nodes f.concept
+    if b
+    then let i1 ← index + 1#usize
+         shi_ontology.facts_known nodes facts i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::shi_ontology::prepared_satisfiable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1777:0-1823:1 -/
+def shi_ontology.prepared_satisfiable
+  (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
+  Result (Option Bool)
+  := do
+  let b ← shi_ontology.facts_proper extra 0#usize
+  if b
+  then
+    let b1 ← shi_ontology.facts_known prepared.nodes extra 0#usize
+    if b1
+    then
+      if prepared.clash
+      then ok (some false)
+      else
+        if prepared.universal
+        then
+          let i := alloc.vec.Vec.len prepared.nodes
+          let i1 ← i + 1#usize
+          universal.satisfiable i1 extra prepared.bound prepared.links
+            prepared.parts.axioms prepared.parts.definitions prepared.roles
+            prepared.chains
+        else
+          let b2 ← universal.facts_universal extra 0#usize
+          if b2
+          then
+            let i := alloc.vec.Vec.len prepared.nodes
+            let i1 ← i + 1#usize
+            universal.satisfiable i1 extra prepared.bound prepared.links
+              prepared.parts.axioms prepared.parts.definitions prepared.roles
+              prepared.chains
+          else
+            let b3 ← shi_ontology.question_forest prepared extra
+            if b3
+            then
+              let i := alloc.vec.Vec.len prepared.nodes
+              let i1 ← i + 1#usize
+              role_chains.satisfiable i1 extra prepared.bound prepared.links
+                prepared.parts.axioms prepared.parts.definitions prepared.roles
+                prepared.chains
+            else
+              if prepared.denied
+              then ok (some false)
+              else
+                let i := alloc.vec.Vec.len prepared.nodes
+                let i1 ← i + 1#usize
+                completion.satisfiable i1 extra prepared.facts prepared.links
+                  prepared.parts.axioms prepared.parts.definitions
+                  prepared.roles
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::shi_ontology::prepared_consistent]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1825:0-1827:1
+    Visibility: public -/
+def shi_ontology.prepared_consistent
+  (prepared : shi_ontology.Prepared) : Result (Option Bool) := do
+  shi_ontology.prepared_satisfiable prepared (alloc.vec.Vec.new
+    completion.Fact)
+
+/-- [rowl_kernel::data_ontology::prepared_consistent]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2280:0-2285:1
+    Visibility: public -/
+def data_ontology.prepared_consistent
+  (prepared : data_ontology.Prepared) : Result (Option Bool) := do
+  match prepared with
+  | data_ontology.Prepared.Plain prepared1 =>
+    shi_ontology.prepared_consistent prepared1
+  | data_ontology.Prepared.Encoded _ _ prepared1 =>
+    shi_ontology.prepared_consistent prepared1
+
+/-- [rowl_kernel::shi_ontology::prepared_class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1830:0-1838:1
+    Visibility: public -/
+def shi_ontology.prepared_class_satisfiable
+  (prepared : shi_ontology.Prepared) («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate «class» true
+  match o with
+  | none => ok none
+  | some concept =>
+    let extra ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+        ({ node := 0#usize, concept } : completion.Fact)
+    shi_ontology.prepared_satisfiable prepared extra
+
+/-- [rowl_kernel::data_ontology::prepared_class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2288:0-2304:1
+    Visibility: public -/
+def data_ontology.prepared_class_satisfiable
+  (prepared : data_ontology.Prepared) («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  match prepared with
+  | data_ontology.Prepared.Plain prepared1 =>
+    shi_ontology.prepared_class_satisfiable prepared1 «class»
+  | data_ontology.Prepared.Encoded context nodes prepared1 =>
+    let b ← data_ontology.class_known nodes «class»
+    if b
+    then
+      let o ← data_ontology.encode_class context «class»
+      match o with
+      | none => ok none
+      | some encoded =>
+        let ce ← data_ontology.object_class
+        let ce1 ← data_ontology.and encoded ce
+        shi_ontology.prepared_class_satisfiable prepared1 ce1
+    else ok none
+
+/-- [rowl_kernel::shi_ontology::prepared_subsumed]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1841:0-1867:1
+    Visibility: public -/
+def shi_ontology.prepared_subsumed
+  (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate sub true
+  match o with
+  | none => ok none
+  | some inside =>
+    let o1 ← concepts.translate sup false
+    match o1 with
+    | none => ok none
+    | some outside =>
+      let extra ←
+        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+          ({ node := 0#usize, concept := inside } : completion.Fact)
+      let extra1 ←
+        alloc.vec.Vec.push extra ({ node := 0#usize, concept := outside } :
+          completion.Fact)
+      let o2 ← shi_ontology.prepared_satisfiable prepared extra1
+      match o2 with
+      | none => ok none
+      | some satisfiable => ok (some (¬ satisfiable))
+
+/-- [rowl_kernel::data_ontology::prepared_subsumed]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2307:0-2326:1
+    Visibility: public -/
+def data_ontology.prepared_subsumed
+  (prepared : data_ontology.Prepared) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  match prepared with
+  | data_ontology.Prepared.Plain prepared1 =>
+    shi_ontology.prepared_subsumed prepared1 sub sup
+  | data_ontology.Prepared.Encoded context nodes prepared1 =>
+    let b ← data_ontology.class_known nodes sub
+    if b
+    then
+      let b1 ← data_ontology.class_known nodes sup
+      if b1
+      then
+        let o ← data_ontology.encode_class context sub
+        let o1 ← data_ontology.encode_class context sup
+        match o with
+        | none => ok none
+        | some sub1 =>
+          match o1 with
+          | none => ok none
+          | some sup1 =>
+            let ce ← data_ontology.object_class
+            let ce1 ← data_ontology.and sub1 ce
+            shi_ontology.prepared_subsumed prepared1 ce1 sup1
+      else ok none
+    else ok none
+
+/-- [rowl_kernel::shi_ontology::prepared_instance_of]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1870:0-1891:1
+    Visibility: public -/
+def shi_ontology.prepared_instance_of
+  (prepared : shi_ontology.Prepared) (individual : model.NamedIndividual)
+  («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate «class» false
+  match o with
+  | none => ok none
+  | some outside =>
+    let i ← nnf.copy_iri individual.iri
+    let i1 ←
+      shi_ontology.node_of prepared.nodes prepared.same (model.Individual.Named
+        { iri := i })
+    let extra ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+        ({ node := i1, concept := outside } : completion.Fact)
+    let o1 ← shi_ontology.prepared_satisfiable prepared extra
+    match o1 with
+    | none => ok none
+    | some satisfiable => ok (some (¬ satisfiable))
+
+/-- [rowl_kernel::data_ontology::prepared_instance_of]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2329:0-2352:1
+    Visibility: public -/
+def data_ontology.prepared_instance_of
+  (prepared : data_ontology.Prepared) (individual : model.NamedIndividual)
+  («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  match prepared with
+  | data_ontology.Prepared.Plain prepared1 =>
+    shi_ontology.prepared_instance_of prepared1 individual «class»
+  | data_ontology.Prepared.Encoded context nodes prepared1 =>
+    let b ← data_ontology.reserved individual.iri.spelling
+    if b
+    then ok none
+    else
+      let b1 ← data_ontology.class_known nodes «class»
+      if b1
+      then
+        let o ← data_ontology.encode_class context «class»
+        match o with
+        | none => ok none
+        | some encoded =>
+          let ce ← data_ontology.data_class
+          let ce1 ← data_ontology.or encoded ce
+          shi_ontology.prepared_instance_of prepared1 individual ce1
+      else ok none
+
+/-- [rowl_kernel::data_ontology::consistent]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2355:0-2360:1
+    Visibility: public -/
+def data_ontology.consistent
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
+  let o ← data_ontology.prepare items
+  match o with
+  | none => ok none
+  | some prepared => data_ontology.prepared_consistent prepared
+
+/-- [rowl_kernel::data_ontology::class_satisfiable]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2362:0-2368:1
+    Visibility: public -/
+def data_ontology.class_satisfiable
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let c ← data_ontology.closure_context items
+  let c1 ← data_ontology.class_context c «class»
+  let context ← data_ontology.with_truths c1
+  let o ← data_ontology.prepare_in items context
+  match o with
+  | none => ok none
+  | some prepared =>
+    data_ontology.prepared_class_satisfiable prepared «class»
+
+/-- [rowl_kernel::data_ontology::subsumed]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2371:0-2384:1
+    Visibility: public -/
+def data_ontology.subsumed
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let c ← data_ontology.closure_context items
+  let c1 ← data_ontology.class_context c sub
+  let c2 ← data_ontology.class_context c1 sup
+  let context ← data_ontology.with_truths c2
+  let o ← data_ontology.prepare_in items context
+  match o with
+  | none => ok none
+  | some prepared => data_ontology.prepared_subsumed prepared sub sup
+
+/-- [rowl_kernel::data_ontology::instance_of]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2387:0-2397:1
+    Visibility: public -/
+def data_ontology.instance_of
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (individual : model.NamedIndividual) («class» : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let c ← data_ontology.closure_context items
+  let c1 ← data_ontology.class_context c «class»
+  let context ← data_ontology.with_truths c1
+  let o ← data_ontology.prepare_in items context
+  match o with
+  | none => ok none
+  | some prepared =>
+    data_ontology.prepared_instance_of prepared individual «class»
+
 /-- [rowl_kernel::datatype_definitions::DefinitionCheck]
     Source: 'crates/rowl-kernel/src/datatype_definitions.rs', lines 11:0-19:1
     Visibility: public -/
@@ -14431,34 +29032,6 @@ def datatype_restrictions.check_structural_datatypes
   | datatype_restrictions.DatatypeDefinitionCheck.Cycle smaller larger =>
     ok (datatype_restrictions.StructuralDatatypeCheck.Cycle smaller larger)
 
-/-- [rowl_kernel::datatypes::DataValue]
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 34:0-45:1
-    Visibility: public -/
-@[discriminant isize]
-inductive datatypes.DataValue where
-| Number :
-  Bool →
-  alloc.vec.Vec Std.U8 →
-  alloc.vec.Vec Std.U8 →
-  datatypes.DataValue
-| Text : alloc.vec.Vec Std.U8 → datatypes.DataValue
-| Tagged :
-  alloc.vec.Vec Std.U8 →
-  alloc.vec.Vec Std.U8 →
-  datatypes.DataValue
-| Truth : Bool → datatypes.DataValue
-
-/-- [rowl_kernel::datatypes::Kind]
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 49:0-55:1
-    Visibility: public -/
-@[discriminant isize]
-inductive datatypes.Kind where
-| Integer : datatypes.Kind
-| Decimal : datatypes.Kind
-| String : datatypes.Kind
-| Plain : datatypes.Kind
-| Boolean : datatypes.Kind
-
 /-- [rowl_kernel::datatypes::{impl core::clone::Clone for rowl_kernel::datatypes::Kind}::clone]:
     Source: 'crates/rowl-kernel/src/datatypes.rs', lines 48:9-48:14
     Visibility: public -/
@@ -14479,1564 +29052,6 @@ def datatypes.Kind.Insts.CoreCloneClone : core.clone.Clone datatypes.Kind := {
 def datatypes.Kind.Insts.CoreMarkerCopy : core.marker.Copy datatypes.Kind := {
   cloneInst := datatypes.Kind.Insts.CoreCloneClone
 }
-
-/-- [rowl_kernel::datatypes::equal_from]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 57:0-63:1 -/
-def datatypes.equal_from
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len key
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-        index
-    let i2 ← Slice.index_usize pattern index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         datatypes.equal_from key pattern i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::same_pattern]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 64:0-66:1 -/
-def datatypes.same_pattern
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len key
-  let i1 := Slice.len pattern
-  if i = i1
-  then datatypes.equal_from key pattern 0#usize
-  else ok false
-
-/-- [rowl_kernel::datatypes::kind_of]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 68:0-86:1
-    Visibility: public -/
-def datatypes.kind_of
-  (datatype : model.Datatype) : Result (Option datatypes.Kind) := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 40#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
-        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8,
-        103#u8, 101#u8, 114#u8
-        ]))
-  let b ← datatypes.same_pattern datatype.iri.spelling s
-  if b
-  then ok (some datatypes.Kind.Integer)
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 40#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
-          104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 101#u8, 99#u8, 105#u8,
-          109#u8, 97#u8, 108#u8
-          ]))
-    let b1 ← datatypes.same_pattern datatype.iri.spelling s1
-    if b1
-    then ok (some datatypes.Kind.Decimal)
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 39#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8,
-            116#u8, 114#u8, 105#u8, 110#u8, 103#u8
-            ]))
-      let b2 ← datatypes.same_pattern datatype.iri.spelling s2
-      if b2
-      then ok (some datatypes.Kind.String)
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 55#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
-              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
-              115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
-              105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
-              ]))
-        let b3 ← datatypes.same_pattern datatype.iri.spelling s3
-        if b3
-        then ok (some datatypes.Kind.Plain)
-        else
-          let s4 ←
-            lift (Array.to_slice
-              (Array.make 40#usize [
-                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-                76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
-                98#u8, 111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
-                ]))
-          let b4 ← datatypes.same_pattern datatype.iri.spelling s4
-          if b4
-          then ok (some datatypes.Kind.Boolean)
-          else ok none
-
-/-- [rowl_kernel::datatypes::is_digit]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 88:0-90:1 -/
-def datatypes.is_digit (byte : Std.U8) : Result Bool := do
-  ok ((48#u8 <= byte) && (byte <= 57#u8))
-
-/-- [rowl_kernel::datatypes::digits_from]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 92:0-102:1 -/
-def datatypes.digits_from
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Bool
-  := do
-  if index < «end»
-  then
-    let i := alloc.vec.Vec.len bytes
-    if index < i
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes index
-      let b ← datatypes.is_digit i1
-      if b
-      then let i2 ← index + 1#usize
-           datatypes.digits_from bytes i2 «end»
-      else ok false
-    else ok true
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::skip_zeros]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 104:0-114:1 -/
-def datatypes.skip_zeros
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
-  Result Std.Usize
-  := do
-  if index < «end»
-  then
-    let i := alloc.vec.Vec.len bytes
-    if index < i
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes index
-      if i1 = 48#u8
-      then let i2 ← index + 1#usize
-           datatypes.skip_zeros bytes i2 «end»
-      else ok index
-    else ok «end»
-  else ok «end»
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::trim_zeros]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 116:0-126:1 -/
-def datatypes.trim_zeros
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
-  Result Std.Usize
-  := do
-  if start < «end»
-  then
-    let i := alloc.vec.Vec.len bytes
-    if «end» <= i
-    then
-      let i1 ← «end» - 1#usize
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes i1
-      if i2 = 48#u8
-      then datatypes.trim_zeros bytes start i1
-      else ok «end»
-    else ok start
-  else ok start
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::copy_range]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 128:0-135:1 -/
-def datatypes.copy_range
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  if index < «end»
-  then
-    let i := alloc.vec.Vec.len bytes
-    if index < i
-    then
-      let i1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes index
-      let out1 ← alloc.vec.Vec.push out i1
-      let i2 ← index + 1#usize
-      datatypes.copy_range bytes i2 «end» out1
-    else ok out
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::find_byte]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 137:0-147:1 -/
-def datatypes.find_byte
-  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) (index : Std.Usize) :
-  Result Std.Usize
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    if i1 = byte
-    then ok index
-    else let i2 ← index + 1#usize
-         datatypes.find_byte bytes byte i2
-  else ok (alloc.vec.Vec.len bytes)
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::signed]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 149:0-155:1 -/
-def datatypes.signed (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len lexical
-  if 0#usize < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-        lexical 0#usize
-    if i1 = 43#u8
-    then ok true
-    else ok (i1 = 45#u8)
-  else ok false
-
-/-- [rowl_kernel::datatypes::minus]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 157:0-163:1 -/
-def datatypes.minus (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len lexical
-  if 0#usize < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-        lexical 0#usize
-    ok (i1 = 45#u8)
-  else ok false
-
-/-- [rowl_kernel::datatypes::number_from]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 166:0-179:1 -/
-def datatypes.number_from
-  (lexical : alloc.vec.Vec Std.U8) (negative : Bool) (start : Std.Usize)
-  (dot : Std.Usize) (after : Std.Usize) :
-  Result datatypes.DataValue
-  := do
-  let first ← datatypes.skip_zeros lexical start dot
-  let i := alloc.vec.Vec.len lexical
-  let last ← datatypes.trim_zeros lexical after i
-  let integer ←
-    datatypes.copy_range lexical first dot (alloc.vec.Vec.new Std.U8)
-  let fraction ←
-    datatypes.copy_range lexical after last (alloc.vec.Vec.new Std.U8)
-  let i1 := alloc.vec.Vec.len integer
-  let zero ←
-    if i1 = 0#usize
-    then let i2 := alloc.vec.Vec.len fraction
-         ok (i2 = 0#usize)
-    else ok false
-  if negative
-  then ok (datatypes.DataValue.Number (¬ zero) integer fraction)
-  else ok (datatypes.DataValue.Number false integer fraction)
-
-/-- [rowl_kernel::datatypes::shaped]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 183:0-189:1 -/
-def datatypes.shaped
-  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) (start : Std.Usize)
-  (dot : Std.Usize) (after : Std.Usize) :
-  Result Bool
-  := do
-  let length := alloc.vec.Vec.len lexical
-  if whole
-  then
-    if dot < length
-    then ok false
-    else
-      let b ← datatypes.digits_from lexical start dot
-      if b
-      then
-        let b1 ← datatypes.digits_from lexical after length
-        if b1
-        then
-          let b2 ← if dot = start
-                     then ok (after = length)
-                     else ok false
-          ok (¬ b2)
-        else ok false
-      else ok false
-  else
-    let b ← datatypes.digits_from lexical start dot
-    if b
-    then
-      let b1 ← datatypes.digits_from lexical after length
-      if b1
-      then
-        let b2 ← if dot = start
-                   then ok (after = length)
-                   else ok false
-        ok (¬ b2)
-      else ok false
-    else ok false
-
-/-- [rowl_kernel::datatypes::number_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 192:0-202:1 -/
-def datatypes.number_value
-  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) :
-  Result (Option datatypes.DataValue)
-  := do
-  let length := alloc.vec.Vec.len lexical
-  let b ← datatypes.signed lexical
-  let start ← if b
-                then ok 1#usize
-                else ok 0#usize
-  let dot ← datatypes.find_byte lexical 46#u8 start
-  let after ← if dot < length
-                then dot + 1#usize
-                else ok length
-  let b1 ← datatypes.shaped lexical whole start dot after
-  if b1
-  then
-    let b2 ← datatypes.minus lexical
-    let dv ← datatypes.number_from lexical b2 start dot after
-    ok (some dv)
-  else ok none
-
-/-- [rowl_kernel::unicode::xml_character]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 137:0-144:1
-    Visibility: public -/
-def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
-  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
-    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
-    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
-    (codepoint <= 1114111#u32)))
-
-/-- [rowl_kernel::unicode::continuation]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
-def unicode.continuation (byte : Std.U8) : Result Bool := do
-  ok ((byte >= 128#u8) && (byte <= 191#u8))
-
-/-- [rowl_kernel::unicode::four]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
-def unicode.four
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let b ← unicode.continuation second
-  let b1 ← unicode.continuation third
-  let b2 ← unicode.continuation fourth
-  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
-    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
-    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 240#u32
-    let i2 ← i1 * 262144#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 4096#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i8 * 64#u32
-    let i10 ← i6 + i9
-    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
-    let i12 ← i11 - 128#u32
-    let i13 ← i10 + i12
-    ok (some i13)
-  else ok none
-
-/-- [rowl_kernel::unicode::three]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
-def unicode.three
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let tail ← unicode.continuation second
-  let b ← unicode.continuation third
-  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
-    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
-    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
-    (first <= 239#u8)) && tail)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 224#u32
-    let i2 ← i1 * 4096#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 64#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i6 + i8
-    ok (some i9)
-  else ok none
-
-/-- [rowl_kernel::unicode::two]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
-def unicode.two
-  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
-  let b ← unicode.continuation second
-  if ((first >= 194#u8) && (first <= 223#u8)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 192#u32
-    let i2 ← i1 * 64#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i2 + i4
-    ok (some i5)
-  else ok none
-
-/-- [rowl_kernel::unicode::TextError]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextError where
-| InvalidPosition : Std.Usize → unicode.TextError
-| InvalidUtf8 : Std.Usize → unicode.TextError
-| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
-
-/-- [rowl_kernel::unicode::Decoded]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.Decoded where
-| End : unicode.Decoded
-| Scalar : Std.U32 → Std.Usize → unicode.Decoded
-| Error : unicode.TextError → unicode.Decoded
-
-/-- [rowl_kernel::unicode::decode_next]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
-    Visibility: public -/
-def unicode.decode_next
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.Decoded
-  := do
-  let length := alloc.vec.Vec.len bytes
-  if offset > length
-  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
-  else
-    if offset = length
-    then ok unicode.Decoded.End
-    else
-      let first ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes offset
-      if first < 128#u8
-      then
-        let i ← lift (core.convert.num.FromU32U8.from first)
-        let i1 ← offset + 1#usize
-        ok (unicode.Decoded.Scalar i i1)
-      else
-        let remaining ← length - offset
-        if first < 224#u8
-        then
-          if remaining >= 2#usize
-          then
-            let i ← offset + 1#usize
-            let i1 ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                Std.U8) bytes i
-            let o ← unicode.two first i1
-            match o with
-            | none =>
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-            | some codepoint =>
-              let i2 ← offset + 2#usize
-              ok (unicode.Decoded.Scalar codepoint i2)
-          else
-            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-        else
-          if first < 240#u8
-          then
-            if remaining >= 3#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let o ← unicode.three first i1 i3
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i4 ← offset + 3#usize
-                ok (unicode.Decoded.Scalar codepoint i4)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-          else
-            if remaining >= 4#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let i4 ← offset + 3#usize
-              let i5 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i4
-              let o ← unicode.four first i1 i3 i5
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i6 ← offset + 4#usize
-                ok (unicode.Decoded.Scalar codepoint i6)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-
-/-- [rowl_kernel::unicode::Scalars]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.Scalars where
-| Empty : unicode.Scalars
-| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
-
-/-- [rowl_kernel::unicode::TextScan]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextScan where
-| Valid : unicode.Scalars → unicode.TextScan
-| Invalid : unicode.TextError → unicode.TextScan
-
-/-- [rowl_kernel::unicode::read_from]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
-def unicode.read_from
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.TextScan
-  := do
-  let d ← unicode.decode_next bytes offset
-  match d with
-  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
-  | unicode.Decoded.Scalar codepoint next =>
-    let b ← unicode.xml_character codepoint
-    if b
-    then
-      let ts ← unicode.read_from bytes next
-      match ts with
-      | unicode.TextScan.Valid tail =>
-        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
-          tail))
-      | unicode.TextScan.Invalid _ => ok ts
-    else
-      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
-        codepoint))
-  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
-partial_fixpoint
-
-/-- [rowl_kernel::unicode::read_text]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
-    Visibility: public -/
-def unicode.read_text
-  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
-  unicode.read_from bytes 0#usize
-
-/-- [rowl_kernel::datatypes::xml_text]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 204:0-209:1 -/
-def datatypes.xml_text (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let ts ← unicode.read_text bytes
-  match ts with
-  | unicode.TextScan.Valid _ => ok true
-  | unicode.TextScan.Invalid _ => ok false
-
-/-- [rowl_kernel::datatypes::last_byte]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 211:0-221:1 -/
-def datatypes.last_byte
-  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) («end» : Std.Usize) :
-  Result Std.Usize
-  := do
-  if 0#usize < «end»
-  then
-    let i := alloc.vec.Vec.len bytes
-    if «end» <= i
-    then
-      let i1 ← «end» - 1#usize
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes i1
-      if i2 = byte
-      then ok i1
-      else datatypes.last_byte bytes byte i1
-    else ok (alloc.vec.Vec.len bytes)
-  else ok (alloc.vec.Vec.len bytes)
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::lower]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 223:0-229:1 -/
-def datatypes.lower (byte : Std.U8) : Result Std.U8 := do
-  if (65#u8 <= byte) && (byte <= 90#u8)
-  then byte + 32#u8
-  else ok byte
-
-/-- [rowl_kernel::datatypes::lower_from]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 231:0-238:1 -/
-def datatypes.lower_from
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let i2 ← datatypes.lower i1
-    let out1 ← alloc.vec.Vec.push out i2
-    let i3 ← index + 1#usize
-    datatypes.lower_from bytes i3 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::regular::Expression]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.Expression where
-| Empty : regular.Expression
-| Epsilon : regular.Expression
-| Interval : Std.U32 → Std.U32 → regular.Expression
-| Alternative :
-  regular.Expression →
-  regular.Expression →
-  regular.Expression
-| Sequence : regular.Expression → regular.Expression → regular.Expression
-| Repeat : regular.Expression → regular.Expression
-
-/-- [rowl_kernel::regular::repeat]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 71:0-76:1
-    Visibility: public -/
-def regular.repeat
-  (expression : regular.Expression) : Result regular.Expression := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Epsilon
-  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-  | regular.Expression.Interval _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Alternative _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Sequence _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Repeat _ => ok (regular.Expression.Repeat expression)
-
-/-- [rowl_kernel::regular::sequence]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 62:0-69:1
-    Visibility: public -/
-def regular.sequence
-  (left : regular.Expression) (right : regular.Expression) :
-  Result regular.Expression
-  := do
-  match left with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-    | regular.Expression.Interval _ _ => ok right
-    | regular.Expression.Alternative _ _ => ok right
-    | regular.Expression.Sequence _ _ => ok right
-    | regular.Expression.Repeat _ => ok right
-  | regular.Expression.Interval _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Alternative _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Sequence _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Repeat _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-
-/-- [rowl_kernel::regular::alternate]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 54:0-60:1
-    Visibility: public -/
-def regular.alternate
-  (left : regular.Expression) (right : regular.Expression) :
-  Result regular.Expression
-  := do
-  match left with
-  | regular.Expression.Empty => ok right
-  | regular.Expression.Epsilon =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Epsilon
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon
-        regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-  | regular.Expression.Interval _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Alternative _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Sequence _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Repeat _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-
-/-- [rowl_kernel::regular::nullable]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 45:0-52:1
-    Visibility: public -/
-def regular.nullable (expression : regular.Expression) : Result Bool := do
-  match expression with
-  | regular.Expression.Empty => ok false
-  | regular.Expression.Epsilon => ok true
-  | regular.Expression.Interval _ _ => ok false
-  | regular.Expression.Alternative left right =>
-    let b ← regular.nullable left
-    if b
-    then ok true
-    else regular.nullable right
-  | regular.Expression.Sequence left right =>
-    let b ← regular.nullable left
-    if b
-    then regular.nullable right
-    else ok false
-  | regular.Expression.Repeat _ => ok true
-partial_fixpoint
-
-/-- [rowl_kernel::regular::copy_expression]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 25:0-43:1
-    Visibility: public -/
-def regular.copy_expression
-  (expression : regular.Expression) : Result regular.Expression := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-  | regular.Expression.Interval _ _ => ok expression
-  | regular.Expression.Alternative left right =>
-    let e ← regular.copy_expression left
-    let e1 ← regular.copy_expression right
-    ok (regular.Expression.Alternative e e1)
-  | regular.Expression.Sequence left right =>
-    let e ← regular.copy_expression left
-    let e1 ← regular.copy_expression right
-    ok (regular.Expression.Sequence e e1)
-  | regular.Expression.Repeat inner =>
-    let e ← regular.copy_expression inner
-    ok (regular.Expression.Repeat e)
-partial_fixpoint
-
-/-- [rowl_kernel::regular::derivative]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 80:0-108:1
-    Visibility: public -/
-def regular.derivative
-  (expression : regular.Expression) (codepoint : Std.U32) :
-  Result regular.Expression
-  := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon => ok regular.Expression.Empty
-  | regular.Expression.Interval lower upper =>
-    if lower <= codepoint
-    then
-      if codepoint <= upper
-      then ok regular.Expression.Epsilon
-      else ok regular.Expression.Empty
-    else ok regular.Expression.Empty
-  | regular.Expression.Alternative left right =>
-    let e ← regular.derivative left codepoint
-    let e1 ← regular.derivative right codepoint
-    regular.alternate e e1
-  | regular.Expression.Sequence left right =>
-    let accepts_empty ← regular.nullable left
-    let right_derivative ←
-      if accepts_empty
-      then
-        do
-        let e ← regular.copy_expression right
-        regular.derivative e codepoint
-      else ok regular.Expression.Empty
-    let e ← regular.derivative left codepoint
-    let joined ← regular.sequence e right
-    regular.alternate joined right_derivative
-  | regular.Expression.Repeat inner =>
-    let original ← regular.copy_expression inner
-    let e ← regular.derivative inner codepoint
-    let e1 ← regular.repeat original
-    regular.sequence e e1
-partial_fixpoint
-
-/-- [rowl_kernel::regular::MatchResult]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.MatchResult where
-| Matched : Bool → regular.MatchResult
-| MalformedUtf8 : unicode.TextError → regular.MatchResult
-
-/-- [rowl_kernel::regular::match_from]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 110:0-118:1 -/
-def regular.match_from
-  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
-  (offset : Std.Usize) :
-  Result regular.MatchResult
-  := do
-  let d ← unicode.decode_next bytes offset
-  match d with
-  | unicode.Decoded.End =>
-    let b ← regular.nullable expression
-    ok (regular.MatchResult.Matched b)
-  | unicode.Decoded.Scalar codepoint next =>
-    let e ← regular.derivative expression codepoint
-    regular.match_from e bytes next
-  | unicode.Decoded.Error error => ok (regular.MatchResult.MalformedUtf8 error)
-partial_fixpoint
-
-/-- [rowl_kernel::regular::matches_utf8]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 123:0-125:1
-    Visibility: public -/
-def regular.matches_utf8
-  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
-  Result regular.MatchResult
-  := do
-  regular.match_from expression bytes 0#usize
-
-/-- [rowl_kernel::langtag::cat]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 16:0-18:1 -/
-def langtag.cat
-  (a : regular.Expression) (b : regular.Expression) :
-  Result regular.Expression
-  := do
-  ok (regular.Expression.Sequence a b)
-
-/-- [rowl_kernel::langtag::range]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 7:0-9:1 -/
-def langtag.range
-  (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
-  ok (regular.Expression.Interval lower upper)
-
-/-- [rowl_kernel::langtag::ch]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 10:0-12:1 -/
-def langtag.ch (cp : Std.U32) : Result regular.Expression := do
-  langtag.range cp cp
-
-/-- [rowl_kernel::langtag::dashed]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 63:0-65:1 -/
-def langtag.dashed (a : regular.Expression) : Result regular.Expression := do
-  let e ← langtag.ch 45#u32
-  langtag.cat e a
-
-/-- [rowl_kernel::langtag::digit]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 48:0-50:1 -/
-def langtag.digit : Result regular.Expression := do
-  langtag.range 48#u32 57#u32
-
-/-- [rowl_kernel::langtag::alt]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 13:0-15:1 -/
-def langtag.alt
-  (a : regular.Expression) (b : regular.Expression) :
-  Result regular.Expression
-  := do
-  ok (regular.Expression.Alternative a b)
-
-/-- [rowl_kernel::langtag::alpha]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 45:0-47:1 -/
-def langtag.alpha : Result regular.Expression := do
-  let e ← langtag.range 65#u32 90#u32
-  let e1 ← langtag.range 97#u32 122#u32
-  langtag.alt e e1
-
-/-- [rowl_kernel::langtag::alnum]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 51:0-53:1 -/
-def langtag.alnum : Result regular.Expression := do
-  let e ← langtag.alpha
-  let e1 ← langtag.digit
-  langtag.alt e e1
-
-/-- [rowl_kernel::langtag::opt]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 19:0-21:1 -/
-def langtag.opt (a : regular.Expression) : Result regular.Expression := do
-  langtag.alt regular.Expression.Epsilon a
-
-/-- [rowl_kernel::langtag::up_to]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 35:0-41:1 -/
-def langtag.up_to
-  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
-  if n = 0#u8
-  then ok regular.Expression.Epsilon
-  else
-    let e ← regular.copy_expression a
-    let i ← n - 1#u8
-    let e1 ← langtag.up_to a i
-    let e2 ← langtag.cat e e1
-    langtag.opt e2
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::exact]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 28:0-34:1 -/
-def langtag.exact
-  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
-  if n = 0#u8
-  then ok regular.Expression.Epsilon
-  else
-    let e ← regular.copy_expression a
-    let i ← n - 1#u8
-    let e1 ← langtag.exact a i
-    langtag.cat e e1
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::between]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 42:0-44:1 -/
-def langtag.between
-  (a : regular.Expression) (lower : Std.U8) (extra : Std.U8) :
-  Result regular.Expression
-  := do
-  let e ← langtag.exact a lower
-  let e1 ← langtag.up_to a extra
-  langtag.cat e e1
-
-/-- [rowl_kernel::langtag::star]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 22:0-24:1 -/
-def langtag.star (a : regular.Expression) : Result regular.Expression := do
-  ok (regular.Expression.Repeat a)
-
-/-- [rowl_kernel::langtag::plus]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 25:0-27:1 -/
-def langtag.plus (a : regular.Expression) : Result regular.Expression := do
-  let e ← regular.copy_expression a
-  let e1 ← langtag.star a
-  langtag.cat e e1
-
-/-- [rowl_kernel::langtag::private_use]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 106:0-108:1 -/
-def langtag.private_use : Result regular.Expression := do
-  let e ← langtag.ch 120#u32
-  let e1 ← langtag.ch 88#u32
-  let e2 ← langtag.alt e e1
-  let e3 ← langtag.alnum
-  let e4 ← langtag.between e3 1#u8 7#u8
-  let e5 ← langtag.dashed e4
-  let e6 ← langtag.plus e5
-  langtag.cat e2 e6
-
-/-- [rowl_kernel::langtag::singleton]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 54:0-62:1 -/
-def langtag.singleton : Result regular.Expression := do
-  let e ← langtag.digit
-  let e1 ← langtag.range 65#u32 87#u32
-  let e2 ← langtag.range 89#u32 90#u32
-  let e3 ← langtag.alt e1 e2
-  let e4 ← langtag.range 97#u32 119#u32
-  let e5 ← langtag.range 121#u32 122#u32
-  let e6 ← langtag.alt e4 e5
-  let e7 ← langtag.alt e3 e6
-  langtag.alt e e7
-
-/-- [rowl_kernel::langtag::extension]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 103:0-105:1 -/
-def langtag.extension : Result regular.Expression := do
-  let e ← langtag.singleton
-  let e1 ← langtag.alnum
-  let e2 ← langtag.between e1 2#u8 6#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.plus e3
-  langtag.cat e e4
-
-/-- [rowl_kernel::langtag::variant]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 100:0-102:1 -/
-def langtag.variant : Result regular.Expression := do
-  let e ← langtag.alnum
-  let e1 ← langtag.between e 5#u8 3#u8
-  let e2 ← langtag.digit
-  let e3 ← langtag.exact e 3#u8
-  let e4 ← langtag.cat e2 e3
-  langtag.alt e1 e4
-
-/-- [rowl_kernel::langtag::language]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 93:0-99:1 -/
-def langtag.language : Result regular.Expression := do
-  let e ← langtag.alpha
-  let e1 ← langtag.exact e 3#u8
-  let e2 ← langtag.exact e 3#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.up_to e3 2#u8
-  let extlang ← langtag.cat e1 e4
-  let e5 ← langtag.between e 2#u8 1#u8
-  let e6 ← langtag.dashed extlang
-  let e7 ← langtag.opt e6
-  let e8 ← langtag.cat e5 e7
-  let e9 ← langtag.exact e 4#u8
-  let e10 ← langtag.between e 5#u8 3#u8
-  let e11 ← langtag.alt e9 e10
-  langtag.alt e8 e11
-
-/-- [rowl_kernel::langtag::langtag]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 109:0-123:1 -/
-def langtag.langtag : Result regular.Expression := do
-  let e ← langtag.language
-  let e1 ← langtag.alpha
-  let e2 ← langtag.exact e1 4#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.opt e3
-  let e5 ← langtag.exact e1 2#u8
-  let e6 ← langtag.digit
-  let e7 ← langtag.exact e6 3#u8
-  let e8 ← langtag.alt e5 e7
-  let e9 ← langtag.dashed e8
-  let e10 ← langtag.opt e9
-  let e11 ← langtag.variant
-  let e12 ← langtag.dashed e11
-  let e13 ← langtag.star e12
-  let e14 ← langtag.extension
-  let e15 ← langtag.dashed e14
-  let e16 ← langtag.star e15
-  let e17 ← langtag.private_use
-  let e18 ← langtag.dashed e17
-  let e19 ← langtag.opt e18
-  let e20 ← langtag.cat e16 e19
-  let e21 ← langtag.cat e13 e20
-  let e22 ← langtag.cat e10 e21
-  let e23 ← langtag.cat e4 e22
-  langtag.cat e e23
-
-/-- [rowl_kernel::langtag::literal_from]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 66:0-78:1 -/
-def langtag.literal_from
-  (bytes : Slice Std.U8) (position : Std.Usize) :
-  Result regular.Expression
-  := do
-  let i := Slice.len bytes
-  if position = i
-  then ok regular.Expression.Epsilon
-  else
-    let i1 ← Slice.index_usize bytes position
-    let value ← lift (core.convert.num.FromU32U8.from i1)
-    let token ←
-      if value >= 97#u32
-      then
-        if value <= 122#u32
-        then
-          do
-          let e ← langtag.ch value
-          let i2 ← value - 32#u32
-          let e1 ← langtag.ch i2
-          langtag.alt e e1
-        else langtag.ch value
-      else langtag.ch value
-    let i2 ← position + 1#usize
-    let e ← langtag.literal_from bytes i2
-    langtag.cat token e
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::literal]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 79:0-81:1 -/
-def langtag.literal (bytes : Slice Std.U8) : Result regular.Expression := do
-  langtag.literal_from bytes 0#usize
-
-/-- [rowl_kernel::langtag::grandfathered]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 82:0-92:1 -/
-def langtag.grandfathered : Result regular.Expression := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        101#u8, 110#u8, 45#u8, 103#u8, 98#u8, 45#u8, 111#u8, 101#u8, 100#u8
-        ]))
-  let e ← langtag.literal s
-  let s1 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 97#u8, 109#u8, 105#u8 ]))
-  let e1 ← langtag.literal s1
-  let s2 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 98#u8, 110#u8, 110#u8 ]))
-  let e2 ← langtag.literal s2
-  let s3 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        105#u8, 45#u8, 100#u8, 101#u8, 102#u8, 97#u8, 117#u8, 108#u8, 116#u8
-        ]))
-  let e3 ← langtag.literal s3
-  let s4 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        105#u8, 45#u8, 101#u8, 110#u8, 111#u8, 99#u8, 104#u8, 105#u8, 97#u8,
-        110#u8
-        ]))
-  let e4 ← langtag.literal s4
-  let s5 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 104#u8, 97#u8, 107#u8 ]))
-  let e5 ← langtag.literal s5
-  let s6 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        105#u8, 45#u8, 107#u8, 108#u8, 105#u8, 110#u8, 103#u8, 111#u8, 110#u8
-        ]))
-  let e6 ← langtag.literal s6
-  let s7 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 108#u8, 117#u8, 120#u8 ]))
-  let e7 ← langtag.literal s7
-  let s8 ←
-    lift (Array.to_slice
-      (Array.make 7#usize [
-        105#u8, 45#u8, 109#u8, 105#u8, 110#u8, 103#u8, 111#u8
-        ]))
-  let e8 ← langtag.literal s8
-  let s9 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        105#u8, 45#u8, 110#u8, 97#u8, 118#u8, 97#u8, 106#u8, 111#u8
-        ]))
-  let e9 ← langtag.literal s9
-  let s10 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 112#u8, 119#u8, 110#u8 ]))
-  let e10 ← langtag.literal s10
-  let s11 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 111#u8 ]))
-  let e11 ← langtag.literal s11
-  let s12 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 121#u8 ]))
-  let e12 ← langtag.literal s12
-  let s13 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 115#u8, 117#u8 ]))
-  let e13 ← langtag.literal s13
-  let s14 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 102#u8, 114#u8
-        ]))
-  let e14 ← langtag.literal s14
-  let s15 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 110#u8, 108#u8
-        ]))
-  let e15 ← langtag.literal s15
-  let s16 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 99#u8, 104#u8, 45#u8, 100#u8, 101#u8
-        ]))
-  let e16 ← langtag.literal s16
-  let s17 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        97#u8, 114#u8, 116#u8, 45#u8, 108#u8, 111#u8, 106#u8, 98#u8, 97#u8,
-        110#u8
-        ]))
-  let e17 ← langtag.literal s17
-  let s18 ←
-    lift (Array.to_slice
-      (Array.make 11#usize [
-        99#u8, 101#u8, 108#u8, 45#u8, 103#u8, 97#u8, 117#u8, 108#u8, 105#u8,
-        115#u8, 104#u8
-        ]))
-  let e18 ← langtag.literal s18
-  let s19 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 98#u8, 111#u8, 107#u8 ]))
-  let e19 ← langtag.literal s19
-  let s20 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 110#u8, 121#u8, 110#u8 ]))
-  let e20 ← langtag.literal s20
-  let s21 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 103#u8, 117#u8, 111#u8, 121#u8, 117#u8
-        ]))
-  let e21 ← langtag.literal s21
-  let s22 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 104#u8, 97#u8, 107#u8, 107#u8, 97#u8
-        ]))
-  let e22 ← langtag.literal s22
-  let s23 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8 ]))
-  let e23 ← langtag.literal s23
-  let s24 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8, 45#u8, 110#u8, 97#u8,
-        110#u8
-        ]))
-  let e24 ← langtag.literal s24
-  let s25 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 120#u8, 105#u8, 97#u8, 110#u8, 103#u8
-        ]))
-  let e25 ← langtag.literal s25
-  let e26 ← langtag.alt e24 e25
-  let e27 ← langtag.alt e23 e26
-  let e28 ← langtag.alt e22 e27
-  let e29 ← langtag.alt e21 e28
-  let e30 ← langtag.alt e20 e29
-  let e31 ← langtag.alt e19 e30
-  let e32 ← langtag.alt e18 e31
-  let e33 ← langtag.alt e17 e32
-  let e34 ← langtag.alt e16 e33
-  let e35 ← langtag.alt e15 e34
-  let e36 ← langtag.alt e14 e35
-  let e37 ← langtag.alt e13 e36
-  let e38 ← langtag.alt e12 e37
-  let e39 ← langtag.alt e11 e38
-  let e40 ← langtag.alt e10 e39
-  let e41 ← langtag.alt e9 e40
-  let e42 ← langtag.alt e8 e41
-  let e43 ← langtag.alt e7 e42
-  let e44 ← langtag.alt e6 e43
-  let e45 ← langtag.alt e5 e44
-  let e46 ← langtag.alt e4 e45
-  let e47 ← langtag.alt e3 e46
-  let e48 ← langtag.alt e2 e47
-  let e49 ← langtag.alt e1 e48
-  langtag.alt e e49
-
-/-- [rowl_kernel::langtag::grammar]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 126:0-128:1
-    Visibility: public -/
-def langtag.grammar : Result regular.Expression := do
-  let e ← langtag.langtag
-  let e1 ← langtag.private_use
-  let e2 ← langtag.grandfathered
-  let e3 ← langtag.alt e1 e2
-  langtag.alt e e3
-
-/-- [rowl_kernel::langtag::well_formed]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 135:0-137:1
-    Visibility: public -/
-def langtag.well_formed (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let e ← langtag.grammar
-  let mr ← regular.matches_utf8 e bytes
-  match mr with
-  | regular.MatchResult.Matched b => if b
-                                     then ok true
-                                     else ok false
-  | regular.MatchResult.MalformedUtf8 _ => ok false
-
-/-- [rowl_kernel::datatypes::tagged_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 240:0-248:1 -/
-def datatypes.tagged_value
-  (text : alloc.vec.Vec Std.U8) (tag : alloc.vec.Vec Std.U8) :
-  Result (Option datatypes.DataValue)
-  := do
-  let i := alloc.vec.Vec.len tag
-  if i = 0#usize
-  then ok (some (datatypes.DataValue.Text text))
-  else
-    let b ← langtag.well_formed tag
-    if b
-    then
-      let v ← datatypes.lower_from tag 0#usize (alloc.vec.Vec.new Std.U8)
-      ok (some (datatypes.DataValue.Tagged text v))
-    else ok none
-
-/-- [rowl_kernel::datatypes::plain_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 251:0-266:1 -/
-def datatypes.plain_value
-  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
-  let i := alloc.vec.Vec.len lexical
-  let «at» ← datatypes.last_byte lexical 64#u8 i
-  let i1 := alloc.vec.Vec.len lexical
-  if «at» < i1
-  then
-    let text ←
-      datatypes.copy_range lexical 0#usize «at» (alloc.vec.Vec.new Std.U8)
-    let b ← datatypes.xml_text text
-    if b
-    then
-      let i2 ← «at» + 1#usize
-      let i3 := alloc.vec.Vec.len lexical
-      let v ← datatypes.copy_range lexical i2 i3 (alloc.vec.Vec.new Std.U8)
-      datatypes.tagged_value text v
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::datatypes::truth_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 268:0-276:1 -/
-def datatypes.truth_value
-  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
-  let b ← datatypes.same_pattern lexical s
-  if b
-  then ok (some (datatypes.DataValue.Truth true))
-  else
-    let s1 ← lift (Array.to_slice (Array.make 1#usize [ 49#u8 ]))
-    let b1 ← datatypes.same_pattern lexical s1
-    if b1
-    then ok (some (datatypes.DataValue.Truth true))
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
-      let b2 ← datatypes.same_pattern lexical s2
-      if b2
-      then ok (some (datatypes.DataValue.Truth false))
-      else
-        let s3 ← lift (Array.to_slice (Array.make 1#usize [ 48#u8 ]))
-        let b3 ← datatypes.same_pattern lexical s3
-        if b3
-        then ok (some (datatypes.DataValue.Truth false))
-        else ok none
-
-/-- [rowl_kernel::datatypes::kind_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 279:0-298:1
-    Visibility: public -/
-def datatypes.kind_value
-  (kind : datatypes.Kind) (lexical : alloc.vec.Vec Std.U8) :
-  Result (Option datatypes.DataValue)
-  := do
-  match kind with
-  | datatypes.Kind.Integer => datatypes.number_value lexical true
-  | datatypes.Kind.Decimal => datatypes.number_value lexical false
-  | datatypes.Kind.String =>
-    let b ← datatypes.xml_text lexical
-    if b
-    then
-      let i := alloc.vec.Vec.len lexical
-      let v ←
-        datatypes.copy_range lexical 0#usize i (alloc.vec.Vec.new Std.U8)
-      ok (some (datatypes.DataValue.Text v))
-    else ok none
-  | datatypes.Kind.Plain => datatypes.plain_value lexical
-  | datatypes.Kind.Boolean => datatypes.truth_value lexical
-
-/-- [rowl_kernel::datatypes::literal_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 301:0-306:1
-    Visibility: public -/
-def datatypes.literal_value
-  (literal : model.Literal) : Result (Option datatypes.DataValue) := do
-  let o ← datatypes.kind_of literal.datatype
-  match o with
-  | none => ok none
-  | some kind => datatypes.kind_value kind literal.lexical
-
-/-- [rowl_kernel::datatypes::same_bytes_from]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 307:0-313:1 -/
-def datatypes.same_bytes_from
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len right
-    if index < i1
-    then
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
-          index
-      let i3 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          right index
-      if i2 = i3
-      then let i4 ← index + 1#usize
-           datatypes.same_bytes_from left right i4
-      else ok false
-    else ok true
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::datatypes::same_bytes]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 314:0-316:1 -/
-def datatypes.same_bytes
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  let i1 := alloc.vec.Vec.len right
-  if i = i1
-  then datatypes.same_bytes_from left right 0#usize
-  else ok false
-
-/-- [rowl_kernel::datatypes::same_value]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 318:0-337:1
-    Visibility: public -/
-def datatypes.same_value
-  (left : datatypes.DataValue) (right : datatypes.DataValue) :
-  Result Bool
-  := do
-  match left with
-  | datatypes.DataValue.Number a b c =>
-    match right with
-    | datatypes.DataValue.Number d e f =>
-      if a = d
-      then
-        let b1 ← datatypes.same_bytes b e
-        if b1
-        then datatypes.same_bytes c f
-        else ok false
-      else ok false
-    | datatypes.DataValue.Text _ => ok false
-    | datatypes.DataValue.Tagged _ _ => ok false
-    | datatypes.DataValue.Truth _ => ok false
-  | datatypes.DataValue.Text a =>
-    match right with
-    | datatypes.DataValue.Number _ _ _ => ok false
-    | datatypes.DataValue.Text b => datatypes.same_bytes a b
-    | datatypes.DataValue.Tagged _ _ => ok false
-    | datatypes.DataValue.Truth _ => ok false
-  | datatypes.DataValue.Tagged a b =>
-    match right with
-    | datatypes.DataValue.Number _ _ _ => ok false
-    | datatypes.DataValue.Text _ => ok false
-    | datatypes.DataValue.Tagged c d =>
-      let b1 ← datatypes.same_bytes a c
-      if b1
-      then datatypes.same_bytes b d
-      else ok false
-    | datatypes.DataValue.Truth _ => ok false
-  | datatypes.DataValue.Truth a =>
-    match right with
-    | datatypes.DataValue.Number _ _ _ => ok false
-    | datatypes.DataValue.Text _ => ok false
-    | datatypes.DataValue.Tagged _ _ => ok false
-    | datatypes.DataValue.Truth b => ok (a = b)
-
-/-- [rowl_kernel::datatypes::in_kind]:
-    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 339:0-360:1
-    Visibility: public -/
-def datatypes.in_kind
-  (value : datatypes.DataValue) (kind : datatypes.Kind) : Result Bool := do
-  match value with
-  | datatypes.DataValue.Number _ _ fraction =>
-    match kind with
-    | datatypes.Kind.Integer =>
-      let i := alloc.vec.Vec.len fraction
-      ok (i = 0#usize)
-    | datatypes.Kind.Decimal => ok true
-    | datatypes.Kind.String => ok false
-    | datatypes.Kind.Plain => ok false
-    | datatypes.Kind.Boolean => ok false
-  | datatypes.DataValue.Text _ =>
-    match kind with
-    | datatypes.Kind.Integer => ok false
-    | datatypes.Kind.Decimal => ok false
-    | datatypes.Kind.String => ok true
-    | datatypes.Kind.Plain => ok true
-    | datatypes.Kind.Boolean => ok false
-  | datatypes.DataValue.Tagged _ _ =>
-    match kind with
-    | datatypes.Kind.Integer => ok false
-    | datatypes.Kind.Decimal => ok false
-    | datatypes.Kind.String => ok false
-    | datatypes.Kind.Plain => ok true
-    | datatypes.Kind.Boolean => ok false
-  | datatypes.DataValue.Truth _ =>
-    match kind with
-    | datatypes.Kind.Integer => ok false
-    | datatypes.Kind.Decimal => ok false
-    | datatypes.Kind.String => ok false
-    | datatypes.Kind.Plain => ok false
-    | datatypes.Kind.Boolean => ok true
 
 /-- [rowl_kernel::decimal::ReadError]
     Source: 'crates/rowl-kernel/src/decimal.rs', lines 7:0-11:1
@@ -16226,4158 +29241,6 @@ def encoding.encode
           let i13 ← lift (UScalar.cast .U8 i12)
           ok (some (encoding.Encoded.Four i2 i6 i10 i13))
   else ok none
-
-/-- [rowl_kernel::forest::Node]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 99:0-114:1
-    Visibility: public -/
-structure forest.Node where
-  label : alloc.vec.Vec Std.Usize
-  parent : Std.Usize
-  roles : alloc.vec.Vec model.ObjectPropertyExpression
-  seed : Std.Usize
-  tree : Bool
-  active : Bool
-  done : alloc.vec.Vec Std.Usize
-  deps : alloc.vec.Vec Std.Usize
-
-/-- [rowl_kernel::forest::Edge]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 116:0-121:1
-    Visibility: public -/
-structure forest.Edge where
-  role : model.ObjectPropertyExpression
-  «from» : Std.Usize
-  «to» : Std.Usize
-  deps : alloc.vec.Vec Std.Usize
-
-/-- [rowl_kernel::forest::Distinct]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 123:0-127:1
-    Visibility: public -/
-structure forest.Distinct where
-  left : Std.Usize
-  right : Std.Usize
-  deps : alloc.vec.Vec Std.Usize
-
-/-- [rowl_kernel::forest::Cap]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 131:0-136:1
-    Visibility: public -/
-structure forest.Cap where
-  node : Std.Usize
-  restriction : Std.Usize
-  bound : Std.Usize
-  deps : alloc.vec.Vec Std.Usize
-
-/-- [rowl_kernel::forest::Pair]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 138:0-141:1
-    Visibility: public -/
-structure forest.Pair where
-  first : Std.Usize
-  second : Std.Usize
-
-/-- [rowl_kernel::forest::Forest]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 145:0-151:1
-    Visibility: public -/
-structure forest.Forest where
-  nodes : alloc.vec.Vec forest.Node
-  edges : alloc.vec.Vec forest.Edge
-  distinct : alloc.vec.Vec forest.Distinct
-  same : alloc.vec.Vec Std.Usize
-  caps : alloc.vec.Vec forest.Cap
-
-/-- [rowl_kernel::forest::Step]
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 153:0-191:1
-    Visibility: public -/
-@[discriminant isize]
-inductive forest.Step where
-| Add : Std.Usize → Std.Usize → forest.Step
-| Choose : Std.Usize → Std.Usize → Std.Usize → forest.Step
-| Merge : Std.Usize → Std.Usize → forest.Step
-| Name : Std.Usize → Std.Usize → forest.Step
-| Capped : Std.Usize → Std.Usize → forest.Step
-| Nominal : Std.Usize → Std.Usize → forest.Step
-| Loop : Std.Usize → forest.Step
-| Overlap : Std.Usize → forest.Step
-| Create : Std.Usize → Std.Usize → forest.Step
-| Stuck : forest.Step
-| Done : forest.Step
-
-/-- [rowl_kernel::forest::along_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 195:0-217:1 -/
-def forest.along_from
-  (roles : hierarchy.RoleHierarchy)
-  (list : alloc.vec.Vec model.ObjectPropertyExpression)
-  (role : model.ObjectPropertyExpression) (forward : Bool) (index : Std.Usize)
-  :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let here ←
-      if forward
-      then
-        do
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) list index
-        hierarchy.below roles ope role
-      else
-        do
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) list index
-        let back ← concepts.inverse ope
-        hierarchy.below roles back role
-    if here
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      forest.along_from roles list role forward i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::with_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 219:0-228:1 -/
-def forest.with_node
-  (out : alloc.vec.Vec Std.Usize) (node : Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let b ← completion.contains out node 0#usize
-  if b
-  then ok (some out)
-  else
-    let i := alloc.vec.Vec.len out
-    if i < core.num.Usize.MAX
-    then let out1 ← alloc.vec.Vec.push out node
-         ok (some out1)
-    else ok none
-
-/-- [rowl_kernel::forest::representative]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 230:0-236:1 -/
-def forest.representative
-  (graph : forest.Forest) (named : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len graph.same
-  if named < i
-  then
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-      graph.same named
-  else ok named
-
-/-- [rowl_kernel::forest::children_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 239:0-268:1 -/
-def forest.children_along
-  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let here ←
-      if n.tree
-      then
-        if n.active
-        then
-          if n.parent = node
-          then forest.along_from roles n.roles role true 0#usize
-          else ok false
-        else ok false
-      else ok false
-    if here
-    then
-      let o ← forest.with_node out index
-      match o with
-      | none => ok none
-      | some out1 =>
-        let i1 ← index + 1#usize
-        forest.children_along graph roles node role i1 out1
-    else
-      let i1 ← index + 1#usize
-      forest.children_along graph roles node role i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::parent_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 271:0-286:1 -/
-def forest.parent_along
-  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    if n.tree
-    then
-      let b ← forest.along_from roles n.roles role false 0#usize
-      if b
-      then forest.with_node out n.parent
-      else ok (some out)
-    else ok (some out)
-  else ok (some out)
-
-/-- [rowl_kernel::forest::ends]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 290:0-318:1 -/
-def forest.ends
-  (roles : hierarchy.RoleHierarchy) (out : alloc.vec.Vec Std.Usize)
-  («from» : Std.Usize) («to» : Std.Usize)
-  (edge : model.ObjectPropertyExpression) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  if «from» = node
-  then
-    let b ← hierarchy.below roles edge role
-    if b
-    then
-      let o ← forest.with_node out «to»
-      match o with
-      | none => ok none
-      | some out1 =>
-        if «to» = node
-        then
-          let back ← concepts.inverse edge
-          let b1 ← hierarchy.below roles back role
-          if b1
-          then forest.with_node out1 «from»
-          else ok o
-        else ok o
-    else
-      if «to» = node
-      then
-        let back ← concepts.inverse edge
-        let b1 ← hierarchy.below roles back role
-        if b1
-        then forest.with_node out «from»
-        else ok (some out)
-      else ok (some out)
-  else
-    if «to» = node
-    then
-      let back ← concepts.inverse edge
-      let b ← hierarchy.below roles back role
-      if b
-      then forest.with_node out «from»
-      else ok (some out)
-    else ok (some out)
-
-/-- [rowl_kernel::forest::links_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 321:0-340:1 -/
-def forest.links_along
-  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy)
-  (links : alloc.vec.Vec completion.Link) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len links
-  if index < i
-  then
-    let l ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Link) links index
-    let «from» ← forest.representative graph l.from
-    let «to» ← forest.representative graph l.to
-    let o ← forest.ends roles out «from» «to» l.role node role
-    match o with
-    | none => ok none
-    | some out1 =>
-      let i1 ← index + 1#usize
-      forest.links_along graph roles links node role i1 out1
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::role_listed]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1156:0-1170:1 -/
-def forest.role_listed
-  (list : alloc.vec.Vec model.ObjectPropertyExpression)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) list index
-    let b ← concepts.same_role ope role
-    if b
-    then ok true
-    else let i1 ← index + 1#usize
-         forest.role_listed list role i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::roles_within]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1172:0-1186:1 -/
-def forest.roles_within
-  (small : alloc.vec.Vec model.ObjectPropertyExpression)
-  (large : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len small
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) small index
-    let b ← forest.role_listed large ope 0#usize
-    if b
-    then let i1 ← index + 1#usize
-         forest.roles_within small large i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::forest::same_pair]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1190:0-1209:1 -/
-def forest.same_pair
-  (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if other < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes node
-      let n1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes other
-      let i2 := alloc.vec.Vec.len graph.nodes
-      if n.parent < i2
-      then
-        let i3 := alloc.vec.Vec.len graph.nodes
-        if n1.parent < i3
-        then
-          let n2 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes n1.parent
-          if n2.tree
-          then
-            let b ← completion.same_label n.label n1.label
-            if b
-            then
-              let n3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) graph.nodes n.parent
-              let b1 ← completion.same_label n3.label n2.label
-              if b1
-              then
-                let b2 ← forest.roles_within n.roles n1.roles 0#usize
-                if b2
-                then forest.roles_within n1.roles n.roles 0#usize
-                else ok false
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::forest::repeats_above]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1212:0-1228:1 -/
-def forest.repeats_above
-  (graph : forest.Forest) (node : Std.Usize) (ancestor : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if ancestor < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes ancestor
-    if n.tree
-    then
-      let b ← forest.same_pair graph node ancestor
-      if b
-      then ok true
-      else
-        if n.parent < ancestor
-        then forest.repeats_above graph node n.parent
-        else ok false
-    else ok false
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::blocked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1231:0-1250:1 -/
-def forest.blocked
-  (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    if n.tree
-    then
-      if n.parent < node
-      then
-        let b ← forest.repeats_above graph node n.parent
-        if b
-        then ok true
-        else forest.blocked graph n.parent
-      else ok false
-    else ok false
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::live]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 343:0-353:1 -/
-def forest.live (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    if n.active
-    then let b ← forest.blocked graph node
-         ok (¬ b)
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::forest::edges_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 356:0-379:1 -/
-def forest.edges_along
-  (graph : forest.Forest) (roles : hierarchy.RoleHierarchy) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.edges
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
-        graph.edges index
-    let «from» ← forest.representative graph e.from
-    let «to» ← forest.representative graph e.to
-    let b ← forest.live graph «from»
-    if b
-    then
-      let o ← forest.ends roles out «from» «to» e.role node role
-      match o with
-      | none => ok none
-      | some out1 =>
-        let i1 ← index + 1#usize
-        forest.edges_along graph roles node role i1 out1
-    else
-      let i1 ← index + 1#usize
-      forest.edges_along graph roles node role i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::looping]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 382:0-402:1 -/
-def forest.looping
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (item : Std.Usize)
-  (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len entries
-  if item < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries item
-    match e with
-    | concept_table.Entry.Top => ok false
-    | concept_table.Entry.Bottom => ok false
-    | concept_table.Entry.Atom _ => ok false
-    | concept_table.Entry.NotAtom _ => ok false
-    | concept_table.Entry.One _ => ok false
-    | concept_table.Entry.NotOne _ => ok false
-    | concept_table.Entry.HasSelf own =>
-      let b ← hierarchy.below roles own role
-      if b
-      then ok true
-      else let ope ← concepts.inverse own
-           hierarchy.below roles ope role
-    | concept_table.Entry.NotSelf _ => ok false
-    | concept_table.Entry.And _ _ => ok false
-    | concept_table.Entry.Or _ _ => ok false
-    | concept_table.Entry.Exists _ _ => ok false
-    | concept_table.Entry.Forall _ _ => ok false
-    | concept_table.Entry.AtLeast _ _ _ => ok false
-    | concept_table.Entry.AtMost _ _ _ _ => ok false
-  else ok false
-
-/-- [rowl_kernel::forest::self_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 405:0-421:1 -/
-def forest.self_along
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (label : alloc.vec.Vec Std.Usize)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len label
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        label index
-    let b ← forest.looping entries roles i1 role
-    if b
-    then ok true
-    else
-      let i2 ← index + 1#usize
-      forest.self_along entries roles label role i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::loops_along]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 424:0-438:1 -/
-def forest.loops_along
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let b ← forest.self_along problem.entries roles n.label role 0#usize
-    if b
-    then forest.with_node out node
-    else ok (some out)
-  else ok (some out)
-
-/-- [rowl_kernel::forest::neighbours]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 443:0-467:1 -/
-def forest.neighbours
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let o ←
-    forest.children_along graph roles node role 0#usize (alloc.vec.Vec.new
-      Std.Usize)
-  match o with
-  | none => ok none
-  | some out =>
-    let o1 ← forest.parent_along graph roles node role out
-    match o1 with
-    | none => ok none
-    | some out1 =>
-      let o2 ←
-        forest.links_along graph roles problem.links node role 0#usize out1
-      match o2 with
-      | none => ok none
-      | some out2 =>
-        let o3 ← forest.edges_along graph roles node role 0#usize out2
-        match o3 with
-        | none => ok none
-        | some out3 => forest.loops_along problem roles graph node role out3
-
-/-- [rowl_kernel::forest::label_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 469:0-475:1 -/
-def forest.label_of
-  (graph : forest.Forest) (node : Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
-  else ok (alloc.vec.Vec.new Std.Usize)
-
-/-- [rowl_kernel::forest::satisfying]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 478:0-499:1 -/
-def forest.satisfying
-  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
-  (list : alloc.vec.Vec Std.Usize) (concept : Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        list index
-    let label ← forest.label_of graph i1
-    let b ← completion.holds entries label concept
-    if b
-    then
-      let i2 := alloc.vec.Vec.len out
-      if i2 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out i1
-        let i3 ← index + 1#usize
-        forest.satisfying entries graph list concept i3 out1
-      else ok none
-    else
-      let i2 ← index + 1#usize
-      forest.satisfying entries graph list concept i2 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_requirement]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 502:0-524:1 -/
-def forest.missing_requirement
-  (problem : completion.Problem) (graph : forest.Forest)
-  (label : alloc.vec.Vec Std.Usize) (node : Std.Usize) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len problem.requirements
-  if index < i
-  then
-    let requirement ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Requirement) problem.requirements index
-    let i1 ← forest.representative graph requirement.node
-    let missing ←
-      if i1 = node
-      then
-        do
-        let b ← completion.holds problem.entries label requirement.concept
-        ok (¬ b)
-      else ok false
-    if missing
-    then ok (some requirement.concept)
-    else
-      let i2 ← index + 1#usize
-      forest.missing_requirement problem graph label node i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::seeded]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 527:0-539:1 -/
-def forest.seeded
-  (graph : forest.Forest) (node : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    if n.tree
-    then ok true
-    else
-      let i1 := alloc.vec.Vec.len graph.same
-      if node < i1
-      then ok false
-      else ok true
-  else ok false
-
-/-- [rowl_kernel::forest::missing_at]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 542:0-568:1 -/
-def forest.missing_at
-  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let o ← forest.missing_requirement problem graph n.label node 0#usize
-    match o with
-    | none =>
-      let b ← completion.holds problem.entries n.label problem.axioms
-      if b
-      then
-        let o1 ← completion.missing_unfolding problem n.label 0#usize
-        match o1 with
-        | none =>
-          let b1 ← forest.seeded graph node
-          if b1
-          then
-            let b2 ← completion.holds problem.entries n.label n.seed
-            if b2
-            then ok none
-            else ok (some n.seed)
-          else ok none
-        | some _ => ok o1
-      else ok (some problem.axioms)
-    | some _ => ok o
-  else ok none
-
-/-- [rowl_kernel::forest::missing_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 570:0-584:1 -/
-def forest.missing_node
-  (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let found ←
-      if n.active
-      then forest.missing_at problem graph index
-      else ok none
-    match found with
-    | none => let i1 ← index + 1#usize
-              forest.missing_node problem graph i1
-    | some concept => ok (some (index, concept))
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_edge]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 587:0-623:1 -/
-def forest.missing_edge
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest)
-  («from» : Std.Usize) («to» : Std.Usize)
-  (role : model.ObjectPropertyExpression) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if «to» < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      let n1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «to»
-      let o ←
-        completion.missing_along entries roles n.label role n1.label 0#usize
-      match o with
-      | none =>
-        let back ← concepts.inverse role
-        let o1 ←
-          completion.missing_along entries roles n1.label back n.label 0#usize
-        match o1 with
-        | none => ok none
-        | some concept => ok (some («from», concept))
-      | some concept => ok (some («to», concept))
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::forest::missing_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 626:0-652:1 -/
-def forest.missing_roles
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest) (node : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.roles
-    if index < i1
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) n.roles index
-      let o ← forest.missing_edge entries roles graph n.parent node ope
-      match o with
-      | none =>
-        let i2 ← index + 1#usize
-        forest.missing_roles entries roles graph node i2
-      | some _ => ok o
-    else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_tree]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 655:0-678:1 -/
-def forest.missing_tree
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let (problem1, found) ←
-      if n.tree
-      then
-        if n.active
-        then
-          do
-          let found1 ←
-            forest.missing_roles problem.entries roles graph index 0#usize
-          ok (problem, found1)
-        else ok (problem, none)
-      else ok (problem, none)
-    match found with
-    | none =>
-      let i1 ← index + 1#usize
-      forest.missing_tree problem1 roles graph i1
-    | some _ => ok found
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_link]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 681:0-703:1 -/
-def forest.missing_link
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len problem.links
-  if index < i
-  then
-    let link ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Link) problem.links index
-    let i1 ← forest.representative graph link.from
-    let i2 ← forest.representative graph link.to
-    let o ← forest.missing_edge problem.entries roles graph i1 i2 link.role
-    match o with
-    | none =>
-      let i3 ← index + 1#usize
-      forest.missing_link problem roles graph i3
-    | some _ => ok o
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_added]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 706:0-733:1 -/
-def forest.missing_added
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.edges
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
-        graph.edges index
-    let «from» ← forest.representative graph e.from
-    let b ← forest.live graph «from»
-    let (problem1, found) ←
-      if b
-      then
-        do
-        let i1 ← forest.representative graph e.to
-        let found1 ←
-          forest.missing_edge problem.entries roles graph «from» i1 e.role
-        ok (problem, found1)
-      else ok (problem, none)
-    match found with
-    | none =>
-      let i1 ← index + 1#usize
-      forest.missing_added problem1 roles graph i1
-    | some _ => ok found
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_loop]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 736:0-764:1 -/
-def forest.missing_loop
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (graph : forest.Forest) (node : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if index < i1
-    then
-      let item ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          n.label index
-      let i2 := alloc.vec.Vec.len entries
-      let found ←
-        if item < i2
-        then
-          do
-          let e ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              concept_table.Entry) entries item
-          match e with
-          | concept_table.Entry.Top => ok none
-          | concept_table.Entry.Bottom => ok none
-          | concept_table.Entry.Atom _ => ok none
-          | concept_table.Entry.NotAtom _ => ok none
-          | concept_table.Entry.One _ => ok none
-          | concept_table.Entry.NotOne _ => ok none
-          | concept_table.Entry.HasSelf own =>
-            forest.missing_edge entries roles graph node node own
-          | concept_table.Entry.NotSelf _ => ok none
-          | concept_table.Entry.And _ _ => ok none
-          | concept_table.Entry.Or _ _ => ok none
-          | concept_table.Entry.Exists _ _ => ok none
-          | concept_table.Entry.Forall _ _ => ok none
-          | concept_table.Entry.AtLeast _ _ _ => ok none
-          | concept_table.Entry.AtMost _ _ _ _ => ok none
-        else ok none
-      match found with
-      | none =>
-        let i3 ← index + 1#usize
-        forest.missing_loop entries roles graph node i3
-      | some _ => ok found
-    else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_loops]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 766:0-785:1 -/
-def forest.missing_loops
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let (problem1, found) ←
-      if n.active
-      then
-        do
-        let found1 ←
-          forest.missing_loop problem.entries roles graph index 0#usize
-        ok (problem, found1)
-      else ok (problem, none)
-    match found with
-    | none =>
-      let i1 ← index + 1#usize
-      forest.missing_loops problem1 roles graph i1
-    | some _ => ok found
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::looped_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 789:0-821:1 -/
-def forest.looped_from
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize) :
-  Result (Option Bool)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if index < i1
-    then
-      let item ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          n.label index
-      let i2 := alloc.vec.Vec.len problem.entries
-      if item < i2
-      then
-        let e ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            concept_table.Entry) problem.entries item
-        match e with
-        | concept_table.Entry.Top =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.Bottom =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.Atom _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.NotAtom _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.One _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.NotOne _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.HasSelf _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.NotSelf role =>
-          let o ← forest.neighbours problem roles graph node role
-          match o with
-          | none => ok none
-          | some list =>
-            let here ← completion.contains list node 0#usize
-            if here
-            then ok (some true)
-            else
-              let i3 ← index + 1#usize
-              forest.looped_from problem roles graph node i3
-        | concept_table.Entry.And _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.Or _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.Exists _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.Forall _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.AtLeast _ _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-        | concept_table.Entry.AtMost _ _ _ _ =>
-          let i3 ← index + 1#usize
-          forest.looped_from problem roles graph node i3
-      else
-        let i3 ← index + 1#usize
-        forest.looped_from problem roles graph node i3
-    else ok (some false)
-  else ok (some false)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::looped_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 824:0-847:1 -/
-def forest.looped_node
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Option Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    if n.active
-    then
-      let o ← forest.looped_from problem roles graph index 0#usize
-      match o with
-      | none => ok none
-      | some here =>
-        if here
-        then ok (some (some index))
-        else
-          let i1 ← index + 1#usize
-          forest.looped_node problem roles graph i1
-    else let i1 ← index + 1#usize
-         forest.looped_node problem roles graph i1
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::common]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 849:0-859:1 -/
-def forest.common
-  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        left index
-    let b ← completion.contains right i1 0#usize
-    if b
-    then ok true
-    else let i2 ← index + 1#usize
-         forest.common left right i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::overlap_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 862:0-886:1 -/
-def forest.overlap_from
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize) :
-  Result (Option Bool)
-  := do
-  let i := alloc.vec.Vec.len roles.disjoint
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Disjoint) roles.disjoint index
-    let o ← forest.neighbours problem roles graph node d.left
-    match o with
-    | none => ok none
-    | some left =>
-      let o1 ← forest.neighbours problem roles graph node d.right
-      match o1 with
-      | none => ok none
-      | some right =>
-        let b ← forest.common left right 0#usize
-        if b
-        then ok (some true)
-        else
-          let i1 ← index + 1#usize
-          forest.overlap_from problem roles graph node i1
-  else ok (some false)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::overlap_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 889:0-912:1 -/
-def forest.overlap_node
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Option Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    if n.active
-    then
-      let o ← forest.overlap_from problem roles graph index 0#usize
-      match o with
-      | none => ok none
-      | some here =>
-        if here
-        then ok (some (some index))
-        else
-          let i1 ← index + 1#usize
-          forest.overlap_node problem roles graph i1
-    else let i1 ← index + 1#usize
-         forest.overlap_node problem roles graph i1
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::undecided]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 915:0-935:1 -/
-def forest.undecided
-  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
-  (list : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        list index
-    let label ← forest.label_of graph i1
-    let b ← completion.holds entries label left
-    if b
-    then
-      let i2 ← index + 1#usize
-      forest.undecided entries graph list left right i2
-    else
-      let b1 ← completion.holds entries label right
-      if b1
-      then
-        let i2 ← index + 1#usize
-        forest.undecided entries graph list left right i2
-      else ok (some i1)
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::repeated_satisfying]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 939:0-965:1 -/
-def forest.repeated_satisfying
-  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
-  (list : alloc.vec.Vec Std.Usize) (node : Std.Usize) (concept : Std.Usize)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let other ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        list index
-    let i1 := alloc.vec.Vec.len graph.nodes
-    let here ←
-      if other < i1
-      then
-        do
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes other
-        if n.tree
-        then
-          if n.parent != node
-          then completion.holds entries n.label concept
-          else ok false
-        else ok false
-      else ok false
-    if here
-    then ok true
-    else
-      let i2 ← index + 1#usize
-      forest.repeated_satisfying entries graph list node concept i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::cap_at]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 968:0-979:1 -/
-def forest.cap_at
-  (caps : alloc.vec.Vec forest.Cap) (node : Std.Usize)
-  (restriction : Std.Usize) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len caps
-  if index < i
-  then
-    let c ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Cap)
-        caps index
-    if c.node = node
-    then
-      if c.restriction = restriction
-      then ok (some index)
-      else let i1 ← index + 1#usize
-           forest.cap_at caps node restriction i1
-    else let i1 ← index + 1#usize
-         forest.cap_at caps node restriction i1
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::named_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 981:0-1003:1 -/
-def forest.named_of
-  (graph : forest.Forest) (list : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        list index
-    let i2 := alloc.vec.Vec.len graph.nodes
-    let named ←
-      if i1 < i2
-      then
-        do
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes i1
-        ok (¬ n.tree)
-      else ok false
-    if named
-    then
-      let i3 := alloc.vec.Vec.len out
-      if i3 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out i1
-        let i4 ← index + 1#usize
-        forest.named_of graph list i4 out1
-      else ok none
-    else let i3 ← index + 1#usize
-         forest.named_of graph list i3 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::first_repeated]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1005:0-1022:1 -/
-def forest.first_repeated
-  (graph : forest.Forest) (list : alloc.vec.Vec Std.Usize) (node : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let other ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        list index
-    let i1 := alloc.vec.Vec.len graph.nodes
-    let here ←
-      if other < i1
-      then
-        do
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes other
-        if n.tree
-        then ok (n.parent != node)
-        else ok false
-      else ok false
-    if here
-    then ok (some other)
-    else let i2 ← index + 1#usize
-         forest.first_repeated graph list node i2
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::counting_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1030:0-1128:1 -/
-def forest.counting_from
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (choose : Bool)
-  (index : Std.Usize) :
-  Result (Option (Option forest.Step))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if index < i1
-    then
-      let item ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          n.label index
-      let i2 := alloc.vec.Vec.len problem.entries
-      if item < i2
-      then
-        let e ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            concept_table.Entry) problem.entries item
-        match e with
-        | concept_table.Entry.Top =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.Bottom =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.Atom _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.NotAtom _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.One _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.NotOne _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.HasSelf _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.NotSelf _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.And _ _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.Or _ _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.Exists _ _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.Forall _ _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.AtLeast _ _ _ =>
-          let i3 ← index + 1#usize
-          forest.counting_from problem roles graph node choose i3
-        | concept_table.Entry.AtMost n1 role filler complement =>
-          let o ← forest.neighbours problem roles graph node role
-          match o with
-          | none => ok none
-          | some list =>
-            if choose
-            then
-              let o1 ←
-                forest.undecided problem.entries graph list filler complement
-                  0#usize
-              let found ←
-                match o1 with
-                | none => ok none
-                | some other =>
-                  ok (some (forest.Step.Choose other filler complement))
-              match found with
-              | none =>
-                let i3 ← index + 1#usize
-                forest.counting_from problem roles graph node true i3
-              | some _ => ok (some found)
-            else
-              let o1 ←
-                forest.satisfying problem.entries graph list filler 0#usize
-                  (alloc.vec.Vec.new Std.Usize)
-              match o1 with
-              | none => ok none
-              | some many =>
-                let repeated ←
-                  if n.tree
-                  then ok false
-                  else
-                    forest.repeated_satisfying problem.entries graph list node
-                      filler 0#usize
-                if repeated
-                then
-                  let o2 ← forest.cap_at graph.caps node item 0#usize
-                  match o2 with
-                  | none => ok (some (some (forest.Step.Name node item)))
-                  | some cap =>
-                    let o3 ←
-                      forest.named_of graph many 0#usize (alloc.vec.Vec.new
-                        Std.Usize)
-                    match o3 with
-                    | none => ok none
-                    | some named =>
-                      let c ←
-                        alloc.vec.Vec.index
-                          (core.slice.index.SliceIndexUsizeSlice forest.Cap)
-                          graph.caps cap
-                      let i3 := alloc.vec.Vec.len named
-                      if c.bound <= i3
-                      then ok (some (some (forest.Step.Capped node item)))
-                      else ok none
-                else
-                  let i3 := alloc.vec.Vec.len many
-                  let found ←
-                    if n1 < i3
-                    then ok (some (forest.Step.Merge node item))
-                    else ok none
-                  match found with
-                  | none =>
-                    let i4 ← index + 1#usize
-                    forest.counting_from problem roles graph node false i4
-                  | some _ => ok (some found)
-      else
-        let i3 ← index + 1#usize
-        forest.counting_from problem roles graph node choose i3
-    else ok (some none)
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::counting]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1131:0-1154:1 -/
-def forest.counting
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (choose : Bool) (index : Std.Usize) :
-  Result (Option (Option forest.Step))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    if n.active
-    then
-      let o ← forest.counting_from problem roles graph index choose 0#usize
-      match o with
-      | none => ok none
-      | some found =>
-        match found with
-        | none =>
-          let i1 ← index + 1#usize
-          forest.counting problem roles graph choose i1
-        | some _ => ok o
-    else
-      let i1 ← index + 1#usize
-      forest.counting problem roles graph choose i1
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::generating]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1252:0-1258:1 -/
-def forest.generating (entry : concept_table.Entry) : Result Bool := do
-  match entry with
-  | concept_table.Entry.Top => ok false
-  | concept_table.Entry.Bottom => ok false
-  | concept_table.Entry.Atom _ => ok false
-  | concept_table.Entry.NotAtom _ => ok false
-  | concept_table.Entry.One _ => ok false
-  | concept_table.Entry.NotOne _ => ok false
-  | concept_table.Entry.HasSelf _ => ok false
-  | concept_table.Entry.NotSelf _ => ok false
-  | concept_table.Entry.And _ _ => ok false
-  | concept_table.Entry.Or _ _ => ok false
-  | concept_table.Entry.Exists _ _ => ok true
-  | concept_table.Entry.Forall _ _ => ok false
-  | concept_table.Entry.AtLeast _ _ _ => ok true
-  | concept_table.Entry.AtMost _ _ _ _ => ok false
-
-/-- [rowl_kernel::forest::generator_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1754:0-1767:1 -/
-def forest.generator_of
-  (entries : alloc.vec.Vec concept_table.Entry) (generator : Std.Usize) :
-  Result (Option (model.ObjectPropertyExpression × Std.Usize × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len entries
-  if generator < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries generator
-    match e with
-    | concept_table.Entry.Top => ok none
-    | concept_table.Entry.Bottom => ok none
-    | concept_table.Entry.Atom _ => ok none
-    | concept_table.Entry.NotAtom _ => ok none
-    | concept_table.Entry.One _ => ok none
-    | concept_table.Entry.NotOne _ => ok none
-    | concept_table.Entry.HasSelf _ => ok none
-    | concept_table.Entry.NotSelf _ => ok none
-    | concept_table.Entry.And _ _ => ok none
-    | concept_table.Entry.Or _ _ => ok none
-    | concept_table.Entry.Exists role filler =>
-      let ope ← concepts.copy_role role
-      ok (some (ope, 1#usize, filler))
-    | concept_table.Entry.Forall _ _ => ok none
-    | concept_table.Entry.AtLeast n role filler =>
-      let ope ← concepts.copy_role role
-      ok (some (ope, n, filler))
-    | concept_table.Entry.AtMost _ _ _ _ => ok none
-  else ok none
-
-/-- [rowl_kernel::forest::enough]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1262:0-1281:1 -/
-def forest.enough
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize) :
-  Result (Option Bool)
-  := do
-  let o ← forest.generator_of problem.entries generator
-  match o with
-  | none => ok none
-  | some found =>
-    let (role, count, filler) := found
-    let o1 ← forest.neighbours problem roles graph node role
-    match o1 with
-    | none => ok none
-    | some list =>
-      let o2 ←
-        forest.satisfying problem.entries graph list filler 0#usize
-          (alloc.vec.Vec.new Std.Usize)
-      match o2 with
-      | none => ok none
-      | some many => let i := alloc.vec.Vec.len many
-                     ok (some (count <= i))
-
-/-- [rowl_kernel::forest::candidate]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1284:0-1298:1 -/
-def forest.candidate
-  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize)
-  (item : Std.Usize) (expand : Bool) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len problem.entries
-  if item < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if node < i1
-    then
-      let e ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          concept_table.Entry) problem.entries item
-      let b ← forest.generating e
-      if b
-      then
-        if expand
-        then
-          let n ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes node
-          let b1 ← completion.contains n.done item 0#usize
-          ok (¬ b1)
-        else ok true
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::forest::lacking]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1302:0-1327:1 -/
-def forest.lacking
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (expand : Bool)
-  (index : Std.Usize) :
-  Result (Option (Option Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if index < i1
-    then
-      let item ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          n.label index
-      let b ← forest.candidate problem graph node item expand
-      if b
-      then
-        let o ← forest.enough problem roles graph node item
-        match o with
-        | none => ok none
-        | some b1 =>
-          if b1
-          then
-            let i2 ← index + 1#usize
-            forest.lacking problem roles graph node expand i2
-          else ok (some (some item))
-      else
-        let i2 ← index + 1#usize
-        forest.lacking problem roles graph node expand i2
-    else ok (some none)
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::missing_successor]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1331:0-1355:1 -/
-def forest.missing_successor
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (expand : Bool) (index : Std.Usize) :
-  Result (Option (Option (Std.Usize × Std.Usize)))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    if n.active
-    then
-      let b ← forest.blocked graph index
-      if b
-      then
-        let i1 ← index + 1#usize
-        forest.missing_successor problem roles graph expand i1
-      else
-        let o ← forest.lacking problem roles graph index expand 0#usize
-        match o with
-        | none => ok none
-        | some item =>
-          match item with
-          | none =>
-            let i1 ← index + 1#usize
-            forest.missing_successor problem roles graph expand i1
-          | some item1 => ok (some (some (index, item1)))
-    else
-      let i1 ← index + 1#usize
-      forest.missing_successor problem roles graph expand i1
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::names]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1357:0-1366:1 -/
-def forest.names
-  (problem : completion.Problem) (concept : Std.Usize)
-  (individual : model.Individual) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len problem.entries
-  if concept < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) problem.entries concept
-    match e with
-    | concept_table.Entry.Top => ok false
-    | concept_table.Entry.Bottom => ok false
-    | concept_table.Entry.Atom _ => ok false
-    | concept_table.Entry.NotAtom _ => ok false
-    | concept_table.Entry.One other =>
-      assertion_equality.same_individual_value other individual
-    | concept_table.Entry.NotOne _ => ok false
-    | concept_table.Entry.HasSelf _ => ok false
-    | concept_table.Entry.NotSelf _ => ok false
-    | concept_table.Entry.And _ _ => ok false
-    | concept_table.Entry.Or _ _ => ok false
-    | concept_table.Entry.Exists _ _ => ok false
-    | concept_table.Entry.Forall _ _ => ok false
-    | concept_table.Entry.AtLeast _ _ _ => ok false
-    | concept_table.Entry.AtMost _ _ _ _ => ok false
-  else ok false
-
-/-- [rowl_kernel::forest::nominal_root]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1370:0-1385:1 -/
-def forest.nominal_root
-  (problem : completion.Problem) (graph : forest.Forest)
-  (individual : model.Individual) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len problem.requirements
-  if index < i
-  then
-    let r ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Requirement) problem.requirements index
-    let b ← forest.names problem r.concept individual
-    if b
-    then let i1 ← forest.representative graph r.node
-         ok (some i1)
-    else
-      let i1 ← index + 1#usize
-      forest.nominal_root problem graph individual i1
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::nominal_at]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1389:0-1424:1 -/
-def forest.nominal_at
-  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option (Option Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if index < i1
-    then
-      let item ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          n.label index
-      let i2 := alloc.vec.Vec.len problem.entries
-      if item < i2
-      then
-        let e ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            concept_table.Entry) problem.entries item
-        match e with
-        | concept_table.Entry.Top =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.Bottom =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.Atom _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.NotAtom _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.One individual =>
-          let o ← forest.nominal_root problem graph individual 0#usize
-          match o with
-          | none => ok none
-          | some root =>
-            if root != node
-            then ok (some o)
-            else
-              let i3 ← index + 1#usize
-              forest.nominal_at problem graph node i3
-        | concept_table.Entry.NotOne individual =>
-          let o ← forest.nominal_root problem graph individual 0#usize
-          match o with
-          | none => ok none
-          | some _ =>
-            let i3 ← index + 1#usize
-            forest.nominal_at problem graph node i3
-        | concept_table.Entry.HasSelf _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.NotSelf _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.And _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.Or _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.Exists _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.Forall _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.AtLeast _ _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-        | concept_table.Entry.AtMost _ _ _ _ =>
-          let i3 ← index + 1#usize
-          forest.nominal_at problem graph node i3
-      else let i3 ← index + 1#usize
-           forest.nominal_at problem graph node i3
-    else ok (some none)
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::nominal_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1427:0-1444:1 -/
-def forest.nominal_node
-  (problem : completion.Problem) (graph : forest.Forest) (index : Std.Usize) :
-  Result (Option (Option (Std.Usize × Std.Usize)))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    if n.active
-    then
-      let o ← forest.nominal_at problem graph index 0#usize
-      match o with
-      | none => ok none
-      | some found =>
-        match found with
-        | none =>
-          let i1 ← index + 1#usize
-          forest.nominal_node problem graph i1
-        | some root => ok (some (some (index, root)))
-    else let i1 ← index + 1#usize
-         forest.nominal_node problem graph i1
-  else ok (some none)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::next_step]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1450:0-1505:1 -/
-def forest.next_step
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) :
-  Result (Option forest.Step)
-  := do
-  let o ← forest.missing_node problem graph 0#usize
-  match o with
-  | none =>
-    let o1 ← forest.missing_tree problem roles graph 0#usize
-    match o1 with
-    | none =>
-      let o2 ← forest.missing_link problem roles graph 0#usize
-      match o2 with
-      | none =>
-        let o3 ← forest.missing_added problem roles graph 0#usize
-        match o3 with
-        | none =>
-          let o4 ← forest.missing_loops problem roles graph 0#usize
-          match o4 with
-          | none =>
-            let o5 ← forest.looped_node problem roles graph 0#usize
-            match o5 with
-            | none => ok none
-            | some o6 =>
-              match o6 with
-              | none =>
-                let o7 ← forest.overlap_node problem roles graph 0#usize
-                match o7 with
-                | none => ok none
-                | some o8 =>
-                  match o8 with
-                  | none =>
-                    let o9 ← forest.nominal_node problem graph 0#usize
-                    match o9 with
-                    | none => ok none
-                    | some o10 =>
-                      match o10 with
-                      | none =>
-                        let o11 ←
-                          forest.counting problem roles graph true 0#usize
-                        match o11 with
-                        | none => ok none
-                        | some o12 =>
-                          match o12 with
-                          | none =>
-                            let o13 ←
-                              forest.counting problem roles graph false 0#usize
-                            match o13 with
-                            | none => ok none
-                            | some o14 =>
-                              match o14 with
-                              | none =>
-                                let o15 ←
-                                  forest.missing_successor problem roles graph
-                                    true 0#usize
-                                match o15 with
-                                | none => ok none
-                                | some o16 =>
-                                  match o16 with
-                                  | none =>
-                                    let o17 ←
-                                      forest.missing_successor problem roles
-                                        graph false 0#usize
-                                    match o17 with
-                                    | none => ok none
-                                    | some o18 =>
-                                      match o18 with
-                                      | none => ok (some forest.Step.Done)
-                                      | some _ => ok (some forest.Step.Stuck)
-                                  | some p =>
-                                    let (node, generator) := p
-                                    ok (some (forest.Step.Create node
-                                      generator))
-                              | some _ => ok o14
-                          | some _ => ok o12
-                      | some p =>
-                        let (node, root) := p
-                        ok (some (forest.Step.Nominal node root))
-                  | some node => ok (some (forest.Step.Overlap node))
-              | some node => ok (some (forest.Step.Loop node))
-          | some p =>
-            let (node, concept) := p
-            ok (some (forest.Step.Add node concept))
-        | some p =>
-          let (node, concept) := p
-          ok (some (forest.Step.Add node concept))
-      | some p =>
-        let (node, concept) := p
-        ok (some (forest.Step.Add node concept))
-    | some p =>
-      let (node, concept) := p
-      ok (some (forest.Step.Add node concept))
-  | some p => let (node, concept) := p
-              ok (some (forest.Step.Add node concept))
-
-/-- [rowl_kernel::forest::copy_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1506:0-1519:1 -/
-def forest.copy_roles
-  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (alloc.vec.Vec model.ObjectPropertyExpression)
-  := do
-  let i := alloc.vec.Vec.len roles
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) roles index
-        let ope1 ← concepts.copy_role ope
-        alloc.vec.Vec.push out ope1
-      else ok out
-    let i2 ← index + 1#usize
-    forest.copy_roles roles i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::copy_nodes]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1520:0-1538:1 -/
-def forest.copy_nodes
-  (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Node) :
-  Result (alloc.vec.Vec forest.Node)
-  := do
-  let i := alloc.vec.Vec.len nodes
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) nodes index
-        let v ←
-          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v1 ←
-          forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
-            model.ObjectPropertyExpression)
-        let v2 ←
-          completion.copy_label n.done 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v3 ←
-          completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        alloc.vec.Vec.push out
-          {
-            n
-              with
-              label := v,
-              roles := v1,
-              seed := n.seed,
-              tree := n.tree,
-              active := n.active,
-              done := v2,
-              deps := v3
-          }
-      else ok out
-    let i2 ← index + 1#usize
-    forest.copy_nodes nodes i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::copy_edges]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1539:0-1553:1 -/
-def forest.copy_edges
-  (edges : alloc.vec.Vec forest.Edge) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Edge) :
-  Result (alloc.vec.Vec forest.Edge)
-  := do
-  let i := alloc.vec.Vec.len edges
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let e ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Edge) edges index
-        let ope ← concepts.copy_role e.role
-        let v ←
-          completion.copy_label e.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        alloc.vec.Vec.push out
-          { e with role := ope, «to» := e.to, deps := v }
-      else ok out
-    let i2 ← index + 1#usize
-    forest.copy_edges edges i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::copy_distinct]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1554:0-1567:1 -/
-def forest.copy_distinct
-  (distinct : alloc.vec.Vec forest.Distinct) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Distinct) :
-  Result (alloc.vec.Vec forest.Distinct)
-  := do
-  let i := alloc.vec.Vec.len distinct
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let d ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Distinct) distinct index
-        let v ←
-          completion.copy_label d.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        alloc.vec.Vec.push out { d with right := d.right, deps := v }
-      else ok out
-    let i2 ← index + 1#usize
-    forest.copy_distinct distinct i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::copy_caps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1568:0-1582:1 -/
-def forest.copy_caps
-  (caps : alloc.vec.Vec forest.Cap) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Cap) :
-  Result (alloc.vec.Vec forest.Cap)
-  := do
-  let i := alloc.vec.Vec.len caps
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let c ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Cap) caps index
-        let v ←
-          completion.copy_label c.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        alloc.vec.Vec.push out
-          { c with restriction := c.restriction, bound := c.bound, deps := v }
-      else ok out
-    let i2 ← index + 1#usize
-    forest.copy_caps caps i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::copy_forest]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1583:0-1591:1 -/
-def forest.copy_forest (graph : forest.Forest) : Result forest.Forest := do
-  let v ←
-    forest.copy_nodes graph.nodes 0#usize (alloc.vec.Vec.new forest.Node)
-  let v1 ←
-    forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
-  let v2 ←
-    forest.copy_distinct graph.distinct 0#usize (alloc.vec.Vec.new
-      forest.Distinct)
-  let v3 ←
-    completion.copy_label graph.same 0#usize (alloc.vec.Vec.new Std.Usize)
-  let v4 ← forest.copy_caps graph.caps 0#usize (alloc.vec.Vec.new forest.Cap)
-  ok { nodes := v, edges := v1, distinct := v2, same := v3, caps := v4 }
-
-/-- [rowl_kernel::forest::insert]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1594:0-1611:1 -/
-def forest.insert
-  (graph : forest.Forest) (node : Std.Usize) (item : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let i1 := alloc.vec.Vec.len n.label
-    if i1 < core.num.Usize.MAX
-    then
-      let o ← completion.join n.deps deps
-      match o with
-      | none => ok none
-      | some joined =>
-        let (n1, index_mut_back) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes node
-        let v ← alloc.vec.Vec.push n1.label item
-        let v1 := index_mut_back { n1 with label := v }
-        let (n2, index_mut_back1) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) v1 node
-        let v2 := index_mut_back1 { n2 with deps := joined }
-        ok (some { graph with nodes := v2 })
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::forest::fresh_named]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2833:0-2871:1 -/
-def forest.fresh_named
-  (graph : forest.Forest) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (count : Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  if count > 0#usize
-  then
-    let i := alloc.vec.Vec.len graph.nodes
-    if i < core.num.Usize.MAX
-    then
-      let i1 := alloc.vec.Vec.len graph.edges
-      if i1 < core.num.Usize.MAX
-      then
-        let index := alloc.vec.Vec.len graph.nodes
-        let v ←
-          completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v1 ←
-          alloc.vec.Vec.push graph.nodes
-            ({
-               label := (alloc.vec.Vec.new Std.Usize),
-               parent := node,
-               roles := (alloc.vec.Vec.new model.ObjectPropertyExpression),
-               seed := filler,
-               tree := false,
-               active := true,
-               done := (alloc.vec.Vec.new Std.Usize),
-               deps := v
-             } : forest.Node)
-        let ope ← concepts.copy_role role
-        let v2 ←
-          alloc.vec.Vec.push graph.edges
-            ({ role := ope, «from» := node, «to» := index, deps := v } :
-            forest.Edge)
-        let i2 ← count - 1#usize
-        forest.fresh_named { graph with nodes := v1, edges := v2 } node role
-          filler deps i2
-      else ok none
-    else ok none
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::differ_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1801:0-1816:1 -/
-def forest.differ_from
-  (graph : forest.Forest) (node : Std.Usize) (other : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if other < i
-  then
-    let i1 := alloc.vec.Vec.len graph.distinct
-    if i1 < core.num.Usize.MAX
-    then
-      let v ←
-        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-      let v1 ←
-        alloc.vec.Vec.push graph.distinct
-          ({ left := node, right := other, deps := v } : forest.Distinct)
-      let i2 ← other + 1#usize
-      forest.differ_from { graph with distinct := v1 } node i2 deps
-    else ok none
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::pairwise]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1818:0-1827:1 -/
-def forest.pairwise
-  (graph : forest.Forest) (node : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let i1 ← node + 1#usize
-    let o ← forest.differ_from graph node i1 deps
-    match o with
-    | none => ok none
-    | some graph1 => forest.pairwise graph1 i1 deps
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::named]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2876:0-2905:1 -/
-def forest.named
-  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
-  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
-  (count : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let first := alloc.vec.Vec.len graph.nodes
-  let o ← forest.fresh_named graph node role filler deps count
-  match o with
-  | none => ok none
-  | some graph1 =>
-    let o1 ← forest.pairwise graph1 first deps
-    match o1 with
-    | none => ok none
-    | some graph2 =>
-      let i := alloc.vec.Vec.len graph2.caps
-      if i < core.num.Usize.MAX
-      then
-        let v ←
-          completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v1 ←
-          alloc.vec.Vec.push graph2.caps
-            ({ node, restriction, bound := count, deps := v } : forest.Cap)
-        ok (some { graph2 with caps := v1 })
-      else ok none
-
-/-- [rowl_kernel::forest::orient]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2601:0-2626:1 -/
-def forest.orient
-  (graph : forest.Forest) (node : Std.Usize) (pair : forest.Pair) :
-  Result (Std.Usize × Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if pair.first < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if pair.second < i1
-    then
-      let i2 := alloc.vec.Vec.len graph.nodes
-      if node < i2
-      then
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes pair.first
-        if n.tree
-        then
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes pair.second
-          if n1.tree
-          then
-            let n2 ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                forest.Node) graph.nodes node
-            if n2.tree
-            then
-              if n2.parent = pair.first
-              then ok (pair.second, pair.first)
-              else
-                if pair.first = node
-                then
-                  if n2.parent = pair.second
-                  then ok (pair.first, pair.second)
-                  else ok (pair.second, pair.first)
-                else ok (pair.first, pair.second)
-            else ok (pair.first, pair.second)
-          else ok (pair.first, pair.second)
-        else
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes pair.second
-          if n1.tree
-          then ok (pair.second, pair.first)
-          else ok (pair.second, pair.first)
-      else ok (pair.second, pair.first)
-    else ok (pair.second, pair.first)
-  else ok (pair.second, pair.first)
-
-/-- [rowl_kernel::forest::into_parent]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2544:0-2554:1 -/
-def forest.into_parent
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if into < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      if n.tree
-      then
-        let n1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes into
-        if n1.tree
-        then ok (n.parent = into)
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::forest::loop_for]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2490:0-2501:1 -/
-def forest.loop_for
-  (entry : concept_table.Entry) (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  match entry with
-  | concept_table.Entry.Top => ok false
-  | concept_table.Entry.Bottom => ok false
-  | concept_table.Entry.Atom _ => ok false
-  | concept_table.Entry.NotAtom _ => ok false
-  | concept_table.Entry.One _ => ok false
-  | concept_table.Entry.NotOne _ => ok false
-  | concept_table.Entry.HasSelf own =>
-    let b ← concepts.same_role own role
-    if b
-    then ok true
-    else let ope ← concepts.inverse own
-         concepts.same_role ope role
-  | concept_table.Entry.NotSelf _ => ok false
-  | concept_table.Entry.And _ _ => ok false
-  | concept_table.Entry.Or _ _ => ok false
-  | concept_table.Entry.Exists _ _ => ok false
-  | concept_table.Entry.Forall _ _ => ok false
-  | concept_table.Entry.AtLeast _ _ _ => ok false
-  | concept_table.Entry.AtMost _ _ _ _ => ok false
-
-/-- [rowl_kernel::forest::loop_entry]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2504:0-2518:1 -/
-def forest.loop_entry
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len entries
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries index
-    let b ← forest.loop_for e role
-    if b
-    then ok (some index)
-    else let i1 ← index + 1#usize
-         forest.loop_entry entries role i1
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::loops_of]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2521:0-2542:1 -/
-def forest.loops_of
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len roles
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) roles index
-    let o ← forest.loop_entry entries ope 0#usize
-    match o with
-    | none => ok none
-    | some found =>
-      let i1 := alloc.vec.Vec.len out
-      if i1 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out found
-        let i2 ← index + 1#usize
-        forest.loops_of entries roles i2 out1
-      else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::at_node]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2362:0-2368:1 -/
-def forest.at_node (edge : forest.Edge) (node : Std.Usize) : Result Bool := do
-  if edge.from = node
-  then ok true
-  else ok (edge.to = node)
-
-/-- [rowl_kernel::forest::relink]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2371:0-2388:1 -/
-def forest.relink
-  (edge : forest.Edge) («from» : Std.Usize) (into : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Edge)
-  := do
-  let source ← if edge.from = «from»
-                 then ok into
-                 else ok edge.from
-  let target ← if edge.to = «from»
-                 then ok into
-                 else ok edge.to
-  let b ← forest.at_node edge «from»
-  if b
-  then
-    let o ← completion.join edge.deps deps
-    match o with
-    | none => ok none
-    | some depends =>
-      let ope ← concepts.copy_role edge.role
-      ok (some
-        { role := ope, «from» := source, «to» := target, deps := depends })
-  else
-    let depends ←
-      completion.copy_label edge.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-    let ope ← concepts.copy_role edge.role
-    ok (some
-      { role := ope, «from» := source, «to» := target, deps := depends })
-
-/-- [rowl_kernel::forest::relinked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2391:0-2413:1 -/
-def forest.relinked
-  (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Edge) :
-  Result (Option (alloc.vec.Vec forest.Edge))
-  := do
-  let i := alloc.vec.Vec.len edges
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
-        edges index
-    let o ← forest.relink e «from» into deps
-    match o with
-    | none => ok none
-    | some edge =>
-      let i1 := alloc.vec.Vec.len out
-      if i1 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out edge
-        let i2 ← index + 1#usize
-        forest.relinked edges «from» into deps i2 out1
-      else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::carried_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2320:0-2349:1 -/
-def forest.carried_from
-  (edges : alloc.vec.Vec forest.Edge) («from» : Std.Usize) (into : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Edge) :
-  Result (Option (alloc.vec.Vec forest.Edge))
-  := do
-  let i := alloc.vec.Vec.len edges
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
-        edges index
-    if e.from = «from»
-    then
-      let o ← completion.join e.deps deps
-      match o with
-      | none => ok none
-      | some joined =>
-        let i1 := alloc.vec.Vec.len out
-        if i1 < core.num.Usize.MAX
-        then
-          let ope ← concepts.copy_role e.role
-          let out1 ←
-            alloc.vec.Vec.push out
-              { e with role := ope, «from» := into, deps := joined }
-          let i2 ← index + 1#usize
-          forest.carried_from edges «from» into deps i2 out1
-        else ok none
-    else
-      let i1 ← index + 1#usize
-      forest.carried_from edges «from» into deps i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::carried]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2351:0-2360:1 -/
-def forest.carried
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let start ←
-    forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
-  let o ← forest.carried_from graph.edges «from» into deps 0#usize start
-  match o with
-  | none => ok none
-  | some edges => ok (some { graph with edges })
-
-/-- [rowl_kernel::forest::renamed]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2213:0-2232:1 -/
-def forest.renamed
-  (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
-  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len same
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let i2 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-            same index
-        if i2 = «from»
-        then alloc.vec.Vec.push out into
-        else alloc.vec.Vec.push out i2
-      else ok out
-    let i2 ← index + 1#usize
-    forest.renamed same «from» into i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::add_edges]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2166:0-2189:1 -/
-def forest.add_edges
-  (list : alloc.vec.Vec model.ObjectPropertyExpression) (node : Std.Usize)
-  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Edge) :
-  Result (Option (alloc.vec.Vec forest.Edge))
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) list index
-      let ope1 ← concepts.copy_role ope
-      let v ←
-        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-      let out1 ←
-        alloc.vec.Vec.push out
-          ({ role := ope1, «from» := node, «to» := into, deps := v } :
-          forest.Edge)
-      let i2 ← index + 1#usize
-      forest.add_edges list node into deps i2 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::linked]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2192:0-2210:1 -/
-def forest.linked
-  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
-  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let start ←
-      forest.copy_edges graph.edges 0#usize (alloc.vec.Vec.new forest.Edge)
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes «from»
-    let o ← forest.add_edges n.roles node into deps 0#usize start
-    match o with
-    | none => ok none
-    | some added => ok (some { graph with edges := added })
-  else ok none
-
-/-- [rowl_kernel::forest::add_roles]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2106:0-2127:1 -/
-def forest.add_roles
-  (list : alloc.vec.Vec model.ObjectPropertyExpression) (invert : Bool)
-  (index : Std.Usize) (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let role ←
-        if invert
-        then
-          do
-          let ope ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              model.ObjectPropertyExpression) list index
-          concepts.inverse ope
-        else
-          do
-          let ope ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              model.ObjectPropertyExpression) list index
-          concepts.copy_role ope
-      let out1 ← alloc.vec.Vec.push out role
-      let i2 ← index + 1#usize
-      forest.add_roles list invert i2 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::sideways]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2151:0-2163:1 -/
-def forest.sideways
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if into < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes into
-      let start ←
-        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
-          model.ObjectPropertyExpression)
-      let n1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      let o ← forest.add_roles n1.roles false 0#usize start
-      match o with
-      | none => ok none
-      | some added =>
-        let (n2, index_mut_back) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) graph.nodes into
-        let v := index_mut_back { n2 with roles := added }
-        ok (some { graph with nodes := v })
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::forest::upward]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2131:0-2148:1 -/
-def forest.upward
-  (graph : forest.Forest) (node : Std.Usize) («from» : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if «from» < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes node
-      let start ←
-        forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
-          model.ObjectPropertyExpression)
-      let n1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      let o ← forest.add_roles n1.roles true 0#usize start
-      match o with
-      | none => ok none
-      | some added =>
-        let o1 ← completion.join n.deps deps
-        match o1 with
-        | none => ok none
-        | some joined =>
-          let (n2, index_mut_back) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes node
-          let v := index_mut_back { n2 with roles := added }
-          let (n3, index_mut_back1) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) v node
-          let v1 := index_mut_back1 { n3 with deps := joined }
-          ok (some { graph with nodes := v1 })
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::forest::moved]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2420:0-2458:1 -/
-def forest.moved
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (joined : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if into < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes «from»
-      if n.tree
-      then
-        let i2 := alloc.vec.Vec.len graph.nodes
-        if n.parent < i2
-        then
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph.nodes n.parent
-          let graph1 ←
-            if n1.tree
-            then
-              if n1.parent = into
-              then forest.upward graph n.parent «from» joined
-              else
-                do
-                let n2 ←
-                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                    forest.Node) graph.nodes into
-                if n2.tree
-                then
-                  if n.parent = into
-                  then ok (some graph)
-                  else forest.sideways graph «from» into
-                else forest.linked graph n.parent «from» into joined
-            else
-              do
-              let n2 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) graph.nodes into
-              if n2.tree
-              then
-                if n.parent = into
-                then ok (some graph)
-                else forest.sideways graph «from» into
-              else forest.linked graph n.parent «from» into joined
-          match graph1 with
-          | none => ok none
-          | some graph2 => forest.carried graph2 «from» into joined
-        else ok none
-      else
-        let same ←
-          forest.renamed graph.same «from» into 0#usize (alloc.vec.Vec.new
-            Std.Usize)
-        let o ←
-          forest.relinked graph.edges «from» into joined 0#usize
-            (alloc.vec.Vec.new forest.Edge)
-        match o with
-        | none => ok none
-        | some edges => ok (some { graph with edges, same })
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::forest::pruned]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2279:0-2306:1 -/
-def forest.pruned
-  (nodes : alloc.vec.Vec forest.Node) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Node) :
-  Result (alloc.vec.Vec forest.Node)
-  := do
-  let i := alloc.vec.Vec.len nodes
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let n ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            forest.Node) nodes index
-        let active ←
-          if n.tree
-          then
-            let i2 := alloc.vec.Vec.len out
-            if n.parent < i2
-            then
-              do
-              let n1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Node) out n.parent
-              if n1.active
-              then ok n.active
-              else ok false
-            else ok n.active
-          else ok n.active
-        let v ←
-          completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v1 ←
-          forest.copy_roles n.roles 0#usize (alloc.vec.Vec.new
-            model.ObjectPropertyExpression)
-        let v2 ←
-          completion.copy_label n.done 0#usize (alloc.vec.Vec.new Std.Usize)
-        let v3 ←
-          completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-        alloc.vec.Vec.push out
-          {
-            n
-              with
-              label := v,
-              roles := v1,
-              seed := n.seed,
-              tree := n.tree,
-              active,
-              done := v2,
-              deps := v3
-          }
-      else ok out
-    let i2 ← index + 1#usize
-    forest.pruned nodes i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::inherit]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2236:0-2276:1 -/
-def forest.inherit
-  (distinct : alloc.vec.Vec forest.Distinct) («from» : Std.Usize)
-  (into : Std.Usize) (deps : alloc.vec.Vec Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec forest.Distinct) :
-  Result (Option (alloc.vec.Vec forest.Distinct))
-  := do
-  let i := alloc.vec.Vec.len distinct
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        forest.Distinct) distinct index
-    let other ←
-      if d.left = «from»
-      then ok (some d.right)
-      else if d.right = «from»
-           then ok (some d.left)
-           else ok none
-    match other with
-    | none =>
-      let i1 ← index + 1#usize
-      forest.inherit distinct «from» into deps i1 out
-    | some other1 =>
-      let o ← completion.join d.deps deps
-      match o with
-      | none => ok none
-      | some joined =>
-        let i1 := alloc.vec.Vec.len out
-        if i1 < core.num.Usize.MAX
-        then
-          let out1 ←
-            alloc.vec.Vec.push out
-              ({ left := into, right := other1, deps := joined } :
-              forest.Distinct)
-          let i2 ← index + 1#usize
-          forest.inherit distinct «from» into deps i2 out1
-        else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::merged]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2462:0-2487:1 -/
-def forest.merged
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (joined : alloc.vec.Vec Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let o ← forest.moved graph «from» into joined
-  match o with
-  | none => ok none
-  | some graph1 =>
-    let i := alloc.vec.Vec.len graph1.nodes
-    if «from» < i
-    then
-      let i1 := alloc.vec.Vec.len graph1.nodes
-      if into < i1
-      then
-        let start ←
-          forest.copy_distinct graph1.distinct 0#usize (alloc.vec.Vec.new
-            forest.Distinct)
-        let o1 ←
-          forest.inherit graph1.distinct «from» into joined 0#usize start
-        match o1 with
-        | none => ok none
-        | some distinct =>
-          let (n, index_mut_back) ←
-            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph1.nodes «from»
-          let v := index_mut_back { n with active := false }
-          let nodes ← forest.pruned v 0#usize (alloc.vec.Vec.new forest.Node)
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) nodes into
-          let o2 ← completion.join n1.deps joined
-          match o2 with
-          | none => ok none
-          | some depends =>
-            let (n2, index_mut_back1) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                forest.Node) nodes into
-            let nodes1 := index_mut_back1 { n2 with deps := depends }
-            ok (some { graph1 with nodes := nodes1, distinct })
-      else ok none
-    else ok none
-
-/-- [rowl_kernel::forest::pending_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2308:0-2317:1 -/
-def forest.pending_from
-  (label : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
-  Result completion.Pending
-  := do
-  let i := alloc.vec.Vec.len label
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        label index
-    let i2 ← index + 1#usize
-    let p ← forest.pending_from label i2
-    ok (completion.Pending.Item i1 p)
-  else ok completion.Pending.Empty
-partial_fixpoint
-
-/-- [rowl_kernel::forest::first_nodes]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2092:0-2103:1 -/
-def forest.first_nodes
-  (list : alloc.vec.Vec Std.Usize) (count : Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len list
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < count
-    then
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          list index
-      let out1 ← alloc.vec.Vec.push out i2
-      let i3 ← index + 1#usize
-      forest.first_nodes list count i3 out1
-    else ok out
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::forest::differ]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1999:0-2017:1 -/
-def forest.differ
-  (graph : forest.Forest) (left : Std.Usize) (right : Std.Usize)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len graph.distinct
-  if index < i
-  then
-    let fact ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        forest.Distinct) graph.distinct index
-    let here ←
-      if fact.left = left
-      then ok (fact.right = right)
-      else if fact.left = right
-           then ok (fact.right = left)
-           else ok false
-    if here
-    then ok true
-    else let i1 ← index + 1#usize
-         forest.differ graph left right i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::forest::pairs_with]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2047:0-2073:1 -/
-def forest.pairs_with
-  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
-  (first : Std.Usize) (second : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
-  Result (Option (alloc.vec.Vec forest.Pair))
-  := do
-  let i := alloc.vec.Vec.len chosen
-  if first < i
-  then
-    let i1 := alloc.vec.Vec.len chosen
-    if second < i1
-    then
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          chosen first
-      let i3 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          chosen second
-      let b ← forest.differ graph i2 i3 0#usize
-      if b
-      then
-        let i4 ← second + 1#usize
-        forest.pairs_with graph chosen first i4 out
-      else
-        let i4 := alloc.vec.Vec.len out
-        if i4 < core.num.Usize.MAX
-        then
-          let out1 ←
-            alloc.vec.Vec.push out ({ first := i2, second := i3 } :
-              forest.Pair)
-          let i5 ← second + 1#usize
-          forest.pairs_with graph chosen first i5 out1
-        else ok none
-    else ok (some out)
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::pairs_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2076:0-2090:1 -/
-def forest.pairs_from
-  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
-  (first : Std.Usize) (out : alloc.vec.Vec forest.Pair) :
-  Result (Option (alloc.vec.Vec forest.Pair))
-  := do
-  let i := alloc.vec.Vec.len chosen
-  if first < i
-  then
-    let i1 ← first + 1#usize
-    let o ← forest.pairs_with graph chosen first i1 out
-    match o with
-    | none => ok none
-    | some out1 => forest.pairs_from graph chosen i1 out1
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::differences_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2020:0-2044:1 -/
-def forest.differences_deps
-  (graph : forest.Forest) (chosen : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.distinct
-  if index < i
-  then
-    let fact ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        forest.Distinct) graph.distinct index
-    let b ← completion.contains chosen fact.left 0#usize
-    let inside ←
-      if b
-      then completion.contains chosen fact.right 0#usize
-      else ok false
-    if inside
-    then
-      let o ← completion.join_from fact.deps 0#usize out
-      match o with
-      | none => ok none
-      | some out1 =>
-        let i1 ← index + 1#usize
-        forest.differences_deps graph chosen i1 out1
-    else let i1 ← index + 1#usize
-         forest.differences_deps graph chosen i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::children_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1948:0-1970:1 -/
-def forest.children_deps
-  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if index < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes index
-    let child ←
-      if n.tree
-      then if n.active
-           then ok (n.parent = node)
-           else ok false
-      else ok false
-    if child
-    then
-      let o ← completion.join_from n.deps 0#usize out
-      match o with
-      | none => ok none
-      | some out1 =>
-        let i1 ← index + 1#usize
-        forest.children_deps graph node i1 out1
-    else let i1 ← index + 1#usize
-         forest.children_deps graph node i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::end_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1939:0-1945:1 -/
-def forest.end_deps
-  (graph : forest.Forest) («end» : Std.Usize) (out : alloc.vec.Vec Std.Usize)
-  :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «end» < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes «end»
-    completion.join_from n.deps 0#usize out
-  else ok (some out)
-
-/-- [rowl_kernel::forest::edge_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1906:0-1937:1 -/
-def forest.edge_deps
-  (graph : forest.Forest) (node : Std.Usize) (index : Std.Usize)
-  (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.edges
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Edge)
-        graph.edges index
-    let «from» ← forest.representative graph e.from
-    let «to» ← forest.representative graph e.to
-    let «at» ←
-      if «from» = node
-      then ok true
-      else if «to» = node
-           then ok true
-           else ok false
-    if «at»
-    then
-      let o ← completion.join_from e.deps 0#usize out
-      match o with
-      | none => ok none
-      | some out1 =>
-        let o1 ← forest.end_deps graph «from» out1
-        match o1 with
-        | none => ok none
-        | some out2 =>
-          let o2 ← forest.end_deps graph «to» out2
-          match o2 with
-          | none => ok none
-          | some out3 =>
-            let i1 ← index + 1#usize
-            forest.edge_deps graph node i1 out3
-    else let i1 ← index + 1#usize
-         forest.edge_deps graph node i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::linked_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1873:0-1903:1 -/
-def forest.linked_deps
-  (graph : forest.Forest) (links : alloc.vec.Vec completion.Link)
-  (node : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len links
-  if index < i
-  then
-    let l ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Link) links index
-    let «from» ← forest.representative graph l.from
-    let «to» ← forest.representative graph l.to
-    if «from» = node
-    then
-      let o ← forest.end_deps graph «to» out
-      match o with
-      | none => ok none
-      | some out1 =>
-        if «to» = node
-        then
-          let o1 ← forest.end_deps graph «from» out1
-          match o1 with
-          | none => ok none
-          | some out2 =>
-            let i1 ← index + 1#usize
-            forest.linked_deps graph links node i1 out2
-        else
-          let i1 ← index + 1#usize
-          forest.linked_deps graph links node i1 out1
-    else
-      if «to» = node
-      then
-        let o ← forest.end_deps graph «from» out
-        match o with
-        | none => ok none
-        | some out1 =>
-          let i1 ← index + 1#usize
-          forest.linked_deps graph links node i1 out1
-      else
-        let i1 ← index + 1#usize
-        forest.linked_deps graph links node i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::rule_deps]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1973:0-1997:1 -/
-def forest.rule_deps
-  (problem : completion.Problem) (graph : forest.Forest) (node : Std.Usize) :
-  Result (Option (alloc.vec.Vec Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let own ←
-      completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-    let with_parent ←
-      if n.tree
-      then forest.end_deps graph n.parent own
-      else ok (some own)
-    match with_parent with
-    | none => ok none
-    | some out =>
-      let o ← forest.children_deps graph node 0#usize out
-      match o with
-      | none => ok none
-      | some out1 =>
-        let o1 ← forest.linked_deps graph problem.links node 0#usize out1
-        match o1 with
-        | none => ok none
-        | some out2 => forest.edge_deps graph node 0#usize out2
-  else ok none
-
-/-- [rowl_kernel::forest::children]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1770:0-1799:1 -/
-def forest.children
-  (graph : forest.Forest) (node : Std.Usize)
-  (role : model.ObjectPropertyExpression) (filler : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (count : Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  if count > 0#usize
-  then
-    let i := alloc.vec.Vec.len graph.nodes
-    if i < core.num.Usize.MAX
-    then
-      let ope ← concepts.copy_role role
-      let list ←
-        alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression)
-          ope
-      let v ←
-        completion.copy_label deps 0#usize (alloc.vec.Vec.new Std.Usize)
-      let v1 ←
-        alloc.vec.Vec.push graph.nodes
-          ({
-             label := (alloc.vec.Vec.new Std.Usize),
-             parent := node,
-             roles := list,
-             seed := filler,
-             tree := true,
-             active := true,
-             done := (alloc.vec.Vec.new Std.Usize),
-             deps := v
-           } : forest.Node)
-      let i1 ← count - 1#usize
-      forest.children { graph with nodes := v1 } node role filler deps i1
-    else ok none
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::expanded]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1831:0-1856:1 -/
-def forest.expanded
-  (entries : alloc.vec.Vec concept_table.Entry) (graph : forest.Forest)
-  (node : Std.Usize) (generator : Std.Usize) :
-  Result (Option forest.Forest)
-  := do
-  let o ← forest.generator_of entries generator
-  match o with
-  | none => ok none
-  | some found =>
-    let (role, count, filler) := found
-    let i := alloc.vec.Vec.len graph.nodes
-    if node < i
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes node
-      let deps ←
-        completion.copy_label n.deps 0#usize (alloc.vec.Vec.new Std.Usize)
-      let first := alloc.vec.Vec.len graph.nodes
-      let o1 ← forest.children graph node role filler deps count
-      match o1 with
-      | none => ok none
-      | some graph1 =>
-        let o2 ← forest.pairwise graph1 first deps
-        match o2 with
-        | none => ok none
-        | some graph2 =>
-          let n1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              forest.Node) graph2.nodes node
-          let i1 := alloc.vec.Vec.len n1.done
-          if i1 < core.num.Usize.MAX
-          then
-            let (n2, index_mut_back) ←
-              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-                forest.Node) graph2.nodes node
-            let v ← alloc.vec.Vec.push n2.done generator
-            let v1 := index_mut_back { n2 with done := v }
-            ok (some { graph2 with nodes := v1 })
-          else ok none
-    else ok none
-
-mutual
-
-/-- [rowl_kernel::forest::branch]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1616:0-1676:1 -/
-def forest.branch
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (left : Std.Usize)
-  (right : Std.Usize) (next : completion.Pending)
-  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  if depth < core.num.Usize.MAX
-  then
-    let other ← forest.copy_forest graph
-    let other_next ← completion.copy_pending next
-    let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
-    let o ← completion.join deps point
-    match o with
-    | none => ok none
-    | some left_deps =>
-      let i ← depth + 1#usize
-      let o1 ←
-        forest.add problem roles graph node (completion.Pending.Item left next)
-          left_deps i
-      match o1 with
-      | none => ok none
-      | some o2 =>
-        match o2 with
-        | completion.Outcome.Accepted => ok o1
-        | completion.Outcome.Rejected clash =>
-          let b ← completion.contains clash depth 0#usize
-          if b
-          then
-            let rest ←
-              completion.without_from clash depth 0#usize (alloc.vec.Vec.new
-                Std.Usize)
-            let o3 ← completion.join deps rest
-            match o3 with
-            | none => ok none
-            | some right_deps =>
-              forest.add problem roles other node (completion.Pending.Item
-                right other_next) right_deps depth
-          else ok o1
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::add_literal]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1680:0-1707:1 -/
-def forest.add_literal
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (concept : Std.Usize)
-  (next : completion.Pending) (deps : alloc.vec.Vec Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes node
-    let b ← completion.contains n.label concept 0#usize
-    if b
-    then forest.add problem roles graph node next deps depth
-    else
-      let b1 ← completion.clashes problem.entries n.label concept 0#usize
-      if b1
-      then
-        let o ← completion.join n.deps deps
-        match o with
-        | none => ok none
-        | some clash => ok (some (completion.Outcome.Rejected clash))
-      else
-        let o ← forest.insert graph node concept deps
-        match o with
-        | none => ok none
-        | some graph1 => forest.add problem roles graph1 node next deps depth
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::add]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1710:0-1751:1 -/
-def forest.add
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (pending : completion.Pending)
-  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  match pending with
-  | completion.Pending.Empty => forest.run problem roles graph depth
-  | completion.Pending.Item concept next =>
-    let i := alloc.vec.Vec.len problem.entries
-    if concept < i
-    then
-      let e ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          concept_table.Entry) problem.entries concept
-      match e with
-      | concept_table.Entry.Top =>
-        forest.add problem roles graph node next deps depth
-      | concept_table.Entry.Bottom =>
-        ok (some (completion.Outcome.Rejected deps))
-      | concept_table.Entry.Atom _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.NotAtom _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.One _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.NotOne _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.HasSelf _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.NotSelf _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.And left right =>
-        forest.add problem roles graph node (completion.Pending.Item left
-          (completion.Pending.Item right next)) deps depth
-      | concept_table.Entry.Or left right =>
-        forest.branch problem roles graph node left right next deps depth
-      | concept_table.Entry.Exists _ _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.Forall _ _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.AtLeast _ _ _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-      | concept_table.Entry.AtMost _ _ _ _ =>
-        forest.add_literal problem roles graph node concept next deps depth
-    else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::create]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 1858:0-1870:1 -/
-def forest.create
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (generator : Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let o ← forest.expanded problem.entries graph node generator
-  match o with
-  | none => ok none
-  | some graph1 => forest.run problem roles graph1 depth
-partial_fixpoint
-
-/-- [rowl_kernel::forest::merge]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2558:0-2596:1 -/
-def forest.merge
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) («from» : Std.Usize) (into : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if «from» < i
-  then
-    let n ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-        graph.nodes «from»
-    let label ←
-      completion.copy_label n.label 0#usize (alloc.vec.Vec.new Std.Usize)
-    let b ← forest.into_parent graph «from» into
-    if b
-    then
-      let o ← forest.loops_of problem.entries n.roles 0#usize label
-      match o with
-      | none => ok none
-      | some label1 =>
-        let o1 ← completion.join deps n.deps
-        match o1 with
-        | none => ok none
-        | some joined =>
-          let o2 ← forest.merged graph «from» into joined
-          match o2 with
-          | none => ok none
-          | some graph1 =>
-            let p ← forest.pending_from label1 0#usize
-            forest.add problem roles graph1 into p joined depth
-    else
-      let o ← completion.join deps n.deps
-      match o with
-      | none => ok none
-      | some joined =>
-        let o1 ← forest.merged graph «from» into joined
-        match o1 with
-        | none => ok none
-        | some graph1 =>
-          let p ← forest.pending_from label 0#usize
-          forest.add problem roles graph1 into p joined depth
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::choices]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2631:0-2693:1 -/
-def forest.choices
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize)
-  (pairs : alloc.vec.Vec forest.Pair) (index : Std.Usize)
-  (deps : alloc.vec.Vec Std.Usize) (skipped : alloc.vec.Vec Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len pairs
-  if index < i
-  then
-    let p ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Pair)
-        pairs index
-    let («from», into) ← forest.orient graph node p
-    let i1 ← index + 1#usize
-    let i2 := alloc.vec.Vec.len pairs
-    if i1 < i2
-    then
-      if depth < core.num.Usize.MAX
-      then
-        let other ← forest.copy_forest graph
-        let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
-        let o ← completion.join deps point
-        match o with
-        | none => ok none
-        | some here =>
-          let i3 ← depth + 1#usize
-          let o1 ← forest.merge problem roles graph «from» into here i3
-          match o1 with
-          | none => ok none
-          | some o2 =>
-            match o2 with
-            | completion.Outcome.Accepted => ok o1
-            | completion.Outcome.Rejected clash =>
-              let b ← completion.contains clash depth 0#usize
-              if b
-              then
-                let rest ←
-                  completion.without_from clash depth 0#usize
-                    (alloc.vec.Vec.new Std.Usize)
-                let o3 ← completion.join skipped rest
-                match o3 with
-                | none => ok none
-                | some skipped1 =>
-                  forest.choices problem roles other node pairs i1 deps
-                    skipped1 depth
-              else ok o1
-      else ok none
-    else
-      let o ← completion.join deps skipped
-      match o with
-      | none => ok none
-      | some last => forest.merge problem roles graph «from» into last depth
-  else
-    let o ← completion.join deps skipped
-    match o with
-    | none => ok none
-    | some clash => ok (some (completion.Outcome.Rejected clash))
-partial_fixpoint
-
-/-- [rowl_kernel::forest::merge_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2697:0-2751:1 -/
-def forest.merge_rule
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len problem.entries
-  if restriction < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) problem.entries restriction
-    match e with
-    | concept_table.Entry.Top => ok none
-    | concept_table.Entry.Bottom => ok none
-    | concept_table.Entry.Atom _ => ok none
-    | concept_table.Entry.NotAtom _ => ok none
-    | concept_table.Entry.One _ => ok none
-    | concept_table.Entry.NotOne _ => ok none
-    | concept_table.Entry.HasSelf _ => ok none
-    | concept_table.Entry.NotSelf _ => ok none
-    | concept_table.Entry.And _ _ => ok none
-    | concept_table.Entry.Or _ _ => ok none
-    | concept_table.Entry.Exists _ _ => ok none
-    | concept_table.Entry.Forall _ _ => ok none
-    | concept_table.Entry.AtLeast _ _ _ => ok none
-    | concept_table.Entry.AtMost n role filler _ =>
-      if n < core.num.Usize.MAX
-      then
-        let o ← forest.neighbours problem roles graph node role
-        match o with
-        | none => ok none
-        | some list =>
-          let o1 ←
-            forest.satisfying problem.entries graph list filler 0#usize
-              (alloc.vec.Vec.new Std.Usize)
-          match o1 with
-          | none => ok none
-          | some many =>
-            let i1 ← n + 1#usize
-            let chosen ←
-              forest.first_nodes many i1 0#usize (alloc.vec.Vec.new Std.Usize)
-            let o2 ← forest.rule_deps problem graph node
-            match o2 with
-            | none => ok none
-            | some deps =>
-              let o3 ← forest.differences_deps graph chosen 0#usize deps
-              match o3 with
-              | none => ok none
-              | some deps1 =>
-                let o4 ←
-                  forest.pairs_from graph chosen 0#usize (alloc.vec.Vec.new
-                    forest.Pair)
-                match o4 with
-                | none => ok none
-                | some pairs =>
-                  forest.choices problem roles graph node pairs 0#usize deps1
-                    (alloc.vec.Vec.new Std.Usize) depth
-      else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::capped_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2756:0-2830:1 -/
-def forest.capped_rule
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len problem.entries
-  if restriction < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) problem.entries restriction
-    match e with
-    | concept_table.Entry.Top => ok none
-    | concept_table.Entry.Bottom => ok none
-    | concept_table.Entry.Atom _ => ok none
-    | concept_table.Entry.NotAtom _ => ok none
-    | concept_table.Entry.One _ => ok none
-    | concept_table.Entry.NotOne _ => ok none
-    | concept_table.Entry.HasSelf _ => ok none
-    | concept_table.Entry.NotSelf _ => ok none
-    | concept_table.Entry.And _ _ => ok none
-    | concept_table.Entry.Or _ _ => ok none
-    | concept_table.Entry.Exists _ _ => ok none
-    | concept_table.Entry.Forall _ _ => ok none
-    | concept_table.Entry.AtLeast _ _ _ => ok none
-    | concept_table.Entry.AtMost _ role filler _ =>
-      let o ← forest.cap_at graph.caps node restriction 0#usize
-      match o with
-      | none => ok none
-      | some cap =>
-        let o1 ← forest.neighbours problem roles graph node role
-        match o1 with
-        | none => ok none
-        | some list =>
-          let o2 ←
-            forest.satisfying problem.entries graph list filler 0#usize
-              (alloc.vec.Vec.new Std.Usize)
-          match o2 with
-          | none => ok none
-          | some many =>
-            let o3 ←
-              forest.named_of graph many 0#usize (alloc.vec.Vec.new Std.Usize)
-            match o3 with
-            | none => ok none
-            | some named =>
-              let c ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  forest.Cap) graph.caps cap
-              let chosen ←
-                forest.first_nodes named c.bound 0#usize (alloc.vec.Vec.new
-                  Std.Usize)
-              let i1 := alloc.vec.Vec.len chosen
-              if i1 < c.bound
-              then ok none
-              else
-                let o4 ← forest.first_repeated graph many node 0#usize
-                match o4 with
-                | none => ok none
-                | some other =>
-                  let i2 := alloc.vec.Vec.len chosen
-                  if i2 < core.num.Usize.MAX
-                  then
-                    let chosen1 ← alloc.vec.Vec.push chosen other
-                    let o5 ← forest.rule_deps problem graph node
-                    match o5 with
-                    | none => ok none
-                    | some deps =>
-                      let o6 ← completion.join deps c.deps
-                      match o6 with
-                      | none => ok none
-                      | some deps1 =>
-                        let o7 ←
-                          forest.differences_deps graph chosen1 0#usize deps1
-                        match o7 with
-                        | none => ok none
-                        | some deps2 =>
-                          let o8 ←
-                            forest.pairs_from graph chosen1 0#usize
-                              (alloc.vec.Vec.new forest.Pair)
-                          match o8 with
-                          | none => ok none
-                          | some pairs =>
-                            forest.choices problem roles graph node pairs
-                              0#usize deps2 (alloc.vec.Vec.new Std.Usize) depth
-                  else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::guesses]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2912:0-2987:1 -/
-def forest.guesses
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
-  (role : model.ObjectPropertyExpression) (filler : Std.Usize) (n : Std.Usize)
-  (many : Std.Usize) (deps : alloc.vec.Vec Std.Usize)
-  (skipped : alloc.vec.Vec Std.Usize) (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  if many <= n
-  then
-    if many < n
-    then
-      if depth < core.num.Usize.MAX
-      then
-        let other ← forest.copy_forest graph
-        let point ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) depth
-        let o ← completion.join deps point
-        match o with
-        | none => ok none
-        | some here =>
-          let o1 ← forest.named graph node restriction role filler many here
-          match o1 with
-          | none => ok none
-          | some made =>
-            let i ← depth + 1#usize
-            let o2 ← forest.run problem roles made i
-            match o2 with
-            | none => ok none
-            | some o3 =>
-              match o3 with
-              | completion.Outcome.Accepted => ok o2
-              | completion.Outcome.Rejected clash =>
-                let b ← completion.contains clash depth 0#usize
-                if b
-                then
-                  let rest ←
-                    completion.without_from clash depth 0#usize
-                      (alloc.vec.Vec.new Std.Usize)
-                  let o4 ← completion.join skipped rest
-                  match o4 with
-                  | none => ok none
-                  | some skipped1 =>
-                    let i1 ← many + 1#usize
-                    forest.guesses problem roles other node restriction role
-                      filler n i1 deps skipped1 depth
-                else ok o2
-      else ok none
-    else
-      let o ← completion.join deps skipped
-      match o with
-      | none => ok none
-      | some last =>
-        let o1 ← forest.named graph node restriction role filler many last
-        match o1 with
-        | none => ok none
-        | some made => forest.run problem roles made depth
-  else
-    let o ← completion.join deps skipped
-    match o with
-    | none => ok none
-    | some clash => ok (some (completion.Outcome.Rejected clash))
-partial_fixpoint
-
-/-- [rowl_kernel::forest::name_rule]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 2992:0-3027:1 -/
-def forest.name_rule
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (restriction : Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len problem.entries
-  if restriction < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) problem.entries restriction
-    match e with
-    | concept_table.Entry.Top => ok none
-    | concept_table.Entry.Bottom => ok none
-    | concept_table.Entry.Atom _ => ok none
-    | concept_table.Entry.NotAtom _ => ok none
-    | concept_table.Entry.One _ => ok none
-    | concept_table.Entry.NotOne _ => ok none
-    | concept_table.Entry.HasSelf _ => ok none
-    | concept_table.Entry.NotSelf _ => ok none
-    | concept_table.Entry.And _ _ => ok none
-    | concept_table.Entry.Or _ _ => ok none
-    | concept_table.Entry.Exists _ _ => ok none
-    | concept_table.Entry.Forall _ _ => ok none
-    | concept_table.Entry.AtLeast _ _ _ => ok none
-    | concept_table.Entry.AtMost n role filler _ =>
-      let o ← forest.rule_deps problem graph node
-      match o with
-      | none => ok none
-      | some deps =>
-        forest.guesses problem roles graph node restriction role filler n
-          1#usize deps (alloc.vec.Vec.new Std.Usize) depth
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::nominal]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3030:0-3056:1 -/
-def forest.nominal
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (node : Std.Usize) (root : Std.Usize)
-  (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if node < i
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if root < i1
-    then
-      let n ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes node
-      let n1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice forest.Node)
-          graph.nodes root
-      let o ← completion.join n.deps n1.deps
-      match o with
-      | none => ok none
-      | some deps =>
-        let b ← forest.differ graph node root 0#usize
-        if b
-        then
-          let pair ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) node
-          let pair1 ← alloc.vec.Vec.push pair root
-          let o1 ← forest.differences_deps graph pair1 0#usize deps
-          match o1 with
-          | none => ok none
-          | some clash => ok (some (completion.Outcome.Rejected clash))
-        else forest.merge problem roles graph node root deps depth
-    else ok none
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::forest::run]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3059:0-3115:1 -/
-def forest.run
-  (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
-  (graph : forest.Forest) (depth : Std.Usize) :
-  Result (Option completion.Outcome)
-  := do
-  let o ← forest.next_step problem roles graph
-  match o with
-  | none => ok none
-  | some s =>
-    match s with
-    | forest.Step.Add node concept =>
-      let o1 ← forest.rule_deps problem graph node
-      match o1 with
-      | none => ok none
-      | some deps =>
-        forest.add problem roles graph node (completion.Pending.Item concept
-          completion.Pending.Empty) deps depth
-    | forest.Step.Choose node left right =>
-      let o1 ← forest.rule_deps problem graph node
-      match o1 with
-      | none => ok none
-      | some deps =>
-        forest.branch problem roles graph node left right
-          completion.Pending.Empty deps depth
-    | forest.Step.Merge node restriction =>
-      forest.merge_rule problem roles graph node restriction depth
-    | forest.Step.Name node restriction =>
-      forest.name_rule problem roles graph node restriction depth
-    | forest.Step.Capped node restriction =>
-      forest.capped_rule problem roles graph node restriction depth
-    | forest.Step.Nominal node root =>
-      forest.nominal problem roles graph node root depth
-    | forest.Step.Loop node =>
-      let o1 ← forest.rule_deps problem graph node
-      match o1 with
-      | none => ok none
-      | some deps => ok (some (completion.Outcome.Rejected deps))
-    | forest.Step.Overlap node =>
-      let o1 ← forest.rule_deps problem graph node
-      match o1 with
-      | none => ok none
-      | some deps => ok (some (completion.Outcome.Rejected deps))
-    | forest.Step.Create node generator =>
-      forest.create problem roles graph node generator depth
-    | forest.Step.Stuck => ok none
-    | forest.Step.Done => ok (some completion.Outcome.Accepted)
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::forest::loop_entries]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3119:0-3136:1 -/
-def forest.loop_entries
-  (entries : alloc.vec.Vec concept_table.Entry) (limit : Std.Usize)
-  (index : Std.Usize) :
-  Result (Option (alloc.vec.Vec concept_table.Entry))
-  := do
-  if index < limit
-  then
-    let i := alloc.vec.Vec.len entries
-    if index < i
-    then
-      let e ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          concept_table.Entry) entries index
-      let role ←
-        match e with
-        | concept_table.Entry.Top => ok none
-        | concept_table.Entry.Bottom => ok none
-        | concept_table.Entry.Atom _ => ok none
-        | concept_table.Entry.NotAtom _ => ok none
-        | concept_table.Entry.One _ => ok none
-        | concept_table.Entry.NotOne _ => ok none
-        | concept_table.Entry.HasSelf _ => ok none
-        | concept_table.Entry.NotSelf _ => ok none
-        | concept_table.Entry.And _ _ => ok none
-        | concept_table.Entry.Or _ _ => ok none
-        | concept_table.Entry.Exists role1 _ =>
-          do
-          let ope ← concepts.copy_role role1
-          ok (some ope)
-        | concept_table.Entry.Forall _ _ => ok none
-        | concept_table.Entry.AtLeast _ role1 _ =>
-          do
-          let ope ← concepts.copy_role role1
-          ok (some ope)
-        | concept_table.Entry.AtMost _ _ _ _ => ok none
-      match role with
-      | none => let i1 ← index + 1#usize
-                forest.loop_entries entries limit i1
-      | some role1 =>
-        let o ← concept_table.intern entries (concepts.Concept.HasSelf role1)
-        match o with
-        | none => ok none
-        | some p =>
-          let (entries1, _) := p
-          let i1 ← index + 1#usize
-          forest.loop_entries entries1 limit i1
-    else ok (some entries)
-  else ok (some entries)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::simple_from]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3139:0-3149:1 -/
-def forest.simple_from
-  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len roles.transitive
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) roles.transitive index
-    let b ← hierarchy.below roles ope role
-    if b
-    then ok false
-    else let i1 ← index + 1#usize
-         forest.simple_from roles role i1
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::forest::counting_simple]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3152:0-3168:1 -/
-def forest.counting_simple
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (roles : hierarchy.RoleHierarchy) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len entries
-  if index < i
-  then
-    let e ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concept_table.Entry) entries index
-    let simple ←
-      match e with
-      | concept_table.Entry.Top => ok true
-      | concept_table.Entry.Bottom => ok true
-      | concept_table.Entry.Atom _ => ok true
-      | concept_table.Entry.NotAtom _ => ok true
-      | concept_table.Entry.One _ => ok true
-      | concept_table.Entry.NotOne _ => ok true
-      | concept_table.Entry.HasSelf _ => ok true
-      | concept_table.Entry.NotSelf role =>
-        forest.simple_from roles role 0#usize
-      | concept_table.Entry.And _ _ => ok true
-      | concept_table.Entry.Or _ _ => ok true
-      | concept_table.Entry.Exists _ _ => ok true
-      | concept_table.Entry.Forall _ _ => ok true
-      | concept_table.Entry.AtLeast _ role _ =>
-        forest.simple_from roles role 0#usize
-      | concept_table.Entry.AtMost _ role _ _ =>
-        forest.simple_from roles role 0#usize
-    if simple
-    then let i1 ← index + 1#usize
-         forest.counting_simple entries roles i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::forest::disjoint_simple]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3171:0-3185:1 -/
-def forest.disjoint_simple
-  (roles : hierarchy.RoleHierarchy) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len roles.disjoint
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Disjoint) roles.disjoint index
-    let b ← forest.simple_from roles d.left 0#usize
-    if b
-    then
-      let b1 ← forest.simple_from roles d.right 0#usize
-      if b1
-      then let i1 ← index + 1#usize
-           forest.disjoint_simple roles i1
-      else ok false
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::forest::roots]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3187:0-3209:1 -/
-def forest.roots
-  (count : Std.Usize) (graph : forest.Forest) :
-  Result (Option forest.Forest)
-  := do
-  let i := alloc.vec.Vec.len graph.nodes
-  if i < count
-  then
-    let i1 := alloc.vec.Vec.len graph.nodes
-    if i1 < core.num.Usize.MAX
-    then
-      let index := alloc.vec.Vec.len graph.nodes
-      let v ←
-        alloc.vec.Vec.push graph.nodes
-          ({
-             label := (alloc.vec.Vec.new Std.Usize),
-             parent := 0#usize,
-             roles := (alloc.vec.Vec.new model.ObjectPropertyExpression),
-             seed := 0#usize,
-             tree := false,
-             active := true,
-             done := (alloc.vec.Vec.new Std.Usize),
-             deps := (alloc.vec.Vec.new Std.Usize)
-           } : forest.Node)
-      let v1 ← alloc.vec.Vec.push graph.same index
-      forest.roots count { graph with nodes := v, same := v1 }
-    else ok none
-  else ok (some graph)
-partial_fixpoint
-
-/-- [rowl_kernel::forest::satisfiable]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3219:0-3284:1
-    Visibility: public -/
-def forest.satisfiable
-  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
-  (facts : alloc.vec.Vec completion.Fact)
-  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
-  (definitions : alloc.vec.Vec completion.Definition)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option Bool)
-  := do
-  let o ← concept_table.intern (alloc.vec.Vec.new concept_table.Entry) axioms
-  match o with
-  | none => ok none
-  | some pair =>
-    let (entries, axioms1) := pair
-    let o1 ←
-      completion.intern_facts entries query 0#usize (alloc.vec.Vec.new
-        completion.Requirement)
-    match o1 with
-    | none => ok none
-    | some pair1 =>
-      let (entries1, requirements) := pair1
-      let o2 ← completion.intern_facts entries1 facts 0#usize requirements
-      match o2 with
-      | none => ok none
-      | some pair2 =>
-        let (entries2, requirements1) := pair2
-        let o3 ←
-          completion.intern_definitions entries2 definitions 0#usize
-            (alloc.vec.Vec.new completion.Unfolding)
-        match o3 with
-        | none => ok none
-        | some pair3 =>
-          let (entries3, unfoldings) := pair3
-          let limit := alloc.vec.Vec.len entries3
-          let o4 ← forest.loop_entries entries3 limit 0#usize
-          match o4 with
-          | none => ok none
-          | some entries4 =>
-            let o5 ← concept_table.close entries4 roles
-            match o5 with
-            | none => ok none
-            | some entries5 =>
-              let b ← forest.counting_simple entries5 roles 0#usize
-              if b
-              then
-                let b1 ← forest.disjoint_simple roles 0#usize
-                if b1
-                then
-                  let o6 ←
-                    forest.roots count
-                      {
-                        nodes := (alloc.vec.Vec.new forest.Node),
-                        edges := (alloc.vec.Vec.new forest.Edge),
-                        distinct := (alloc.vec.Vec.new forest.Distinct),
-                        same := (alloc.vec.Vec.new Std.Usize),
-                        caps := (alloc.vec.Vec.new forest.Cap)
-                      }
-                  match o6 with
-                  | none => ok none
-                  | some graph =>
-                    let v ←
-                      completion.copy_links links 0#usize (alloc.vec.Vec.new
-                        completion.Link)
-                    let o7 ←
-                      forest.run
-                        {
-                          entries := entries5,
-                          links := v,
-                          requirements := requirements1,
-                          unfoldings,
-                          axioms := axioms1
-                        } roles graph 0#usize
-                    match o7 with
-                    | none => ok none
-                    | some o8 =>
-                      match o8 with
-                      | completion.Outcome.Accepted => ok (some true)
-                      | completion.Outcome.Rejected _ => ok (some false)
-                else ok none
-              else ok none
 
 /-- [rowl_kernel::functional::Keyword]
     Source: 'crates/rowl-kernel/src/functional.rs', lines 9:0-81:1
@@ -31002,37 +39865,6 @@ def functional_property_axioms.AxiomForm.Insts.CoreMarkerCopy :
   cloneInst := functional_property_axioms.AxiomForm.Insts.CoreCloneClone
 }
 
-/-- [rowl_kernel::hierarchy::transitive_from]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 60:0-74:1 -/
-def hierarchy.transitive_from
-  (transitive : alloc.vec.Vec model.ObjectPropertyExpression)
-  (index : Std.Usize) (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len transitive
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) transitive index
-    let b ← concepts.same_role ope role
-    if b
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      hierarchy.transitive_from transitive i1 role
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::hierarchy::is_transitive]:
-    Source: 'crates/rowl-kernel/src/hierarchy.rs', lines 76:0-78:1
-    Visibility: public -/
-def hierarchy.is_transitive
-  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  hierarchy.transitive_from roles.transitive 0#usize role
-
 /-- [rowl_kernel::imports::DocumentIds]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 8:0-11:1
     Visibility: public -/
@@ -33879,1300 +42711,6 @@ def rdf.original_dataset
   (selection : rdf.DatasetSelection) : Result rdf.RawDataset := do
   ok selection.dataset
 
-/-- [rowl_kernel::role_chains::Chain]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 70:0-73:1
-    Visibility: public -/
-structure role_chains.Chain where
-  roles : alloc.vec.Vec model.ObjectPropertyExpression
-  sup : model.ObjectPropertyExpression
-
-/-- [rowl_kernel::role_chains::State]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 75:0-81:1
-    Visibility: public -/
-@[discriminant isize]
-inductive role_chains.State where
-| Initial : role_chains.State
-| Final : role_chains.State
-| Inside : Std.Usize → Std.Usize → role_chains.State
-
-/-- [rowl_kernel::role_chains::Label]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 83:0-90:1
-    Visibility: public -/
-@[discriminant isize]
-inductive role_chains.Label where
-| Direct : role_chains.Label
-| Role : model.ObjectPropertyExpression → role_chains.Label
-| Empty : role_chains.Label
-
-/-- [rowl_kernel::role_chains::Transition]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 92:0-95:1
-    Visibility: public -/
-structure role_chains.Transition where
-  label : role_chains.Label
-  target : role_chains.State
-
-/-- [rowl_kernel::role_chains::Filler]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 97:0-100:1
-    Visibility: public -/
-@[discriminant isize]
-inductive role_chains.Filler where
-| Base : Std.Usize → role_chains.Filler
-| Atom : Std.Usize → role_chains.Filler
-
-/-- [rowl_kernel::role_chains::Atom]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 102:0-106:1
-    Visibility: public -/
-structure role_chains.Atom where
-  role : model.ObjectPropertyExpression
-  state : role_chains.State
-  filler : role_chains.Filler
-
-/-- [rowl_kernel::role_chains::Segment]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 109:0-114:1
-    Visibility: public -/
-structure role_chains.Segment where
-  start : role_chains.State
-  «end» : role_chains.State
-  offset : Std.Usize
-  length : Std.Usize
-
-/-- [rowl_kernel::role_chains::LIMIT]
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 117:0-117:31 -/
-@[global_simps, irreducible] def role_chains.LIMIT : Std.Usize := 1048576#usize
-
-/-- [rowl_kernel::role_chains::equivalent]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 120:0-130:1 -/
-def role_chains.equivalent
-  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
-  (right : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let b ← hierarchy.below roles left right
-  if b
-  then hierarchy.below roles right left
-  else ok false
-
-/-- [rowl_kernel::role_chains::complex_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 132:0-147:1 -/
-def role_chains.complex_from
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len chains
-  if index < i
-  then
-    let c ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Chain) chains index
-    let b ← hierarchy.below roles c.sup role
-    if b
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      role_chains.complex_from roles chains role i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::complex]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 149:0-155:1
-    Visibility: public -/
-def role_chains.complex
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  role_chains.complex_from roles chains role 0#usize
-
-/-- [rowl_kernel::role_chains::copy_state]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 157:0-163:1 -/
-def role_chains.copy_state
-  (state : role_chains.State) : Result role_chains.State := do
-  match state with
-  | role_chains.State.Initial => ok role_chains.State.Initial
-  | role_chains.State.Final => ok role_chains.State.Final
-  | role_chains.State.Inside _ _ => ok state
-
-/-- [rowl_kernel::role_chains::same_state]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 165:0-186:1 -/
-def role_chains.same_state
-  (left : role_chains.State) (right : role_chains.State) : Result Bool := do
-  match left with
-  | role_chains.State.Initial =>
-    match right with
-    | role_chains.State.Initial => ok true
-    | role_chains.State.Final => ok false
-    | role_chains.State.Inside _ _ => ok false
-  | role_chains.State.Final =>
-    match right with
-    | role_chains.State.Initial => ok false
-    | role_chains.State.Final => ok true
-    | role_chains.State.Inside _ _ => ok false
-  | role_chains.State.Inside chain position =>
-    match right with
-    | role_chains.State.Initial => ok false
-    | role_chains.State.Final => ok false
-    | role_chains.State.Inside other place =>
-      if chain = other
-      then ok (position = place)
-      else ok false
-
-/-- [rowl_kernel::role_chains::copy_filler]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 188:0-193:1 -/
-def role_chains.copy_filler
-  (filler : role_chains.Filler) : Result role_chains.Filler := do
-  match filler with
-  | role_chains.Filler.Base _ => ok filler
-  | role_chains.Filler.Atom _ => ok filler
-
-/-- [rowl_kernel::role_chains::same_filler]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 195:0-206:1 -/
-def role_chains.same_filler
-  (left : role_chains.Filler) (right : role_chains.Filler) : Result Bool := do
-  match left with
-  | role_chains.Filler.Base index =>
-    match right with
-    | role_chains.Filler.Base other => ok (index = other)
-    | role_chains.Filler.Atom _ => ok false
-  | role_chains.Filler.Atom index =>
-    match right with
-    | role_chains.Filler.Base _ => ok false
-    | role_chains.Filler.Atom other => ok (index = other)
-
-/-- [rowl_kernel::role_chains::twin]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 208:0-222:1 -/
-def role_chains.twin
-  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
-  (role : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len chain.roles
-  if i = 2#usize
-  then
-    let b ← role_chains.equivalent roles chain.sup role
-    if b
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) chain.roles 0#usize
-      let b1 ← role_chains.equivalent roles ope role
-      if b1
-      then
-        let ope1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) chain.roles 1#usize
-        role_chains.equivalent roles ope1 role
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::role_chains::segment]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 225:0-264:1 -/
-def role_chains.segment
-  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
-  (role : model.ObjectPropertyExpression) :
-  Result (Option role_chains.Segment)
-  := do
-  let length := alloc.vec.Vec.len chain.roles
-  if length < 2#usize
-  then ok none
-  else
-    let b ← role_chains.equivalent roles chain.sup role
-    if b
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) chain.roles 0#usize
-      let b1 ← role_chains.equivalent roles ope role
-      if b1
-      then
-        if length = 2#usize
-        then
-          let ope1 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              model.ObjectPropertyExpression) chain.roles 1#usize
-          let b2 ← role_chains.equivalent roles ope1 role
-          if b2
-          then ok none
-          else
-            let i ← length - 1#usize
-            ok (some
-              {
-                start := role_chains.State.Final,
-                «end» := role_chains.State.Final,
-                offset := 1#usize,
-                length := i
-              })
-        else
-          let i ← length - 1#usize
-          ok (some
-            {
-              start := role_chains.State.Final,
-              «end» := role_chains.State.Final,
-              offset := 1#usize,
-              length := i
-            })
-      else
-        let i ← length - 1#usize
-        let ope1 ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) chain.roles i
-        let b2 ← role_chains.equivalent roles ope1 role
-        if b2
-        then
-          ok (some
-            {
-              start := role_chains.State.Initial,
-              «end» := role_chains.State.Initial,
-              offset := 0#usize,
-              length := i
-            })
-        else
-          ok (some
-            {
-              start := role_chains.State.Initial,
-              «end» := role_chains.State.Final,
-              offset := 0#usize,
-              length
-            })
-    else ok none
-
-/-- [rowl_kernel::role_chains::step]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 267:0-279:1 -/
-def role_chains.step
-  (chain : role_chains.Chain) (index : Std.Usize)
-  (segment : role_chains.Segment) (position : Std.Usize) :
-  Result role_chains.Transition
-  := do
-  let i ← segment.offset + position
-  let i1 := alloc.vec.Vec.len chain.roles
-  let label ←
-    if i < i1
-    then
-      do
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) chain.roles i
-      let ope1 ← concepts.copy_role ope
-      ok (role_chains.Label.Role ope1)
-    else ok role_chains.Label.Empty
-  let i2 ← position + 1#usize
-  if i2 = segment.length
-  then let target ← role_chains.copy_state segment.end
-       ok { label, target }
-  else ok { label, target := (role_chains.State.Inside index i2) }
-
-/-- [rowl_kernel::role_chains::sub_transitions]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 282:0-309:1 -/
-def role_chains.sub_transitions
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec role_chains.Transition) :
-  Result (Option (alloc.vec.Vec role_chains.Transition))
-  := do
-  let i := alloc.vec.Vec.len roles.inclusions
-  if index < i
-  then
-    let inclusion ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Inclusion) roles.inclusions index
-    let b ← concepts.same_role inclusion.sup role
-    if b
-    then
-      let b1 ← role_chains.complex roles chains inclusion.sub
-      if b1
-      then
-        let b2 ← hierarchy.below roles role inclusion.sub
-        if b2
-        then
-          let i1 ← index + 1#usize
-          role_chains.sub_transitions roles chains role i1 out
-        else
-          let i1 := alloc.vec.Vec.len out
-          if i1 < core.num.Usize.MAX
-          then
-            let ope ← concepts.copy_role inclusion.sub
-            let out1 ←
-              alloc.vec.Vec.push out
-                ({
-                   label := (role_chains.Label.Role ope),
-                   target := role_chains.State.Final
-                 } : role_chains.Transition)
-            let i2 ← index + 1#usize
-            role_chains.sub_transitions roles chains role i2 out1
-          else ok none
-      else
-        let i1 ← index + 1#usize
-        role_chains.sub_transitions roles chains role i1 out
-    else
-      let i1 ← index + 1#usize
-      role_chains.sub_transitions roles chains role i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::transitive_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 312:0-322:1 -/
-def role_chains.transitive_from
-  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len roles.transitive
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) roles.transitive index
-    let b ← role_chains.equivalent roles ope role
-    if b
-    then ok true
-    else let i1 ← index + 1#usize
-         role_chains.transitive_from roles role i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::chain_transitions]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 325:0-367:1 -/
-def role_chains.chain_transitions
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (role : model.ObjectPropertyExpression) (state : role_chains.State)
-  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Transition) :
-  Result (Option (alloc.vec.Vec role_chains.Transition))
-  := do
-  let i := alloc.vec.Vec.len chains
-  if index < i
-  then
-    let chain ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Chain) chains index
-    let b ← role_chains.twin roles chain role
-    if b
-    then
-      match state with
-      | role_chains.State.Initial =>
-        let i1 ← index + 1#usize
-        role_chains.chain_transitions roles chains role
-          role_chains.State.Initial i1 out
-      | role_chains.State.Final =>
-        let i1 := alloc.vec.Vec.len out
-        if i1 < core.num.Usize.MAX
-        then
-          let out1 ←
-            alloc.vec.Vec.push out
-              ({
-                 label := role_chains.Label.Empty,
-                 target := role_chains.State.Initial
-               } : role_chains.Transition)
-          let i2 ← index + 1#usize
-          role_chains.chain_transitions roles chains role
-            role_chains.State.Final i2 out1
-        else ok none
-      | role_chains.State.Inside _ _ =>
-        let i1 ← index + 1#usize
-        role_chains.chain_transitions roles chains role state i1 out
-    else
-      let o ← role_chains.segment roles chain role
-      match o with
-      | none =>
-        let i1 ← index + 1#usize
-        role_chains.chain_transitions roles chains role state i1 out
-      | some segment =>
-        let b1 ← role_chains.same_state segment.start state
-        if b1
-        then
-          let i1 := alloc.vec.Vec.len out
-          if i1 < core.num.Usize.MAX
-          then
-            let t ← role_chains.step chain index segment 0#usize
-            let out1 ← alloc.vec.Vec.push out t
-            let i2 ← index + 1#usize
-            role_chains.chain_transitions roles chains role state i2 out1
-          else ok none
-        else
-          let i1 ← index + 1#usize
-          role_chains.chain_transitions roles chains role state i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::transitions]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 369:0-414:1
-    Visibility: public -/
-def role_chains.transitions
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (role : model.ObjectPropertyExpression) (state : role_chains.State) :
-  Result (Option (alloc.vec.Vec role_chains.Transition))
-  := do
-  match state with
-  | role_chains.State.Initial =>
-    let out ←
-      alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
-        ({ label := role_chains.Label.Direct, target := role_chains.State.Final
-         } : role_chains.Transition)
-    let o ← role_chains.sub_transitions roles chains role 0#usize out
-    match o with
-    | none => ok none
-    | some out1 =>
-      role_chains.chain_transitions roles chains role role_chains.State.Initial
-        0#usize out1
-  | role_chains.State.Final =>
-    let b ← role_chains.transitive_from roles role 0#usize
-    let out ←
-      if b
-      then
-        alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
-          ({
-             label := role_chains.Label.Empty,
-             target := role_chains.State.Initial
-           } : role_chains.Transition)
-      else ok (alloc.vec.Vec.new role_chains.Transition)
-    role_chains.chain_transitions roles chains role role_chains.State.Final
-      0#usize out
-  | role_chains.State.Inside index position =>
-    let i := alloc.vec.Vec.len chains
-    if index < i
-    then
-      let c ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          role_chains.Chain) chains index
-      let o ← role_chains.segment roles c role
-      match o with
-      | none => ok (some (alloc.vec.Vec.new role_chains.Transition))
-      | some segment =>
-        if 0#usize < position
-        then
-          if position < segment.length
-          then
-            let t ← role_chains.step c index segment position
-            let out ←
-              alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition) t
-            ok (some out)
-          else ok (some (alloc.vec.Vec.new role_chains.Transition))
-        else ok (some (alloc.vec.Vec.new role_chains.Transition))
-    else ok (some (alloc.vec.Vec.new role_chains.Transition))
-
-/-- [rowl_kernel::role_chains::bytes]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 417:0-426:1 -/
-def role_chains.bytes
-  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  if count < 8#usize
-  then
-    let i := alloc.vec.Vec.len out
-    let out1 ←
-      if i < core.num.Usize.MAX
-      then
-        do
-        let i1 ← value % 256#usize
-        let i2 ← lift (UScalar.cast .U8 i1)
-        alloc.vec.Vec.push out i2
-      else ok out
-    let i1 ← value / 256#usize
-    let i2 ← count + 1#usize
-    role_chains.bytes i1 i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::name]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 428:0-436:1
-    Visibility: public -/
-def role_chains.name (index : Std.Usize) : Result model.Class := do
-  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 32#u8
-  let v ← role_chains.bytes index 0#usize spelling
-  ok { iri := { spelling := v } }
-
-/-- [rowl_kernel::role_chains::spaced]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 438:0-444:1 -/
-def role_chains.spaced («class» : model.Class) : Result Bool := do
-  let i := alloc.vec.Vec.len «class».iri.spelling
-  if 0#usize < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-        «class».iri.spelling 0#usize
-    ok (i1 = 32#u8)
-  else ok false
-
-/-- [rowl_kernel::role_chains::fits]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 448:0-486:1 -/
-def role_chains.fits
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (concept : concepts.Concept) :
-  Result Bool
-  := do
-  match concept with
-  | concepts.Concept.Top => ok true
-  | concepts.Concept.Bottom => ok true
-  | concepts.Concept.Atom «class» =>
-    let b ← role_chains.spaced «class»
-    ok (¬ b)
-  | concepts.Concept.NotAtom «class» =>
-    let b ← role_chains.spaced «class»
-    ok (¬ b)
-  | concepts.Concept.One _ => ok true
-  | concepts.Concept.NotOne _ => ok true
-  | concepts.Concept.HasSelf role =>
-    let b ← role_chains.complex roles chains role
-    ok (¬ b)
-  | concepts.Concept.NotSelf role =>
-    let b ← role_chains.complex roles chains role
-    ok (¬ b)
-  | concepts.Concept.And left right =>
-    let b ← role_chains.fits roles chains left
-    if b
-    then role_chains.fits roles chains right
-    else ok false
-  | concepts.Concept.Or left right =>
-    let b ← role_chains.fits roles chains left
-    if b
-    then role_chains.fits roles chains right
-    else ok false
-  | concepts.Concept.Exists _ filler => role_chains.fits roles chains filler
-  | concepts.Concept.Forall _ filler => role_chains.fits roles chains filler
-  | concepts.Concept.AtLeast _ role filler =>
-    let b ← role_chains.complex roles chains role
-    if b
-    then ok false
-    else role_chains.fits roles chains filler
-  | concepts.Concept.AtMost _ role filler =>
-    let b ← role_chains.complex roles chains role
-    if b
-    then ok false
-    else role_chains.fits roles chains filler
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::find_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 489:0-509:1 -/
-def role_chains.find_from
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (role : model.ObjectPropertyExpression) (state : role_chains.State)
-  (filler : role_chains.Filler) (index : Std.Usize) :
-  Result Std.Usize
-  := do
-  let i := alloc.vec.Vec.len atoms
-  if index < i
-  then
-    let atom ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Atom) atoms index
-    let b ← concepts.same_role atom.role role
-    if b
-    then
-      let b1 ← role_chains.same_state atom.state state
-      if b1
-      then
-        let b2 ← role_chains.same_filler atom.filler filler
-        if b2
-        then ok index
-        else
-          let i1 ← index + 1#usize
-          role_chains.find_from atoms role state filler i1
-      else
-        let i1 ← index + 1#usize
-        role_chains.find_from atoms role state filler i1
-    else
-      let i1 ← index + 1#usize
-      role_chains.find_from atoms role state filler i1
-  else ok (alloc.vec.Vec.len atoms)
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::atom_for]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 512:0-532:1 -/
-def role_chains.atom_for
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (role : model.ObjectPropertyExpression) (state : role_chains.State)
-  (filler : role_chains.Filler) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × Std.Usize))
-  := do
-  let found ← role_chains.find_from atoms role state filler 0#usize
-  let i := alloc.vec.Vec.len atoms
-  if found < i
-  then ok (some (atoms, found))
-  else
-    let i1 := alloc.vec.Vec.len atoms
-    if i1 < core.num.Usize.MAX
-    then
-      let ope ← concepts.copy_role role
-      let s ← role_chains.copy_state state
-      let f ← role_chains.copy_filler filler
-      let atoms1 ←
-        alloc.vec.Vec.push atoms ({ role := ope, state := s, filler := f } :
-          role_chains.Atom)
-      ok (some (atoms1, found))
-    else ok none
-
-/-- [rowl_kernel::role_chains::universal]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 534:0-550:1 -/
-def role_chains.universal
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (bases : alloc.vec.Vec concepts.Concept)
-  (role : model.ObjectPropertyExpression) (filler : concepts.Concept) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
-    concepts.Concept) × Std.Usize))
-  := do
-  let i := alloc.vec.Vec.len bases
-  if i < core.num.Usize.MAX
-  then
-    let base := alloc.vec.Vec.len bases
-    let bases1 ← alloc.vec.Vec.push bases filler
-    let o ←
-      role_chains.atom_for atoms role role_chains.State.Initial
-        (role_chains.Filler.Base base)
-    match o with
-    | none => ok none
-    | some p => let (atoms1, index) := p
-                ok (some (atoms1, bases1, index))
-  else ok none
-
-/-- [rowl_kernel::role_chains::encode]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 554:0-668:1 -/
-def role_chains.encode
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (concept : concepts.Concept) (positive : Bool)
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (bases : alloc.vec.Vec concepts.Concept) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
-    concepts.Concept) × concepts.Concept))
-  := do
-  match concept with
-  | concepts.Concept.Top =>
-    let c ← concepts.copy_concept concepts.Concept.Top
-    ok (some (atoms, bases, c))
-  | concepts.Concept.Bottom =>
-    let c ← concepts.copy_concept concepts.Concept.Bottom
-    ok (some (atoms, bases, c))
-  | concepts.Concept.Atom _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.NotAtom _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.One _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.NotOne _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.HasSelf _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.NotSelf _ =>
-    let c ← concepts.copy_concept concept
-    ok (some (atoms, bases, c))
-  | concepts.Concept.And left right =>
-    let o ← role_chains.encode roles chains left positive atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, first) := t
-      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
-      match o1 with
-      | none => ok none
-      | some t1 =>
-        let (atoms2, bases2, second) := t1
-        ok (some (atoms2, bases2, concepts.Concept.And first second))
-  | concepts.Concept.Or left right =>
-    let o ← role_chains.encode roles chains left positive atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, first) := t
-      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
-      match o1 with
-      | none => ok none
-      | some t1 =>
-        let (atoms2, bases2, second) := t1
-        ok (some (atoms2, bases2, concepts.Concept.Or first second))
-  | concepts.Concept.Exists role filler =>
-    let o ← role_chains.encode roles chains filler positive atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, inner) := t
-      if positive
-      then
-        let ope ← concepts.copy_role role
-        ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
-      else
-        let b ← role_chains.complex roles chains role
-        if b
-        then
-          let o1 ← concepts.negate inner
-          match o1 with
-          | none => ok none
-          | some complement =>
-            let o2 ← role_chains.universal atoms1 bases1 role complement
-            match o2 with
-            | none => ok none
-            | some t1 =>
-              let (atoms2, bases2, index) := t1
-              let c ← role_chains.name index
-              ok (some (atoms2, bases2, concepts.Concept.NotAtom c))
-        else
-          let ope ← concepts.copy_role role
-          ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
-  | concepts.Concept.Forall role filler =>
-    let o ← role_chains.encode roles chains filler positive atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, inner) := t
-      if positive
-      then
-        let b ← role_chains.complex roles chains role
-        if b
-        then
-          let o1 ← role_chains.universal atoms1 bases1 role inner
-          match o1 with
-          | none => ok none
-          | some t1 =>
-            let (atoms2, bases2, index) := t1
-            let c ← role_chains.name index
-            ok (some (atoms2, bases2, concepts.Concept.Atom c))
-        else
-          let ope ← concepts.copy_role role
-          ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
-      else
-        let ope ← concepts.copy_role role
-        ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
-  | concepts.Concept.AtLeast n role filler =>
-    let o ← role_chains.encode roles chains filler positive atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, inner) := t
-      let ope ← concepts.copy_role role
-      ok (some (atoms1, bases1, concepts.Concept.AtLeast n ope inner))
-  | concepts.Concept.AtMost n role filler =>
-    let o ← role_chains.encode roles chains filler (¬ positive) atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, inner) := t
-      let ope ← concepts.copy_role role
-      ok (some (atoms1, bases1, concepts.Concept.AtMost n ope inner))
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::filler_concept]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 670:0-681:1 -/
-def role_chains.filler_concept
-  (bases : alloc.vec.Vec concepts.Concept) (filler : role_chains.Filler) :
-  Result concepts.Concept
-  := do
-  match filler with
-  | role_chains.Filler.Base index =>
-    let i := alloc.vec.Vec.len bases
-    if index < i
-    then
-      let c ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          concepts.Concept) bases index
-      concepts.copy_concept c
-    else ok concepts.Concept.Top
-  | role_chains.Filler.Atom index =>
-    let c ← role_chains.name index
-    ok (concepts.Concept.Atom c)
-
-/-- [rowl_kernel::role_chains::nests]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 686:0-702:1 -/
-def role_chains.nests
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (role : model.ObjectPropertyExpression) (index : Std.Usize)
-  (fuel : Std.Usize) :
-  Result Bool
-  := do
-  if fuel = 0#usize
-  then ok true
-  else
-    let i := alloc.vec.Vec.len atoms
-    if index < i
-    then
-      let a ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          role_chains.Atom) atoms index
-      let b ← concepts.same_role a.role role
-      if b
-      then ok true
-      else
-        match a.filler with
-        | role_chains.Filler.Base _ => ok false
-        | role_chains.Filler.Atom next =>
-          let i1 ← fuel - 1#usize
-          role_chains.nests atoms role next i1
-    else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::unfold_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 705:0-761:1 -/
-def role_chains.unfold_from
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (transitions : alloc.vec.Vec role_chains.Transition)
-  (role : model.ObjectPropertyExpression) (filler : role_chains.Filler)
-  (index : Std.Usize) (atoms : alloc.vec.Vec role_chains.Atom)
-  (acc : concepts.Concept) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
-  := do
-  let i := alloc.vec.Vec.len transitions
-  if index < i
-  then
-    let transition ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Transition) transitions index
-    let o ← role_chains.atom_for atoms role transition.target filler
-    match o with
-    | none => ok none
-    | some p =>
-      let (atoms1, target) := p
-      match transition.label with
-      | role_chains.Label.Direct =>
-        let ope ← concepts.copy_role role
-        let c ← role_chains.name target
-        let i1 ← index + 1#usize
-        role_chains.unfold_from roles chains transitions role filler i1 atoms1
-          (concepts.Concept.And acc (concepts.Concept.Forall ope
-          (concepts.Concept.Atom c)))
-      | role_chains.Label.Role along =>
-        let b ← role_chains.complex roles chains along
-        if b
-        then
-          let i1 := alloc.vec.Vec.len atoms1
-          let b1 ← role_chains.nests atoms1 along target i1
-          if b1
-          then ok none
-          else
-            let o1 ←
-              role_chains.atom_for atoms1 along role_chains.State.Initial
-                (role_chains.Filler.Atom target)
-            match o1 with
-            | none => ok none
-            | some p1 =>
-              let (atoms2, nested) := p1
-              let c ← role_chains.name nested
-              let i2 ← index + 1#usize
-              role_chains.unfold_from roles chains transitions role filler i2
-                atoms2 (concepts.Concept.And acc (concepts.Concept.Atom c))
-        else
-          let ope ← concepts.copy_role along
-          let c ← role_chains.name target
-          let i1 ← index + 1#usize
-          role_chains.unfold_from roles chains transitions role filler i1
-            atoms1 (concepts.Concept.And acc (concepts.Concept.Forall ope
-            (concepts.Concept.Atom c)))
-      | role_chains.Label.Empty =>
-        let c ← role_chains.name target
-        let i1 ← index + 1#usize
-        role_chains.unfold_from roles chains transitions role filler i1 atoms1
-          (concepts.Concept.And acc (concepts.Concept.Atom c))
-  else ok (some (atoms, acc))
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::unfold]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 763:0-787:1 -/
-def role_chains.unfold
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (bases : alloc.vec.Vec concepts.Concept)
-  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
-  := do
-  let i := alloc.vec.Vec.len atoms
-  if index < i
-  then
-    let a ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Atom) atoms index
-    let role ← concepts.copy_role a.role
-    let state ← role_chains.copy_state a.state
-    let filler ← role_chains.copy_filler a.filler
-    let start ←
-      match state with
-      | role_chains.State.Initial => ok concepts.Concept.Top
-      | role_chains.State.Final => role_chains.filler_concept bases filler
-      | role_chains.State.Inside _ _ => ok concepts.Concept.Top
-    let o ← role_chains.transitions roles chains role state
-    match o with
-    | none => ok none
-    | some transitions =>
-      role_chains.unfold_from roles chains transitions role filler 0#usize
-        atoms start
-  else ok none
-
-/-- [rowl_kernel::role_chains::generate]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 790:0-819:1 -/
-def role_chains.generate
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (bases : alloc.vec.Vec concepts.Concept)
-  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize)
-  (out : alloc.vec.Vec completion.Definition) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
-    completion.Definition)))
-  := do
-  let i := alloc.vec.Vec.len atoms
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len atoms
-    if role_chains.LIMIT < i1
-    then ok none
-    else
-      let o ← role_chains.unfold roles chains bases atoms index
-      match o with
-      | none => ok none
-      | some p =>
-        let (atoms1, concept) := p
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          let c ← role_chains.name index
-          let out1 ←
-            alloc.vec.Vec.push out ({ «class» := c, concept } :
-              completion.Definition)
-          let i3 ← index + 1#usize
-          role_chains.generate roles chains bases atoms1 i3 out1
-        else ok none
-  else ok (some (atoms, out))
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::reversed]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 867:0-882:1 -/
-def role_chains.reversed
-  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (count : Std.Usize)
-  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (alloc.vec.Vec model.ObjectPropertyExpression)
-  := do
-  if 0#usize < count
-  then
-    let i ← count - 1#usize
-    let i1 := alloc.vec.Vec.len roles
-    let out1 ←
-      if i < i1
-      then
-        let i2 := alloc.vec.Vec.len out
-        if i2 < core.num.Usize.MAX
-        then
-          do
-          let ope ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-              model.ObjectPropertyExpression) roles i
-          let ope1 ← concepts.inverse ope
-          alloc.vec.Vec.push out ope1
-        else ok out
-      else ok out
-    role_chains.reversed roles i out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::copied]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 851:0-864:1 -/
-def role_chains.copied
-  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (alloc.vec.Vec model.ObjectPropertyExpression)
-  := do
-  let i := alloc.vec.Vec.len roles
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let ope ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            model.ObjectPropertyExpression) roles index
-        let ope1 ← concepts.copy_role ope
-        alloc.vec.Vec.push out ope1
-      else ok out
-    let i2 ← index + 1#usize
-    role_chains.copied roles i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::copy_chains]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 822:0-849:1 -/
-def role_chains.copy_chains
-  (chains : alloc.vec.Vec role_chains.Chain) (mirror : Bool)
-  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Chain) :
-  Result (Option (alloc.vec.Vec role_chains.Chain))
-  := do
-  let i := alloc.vec.Vec.len chains
-  if index < i
-  then
-    let chain ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Chain) chains index
-    let roles ←
-      if mirror
-      then
-        let i1 := alloc.vec.Vec.len chain.roles
-        role_chains.reversed chain.roles i1 (alloc.vec.Vec.new
-          model.ObjectPropertyExpression)
-      else
-        role_chains.copied chain.roles 0#usize (alloc.vec.Vec.new
-          model.ObjectPropertyExpression)
-    let sup ←
-      if mirror
-      then concepts.inverse chain.sup
-      else concepts.copy_role chain.sup
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let out1 ← alloc.vec.Vec.push out ({ roles, sup } : role_chains.Chain)
-      let i2 ← index + 1#usize
-      role_chains.copy_chains chains mirror i2 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::long_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 884:0-894:1 -/
-def role_chains.long_from
-  (chains : alloc.vec.Vec role_chains.Chain) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len chains
-  if index < i
-  then
-    let c ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        role_chains.Chain) chains index
-    let i1 := alloc.vec.Vec.len c.roles
-    if i1 < 2#usize
-    then ok false
-    else let i2 ← index + 1#usize
-         role_chains.long_from chains i2
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::pairs_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 896:0-909:1 -/
-def role_chains.pairs_fit
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len roles.disjoint
-  if index < i
-  then
-    let pair ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Disjoint) roles.disjoint index
-    let b ← role_chains.complex roles chains pair.left
-    if b
-    then ok false
-    else
-      let b1 ← role_chains.complex roles chains pair.right
-      if b1
-      then ok false
-      else let i1 ← index + 1#usize
-           role_chains.pairs_fit roles chains i1
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::facts_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 911:0-921:1 -/
-def role_chains.facts_fit
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← role_chains.fits roles chains f.concept
-    if b
-    then let i1 ← index + 1#usize
-         role_chains.facts_fit roles chains facts i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::definitions_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 923:0-940:1 -/
-def role_chains.definitions_fit
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let b ← role_chains.spaced d.class
-    if b
-    then ok false
-    else
-      let b1 ← role_chains.fits roles chains d.concept
-      if b1
-      then
-        let i1 ← index + 1#usize
-        role_chains.definitions_fit roles chains definitions i1
-      else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::encode_facts]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 942:0-969:1 -/
-def role_chains.encode_facts
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (bases : alloc.vec.Vec concepts.Concept)
-  (out : alloc.vec.Vec completion.Fact) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
-    concepts.Concept) × (alloc.vec.Vec completion.Fact)))
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let o ← role_chains.encode roles chains f.concept true atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, concept) := t
-      let i1 := alloc.vec.Vec.len out
-      if i1 < core.num.Usize.MAX
-      then
-        let out1 ← alloc.vec.Vec.push out { f with concept }
-        let i2 ← index + 1#usize
-        role_chains.encode_facts roles chains facts i2 atoms1 bases1 out1
-      else ok none
-  else ok (some (atoms, bases, out))
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::encode_definitions]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 972:0-1008:1 -/
-def role_chains.encode_definitions
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
-  (atoms : alloc.vec.Vec role_chains.Atom)
-  (bases : alloc.vec.Vec concepts.Concept)
-  (out : alloc.vec.Vec completion.Definition) :
-  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
-    concepts.Concept) × (alloc.vec.Vec completion.Definition)))
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let o ← role_chains.encode roles chains d.concept true atoms bases
-    match o with
-    | none => ok none
-    | some t =>
-      let (atoms1, bases1, concept) := t
-      let i1 := alloc.vec.Vec.len out
-      if i1 < core.num.Usize.MAX
-      then
-        let i2 ← nnf.copy_iri d.class.iri
-        let out1 ←
-          alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept } :
-            completion.Definition)
-        let i3 ← index + 1#usize
-        role_chains.encode_definitions roles chains definitions i3 atoms1
-          bases1 out1
-      else ok none
-  else ok (some (atoms, bases, out))
-partial_fixpoint
-
-/-- [rowl_kernel::role_chains::satisfiable]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 1013:0-1076:1
-    Visibility: public -/
-def role_chains.satisfiable
-  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
-  (facts : alloc.vec.Vec completion.Fact)
-  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
-  (definitions : alloc.vec.Vec completion.Definition)
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  :
-  Result (Option Bool)
-  := do
-  let i := alloc.vec.Vec.len chains
-  if i = 0#usize
-  then forest.satisfiable count query facts links axioms definitions roles
-  else
-    let b ← role_chains.long_from chains 0#usize
-    if b
-    then
-      let o ←
-        role_chains.copy_chains chains false 0#usize (alloc.vec.Vec.new
-          role_chains.Chain)
-      match o with
-      | none => ok none
-      | some copies =>
-        let o1 ← role_chains.copy_chains chains true 0#usize copies
-        match o1 with
-        | none => ok none
-        | some all =>
-          let b1 ← role_chains.pairs_fit roles all 0#usize
-          if b1
-          then
-            let b2 ← role_chains.fits roles all axioms
-            if b2
-            then
-              let b3 ← role_chains.facts_fit roles all query 0#usize
-              if b3
-              then
-                let b4 ← role_chains.facts_fit roles all facts 0#usize
-                if b4
-                then
-                  let b5 ←
-                    role_chains.definitions_fit roles all definitions 0#usize
-                  if b5
-                  then
-                    let o2 ←
-                      role_chains.encode roles all axioms true
-                        (alloc.vec.Vec.new role_chains.Atom) (alloc.vec.Vec.new
-                        concepts.Concept)
-                    match o2 with
-                    | none => ok none
-                    | some triple =>
-                      let (atoms, bases, axioms1) := triple
-                      let o3 ←
-                        role_chains.encode_facts roles all query 0#usize atoms
-                          bases (alloc.vec.Vec.new completion.Fact)
-                      match o3 with
-                      | none => ok none
-                      | some triple1 =>
-                        let (atoms1, bases1, query1) := triple1
-                        let o4 ←
-                          role_chains.encode_facts roles all facts 0#usize
-                            atoms1 bases1 (alloc.vec.Vec.new completion.Fact)
-                        match o4 with
-                        | none => ok none
-                        | some triple2 =>
-                          let (atoms2, bases2, facts1) := triple2
-                          let o5 ←
-                            role_chains.encode_definitions roles all
-                              definitions 0#usize atoms2 bases2
-                              (alloc.vec.Vec.new completion.Definition)
-                          match o5 with
-                          | none => ok none
-                          | some triple3 =>
-                            let (atoms3, bases3, definitions1) := triple3
-                            let o6 ←
-                              role_chains.generate roles all bases3 atoms3
-                                0#usize definitions1
-                            match o6 with
-                            | none => ok none
-                            | some pair =>
-                              let (_, definitions2) := pair
-                              forest.satisfiable count query1 facts1 links
-                                axioms1 definitions2 roles
-                  else ok none
-                else ok none
-              else ok none
-            else ok none
-          else ok none
-    else ok none
-
 /-- [rowl_kernel::roles::Role]
     Source: 'crates/rowl-kernel/src/roles.rs', lines 15:0-18:1
     Visibility: public -/
@@ -36586,4201 +44124,6 @@ def roles.check_simplicity
   | roles.RoleClosure.Complete non_simple =>
     roles.check_required facts.simple_required non_simple
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
-
-/-- [rowl_kernel::shi_ontology::Parts]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 109:0-112:1
-    Visibility: public -/
-structure shi_ontology.Parts where
-  axioms : concepts.Concept
-  definitions : alloc.vec.Vec completion.Definition
-
-/-- [rowl_kernel::shi_ontology::spelled]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 115:0-124:1 -/
-def shi_ontology.spelled
-  (pattern : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
-  Result (alloc.vec.Vec Std.U8)
-  := do
-  let i := Slice.len pattern
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let i2 ← Slice.index_usize pattern index
-        alloc.vec.Vec.push out i2
-      else ok out
-    let i2 ← index + 1#usize
-    shi_ontology.spelled pattern i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::empty_role]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 126:0-136:1 -/
-def shi_ontology.empty_role : Result model.ObjectPropertyExpression := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 50#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8, 79#u8,
-        98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8,
-        101#u8, 114#u8, 116#u8, 121#u8
-        ]))
-  let v ← shi_ontology.spelled s 0#usize (alloc.vec.Vec.new Std.U8)
-  ok (model.ObjectPropertyExpression.Property { iri := { spelling := v } })
-
-/-- [rowl_kernel::shi_ontology::named_individual]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 139:0-144:1 -/
-def shi_ontology.named_individual
-  (individual : model.Individual) : Result Bool := do
-  match individual with
-  | model.Individual.Named _ => ok true
-  | model.Individual.Anonymous _ => ok false
-
-/-- [rowl_kernel::universal::not_top]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 49:0-54:1
-    Visibility: public -/
-def universal.not_top
-  (role : model.ObjectPropertyExpression) : Result Bool := do
-  let op ← alc_ontology.named_property role
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
-        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-        121#u8
-        ]))
-  let b ← alc_ontology.same_pattern op.iri.spelling s
-  ok (¬ b)
-
-/-- [rowl_kernel::shi_ontology::proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 151:0-168:1 -/
-def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
-  match concept with
-  | concepts.Concept.Top => ok true
-  | concepts.Concept.Bottom => ok true
-  | concepts.Concept.Atom «class» =>
-    let b ← alc_ontology.builtin_class «class»
-    ok (¬ b)
-  | concepts.Concept.NotAtom «class» =>
-    let b ← alc_ontology.builtin_class «class»
-    ok (¬ b)
-  | concepts.Concept.One individual => shi_ontology.named_individual individual
-  | concepts.Concept.NotOne individual =>
-    shi_ontology.named_individual individual
-  | concepts.Concept.HasSelf _ => ok true
-  | concepts.Concept.NotSelf _ => ok true
-  | concepts.Concept.And left right =>
-    let b ← shi_ontology.proper left
-    if b
-    then shi_ontology.proper right
-    else ok false
-  | concepts.Concept.Or left right =>
-    let b ← shi_ontology.proper left
-    if b
-    then shi_ontology.proper right
-    else ok false
-  | concepts.Concept.Exists _ filler => shi_ontology.proper filler
-  | concepts.Concept.Forall _ filler => shi_ontology.proper filler
-  | concepts.Concept.AtLeast _ role filler =>
-    let b ← universal.not_top role
-    if b
-    then shi_ontology.proper filler
-    else ok false
-  | concepts.Concept.AtMost _ role filler =>
-    let b ← universal.not_top role
-    if b
-    then shi_ontology.proper filler
-    else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 171:0-183:1 -/
-def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
-  match concept with
-  | concepts.Concept.Top => ok false
-  | concepts.Concept.Bottom => ok false
-  | concepts.Concept.Atom _ => ok false
-  | concepts.Concept.NotAtom _ => ok false
-  | concepts.Concept.One _ => ok false
-  | concepts.Concept.NotOne _ => ok false
-  | concepts.Concept.HasSelf _ => ok true
-  | concepts.Concept.NotSelf _ => ok true
-  | concepts.Concept.And left right =>
-    let b ← shi_ontology.counts left
-    if b
-    then ok true
-    else shi_ontology.counts right
-  | concepts.Concept.Or left right =>
-    let b ← shi_ontology.counts left
-    if b
-    then ok true
-    else shi_ontology.counts right
-  | concepts.Concept.Exists _ filler => shi_ontology.counts filler
-  | concepts.Concept.Forall _ filler => shi_ontology.counts filler
-  | concepts.Concept.AtLeast _ _ _ => ok true
-  | concepts.Concept.AtMost _ _ _ => ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::definitions_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 185:0-191:1 -/
-def shi_ontology.definitions_count
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let b ← shi_ontology.counts d.concept
-    if b
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      shi_ontology.definitions_count definitions i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::facts_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 193:0-199:1 -/
-def shi_ontology.facts_count
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← shi_ontology.counts f.concept
-    if b
-    then ok true
-    else let i1 ← index + 1#usize
-         shi_ontology.facts_count facts i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::closure_counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 201:0-203:1 -/
-def shi_ontology.closure_counts
-  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
-  Result Bool
-  := do
-  let b ← shi_ontology.counts parts.axioms
-  if b
-  then ok true
-  else
-    let b1 ← shi_ontology.definitions_count parts.definitions 0#usize
-    if b1
-    then ok true
-    else shi_ontology.facts_count facts 0#usize
-
-/-- [rowl_kernel::universal::universal]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 56:0-68:1
-    Visibility: public -/
-def universal.universal (concept : concepts.Concept) : Result Bool := do
-  match concept with
-  | concepts.Concept.Top => ok false
-  | concepts.Concept.Bottom => ok false
-  | concepts.Concept.Atom _ => ok false
-  | concepts.Concept.NotAtom _ => ok false
-  | concepts.Concept.One _ => ok false
-  | concepts.Concept.NotOne _ => ok false
-  | concepts.Concept.HasSelf role => let b ← universal.not_top role
-                                     ok (¬ b)
-  | concepts.Concept.NotSelf role => let b ← universal.not_top role
-                                     ok (¬ b)
-  | concepts.Concept.And left right =>
-    let b ← universal.universal left
-    if b
-    then ok true
-    else universal.universal right
-  | concepts.Concept.Or left right =>
-    let b ← universal.universal left
-    if b
-    then ok true
-    else universal.universal right
-  | concepts.Concept.Exists role filler =>
-    let b ← universal.not_top role
-    if b
-    then universal.universal filler
-    else ok true
-  | concepts.Concept.Forall role filler =>
-    let b ← universal.not_top role
-    if b
-    then universal.universal filler
-    else ok true
-  | concepts.Concept.AtLeast _ role filler =>
-    let b ← universal.not_top role
-    if b
-    then universal.universal filler
-    else ok true
-  | concepts.Concept.AtMost _ role filler =>
-    let b ← universal.not_top role
-    if b
-    then universal.universal filler
-    else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::universal::definitions_universal]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 79:0-85:1
-    Visibility: public -/
-def universal.definitions_universal
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let b ← universal.universal d.concept
-    if b
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      universal.definitions_universal definitions i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::universal::facts_universal]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 70:0-76:1
-    Visibility: public -/
-def universal.facts_universal
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← universal.universal f.concept
-    if b
-    then ok true
-    else let i1 ← index + 1#usize
-         universal.facts_universal facts i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::closure_universal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 206:0-210:1 -/
-def shi_ontology.closure_universal
-  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
-  Result Bool
-  := do
-  let b ← universal.universal parts.axioms
-  if b
-  then ok true
-  else
-    let b1 ← universal.definitions_universal parts.definitions 0#usize
-    if b1
-    then ok true
-    else universal.facts_universal facts 0#usize
-
-/-- [rowl_kernel::shi_ontology::nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 212:0-224:1 -/
-def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
-  match concept with
-  | concepts.Concept.Top => ok false
-  | concepts.Concept.Bottom => ok false
-  | concepts.Concept.Atom _ => ok false
-  | concepts.Concept.NotAtom _ => ok false
-  | concepts.Concept.One _ => ok true
-  | concepts.Concept.NotOne _ => ok true
-  | concepts.Concept.HasSelf _ => ok false
-  | concepts.Concept.NotSelf _ => ok false
-  | concepts.Concept.And left right =>
-    let b ← shi_ontology.nominal left
-    if b
-    then ok true
-    else shi_ontology.nominal right
-  | concepts.Concept.Or left right =>
-    let b ← shi_ontology.nominal left
-    if b
-    then ok true
-    else shi_ontology.nominal right
-  | concepts.Concept.Exists _ filler => shi_ontology.nominal filler
-  | concepts.Concept.Forall _ filler => shi_ontology.nominal filler
-  | concepts.Concept.AtLeast _ _ filler => shi_ontology.nominal filler
-  | concepts.Concept.AtMost _ _ filler => shi_ontology.nominal filler
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::definitions_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 226:0-232:1 -/
-def shi_ontology.definitions_nominal
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let b ← shi_ontology.nominal d.concept
-    if b
-    then ok true
-    else
-      let i1 ← index + 1#usize
-      shi_ontology.definitions_nominal definitions i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::facts_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 234:0-240:1 -/
-def shi_ontology.facts_nominal
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← shi_ontology.nominal f.concept
-    if b
-    then ok true
-    else let i1 ← index + 1#usize
-         shi_ontology.facts_nominal facts i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::closure_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 242:0-244:1 -/
-def shi_ontology.closure_nominal
-  (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
-  Result Bool
-  := do
-  let b ← shi_ontology.nominal parts.axioms
-  if b
-  then ok true
-  else
-    let b1 ← shi_ontology.definitions_nominal parts.definitions 0#usize
-    if b1
-    then ok true
-    else shi_ontology.facts_nominal facts 0#usize
-
-/-- [rowl_kernel::shi_ontology::known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 246:0-258:1 -/
-def shi_ontology.known
-  (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
-  Result Bool
-  := do
-  match concept with
-  | concepts.Concept.Top => ok true
-  | concepts.Concept.Bottom => ok true
-  | concepts.Concept.Atom _ => ok true
-  | concepts.Concept.NotAtom _ => ok true
-  | concepts.Concept.One individual =>
-    let i ← alc_ontology.position nodes individual 0#usize
-    ok (i != 0#usize)
-  | concepts.Concept.NotOne individual =>
-    let i ← alc_ontology.position nodes individual 0#usize
-    ok (i != 0#usize)
-  | concepts.Concept.HasSelf _ => ok true
-  | concepts.Concept.NotSelf _ => ok true
-  | concepts.Concept.And left right =>
-    let b ← shi_ontology.known nodes left
-    if b
-    then shi_ontology.known nodes right
-    else ok false
-  | concepts.Concept.Or left right =>
-    let b ← shi_ontology.known nodes left
-    if b
-    then shi_ontology.known nodes right
-    else ok false
-  | concepts.Concept.Exists _ filler => shi_ontology.known nodes filler
-  | concepts.Concept.Forall _ filler => shi_ontology.known nodes filler
-  | concepts.Concept.AtLeast _ _ filler => shi_ontology.known nodes filler
-  | concepts.Concept.AtMost _ _ filler => shi_ontology.known nodes filler
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::facts_known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 261:0-267:1 -/
-def shi_ontology.facts_known
-  (nodes : alloc.vec.Vec model.Individual)
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← shi_ontology.known nodes f.concept
-    if b
-    then let i1 ← index + 1#usize
-         shi_ontology.facts_known nodes facts i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::definitions_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 270:0-277:1 -/
-def shi_ontology.definitions_proper
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let b ← alc_ontology.builtin_class d.class
-    let here ← if b
-                 then ok false
-                 else shi_ontology.proper d.concept
-    if here
-    then
-      let i1 ← index + 1#usize
-      shi_ontology.definitions_proper definitions i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::facts_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 279:0-285:1 -/
-def shi_ontology.facts_proper
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let b ← shi_ontology.proper f.concept
-    if b
-    then let i1 ← index + 1#usize
-         shi_ontology.facts_proper facts i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::absorbable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 290:0-297:1 -/
-def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
-  match sub with
-  | model.ClassExpression.Class «class» =>
-    let b ← alc_ontology.builtin_class «class»
-    ok (¬ b)
-  | model.ClassExpression.ObjectIntersectionOf members =>
-    shi_ontology.absorbable members.first
-  | model.ClassExpression.ObjectUnionOf _ => ok false
-  | model.ClassExpression.ObjectComplementOf _ => ok false
-  | model.ClassExpression.ObjectOneOf _ => ok false
-  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
-    shi_ontology.absorbable filler
-  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok false
-  | model.ClassExpression.ObjectHasValue _ _ => ok false
-  | model.ClassExpression.ObjectHasSelf _ => ok false
-  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok false
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok false
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok false
-  | model.ClassExpression.DataHasValue _ _ => ok false
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok false
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok false
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::fail_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 300:0-313:1 -/
-def shi_ontology.fail_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (joined : concepts.Concept) :
-  Result (Option concepts.Concept)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let o ← concepts.translate ce false
-    match o with
-    | none => ok none
-    | some outside =>
-      let i1 ← index + 1#usize
-      shi_ontology.fail_from values i1 (concepts.Concept.Or joined outside)
-  else ok (some joined)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::absorb]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 317:0-341:1 -/
-def shi_ontology.absorb
-  (sub : model.ClassExpression) (sup : concepts.Concept) :
-  Result (Option completion.Definition)
-  := do
-  match sub with
-  | model.ClassExpression.Class «class» =>
-    let i ← nnf.copy_iri «class».iri
-    ok (some { «class» := { iri := i }, concept := sup })
-  | model.ClassExpression.ObjectIntersectionOf members =>
-    let o ← concepts.translate members.second false
-    match o with
-    | none => ok none
-    | some second =>
-      let o1 ← shi_ontology.fail_from members.rest 0#usize second
-      match o1 with
-      | none => ok none
-      | some others =>
-        shi_ontology.absorb members.first (concepts.Concept.Or others sup)
-  | model.ClassExpression.ObjectUnionOf _ => ok none
-  | model.ClassExpression.ObjectComplementOf _ => ok none
-  | model.ClassExpression.ObjectOneOf _ => ok none
-  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
-    let ope ← concepts.inverse role
-    shi_ontology.absorb filler (concepts.Concept.Forall ope sup)
-  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok none
-  | model.ClassExpression.ObjectHasValue _ _ => ok none
-  | model.ClassExpression.ObjectHasSelf _ => ok none
-  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
-  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
-  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
-  | model.ClassExpression.DataHasValue _ _ => ok none
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::include]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 344:0-369:1 -/
-def shi_ontology.include
-  (sub : model.ClassExpression) (sup : concepts.Concept)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let b ← shi_ontology.absorbable sub
-  if b
-  then
-    let o ← shi_ontology.absorb sub sup
-    match o with
-    | none => ok none
-    | some definition =>
-      let i := alloc.vec.Vec.len parts.definitions
-      if i < core.num.Usize.MAX
-      then
-        let v ← alloc.vec.Vec.push parts.definitions definition
-        ok (some { parts with definitions := v })
-      else ok none
-  else
-    let o ← concepts.translate sub false
-    match o with
-    | none => ok none
-    | some outside =>
-      ok (some
-        {
-          parts
-            with
-            axioms :=
-              (concepts.Concept.And
-                parts.axioms
-                (concepts.Concept.Or
-                outside
-                sup))
-        })
-
-/-- [rowl_kernel::shi_ontology::include_both]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 371:0-385:1 -/
-def shi_ontology.include_both
-  (left : model.ClassExpression) (right : model.ClassExpression)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let o ← concepts.translate right true
-  match o with
-  | none => ok none
-  | some forward =>
-    let o1 ← shi_ontology.include left forward parts
-    match o1 with
-    | none => ok none
-    | some parts1 =>
-      let o2 ← concepts.translate left true
-      match o2 with
-      | none => ok none
-      | some backward => shi_ontology.include right backward parts1
-
-/-- [rowl_kernel::shi_ontology::equal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 387:0-401:1 -/
-def shi_ontology.equal_from
-  (first : model.ClassExpression)
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let o ← shi_ontology.include_both first ce parts
-    match o with
-    | none => ok none
-    | some parts1 =>
-      let i1 ← index + 1#usize
-      shi_ontology.equal_from first values i1 parts1
-  else ok (some parts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 403:0-408:1 -/
-def shi_ontology.equivalent
-  (members : model.AtLeastTwo model.ClassExpression)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let o ← shi_ontology.include_both members.first members.second parts
-  match o with
-  | none => ok none
-  | some parts1 =>
-    shi_ontology.equal_from members.first members.rest 0#usize parts1
-
-/-- [rowl_kernel::shi_ontology::apart_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 410:0-428:1 -/
-def shi_ontology.apart_from
-  (member : model.ClassExpression)
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let o ← concepts.translate ce false
-    match o with
-    | none => ok none
-    | some outside =>
-      let o1 ← shi_ontology.include member outside parts
-      match o1 with
-      | none => ok none
-      | some parts1 =>
-        let i1 ← index + 1#usize
-        shi_ontology.apart_from member values i1 parts1
-  else ok (some parts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::pairwise_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 430:0-439:1 -/
-def shi_ontology.pairwise_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let i1 ← index + 1#usize
-    let o ← shi_ontology.apart_from ce values i1 parts
-    match o with
-    | none => ok none
-    | some parts1 => shi_ontology.pairwise_from values i1 parts1
-  else ok (some parts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::disjoint]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 441:0-459:1 -/
-def shi_ontology.disjoint
-  (members : model.AtLeastTwo model.ClassExpression)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let o ← concepts.translate members.second false
-  match o with
-  | none => ok none
-  | some second =>
-    let o1 ← shi_ontology.include members.first second parts
-    match o1 with
-    | none => ok none
-    | some parts1 =>
-      let o2 ←
-        shi_ontology.apart_from members.first members.rest 0#usize parts1
-      match o2 with
-      | none => ok none
-      | some parts2 =>
-        let o3 ←
-          shi_ontology.apart_from members.second members.rest 0#usize parts2
-        match o3 with
-        | none => ok none
-        | some parts3 => shi_ontology.pairwise_from members.rest 0#usize parts3
-
-/-- [rowl_kernel::shi_ontology::some_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 462:0-475:1 -/
-def shi_ontology.some_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (joined : concepts.Concept) :
-  Result (Option concepts.Concept)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let o ← concepts.translate ce true
-    match o with
-    | none => ok none
-    | some inside =>
-      let i1 ← index + 1#usize
-      shi_ontology.some_from values i1 (concepts.Concept.Or joined inside)
-  else ok (some joined)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::within_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 477:0-495:1 -/
-def shi_ontology.within_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
-  (whole : model.ClassExpression) (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let o ← concepts.translate whole true
-    match o with
-    | none => ok none
-    | some inside =>
-      let ce ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ClassExpression) values index
-      let o1 ← shi_ontology.include ce inside parts
-      match o1 with
-      | none => ok none
-      | some parts1 =>
-        let i1 ← index + 1#usize
-        shi_ontology.within_from values i1 whole parts1
-  else ok (some parts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::disjoint_union]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 498:0-547:1 -/
-def shi_ontology.disjoint_union
-  («class» : model.Class) (members : model.AtLeastTwo model.ClassExpression)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i ← nnf.copy_iri «class».iri
-  let o ← concepts.translate members.first true
-  match o with
-  | none => ok none
-  | some first =>
-    let o1 ← concepts.translate members.second true
-    match o1 with
-    | none => ok none
-    | some second =>
-      let o2 ←
-        shi_ontology.some_from members.rest 0#usize (concepts.Concept.Or first
-          second)
-      match o2 with
-      | none => ok none
-      | some union =>
-        let o3 ←
-          shi_ontology.include (model.ClassExpression.Class { iri := i }) union
-            parts
-        match o3 with
-        | none => ok none
-        | some parts1 =>
-          let o4 ←
-            concepts.translate (model.ClassExpression.Class { iri := i }) true
-          match o4 with
-          | none => ok none
-          | some inside =>
-            let o5 ← shi_ontology.include members.first inside parts1
-            match o5 with
-            | none => ok none
-            | some parts2 =>
-              match o4 with
-              | none => ok none
-              | some inside1 =>
-                let o6 ← shi_ontology.include members.second inside1 parts2
-                match o6 with
-                | none => ok none
-                | some parts3 =>
-                  let o7 ←
-                    shi_ontology.within_from members.rest 0#usize
-                      (model.ClassExpression.Class { iri := i }) parts3
-                  match o7 with
-                  | none => ok none
-                  | some parts4 => shi_ontology.disjoint members parts4
-
-/-- [rowl_kernel::shi_ontology::conjoin]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 549:0-554:1 -/
-def shi_ontology.conjoin
-  (parts : shi_ontology.Parts) (concept : concepts.Concept) :
-  Result shi_ontology.Parts
-  := do
-  ok { parts with axioms := (concepts.Concept.And parts.axioms concept) }
-
-/-- [rowl_kernel::shi_ontology::axiom_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 558:0-615:1 -/
-def shi_ontology.axiom_parts
-  («axiom» : model.Axiom) (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  match «axiom» with
-  | model.Axiom.Declaration _ => ok (some parts)
-  | model.Axiom.SubClassOf sub sup =>
-    let o ← concepts.translate sup true
-    match o with
-    | none => ok none
-    | some inside => shi_ontology.include sub inside parts
-  | model.Axiom.EquivalentClasses members =>
-    shi_ontology.equivalent members parts
-  | model.Axiom.DisjointClasses members => shi_ontology.disjoint members parts
-  | model.Axiom.DisjointUnion «class» members =>
-    shi_ontology.disjoint_union «class» members parts
-  | model.Axiom.SubObjectPropertyOf sope _ =>
-    match sope with
-    | model.SubObjectPropertyExpression.Single _ => ok (some parts)
-    | model.SubObjectPropertyExpression.Chain _ => ok (some parts)
-  | model.Axiom.EquivalentObjectProperties _ => ok (some parts)
-  | model.Axiom.DisjointObjectProperties _ => ok (some parts)
-  | model.Axiom.InverseObjectProperties _ _ => ok (some parts)
-  | model.Axiom.ObjectPropertyDomain property «class» =>
-    let o ← concepts.translate «class» true
-    match o with
-    | none => ok none
-    | some inside =>
-      let ope ← concepts.inverse property
-      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
-      ok (some p)
-  | model.Axiom.ObjectPropertyRange property «class» =>
-    let o ← concepts.translate «class» true
-    match o with
-    | none => ok none
-    | some inside =>
-      let ope ← concepts.copy_role property
-      let p ← shi_ontology.conjoin parts (concepts.Concept.Forall ope inside)
-      ok (some p)
-  | model.Axiom.FunctionalObjectProperty property =>
-    let ope ← concepts.copy_role property
-    let p ←
-      shi_ontology.conjoin parts (concepts.Concept.AtMost 1#usize ope
-        concepts.Concept.Top)
-    ok (some p)
-  | model.Axiom.InverseFunctionalObjectProperty property =>
-    let ope ← concepts.inverse property
-    let p ←
-      shi_ontology.conjoin parts (concepts.Concept.AtMost 1#usize ope
-        concepts.Concept.Top)
-    ok (some p)
-  | model.Axiom.ReflexiveObjectProperty property =>
-    let ope ← concepts.copy_role property
-    let p ← shi_ontology.conjoin parts (concepts.Concept.HasSelf ope)
-    ok (some p)
-  | model.Axiom.IrreflexiveObjectProperty property =>
-    let ope ← concepts.copy_role property
-    let p ← shi_ontology.conjoin parts (concepts.Concept.NotSelf ope)
-    ok (some p)
-  | model.Axiom.SymmetricObjectProperty _ => ok (some parts)
-  | model.Axiom.AsymmetricObjectProperty _ => ok (some parts)
-  | model.Axiom.TransitiveObjectProperty _ => ok (some parts)
-  | model.Axiom.SubDataPropertyOf _ _ => ok none
-  | model.Axiom.EquivalentDataProperties _ => ok none
-  | model.Axiom.DisjointDataProperties _ => ok none
-  | model.Axiom.DataPropertyDomain _ _ => ok none
-  | model.Axiom.DataPropertyRange _ _ => ok none
-  | model.Axiom.FunctionalDataProperty _ => ok none
-  | model.Axiom.DatatypeDefinition _ _ => ok none
-  | model.Axiom.HasKey _ _ _ => ok none
-  | model.Axiom.SameIndividual _ => ok (some parts)
-  | model.Axiom.DifferentIndividuals _ => ok (some parts)
-  | model.Axiom.ClassAssertion _ _ => ok (some parts)
-  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some parts)
-  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some parts)
-  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
-  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
-  | model.Axiom.AnnotationAssertion _ _ _ => ok (some parts)
-  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some parts)
-  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some parts)
-  | model.Axiom.AnnotationPropertyRange _ _ => ok (some parts)
-
-/-- [rowl_kernel::shi_ontology::parts_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 617:0-626:1 -/
-def shi_ontology.parts_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (parts : shi_ontology.Parts) :
-  Result (Option shi_ontology.Parts)
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let o ← shi_ontology.axiom_parts aa.axiom parts
-    match o with
-    | none => ok none
-    | some parts1 =>
-      let i1 ← index + 1#usize
-      shi_ontology.parts_from items i1 parts1
-  else ok (some parts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::class_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 629:0-638:1
-    Visibility: public -/
-def shi_ontology.class_parts
-  (items : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option shi_ontology.Parts)
-  := do
-  shi_ontology.parts_from items 0#usize
-    {
-      axioms := concepts.Concept.Top,
-      definitions := (alloc.vec.Vec.new completion.Definition)
-    }
-
-/-- [rowl_kernel::shi_ontology::subs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 642:0-662:1 -/
-def shi_ontology.subs_from
-  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
-  (sup : model.ObjectPropertyExpression)
-  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
-  := do
-  let i := alloc.vec.Vec.len inclusions
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Inclusion) inclusions index
-    let b ← concepts.same_role i1.sup sup
-    if b
-    then
-      let i2 := alloc.vec.Vec.len found
-      if i2 < core.num.Usize.MAX
-      then
-        let ope ← concepts.copy_role i1.sub
-        let found1 ← alloc.vec.Vec.push found ope
-        let i3 ← index + 1#usize
-        shi_ontology.subs_from inclusions i3 sup found1
-      else ok none
-    else
-      let i2 ← index + 1#usize
-      shi_ontology.subs_from inclusions i2 sup found
-  else ok (some found)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::sups_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 665:0-685:1 -/
-def shi_ontology.sups_from
-  (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
-  (sub : model.ObjectPropertyExpression)
-  (found : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
-  := do
-  let i := alloc.vec.Vec.len inclusions
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        hierarchy.Inclusion) inclusions index
-    let b ← concepts.same_role i1.sub sub
-    if b
-    then
-      let i2 := alloc.vec.Vec.len found
-      if i2 < core.num.Usize.MAX
-      then
-        let ope ← concepts.copy_role i1.sup
-        let found1 ← alloc.vec.Vec.push found ope
-        let i3 ← index + 1#usize
-        shi_ontology.sups_from inclusions i3 sub found1
-      else ok none
-    else
-      let i2 ← index + 1#usize
-      shi_ontology.sups_from inclusions i2 sub found
-  else ok (some found)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::row_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 688:0-709:1 -/
-def shi_ontology.row_from
-  (sub : model.ObjectPropertyExpression)
-  (above : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len above
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) above index
-    let b ← hierarchy.below roles sub ope
-    if b
-    then let i1 ← index + 1#usize
-         shi_ontology.row_from sub above i1 roles
-    else
-      let i1 := alloc.vec.Vec.len roles.inclusions
-      if i1 < core.num.Usize.MAX
-      then
-        let ope1 ← concepts.copy_role sub
-        let ope2 ← concepts.copy_role ope
-        let v ←
-          alloc.vec.Vec.push roles.inclusions ({ sub := ope1, sup := ope2 } :
-            hierarchy.Inclusion)
-        let i2 ← index + 1#usize
-        shi_ontology.row_from sub above i2 { roles with inclusions := v }
-      else ok none
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::pairs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 711:0-725:1 -/
-def shi_ontology.pairs_from
-  (lower : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (above : alloc.vec.Vec model.ObjectPropertyExpression)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len lower
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) lower index
-    let o ← shi_ontology.row_from ope above 0#usize roles
-    match o with
-    | none => ok none
-    | some roles1 =>
-      let i1 ← index + 1#usize
-      shi_ontology.pairs_from lower i1 above roles1
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::add_one]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 729:0-747:1 -/
-def shi_ontology.add_one
-  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let ope ← concepts.copy_role sub
-  let start ←
-    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
-  let o ← shi_ontology.subs_from roles.inclusions 0#usize sub start
-  match o with
-  | none => ok none
-  | some lower =>
-    let ope1 ← concepts.copy_role sup
-    let «end» ←
-      alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression)
-        ope1
-    let o1 ← shi_ontology.sups_from roles.inclusions 0#usize sup «end»
-    match o1 with
-    | none => ok none
-    | some upper => shi_ontology.pairs_from lower 0#usize upper roles
-
-/-- [rowl_kernel::shi_ontology::add_inclusion]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 750:0-762:1 -/
-def shi_ontology.add_inclusion
-  (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let o ← shi_ontology.add_one roles sub sup
-  match o with
-  | none => ok none
-  | some roles1 =>
-    let flipped_sub ← concepts.inverse sub
-    let flipped_sup ← concepts.inverse sup
-    shi_ontology.add_one roles1 flipped_sub flipped_sup
-
-/-- [rowl_kernel::shi_ontology::add_equal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 764:0-773:1 -/
-def shi_ontology.add_equal
-  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
-  (right : model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let o ← shi_ontology.add_inclusion roles left right
-  match o with
-  | none => ok none
-  | some roles1 => shi_ontology.add_inclusion roles1 right left
-
-/-- [rowl_kernel::shi_ontology::same_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 775:0-789:1 -/
-def shi_ontology.same_from
-  (first : model.ObjectPropertyExpression)
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) values index
-    let o ← shi_ontology.add_equal roles first ope
-    match o with
-    | none => ok none
-    | some roles1 =>
-      let i1 ← index + 1#usize
-      shi_ontology.same_from first values i1 roles1
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::add_equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 791:0-799:1 -/
-def shi_ontology.add_equivalent
-  (roles : hierarchy.RoleHierarchy)
-  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let o ← shi_ontology.add_equal roles members.first members.second
-  match o with
-  | none => ok none
-  | some roles1 =>
-    shi_ontology.same_from members.first members.rest 0#usize roles1
-
-/-- [rowl_kernel::shi_ontology::add_transitive]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 801:0-814:1 -/
-def shi_ontology.add_transitive
-  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let b ← hierarchy.is_transitive roles role
-  if b
-  then ok (some roles)
-  else
-    let i := alloc.vec.Vec.len roles.transitive
-    let i1 ← core.num.Usize.MAX - 1#usize
-    if i < i1
-    then
-      let ope ← concepts.copy_role role
-      let v ← alloc.vec.Vec.push roles.transitive ope
-      let ope1 ← concepts.inverse role
-      let v1 ← alloc.vec.Vec.push v ope1
-      ok (some { roles with transitive := v1 })
-    else ok none
-
-/-- [rowl_kernel::shi_ontology::hierarchy_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 817:0-846:1 -/
-def shi_ontology.hierarchy_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let roles1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some roles)
-      | model.Axiom.SubClassOf _ _ => ok (some roles)
-      | model.Axiom.EquivalentClasses _ => ok (some roles)
-      | model.Axiom.DisjointClasses _ => ok (some roles)
-      | model.Axiom.DisjointUnion _ _ => ok (some roles)
-      | model.Axiom.SubObjectPropertyOf sope sup =>
-        match sope with
-        | model.SubObjectPropertyExpression.Single sub =>
-          shi_ontology.add_inclusion roles sub sup
-        | model.SubObjectPropertyExpression.Chain _ => ok (some roles)
-      | model.Axiom.EquivalentObjectProperties members =>
-        shi_ontology.add_equivalent roles members
-      | model.Axiom.DisjointObjectProperties _ => ok (some roles)
-      | model.Axiom.InverseObjectProperties first second =>
-        do
-        let flipped ← concepts.inverse second
-        shi_ontology.add_equal roles first flipped
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
-      | model.Axiom.SymmetricObjectProperty role =>
-        do
-        let flipped ← concepts.inverse role
-        shi_ontology.add_inclusion roles role flipped
-      | model.Axiom.AsymmetricObjectProperty _ => ok (some roles)
-      | model.Axiom.TransitiveObjectProperty role =>
-        shi_ontology.add_transitive roles role
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
-      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
-      | model.Axiom.DisjointDataProperties _ => ok (some roles)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
-      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
-      | model.Axiom.HasKey _ _ _ => ok (some roles)
-      | model.Axiom.SameIndividual _ => ok (some roles)
-      | model.Axiom.DifferentIndividuals _ => ok (some roles)
-      | model.Axiom.ClassAssertion _ _ => ok (some roles)
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
-    match roles1 with
-    | none => ok none
-    | some roles2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.hierarchy_from items i1 roles2
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::add_disjoint]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 849:0-863:1 -/
-def shi_ontology.add_disjoint
-  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
-  (right : model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len roles.disjoint
-  if i < core.num.Usize.MAX
-  then
-    let ope ← concepts.copy_role left
-    let ope1 ← concepts.copy_role right
-    let v ←
-      alloc.vec.Vec.push roles.disjoint ({ left := ope, right := ope1 } :
-        hierarchy.Disjoint)
-    ok (some { roles with disjoint := v })
-  else ok none
-
-/-- [rowl_kernel::shi_ontology::apart_with]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 866:0-880:1 -/
-def shi_ontology.apart_with
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (first : Std.Usize)
-  (index : Std.Usize) (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len values
-  if first < i
-  then
-    let i1 := alloc.vec.Vec.len values
-    if index < i1
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) values first
-      let ope1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) values index
-      let o ← shi_ontology.add_disjoint roles ope ope1
-      match o with
-      | none => ok none
-      | some roles1 =>
-        let i2 ← index + 1#usize
-        shi_ontology.apart_with values first i2 roles1
-    else ok (some roles)
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::roles_apart]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 883:0-896:1 -/
-def shi_ontology.roles_apart
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let i1 ← index + 1#usize
-    let o ← shi_ontology.apart_with values index i1 roles
-    match o with
-    | none => ok none
-    | some roles1 => shi_ontology.roles_apart values i1 roles1
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::copy_roles_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 898:0-913:1 -/
-def shi_ontology.copy_roles_from
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
-  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let ope ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          model.ObjectPropertyExpression) values index
-      let ope1 ← concepts.copy_role ope
-      let out1 ← alloc.vec.Vec.push out ope1
-      let i2 ← index + 1#usize
-      shi_ontology.copy_roles_from values i2 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::add_disjoint_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 915:0-926:1 -/
-def shi_ontology.add_disjoint_members
-  (roles : hierarchy.RoleHierarchy)
-  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let ope ← concepts.copy_role members.first
-  let values ←
-    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
-  let ope1 ← concepts.copy_role members.second
-  let values1 ← alloc.vec.Vec.push values ope1
-  let o ← shi_ontology.copy_roles_from members.rest 0#usize values1
-  match o with
-  | none => ok none
-  | some values2 => shi_ontology.roles_apart values2 0#usize roles
-
-/-- [rowl_kernel::shi_ontology::constraints_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 930:0-951:1 -/
-def shi_ontology.constraints_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (roles : hierarchy.RoleHierarchy) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let roles1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some roles)
-      | model.Axiom.SubClassOf _ _ => ok (some roles)
-      | model.Axiom.EquivalentClasses _ => ok (some roles)
-      | model.Axiom.DisjointClasses _ => ok (some roles)
-      | model.Axiom.DisjointUnion _ _ => ok (some roles)
-      | model.Axiom.SubObjectPropertyOf _ _ => ok (some roles)
-      | model.Axiom.EquivalentObjectProperties _ => ok (some roles)
-      | model.Axiom.DisjointObjectProperties members =>
-        shi_ontology.add_disjoint_members roles members
-      | model.Axiom.InverseObjectProperties _ _ => ok (some roles)
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some roles)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some roles)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some roles)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some roles)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some roles)
-      | model.Axiom.SymmetricObjectProperty _ => ok (some roles)
-      | model.Axiom.AsymmetricObjectProperty role =>
-        do
-        let flipped ← concepts.inverse role
-        shi_ontology.add_disjoint roles role flipped
-      | model.Axiom.TransitiveObjectProperty _ => ok (some roles)
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some roles)
-      | model.Axiom.EquivalentDataProperties _ => ok (some roles)
-      | model.Axiom.DisjointDataProperties _ => ok (some roles)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.DataPropertyRange _ _ => ok (some roles)
-      | model.Axiom.FunctionalDataProperty _ => ok (some roles)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some roles)
-      | model.Axiom.HasKey _ _ _ => ok (some roles)
-      | model.Axiom.SameIndividual _ => ok (some roles)
-      | model.Axiom.DifferentIndividuals _ => ok (some roles)
-      | model.Axiom.ClassAssertion _ _ => ok (some roles)
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some roles)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some roles)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some roles)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some roles)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some roles)
-    match roles1 with
-    | none => ok none
-    | some roles2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.constraints_from items i1 roles2
-  else ok (some roles)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::role_hierarchy]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 954:0-983:1
-    Visibility: public -/
-def shi_ontology.role_hierarchy
-  (items : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option hierarchy.RoleHierarchy)
-  := do
-  let o ←
-    shi_ontology.constraints_from items 0#usize
-      {
-        inclusions := (alloc.vec.Vec.new hierarchy.Inclusion),
-        transitive := (alloc.vec.Vec.new model.ObjectPropertyExpression),
-        disjoint := (alloc.vec.Vec.new hierarchy.Disjoint)
-      }
-  match o with
-  | none => ok none
-  | some roles =>
-    let o1 ←
-      shi_ontology.hierarchy_from items 0#usize
-        {
-          inclusions := (alloc.vec.Vec.new hierarchy.Inclusion),
-          transitive := (alloc.vec.Vec.new model.ObjectPropertyExpression),
-          disjoint := (alloc.vec.Vec.new hierarchy.Disjoint)
-        }
-    match o1 with
-    | none => ok none
-    | some roles1 => ok (some { roles1 with disjoint := roles.disjoint })
-
-/-- [rowl_kernel::shi_ontology::chain_roles]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 985:0-992:1 -/
-def shi_ontology.chain_roles
-  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
-  := do
-  let ope ← concepts.copy_role members.first
-  let roles ←
-    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
-  let ope1 ← concepts.copy_role members.second
-  let roles1 ← alloc.vec.Vec.push roles ope1
-  shi_ontology.copy_roles_from members.rest 0#usize roles1
-
-/-- [rowl_kernel::shi_ontology::chains_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 995:0-1022:1
-    Visibility: public -/
-def shi_ontology.chains_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (out : alloc.vec.Vec role_chains.Chain) :
-  Result (Option (alloc.vec.Vec role_chains.Chain))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    match aa.axiom with
-    | model.Axiom.Declaration _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SubClassOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.EquivalentClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DisjointClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DisjointUnion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SubObjectPropertyOf sope sup =>
-      match sope with
-      | model.SubObjectPropertyExpression.Single _ =>
-        let i1 ← index + 1#usize
-        shi_ontology.chains_from items i1 out
-      | model.SubObjectPropertyExpression.Chain members =>
-        let o ← shi_ontology.chain_roles members
-        match o with
-        | none => ok none
-        | some roles =>
-          let i1 := alloc.vec.Vec.len out
-          if i1 < core.num.Usize.MAX
-          then
-            let ope ← concepts.copy_role sup
-            let out1 ←
-              alloc.vec.Vec.push out ({ roles, sup := ope } :
-                role_chains.Chain)
-            let i2 ← index + 1#usize
-            shi_ontology.chains_from items i2 out1
-          else ok none
-    | model.Axiom.EquivalentObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DisjointObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.InverseObjectProperties _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.ObjectPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.ObjectPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.FunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.InverseFunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.ReflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.IrreflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.AsymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.TransitiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SubDataPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.EquivalentDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DisjointDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DataPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DataPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.FunctionalDataProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DatatypeDefinition _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.HasKey _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SameIndividual _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DifferentIndividuals _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.ClassAssertion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.DataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.AnnotationAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.SubAnnotationPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.AnnotationPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-    | model.Axiom.AnnotationPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.chains_from items i1 out
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::pair_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1024:0-1028:1 -/
-def shi_ontology.pair_proper
-  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
-  :
-  Result Bool
-  := do
-  let lower ← universal.not_top sub
-  let upper ← universal.not_top sup
-  if lower
-  then ok upper
-  else ok false
-
-/-- [rowl_kernel::shi_ontology::rest_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1030:0-1037:1 -/
-def shi_ontology.rest_proper
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) values index
-    let here ← universal.not_top ope
-    if here
-    then let i1 ← index + 1#usize
-         shi_ontology.rest_proper values i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::members_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1039:0-1043:1 -/
-def shi_ontology.members_proper
-  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let first ← universal.not_top members.first
-  let second ← universal.not_top members.second
-  if first
-  then
-    if second
-    then shi_ontology.rest_proper members.rest 0#usize
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::shi_ontology::chain_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1046:0-1053:1 -/
-def shi_ontology.chain_proper
-  (members : model.AtLeastTwo model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result Bool
-  := do
-  let along ← shi_ontology.members_proper members
-  let upper ← universal.not_top sup
-  if upper
-  then ok along
-  else ok true
-
-/-- [rowl_kernel::shi_ontology::inclusion_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1056:0-1060:1 -/
-def shi_ontology.inclusion_proper
-  (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
-  :
-  Result Bool
-  := do
-  let lower ← universal.not_top sub
-  let upper ← universal.not_top sup
-  if lower
-  then ok true
-  else ok (¬ upper)
-
-/-- [rowl_kernel::shi_ontology::roles_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1064:0-1083:1 -/
-def shi_ontology.roles_proper
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let here ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok true
-      | model.Axiom.SubClassOf _ _ => ok true
-      | model.Axiom.EquivalentClasses _ => ok true
-      | model.Axiom.DisjointClasses _ => ok true
-      | model.Axiom.DisjointUnion _ _ => ok true
-      | model.Axiom.SubObjectPropertyOf sope sup =>
-        match sope with
-        | model.SubObjectPropertyExpression.Single sub =>
-          shi_ontology.inclusion_proper sub sup
-        | model.SubObjectPropertyExpression.Chain members =>
-          shi_ontology.chain_proper members sup
-      | model.Axiom.EquivalentObjectProperties members =>
-        shi_ontology.members_proper members
-      | model.Axiom.DisjointObjectProperties members =>
-        shi_ontology.members_proper members
-      | model.Axiom.InverseObjectProperties first second =>
-        shi_ontology.pair_proper first second
-      | model.Axiom.ObjectPropertyDomain _ _ => ok true
-      | model.Axiom.ObjectPropertyRange _ _ => ok true
-      | model.Axiom.FunctionalObjectProperty _ => ok true
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok true
-      | model.Axiom.ReflexiveObjectProperty _ => ok true
-      | model.Axiom.IrreflexiveObjectProperty _ => ok true
-      | model.Axiom.SymmetricObjectProperty _ => ok true
-      | model.Axiom.AsymmetricObjectProperty property =>
-        universal.not_top property
-      | model.Axiom.TransitiveObjectProperty _ => ok true
-      | model.Axiom.SubDataPropertyOf _ _ => ok true
-      | model.Axiom.EquivalentDataProperties _ => ok true
-      | model.Axiom.DisjointDataProperties _ => ok true
-      | model.Axiom.DataPropertyDomain _ _ => ok true
-      | model.Axiom.DataPropertyRange _ _ => ok true
-      | model.Axiom.FunctionalDataProperty _ => ok true
-      | model.Axiom.DatatypeDefinition _ _ => ok true
-      | model.Axiom.HasKey _ _ _ => ok true
-      | model.Axiom.SameIndividual _ => ok true
-      | model.Axiom.DifferentIndividuals _ => ok true
-      | model.Axiom.ClassAssertion _ _ => ok true
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok true
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok true
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok true
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok true
-      | model.Axiom.AnnotationAssertion _ _ _ => ok true
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok true
-      | model.Axiom.AnnotationPropertyRange _ _ => ok true
-    if here
-    then let i1 ← index + 1#usize
-         shi_ontology.roles_proper items i1
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::intern_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1087:0-1100:1 -/
-def shi_ontology.intern_rest
-  (nodes : alloc.vec.Vec model.Individual)
-  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let o ← alc_ontology.intern nodes i1
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let i2 ← index + 1#usize
-      shi_ontology.intern_rest nodes1 rest i2
-  else ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::intern_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1102:0-1115:1 -/
-def shi_ontology.intern_members
-  (nodes : alloc.vec.Vec model.Individual)
-  (members : model.AtLeastTwo model.Individual) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let o ← alc_ontology.intern nodes members.first
-  match o with
-  | none => ok none
-  | some nodes1 =>
-    let o1 ← alc_ontology.intern nodes1 members.second
-    match o1 with
-    | none => ok none
-    | some nodes2 => shi_ontology.intern_rest nodes2 members.rest 0#usize
-
-/-- [rowl_kernel::shi_ontology::members_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1118:0-1136:1 -/
-def shi_ontology.members_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (nodes : alloc.vec.Vec model.Individual) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let nodes1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some nodes)
-      | model.Axiom.SubClassOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentClasses _ => ok (some nodes)
-      | model.Axiom.DisjointClasses _ => ok (some nodes)
-      | model.Axiom.DisjointUnion _ _ => ok (some nodes)
-      | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
-      | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
-      | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some nodes)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
-      | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
-      | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
-      | model.Axiom.DisjointDataProperties _ => ok (some nodes)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
-      | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
-      | model.Axiom.HasKey _ _ _ => ok (some nodes)
-      | model.Axiom.SameIndividual members =>
-        shi_ontology.intern_members nodes members
-      | model.Axiom.DifferentIndividuals members =>
-        shi_ontology.intern_members nodes members
-      | model.Axiom.ClassAssertion _ _ => ok (some nodes)
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
-    match nodes1 with
-    | none => ok none
-    | some nodes2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.members_from items i1 nodes2
-  else ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::identity_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1138:0-1145:1 -/
-def shi_ontology.identity_from
-  (count : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  if index < count
-  then
-    let out1 ← alloc.vec.Vec.push out index
-    let i ← index + 1#usize
-    shi_ontology.identity_from count i out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::relabel]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1148:0-1157:1 -/
-def shi_ontology.relabel
-  (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
-  (index : Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len same
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        same index
-    let same1 ←
-      if i1 = «from»
-      then
-        do
-        let (_, index_mut_back) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            Std.Usize) same index
-        ok (index_mut_back into)
-      else ok same
-    let i2 ← index + 1#usize
-    shi_ontology.relabel same1 «from» into i2
-  else ok same
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::unite]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1160:0-1172:1 -/
-def shi_ontology.unite
-  (same : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len same
-  if left < i
-  then
-    let i1 := alloc.vec.Vec.len same
-    if right < i1
-    then
-      let into ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          same left
-      let «from» ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-          same right
-      if into = «from»
-      then ok same
-      else shi_ontology.relabel same «from» into 0#usize
-    else ok same
-  else ok same
-
-/-- [rowl_kernel::shi_ontology::unite_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1174:0-1188:1 -/
-def shi_ontology.unite_rest
-  (same : alloc.vec.Vec Std.Usize) (nodes : alloc.vec.Vec model.Individual)
-  (first : Std.Usize) (rest : alloc.vec.Vec model.Individual)
-  (index : Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let other ← alc_ontology.position nodes i1 0#usize
-    let same1 ← shi_ontology.unite same first other
-    let i2 ← index + 1#usize
-    shi_ontology.unite_rest same1 nodes first rest i2
-  else ok same
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::equalities_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1190:0-1210:1 -/
-def shi_ontology.equalities_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
-  (same : alloc.vec.Vec Std.Usize) :
-  Result (alloc.vec.Vec Std.Usize)
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let same1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok same
-      | model.Axiom.SubClassOf _ _ => ok same
-      | model.Axiom.EquivalentClasses _ => ok same
-      | model.Axiom.DisjointClasses _ => ok same
-      | model.Axiom.DisjointUnion _ _ => ok same
-      | model.Axiom.SubObjectPropertyOf _ _ => ok same
-      | model.Axiom.EquivalentObjectProperties _ => ok same
-      | model.Axiom.DisjointObjectProperties _ => ok same
-      | model.Axiom.InverseObjectProperties _ _ => ok same
-      | model.Axiom.ObjectPropertyDomain _ _ => ok same
-      | model.Axiom.ObjectPropertyRange _ _ => ok same
-      | model.Axiom.FunctionalObjectProperty _ => ok same
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok same
-      | model.Axiom.ReflexiveObjectProperty _ => ok same
-      | model.Axiom.IrreflexiveObjectProperty _ => ok same
-      | model.Axiom.SymmetricObjectProperty _ => ok same
-      | model.Axiom.AsymmetricObjectProperty _ => ok same
-      | model.Axiom.TransitiveObjectProperty _ => ok same
-      | model.Axiom.SubDataPropertyOf _ _ => ok same
-      | model.Axiom.EquivalentDataProperties _ => ok same
-      | model.Axiom.DisjointDataProperties _ => ok same
-      | model.Axiom.DataPropertyDomain _ _ => ok same
-      | model.Axiom.DataPropertyRange _ _ => ok same
-      | model.Axiom.FunctionalDataProperty _ => ok same
-      | model.Axiom.DatatypeDefinition _ _ => ok same
-      | model.Axiom.HasKey _ _ _ => ok same
-      | model.Axiom.SameIndividual members =>
-        do
-        let first ← alc_ontology.position nodes members.first 0#usize
-        let second ← alc_ontology.position nodes members.second 0#usize
-        let same2 ← shi_ontology.unite same first second
-        shi_ontology.unite_rest same2 nodes first members.rest 0#usize
-      | model.Axiom.DifferentIndividuals _ => ok same
-      | model.Axiom.ClassAssertion _ _ => ok same
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok same
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok same
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok same
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok same
-      | model.Axiom.AnnotationAssertion _ _ _ => ok same
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok same
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok same
-      | model.Axiom.AnnotationPropertyRange _ _ => ok same
-    let i1 ← index + 1#usize
-    shi_ontology.equalities_from items nodes i1 same1
-  else ok same
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::representative]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1212:0-1218:1 -/
-def shi_ontology.representative
-  (same : alloc.vec.Vec Std.Usize) (node : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len same
-  if node < i
-  then
-    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) same
-      node
-  else ok node
-
-/-- [rowl_kernel::shi_ontology::node_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1220:0-1222:1 -/
-def shi_ontology.node_of
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (individual : model.Individual) :
-  Result Std.Usize
-  := do
-  let i ← alc_ontology.position nodes individual 0#usize
-  shi_ontology.representative same i
-
-/-- [rowl_kernel::shi_ontology::meets]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1224:0-1240:1 -/
-def shi_ontology.meets
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (node : Std.Usize) (rest : alloc.vec.Vec model.Individual)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let i2 ← shi_ontology.node_of nodes same i1
-    if i2 = node
-    then ok true
-    else let i3 ← index + 1#usize
-         shi_ontology.meets nodes same node rest i3
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::repeats]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1242:0-1258:1 -/
-def shi_ontology.repeats
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let node ← shi_ontology.node_of nodes same i1
-    let i2 ← index + 1#usize
-    let b ← shi_ontology.meets nodes same node rest i2
-    if b
-    then ok true
-    else shi_ontology.repeats nodes same rest i2
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::shares]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1260:0-1272:1 -/
-def shi_ontology.shares
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (members : model.AtLeastTwo model.Individual) :
-  Result Bool
-  := do
-  let first ← shi_ontology.node_of nodes same members.first
-  let second ← shi_ontology.node_of nodes same members.second
-  if first = second
-  then ok true
-  else
-    let b ← shi_ontology.meets nodes same first members.rest 0#usize
-    if b
-    then ok true
-    else
-      let b1 ← shi_ontology.meets nodes same second members.rest 0#usize
-      if b1
-      then ok true
-      else shi_ontology.repeats nodes same members.rest 0#usize
-
-/-- [rowl_kernel::shi_ontology::clash_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1274:0-1294:1 -/
-def shi_ontology.clash_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    match aa.axiom with
-    | model.Axiom.Declaration _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SubClassOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.EquivalentClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DisjointClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DisjointUnion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SubObjectPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.EquivalentObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DisjointObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.InverseObjectProperties _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.ObjectPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.ObjectPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.FunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.InverseFunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.ReflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.IrreflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.AsymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.TransitiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SubDataPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.EquivalentDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DisjointDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DataPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DataPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.FunctionalDataProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DatatypeDefinition _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.HasKey _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SameIndividual _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DifferentIndividuals members =>
-      let b ← shi_ontology.shares nodes same members
-      if b
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        shi_ontology.clash_from items nodes same i1
-    | model.Axiom.ClassAssertion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.DataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.AnnotationAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.SubAnnotationPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.AnnotationPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-    | model.Axiom.AnnotationPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.clash_from items nodes same i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::nominal_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1297:0-1315:1 -/
-def shi_ontology.nominal_individuals
-  (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  match concept with
-  | concepts.Concept.Top => ok (some nodes)
-  | concepts.Concept.Bottom => ok (some nodes)
-  | concepts.Concept.Atom _ => ok (some nodes)
-  | concepts.Concept.NotAtom _ => ok (some nodes)
-  | concepts.Concept.One individual => alc_ontology.intern nodes individual
-  | concepts.Concept.NotOne individual => alc_ontology.intern nodes individual
-  | concepts.Concept.HasSelf _ => ok (some nodes)
-  | concepts.Concept.NotSelf _ => ok (some nodes)
-  | concepts.Concept.And left right =>
-    let o ← shi_ontology.nominal_individuals nodes left
-    match o with
-    | none => ok none
-    | some nodes1 => shi_ontology.nominal_individuals nodes1 right
-  | concepts.Concept.Or left right =>
-    let o ← shi_ontology.nominal_individuals nodes left
-    match o with
-    | none => ok none
-    | some nodes1 => shi_ontology.nominal_individuals nodes1 right
-  | concepts.Concept.Exists _ filler =>
-    shi_ontology.nominal_individuals nodes filler
-  | concepts.Concept.Forall _ filler =>
-    shi_ontology.nominal_individuals nodes filler
-  | concepts.Concept.AtLeast _ _ filler =>
-    shi_ontology.nominal_individuals nodes filler
-  | concepts.Concept.AtMost _ _ filler =>
-    shi_ontology.nominal_individuals nodes filler
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::definition_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1318:0-1331:1 -/
-def shi_ontology.definition_individuals
-  (nodes : alloc.vec.Vec model.Individual)
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let o ← shi_ontology.nominal_individuals nodes d.concept
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let i1 ← index + 1#usize
-      shi_ontology.definition_individuals nodes1 definitions i1
-  else ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::class_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1334:0-1339:1 -/
-def shi_ontology.class_individuals
-  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
-  :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let o ← concepts.translate «class» true
-  match o with
-  | none => ok none
-  | some concept => shi_ontology.nominal_individuals nodes concept
-
-/-- [rowl_kernel::shi_ontology::assertion_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1342:0-1359:1 -/
-def shi_ontology.assertion_individuals
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
-  (nodes : alloc.vec.Vec model.Individual) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let nodes1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some nodes)
-      | model.Axiom.SubClassOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentClasses _ => ok (some nodes)
-      | model.Axiom.DisjointClasses _ => ok (some nodes)
-      | model.Axiom.DisjointUnion _ _ => ok (some nodes)
-      | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
-      | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
-      | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some nodes)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
-      | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
-      | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
-      | model.Axiom.DisjointDataProperties _ => ok (some nodes)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
-      | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
-      | model.Axiom.HasKey _ _ _ => ok (some nodes)
-      | model.Axiom.SameIndividual _ => ok (some nodes)
-      | model.Axiom.DifferentIndividuals _ => ok (some nodes)
-      | model.Axiom.ClassAssertion «class» _ =>
-        shi_ontology.class_individuals nodes «class»
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
-    match nodes1 with
-    | none => ok none
-    | some nodes2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertion_individuals items i1 nodes2
-  else ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::add_fact]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1361:0-1368:1 -/
-def shi_ontology.add_fact
-  (facts : alloc.vec.Vec completion.Fact) (node : Std.Usize)
-  (concept : concepts.Concept) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len facts
-  if i < core.num.Usize.MAX
-  then
-    let facts1 ←
-      alloc.vec.Vec.push facts ({ node, concept } : completion.Fact)
-    ok (some facts1)
-  else ok none
-
-/-- [rowl_kernel::shi_ontology::named_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1371:0-1386:1 -/
-def shi_ontology.named_from
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len nodes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) nodes index
-    let node ← shi_ontology.node_of nodes same i1
-    let i2 ← concepts.copy_individual i1
-    let o ← shi_ontology.add_fact facts node (concepts.Concept.One i2)
-    match o with
-    | none => ok none
-    | some facts1 =>
-      let i3 ← index + 1#usize
-      shi_ontology.named_from nodes same i3 facts1
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::apart_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1389:0-1406:1 -/
-def shi_ontology.apart_rest
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (member : model.Individual) (rest : alloc.vec.Vec model.Individual)
-  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let node ← shi_ontology.node_of nodes same member
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let i2 ← concepts.copy_individual i1
-    let o ← shi_ontology.add_fact facts node (concepts.Concept.NotOne i2)
-    match o with
-    | none => ok none
-    | some facts1 =>
-      let i3 ← index + 1#usize
-      shi_ontology.apart_rest nodes same member rest i3 facts1
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::apart_within]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1409:0-1424:1 -/
-def shi_ontology.apart_within
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (rest : alloc.vec.Vec model.Individual) (index : Std.Usize)
-  (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) rest index
-    let i2 ← index + 1#usize
-    let o ← shi_ontology.apart_rest nodes same i1 rest i2 facts
-    match o with
-    | none => ok none
-    | some facts1 => shi_ontology.apart_within nodes same rest i2 facts1
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::apart_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1427:0-1451:1 -/
-def shi_ontology.apart_members
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (members : model.AtLeastTwo model.Individual)
-  (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let node ← shi_ontology.node_of nodes same members.first
-  let i ← concepts.copy_individual members.second
-  let o ← shi_ontology.add_fact facts node (concepts.Concept.NotOne i)
-  match o with
-  | none => ok none
-  | some facts1 =>
-    let o1 ←
-      shi_ontology.apart_rest nodes same members.first members.rest 0#usize
-        facts1
-    match o1 with
-    | none => ok none
-    | some facts2 =>
-      let o2 ←
-        shi_ontology.apart_rest nodes same members.second members.rest 0#usize
-          facts2
-      match o2 with
-      | none => ok none
-      | some facts3 =>
-        shi_ontology.apart_within nodes same members.rest 0#usize facts3
-
-/-- [rowl_kernel::shi_ontology::unequal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1453:0-1472:1 -/
-def shi_ontology.unequal_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let facts1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some facts)
-      | model.Axiom.SubClassOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentClasses _ => ok (some facts)
-      | model.Axiom.DisjointClasses _ => ok (some facts)
-      | model.Axiom.DisjointUnion _ _ => ok (some facts)
-      | model.Axiom.SubObjectPropertyOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentObjectProperties _ => ok (some facts)
-      | model.Axiom.DisjointObjectProperties _ => ok (some facts)
-      | model.Axiom.InverseObjectProperties _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some facts)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some facts)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some facts)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some facts)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some facts)
-      | model.Axiom.SymmetricObjectProperty _ => ok (some facts)
-      | model.Axiom.AsymmetricObjectProperty _ => ok (some facts)
-      | model.Axiom.TransitiveObjectProperty _ => ok (some facts)
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentDataProperties _ => ok (some facts)
-      | model.Axiom.DisjointDataProperties _ => ok (some facts)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.DataPropertyRange _ _ => ok (some facts)
-      | model.Axiom.FunctionalDataProperty _ => ok (some facts)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some facts)
-      | model.Axiom.HasKey _ _ _ => ok (some facts)
-      | model.Axiom.SameIndividual _ => ok (some facts)
-      | model.Axiom.DifferentIndividuals members =>
-        shi_ontology.apart_members nodes same members facts
-      | model.Axiom.ClassAssertion _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some facts)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some facts)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some facts)
-    match facts1 with
-    | none => ok none
-    | some facts2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.unequal_from items nodes same i1 facts2
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::refused_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1476:0-1502:1 -/
-def shi_ontology.refused_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let facts1 ←
-      match aa.axiom with
-      | model.Axiom.Declaration _ => ok (some facts)
-      | model.Axiom.SubClassOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentClasses _ => ok (some facts)
-      | model.Axiom.DisjointClasses _ => ok (some facts)
-      | model.Axiom.DisjointUnion _ _ => ok (some facts)
-      | model.Axiom.SubObjectPropertyOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentObjectProperties _ => ok (some facts)
-      | model.Axiom.DisjointObjectProperties _ => ok (some facts)
-      | model.Axiom.InverseObjectProperties _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyRange _ _ => ok (some facts)
-      | model.Axiom.FunctionalObjectProperty _ => ok (some facts)
-      | model.Axiom.InverseFunctionalObjectProperty _ => ok (some facts)
-      | model.Axiom.ReflexiveObjectProperty _ => ok (some facts)
-      | model.Axiom.IrreflexiveObjectProperty _ => ok (some facts)
-      | model.Axiom.SymmetricObjectProperty _ => ok (some facts)
-      | model.Axiom.AsymmetricObjectProperty _ => ok (some facts)
-      | model.Axiom.TransitiveObjectProperty _ => ok (some facts)
-      | model.Axiom.SubDataPropertyOf _ _ => ok (some facts)
-      | model.Axiom.EquivalentDataProperties _ => ok (some facts)
-      | model.Axiom.DisjointDataProperties _ => ok (some facts)
-      | model.Axiom.DataPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.DataPropertyRange _ _ => ok (some facts)
-      | model.Axiom.FunctionalDataProperty _ => ok (some facts)
-      | model.Axiom.DatatypeDefinition _ _ => ok (some facts)
-      | model.Axiom.HasKey _ _ _ => ok (some facts)
-      | model.Axiom.SameIndividual _ => ok (some facts)
-      | model.Axiom.DifferentIndividuals _ => ok (some facts)
-      | model.Axiom.ClassAssertion _ _ => ok (some facts)
-      | model.Axiom.ObjectPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.NegativeObjectPropertyAssertion role source target =>
-        do
-        let node ← shi_ontology.node_of nodes same source
-        let ope ← concepts.copy_role role
-        let i1 ← concepts.copy_individual target
-        shi_ontology.add_fact facts node (concepts.Concept.Forall ope
-          (concepts.Concept.NotOne i1))
-      | model.Axiom.DataPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok (some facts)
-      | model.Axiom.AnnotationAssertion _ _ _ => ok (some facts)
-      | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some facts)
-      | model.Axiom.AnnotationPropertyDomain _ _ => ok (some facts)
-      | model.Axiom.AnnotationPropertyRange _ _ => ok (some facts)
-    match facts1 with
-    | none => ok none
-    | some facts2 =>
-      let i1 ← index + 1#usize
-      shi_ontology.refused_from items nodes same i1 facts2
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::assertions_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1506:0-1534:1 -/
-def shi_ontology.assertions_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    match aa.axiom with
-    | model.Axiom.Declaration _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SubClassOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.EquivalentClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DisjointClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DisjointUnion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SubObjectPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.EquivalentObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DisjointObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.InverseObjectProperties _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.ObjectPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.ObjectPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.FunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.InverseFunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.ReflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.IrreflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.AsymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.TransitiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SubDataPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.EquivalentDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DisjointDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DataPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DataPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.FunctionalDataProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DatatypeDefinition _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.HasKey _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SameIndividual _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DifferentIndividuals _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.ClassAssertion «class» member =>
-      let o ← concepts.translate «class» true
-      match o with
-      | none => ok none
-      | some concept =>
-        let i1 := alloc.vec.Vec.len facts
-        if i1 < core.num.Usize.MAX
-        then
-          let i2 ← shi_ontology.node_of nodes same member
-          let facts1 ←
-            alloc.vec.Vec.push facts ({ node := i2, concept } :
-              completion.Fact)
-          let i3 ← index + 1#usize
-          shi_ontology.assertions_from items nodes same i3 facts1
-        else ok none
-    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.DataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.AnnotationAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.SubAnnotationPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.AnnotationPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-    | model.Axiom.AnnotationPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.assertions_from items nodes same i1 facts
-  else ok (some facts)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::links_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1537:0-1563:1 -/
-def shi_ontology.links_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (index : Std.Usize) (links : alloc.vec.Vec completion.Link) :
-  Result (Option (alloc.vec.Vec completion.Link))
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    match aa.axiom with
-    | model.Axiom.Declaration _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SubClassOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.EquivalentClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DisjointClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DisjointUnion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SubObjectPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.EquivalentObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DisjointObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.InverseObjectProperties _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.ObjectPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.ObjectPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.FunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.InverseFunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.ReflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.IrreflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.AsymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.TransitiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SubDataPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.EquivalentDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DisjointDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DataPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DataPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.FunctionalDataProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DatatypeDefinition _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.HasKey _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SameIndividual _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DifferentIndividuals _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.ClassAssertion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.ObjectPropertyAssertion role source target =>
-      let i1 := alloc.vec.Vec.len links
-      if i1 < core.num.Usize.MAX
-      then
-        let ope ← concepts.copy_role role
-        let i2 ← shi_ontology.node_of nodes same source
-        let i3 ← shi_ontology.node_of nodes same target
-        let links1 ←
-          alloc.vec.Vec.push links
-            ({ role := ope, «from» := i2, «to» := i3 } : completion.Link)
-        let i4 ← index + 1#usize
-        shi_ontology.links_from items nodes same i4 links1
-      else ok none
-    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.DataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.AnnotationAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.SubAnnotationPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.AnnotationPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-    | model.Axiom.AnnotationPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.links_from items nodes same i1 links
-  else ok (some links)
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::link_is]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1565:0-1575:1 -/
-def shi_ontology.link_is
-  (link : completion.Link) (role : model.ObjectPropertyExpression)
-  (source : Std.Usize) (target : Std.Usize) :
-  Result Bool
-  := do
-  if link.from = source
-  then if link.to = target
-       then concepts.same_role link.role role
-       else ok false
-  else ok false
-
-/-- [rowl_kernel::shi_ontology::linked_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1579:0-1598:1 -/
-def shi_ontology.linked_from
-  (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
-  (role : model.ObjectPropertyExpression)
-  (flipped : model.ObjectPropertyExpression) (source : Std.Usize)
-  (target : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len links
-  if index < i
-  then
-    let l ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Link) links index
-    let b ← shi_ontology.link_is l role source target
-    if b
-    then ok true
-    else
-      let b1 ← shi_ontology.link_is l flipped target source
-      if b1
-      then ok true
-      else
-        let i1 ← index + 1#usize
-        shi_ontology.linked_from links i1 role flipped source target
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::denied_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1601:0-1627:1 -/
-def shi_ontology.denied_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
-  (links : alloc.vec.Vec completion.Link) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    match aa.axiom with
-    | model.Axiom.Declaration _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SubClassOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.EquivalentClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DisjointClasses _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DisjointUnion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SubObjectPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.EquivalentObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DisjointObjectProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.InverseObjectProperties _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.ObjectPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.ObjectPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.FunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.InverseFunctionalObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.ReflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.IrreflexiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.AsymmetricObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.TransitiveObjectProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SubDataPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.EquivalentDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DisjointDataProperties _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DataPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DataPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.FunctionalDataProperty _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DatatypeDefinition _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.HasKey _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SameIndividual _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.DifferentIndividuals _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.ClassAssertion _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.NegativeObjectPropertyAssertion role source target =>
-      let flipped ← concepts.inverse role
-      let i1 ← shi_ontology.node_of nodes same source
-      let i2 ← shi_ontology.node_of nodes same target
-      let here ← shi_ontology.linked_from links 0#usize role flipped i1 i2
-      if here
-      then ok true
-      else
-        let i3 ← index + 1#usize
-        shi_ontology.denied_from items nodes same links i3
-    | model.Axiom.DataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.AnnotationAssertion _ _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.SubAnnotationPropertyOf _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.AnnotationPropertyDomain _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-    | model.Axiom.AnnotationPropertyRange _ _ =>
-      let i1 ← index + 1#usize
-      shi_ontology.denied_from items nodes same links i1
-  else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::shi_ontology::tangled]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1630:0-1632:1 -/
-def shi_ontology.tangled
-  (items : alloc.vec.Vec model.AnnotatedAxiom)
-  (roles : hierarchy.RoleHierarchy) :
-  Result Bool
-  := do
-  let b ← alc_ontology.has_negative items 0#usize
-  if b
-  then
-    let i := alloc.vec.Vec.len roles.inclusions
-    let b1 ←
-      if i = 0#usize
-      then let i1 := alloc.vec.Vec.len roles.transitive
-           ok (i1 = 0#usize)
-      else ok false
-    ok (¬ b1)
-  else ok false
-
-/-- [rowl_kernel::shi_ontology::constrained]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1635:0-1637:1 -/
-def shi_ontology.constrained
-  (roles : hierarchy.RoleHierarchy) : Result Bool := do
-  let i := alloc.vec.Vec.len roles.disjoint
-  ok (i != 0#usize)
-
-/-- [rowl_kernel::shi_ontology::chained]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1640:0-1642:1 -/
-def shi_ontology.chained
-  (chains : alloc.vec.Vec role_chains.Chain) : Result Bool := do
-  let i := alloc.vec.Vec.len chains
-  ok (i != 0#usize)
-
-/-- [rowl_kernel::shi_ontology::Prepared]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1654:0-1667:1
-    Visibility: public -/
-structure shi_ontology.Prepared where
-  nodes : alloc.vec.Vec model.Individual
-  same : alloc.vec.Vec Std.Usize
-  parts : shi_ontology.Parts
-  facts : alloc.vec.Vec completion.Fact
-  bound : alloc.vec.Vec completion.Fact
-  roles : hierarchy.RoleHierarchy
-  chains : alloc.vec.Vec role_chains.Chain
-  links : alloc.vec.Vec completion.Link
-  denied : Bool
-  forest : Bool
-  universal : Bool
-  clash : Bool
-
-/-- [rowl_kernel::shi_ontology::prepare]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1670:0-1761:1
-    Visibility: public -/
-def shi_ontology.prepare
-  (items : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option shi_ontology.Prepared)
-  := do
-  let o ←
-    alc_ontology.individuals_from items 0#usize (alloc.vec.Vec.new
-      model.Individual)
-  match o with
-  | none => ok none
-  | some nodes =>
-    let o1 ← shi_ontology.members_from items 0#usize nodes
-    match o1 with
-    | none => ok none
-    | some nodes1 =>
-      let o2 ← shi_ontology.class_parts items
-      match o2 with
-      | none => ok none
-      | some parts =>
-        let ope ← shi_ontology.empty_role
-        let parts1 ←
-          shi_ontology.conjoin parts (concepts.Concept.Forall ope
-            concepts.Concept.Bottom)
-        let o3 ← shi_ontology.nominal_individuals nodes1 parts1.axioms
-        match o3 with
-        | none => ok none
-        | some nodes2 =>
-          let o4 ←
-            shi_ontology.definition_individuals nodes2 parts1.definitions
-              0#usize
-          match o4 with
-          | none => ok none
-          | some nodes3 =>
-            let o5 ← shi_ontology.assertion_individuals items 0#usize nodes3
-            match o5 with
-            | none => ok none
-            | some nodes4 =>
-              let i := alloc.vec.Vec.len nodes4
-              let i1 ← i + 1#usize
-              let start ←
-                shi_ontology.identity_from i1 0#usize (alloc.vec.Vec.new
-                  Std.Usize)
-              let same ←
-                shi_ontology.equalities_from items nodes4 0#usize start
-              let o6 ←
-                shi_ontology.assertions_from items nodes4 same 0#usize
-                  (alloc.vec.Vec.new completion.Fact)
-              match o6 with
-              | none => ok none
-              | some facts =>
-                let o7 ← shi_ontology.role_hierarchy items
-                match o7 with
-                | none => ok none
-                | some roles =>
-                  let o8 ←
-                    shi_ontology.chains_from items 0#usize (alloc.vec.Vec.new
-                      role_chains.Chain)
-                  match o8 with
-                  | none => ok none
-                  | some chains =>
-                    let b ← shi_ontology.proper parts1.axioms
-                    if b
-                    then
-                      let b1 ←
-                        shi_ontology.definitions_proper parts1.definitions
-                          0#usize
-                      if b1
-                      then
-                        let b2 ← shi_ontology.facts_proper facts 0#usize
-                        if b2
-                        then
-                          let b3 ← shi_ontology.roles_proper items 0#usize
-                          if b3
-                          then
-                            let o9 ←
-                              shi_ontology.links_from items nodes4 same 0#usize
-                                (alloc.vec.Vec.new completion.Link)
-                            match o9 with
-                            | none => ok none
-                            | some links =>
-                              match o6 with
-                              | none => ok none
-                              | some bound =>
-                                let o10 ←
-                                  shi_ontology.named_from nodes4 same 0#usize
-                                    bound
-                                match o10 with
-                                | none => ok none
-                                | some bound1 =>
-                                  let o11 ←
-                                    shi_ontology.unequal_from items nodes4 same
-                                      0#usize bound1
-                                  match o11 with
-                                  | none => ok none
-                                  | some bound2 =>
-                                    let o12 ←
-                                      shi_ontology.refused_from items nodes4
-                                        same 0#usize bound2
-                                    match o12 with
-                                    | none => ok none
-                                    | some bound3 =>
-                                      let denied ←
-                                        shi_ontology.denied_from items nodes4
-                                          same links 0#usize
-                                      let b4 ←
-                                        shi_ontology.closure_counts parts1
-                                          facts
-                                      let forest ←
-                                        if b4
-                                        then ok true
-                                        else
-                                          do
-                                          let b5 ←
-                                            shi_ontology.closure_nominal parts1
-                                              facts
-                                          if b5
-                                          then ok true
-                                          else
-                                            let b6 ←
-                                              shi_ontology.tangled items roles
-                                            if b6
-                                            then ok true
-                                            else
-                                              let b7 ←
-                                                shi_ontology.constrained roles
-                                              if b7
-                                              then ok true
-                                              else shi_ontology.chained chains
-                                      let universal ←
-                                        shi_ontology.closure_universal parts1
-                                          bound3
-                                      let clash ←
-                                        shi_ontology.clash_from items nodes4
-                                          same 0#usize
-                                      ok (some
-                                        {
-                                          nodes := nodes4,
-                                          same,
-                                          parts := parts1,
-                                          facts,
-                                          bound := bound3,
-                                          roles,
-                                          chains,
-                                          links,
-                                          denied,
-                                          forest,
-                                          universal,
-                                          clash
-                                        })
-                          else ok none
-                        else ok none
-                      else ok none
-                    else ok none
-
-/-- [rowl_kernel::shi_ontology::question_forest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1764:0-1766:1 -/
-def shi_ontology.question_forest
-  (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
-  Result Bool
-  := do
-  if prepared.forest
-  then ok true
-  else
-    let b ← shi_ontology.facts_count extra 0#usize
-    if b
-    then ok true
-    else shi_ontology.facts_nominal extra 0#usize
-
-/-- [rowl_kernel::universal::copy_guess]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 466:0-475:1 -/
-def universal.copy_guess
-  (guess : alloc.vec.Vec Bool) (index : Std.Usize) (out : alloc.vec.Vec Bool) :
-  Result (alloc.vec.Vec Bool)
-  := do
-  let i := alloc.vec.Vec.len guess
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    let out1 ←
-      if i1 < core.num.Usize.MAX
-      then
-        do
-        let b ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
-            guess index
-        alloc.vec.Vec.push out b
-      else ok out
-    let i2 ← index + 1#usize
-    universal.copy_guess guess i2 out1
-  else ok out
-partial_fixpoint
-
-/-- [rowl_kernel::universal::witness]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 354:0-361:1 -/
-def universal.witness
-  (query : alloc.vec.Vec completion.Fact) (node : Std.Usize)
-  (concept : concepts.Concept) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len query
-  if i < core.num.Usize.MAX
-  then
-    let query1 ←
-      alloc.vec.Vec.push query ({ node, concept } : completion.Fact)
-    ok (some query1)
-  else ok none
-
-/-- [rowl_kernel::universal::same_concept]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 88:0-144:1 -/
-def universal.same_concept
-  (left : concepts.Concept) (right : concepts.Concept) : Result Bool := do
-  match left with
-  | concepts.Concept.Top =>
-    match right with
-    | concepts.Concept.Top => ok true
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.Bottom =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok true
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.Atom a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.NotAtom a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom b =>
-      symbols.same_spelling a.iri.spelling b.iri.spelling
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.One a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One b => assertion_equality.same_individual_value a b
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.NotOne a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne b => assertion_equality.same_individual_value a b
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.HasSelf a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf b => concepts.same_role a b
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.NotSelf a =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf b => concepts.same_role a b
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.And l1 r1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And l2 r2 =>
-      let b ← universal.same_concept l1 l2
-      if b
-      then universal.same_concept r1 r2
-      else ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.Or l1 r1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or l2 r2 =>
-      let b ← universal.same_concept l1 l2
-      if b
-      then universal.same_concept r1 r2
-      else ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.Exists r1 c1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists r2 c2 =>
-      let b ← concepts.same_role r1 r2
-      if b
-      then universal.same_concept c1 c2
-      else ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.Forall r1 c1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall r2 c2 =>
-      let b ← concepts.same_role r1 r2
-      if b
-      then universal.same_concept c1 c2
-      else ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.AtLeast n1 r1 c1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast n2 r2 c2 =>
-      if n1 = n2
-      then
-        let b ← concepts.same_role r1 r2
-        if b
-        then universal.same_concept c1 c2
-        else ok false
-      else ok false
-    | concepts.Concept.AtMost _ _ _ => ok false
-  | concepts.Concept.AtMost n1 r1 c1 =>
-    match right with
-    | concepts.Concept.Top => ok false
-    | concepts.Concept.Bottom => ok false
-    | concepts.Concept.Atom _ => ok false
-    | concepts.Concept.NotAtom _ => ok false
-    | concepts.Concept.One _ => ok false
-    | concepts.Concept.NotOne _ => ok false
-    | concepts.Concept.HasSelf _ => ok false
-    | concepts.Concept.NotSelf _ => ok false
-    | concepts.Concept.And _ _ => ok false
-    | concepts.Concept.Or _ _ => ok false
-    | concepts.Concept.Exists _ _ => ok false
-    | concepts.Concept.Forall _ _ => ok false
-    | concepts.Concept.AtLeast _ _ _ => ok false
-    | concepts.Concept.AtMost n2 r2 c2 =>
-      if n1 = n2
-      then
-        let b ← concepts.same_role r1 r2
-        if b
-        then universal.same_concept c1 c2
-        else ok false
-      else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::universal::atom_index]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 147:0-157:1 -/
-def universal.atom_index
-  (atoms : alloc.vec.Vec concepts.Concept) (concept : concepts.Concept)
-  (index : Std.Usize) :
-  Result Std.Usize
-  := do
-  let i := alloc.vec.Vec.len atoms
-  if index < i
-  then
-    let c ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        concepts.Concept) atoms index
-    let b ← universal.same_concept c concept
-    if b
-    then ok index
-    else let i1 ← index + 1#usize
-         universal.atom_index atoms concept i1
-  else ok (alloc.vec.Vec.len atoms)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::truth]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 234:0-245:1 -/
-def universal.truth
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
-  (concept : concepts.Concept) :
-  Result concepts.Concept
-  := do
-  let index ← universal.atom_index atoms concept 0#usize
-  let i := alloc.vec.Vec.len guess
-  if index < i
-  then
-    let b ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) guess
-        index
-    if b
-    then ok concepts.Concept.Top
-    else ok concepts.Concept.Bottom
-  else ok concepts.Concept.Bottom
-
-/-- [rowl_kernel::universal::fixed]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 248:0-303:1 -/
-def universal.fixed
-  (concept : concepts.Concept) (atoms : alloc.vec.Vec concepts.Concept)
-  (guess : alloc.vec.Vec Bool) :
-  Result concepts.Concept
-  := do
-  match concept with
-  | concepts.Concept.Top => ok concepts.Concept.Top
-  | concepts.Concept.Bottom => ok concepts.Concept.Bottom
-  | concepts.Concept.Atom «class» =>
-    let i ← nnf.copy_iri «class».iri
-    ok (concepts.Concept.Atom { iri := i })
-  | concepts.Concept.NotAtom «class» =>
-    let i ← nnf.copy_iri «class».iri
-    ok (concepts.Concept.NotAtom { iri := i })
-  | concepts.Concept.One individual =>
-    let i ← concepts.copy_individual individual
-    ok (concepts.Concept.One i)
-  | concepts.Concept.NotOne individual =>
-    let i ← concepts.copy_individual individual
-    ok (concepts.Concept.NotOne i)
-  | concepts.Concept.HasSelf role =>
-    let b ← universal.not_top role
-    if b
-    then let ope ← concepts.copy_role role
-         ok (concepts.Concept.HasSelf ope)
-    else ok concepts.Concept.Top
-  | concepts.Concept.NotSelf role =>
-    let b ← universal.not_top role
-    if b
-    then let ope ← concepts.copy_role role
-         ok (concepts.Concept.NotSelf ope)
-    else ok concepts.Concept.Bottom
-  | concepts.Concept.And left right =>
-    let c ← universal.fixed left atoms guess
-    let c1 ← universal.fixed right atoms guess
-    ok (concepts.Concept.And c c1)
-  | concepts.Concept.Or left right =>
-    let c ← universal.fixed left atoms guess
-    let c1 ← universal.fixed right atoms guess
-    ok (concepts.Concept.Or c c1)
-  | concepts.Concept.Exists role filler =>
-    let b ← universal.not_top role
-    if b
-    then
-      let ope ← concepts.copy_role role
-      let c ← universal.fixed filler atoms guess
-      ok (concepts.Concept.Exists ope c)
-    else universal.truth atoms guess concept
-  | concepts.Concept.Forall role filler =>
-    let b ← universal.not_top role
-    if b
-    then
-      let ope ← concepts.copy_role role
-      let c ← universal.fixed filler atoms guess
-      ok (concepts.Concept.Forall ope c)
-    else universal.truth atoms guess concept
-  | concepts.Concept.AtLeast n role filler =>
-    let ope ← concepts.copy_role role
-    let c ← universal.fixed filler atoms guess
-    ok (concepts.Concept.AtLeast n ope c)
-  | concepts.Concept.AtMost n role filler =>
-    let ope ← concepts.copy_role role
-    let c ← universal.fixed filler atoms guess
-    ok (concepts.Concept.AtMost n ope c)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::require]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 368:0-417:1 -/
-def universal.require
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
-  (base : Std.Usize) (index : Std.Usize) (axioms : concepts.Concept)
-  (query : alloc.vec.Vec completion.Fact) :
-  Result (Option (concepts.Concept × (alloc.vec.Vec completion.Fact)))
-  := do
-  let i := alloc.vec.Vec.len atoms
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len guess
-    if index < i1
-    then
-      let i2 ← core.num.Usize.MAX - base
-      if index < i2
-      then
-        let c ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            concepts.Concept) atoms index
-        match c with
-        | concepts.Concept.Top => ok none
-        | concepts.Concept.Bottom => ok none
-        | concepts.Concept.Atom _ => ok none
-        | concepts.Concept.NotAtom _ => ok none
-        | concepts.Concept.One _ => ok none
-        | concepts.Concept.NotOne _ => ok none
-        | concepts.Concept.HasSelf _ => ok none
-        | concepts.Concept.NotSelf _ => ok none
-        | concepts.Concept.And _ _ => ok none
-        | concepts.Concept.Or _ _ => ok none
-        | concepts.Concept.Exists _ filler =>
-          let inside ← universal.fixed filler atoms guess
-          let b ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
-              guess index
-          if b
-          then
-            let i3 ← base + index
-            let o ← universal.witness query i3 inside
-            match o with
-            | none => ok none
-            | some query1 =>
-              let i4 ← index + 1#usize
-              universal.require atoms guess base i4 axioms query1
-          else
-            let o ← concepts.negate inside
-            match o with
-            | none => ok none
-            | some outside =>
-              let i3 ← index + 1#usize
-              universal.require atoms guess base i3 (concepts.Concept.And
-                axioms outside) query
-        | concepts.Concept.Forall _ filler =>
-          let inside ← universal.fixed filler atoms guess
-          let b ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
-              guess index
-          if b
-          then
-            let i3 ← index + 1#usize
-            universal.require atoms guess base i3 (concepts.Concept.And axioms
-              inside) query
-          else
-            let o ← concepts.negate inside
-            match o with
-            | none => ok none
-            | some outside =>
-              let i3 ← base + index
-              let o1 ← universal.witness query i3 outside
-              match o1 with
-              | none => ok none
-              | some query1 =>
-                let i4 ← index + 1#usize
-                universal.require atoms guess base i4 axioms query1
-        | concepts.Concept.AtLeast _ _ _ => ok none
-        | concepts.Concept.AtMost _ _ _ => ok none
-      else
-        let i3 := alloc.vec.Vec.len atoms
-        if index < i3
-        then ok none
-        else ok (some (axioms, query))
-    else
-      let i2 := alloc.vec.Vec.len atoms
-      if index < i2
-      then ok none
-      else ok (some (axioms, query))
-  else
-    let i1 := alloc.vec.Vec.len atoms
-    if index < i1
-    then ok none
-    else ok (some (axioms, query))
-partial_fixpoint
-
-/-- [rowl_kernel::universal::fixed_definitions]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 329:0-351:1 -/
-def universal.fixed_definitions
-  (definitions : alloc.vec.Vec completion.Definition)
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
-  (index : Std.Usize) (out : alloc.vec.Vec completion.Definition) :
-  Result (Option (alloc.vec.Vec completion.Definition))
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let d ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          completion.Definition) definitions index
-      let i2 ← nnf.copy_iri d.class.iri
-      let c ← universal.fixed d.concept atoms guess
-      let out1 ←
-        alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept := c } :
-          completion.Definition)
-      let i3 ← index + 1#usize
-      universal.fixed_definitions definitions atoms guess i3 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::fixed_facts]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 306:0-326:1 -/
-def universal.fixed_facts
-  (facts : alloc.vec.Vec completion.Fact)
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool)
-  (index : Std.Usize) (out : alloc.vec.Vec completion.Fact) :
-  Result (Option (alloc.vec.Vec completion.Fact))
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let i1 := alloc.vec.Vec.len out
-    if i1 < core.num.Usize.MAX
-    then
-      let f ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-          completion.Fact) facts index
-      let c ← universal.fixed f.concept atoms guess
-      let out1 ← alloc.vec.Vec.push out { f with concept := c }
-      let i2 ← index + 1#usize
-      universal.fixed_facts facts atoms guess i2 out1
-    else ok none
-  else ok (some out)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::guessed]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 420:0-464:1 -/
-def universal.guessed
-  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
-  (facts : alloc.vec.Vec completion.Fact)
-  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
-  (definitions : alloc.vec.Vec completion.Definition)
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool) :
-  Result (Option Bool)
-  := do
-  let i := alloc.vec.Vec.len atoms
-  let i1 ← core.num.Usize.MAX - count
-  if i < i1
-  then
-    let o ←
-      universal.fixed_facts query atoms guess 0#usize (alloc.vec.Vec.new
-        completion.Fact)
-    match o with
-    | none => ok none
-    | some fixed_query =>
-      let fixed_axioms ← universal.fixed axioms atoms guess
-      let o1 ←
-        universal.require atoms guess count 0#usize fixed_axioms fixed_query
-      match o1 with
-      | none => ok none
-      | some required =>
-        let (fixed_axioms1, fixed_query1) := required
-        let o2 ←
-          universal.fixed_facts facts atoms guess 0#usize (alloc.vec.Vec.new
-            completion.Fact)
-        match o2 with
-        | none => ok none
-        | some fixed_facts =>
-          let o3 ←
-            universal.fixed_definitions definitions atoms guess 0#usize
-              (alloc.vec.Vec.new completion.Definition)
-          match o3 with
-          | none => ok none
-          | some fixed_definitions =>
-            let i2 := alloc.vec.Vec.len atoms
-            let i3 ← count + i2
-            role_chains.satisfiable i3 fixed_query1 fixed_facts links
-              fixed_axioms1 fixed_definitions roles chains
-  else ok none
-
-/-- [rowl_kernel::universal::guesses]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 478:0-538:1 -/
-def universal.guesses
-  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
-  (facts : alloc.vec.Vec completion.Fact)
-  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
-  (definitions : alloc.vec.Vec completion.Definition)
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  (atoms : alloc.vec.Vec concepts.Concept) (guess : alloc.vec.Vec Bool) :
-  Result (Option Bool)
-  := do
-  let i := alloc.vec.Vec.len guess
-  let i1 := alloc.vec.Vec.len atoms
-  if i < i1
-  then
-    let no ← universal.copy_guess guess 0#usize (alloc.vec.Vec.new Bool)
-    let no1 ← alloc.vec.Vec.push no false
-    let o ←
-      universal.guesses count query facts links axioms definitions roles chains
-        atoms no1
-    match o with
-    | none => ok none
-    | some b =>
-      if b
-      then ok o
-      else
-        let guess1 ← alloc.vec.Vec.push guess true
-        universal.guesses count query facts links axioms definitions roles
-          chains atoms guess1
-  else
-    universal.guessed count query facts links axioms definitions roles chains
-      atoms guess
-partial_fixpoint
-
-/-- [rowl_kernel::universal::add_atom]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 160:0-169:1 -/
-def universal.add_atom
-  (atoms : alloc.vec.Vec concepts.Concept) (concept : concepts.Concept) :
-  Result (Option (alloc.vec.Vec concepts.Concept))
-  := do
-  let i ← universal.atom_index atoms concept 0#usize
-  let i1 := alloc.vec.Vec.len atoms
-  if i < i1
-  then ok (some atoms)
-  else
-    let i2 := alloc.vec.Vec.len atoms
-    if i2 < core.num.Usize.MAX
-    then
-      let c ← concepts.copy_concept concept
-      let atoms1 ← alloc.vec.Vec.push atoms c
-      ok (some atoms1)
-    else ok none
-
-/-- [rowl_kernel::universal::collect]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 172:0-206:1 -/
-def universal.collect
-  (concept : concepts.Concept) (atoms : alloc.vec.Vec concepts.Concept) :
-  Result (Option (alloc.vec.Vec concepts.Concept))
-  := do
-  match concept with
-  | concepts.Concept.Top => ok (some atoms)
-  | concepts.Concept.Bottom => ok (some atoms)
-  | concepts.Concept.Atom _ => ok (some atoms)
-  | concepts.Concept.NotAtom _ => ok (some atoms)
-  | concepts.Concept.One _ => ok (some atoms)
-  | concepts.Concept.NotOne _ => ok (some atoms)
-  | concepts.Concept.HasSelf _ => ok (some atoms)
-  | concepts.Concept.NotSelf _ => ok (some atoms)
-  | concepts.Concept.And left right =>
-    let o ← universal.collect left atoms
-    match o with
-    | none => ok none
-    | some atoms1 => universal.collect right atoms1
-  | concepts.Concept.Or left right =>
-    let o ← universal.collect left atoms
-    match o with
-    | none => ok none
-    | some atoms1 => universal.collect right atoms1
-  | concepts.Concept.Exists role filler =>
-    let o ← universal.collect filler atoms
-    match o with
-    | none => ok none
-    | some atoms1 =>
-      let b ← universal.not_top role
-      if b
-      then ok o
-      else universal.add_atom atoms1 concept
-  | concepts.Concept.Forall role filler =>
-    let o ← universal.collect filler atoms
-    match o with
-    | none => ok none
-    | some atoms1 =>
-      let b ← universal.not_top role
-      if b
-      then ok o
-      else universal.add_atom atoms1 concept
-  | concepts.Concept.AtLeast _ _ filler => universal.collect filler atoms
-  | concepts.Concept.AtMost _ _ filler => universal.collect filler atoms
-partial_fixpoint
-
-/-- [rowl_kernel::universal::collect_definitions]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 219:0-232:1 -/
-def universal.collect_definitions
-  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
-  (atoms : alloc.vec.Vec concepts.Concept) :
-  Result (Option (alloc.vec.Vec concepts.Concept))
-  := do
-  let i := alloc.vec.Vec.len definitions
-  if index < i
-  then
-    let d ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Definition) definitions index
-    let o ← universal.collect d.concept atoms
-    match o with
-    | none => ok none
-    | some atoms1 =>
-      let i1 ← index + 1#usize
-      universal.collect_definitions definitions i1 atoms1
-  else ok (some atoms)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::collect_facts]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 208:0-217:1 -/
-def universal.collect_facts
-  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
-  (atoms : alloc.vec.Vec concepts.Concept) :
-  Result (Option (alloc.vec.Vec concepts.Concept))
-  := do
-  let i := alloc.vec.Vec.len facts
-  if index < i
-  then
-    let f ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Fact) facts index
-    let o ← universal.collect f.concept atoms
-    match o with
-    | none => ok none
-    | some atoms1 =>
-      let i1 ← index + 1#usize
-      universal.collect_facts facts i1 atoms1
-  else ok (some atoms)
-partial_fixpoint
-
-/-- [rowl_kernel::universal::GUESSES]
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 46:0-46:26 -/
-@[global_simps, irreducible] def universal.GUESSES : Std.Usize := 16#usize
-
-/-- [rowl_kernel::universal::satisfiable]:
-    Source: 'crates/rowl-kernel/src/universal.rs', lines 545:0-587:1
-    Visibility: public -/
-def universal.satisfiable
-  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
-  (facts : alloc.vec.Vec completion.Fact)
-  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
-  (definitions : alloc.vec.Vec completion.Definition)
-  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
-  :
-  Result (Option Bool)
-  := do
-  let o ← universal.collect axioms (alloc.vec.Vec.new concepts.Concept)
-  match o with
-  | none => ok none
-  | some atoms =>
-    let o1 ← universal.collect_definitions definitions 0#usize atoms
-    match o1 with
-    | none => ok none
-    | some atoms1 =>
-      let o2 ← universal.collect_facts facts 0#usize atoms1
-      match o2 with
-      | none => ok none
-      | some atoms2 =>
-        let o3 ← universal.collect_facts query 0#usize atoms2
-        match o3 with
-        | none => ok none
-        | some atoms3 =>
-          let i := alloc.vec.Vec.len atoms3
-          if i <= universal.GUESSES
-          then
-            universal.guesses count query facts links axioms definitions roles
-              chains atoms3 (alloc.vec.Vec.new Bool)
-          else ok none
-
-/-- [rowl_kernel::shi_ontology::prepared_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1777:0-1823:1 -/
-def shi_ontology.prepared_satisfiable
-  (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
-  Result (Option Bool)
-  := do
-  let b ← shi_ontology.facts_proper extra 0#usize
-  if b
-  then
-    let b1 ← shi_ontology.facts_known prepared.nodes extra 0#usize
-    if b1
-    then
-      if prepared.clash
-      then ok (some false)
-      else
-        if prepared.universal
-        then
-          let i := alloc.vec.Vec.len prepared.nodes
-          let i1 ← i + 1#usize
-          universal.satisfiable i1 extra prepared.bound prepared.links
-            prepared.parts.axioms prepared.parts.definitions prepared.roles
-            prepared.chains
-        else
-          let b2 ← universal.facts_universal extra 0#usize
-          if b2
-          then
-            let i := alloc.vec.Vec.len prepared.nodes
-            let i1 ← i + 1#usize
-            universal.satisfiable i1 extra prepared.bound prepared.links
-              prepared.parts.axioms prepared.parts.definitions prepared.roles
-              prepared.chains
-          else
-            let b3 ← shi_ontology.question_forest prepared extra
-            if b3
-            then
-              let i := alloc.vec.Vec.len prepared.nodes
-              let i1 ← i + 1#usize
-              role_chains.satisfiable i1 extra prepared.bound prepared.links
-                prepared.parts.axioms prepared.parts.definitions prepared.roles
-                prepared.chains
-            else
-              if prepared.denied
-              then ok (some false)
-              else
-                let i := alloc.vec.Vec.len prepared.nodes
-                let i1 ← i + 1#usize
-                completion.satisfiable i1 extra prepared.facts prepared.links
-                  prepared.parts.axioms prepared.parts.definitions
-                  prepared.roles
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::shi_ontology::prepared_consistent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1825:0-1827:1
-    Visibility: public -/
-def shi_ontology.prepared_consistent
-  (prepared : shi_ontology.Prepared) : Result (Option Bool) := do
-  shi_ontology.prepared_satisfiable prepared (alloc.vec.Vec.new
-    completion.Fact)
-
-/-- [rowl_kernel::shi_ontology::prepared_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1830:0-1838:1
-    Visibility: public -/
-def shi_ontology.prepared_class_satisfiable
-  (prepared : shi_ontology.Prepared) («class» : model.ClassExpression) :
-  Result (Option Bool)
-  := do
-  let o ← concepts.translate «class» true
-  match o with
-  | none => ok none
-  | some concept =>
-    let extra ←
-      alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
-        ({ node := 0#usize, concept } : completion.Fact)
-    shi_ontology.prepared_satisfiable prepared extra
-
-/-- [rowl_kernel::shi_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1841:0-1867:1
-    Visibility: public -/
-def shi_ontology.prepared_subsumed
-  (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
-  (sup : model.ClassExpression) :
-  Result (Option Bool)
-  := do
-  let o ← concepts.translate sub true
-  match o with
-  | none => ok none
-  | some inside =>
-    let o1 ← concepts.translate sup false
-    match o1 with
-    | none => ok none
-    | some outside =>
-      let extra ←
-        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
-          ({ node := 0#usize, concept := inside } : completion.Fact)
-      let extra1 ←
-        alloc.vec.Vec.push extra ({ node := 0#usize, concept := outside } :
-          completion.Fact)
-      let o2 ← shi_ontology.prepared_satisfiable prepared extra1
-      match o2 with
-      | none => ok none
-      | some satisfiable => ok (some (¬ satisfiable))
-
-/-- [rowl_kernel::shi_ontology::prepared_instance_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1870:0-1891:1
-    Visibility: public -/
-def shi_ontology.prepared_instance_of
-  (prepared : shi_ontology.Prepared) (individual : model.NamedIndividual)
-  («class» : model.ClassExpression) :
-  Result (Option Bool)
-  := do
-  let o ← concepts.translate «class» false
-  match o with
-  | none => ok none
-  | some outside =>
-    let i ← nnf.copy_iri individual.iri
-    let i1 ←
-      shi_ontology.node_of prepared.nodes prepared.same (model.Individual.Named
-        { iri := i })
-    let extra ←
-      alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
-        ({ node := i1, concept := outside } : completion.Fact)
-    let o1 ← shi_ontology.prepared_satisfiable prepared extra
-    match o1 with
-    | none => ok none
-    | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::shi_ontology::consistent]:
     Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1893:0-1898:1

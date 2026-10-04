@@ -232,4 +232,27 @@ theorem well_formed_nonempty : ([] : List Nat) ∉ WellFormedLanguage := by
       exact nil_not_word _ (by decide)
   simp only [WellFormedLanguage, Language.mem_add, not_or]
   exact ⟨nil_not_mul subtag, priv, grand⟩
+/-- Two lower-case letters are a well-formed language tag. -/
+theorem two_letters_well_formed (a b : Nat) (ha : 97 ≤ a ∧ a ≤ 122) (hb : 97 ≤ b ∧ b ≤ 122) :
+    [a, b] ∈ WellFormedLanguage := by
+  have alphaA : [a] ∈ Alpha := (Language.mem_add _ _ _).mpr (.inr ⟨a, rfl, ha.1, ha.2⟩)
+  have alphaB : [b] ∈ Alpha := (Language.mem_add _ _ _).mpr (.inr ⟨b, rfl, hb.1, hb.2⟩)
+  have one : ([] : List Nat) ∈ (1 : Language Nat) := (Language.mem_one _).mpr rfl
+  have optional : ∀ l : Language Nat, ([] : List Nat) ∈ Optional l :=
+    fun l => (Language.mem_add _ _ _).mpr (.inl one)
+  have pair : [a, b] ∈ Alpha ^ 2 := by
+    rw [pow_two]
+    exact Language.mem_mul.mpr ⟨[a], alphaA, [b], alphaB, rfl⟩
+  have atMost : ([] : List Nat) ∈ AtMost Alpha 1 := (Language.mem_add _ _ _).mpr (.inl one)
+  have subtag : [a, b] ∈ LanguageSubtag :=
+    (Language.mem_add _ _ _).mpr (.inl (Language.mem_mul.mpr ⟨[a, b],
+      Language.mem_mul.mpr ⟨[a, b], pair, [], atMost, rfl⟩, [], optional _, rfl⟩))
+  have rest : ([] : List Nat) ∈ Optional (Dashed (Alpha ^ 4)) *
+      (Optional (Dashed (Alpha ^ 2 + Digit ^ 3)) * ((Dashed Variant)∗ * ((Dashed Extension)∗ *
+        Optional (Dashed PrivateUse)))) :=
+    Language.mem_mul.mpr ⟨[], optional _, [], Language.mem_mul.mpr ⟨[], optional _, [],
+      Language.mem_mul.mpr ⟨[], Language.nil_mem_kstar _, [], Language.mem_mul.mpr ⟨[], Language.nil_mem_kstar _,
+        [], optional _, rfl⟩, rfl⟩, rfl⟩, rfl⟩
+  have tagged : [a, b] ∈ Langtag := Language.mem_mul.mpr ⟨[a, b], subtag, [], rest, rfl⟩
+  exact (Language.mem_add _ _ _).mpr (.inl tagged)
 end Rowl.LangTag

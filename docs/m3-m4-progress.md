@@ -3918,8 +3918,73 @@ lexical space with that value, distinct canonical values are distinct values
 membership in the value space (in_kind_correct, normative_in_kind): integers are
 decimals, strings are plain literals, and nothing else overlaps. These values
 are what the reasoner needs to tell literals apart and to place them in data
-ranges; the reasoner itself does not use them yet.
+ranges.
 
 This block adds 66 public theorems and 41 independent definitions. Totals are
 1754 audited theorems, 956 definitions, 469 Rust regressions and 1947 ledger
+obligations.
+
+## M5: data properties and literals in the ontology queries
+
+`data_ontology` answers consistency, class satisfiability, subsumption and
+instance checking for closures with data properties and literals of the five
+datatypes, by an encoding into classes, object properties and named
+individuals that the SROIQ queries of `shi_ontology` decide. The data values of
+a model become further elements, the data nodes, of a class `D`; every data
+property of the context (`Context`: the distinct literal values, the kinds in
+use, the object and the data properties) becomes an object property from
+elements that are no data nodes to data nodes, `owl:bottomDataProperty` the
+empty role; every literal value becomes a named data node, in the kind classes
+its value is in and with a pattern of bit classes that tells it apart; every
+datatype in use becomes a class, with the inclusions of integers in decimals and
+of strings in plain literals, the disjointness of the rest, and the booleans as
+the two truth values; and every object property of the context relates only
+elements that are no data nodes (`encode_meaning`, `Frame`). A class expression
+that a data node could satisfy is conjoined with the complement of `D` on the
+left of an inclusion, in equivalent and disjoint classes and in assertions;
+guarded expressions (named classes other than `owl:Thing`, nominals and
+restrictions that need a neighbour) are not, since no data node of a model made
+from an OWL model satisfies them (`guarded_meaning`).
+
+A correspondence between an OWL interpretation and an interpretation of the
+encoding (`Simulates`) places the elements of the first one to one at the
+elements of the second that are no data nodes, agrees on every name that is not
+the encoding's, and counts the values of every data restriction alike; under it
+the encoding of a class expression holds exactly where the expression does
+(`encode_class_meaning`, `encode_range_meaning`). For axioms the values of the
+data properties also sit at data nodes one to one, element by element
+(`Placed`), and each of the 37 axiom forms is satisfied exactly when the axioms
+it becomes are (`encode_axiom_meaning`); the converse direction needs the data
+nodes kept apart from the names (`Inert`). An OWL model gives such a
+correspondence with its own values as the data nodes (`lifted`,
+`lifted_satisfies`, `lifted_class`). A model of the encoding gives one too
+(`sound`, `sound_satisfies`, `sound_class`): its elements that are no data nodes
+are the OWL elements, each literal value's individual gets its value, and each
+element gives each data node that witnesses one of its finitely many data
+restrictions a fresh value of the kinds that node's classes say. The values
+come from infinite regions of integers, decimals that are no integers, strings
+of the letter a, tagged strings and values outside every datatype
+(`regionValue`, `region_space`, `region_profile`), beyond the finitely many
+literal values, so distinct nodes of an element get distinct values. The truth
+values are the only booleans, so a boolean data node is always a literal's.
+Reinterpreting anonymous individuals leaves the encoded fillers' meaning
+unchanged (`filler_anonymous`). Under every datatype map that is the OWL 2 map
+on the five datatypes, an answer of the queries is therefore the answer of the
+2012 Direct Semantics (`consistent_correct`, `class_satisfiable_correct`,
+`subsumed_correct`, `instance_of_correct`, and their prepared forms on a closure
+prepared once, `prepare_correct`).
+
+There is no answer for a datatype restriction, a datatype definition, a key,
+another datatype, a literal outside its lexical space, `owl:topDataProperty`
+outside an inclusion into it, `owl:Thing` as a disjoint union, a number
+restriction along the universal role, the universal role included in another
+role, in a chain included in another role, equivalent or inverse to a role, or
+functional or inverse functional, a name starting with the byte 0, or a
+question that names an anonymous individual or one that the closure does not
+name. Closures without data properties, literal values and datatypes go to the
+SROIQ queries unchanged. The Functional Syntax reader does not read data
+axioms yet, and facets remain pending.
+
+This block adds 340 public theorems and 78 definitions. Totals are 2094
+audited theorems, 1034 definitions, 481 Rust regressions and 2287 ledger
 obligations.

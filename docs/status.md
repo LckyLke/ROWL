@@ -871,8 +871,31 @@ progress. Full OWL parsing and executable reasoning are still future work.
   exactly for a literal of these datatypes in its lexical space; under every
   normative map that is the literal's value, equal values are equal kernel
   values (`1`, `+01` and `1.000` are one), and datatype membership is exact.
-  Facets, the other datatypes and data reasoning remain pending.
-- 1754 audited public theorems and 956 audited semantic definitions. Consistency,
+  Facets and the other datatypes remain pending.
+- M5 data properties and literals in the ontology queries: consistency, class
+  satisfiability, subsumption and instance checking (`data_ontology`) take data
+  properties with their domains, ranges, inclusions, equivalences,
+  disjointness and functionality, data restrictions (existential, universal,
+  value and number restrictions) over ranges of the five datatypes,
+  `rdfs:Literal`, literal enumerations and their intersections, unions and
+  complements, and positive and negative data property assertions. An encoding
+  turns them into classes, object properties and named individuals that the
+  SROIQ queries decide: the data values become data nodes of a class `D`, each
+  data property an object property into them, each datatype in use a class
+  with the inclusions and disjointness of the datatypes and the booleans as the
+  two truth values, and each literal value a named data node that a pattern of
+  bit classes keeps apart from the others. An OWL model lifts to a model of the
+  encoding with its values as the data nodes, and a model of the encoding gives
+  an OWL model in which each element takes its values from infinite regions of
+  integers, decimals that are no integers, strings, tagged strings and values
+  outside every datatype. Under every datatype map that is the OWL 2 map on the
+  five datatypes an answer is therefore the Direct Semantics answer. Datatype
+  restrictions, datatype definitions, keys, the other datatypes,
+  `owl:topDataProperty` outside an inclusion into it and the universal role
+  outside its own axioms get no answer, as does a question that names an
+  individual the closure does not name. The Functional Syntax reader does not
+  read data axioms yet.
+- 2094 audited public theorems and 1034 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -882,10 +905,11 @@ progress. Full OWL parsing and executable reasoning are still future work.
   assertions, individual equalities and inequalities, and inclusions,
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
-  Functional Syntax source bytes.
+  Functional Syntax source bytes, and with data properties, data restrictions
+  and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 469 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 481 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -900,7 +924,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1947-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2287-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -956,8 +980,9 @@ canonical catalog/import construction remains pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. Agreement with the OWL 2 map on five datatypes is specified
-(Rowl.DatatypeMap.Normative) and satisfiable; the complete normative OWL map,
-its other datatypes and facets are unimplemented. Semantic
+(Rowl.DatatypeMap.Normative) and satisfiable, and the data queries are proved
+under every such map; the complete normative OWL map, its other datatypes and
+facets are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity, vocabulary membership, canonical structure and DL restrictions.
 No ValidatedOntology or definitive OWL-query entry point exists yet.

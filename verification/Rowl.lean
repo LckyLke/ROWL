@@ -143,3 +143,10 @@ import Rowl.ShiNominals
 import Rowl.ShiOntology
 import Rowl.DatatypeMap
 import Rowl.Datatypes
+import Rowl.DataEncoding
+import Rowl.DataMeaning
+import Rowl.DataAxioms
+import Rowl.DataStructure
+import Rowl.DataComplete
+import Rowl.DataSound
+import Rowl.DataOntology
