@@ -332,8 +332,8 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         answer(source_consistent(&bytes, &limits(), &scope)),
         Some(false)
     );
-    // Role axioms with built-in object properties are read but not answered.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p owl:topObjectProperty)\n)"
+    // A role that includes the universal role is read but not answered.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(owl:topObjectProperty :p)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
@@ -632,7 +632,7 @@ fn one_reading_answers_many_questions() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Axioms outside the supported fragment are read but not prepared.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(:p owl:topObjectProperty)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(owl:topObjectProperty :p)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(
@@ -680,6 +680,48 @@ fn the_empty_role_is_answered_from_source_bytes() {
         .to_vec();
     assert_eq!(
         answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+}
+
+#[test]
+fn the_universal_role_is_answered_from_source_bytes() {
+    let scope = b"medication".to_vec();
+    // If any patient takes warfarin, every prescription must be reviewed.
+    let rule = " SubClassOf(ObjectSomeValuesFrom(owl:topObjectProperty ObjectIntersectionOf(:Patient ObjectSomeValuesFrom(:takes :Warfarin))) ObjectAllValuesFrom(owl:topObjectProperty ObjectUnionOf(ObjectComplementOf(:Prescription) :Reviewed)))\n ClassAssertion(:Prescription :rx7)\n";
+    let rx7 = NamedIndividual {
+        iri: Iri {
+            spelling: b"https://example.org/rx7".to_vec(),
+        },
+    };
+    let reviewed = ClassExpression::Class(Class {
+        iri: Iri {
+            spelling: b"https://example.org/Reviewed".to_vec(),
+        },
+    });
+    let quiet =
+        format!("Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n{rule})")
+            .into_bytes();
+    assert_eq!(
+        answer(source_instance_of(
+            &quiet,
+            &limits(),
+            &scope,
+            &rx7,
+            &reviewed
+        )),
+        Some(false)
+    );
+    let taken = format!("Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n{rule} ClassAssertion(:Patient :ann)\n ObjectPropertyAssertion(:takes :ann :w1)\n ClassAssertion(:Warfarin :w1)\n)")
+        .into_bytes();
+    assert_eq!(
+        answer(source_instance_of(
+            &taken,
+            &limits(),
+            &scope,
+            &rx7,
+            &reviewed
+        )),
         Some(true)
     );
 }

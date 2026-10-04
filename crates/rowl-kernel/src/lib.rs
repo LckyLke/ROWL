@@ -86,6 +86,8 @@ pub mod forest;
 
 pub mod role_chains;
 
+pub mod universal;
+
 pub mod shi_ontology;
 
 pub mod source_reasoning;

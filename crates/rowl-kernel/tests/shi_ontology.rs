@@ -292,8 +292,8 @@ fn negative_assertions_and_unsupported_inputs() {
         property(TOP_OBJECT),
     ))];
     assert_eq!(consistent(&builtin), None);
-    let in_concept = vec![sub(class(b"A"), some(TOP_OBJECT, class(b"B")))];
-    assert_eq!(consistent(&in_concept), None);
+    let counted = vec![sub(class(b"A"), at_least(1, TOP_OBJECT, class(b"B")))];
+    assert_eq!(consistent(&counted), None);
     let functional_data = vec![axiom(Axiom::FunctionalDataProperty(DataProperty {
         iri: iri(b"weight"),
     }))];
@@ -415,6 +415,8 @@ fn member(i: &Finite, name: &[u8], x: usize) -> bool {
 }
 fn edge(i: &Finite, role: &ObjectPropertyExpression, x: usize, y: usize) -> bool {
     match role {
+        ObjectPropertyExpression::Property(p) if p.iri.spelling == TOP_OBJECT => true,
+        ObjectPropertyExpression::Inverse(p) if p.iri.spelling == TOP_OBJECT => true,
         ObjectPropertyExpression::Property(_) => i.r >> (x * i.size + y) & 1 == 1,
         ObjectPropertyExpression::Inverse(_) => i.r >> (y * i.size + x) & 1 == 1,
     }
@@ -2003,4 +2005,259 @@ fn the_empty_role_relates_nothing() {
     ];
     assert_eq!(subsumed(&ranged, &thing(), &class(b"A")), Some(false));
     assert_eq!(subsumed(&ranged, &thing(), &class(b"B")), Some(false));
+}
+
+const TOP_ROLE: &[u8] = TOP_OBJECT;
+fn everywhere(c: ClassExpression) -> ClassExpression {
+    all(TOP_ROLE, c)
+}
+fn somewhere(c: ClassExpression) -> ClassExpression {
+    some(TOP_ROLE, c)
+}
+
+#[test]
+fn the_universal_role_relates_every_pair() {
+    // Somewhere and everywhere: ∃U.A holds wherever any element is an A.
+    assert_eq!(
+        class_satisfiable(&Vec::new(), &somewhere(class(b"A"))),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(
+            &Vec::new(),
+            &and(somewhere(class(b"A")), everywhere(not(class(b"A"))))
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &class(b"A"), &somewhere(class(b"A"))),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &everywhere(class(b"A")), &class(b"A")),
+        Some(true)
+    );
+    // Along the inverse, too.
+    assert_eq!(
+        subsumed(
+            &Vec::new(),
+            &class(b"A"),
+            &some_along(inverse(TOP_ROLE), class(b"A"))
+        ),
+        Some(true)
+    );
+    // An individual reaches every other element, related or not.
+    let items = vec![
+        asserted(class(b"A"), named(b"a")),
+        sub(somewhere(class(b"A")), class(b"B")),
+    ];
+    assert_eq!(
+        instance_of(&items, &individual(b"b"), &class(b"B")),
+        Some(true)
+    );
+    assert_eq!(class_satisfiable(&items, &not(class(b"B"))), Some(false));
+    let without = vec![sub(somewhere(class(b"A")), class(b"B"))];
+    assert_eq!(subsumed(&without, &thing(), &class(b"B")), Some(false));
+    // A universal restriction anywhere holds everywhere.
+    let items = vec![
+        sub(class(b"C"), everywhere(class(b"D"))),
+        asserted(class(b"C"), named(b"c")),
+    ];
+    assert_eq!(subsumed(&items, &thing(), &class(b"D")), Some(true));
+    let unasserted = vec![sub(class(b"C"), everywhere(class(b"D")))];
+    assert_eq!(subsumed(&unasserted, &thing(), &class(b"D")), Some(false));
+    // Every element is a value of the universal role, and related to itself.
+    let named_one = vec![asserted(class(b"A"), named(b"a"))];
+    assert_eq!(
+        subsumed(
+            &named_one,
+            &thing(),
+            &ClassExpression::ObjectHasValue(property(TOP_ROLE), named(b"a"))
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &thing(), &has_self(property(TOP_ROLE))),
+        Some(true)
+    );
+}
+
+#[test]
+fn axioms_about_the_universal_role() {
+    let top = || property(TOP_ROLE);
+    // Its domain and range hold everywhere.
+    let ranged = vec![axiom(Axiom::ObjectPropertyRange(top(), class(b"A")))];
+    assert_eq!(subsumed(&ranged, &thing(), &class(b"A")), Some(true));
+    let domained = vec![axiom(Axiom::ObjectPropertyDomain(top(), class(b"A")))];
+    assert_eq!(subsumed(&domained, &thing(), &class(b"A")), Some(true));
+    // It relates every pair, and every role is included in it.
+    assert_eq!(
+        consistent(&vec![related(top(), named(b"a"), named(b"b"))]),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&vec![axiom(Axiom::NegativeObjectPropertyAssertion(
+            top(),
+            named(b"a"),
+            named(b"b"),
+        ))]),
+        Some(false)
+    );
+    let below = vec![
+        included(property(b"r"), top()),
+        chain_of(vec![property(b"p"), property(b"q")], top()),
+        axiom(Axiom::TransitiveObjectProperty(top())),
+        axiom(Axiom::SymmetricObjectProperty(top())),
+        axiom(Axiom::ReflexiveObjectProperty(top())),
+    ];
+    assert_eq!(consistent(&below), Some(true));
+    assert_eq!(
+        class_satisfiable(
+            &below,
+            &and(some(b"r", class(b"A")), everywhere(class(b"B")))
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        consistent(&vec![axiom(Axiom::IrreflexiveObjectProperty(top()))]),
+        Some(false)
+    );
+    // Making another role universal, counting along it, or keeping it apart
+    // from another role gets no answer.
+    for unsupported in [
+        included(top(), property(b"r")),
+        axiom(Axiom::EquivalentObjectProperties(two(
+            top(),
+            property(b"r"),
+            Vec::new(),
+        ))),
+        axiom(Axiom::InverseObjectProperties(property(b"r"), top())),
+        axiom(Axiom::AsymmetricObjectProperty(top())),
+        axiom(Axiom::DisjointObjectProperties(two(
+            top(),
+            property(b"r"),
+            Vec::new(),
+        ))),
+        axiom(Axiom::FunctionalObjectProperty(top())),
+        chain_of(vec![top(), property(b"p")], property(b"q")),
+        sub(class(b"A"), at_least(2, TOP_ROLE, class(b"B"))),
+    ] {
+        assert_eq!(consistent(&vec![unsupported]), None);
+    }
+}
+
+#[test]
+fn a_warfarin_prescription_anywhere_needs_review_everywhere() {
+    // If any patient takes warfarin, every prescription must be reviewed.
+    let rule = sub(
+        somewhere(and(class(b"Patient"), some(b"takes", class(b"Warfarin")))),
+        everywhere(or(not(class(b"Prescription")), class(b"Reviewed"))),
+    );
+    let mut items = vec![
+        rule,
+        asserted(class(b"Prescription"), named(b"rx7")),
+        asserted(class(b"Patient"), named(b"bob")),
+    ];
+    assert_eq!(
+        instance_of(&items, &individual(b"rx7"), &class(b"Reviewed")),
+        Some(false)
+    );
+    items.push(related(property(b"takes"), named(b"ann"), named(b"w1")));
+    items.push(asserted(class(b"Patient"), named(b"ann")));
+    items.push(asserted(class(b"Warfarin"), named(b"w1")));
+    assert_eq!(
+        instance_of(&items, &individual(b"rx7"), &class(b"Reviewed")),
+        Some(true)
+    );
+    let prepared = prepare(&items).expect("supported axioms");
+    assert_eq!(
+        prepared_subsumed(&prepared, &class(b"Prescription"), &class(b"Reviewed")),
+        Some(true)
+    );
+    assert_eq!(prepared_consistent(&prepared), Some(true));
+}
+
+fn random_universal_role(seed: &mut u64) -> ObjectPropertyExpression {
+    match next_random(seed) % 4 {
+        0 => property(b"R"),
+        1 => inverse(b"R"),
+        2 => property(TOP_ROLE),
+        _ => inverse(TOP_ROLE),
+    }
+}
+/// A pseudo-random class expression over A, B, R and the universal role.
+fn random_universal_expression(seed: &mut u64, depth: u32) -> ClassExpression {
+    let choice = next_random(seed) % if depth == 0 { 2 } else { 8 };
+    match choice {
+        0 => class(b"A"),
+        1 => class(b"B"),
+        2 => not(random_universal_expression(seed, depth - 1)),
+        3 => and(
+            random_universal_expression(seed, depth - 1),
+            random_universal_expression(seed, depth - 1),
+        ),
+        4 => or(
+            random_universal_expression(seed, depth - 1),
+            random_universal_expression(seed, depth - 1),
+        ),
+        5 => some_along(
+            random_universal_role(seed),
+            random_universal_expression(seed, depth - 1),
+        ),
+        6 => all_along(
+            random_universal_role(seed),
+            random_universal_expression(seed, depth - 1),
+        ),
+        _ => has_self(random_universal_role(seed)),
+    }
+}
+
+#[test]
+fn every_class_with_a_small_model_of_the_universal_role_is_satisfiable() {
+    with_stack(every_class_with_a_small_model_of_the_universal_role_is_satisfiable_body);
+}
+fn every_class_with_a_small_model_of_the_universal_role_is_satisfiable_body() {
+    let finite = interpretations();
+    let mut seed = 43;
+    let mut with_model = 0;
+    let mut without = 0;
+    for round in 0..200 {
+        let mut items: Vec<AnnotatedAxiom> = (0..2)
+            .map(|_| {
+                sub(
+                    random_universal_expression(&mut seed, 2),
+                    random_universal_expression(&mut seed, 2),
+                )
+            })
+            .collect();
+        if round % 4 == 0 {
+            items.push(axiom(Axiom::ObjectPropertyRange(
+                property(TOP_ROLE),
+                random_universal_expression(&mut seed, 1),
+            )));
+        }
+        let query = and(
+            random_universal_expression(&mut seed, 2),
+            random_universal_expression(&mut seed, 2),
+        );
+        let answer = class_satisfiable(&items, &query).expect("supported input");
+        let small_model = finite.iter().any(|i| {
+            items.iter().all(|item| satisfied(i, item))
+                && (0..i.size).any(|x| denotes(i, &query, x))
+        });
+        if small_model {
+            assert!(answer, "a model exists, so the class must be satisfiable");
+            with_model += 1;
+        } else if !answer {
+            without += 1;
+        }
+    }
+    assert!(
+        with_model > 30,
+        "the sample must exercise satisfiable inputs"
+    );
+    assert!(
+        without > 10,
+        "the sample must exercise unsatisfiable inputs"
+    );
 }

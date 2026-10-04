@@ -4,6 +4,7 @@ import Rowl.ForestModel
 import Rowl.ShiEquality
 import Rowl.ShiNominals
 import Rowl.Chains
+import Rowl.Universal
 
 /-!
 Ontology-level answers for axiom closures with assertions, proved against the
@@ -19,10 +20,15 @@ different nodes apart; every other question goes to the completion forest,
 which handles self restrictions, number restrictions, complements of self
 restrictions and disjoint pairs on simple roles, and nominals of named
 individuals, with the nominal of every individual at its node and the
-inequalities and negative assertions as facts (`ShiNominals`); every answer
-the kernel gives is exact for the OWL definitions.
+inequalities and negative assertions as facts (`ShiNominals`), and with the
+role chains in front of it (`Chains`). The empty role is an ordinary role
+whose emptiness the TBox concept requires (`withEmpty`), and a question that
+uses the universal role goes to the completion forest over the guesses for the
+restrictions along it (`Universal`); every answer the kernel gives is exact
+for the OWL definitions.
 An acceptance comes with an actual OWL model of the closure, built from the
-tableau's model with every individual at its node and the built-in classes,
+tableau's model, with the universal role then relating every pair
+(`withUniversal`), every individual at its node and the built-in classes,
 properties and the datatype map fixed as OWL requires, and every OWL model, in
 any universes, forces acceptance.
 -/
@@ -47,15 +53,18 @@ open Rowl.ShiNominals (IsNamed Mentions Nominal not_mentions nominal_correct fac
   assertion_individuals_correct named_from_correct unequal_from_correct refused_from_correct)
 open Rowl.ShiRoles (RolesHold ChainsHold role_hierarchy_correct chains_from_correct)
 open Rowl.ChainSemantics (Chained)
+open Rowl.Universal (not_top_correct UsesTop NoTopCount withUniversal relation_with_universal usesTop_correct
+  facts_universal_correct definitions_universal_correct)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 set_option maxRecDepth 16384
 universe u v w
 
-/-- No built-in class occurs as a named class, no built-in object property as a
-    role and no anonymous individual in a nominal, so the tableaux's reading of
-    every name is an ordinary one. -/
+/-- No built-in class occurs as a named class, no anonymous individual in a
+    nominal and the universal role in no number restriction, so the tableaux's
+    reading of every other name is an ordinary one, and every restriction along
+    the universal role one global choice. -/
 def Proper : concepts.Concept → Prop
   | .Top => True
   | .Bottom => True
@@ -63,14 +72,14 @@ def Proper : concepts.Concept → Prop
   | .NotAtom c => c ≠ thing ∧ c ≠ nothing
   | .One a => IsNamed a
   | .NotOne a => IsNamed a
-  | .HasSelf r => RoleOf r ≠ topObject
-  | .NotSelf r => RoleOf r ≠ topObject
+  | .HasSelf _ => True
+  | .NotSelf _ => True
   | .And a b => Proper a ∧ Proper b
   | .Or a b => Proper a ∧ Proper b
-  | .Exists r c => (RoleOf r ≠ topObject) ∧ Proper c
-  | .Forall r c => (RoleOf r ≠ topObject) ∧ Proper c
-  | .AtLeast _ r c => (RoleOf r ≠ topObject) ∧ Proper c
-  | .AtMost _ r c => (RoleOf r ≠ topObject) ∧ Proper c
+  | .Exists _ c => Proper c
+  | .Forall _ c => Proper c
+  | .AtLeast _ r c => RoleOf r ≠ topObject ∧ Proper c
+  | .AtMost _ r c => RoleOf r ≠ topObject ∧ Proper c
 
 /-- A number restriction or a self restriction occurs, which only the
     completion forest decides. -/
@@ -89,20 +98,15 @@ def Counts : concepts.Concept → Prop
 def DefinitionProper (d : completion.Definition) : Prop :=
   (d.class ≠ thing ∧ d.class ≠ nothing) ∧ Proper d.concept
 
-/-- An object property assertion or role axiom that does not use a built-in
-    object property. -/
+/-- A role axiom that uses the universal role only as the role of an inclusion
+    or a chain, or as a symmetric or transitive role, all of which it is; it is
+    never included in another role, inverse or equivalent to one, asymmetric or
+    disjoint from one. -/
 def RoleProper : Axiom → Prop
-  | .ObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject
-  | .NegativeObjectPropertyAssertion p _ _ => RoleOf p ≠ topObject
-  | .SubObjectPropertyOf (.Single sub) sup => (RoleOf sub ≠ topObject) ∧
-      (RoleOf sup ≠ topObject)
-  | .SubObjectPropertyOf (.Chain xs) sup => (∀ p ∈ xs.elements, RoleOf p ≠ topObject) ∧
-      (RoleOf sup ≠ topObject)
+  | .SubObjectPropertyOf (.Single sub) sup => RoleOf sub ≠ topObject ∨ RoleOf sup = topObject
+  | .SubObjectPropertyOf (.Chain xs) sup => RoleOf sup = topObject ∨ ∀ p ∈ xs.elements, RoleOf p ≠ topObject
   | .EquivalentObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject
-  | .InverseObjectProperties p q => (RoleOf p ≠ topObject) ∧
-      (RoleOf q ≠ topObject)
-  | .SymmetricObjectProperty p => RoleOf p ≠ topObject
-  | .TransitiveObjectProperty p => RoleOf p ≠ topObject
+  | .InverseObjectProperties p q => (RoleOf p ≠ topObject) ∧ (RoleOf q ≠ topObject)
   | .AsymmetricObjectProperty p => RoleOf p ≠ topObject
   | .DisjointObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject
   | _ => True
@@ -120,15 +124,6 @@ private theorem new_val_chains : (alloc.vec.Vec.new role_chains.Chain).val = [] 
 
 private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
   simp [core.num.Usize.MAX]
-
-/-- The check for the universal role is exact. -/
-theorem not_top_correct (r : ObjectPropertyExpression) :
-    shi_ontology.not_top r = .ok (decide (RoleOf r ≠ topObject)) := by
-  rw [shi_ontology.not_top]
-  simp only [Rowl.AlcOntology.named_property_correct,bind_ok,ne_eq,
-    Rowl.Tableau.property_eq_iff (RoleOf r) topObject]
-  by_cases top : (RoleOf r).iri.spelling.val = topObject.iri.spelling.val <;>
-    simp_all [Rowl.AlcOntology.same_pattern_total,Array.to_slice,Array.make,lift,topObject]
 
 /-- Spelling out a pattern appends its bytes from `index` on. -/
 private theorem spelled_correct (pattern : Slice U8) (index : Usize) (out : alloc.vec.Vec U8)
@@ -186,36 +181,15 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
   | NotAtom k => rw [shi_ontology.proper]; simp [Proper,builtin_class_correct]
   | One a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
   | NotOne a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
-  | HasSelf r | NotSelf r =>
-    rw [shi_ontology.proper,not_top_correct]
-    simp only [Proper]
-    exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
+  | HasSelf r | NotSelf r => rw [shi_ontology.proper]; simp [Proper]
   | And a b iha ihb =>
     rw [shi_ontology.proper]
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
   | Or a b iha ihb =>
     rw [shi_ontology.proper]
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
-  | Exists r c ih =>
-    rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject
-    · simp only [not_top_correct,bind_ok]
-      rw [decide_eq_true role]
-      simp [Proper,ih,role]
-    · simp only [not_top_correct,bind_ok]
-      rw [decide_eq_false role]
-      simp only [Bool.false_eq_true,↓reduceIte,Proper]
-      simp [role]
-  | Forall r c ih =>
-    rw [shi_ontology.proper]
-    by_cases role : RoleOf r ≠ topObject
-    · simp only [not_top_correct,bind_ok]
-      rw [decide_eq_true role]
-      simp [Proper,ih,role]
-    · simp only [not_top_correct,bind_ok]
-      rw [decide_eq_false role]
-      simp only [Bool.false_eq_true,↓reduceIte,Proper]
-      simp [role]
+  | Exists r c ih => rw [shi_ontology.proper,ih]; simp [Proper]
+  | Forall r c ih => rw [shi_ontology.proper,ih]; simp [Proper]
   | AtLeast n r c ih =>
     rw [shi_ontology.proper]
     by_cases role : RoleOf r ≠ topObject
@@ -236,6 +210,18 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
       rw [decide_eq_false role]
       simp only [Bool.false_eq_true,↓reduceIte,Proper]
       simp [role]
+
+/-- A proper concept counts nowhere along the universal role. -/
+theorem proper_count : ∀ c, Proper c → NoTopCount c := by
+  intro c
+  induction c with
+  | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ => intro _; trivial
+  | And a b iha ihb => intro proper; exact ⟨iha proper.1,ihb proper.2⟩
+  | Or a b iha ihb => intro proper; exact ⟨iha proper.1,ihb proper.2⟩
+  | Exists r c ih => intro proper; exact ih proper
+  | Forall r c ih => intro proper; exact ih proper
+  | AtLeast n r c ih => intro proper; exact ⟨proper.1,ih proper.2⟩
+  | AtMost n r c ih => intro proper; exact ⟨proper.1,ih proper.2⟩
 
 /-- The counting check is exact. -/
 theorem counts_correct (c : concepts.Concept) : shi_ontology.counts c = .ok (decide (Counts c)) := by
@@ -340,6 +326,22 @@ theorem closure_counts_correct (parts : shi_ontology.Parts) (facts : alloc.vec.V
   · by_cases two : ∃ d ∈ parts.definitions.val, Counts d.concept
     · simp [counts_correct,one,definitions,two]
     · simp only [counts_correct,decide_eq_false one,Bool.false_eq_true,↓reduceIte,bind_ok,definitions,
+        decide_eq_false two,facts']
+      simp [one,two]
+
+/-- The check for the universal role in a closure's concepts is exact. -/
+theorem closure_universal_correct (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
+    shi_ontology.closure_universal parts facts = .ok (decide (UsesTop parts.axioms ∨
+      (∃ d ∈ parts.definitions.val, UsesTop d.concept) ∨ ∃ q ∈ facts.val, UsesTop q.concept)) := by
+  have definitions := definitions_universal_correct parts.definitions 0#usize
+  have facts' := facts_universal_correct facts 0#usize
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at definitions facts'
+  rw [shi_ontology.closure_universal]
+  by_cases one : UsesTop parts.axioms
+  · simp [usesTop_correct,one]
+  · by_cases two : ∃ d ∈ parts.definitions.val, UsesTop d.concept
+    · simp [usesTop_correct,one,definitions,two]
+    · simp only [usesTop_correct,decide_eq_false one,Bool.false_eq_true,↓reduceIte,bind_ok,definitions,
         decide_eq_false two,facts']
       simp [one,two]
 
@@ -482,19 +484,15 @@ theorem pair_proper_correct (sub sup : ObjectPropertyExpression) :
 
 theorem chain_proper_correct (members : AtLeastTwo ObjectPropertyExpression) (sup : ObjectPropertyExpression) :
     shi_ontology.chain_proper members sup =
-      .ok (decide ((∀ p ∈ members.elements, RoleOf p ≠ topObject) ∧
-        (RoleOf sup ≠ topObject))) := by
+      .ok (decide (RoleOf sup = topObject ∨ ∀ p ∈ members.elements, RoleOf p ≠ topObject)) := by
   rw [shi_ontology.chain_proper,members_proper_correct,not_top_correct]
   simp only [bind_ok]
-  by_cases along : ∀ p ∈ members.elements, RoleOf p ≠ topObject
-  · rw [decide_eq_true along]
-    simp only [↓reduceIte]
-    congr 1
-    exact decide_eq_decide.mpr ⟨fun upper => ⟨along,upper⟩,fun both => both.2⟩
-  · rw [decide_eq_false along]
-    simp only [Bool.false_eq_true,↓reduceIte]
-    congr 1
-    exact (decide_eq_false (fun both => along both.1)).symm
+  by_cases top : RoleOf sup = topObject <;> simp [top]
+
+theorem inclusion_proper_correct (sub sup : ObjectPropertyExpression) :
+    shi_ontology.inclusion_proper sub sup = .ok (decide (RoleOf sub ≠ topObject ∨ RoleOf sup = topObject)) := by
+  rw [shi_ontology.inclusion_proper,not_top_correct,not_top_correct]
+  by_cases lower : RoleOf sub = topObject <;> by_cases upper : RoleOf sup = topObject <;> simp [lower,upper]
 
 /-- The role check over the assertions and role axioms is exact. -/
 theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) :
@@ -535,25 +533,16 @@ theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usi
         simp [improper]
     simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,bind_ok]
     cases item : items.val[index.val].axiom with
-    | ObjectPropertyAssertion p a b =>
-      simp only [not_top_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
-      simpa [item] using this
-    | NegativeObjectPropertyAssertion p a b =>
-      simp only [not_top_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
-      simpa [item] using this
     | SubObjectPropertyOf sub sup =>
       cases sub with
       | Single p =>
-        simp only [pair_proper_correct,bind_ok]
-        have := finish (decide ((RoleOf p ≠ topObject) ∧
-          (RoleOf sup ≠ topObject))) (by simp [item,RoleProper])
+        simp only [inclusion_proper_correct,bind_ok]
+        have := finish (decide (RoleOf p ≠ topObject ∨ RoleOf sup = topObject)) (by simp [item,RoleProper])
         simpa [item] using this
       | Chain c =>
         simp only [chain_proper_correct,bind_ok]
-        have := finish (decide ((∀ p ∈ c.elements, RoleOf p ≠ topObject) ∧
-          (RoleOf sup ≠ topObject))) (by simp [item,RoleProper])
+        have := finish (decide (RoleOf sup = topObject ∨ ∀ p ∈ c.elements, RoleOf p ≠ topObject))
+          (by simp [item,RoleProper])
         simpa [item] using this
     | EquivalentObjectProperties members =>
       simp only [members_proper_correct,bind_ok]
@@ -564,14 +553,6 @@ theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usi
       simp only [pair_proper_correct,bind_ok]
       have := finish (decide ((RoleOf p ≠ topObject) ∧
         (RoleOf q ≠ topObject))) (by simp [item,RoleProper])
-      simpa [item] using this
-    | SymmetricObjectProperty p =>
-      simp only [not_top_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
-      simpa [item] using this
-    | TransitiveObjectProperty p =>
-      simp only [not_top_correct,bind_ok]
-      have := finish (decide (RoleOf p ≠ topObject)) (by simp [item,RoleProper])
       simpa [item] using this
     | AsymmetricObjectProperty p =>
       simp only [not_top_correct,bind_ok]
@@ -896,33 +877,38 @@ theorem denote_with_anonymous {Object : Type u} {Value : Type v} (I : Interpreta
     | Anonymous _ => exact proper.elim
   | And a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
   | Or a b iha ihb => intro proper x; simp only [denote,iha proper.1 x,ihb proper.2 x]
-  | Exists r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
-  | Forall r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
+  | Exists r c ih => intro proper x; simp only [denote,ih proper]; exact Iff.rfl
+  | Forall r c ih => intro proper x; simp only [denote,ih proper]; exact Iff.rfl
   | AtLeast n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
   | AtMost n r c ih => intro proper x; simp only [denote,ih proper.2]; exact Iff.rfl
 
 /-- The OWL interpretation of a tableau model in which
-    `owl:bottomObjectProperty` relates nothing relates along every object
-    property expression other than the universal role as the tableau model
-    does. -/
+    `owl:topObjectProperty` relates every pair and `owl:bottomObjectProperty`
+    relates nothing relates along every object property expression as the
+    tableau model does. -/
 theorem owl_model_relation {Object : Type} (J : Interpretation Object Unit) (root : Object)
     (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (full : ∀ x y, J.objectProperties topObject x y)
     (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (r : ObjectPropertyExpression)
-    (top : RoleOf r ≠ topObject) (x y : ULift.{u} Object) :
+    (x y : ULift.{u} Object) :
     objectRelation (owlModel.{u,v,w} J root place D) r x y ↔ objectRelation J r x.down y.down := by
   cases r with
   | Property p =>
-    simp only [RoleOf] at top
-    by_cases bottom : p = bottomObject
-    · subst bottom
-      simp [objectRelation,owlModel,top,empty]
-    · simp [objectRelation,owlModel,top,bottom]
+    by_cases top : p = topObject
+    · subst top
+      simp [objectRelation,owlModel,full]
+    · by_cases bottom : p = bottomObject
+      · subst bottom
+        simp [objectRelation,owlModel,top,empty]
+      · simp [objectRelation,owlModel,top,bottom]
   | Inverse p =>
-    simp only [RoleOf] at top
-    by_cases bottom : p = bottomObject
-    · subst bottom
-      simp [objectRelation,owlModel,top,empty]
-    · simp [objectRelation,owlModel,top,bottom]
+    by_cases top : p = topObject
+    · subst top
+      simp [objectRelation,owlModel,full]
+    · by_cases bottom : p = bottomObject
+      · subst bottom
+        simp [objectRelation,owlModel,top,empty]
+      · simp [objectRelation,owlModel,top,bottom]
 
 /-- Counting lifted elements counts the elements they lift. -/
 theorem atLeast_lift {Object : Type} (n : Nat) (P : ULift.{u} Object → Prop) (Q : Object → Prop)
@@ -944,9 +930,11 @@ private theorem individual_owl_model {Object : Type} (J : Interpretation Object 
 
 /-- On proper concepts whose nominals' individuals the tableau model places
     where `place` does, the constructed interpretation agrees with a tableau
-    model in which `owl:bottomObjectProperty` relates nothing. -/
+    model in which `owl:topObjectProperty` relates every pair and
+    `owl:bottomObjectProperty` nothing. -/
 theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root : Object) (place : Individual → Object)
-    {Native : Type w} (D : DatatypeMap Native) (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
+    {Native : Type w} (D : DatatypeMap Native) (full : ∀ x y, J.objectProperties topObject x y)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
     ∀ c, Proper c → (∀ a, Mentions c a → Rowl.Owl.individual J a = place a) →
       ∀ x, denote (owlModel.{u,v,w} J root place D) c x ↔ denote J c x.down := by
   intro c
@@ -958,11 +946,11 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
   | HasSelf r =>
     intro proper _ x
     simp only [denote]
-    exact owl_model_relation J root place D empty r proper x x
+    exact owl_model_relation J root place D full empty r x x
   | NotSelf r =>
     intro proper _ x
     simp only [denote]
-    exact not_congr (owl_model_relation J root place D empty r proper x x)
+    exact not_congr (owl_model_relation J root place D full empty r x x)
   | One a =>
     intro _ agree x
     simp only [denote,individual_owl_model,agree a rfl]
@@ -982,44 +970,171 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
     simp only [denote]
     constructor
     · rintro ⟨y,edge,inner⟩
-      exact ⟨y.down,(owl_model_relation J root place D empty r proper.1 x y).mp edge,
-        (ih proper.2 agree y).mp inner⟩
+      exact ⟨y.down,(owl_model_relation J root place D full empty r x y).mp edge,
+        (ih proper agree y).mp inner⟩
     · rintro ⟨y,edge,inner⟩
-      exact ⟨ULift.up y,(owl_model_relation J root place D empty r proper.1 x (ULift.up y)).mpr edge,
-        (ih proper.2 agree (ULift.up y)).mpr inner⟩
+      exact ⟨ULift.up y,(owl_model_relation J root place D full empty r x (ULift.up y)).mpr edge,
+        (ih proper agree (ULift.up y)).mpr inner⟩
   | Forall r c ih =>
     intro proper agree x
     simp only [denote]
     constructor
     · intro every y edge
-      exact (ih proper.2 agree (ULift.up y)).mp
-        (every (ULift.up y) ((owl_model_relation J root place D empty r proper.1 x (ULift.up y)).mpr edge))
+      exact (ih proper agree (ULift.up y)).mp
+        (every (ULift.up y) ((owl_model_relation J root place D full empty r x (ULift.up y)).mpr edge))
     · intro every y edge
-      exact (ih proper.2 agree y).mpr
-        (every y.down ((owl_model_relation J root place D empty r proper.1 x y).mp edge))
+      exact (ih proper agree y).mpr
+        (every y.down ((owl_model_relation J root place D full empty r x y).mp edge))
   | AtLeast n r c ih =>
     intro proper agree x
     simp only [denote]
     exact atLeast_lift n.val _ _ (fun y =>
-      and_congr (owl_model_relation J root place D empty r proper.1 x y) (ih proper.2 agree y))
+      and_congr (owl_model_relation J root place D full empty r x y) (ih proper.2 agree y))
   | AtMost n r c ih =>
     intro proper agree x
     simp only [denote,Rowl.Owl.AtMost]
     exact not_congr (atLeast_lift (n.val + 1) _ _ (fun y =>
-      and_congr (owl_model_relation J root place D empty r proper.1 x y) (ih proper.2 agree y)))
+      and_congr (owl_model_relation J root place D full empty r x y) (ih proper.2 agree y)))
 
 private theorem with_own_anonymous {Object : Type u} {Value : Type v} (I : Interpretation Object Value) :
     withAnonymous I I.anonymousIndividuals = I := by
   cases I; rfl
 
-/-- A role axiom without the universal role that holds in the tableau model
-    holds in its OWL interpretation. -/
+/-- A role axiom that holds in a tableau model in which the universal role relates
+    every pair and the empty role nothing holds in its OWL interpretation. -/
 private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
     (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (full : ∀ x y, J.objectProperties topObject x y)
     (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (role : RoleAxiom a)
-    (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    (holds : Rowl.Owl.satisfies J a) :
     Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D empty
+  have relation := owl_model_relation.{u,v,w} J root place D full empty
+  cases a with
+  | SubObjectPropertyOf sub sup =>
+    cases sub with
+    | Single p =>
+      simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
+      intro x y edge
+      exact (relation sup x y).mpr (holds x.down y.down ((relation p x y).mp edge))
+    | Chain _ => simp [RoleAxiom] at role
+  | EquivalentObjectProperties members =>
+    simp only [Rowl.Owl.satisfies,Rowl.Owl.allEqual] at holds ⊢
+    intro a aIn b bIn
+    have equal := holds a aIn b bIn
+    funext x y
+    rw [propext (relation a x y),propext (relation b x y),equal]
+  | InverseObjectProperties p q =>
+    simp only [Rowl.Owl.satisfies] at holds ⊢
+    intro x y
+    rw [relation p x y,relation q y x]
+    exact holds x.down y.down
+  | SymmetricObjectProperty p =>
+    simp only [Rowl.Owl.satisfies] at holds ⊢
+    intro x y edge
+    exact (relation p y x).mpr (holds x.down y.down ((relation p x y).mp edge))
+  | TransitiveObjectProperty p =>
+    simp only [Rowl.Owl.satisfies] at holds ⊢
+    intro x y z first second
+    exact (relation p x z).mpr (holds x.down y.down z.down
+      ((relation p x y).mp first) ((relation p y z).mp second))
+  | _ => simp [RoleAxiom] at role
+
+/-- An asymmetric or disjoint object property that holds in a tableau model in
+    which the universal role relates every pair and the empty role nothing holds
+    in its OWL interpretation. -/
+private theorem owl_model_constraint_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (full : ∀ x y, J.objectProperties topObject x y)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (constraint : ConstraintAxiom a)
+    (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
+  have relation := owl_model_relation.{u,v,w} J root place D full empty
+  cases a with
+  | AsymmetricObjectProperty p =>
+    simp only [Rowl.Owl.satisfies] at holds ⊢
+    intro x y forward backward
+    exact holds x.down y.down ((relation p x y).mp forward) ((relation p y x).mp backward)
+  | DisjointObjectProperties members =>
+    simp only [Rowl.Owl.satisfies,Rowl.Owl.pairwiseDisjoint] at holds ⊢
+    refine holds.imp_of_mem ?_
+    intro a b aIn bIn apart xy both
+    exact apart (xy.1.down,xy.2.down) ⟨(relation a xy.1 xy.2).mp both.1,(relation b xy.1 xy.2).mp both.2⟩
+  | _ => simp [ConstraintAxiom] at constraint
+
+/-- A chain relates the lifted pairs of a tableau model in which the universal
+    role relates every pair and the empty role nothing in its OWL
+    interpretation. -/
+private theorem owl_model_chain {Object : Type} (J : Interpretation Object Unit) (root : Object)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (full : ∀ x y, J.objectProperties topObject x y)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
+    ∀ (w : List ObjectPropertyExpression) (x y : ULift.{u} Object),
+      Rowl.Owl.chainRelation (owlModel.{u,v,w} J root place D) w x y ↔ Rowl.Owl.chainRelation J w x.down y.down
+  | [], x, y => by
+    simp only [Rowl.Owl.chainRelation]
+    exact ⟨fun same => by rw [same],fun same => ULift.ext_iff.mpr same⟩
+  | r :: w, x, y => by
+    have relation := owl_model_relation.{u,v,w} J root place D full empty
+    simp only [Rowl.Owl.chainRelation]
+    constructor
+    · rintro ⟨z,first,rest⟩
+      exact ⟨z.down,(relation r x z).mp first,(owl_model_chain J root place D full empty w z y).mp rest⟩
+    · rintro ⟨z,first,rest⟩
+      exact ⟨ULift.up z,(relation r x (ULift.up z)).mpr first,
+        (owl_model_chain J root place D full empty w (ULift.up z) y).mpr rest⟩
+
+/-- A property chain that holds in a tableau model in which the universal role
+    relates every pair and the empty role nothing holds in its OWL
+    interpretation. -/
+private theorem owl_model_chain_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
+    (full : ∀ x y, J.objectProperties topObject x y)
+    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (chain : ChainAxiom a)
+    (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
+  have relation := owl_model_relation.{u,v,w} J root place D full empty
+  cases a with
+  | SubObjectPropertyOf sub sup =>
+    cases sub with
+    | Single _ => simp [ChainAxiom] at chain
+    | Chain members =>
+      simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
+      intro x y along
+      exact (relation sup x y).mpr
+        (holds x.down y.down ((owl_model_chain J root place D full empty members.elements x y).mp along))
+  | _ => simp [ChainAxiom] at chain
+
+/-- Making the universal role relate every pair keeps every other role's
+    relation. -/
+private theorem universal_other {Object : Type u} {Value : Type v} (J : Interpretation Object Value)
+    (r : ObjectPropertyExpression) (other : RoleOf r ≠ topObject) (x y : Object) :
+    objectRelation (withUniversal J) r x y ↔ objectRelation J r x y := by
+  rw [relation_with_universal]
+  simp [other]
+
+/-- A chain of roles other than the universal role relates the same pairs once
+    the universal role relates every pair. -/
+private theorem universal_chain {Object : Type u} {Value : Type v} (J : Interpretation Object Value) :
+    ∀ (w : List ObjectPropertyExpression), (∀ p ∈ w, RoleOf p ≠ topObject) → ∀ x y,
+      Rowl.Owl.chainRelation (withUniversal J) w x y ↔ Rowl.Owl.chainRelation J w x y
+  | [], _, x, y => Iff.rfl
+  | r :: w, other, x, y => by
+    simp only [Rowl.Owl.chainRelation]
+    have here := other r List.mem_cons_self
+    have rest := universal_chain J w (fun p m => other p (List.mem_cons_of_mem _ m))
+    constructor
+    · rintro ⟨z,first,later⟩
+      exact ⟨z,(universal_other J r here x z).mp first,(rest z y).mp later⟩
+    · rintro ⟨z,first,later⟩
+      exact ⟨z,(universal_other J r here x z).mpr first,(rest z y).mpr later⟩
+
+/-- A role axiom that uses the universal role only where it may and holds in a
+    model holds once the universal role relates every pair. -/
+private theorem universal_role_axiom {Object : Type u} {Value : Type v} (J : Interpretation Object Value)
+    (a : Axiom) (role : RoleAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (withUniversal J) a := by
+  have every : ∀ r, RoleOf r = topObject → ∀ x y, objectRelation (withUniversal J) r x y :=
+    fun r top x y => (relation_with_universal J r x y).mpr (.inl top)
   cases a with
   | SubObjectPropertyOf sub sup =>
     cases sub with
@@ -1027,8 +1142,10 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
       simp only [RoleProper] at proper
       simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
       intro x y edge
-      exact (relation sup proper.2 x y).mpr
-        (holds x.down y.down ((relation p proper.1 x y).mp edge))
+      by_cases top : RoleOf sup = topObject
+      · exact every sup top x y
+      · have lower : RoleOf p ≠ topObject := proper.resolve_right top
+        exact (universal_other J sup top x y).mpr (holds x y ((universal_other J p lower x y).mp edge))
     | Chain _ => simp [RoleAxiom] at role
   | EquivalentObjectProperties members =>
     simp only [RoleProper] at proper
@@ -1036,80 +1153,53 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
     intro a aIn b bIn
     have equal := holds a aIn b bIn
     funext x y
-    rw [propext (relation a (proper a aIn) x y),
-      propext (relation b (proper b bIn) x y),equal]
+    rw [propext (universal_other J a (proper a aIn) x y),propext (universal_other J b (proper b bIn) x y),equal]
   | InverseObjectProperties p q =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y
-    rw [relation p proper.1 x y,relation q proper.2 y x]
-    exact holds x.down y.down
+    rw [universal_other J p proper.1 x y,universal_other J q proper.2 y x]
+    exact holds x y
   | SymmetricObjectProperty p =>
-    simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y edge
-    exact (relation p proper y x).mpr (holds x.down y.down ((relation p proper x y).mp edge))
+    by_cases top : RoleOf p = topObject
+    · exact every p top y x
+    · exact (universal_other J p top y x).mpr (holds x y ((universal_other J p top x y).mp edge))
   | TransitiveObjectProperty p =>
-    simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y z first second
-    exact (relation p proper x z).mpr (holds x.down y.down z.down
-      ((relation p proper x y).mp first) ((relation p proper y z).mp second))
+    by_cases top : RoleOf p = topObject
+    · exact every p top x z
+    · exact (universal_other J p top x z).mpr (holds x y z
+        ((universal_other J p top x y).mp first) ((universal_other J p top y z).mp second))
   | _ => simp [RoleAxiom] at role
 
 /-- An asymmetric or disjoint object property without the universal role that
-    holds in the tableau model holds in its OWL interpretation. -/
-private theorem owl_model_constraint_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
-    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (constraint : ConstraintAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
-    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D empty
+    holds in a model holds once the universal role relates every pair. -/
+private theorem universal_constraint_axiom {Object : Type u} {Value : Type v} (J : Interpretation Object Value)
+    (a : Axiom) (constraint : ConstraintAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (withUniversal J) a := by
   cases a with
   | AsymmetricObjectProperty p =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies] at holds ⊢
     intro x y forward backward
-    exact holds x.down y.down ((relation p proper x y).mp forward)
-      ((relation p proper y x).mp backward)
+    exact holds x y ((universal_other J p proper x y).mp forward) ((universal_other J p proper y x).mp backward)
   | DisjointObjectProperties members =>
     simp only [RoleProper] at proper
     simp only [Rowl.Owl.satisfies,Rowl.Owl.pairwiseDisjoint] at holds ⊢
     refine holds.imp_of_mem ?_
     intro a b aIn bIn apart xy both
-    exact apart (xy.1.down,xy.2.down) ⟨(relation a (proper a aIn) xy.1 xy.2).mp both.1,
-      (relation b (proper b bIn) xy.1 xy.2).mp both.2⟩
+    exact apart xy ⟨(universal_other J a (proper a aIn) xy.1 xy.2).mp both.1,
+      (universal_other J b (proper b bIn) xy.1 xy.2).mp both.2⟩
   | _ => simp [ConstraintAxiom] at constraint
 
-/-- A chain of roles other than the universal role relates the lifted pairs of
-    the tableau model in its OWL interpretation. -/
-private theorem owl_model_chain {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
-    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) :
-    ∀ (w : List ObjectPropertyExpression), (∀ p ∈ w, RoleOf p ≠ topObject) →
-      ∀ (x y : ULift.{u} Object), Rowl.Owl.chainRelation (owlModel.{u,v,w} J root place D) w x y ↔
-        Rowl.Owl.chainRelation J w x.down y.down
-  | [], _, x, y => by
-    simp only [Rowl.Owl.chainRelation]
-    exact ⟨fun same => by rw [same],fun same => ULift.ext_iff.mpr same⟩
-  | r :: w, proper, x, y => by
-    have relation := owl_model_relation.{u,v,w} J root place D empty
-    simp only [Rowl.Owl.chainRelation]
-    have here := proper r List.mem_cons_self
-    constructor
-    · rintro ⟨z,first,rest⟩
-      exact ⟨z.down,(relation r here x z).mp first,
-        (owl_model_chain J root place D empty w (fun p m => proper p (List.mem_cons_of_mem _ m)) z y).mp rest⟩
-    · rintro ⟨z,first,rest⟩
-      exact ⟨ULift.up z,(relation r here x (ULift.up z)).mpr first,
-        (owl_model_chain J root place D empty w (fun p m => proper p (List.mem_cons_of_mem _ m)) (ULift.up z) y).mpr rest⟩
-
-/-- A property chain without the universal role that holds in the tableau
-    model holds in its OWL interpretation. -/
-private theorem owl_model_chain_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
-    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native)
-    (empty : ∀ x y, ¬ J.objectProperties bottomObject x y) (a : Axiom) (chain : ChainAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
-    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
-  have relation := owl_model_relation.{u,v,w} J root place D empty
+/-- A property chain that holds in a model holds once the universal role relates
+    every pair, when its role is the universal role or none of its roles is. -/
+private theorem universal_chain_axiom {Object : Type u} {Value : Type v} (J : Interpretation Object Value)
+    (a : Axiom) (chain : ChainAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (withUniversal J) a := by
   cases a with
   | SubObjectPropertyOf sub sup =>
     cases sub with
@@ -1118,8 +1208,12 @@ private theorem owl_model_chain_axiom {Object : Type} (J : Interpretation Object
       simp only [RoleProper] at proper
       simp only [Rowl.Owl.satisfies,Rowl.Owl.subRelation] at holds ⊢
       intro x y along
-      exact (relation sup proper.2 x y).mpr
-        (holds x.down y.down ((owl_model_chain J root place D empty members.elements proper.1 x y).mp along))
+      rcases proper with top | lower
+      · exact (relation_with_universal J sup x y).mpr (.inl top)
+      · by_cases supTop : RoleOf sup = topObject
+        · exact (relation_with_universal J sup x y).mpr (.inl supTop)
+        · exact (universal_other J sup supTop x y).mpr
+            (holds x y ((universal_chain J members.elements lower x y).mp along))
   | _ => simp [ChainAxiom] at chain
 
 /-- The class parts with `∀B.⊥` conjoined onto the TBox concept, for
@@ -1186,6 +1280,8 @@ structure PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
       (∃ d ∈ p.parts.definitions.val, Nominal d.concept) ∨ ∃ q ∈ p.facts.val, Nominal q.concept) ∨
     ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (p.roles.inclusions.val = [] ∧ p.roles.transitive.val = [])) ∨
     p.roles.disjoint.val ≠ [] ∨ p.chains.val ≠ []
+  universal : p.universal = true ↔ UsesTop p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, UsesTop d.concept) ∨
+    ∃ q ∈ p.bound.val, UsesTop q.concept
   clash : p.clash = true ↔ ∃ item ∈ items.val, Clashes p.same.val p.nodes.val item.axiom
 
 /-- The check for disjoint pairs, which only the completion forest decides, is
@@ -1371,7 +1467,7 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
   have clashing := clash_from_correct items nodes same 0#usize
   rw [zero,List.drop_zero] at denial clashing
   simp only [linksRun,run9,run10,run11,bind_ok,denial,tangled_correct,constrained_correct,chained_correct,
-    closure_counts_correct,closure_nominal_correct,clashing]
+    closure_counts_correct,closure_nominal_correct,closure_universal_correct,clashing]
   refine ⟨some ⟨nodes,same,parts,facts,bound,h,chs,links,
     decide (∃ item ∈ items.val, Denies same.val nodes.val links.val item.axiom),
     decide ((Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
@@ -1379,6 +1475,8 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
         (∃ d ∈ parts.definitions.val, Nominal d.concept) ∨ ∃ q ∈ facts.val, Nominal q.concept) ∨
       ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (h.inclusions.val = [] ∧ h.transitive.val = [])) ∨
       h.disjoint.val ≠ [] ∨ chs.val ≠ []),
+    decide (UsesTop parts.axioms ∨ (∃ d ∈ parts.definitions.val, UsesTop d.concept) ∨
+      ∃ q ∈ bound.val, UsesTop q.concept),
     decide (∃ item ∈ items.val, Clashes same.val nodes.val item.axiom)⟩,?_,?_⟩
   · by_cases counting : Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
         ∃ q ∈ facts.val, Counts q.concept
@@ -1437,7 +1535,8 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
       (covered10 item member xs statement).imp (fun ⟨q,qIn,qNode,qConcept⟩ => ⟨q,kept11 q qIn,qNode,qConcept⟩),
     boundRefused := covered11,
     roles := roleRun, chains := chainsRun, links := linksRun, axiomsProper := c1, definitionsProper := c2,
-    factsProper := c3, rolesProper := c4, denied := by simp, forest := decide_eq_true_iff, clash := by simp }
+    factsProper := c3, rolesProper := c4, denied := by simp, forest := decide_eq_true_iff,
+    universal := decide_eq_true_iff, clash := by simp }
 
 /-- A prepared closure has supported axioms only. -/
 theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
@@ -1505,13 +1604,28 @@ theorem placement_representative {items : alloc.vec.Vec AnnotatedAxiom} {p : shi
     placedAt b (data.members item itemIn b (by simpa [statement,MembersOf] using bIn))]
   exact holds a aIn b bIn
 
+/-- No concept of a prepared closure counts along the universal role. -/
+private theorem prepared_count {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) :
+    NoTopCount p.parts.axioms ∧ (∀ d ∈ p.parts.definitions.val, NoTopCount d.concept) ∧
+      ∀ q ∈ p.bound.val, NoTopCount q.concept := by
+  refine ⟨proper_count _ data.axiomsProper,fun d member => proper_count _ (data.definitionsProper d member).2,?_⟩
+  intro q member
+  rcases data.boundOrigin q member with old | ⟨_,_,_,concept⟩ | ⟨_,_,_,_,_,_,_,_,concept⟩ |
+    ⟨_,_,_,_,_,_,_,concept⟩
+  · exact proper_count _ (data.factsProper q old)
+  · rw [concept]; trivial
+  · rw [concept]; trivial
+  · rw [concept]; trivial
+
 /-- The check of a prepared closure with extra facts terminates and answers only
     on proper extra facts whose nominals are of individuals with nodes; an
     answer is `false` for an inequality with two members at one node, the
-    completion forest's answer on the extra facts and the facts it also gets
-    for a question that goes to it, and otherwise `false` for a denied link or
-    the completion graph's answer, on the links, the TBox concept, the
-    definitions and the roles. -/
+    answer over the guesses for the restrictions along the universal role for a
+    question that uses it, the completion forest's answer on the extra facts and
+    the facts it also gets for another question that goes to it, and otherwise
+    `false` for a denied link or the completion graph's answer, on the links,
+    the TBox concept, the definitions and the roles. -/
 private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.Prepared)
     (data : PreparedData items p) (extra : alloc.vec.Vec completion.Fact)
     (extraIn : ∀ q ∈ extra.val, q.node.val ≤ p.nodes.val.length) :
@@ -1519,11 +1633,15 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
       (∀ q ∈ extra.val, Proper q.concept) ∧ (∀ q ∈ extra.val, ∀ a, Mentions q.concept a → a ∈ p.nodes.val) ∧
       ∃ count : Usize, count.val = p.nodes.val.length + 1 ∧
         ((p.clash = true ∧ b = false) ∨
-          (p.clash = false ∧
+          (p.clash = false ∧ (p.universal = true ∨ ∃ q ∈ extra.val, UsesTop q.concept) ∧
+            universal.satisfiable count extra p.bound p.links p.parts.axioms p.parts.definitions p.roles
+              p.chains = .ok (some b)) ∨
+          (p.clash = false ∧ p.universal = false ∧ (∀ q ∈ extra.val, ¬ UsesTop q.concept) ∧
             (p.forest = true ∨ (∃ q ∈ extra.val, Counts q.concept) ∨ ∃ q ∈ extra.val, Nominal q.concept) ∧
             role_chains.satisfiable count extra p.bound p.links p.parts.axioms p.parts.definitions p.roles
               p.chains = .ok (some b)) ∨
-          (p.clash = false ∧ p.forest = false ∧ (∀ q ∈ extra.val, ¬ Counts q.concept) ∧
+          (p.clash = false ∧ p.universal = false ∧ (∀ q ∈ extra.val, ¬ UsesTop q.concept) ∧
+            p.forest = false ∧ (∀ q ∈ extra.val, ¬ Counts q.concept) ∧
             (∀ q ∈ extra.val, ¬ Nominal q.concept) ∧
             ((p.denied = true ∧ b = false) ∨ (p.denied = false ∧
               completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
@@ -1537,7 +1655,8 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
   obtain ⟨closed,_⟩ := roleSpec p.roles rfl
   have properCheck := facts_proper_correct extra 0#usize
   have knownCheck := facts_known_correct p.nodes extra 0#usize
-  rw [zero,List.drop_zero] at properCheck knownCheck
+  have universalCheck := facts_universal_correct extra 0#usize
+  rw [zero,List.drop_zero] at properCheck knownCheck universalCheck
   rw [shi_ontology.prepared_satisfiable]
   by_cases proper : ∀ q ∈ extra.val, Proper q.concept
   swap
@@ -1563,17 +1682,50 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
     intro l member
     have := linksIn l member
     omega
-  by_cases toForest : p.forest = true ∨ (∃ q ∈ extra.val, Counts q.concept) ∨ ∃ q ∈ extra.val, Nominal q.concept
-  · have boundIn' : ∀ q ∈ extra.val ++ p.bound.val, q.node.val < count.val := by
-      intro q member
+  have boundIn' : ∀ q ∈ extra.val ++ p.bound.val, q.node.val < count.val := by
+    intro q member
+    rcases List.mem_append.mp member with given | old
+    · have := extraIn q given; omega
+    · have := boundIn q old; omega
+  by_cases toUniversal : p.universal = true ∨ ∃ q ∈ extra.val, UsesTop q.concept
+  · obtain ⟨axiomsCount,definitionsCount,boundCount⟩ := prepared_count data
+    have counted : NoTopCount p.parts.axioms ∧ (∀ d ∈ p.parts.definitions.val, NoTopCount d.concept) ∧
+        ∀ f ∈ extra.val ++ p.bound.val, NoTopCount f.concept := by
+      refine ⟨axiomsCount,definitionsCount,?_⟩
+      intro f member
       rcases List.mem_append.mp member with given | old
-      · have := extraIn q given; omega
-      · have := boundIn q old; omega
-    obtain ⟨answer,answerRun,_,_⟩ := Rowl.Chains.satisfiable_correct.{0,0} count extra p.bound p.links
+      · exact proper_count _ (proper f given)
+      · exact boundCount f old
+    obtain ⟨answer,answerRun,_,_⟩ := Rowl.Universal.satisfiable_correct.{0,0} count extra p.bound p.links
+      p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn' counted
+    refine ⟨answer,?_,?_⟩
+    · rcases toUniversal with prepared | question
+      · simp [properCheck,knownCheck,clashIs,prepared,countRun,answerRun]
+      · cases universalIs : p.universal with
+        | true => simp [properCheck,knownCheck,clashIs,universalIs,countRun,answerRun]
+        | false =>
+          rw [decide_eq_true question] at universalCheck
+          simp [properCheck,knownCheck,clashIs,universalIs,universalCheck,countRun,answerRun]
+    · intro b same
+      exact ⟨proper,known,count,countIs,.inr (.inl ⟨rfl,toUniversal,by rw [answerRun,same]⟩)⟩
+  have notUniversal : p.universal = false := by
+    cases universalIs : p.universal with
+    | false => rfl
+    | true => exact absurd (.inl universalIs) toUniversal
+  have plainExtra : ∀ q ∈ extra.val, ¬ UsesTop q.concept := fun q member uses =>
+    toUniversal (.inr ⟨q,member,uses⟩)
+  have universalCheck' : universal.facts_universal extra 0#usize = .ok false := by
+    rw [universalCheck]
+    congr 1
+    exact decide_eq_false (fun ⟨q,member,uses⟩ => plainExtra q member uses)
+  by_cases toForest : p.forest = true ∨ (∃ q ∈ extra.val, Counts q.concept) ∨ ∃ q ∈ extra.val, Nominal q.concept
+  · obtain ⟨answer,answerRun,_,_⟩ := Rowl.Chains.satisfiable_correct.{0,0} count extra p.bound p.links
       p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn'
-    refine ⟨answer,by simp [properCheck,knownCheck,clashIs,question_forest_correct,toForest,countRun,answerRun],?_⟩
+    refine ⟨answer,by simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',question_forest_correct,
+      toForest,countRun,answerRun],?_⟩
     intro b same
-    exact ⟨proper,known,count,countIs,.inr (.inl ⟨rfl,toForest,by rw [answerRun,same]⟩)⟩
+    exact ⟨proper,known,count,countIs,.inr (.inr (.inl ⟨rfl,notUniversal,plainExtra,toForest,
+      by rw [answerRun,same]⟩))⟩
   · have notForest : p.forest = false := by
       cases forestIs : p.forest with
       | false => rfl
@@ -1589,17 +1741,20 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
       · have := factsIn q old; omega
     cases deniedIs : p.denied with
     | true =>
-      refine ⟨some false,by simp [properCheck,knownCheck,clashIs,question_forest_correct,toForest,deniedIs],?_⟩
+      refine ⟨some false,by simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',
+        question_forest_correct,toForest,deniedIs],?_⟩
       intro b same
       cases same
-      exact ⟨proper,known,count,countIs,.inr (.inr ⟨rfl,notForest,noCounts,noNominal,.inl ⟨rfl,rfl⟩⟩)⟩
+      exact ⟨proper,known,count,countIs,.inr (.inr (.inr ⟨rfl,notUniversal,plainExtra,notForest,noCounts,
+        noNominal,.inl ⟨rfl,rfl⟩⟩))⟩
     | false =>
       obtain ⟨answer,answerRun,_,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
         p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
-      refine ⟨answer,by simp [properCheck,knownCheck,clashIs,question_forest_correct,toForest,deniedIs,countRun,
-        answerRun],?_⟩
+      refine ⟨answer,by simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',question_forest_correct,
+        toForest,deniedIs,countRun,answerRun],?_⟩
       intro b same
-      exact ⟨proper,known,count,countIs,.inr (.inr ⟨rfl,notForest,noCounts,noNominal,.inr ⟨rfl,by rw [answerRun,same]⟩⟩)⟩
+      exact ⟨proper,known,count,countIs,.inr (.inr (.inr ⟨rfl,notUniversal,plainExtra,notForest,noCounts,
+        noNominal,.inr ⟨rfl,by rw [answerRun,same]⟩⟩))⟩
 
 /-- An accepting check of a prepared closure yields an OWL model of the closure
     in which every individual sits at the element of its node and every extra
@@ -1665,11 +1820,93 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     · rcases List.mem_append.mp qIn with given | old
       · exact knownExtra q given a inFact
       · exact data.nominals a (.inr (.inr ⟨q,old,inFact⟩))
-  -- A model in `Type` from the tableau that answered, where no negative
-  -- assertion relates its individuals, the members of every inequality are
-  -- apart, and the individual of every nominal sits at its node.
-  obtain ⟨Obj,J,π,respects,constrained,chained,tbox,defs,factsHold,linksHold,negatives,apart,agree⟩ : ∃ (Obj : Type)
-      (J : Interpretation Obj Unit) (π : Nat → Obj), Respects J p.roles ∧ Constrained J p.roles ∧
+  -- The role axioms survive making the universal role relate every pair.
+  have rolesUp : ∀ (Obj : Type) (J : Interpretation Obj Unit), Respects J p.roles →
+      Respects (withUniversal J) p.roles := fun Obj J respects =>
+    (respectsIff Obj Unit (withUniversal J)).1.mpr (fun item member role =>
+      universal_role_axiom J item.axiom role (data.rolesProper item member)
+        ((respectsIff Obj Unit J).1.mp respects item member role))
+  have constraintsUp : ∀ (Obj : Type) (J : Interpretation Obj Unit), Constrained J p.roles →
+      Constrained (withUniversal J) p.roles := fun Obj J constrained =>
+    (respectsIff Obj Unit (withUniversal J)).2.mpr (fun item member constraint =>
+      universal_constraint_axiom J item.axiom constraint (data.rolesProper item member)
+        ((respectsIff Obj Unit J).2.mp constrained item member constraint))
+  have chainsUp : ∀ (Obj : Type) (J : Interpretation Obj Unit), Chained J p.chains.val →
+      Chained (withUniversal J) p.chains.val := fun Obj J chained =>
+    (chainsIff Obj (withUniversal J)).mpr (fun item member chain =>
+      universal_chain_axiom J item.axiom chain (data.rolesProper item member)
+        ((chainsIff Obj J).mp chained item member chain))
+  -- Without the universal role in the closure, its concepts keep their meaning.
+  have plainClosure : p.universal = false → ¬ UsesTop p.parts.axioms ∧
+      (∀ d ∈ p.parts.definitions.val, ¬ UsesTop d.concept) ∧ ∀ q ∈ p.bound.val, ¬ UsesTop q.concept := by
+    intro notUniversal
+    have none : ¬ (UsesTop p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, UsesTop d.concept) ∨
+        ∃ q ∈ p.bound.val, UsesTop q.concept) := fun uses => by
+      have := data.universal.mpr uses
+      rw [notUniversal] at this
+      cases this
+    exact ⟨fun uses => none (.inl uses),fun d member uses => none (.inr (.inl ⟨d,member,uses⟩)),
+      fun q member uses => none (.inr (.inr ⟨q,member,uses⟩))⟩
+  -- A model of the forest's facts with the universal role relating every pair:
+  -- every individual sits where its nominal is, no negative assertion relates
+  -- its individuals and the members of every inequality are apart.
+  have fromForest : ∀ (Obj : Type) (J : Interpretation Obj Unit) (π : Nat → Obj),
+      Respects J p.roles → Chained J p.chains.val → Constrained J p.roles →
+      (∀ y, denote (withUniversal J) p.parts.axioms y) →
+      (∀ d ∈ p.parts.definitions.val, ∀ y, J.classes d.class y → denote (withUniversal J) d.concept y) →
+      (∀ f ∈ extra.val ++ p.bound.val, denote (withUniversal J) f.concept (π f.node.val)) →
+      (∀ l ∈ p.links.val, objectRelation J l.role (π l.from.val) (π l.to.val)) →
+      (∀ x y, (withUniversal J).objectProperties topObject x y) ∧ Respects (withUniversal J) p.roles ∧
+      Constrained (withUniversal J) p.roles ∧ Chained (withUniversal J) p.chains.val ∧
+      (∀ y, denote (withUniversal J) p.parts.axioms y) ∧
+      (∀ d ∈ p.parts.definitions.val, ∀ y, (withUniversal J).classes d.class y →
+        denote (withUniversal J) d.concept y) ∧
+      (∀ f ∈ extra.val ++ p.facts.val, denote (withUniversal J) f.concept (π f.node.val)) ∧
+      (∀ l ∈ p.links.val, objectRelation (withUniversal J) l.role (π l.from.val) (π l.to.val)) ∧
+      (∀ item ∈ items.val, ∀ r a b, item.axiom = .NegativeObjectPropertyAssertion r a b →
+        ¬ objectRelation (withUniversal J) r (π (RepOf p.same.val p.nodes.val a))
+          (π (RepOf p.same.val p.nodes.val b))) ∧
+      (∀ item ∈ items.val, ∀ xs, item.axiom = .DifferentIndividuals xs →
+        xs.elements.Pairwise (fun a b => π (RepOf p.same.val p.nodes.val a) ≠ π (RepOf p.same.val p.nodes.val b))) ∧
+      (∀ a, (Mentions p.parts.axioms a ∨ (∃ d ∈ p.parts.definitions.val, Mentions d.concept a) ∨
+        ∃ q ∈ extra.val ++ p.facts.val, Mentions q.concept a) →
+          Rowl.Owl.individual (withUniversal J) a = π (RepOf p.same.val p.nodes.val a)) := by
+    intro Obj J π respects chained constrained tbox defs boundHold linksHold
+    have named : ∀ a ∈ p.nodes.val,
+        Rowl.Owl.individual (withUniversal J) a = π (RepOf p.same.val p.nodes.val a) := by
+      intro a member
+      obtain ⟨q,qIn,qNode,qConcept⟩ := data.boundNamed a member
+      have holds := boundHold q (List.mem_append_right _ qIn)
+      rw [qConcept,qNode] at holds
+      exact holds
+    refine ⟨fun x y => .inl rfl,rolesUp Obj J respects,constraintsUp Obj J constrained,chainsUp Obj J chained,
+      tbox,defs,?_,fun l member => (relation_with_universal J l.role _ _).mpr (.inr (linksHold l member)),?_,?_,
+      fun a mentioned => named a (mentionedIn a mentioned)⟩
+    · intro f member
+      rcases List.mem_append.mp member with given | old
+      · exact boundHold f (List.mem_append_left _ given)
+      · exact boundHold f (List.mem_append_right _ (data.boundFacts f old))
+    · intro item member r a b statement related
+      obtain ⟨q,qIn,qNode,qConcept⟩ := data.boundRefused item member r a b statement
+      have holds := boundHold q (List.mem_append_right _ qIn)
+      rw [qConcept,qNode] at holds
+      have bIn : b ∈ p.nodes.val := data.individuals item member b (by simp [statement,IndividualsOf])
+      exact holds _ related (named b bIn)
+    · intro item member xs statement
+      refine (data.boundApart item member xs statement).imp_of_mem ?_
+      intro a b aIn bIn ⟨q,qIn,qNode,qConcept⟩ equal
+      have holds := boundHold q (List.mem_append_right _ qIn)
+      rw [qConcept,qNode] at holds
+      have bNode : b ∈ p.nodes.val := data.members item member b (by simpa [statement,MembersOf] using bIn)
+      apply holds
+      rw [named b bNode,equal]
+  -- A model in `Type` from the tableau that answered, with the universal role
+  -- relating every pair, where no negative assertion relates its individuals,
+  -- the members of every inequality are apart, and the individual of every
+  -- nominal sits at its node.
+  obtain ⟨Obj,J,π,full,respects,constrained,chained,tbox,defs,factsHold,linksHold,negatives,apart,agree⟩ :
+      ∃ (Obj : Type) (J : Interpretation Obj Unit) (π : Nat → Obj), (∀ x y, J.objectProperties topObject x y) ∧
+      Respects J p.roles ∧ Constrained J p.roles ∧
       Chained J p.chains.val ∧ (∀ y, denote J p.parts.axioms y) ∧
       (∀ d ∈ p.parts.definitions.val, ∀ y, J.classes d.class y → denote J d.concept y) ∧
       (∀ f ∈ extra.val ++ p.facts.val, denote J f.concept (π f.node.val)) ∧
@@ -1681,47 +1918,43 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
       (∀ a, (Mentions p.parts.axioms a ∨ (∃ d ∈ p.parts.definitions.val, Mentions d.concept a) ∨
         ∃ q ∈ extra.val ++ p.facts.val, Mentions q.concept a) →
           Rowl.Owl.individual J a = π (RepOf p.same.val p.nodes.val a)) := by
-    rcases outcome with ⟨_,impossible⟩ | ⟨_,_,forestRun⟩ |
-      ⟨notClash,notForest,_,noNominal,⟨_,impossible⟩ | ⟨notDenied,tableauRun⟩⟩
+    rcases outcome with ⟨_,impossible⟩ | ⟨_,_,universalRun⟩ | ⟨_,notUniversal,plainExtra,_,forestRun⟩ |
+      ⟨notClash,notUniversal,plainExtra,notForest,_,noNominal,⟨_,impossible⟩ | ⟨notDenied,tableauRun⟩⟩
     · cases impossible
+    · obtain ⟨axiomsCount,definitionsCount,boundCount⟩ := prepared_count data
+      obtain ⟨universalResult,universalRun',sound,_⟩ := Rowl.Universal.satisfiable_correct.{0,0} count extra
+        p.bound p.links p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn'
+        ⟨axiomsCount,definitionsCount,fun f member => by
+          rcases List.mem_append.mp member with given | old
+          · exact proper_count _ (properExtra f given)
+          · exact boundCount f old⟩
+      rw [universalRun] at universalRun'
+      cases Result.ok_injective universalRun'
+      obtain ⟨Obj,J,π,respects,chained,constrained,tbox,defs,boundHold,linksHold⟩ := sound rfl
+      exact ⟨Obj,withUniversal J,π,fromForest Obj J π respects chained constrained tbox defs boundHold linksHold⟩
     · obtain ⟨forestResult,forestRun',sound,_⟩ := Rowl.Chains.satisfiable_correct.{0,0} count extra p.bound
         p.links p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn'
       rw [forestRun] at forestRun'
       cases Result.ok_injective forestRun'
       obtain ⟨Obj,J,π,respects,chained,constrained,tbox,defs,boundHold,linksHold⟩ := sound rfl
-      -- Every individual sits where its nominal is.
-      have named : ∀ a ∈ p.nodes.val, Rowl.Owl.individual J a = π (RepOf p.same.val p.nodes.val a) := by
-        intro a member
-        obtain ⟨q,qIn,qNode,qConcept⟩ := data.boundNamed a member
-        have holds := boundHold q (List.mem_append_right _ qIn)
-        rw [qConcept,qNode] at holds
-        exact holds
-      refine ⟨Obj,J,π,respects,constrained,chained,tbox,defs,?_,linksHold,?_,?_,
-        fun a mentioned => named a (mentionedIn a mentioned)⟩
-      · intro f member
+      obtain ⟨axiomsPlain,definitionsPlain,boundPlain⟩ := plainClosure notUniversal
+      refine ⟨Obj,withUniversal J,π,fromForest Obj J π respects chained constrained
+        (fun y => (Rowl.Universal.plain_meaning J _ axiomsPlain y).mpr (tbox y))
+        (fun d member y classes => (Rowl.Universal.plain_meaning J _ (definitionsPlain d member) y).mpr
+          (defs d member y classes)) ?_ linksHold⟩
+      intro f member
+      have plainFact : ¬ UsesTop f.concept := by
         rcases List.mem_append.mp member with given | old
-        · exact boundHold f (List.mem_append_left _ given)
-        · exact boundHold f (List.mem_append_right _ (data.boundFacts f old))
-      · intro item member r a b statement related
-        obtain ⟨q,qIn,qNode,qConcept⟩ := data.boundRefused item member r a b statement
-        have holds := boundHold q (List.mem_append_right _ qIn)
-        rw [qConcept,qNode] at holds
-        have bIn : b ∈ p.nodes.val := data.individuals item member b (by simp [statement,IndividualsOf])
-        exact holds _ related (named b bIn)
-      · intro item member xs statement
-        refine (data.boundApart item member xs statement).imp_of_mem ?_
-        intro a b aIn bIn ⟨q,qIn,qNode,qConcept⟩ equal
-        have holds := boundHold q (List.mem_append_right _ qIn)
-        rw [qConcept,qNode] at holds
-        have bNode : b ∈ p.nodes.val := data.members item member b (by simpa [statement,MembersOf] using bIn)
-        apply holds
-        rw [named b bNode,equal]
+        · exact plainExtra f given
+        · exact boundPlain f old
+      exact (Rowl.Universal.plain_meaning J _ plainFact _).mpr (boundHold f member)
     · cases impossible
     · obtain ⟨tableau,tableauRun',sound,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
         p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
       rw [tableauRun] at tableauRun'
       cases Result.ok_injective tableauRun'
       obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,exactLinks,injective⟩ := sound rfl
+      obtain ⟨axiomsPlain,definitionsPlain,boundPlain⟩ := plainClosure notUniversal
       -- No nominal reaches the completion graph tableau.
       have plain : ¬ (Nominal p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, Nominal d.concept) ∨
           ∃ q ∈ p.facts.val, Nominal q.concept) := fun nominal => by
@@ -1740,9 +1973,31 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         have := data.forest.mpr (.inr (.inr (.inr (.inr chains))))
         rw [notForest] at this
         cases this
-      refine ⟨Obj,J,π,respects,Rowl.Hierarchy.constrained_of_empty J p.roles noPairs,
-        (by intro ch member; rw [noChains] at member; cases member),tbox,defs,factsHold,linksHold,?_,?_,?_⟩
+      refine ⟨Obj,withUniversal J,π,fun x y => .inl rfl,rolesUp Obj J respects,
+        Rowl.Hierarchy.constrained_of_empty (withUniversal J) p.roles noPairs,
+        (by intro ch member; rw [noChains] at member; cases member),
+        fun y => (Rowl.Universal.plain_meaning J _ axiomsPlain y).mpr (tbox y),
+        fun d member y classes => (Rowl.Universal.plain_meaning J _ (definitionsPlain d member) y).mpr
+          (defs d member y classes),?_,
+        fun l member => (relation_with_universal J l.role _ _).mpr (.inr (linksHold l member)),?_,?_,?_⟩
+      · intro f member
+        have plainFact : ¬ UsesTop f.concept := by
+          rcases List.mem_append.mp member with given | old
+          · exact plainExtra f given
+          · exact boundPlain f (data.boundFacts f old)
+        exact (Rowl.Universal.plain_meaning J _ plainFact _).mpr (factsHold f member)
       · intro item member r a b statement related
+        -- The negative assertion is not along the universal role, whose
+        -- refusal would be a concept of the closure that uses it.
+        have other : RoleOf r ≠ topObject := by
+          intro top
+          obtain ⟨q,qIn,_,qConcept⟩ := data.boundRefused item member r a b statement
+          apply boundPlain q qIn
+          rw [qConcept]
+          exact .inl top
+        rw [relation_with_universal] at related
+        rcases related with top | related
+        · exact other top
         have alone : p.roles.inclusions.val = [] ∧ p.roles.transitive.val = [] := by
           by_contra roles
           have := data.forest.mpr (.inr (.inr (.inl ⟨⟨item,member,by rw [statement]; trivial⟩,roles⟩)))
@@ -1790,9 +2045,9 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     exact holds.2 y
   have valid := owl_model_valid.{u,v,w} J (π 0) place D V
   have fixes := fixes_of_interpretation valid
-  have agrees := owl_model_agrees.{u,v,w} J (π 0) place D empty
+  have agrees := owl_model_agrees.{u,v,w} J (π 0) place D full empty
   have individualAt := individual_owl_model.{u,v,w} J (π 0) place D
-  have relation := owl_model_relation.{u,v,w} J (π 0) place D empty
+  have relation := owl_model_relation.{u,v,w} J (π 0) place D full empty
   obtain ⟨partsResult,partsRun',_,_,partsMeaning⟩ := class_parts_correct.{u, max w v} items
   rw [partsRun0] at partsRun'
   cases Result.ok_injective partsRun'
@@ -1831,19 +2086,13 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
       | ObjectPropertyAssertion r a b =>
         obtain ⟨l,lIn,role,source,target⟩ := linkCovered item (by simpa using member) r a b statement
         have holds := linksHold l lIn
-        have proper := data.rolesProper item member
-        rw [statement] at proper
-        simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation r proper]
+        rw [relation r]
         rw [role,source,target] at holds
         exact holds
       | NegativeObjectPropertyAssertion r a b =>
-        have proper := data.rolesProper item member
-        rw [statement] at proper
-        simp only [RoleProper] at proper
         simp only [Rowl.Owl.satisfies,individualAt,place]
-        rw [relation r proper]
+        rw [relation r]
         exact negatives item member r a b statement
       | _ => simp [statement,Assertion] at assertion
     · by_cases equality : Equality item.axiom
@@ -1858,13 +2107,13 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
             (fun {a b} different equal => different (congrArg ULift.down equal))
         | _ => simp [statement,Equality] at equality
       · by_cases role : RoleAxiom item.axiom
-        · exact owl_model_role_axiom J (π 0) place D empty item.axiom role (data.rolesProper item member)
+        · exact owl_model_role_axiom J (π 0) place D full empty item.axiom role
             (rolesHold item member role)
         · by_cases constraint : ConstraintAxiom item.axiom
-          · exact owl_model_constraint_axiom J (π 0) place D empty item.axiom constraint (data.rolesProper item member)
+          · exact owl_model_constraint_axiom J (π 0) place D full empty item.axiom constraint
               (constraintsHold item member constraint)
           · by_cases chain : ChainAxiom item.axiom
-            · exact owl_model_chain_axiom J (π 0) place D empty item.axiom chain (data.rolesProper item member)
+            · exact owl_model_chain_axiom J (π 0) place D full empty item.axiom chain
                 (chainsHold item member chain)
             · rcases classParts item member with assertion' | equality' | role' | constraint' | chain' | holds
               · exact absurd assertion' assertion
@@ -2007,7 +2256,8 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
   have respects := (respectsIff Object Value (withAnonymous I g)).1.mpr (fun item member _ => satisfied item member)
   have constrained := (respectsIff Object Value (withAnonymous I g)).2.mpr
     (fun item member _ => satisfied item member)
-  rcases outcome with ⟨clashTrue,rfl⟩ | ⟨_,_,forestRun⟩ | ⟨_,_,_,_,⟨deniedTrue,rfl⟩ | ⟨_,tableauRun⟩⟩
+  rcases outcome with ⟨clashTrue,rfl⟩ | ⟨_,_,universalRun⟩ | ⟨_,_,_,_,forestRun⟩ |
+    ⟨_,_,_,_,_,_,⟨deniedTrue,rfl⟩ | ⟨_,tableauRun⟩⟩
   · exfalso
     obtain ⟨item,itemIn,clashes⟩ := data.clash.mp clashTrue
     cases statement : item.axiom with
@@ -2026,6 +2276,26 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
     | _ =>
       rw [statement] at clashes
       simp [Clashes] at clashes
+  · -- The guesses for the universal role: the OWL model, whose universal role
+    -- relates every pair, is a model of the question.
+    obtain ⟨axiomsCount,definitionsCount,boundCount⟩ := prepared_count data
+    obtain ⟨universalResult,universalRun',_,complete⟩ := Rowl.Universal.satisfiable_correct.{u,v} count extra
+      p.bound p.links p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn'
+      ⟨axiomsCount,definitionsCount,fun q member => by
+        rcases List.mem_append.mp member with given | old
+        · exact proper_count _ (properExtra q given)
+        · exact boundCount q old⟩
+    rw [universalRun] at universalRun'
+    cases Result.ok_injective universalRun'
+    cases answer with
+    | true => rfl
+    | false =>
+      refine absurd ⟨Object,Value,withAnonymous I g,f,valid.2.2.1,respects,chained,constrained,partsHold.1,
+        partsHold.2,?_,linkHolds⟩ (complete rfl)
+      intro q member
+      rcases List.mem_append.mp member with given | old
+      · exact extraHolds' q given
+      · exact boundHolds q old
   · obtain ⟨forestResult,forestRun',_,complete⟩ := Rowl.Chains.satisfiable_correct.{u,v} count extra p.bound
       p.links p.parts.axioms p.parts.definitions p.roles closed p.chains (by omega) boundIn' linksIn'
     rw [forestRun] at forestRun'

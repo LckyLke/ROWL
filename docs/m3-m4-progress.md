@@ -3833,3 +3833,54 @@ these from axioms and from Functional Syntax source bytes.
 
 This block adds 4 public theorems. Totals are 1652 audited theorems, 906
 definitions, 458 Rust regressions and 1845 ledger obligations.
+
+## Reasoner: the universal role
+
+The universal role `owl:topObjectProperty` relates every pair, which no model
+of the tableaux has to. A restriction along it, `∃U.C` or `∀U.C` in either
+orientation, therefore holds at every element or at none (Global,
+global_denote): its truth is one global choice (GlobalTruth). A question that
+uses the universal role goes to the completion forest through a case split
+(universal::satisfiable, Rowl.Universal.satisfiable_correct), which leaves the
+forest, the role chains and their proofs untouched.
+
+The restrictions along the universal role are collected once each, the atoms,
+with every atom of their fillers (universal::collect, collect_correct). Under a
+guess for their truths every atom becomes `⊤` or `⊥`, `∃U.Self` becomes `⊤`
+and its complement `⊥` (fixedOf, fixed_correct), and the guess is made good by
+what it requires (Required, require_correct): a further element at a further
+node in the filler of a true `∃U.C` or outside the filler of a false `∀U.C`,
+and the filler of a true `∀U.C` or the complement of the filler of a false
+`∃U.C` in the TBox concept. The forest decides each guess (guessed_correct) and
+the search tries them in turn, accepting with the first guess that has a model
+(guesses_correct). In a model of a guess's requirements, every guess is the
+truth of its atom once the universal role relates every pair, the atoms of a
+filler first (requirements_exact), so the concepts under the guess mean the
+concepts (fixed_meaning); and a model of the question in which the universal
+role relates every pair is a model of the guess of its own truths, with its
+witnesses at the further nodes. No name has to be fresh. An earlier encoding
+through a hub, an individual every element relates to along `U`, was exact
+too, but per-node choices about global restrictions all passed through the hub
+and made the forest's backjumping thrash on small inputs; the case split takes
+those choices once.
+
+The ontology queries now take the universal role in every concept except
+number restrictions, which OWL 2 DL forbids along it (Proper, NoTopCount), and
+in inclusions and chains into it, its symmetry and transitivity, and
+assertions along it, which hold for every pair; it may not be included in
+another role, inverse or equivalent to one, asymmetric or disjoint from one
+(RoleProper). An acceptance comes with an OWL model built from the forest's
+model with the universal role then relating every pair (withUniversal), which
+keeps every role axiom of the closure (universal_role_axiom,
+universal_constraint_axiom, universal_chain_axiom); negative assertions along
+the universal role refute the closure through their refusals. This completes
+SROIQ: with datatypes, full OWL 2 DL remains. The tests decide global
+existence and universality, domains and ranges of the universal role, a
+prescription that needs review everywhere once any patient takes warfarin,
+also from Functional Syntax source bytes, and every one of 200 random concepts
+over the universal role, all with a model of at most three elements coming
+out satisfiable, in under a second.
+
+This block adds 36 public theorems and 9 independent definitions. Totals are
+1688 audited theorems, 915 definitions, 463 Rust regressions and 1881 ledger
+obligations.

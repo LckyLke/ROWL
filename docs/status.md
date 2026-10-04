@@ -852,9 +852,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   role `owl:bottomObjectProperty` is an ordinary role for the tableaux, and the
   TBox concept also conjoins `∀B.⊥` for it, so it relates nothing in their
   models, as OWL requires: the ontology queries take it in every position, in
-  concepts, inclusions, chains, characteristics and assertions, and only
-  `owl:topObjectProperty` still gets no answer.
-- 1652 audited public theorems and 906 audited semantic definitions. Consistency,
+  concepts, inclusions, chains, characteristics and assertions. The universal
+  role `owl:topObjectProperty` relates every pair, so a restriction `∃U.C` or
+  `∀U.C` along it holds at every element or at none: a question that uses it
+  goes to the completion forest over the guesses for the truths of these
+  restrictions (`universal`), each made good by a further element or by the
+  TBox concept, and a model of one guess, with the universal role then relating
+  every pair, is a model of the question, while every OWL model is a model of
+  the guess of its own truths. Inclusions and chains into the universal role,
+  its symmetry and transitivity, and assertions along it are taken as they are.
+  This completes SROIQ: no number restriction may count along the universal
+  role, as OWL 2 DL requires, and it is never included in another role.
+- 1688 audited public theorems and 915 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -863,11 +872,11 @@ progress. Full OWL parsing and executable reasoning are still future work.
   properties, class, object property and negative object property
   assertions, individual equalities and inequalities, and inclusions,
   equivalences, inverses, symmetry, transitivity and chains of object property
-  expressions, with the empty role (SROIQ without the universal role), also
-  directly from Functional Syntax source bytes.
+  expressions, with the universal and empty roles (SROIQ), also directly from
+  Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 458 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 463 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -882,7 +891,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1845-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1881-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -135,6 +135,7 @@ import Rowl.ChainSemantics
 import Rowl.ChainOps
 import Rowl.ChainModel
 import Rowl.Chains
+import Rowl.Universal
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiEquality

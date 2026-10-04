@@ -4,11 +4,11 @@ import Rowl.ShiOntology
 /-!
 Answers for Functional Syntax source bytes, proved end to end. The proved
 document reader, the proved mapping into the raw OWL model and the proved
-queries for SROIQ without the universal role, with assertions about
-named and anonymous individuals, inverse properties, role axioms, number
-restrictions, nominals of named individuals, self restrictions with reflexive
-and irreflexive properties, asymmetric and disjoint properties and role chains,
-decided by the completion graph tableau or the completion forest, compose into
+queries for SROIQ, with assertions about named and anonymous individuals,
+inverse properties, role axioms, number restrictions, nominals of named
+individuals, self restrictions with reflexive and irreflexive properties,
+asymmetric and disjoint properties, role chains and the universal and empty
+roles, decided by the completion graph tableau or the completion forest, compose into
 one extracted function from the original bytes to an answer. An error is
 exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then

@@ -1,9 +1,9 @@
 //! Consistency, class satisfiability, subsumption and instance checking for an
 //! axiom closure with assertions: SHI decided by the completion graph tableau,
-//! and SHOIQ with self restrictions, reflexive, irreflexive, asymmetric and
-//! disjoint properties and role chains, with number restrictions, complements
-//! of self restrictions and disjoint pairs on simple roles and nominals of
-//! named individuals, by the completion forest.
+//! and SROIQ, with self restrictions, reflexive, irreflexive, asymmetric and
+//! disjoint properties, role chains and the universal and empty roles, with
+//! number restrictions, complements of self restrictions and disjoint pairs on
+//! simple roles and nominals of named individuals, by the completion forest.
 //!
 //! Class expressions are translated into ALCIQO concepts with self restrictions
 //! (see `concepts`). Every
@@ -36,6 +36,15 @@
 //! tableaux, and the TBox concept also conjoins `∀B.⊥` for it, so it relates
 //! nothing in their models, as OWL requires.
 //!
+//! A question about a closure whose concepts use `owl:topObjectProperty`, the
+//! universal role `U`, or whose own concepts do, goes to the completion forest
+//! through a case split (`universal`): a restriction `∃U.C` or `∀U.C` holds at
+//! every element or at none, so the forest decides each guess of their truths,
+//! with each guess made good by a further element or by the TBox concept, and
+//! a model of one guess, with `U` then relating every pair, is a model of the
+//! question. Inclusions and chains into `U`, its symmetry and transitivity, and
+//! assertions along it are taken as they are, since `U` relates every pair.
+//!
 //! Every individual of an assertion, equality or inequality, and every
 //! individual of a nominal of the closure, gets a node after node 0, which
 //! stands for one more element, and the members of a `SameIndividual` axiom
@@ -63,9 +72,11 @@
 //! and ask once.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside ALCIQO with self restrictions, when a concept,
-//! definition, role axiom or assertion uses `owl:topObjectProperty` (whose
-//! fixed meaning the tableaux do not model), when a nominal is of an anonymous individual or, in a question, of an
+//! expression is outside ALCIQO with self restrictions, when a number
+//! restriction counts along `owl:topObjectProperty` or a role axiom uses it
+//! other than as the role of an inclusion or a chain, or as a symmetric or
+//! transitive role (it is never included in another role, inverse or
+//! equivalent to one, asymmetric or disjoint from one), when a nominal is of an anonymous individual or, in a question, of an
 //! individual the closure does not have, when a number restriction, the
 //! complement of a self restriction or a disjoint pair is on a role that is not
 //! simple (one that a transitive role or the role of a chain is included in),
@@ -81,9 +92,7 @@
     clippy::if_same_then_else,
     clippy::single_match
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
-use crate::alc_ontology::{
-    builtin_class, has_negative, individuals_from, intern, named_property, position, same_pattern,
-};
+use crate::alc_ontology::{builtin_class, has_negative, individuals_from, intern, position};
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
 use crate::hierarchy::{below, is_transitive, Disjoint, Inclusion, RoleHierarchy};
@@ -93,6 +102,7 @@ use crate::model::{
 };
 use crate::nnf::copy_iri;
 use crate::role_chains::{self, Chain};
+use crate::universal::{self, definitions_universal, facts_universal, not_top, universal};
 
 /// What the class axioms require: the TBox concept, which holds at every
 /// element, and the definitions `A ⊑ C`, which hold wherever `A` does.
@@ -101,14 +111,6 @@ pub struct Parts {
     pub definitions: Vec<Definition>,
 }
 
-/// Whether the role is not `owl:topObjectProperty`, in either orientation,
-/// whose fixed meaning the tableaux do not model.
-fn not_top(role: &ObjectPropertyExpression) -> bool {
-    !same_pattern(
-        &named_property(role).iri.spelling,
-        b"http://www.w3.org/2002/07/owl#topObjectProperty",
-    )
-}
 /// `out` with the bytes of `pattern[index..]`.
 fn spelled(pattern: &[u8], index: usize, mut out: Vec<u8>) -> Vec<u8> {
     if index < pattern.len() {
@@ -140,10 +142,12 @@ fn named_individual(individual: &Individual) -> bool {
         Individual::Anonymous(_) => false,
     }
 }
-/// Whether no built-in class occurs as a named class, `owl:topObjectProperty`
-/// not as a role and no anonymous individual in a nominal, so the tableaux read
-/// every name as an ordinary one; `owl:bottomObjectProperty` relates nothing in
-/// the tableaux's models, as the TBox concept requires.
+/// Whether no built-in class occurs as a named class, no anonymous individual
+/// in a nominal and `owl:topObjectProperty` not in a number restriction, so the
+/// tableaux read every other name as an ordinary one and every restriction
+/// along the universal role is one global choice (`universal`);
+/// `owl:bottomObjectProperty` relates nothing in the tableaux's models, as the
+/// TBox concept requires.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -152,12 +156,12 @@ fn proper(concept: &Concept) -> bool {
         Concept::NotAtom(class) => !builtin_class(class),
         Concept::One(individual) => named_individual(individual),
         Concept::NotOne(individual) => named_individual(individual),
-        Concept::HasSelf(role) => not_top(role),
-        Concept::NotSelf(role) => not_top(role),
+        Concept::HasSelf(_) => true,
+        Concept::NotSelf(_) => true,
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
-        Concept::Exists(role, filler) => not_top(role) && proper(filler),
-        Concept::Forall(role, filler) => not_top(role) && proper(filler),
+        Concept::Exists(_, filler) => proper(filler),
+        Concept::Forall(_, filler) => proper(filler),
         Concept::AtLeast(_, role, filler) => not_top(role) && proper(filler),
         Concept::AtMost(_, role, filler) => not_top(role) && proper(filler),
     }
@@ -196,6 +200,13 @@ fn facts_count(facts: &Vec<Fact>, index: usize) -> bool {
 /// Whether the TBox concept, a definition or a fact counts.
 fn closure_counts(parts: &Parts, facts: &Vec<Fact>) -> bool {
     counts(&parts.axioms) || definitions_count(&parts.definitions, 0) || facts_count(facts, 0)
+}
+/// Whether the universal role is a role of the TBox concept, a definition or a
+/// fact.
+fn closure_universal(parts: &Parts, facts: &Vec<Fact>) -> bool {
+    universal(&parts.axioms)
+        || definitions_universal(&parts.definitions, 0)
+        || facts_universal(facts, 0)
 }
 /// Whether a nominal occurs, which only the completion forest decides.
 fn nominal(concept: &Concept) -> bool {
@@ -1030,32 +1041,37 @@ fn members_proper(members: &AtLeastTwo<ObjectPropertyExpression>) -> bool {
     let second = not_top(&members.second);
     first && second && rest_proper(&members.rest, 0)
 }
-/// Whether no role of a chain or its role is `owl:topObjectProperty`.
+/// Whether the role of a chain is `owl:topObjectProperty`, which every chain
+/// is included in, or no role of the chain is.
 fn chain_proper(
     members: &AtLeastTwo<ObjectPropertyExpression>,
     sup: &ObjectPropertyExpression,
 ) -> bool {
     let along = members_proper(members);
     let upper = not_top(sup);
-    along && upper
+    !upper || along
 }
-/// Whether no object property assertion or role axiom in `items[index..]` uses
-/// `owl:topObjectProperty`.
+/// Whether an inclusion is not of `owl:topObjectProperty` in another role,
+/// which would make that role universal too.
+fn inclusion_proper(sub: &ObjectPropertyExpression, sup: &ObjectPropertyExpression) -> bool {
+    let lower = not_top(sub);
+    let upper = not_top(sup);
+    lower || !upper
+}
+/// Whether no role axiom in `items[index..]` uses `owl:topObjectProperty`
+/// other than as the role of an inclusion or a chain, or as a symmetric or
+/// transitive role, which it always is.
 fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
     if index < items.len() {
         let here = match &items[index].axiom {
-            Axiom::ObjectPropertyAssertion(property, _, _) => not_top(property),
-            Axiom::NegativeObjectPropertyAssertion(property, _, _) => not_top(property),
             Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(sub), sup) => {
-                pair_proper(sub, sup)
+                inclusion_proper(sub, sup)
             }
             Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Chain(members), sup) => {
                 chain_proper(members, sup)
             }
             Axiom::EquivalentObjectProperties(members) => members_proper(members),
             Axiom::InverseObjectProperties(first, second) => pair_proper(first, second),
-            Axiom::SymmetricObjectProperty(property) => not_top(property),
-            Axiom::TransitiveObjectProperty(property) => not_top(property),
             Axiom::AsymmetricObjectProperty(property) => not_top(property),
             Axiom::DisjointObjectProperties(members) => members_proper(members),
             _ => true,
@@ -1632,8 +1648,9 @@ fn chained(chains: &Vec<Chain>) -> bool {
 /// property assertion related along its property only outside the target's
 /// nominal), its role hierarchy and role chains, the links of its object
 /// property assertions, whether a negative object property assertion denies one
-/// of them, whether every question goes to the completion forest, and whether
-/// two members of an inequality share a node.
+/// of them, whether every question goes to the completion forest, whether its
+/// concepts use the universal role, and whether two members of an inequality
+/// share a node.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
     pub same: Vec<usize>,
@@ -1645,6 +1662,7 @@ pub struct Prepared {
     pub links: Vec<Link>,
     pub denied: bool,
     pub forest: bool,
+    pub universal: bool,
     pub clash: bool,
 }
 /// Read an axiom closure for queries; `None` when it is outside the supported
@@ -1724,6 +1742,7 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         || tangled(items, &roles)
         || constrained(&roles)
         || chained(&chains);
+    let universal = closure_universal(&parts, &bound);
     let clash = clash_from(items, &nodes, &same, 0);
     Some(Prepared {
         nodes,
@@ -1736,6 +1755,7 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         links,
         denied,
         forest,
+        universal,
         clash,
     })
 }
@@ -1751,8 +1771,9 @@ fn question_forest(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
 /// share a node rules out every model. A question that counts or has a
 /// nominal, or about a closure with negative assertions next to role axioms,
 /// disjoint pairs or role chains, goes to the completion forest, with the role
-/// chains in front of it, with the facts it also gets; every other question to
-/// the completion graph tableau.
+/// chains in front of it, with the facts it also gets, over the guesses for
+/// the restrictions along the universal role when the closure or the question
+/// uses it; every other question to the completion graph tableau.
 fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
     if !facts_proper(extra, 0) {
         return None;
@@ -1762,6 +1783,18 @@ fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> 
     }
     if prepared.clash {
         return Some(false);
+    }
+    if prepared.universal || facts_universal(extra, 0) {
+        return universal::satisfiable(
+            prepared.nodes.len() + 1,
+            extra,
+            &prepared.bound,
+            &prepared.links,
+            &prepared.parts.axioms,
+            &prepared.parts.definitions,
+            &prepared.roles,
+            &prepared.chains,
+        );
     }
     if question_forest(prepared, extra) {
         return role_chains::satisfiable(

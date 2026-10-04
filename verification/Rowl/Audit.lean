@@ -109,6 +109,7 @@ import Rowl.ChainSemantics
 import Rowl.ChainOps
 import Rowl.ChainModel
 import Rowl.Chains
+import Rowl.Universal
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiEquality
@@ -1265,19 +1266,21 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiRoles.chainRelation_along
 #print axioms Rowl.ShiRoles.chain_roles_correct
 #print axioms Rowl.ShiRoles.chains_from_correct
-#print axioms Rowl.ShiOntology.not_top_correct
 #print axioms Rowl.ShiOntology.empty_role_correct
 #print axioms Rowl.ShiOntology.proper_correct
+#print axioms Rowl.ShiOntology.proper_count
 #print axioms Rowl.ShiOntology.counts_correct
 #print axioms Rowl.ShiOntology.definitions_count_correct
 #print axioms Rowl.ShiOntology.facts_count_correct
 #print axioms Rowl.ShiOntology.closure_counts_correct
+#print axioms Rowl.ShiOntology.closure_universal_correct
 #print axioms Rowl.ShiOntology.question_forest_correct
 #print axioms Rowl.ShiOntology.definitions_proper_correct
 #print axioms Rowl.ShiOntology.facts_proper_correct
 #print axioms Rowl.ShiOntology.members_proper_correct
 #print axioms Rowl.ShiOntology.pair_proper_correct
 #print axioms Rowl.ShiOntology.chain_proper_correct
+#print axioms Rowl.ShiOntology.inclusion_proper_correct
 #print axioms Rowl.ShiOntology.roles_proper_correct
 #print axioms Rowl.ShiOntology.assertions_from_correct
 #print axioms Rowl.ShiOntology.links_from_correct
@@ -1767,6 +1770,40 @@ import Rowl.ShiOntology
 #print axioms Rowl.Chains.definitions_fit_zero
 #print axioms Rowl.Chains.tableOk_empty
 #print axioms Rowl.Chains.satisfiable_correct
+#print axioms Rowl.Universal.not_top_correct
+#print axioms Rowl.Universal.usesTop_correct
+#print axioms Rowl.Universal.facts_universal_correct
+#print axioms Rowl.Universal.definitions_universal_correct
+#print axioms Rowl.Universal.same_concept_correct
+#print axioms Rowl.Universal.atom_index_correct
+#print axioms Rowl.Universal.truth_correct
+#print axioms Rowl.Universal.fixed_correct
+#print axioms Rowl.Universal.fixed_facts_correct
+#print axioms Rowl.Universal.fixed_definitions_correct
+#print axioms Rowl.Universal.witness_correct
+#print axioms Rowl.Universal.copy_guess_correct
+#print axioms Rowl.Universal.atomIndex_lt
+#print axioms Rowl.Universal.atomIndex_get
+#print axioms Rowl.Universal.add_atom_correct
+#print axioms Rowl.Universal.occurs_self
+#print axioms Rowl.Universal.collect_correct
+#print axioms Rowl.Universal.collect_facts_correct
+#print axioms Rowl.Universal.collect_definitions_correct
+#print axioms Rowl.Universal.relation_with_universal
+#print axioms Rowl.Universal.relation_with_total
+#print axioms Rowl.Universal.plain_meaning
+#print axioms Rowl.Universal.denote_with_total
+#print axioms Rowl.Universal.global_denote
+#print axioms Rowl.Universal.occurs_trans
+#print axioms Rowl.Universal.occurs_count
+#print axioms Rowl.Universal.within_size
+#print axioms Rowl.Universal.fixed_meaning
+#print axioms Rowl.Universal.requirements_exact
+#print axioms Rowl.Universal.require_correct
+#print axioms Rowl.Universal.guessed_correct
+#print axioms Rowl.Universal.guesses_correct
+#print axioms Rowl.Universal.globalTruth_with_total
+#print axioms Rowl.Universal.satisfiable_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -2673,3 +2710,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.Chains.Closes
 #print axioms Rowl.ShiParts.ChainAxiom
 #print axioms Rowl.ShiRoles.ChainsHold
+#print axioms Rowl.Universal.UsesTop
+#print axioms Rowl.Universal.NoTopCount
+#print axioms Rowl.Universal.Global
+#print axioms Rowl.Universal.Within
+#print axioms Rowl.Universal.Occurs
+#print axioms Rowl.Universal.fixedOf
+#print axioms Rowl.Universal.withUniversal
+#print axioms Rowl.Universal.GlobalTruth
+#print axioms Rowl.Universal.Required
