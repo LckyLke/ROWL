@@ -1197,6 +1197,12 @@ def orientOf (F : forest.Forest) (x : Usize) (pair : forest.Pair) : Usize × Usi
     else (pair.second,pair.first)
   | _, _, _ => (pair.second,pair.first)
 
+/-- The merge of a pair takes one of its nodes into the other. -/
+theorem orient_either (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
+    orientOf F x pair = (pair.first,pair.second) ∨ orientOf F x pair = (pair.second,pair.first) := by
+  unfold orientOf
+  split <;> (try split_ifs) <;> simp
+
 theorem orient_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
     forest.orient F x pair = .ok (orientOf F x pair) := by
   rw [forest.orient]
@@ -1226,6 +1232,44 @@ theorem orient_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
         List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.second.val by omega)]
   · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,orientOf,
       List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.first.val by omega)]
+
+/-- A pair of neighbours of the tree node `x` with `x` itself and another tree
+    node, its child or its parent: no merge moves a tree node into its parent. -/
+def LoopedPair (F : forest.Forest) (x : Usize) (pair : forest.Pair) : Prop :=
+  (∃ n : forest.Node, F.nodes.val[x.val]? = some n ∧ n.tree = true) ∧
+  (∃ a : forest.Node, F.nodes.val[pair.first.val]? = some a ∧ a.tree = true) ∧
+  (∃ b : forest.Node, F.nodes.val[pair.second.val]? = some b ∧ b.tree = true) ∧
+  (pair.first = x ∨ pair.second = x)
+
+theorem looped_pair_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
+    forest.looped_pair F x pair = .ok (decide (LoopedPair F x pair)) := by
+  rw [forest.looped_pair]
+  by_cases one : x.val < F.nodes.val.length
+  · by_cases two : pair.first.val < F.nodes.val.length
+    · by_cases three : pair.second.val < F.nodes.val.length
+      · have l1 : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+        have l2 : F.nodes.index_usize pair.first = .ok F.nodes.val[pair.first.val] := by
+          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem two]
+        have l3 : F.nodes.index_usize pair.second = .ok F.nodes.val[pair.second.val] := by
+          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem three]
+        simp only [LoopedPair,List.getElem?_eq_getElem one,List.getElem?_eq_getElem two,
+          List.getElem?_eq_getElem three,Option.some.injEq,exists_eq_left']
+        by_cases a : F.nodes.val[x.val].tree = true
+        · by_cases b : F.nodes.val[pair.first.val].tree = true
+          · by_cases c : F.nodes.val[pair.second.val].tree = true
+            · by_cases d : pair.first = x
+              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
+              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c]
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,a,b]
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,a]
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,LoopedPair,
+          List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.second.val by omega)]
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,LoopedPair,
+        List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.first.val by omega)]
+  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,LoopedPair,
+      List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
 
 theorem add_roles_correct (list : alloc.vec.Vec ObjectPropertyExpression) (invert : Bool) (index : Usize)
     (out : alloc.vec.Vec ObjectPropertyExpression) :

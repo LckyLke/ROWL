@@ -28,10 +28,12 @@ set_option maxHeartbeats 3000000
 universe u v
 
 /-- The axioms the parts support: declarations and annotation axioms, which
-    impose nothing; class axioms over ALCI class expressions; domains and ranges
-    of object property expressions with ALCI classes; the role axioms, which the
-    parts leave to the role hierarchy; and assertions, which they leave to the
-    facts and links. -/
+    impose nothing; class axioms over translatable class expressions; domains
+    and ranges of object property expressions with translatable classes;
+    functional, inverse functional, reflexive and irreflexive object property
+    expressions, which the TBox concept states; the role axioms, which the parts
+    leave to the role hierarchy; and assertions, which they leave to the facts
+    and links. -/
 def SupportedAxiom : Axiom → Prop
   | .Declaration _ => True
   | .SubClassOf a b => Translatable a ∧ Translatable b
@@ -42,6 +44,8 @@ def SupportedAxiom : Axiom → Prop
   | .ObjectPropertyRange _ e => Translatable e
   | .FunctionalObjectProperty _ => True
   | .InverseFunctionalObjectProperty _ => True
+  | .ReflexiveObjectProperty _ => True
+  | .IrreflexiveObjectProperty _ => True
   | .SubObjectPropertyOf (.Single _) _ => True
   | .EquivalentObjectProperties _ => True
   | .InverseObjectProperties _ _ => True
@@ -1209,6 +1213,34 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
       exact ⟨⟨fun x => (every x).1,defs⟩,functional.mp (fun x => (every x).2)⟩
     · rintro ⟨⟨tbox,defs⟩,unique⟩
       exact ⟨fun x => ⟨tbox x,functional.mpr unique x⟩,defs⟩
+  | ReflexiveObjectProperty p =>
+    refine ⟨some {parts with axioms := .And parts.axioms (.HasSelf p)},
+      by rw [shi_ontology.axiom_parts]; simp [copy_role_identity,conjoin_correct],fun _ => trivial,
+      fun _ _ => rfl,?_⟩
+    intro parts' same
+    cases same
+    refine ⟨by simp,?_⟩
+    intro Object Value I fixes
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,Rowl.Owl.satisfies,false_or]
+    constructor
+    · rintro ⟨every,defs⟩
+      exact ⟨⟨fun x => (every x).1,defs⟩,fun x => (every x).2⟩
+    · rintro ⟨⟨tbox,defs⟩,reflexive⟩
+      exact ⟨fun x => ⟨tbox x,reflexive x⟩,defs⟩
+  | IrreflexiveObjectProperty p =>
+    refine ⟨some {parts with axioms := .And parts.axioms (.NotSelf p)},
+      by rw [shi_ontology.axiom_parts]; simp [copy_role_identity,conjoin_correct],fun _ => trivial,
+      fun _ _ => rfl,?_⟩
+    intro parts' same
+    cases same
+    refine ⟨by simp,?_⟩
+    intro Object Value I fixes
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,Rowl.Owl.satisfies,false_or]
+    constructor
+    · rintro ⟨every,defs⟩
+      exact ⟨⟨fun x => (every x).1,defs⟩,fun x => (every x).2⟩
+    · rintro ⟨⟨tbox,defs⟩,irreflexive⟩
+      exact ⟨fun x => ⟨tbox x,irreflexive x⟩,defs⟩
   | SameIndividual _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
       (fun _ _ _ => by simp [ClassPart,Equality])
@@ -1236,8 +1268,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
   | AnnotationPropertyRange _ _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
       (fun _ _ _ => by simp [ClassPart,Rowl.Owl.satisfies])
-  | DisjointObjectProperties _
-  | ReflexiveObjectProperty _ | IrreflexiveObjectProperty _ | AsymmetricObjectProperty _ | SubDataPropertyOf _ _
+  | DisjointObjectProperties _ | AsymmetricObjectProperty _ | SubDataPropertyOf _ _
   | EquivalentDataProperties _ | DisjointDataProperties _ | DataPropertyDomain _ _ | DataPropertyRange _ _
   | FunctionalDataProperty _ | DatatypeDefinition _ _ | HasKey _ _ _
   | DataPropertyAssertion _ _ _ | NegativeDataPropertyAssertion _ _ _ =>

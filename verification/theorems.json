@@ -1818,6 +1818,9 @@
         "Rowl.ForestSearch.live_correct",
         "Rowl.ForestSearch.links_along_correct",
         "Rowl.ForestSearch.edges_along_correct",
+        "Rowl.ForestSearch.looping_correct",
+        "Rowl.ForestSearch.self_along_correct",
+        "Rowl.ForestSearch.loops_along_correct",
         "Rowl.ForestSearch.neighbours_correct",
         "Rowl.ForestSearch.label_of_correct",
         "Rowl.ForestSearch.satisfying_correct",
@@ -1852,6 +1855,10 @@
         "Rowl.ForestSearch.nominal_root_correct",
         "Rowl.ForestSearch.nominal_at_correct",
         "Rowl.ForestSearch.nominal_node_correct",
+        "Rowl.ForestSearch.missing_loop_correct",
+        "Rowl.ForestSearch.missing_loops_correct",
+        "Rowl.ForestSearch.looped_from_correct",
+        "Rowl.ForestSearch.looped_node_correct",
         "Rowl.ForestSearch.next_step_correct"
       ]
     },
@@ -1883,7 +1890,9 @@
         "Rowl.ForestOps.pairs_with_correct",
         "Rowl.ForestOps.pairs_from_correct",
         "Rowl.ForestOps.first_nodes_correct",
+        "Rowl.ForestOps.orient_either",
         "Rowl.ForestOps.orient_correct",
+        "Rowl.ForestOps.looped_pair_correct",
         "Rowl.ForestOps.add_roles_correct",
         "Rowl.ForestOps.upward_correct",
         "Rowl.ForestOps.sideways_correct",
@@ -2085,6 +2094,7 @@
         "Rowl.ForestModel.nominalPlace_val",
         "Rowl.ForestModel.linkAlong_inv",
         "Rowl.ForestModel.linkAlong_mono",
+        "Rowl.ForestModel.selfAlong_inv",
         "Rowl.ForestModel.step_inv",
         "Rowl.ForestModel.rel_inv",
         "Rowl.ForestModel.relation_model",
@@ -2092,9 +2102,11 @@
         "Rowl.ForestModel.rel_mono",
         "Rowl.ForestModel.rel_trans",
         "Rowl.ForestModel.model_respects",
+        "Rowl.ForestModel.corr_tail",
         "Rowl.ForestModel.path_nonempty",
         "Rowl.ForestModel.step_of_neighbour",
         "Rowl.ForestModel.neighbour_of_step",
+        "Rowl.ForestModel.corr_loop",
         "Rowl.ForestModel.corr_third",
         "Rowl.ForestModel.corr_unique",
         "Rowl.ForestModel.corr_function",
@@ -3040,6 +3052,11 @@
     "Rowl.ForestInv.nameUnit",
     "Rowl.ForestInv.nameBase",
     "Rowl.ForestInv.nameWeight",
-    "Rowl.ForestInv.CapHolds"
+    "Rowl.ForestInv.CapHolds",
+    "Rowl.ForestSearch.SelfAlong",
+    "Rowl.ForestSearch.LoopNeeds",
+    "Rowl.ForestSearch.LoopsOk",
+    "Rowl.ForestSearch.Looped",
+    "Rowl.ForestOps.LoopedPair"
   ]
 }

@@ -6,9 +6,10 @@ rule application adds a literal to the label of an active node, expands a
 restriction of an unblocked node, merges two neighbours, merges a node into
 the named node of its nominal, or creates new named nodes for a maximum
 restriction of a named node, and each of these decreases the measure, so `run`
-terminates on every forest that keeps the invariant. An acceptance comes with a complete forest that keeps the
-invariant; a rejection with a set of branch points rules out every model, in
-any universes, that holds under those points. Branching on a disjunction or on
+terminates on every forest that keeps the invariant; a node with `¬∃r.Self`
+that is its own neighbour along `r` is a clash. An acceptance comes with a
+complete forest that keeps the invariant; a rejection with a set of branch
+points rules out every model, in any universes, that holds under those points. Branching on a disjunction or on
 a neighbour's choice for a maximum restriction retries the second alternative
 only when the first failure depends on the new branch point; merging tries the
 pairs of neighbours that are not known to differ in turn, since in every model
@@ -371,14 +372,17 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
           bind_ok,entry,run]
       | HasSelf r' =>
-        -- This forest has no self loops yet: no answer.
-        refine ⟨none,?_,by simp,by simp⟩
+        obtain ⟨r,run,answers⟩ := literalCase (by rw [entry]; trivial)
+        refine ⟨r,?_,answers⟩
         rw [forest.add]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,entry,run]
       | NotSelf r' =>
-        refine ⟨none,?_,by simp,by simp⟩
+        obtain ⟨r,run,answers⟩ := literalCase (by rw [entry]; trivial)
+        refine ⟨r,?_,answers⟩
         rw [forest.add]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,lookup,entry]
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,cIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,entry,run]
       | And a b =>
         rw [entry] at below
         have aBelow : a.val < c.val := below a.val (by simp [parts])
@@ -603,7 +607,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     (F : forest.Forest) (x : Usize) (pairs : alloc.vec.Vec forest.Pair) (deps : alloc.vec.Vec Usize) (fresh : Usize)
     (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M) (freshF : FreshForest F fresh.val)
     (freshDeps : ∀ k ∈ deps.val, k.val < fresh.val)
-    (shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val)
+    (shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p → MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val)
     (collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
       (D : List Usize), Sub deps.val D → Models P h F I π D →
         ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val) :
@@ -626,9 +630,13 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
     have pairIn : pairs.val[index.val] ∈ pairs.val := List.getElem_mem more
+    -- A pair that would merge a tree node into its parent gives no answer.
+    by_cases looped : LoopedPair F x pairs.val[index.val]
+    · refine ⟨none,?_,by simp,by simp⟩
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped]
     obtain ⟨src,dst,orientIs⟩ : ∃ src dst, orientOf F x pairs.val[index.val] = (src,dst) := ⟨_,_,rfl⟩
     have shapeHere : MergeShape F src.val dst.val := by
-      have := shapes _ pairIn
+      have := shapes _ pairIn looped
       rw [orientIs] at this
       exact this
     by_cases notLast : next.val < pairs.val.length
@@ -642,7 +650,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
         cases hereResult with
         | none =>
           refine ⟨none,?_,by simp,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun]
         | some here =>
         have hereMembers : ∀ k, k ∈ here.val ↔ k ∈ deps.val ∨ k = fresh := by
@@ -660,13 +668,13 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
         cases r1 with
         | none =>
           refine ⟨none,?_,by simp,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1]
         | some outcome =>
         cases outcome with
         | Accepted =>
           refine ⟨some .Accepted,?_,fun _ => sound1 rfl,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1]
         | Rejected D1 =>
         obtain ⟨bound1,rules1⟩ := complete1 D1 rfl
@@ -677,7 +685,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
           cases skippedResult with
           | none =>
             refine ⟨none,?_,by simp,by simp⟩
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
               usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends,
               restRun,skippedRun]
           | some skipped1 =>
@@ -713,11 +721,11 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
                 rw [orientIs]
                 exact (rules1 Object Value I π models1).2)
           refine ⟨r,?_,answers⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends,
             restRun,skippedRun,run]
         · refine ⟨some (.Rejected D1),?_,by simp,?_⟩
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
               usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends]
           intro D same
           simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
@@ -732,14 +740,14 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
             have := (rules1 Object Value I π models).1 fresh ((hereMembers fresh).mpr (.inr rfl))
             exact depends this
       · refine ⟨none,?_,by simp,by simp⟩
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
           usize_max_val,room]
     · -- The last pair: its merge depends on the points of the earlier failures.
       obtain ⟨lastResult,lastRun,lastSpec⟩ := join_correct deps skipped
       cases lastResult with
       | none =>
         refine ⟨none,?_,by simp,by simp⟩
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,lastRun]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,lastRun]
       | some last =>
       have lastMembers := lastSpec last rfl
       obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F src dst last fresh inv
@@ -749,7 +757,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
           · exact freshDeps k given
           · exact freshSkipped k old)
       refine ⟨r1,?_,sound1,?_⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,lastRun,
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,lastRun,
           run1]
       intro D rejected
       obtain ⟨bound,rules⟩ := complete1 D rejected
@@ -897,8 +905,9 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
       intro y z yIn zIn named
       exact ⟨fun repeated => unrepeated named y (chosenProps y yIn).1 repeated (chosenProps y yIn).2,
         fun repeated => unrepeated named z (chosenProps z zIn).1 repeated (chosenProps z zIn).2⟩
-    have shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
-      intro p listed
+    have shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p →
+        MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
+      intro p listed notLooped
       rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
       · simp at empty
       · have different : p.first ≠ p.second := by
@@ -909,7 +918,8 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
         exact (orient_shape inv.shape x active r p
           (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
           (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different
-          (by rw [first,second]; exact fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)).1
+          (by rw [first,second]; exact fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)
+          notLooped).1
     have collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
         (D : List Usize), Sub deps1.val D → Models P h F I π D →
           ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val := by
@@ -967,9 +977,7 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
           intro same
           have := (List.Nodup.getElem_inj_iff chosenNodup).mp same
           omega
-        rcases (orient_shape inv.shape x active r p (chosenProps _ (List.getElem_mem ha)).1
-          (chosenProps _ (List.getElem_mem hb)).1 different
-          (fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)).2 with same | same
+        rcases orient_either F x p with same | same
         · rw [same]
           exact equal
         · rw [same]
@@ -1532,8 +1540,9 @@ theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
         · exact freshF.2.1 e eIn j there
       · exact freshF.2.2.2 _ capIn j capDep
     · exact freshF.2.2.1 d (List.mem_of_mem_drop dIn) j jIn
-  have shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
-    intro p listed
+  have shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p →
+      MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
+    intro p listed notLooped
     rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
     · simp at empty
     · have different : p.first ≠ p.second := by
@@ -1543,7 +1552,7 @@ theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
         omega
       refine (orient_shape inv.shape x active r p
         (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
-        (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different ?_).1
+        (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different ?_ notLooped).1
       intro _ firstTree secondTree
       exfalso
       rw [first] at firstTree
@@ -1610,12 +1619,7 @@ theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
         intro same
         have := (List.Nodup.getElem_inj_iff chosenNodup).mp same
         omega
-      rcases (orient_shape inv.shape x active r p (chosenProps _ (List.getElem_mem ha)).1
-        (chosenProps _ (List.getElem_mem hb)).1 different (fun _ firstTree secondTree => by
-          exfalso
-          exact different ((treeIs _ (List.getElem_mem ha) firstTree).trans
-            (treeIs _ (List.getElem_mem hb) secondTree).symm))).2 with
-          same | same
+      rcases orient_either F x p with same | same
       · rw [same]
         exact equal
       · rw [same]
@@ -1797,7 +1801,7 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       ∃ r, forest.run P h F' fresh' = .ok r ∧ Answers.{u,v} P h count F' 0 [] [] fresh'.val r :=
     fun F' fresh' smaller inv' fresh'' => ih _ smaller F' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
-  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,createCase,doneCase⟩ :=
+  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,loopCase,createCase,doneCase⟩ :=
     next_step_correct P h F
   rw [forest.run,stepRun]
   cases step with
@@ -1931,6 +1935,28 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
     obtain ⟨res,run,answers⟩ := nominal_correct.{u,v} P h count m IH F x named fresh inv (by omega) freshF activeX i
       member a at_i namedIs different
     exact ⟨res,by simp [run],answers⟩
+  | Loop x =>
+    -- A node with `¬∃r.Self` that is its own neighbour along `r`: no model.
+    obtain ⟨activeX,i,member,s,at_i,loop⟩ := loopCase x rfl
+    obtain ⟨ruleResult,ruleRun,ruleSpec⟩ := rule_deps_correct P F x (active_inside activeX)
+    cases ruleResult with
+    | none => exact ⟨none,by simp [ruleRun],by simp,by simp⟩
+    | some deps =>
+    obtain ⟨covers,edgeCovers,origin⟩ := ruleSpec deps rfl
+    refine ⟨some (.Rejected deps),by simp [ruleRun],by simp,?_⟩
+    intro D same
+    simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+    subst same
+    refine ⟨?_,?_⟩
+    · intro k listed
+      rcases origin k listed with ⟨z,there⟩ | ⟨e,eIn,there⟩
+      · exact freshF.1 z k there
+      · exact freshF.2.1 e eIn k there
+    · rintro ⟨Object,Value,I,π,models,_⟩
+      have related := neighbour_holds models x s x.val loop covers edgeCovers
+      have notSelf := models.labels x.val (covers x.val (.inl rfl)) i member
+      rw [meaning.eq_def,at_i] at notSelf
+      exact notSelf related
   | Create x i =>
     obtain ⟨activeX,free,member,_,_,_,_,_,_,notDone,_⟩ := createCase x i rfl
     obtain ⟨res,run,answers⟩ := create_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX free
@@ -1966,10 +1992,12 @@ theorem simple_from_correct (h : hierarchy.RoleHierarchy) (role : ObjectProperty
 termination_by h.transitive.val.length - index.val
 decreasing_by omega
 
-/-- A number restriction counts along a role that includes no transitive role. -/
+/-- A number restriction or the complement of a self restriction is on a role
+    that includes no transitive role. -/
 def CountsSimply (h : hierarchy.RoleHierarchy) : concept_table.Entry → Prop
   | .AtLeast _ r _ => ∀ t ∈ transitives h, ¬ Below h t r
   | .AtMost _ r _ _ => ∀ t ∈ transitives h, ¬ Below h t r
+  | .NotSelf r => ∀ t ∈ transitives h, ¬ Below h t r
   | _ => True
 
 theorem counting_simple_correct (entries : alloc.vec.Vec concept_table.Entry) (h : hierarchy.RoleHierarchy)
@@ -2008,7 +2036,15 @@ theorem counting_simple_correct (entries : alloc.vec.Vec concept_table.Entry) (h
       by_cases s' : ∀ t ∈ h.transitive.val, ¬ Below h t role
       · simp only [decide_eq_true s',↓reduceIte,advance,bind_ok,rest,Bool.true_and]
       · simp only [decide_eq_false s',Bool.false_eq_true,↓reduceIte,Bool.false_and]
-    | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | NotSelf _ | And _ _ | Or _ _ | Exists _ _
+    | NotSelf role =>
+      have unfold : (∀ e ∈ concept_table.Entry.NotSelf role :: entries.val.drop (index.val+1), CountsSimply h e) ↔
+          (∀ t ∈ h.transitive.val, ¬ Below h t role) ∧ ∀ e ∈ entries.val.drop (index.val+1), CountsSimply h e := by
+        simp only [List.forall_mem_cons,CountsSimply,transitives]
+      simp only [simple_from_correct,bind_ok,show (0#usize).val = 0 from rfl,List.drop_zero,unfold,Bool.decide_and]
+      by_cases s' : ∀ t ∈ h.transitive.val, ¬ Below h t role
+      · simp only [decide_eq_true s',↓reduceIte,advance,bind_ok,rest,Bool.true_and]
+      · simp only [decide_eq_false s',Bool.false_eq_true,↓reduceIte,Bool.false_and]
+    | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | HasSelf _ | And _ _ | Or _ _ | Exists _ _
     | Forall _ _ =>
       simp [CountsSimply,advance,rest]
   · have empty : entries.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
@@ -2018,10 +2054,12 @@ decreasing_by omega
 
 theorem simpleCounting_of (h : hierarchy.RoleHierarchy) (entries : List concept_table.Entry)
     (simple : ∀ e ∈ entries, CountsSimply h e) : SimpleCounting h entries := by
-  refine ⟨?_,?_⟩
+  refine ⟨?_,?_,?_⟩
   · intro i n r c at_i
     exact simple _ (List.mem_of_getElem? at_i)
   · intro i n r c d at_i
+    exact simple _ (List.mem_of_getElem? at_i)
+  · intro i r at_i
     exact simple _ (List.mem_of_getElem? at_i)
 
 /-- A named node with an empty label. -/
@@ -2091,9 +2129,9 @@ def Interned (P : completion.Problem) (query facts : List completion.Fact) (link
     every model, in any universes, of the role hierarchy in which the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its named individuals. No answer means that a structure
-    would exceed the `usize` range, that a number restriction counts along a
-    role that is not simple, or that a nominal or a maximum restriction is
-    outside what the rules handle. -/
+    would exceed the `usize` range, that a number restriction or the complement
+    of a self restriction is on a role that is not simple, or that a nominal, a
+    maximum restriction or a merge is outside what the rules handle. -/
 theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)

@@ -3,7 +3,8 @@ import Rowl.ForestOps
 /-!
 What the completion forest's run maintains and why it ends. The invariant
 keeps a well-formed table whose maximum restrictions record their complements
-and count along simple roles, a named node for every individual, each
+and count, with the complements of self restrictions, along simple roles, a
+named node for every individual, each
 individual read through the merges as an active named node, active tree nodes
 below active parents, clash-free labels of literals without repetitions, the
 expanded restrictions among the label, edge roles from a finite list, and
@@ -33,14 +34,16 @@ universe u v
 
 /-- The entries a label of the forest lists: all but `⊤`, `⊥`, `⊓` and `⊔`. -/
 def Literal : concept_table.Entry → Prop
-  | .Atom _ | .NotAtom _ | .One _ | .NotOne _ | .Exists _ _ | .Forall _ _ | .AtLeast _ _ _ | .AtMost _ _ _ _ => True
+  | .Atom _ | .NotAtom _ | .One _ | .NotOne _ | .HasSelf _ | .NotSelf _ | .Exists _ _ | .Forall _ _ | .AtLeast _ _ _
+  | .AtMost _ _ _ _ => True
   | _ => False
 
-/-- Every number restriction of the table counts along a simple role: no
-    transitive role is included in it. -/
+/-- Every number restriction and every complement of a self restriction of the
+    table is on a simple role: no transitive role is included in it. -/
 def SimpleCounting (h : hierarchy.RoleHierarchy) (entries : List concept_table.Entry) : Prop :=
   (∀ (i : Nat) n r c, entries[i]? = some (.AtLeast n r c) → ∀ t ∈ transitives h, ¬ Below h t r) ∧
-  (∀ (i : Nat) n r c d, entries[i]? = some (.AtMost n r c d) → ∀ t ∈ transitives h, ¬ Below h t r)
+  (∀ (i : Nat) n r c d, entries[i]? = some (.AtMost n r c d) → ∀ t ∈ transitives h, ¬ Below h t r) ∧
+  (∀ (i : Nat) r, entries[i]? = some (.NotSelf r) → ∀ t ∈ transitives h, ¬ Below h t r)
 
 /-- The roles of an entry that creates neighbours, and their inverses. -/
 def generatorRoles : concept_table.Entry → List ObjectPropertyExpression
@@ -404,7 +407,7 @@ theorem edgeAlong_ends {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
 theorem neighbour_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (active : Active F.nodes.val x) (r : ObjectPropertyExpression) (z : Nat)
     (neighbour : Neighbour P h F x r z) : Active F.nodes.val z := by
-  rcases neighbour with ⟨n,at_z,_,act,_⟩ | ⟨n,at_x,tree,parent,_⟩ | linked | linked
+  rcases neighbour with ⟨n,at_z,_,act,_⟩ | ⟨n,at_x,tree,parent,_⟩ | linked | linked | ⟨rfl,_⟩
   · exact ⟨n,at_z,act⟩
   · obtain ⟨m,at_x',act⟩ := active
     rw [at_x] at at_x'
@@ -416,13 +419,14 @@ theorem neighbour_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
   · obtain ⟨e,_,live,_,toActive,⟨_,rfl⟩ | ⟨_,rfl⟩⟩ := edgeAlong_ends shape x r z linked
     · exact toActive
     · exact live.1
+  · exact active
 
 /-- A neighbour is near: the parent, an active child, or a node related by a
     link or an added edge. -/
 theorem neighbour_near (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
     (r : ObjectPropertyExpression) (z : Nat) (neighbour : Neighbour P h F x r z) : Near P F x z := by
   rcases neighbour with ⟨n,at_z,tree,act,parent,_⟩ | ⟨n,at_x,tree,parent,_⟩ |
-      ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩ | ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩
+      ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩ | ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩ | ⟨loop,_⟩
   · exact .inr (.inr (.inl ⟨n,at_z,tree,act,parent⟩))
   · exact .inr (.inl ⟨n,at_x,tree,parent⟩)
   · obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
@@ -433,6 +437,7 @@ theorem neighbour_near (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F
     exact .inr (.inr (.inr (.inr ⟨e,listed,.inl ⟨there,here⟩⟩)))
   · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     exact .inr (.inr (.inr (.inr ⟨e,listed,.inr ⟨there,here⟩⟩)))
+  · exact .inl loop
 
 /-- A named neighbour of a tree node is its parent or the target of a live
     added edge from it. -/
@@ -448,7 +453,7 @@ theorem neighbour_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
     cases at_x'
     rw [tree] at named'
     cases named'
-  rcases neighbour with ⟨m',at_z',tree',_⟩ | ⟨n',at_x',_,parent,_⟩ | linked | linked
+  rcases neighbour with ⟨m',at_z',tree',_⟩ | ⟨n',at_x',_,parent,_⟩ | linked | linked | ⟨loop,_⟩
   · rw [at_z] at at_z'
     cases at_z'
     rw [named] at tree'
@@ -464,13 +469,19 @@ theorem neighbour_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
     · exact .inr ⟨e,listed,fromX,toZ⟩
     · rw [toX] at toNamed
       exact absurd toNamed notX
+  · rw [loop,at_x] at at_z
+    cases at_z
+    rw [tree] at named
+    cases named
 
-/-- A tree node that neighbours `x` is a child of `x`, its parent, or, for a
-    named node `x`, the live source of an added edge into `x`. -/
+/-- A tree node that neighbours `x` is a child of `x`, its parent, for a named
+    node `x` the live source of an added edge into `x`, or `x` itself with a
+    loop. -/
 theorem neighbour_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat)
     (neighbour : Neighbour P h F x r z) (m : forest.Node) (at_z : F.nodes.val[z]? = some m) (tree : m.tree = true) :
-    ChildAlong h F.nodes.val x r z ∨ ParentAlong h F.nodes.val x r z ∨ (Named F.nodes.val x ∧ Live F.nodes.val z) := by
+    ChildAlong h F.nodes.val x r z ∨ ParentAlong h F.nodes.val x r z ∨ (Named F.nodes.val x ∧ Live F.nodes.val z) ∨
+      z = x := by
   -- The tree node `z` is not named.
   have notZ : ¬ Named F.nodes.val z := by
     rintro ⟨m',at_z',named⟩
@@ -478,7 +489,7 @@ theorem neighbour_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
     cases at_z'
     rw [tree] at named
     cases named
-  rcases neighbour with child | parent | linked | linked
+  rcases neighbour with child | parent | linked | linked | ⟨loop,_⟩
   · exact .inl child
   · exact .inr (.inl parent)
   · obtain ⟨_,b,_,bIn,_,there⟩ := linkAlong_rep shape x r z linked
@@ -490,7 +501,8 @@ theorem neighbour_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
       exact absurd toNamed notZ
     · rw [toX] at toNamed
       rw [fromZ] at live
-      exact .inr (.inr ⟨toNamed,live⟩)
+      exact .inr (.inr (.inl ⟨toNamed,live⟩))
+  · exact .inr (.inr (.inr loop))
 
 theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat)
@@ -498,7 +510,7 @@ theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
   have inside : ∀ y, Active F.nodes.val y → y < F.nodes.val.length := by
     rintro y ⟨n,at_y,_⟩
     exact (List.getElem?_eq_some_iff.mp at_y).1
-  rcases neighbour with ⟨n,at_z,_⟩ | ⟨n,at_x,tree,parent,_⟩ | linked | linked
+  rcases neighbour with ⟨n,at_z,_⟩ | ⟨n,at_x,tree,parent,_⟩ | linked | linked | ⟨rfl,i,listed,_⟩
   · exact (List.getElem?_eq_some_iff.mp at_z).1
   · have := shape.parents x n at_x tree
     have := (List.getElem?_eq_some_iff.mp at_x).1
@@ -512,6 +524,8 @@ theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
       exact inside z toActive
     · rw [fromZ] at live
       exact inside z live.1
+  · by_contra outside
+    simp [labelOf,List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ z by omega)] at listed
 
 /-! ### Growing labels -/
 
@@ -1223,7 +1237,8 @@ theorem neighbour_holds {Object : Type u} {Value : Type v} {P : completion.Probl
     objectRelation I r (π x.val) (π z) := by
   have near := neighbour_near P h F x.val r z neighbour
   rcases neighbour with ⟨n,at_z,tree,_,parent,s,role,below⟩ | ⟨n,at_x,tree,parent,s,role,below⟩ |
-      ⟨l,member,⟨there,below,here⟩ | ⟨there,below,here⟩⟩ | ⟨l,member,⟨there,below,here⟩ | ⟨there,below,here⟩⟩
+      ⟨l,member,⟨there,below,here⟩ | ⟨there,below,here⟩⟩ | ⟨l,member,⟨there,below,here⟩ | ⟨there,below,here⟩⟩ |
+      ⟨rfl,i,listed,s,at_i,below | below⟩
   · have edge := (models.tree z n at_z tree (by simpa [nodeDeps,at_z] using cover z near)).1 s role
     rw [parent] at edge
     exact respects_below models.respects below edge
@@ -1250,6 +1265,13 @@ theorem neighbour_holds {Object : Type u} {Value : Type v} {P : completion.Probl
     rw [models.same e.from (by rw [here]; exact cover z near),
       models.same e.to (by rw [there]; exact cover x.val (.inl rfl)),there,here] at edge
     exact respects_below models.respects below ((relation_inv I e.role _ _).mpr edge)
+  · -- A loop: the self restriction holds at the node.
+    have self := models.labels x.val (cover x.val (.inl rfl)) i listed
+    rw [meaning.eq_def,at_i] at self
+    exact respects_below models.respects below self
+  · have self := models.labels x.val (cover x.val (.inl rfl)) i listed
+    rw [meaning.eq_def,at_i] at self
+    exact respects_below models.respects below ((relation_inv I s _ _).mpr self)
 
 /-- Everything a node or an edge requires of node `y` holds at its element in a
     model where the points of the nodes near `y` and of the added edges at `y`
@@ -1262,7 +1284,8 @@ theorem needs_hold {Object : Type u} {Value : Type v} {P : completion.Problem} {
     denote I (meaning P.entries.val c.val) (π y.val) := by
   rcases needs with ⟨_,⟨q,member,node,rfl⟩ | rfl | ⟨w,member,⟨i,listed,at_i⟩,rfl⟩ | ⟨n,at_y,seeded,rfl⟩⟩ |
       ⟨child,n,at_child,tree,active,_,s,role,⟨rfl,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ |
-      ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ | ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩
+      ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ | ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ |
+      ⟨_,i,listed,s,at_i,edgeNeeds | edgeNeeds⟩
   · have := models.requirements q member
     rwa [models.same q.node (by rw [node]; exact cover y.val (.inl rfl)),node] at this
   · exact models.axioms _
@@ -1316,12 +1339,21 @@ theorem needs_hold {Object : Type u} {Value : Type v} {P : completion.Problem} {
       here] at edge
     exact edge_need_holds I h models.respects P.entries.val wf _ (inv e.role) c _ _
       (models.labels _ (cover _ otherNear)) ((relation_inv I e.role _ _).mpr edge) edgeNeeds
+  · -- A loop along `s` at `y`.
+    have self := models.labels y.val (cover y.val (.inl rfl)) i listed
+    rw [meaning_at P.entries.val wf i.val _ at_i] at self
+    exact edge_need_holds I h models.respects P.entries.val wf _ s c (π y.val) (π y.val)
+      (models.labels y.val (cover y.val (.inl rfl))) self edgeNeeds
+  · have self := models.labels y.val (cover y.val (.inl rfl)) i listed
+    rw [meaning_at P.entries.val wf i.val _ at_i] at self
+    exact edge_need_holds I h models.respects P.entries.val wf _ (inv s) c (π y.val) (π y.val)
+      (models.labels y.val (cover y.val (.inl rfl))) ((relation_inv I s _ _).mpr self) edgeNeeds
 
 /-- A node that something requires a concept of is active. -/
 theorem addNeeds_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (y : Nat) (c : Usize) (needs : AddNeeds P h F y c) : Active F.nodes.val y := by
   rcases needs with ⟨active,_⟩ | ⟨child,n,at_child,tree,act,_,s,_,⟨rfl,_⟩ | ⟨rfl,_⟩⟩ |
-      ⟨l,member,_,_,⟨here,_⟩ | ⟨here,_⟩⟩ | ⟨l,member,_,_,⟨here,_⟩ | ⟨here,_⟩⟩
+      ⟨l,member,_,_,⟨here,_⟩ | ⟨here,_⟩⟩ | ⟨l,member,_,_,⟨here,_⟩ | ⟨here,_⟩⟩ | ⟨active,_⟩
   · exact active
   · exact ⟨n,at_child,act⟩
   · exact shape.activeParents child n at_child tree act
@@ -1337,5 +1369,6 @@ theorem addNeeds_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
   · obtain ⟨e,listed,live,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     rw [← here]
     exact live.1
+  · exact active
 
 end Rowl.ForestInv

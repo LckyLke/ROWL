@@ -809,22 +809,33 @@ progress. Full OWL parsing and executable reasoning are still future work.
   concepts and the concept table have self restrictions `∃r.Self` and their
   complements, which hold exactly at the elements that `r` relates to
   themselves, or not: concepts::translate covers `ObjectHasSelf`, proved exact
-  for the Direct Semantics, and a self restriction next to its complement
-  along the same role is a clash in both tableaux. The tableaux give no answer
-  yet when a self restriction reaches a label, and the ontology queries none
-  for self restrictions.
-- 1501 audited public theorems and 865 audited semantic definitions. Consistency,
+  for the Direct Semantics. The completion forest reads a self restriction
+  `∃s.Self` of a node as a loop, an edge from the node to itself along `s`: the
+  node is its own neighbour along every role that includes `s` or its inverse,
+  universal restrictions pass along the loop, and a node with `¬∃r.Self` that
+  is its own neighbour along `r`, through a loop, a link or an added edge, is a
+  clash. The model of a complete forest relates a path to itself along the
+  loops of its newest node, and complements of self restrictions, like number
+  restrictions, must be on simple roles, so the truth lemma covers both. The
+  ontology queries now take `ObjectHasSelf` and reflexive and irreflexive
+  object properties (as `∃r.Self` and `¬∃r.Self` in the TBox concept) and
+  decide them with the forest. A merge of a tree node into its own parent,
+  which only a loop calls for, gets no answer yet; the tests answer all but
+  one of 300 random inputs with self restrictions and reflexive, irreflexive
+  and functional properties.
+- 1513 audited public theorems and 870 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
-  roles and nominals of named individuals, functional and inverse functional
-  object properties, class, object property and negative object property
-  assertions, individual equalities and inequalities, and inclusions,
-  equivalences, inverses, symmetry and transitivity of object property
-  expressions (SHOIQ), also directly from Functional Syntax source bytes.
+  roles, nominals of named individuals and self restrictions, functional,
+  inverse functional, reflexive and irreflexive object properties, class,
+  object property and negative object property assertions, individual
+  equalities and inequalities, and inclusions, equivalences, inverses,
+  symmetry and transitivity of object property expressions (SHOIQ with self
+  restrictions), also directly from Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 438 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 440 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -839,7 +850,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1694-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1706-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

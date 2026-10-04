@@ -11,11 +11,12 @@ instance checking. The class axioms become the TBox concept and the
 definitions (`ShiParts`), the role axioms the role hierarchy (`ShiRoles`), and
 the assertions the facts and links of the named individuals, which equal
 individuals place at one node (`ShiEquality`). A question whose concepts have
-no number restriction and no nominal, about a closure without negative
-assertions next to role axioms, goes to the completion graph tableau, whose
-models keep different nodes apart; every other question goes to the completion
-forest, which handles number restrictions on simple roles and nominals of
-named individuals, with the nominal of every individual at its node and the
+no number restriction, self restriction or nominal, about a closure without
+negative assertions next to role axioms, goes to the completion graph tableau,
+whose models keep different nodes apart; every other question goes to the
+completion forest, which handles self restrictions, number restrictions and
+complements of self restrictions on simple roles, and nominals of named
+individuals, with the nominal of every individual at its node and the
 inequalities and negative assertions as facts (`ShiNominals`); every answer
 the kernel gives is exact for the OWL definitions.
 An acceptance comes with an actual OWL model of the closure, built from the
@@ -51,8 +52,7 @@ universe u v w
 
 /-- No built-in class occurs as a named class, no built-in object property as a
     role and no anonymous individual in a nominal, so the tableaux's reading of
-    every name is an ordinary one; and no self restriction occurs, which no
-    tableau decides. -/
+    every name is an ordinary one. -/
 def Proper : concepts.Concept → Prop
   | .Top => True
   | .Bottom => True
@@ -60,8 +60,8 @@ def Proper : concepts.Concept → Prop
   | .NotAtom c => c ≠ thing ∧ c ≠ nothing
   | .One a => IsNamed a
   | .NotOne a => IsNamed a
-  | .HasSelf _ => False
-  | .NotSelf _ => False
+  | .HasSelf r => RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
+  | .NotSelf r => RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject
   | .And a b => Proper a ∧ Proper b
   | .Or a b => Proper a ∧ Proper b
   | .Exists r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
@@ -69,7 +69,8 @@ def Proper : concepts.Concept → Prop
   | .AtLeast _ r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
   | .AtMost _ r c => (RoleOf r ≠ topObject ∧ RoleOf r ≠ bottomObject) ∧ Proper c
 
-/-- A number restriction occurs, which only the completion forest counts. -/
+/-- A number restriction or a self restriction occurs, which only the
+    completion forest decides. -/
 def Counts : concepts.Concept → Prop
   | .And a b => Counts a ∨ Counts b
   | .Or a b => Counts a ∨ Counts b
@@ -77,6 +78,8 @@ def Counts : concepts.Concept → Prop
   | .Forall _ c => Counts c
   | .AtLeast _ _ _ => True
   | .AtMost _ _ _ => True
+  | .HasSelf _ => True
+  | .NotSelf _ => True
   | _ => False
 
 /-- A definition of an ordinary class by a proper concept. -/
@@ -118,8 +121,10 @@ theorem proper_correct (c : concepts.Concept) : shi_ontology.proper c = .ok (dec
   | NotAtom k => rw [shi_ontology.proper]; simp [Proper,builtin_class_correct]
   | One a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
   | NotOne a => rw [shi_ontology.proper]; cases a <;> simp [Proper,IsNamed,shi_ontology.named_individual]
-  | HasSelf r => rw [shi_ontology.proper]; simp [Proper]
-  | NotSelf r => rw [shi_ontology.proper]; simp [Proper]
+  | HasSelf r | NotSelf r =>
+    rw [shi_ontology.proper,role_proper_correct]
+    simp only [Proper]
+    exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
   | And a b iha ihb =>
     rw [shi_ontology.proper]
     by_cases left : Proper a <;> simp [Proper,iha,ihb,left]
@@ -176,8 +181,7 @@ theorem counts_correct (c : concepts.Concept) : shi_ontology.counts c = .ok (dec
   | NotAtom k => rw [shi_ontology.counts]; simp [Counts]
   | One a => rw [shi_ontology.counts]; simp [Counts]
   | NotOne a => rw [shi_ontology.counts]; simp [Counts]
-  | HasSelf r => rw [shi_ontology.counts]; simp [Counts]
-  | NotSelf r => rw [shi_ontology.counts]; simp [Counts]
+  | HasSelf r | NotSelf r => rw [shi_ontology.counts]; simp [Counts]
   | And a b iha ihb =>
     rw [shi_ontology.counts]
     by_cases left : Counts a <;> simp [Counts,iha,ihb,left]
@@ -788,8 +792,7 @@ theorem denote_with_anonymous {Object : Type u} {Value : Type v} (I : Interpreta
     ∀ c, Proper c → ∀ x, denote (withAnonymous I assignment) c x ↔ denote I c x := by
   intro c
   induction c with
-  | Top | Bottom | Atom _ | NotAtom _ => intro _ x; exact Iff.rfl
-  | HasSelf _ | NotSelf _ => intro proper; exact proper.elim
+  | Top | Bottom | Atom _ | NotAtom _ | HasSelf _ | NotSelf _ => intro _ x; exact Iff.rfl
   | One a =>
     intro proper x
     cases a with
@@ -852,7 +855,14 @@ theorem owl_model_agrees {Object : Type} (J : Interpretation Object Unit) (root 
   | Bottom => intro _ _ x; simp [denote]
   | Atom k => intro proper _ x; simp [denote,owlModel,proper.1,proper.2]
   | NotAtom k => intro proper _ x; simp [denote,owlModel,proper.1,proper.2]
-  | HasSelf _ | NotSelf _ => intro proper; exact proper.elim
+  | HasSelf r =>
+    intro proper _ x
+    simp only [denote]
+    exact owl_model_relation J root place D r proper.1 proper.2 x x
+  | NotSelf r =>
+    intro proper _ x
+    simp only [denote]
+    exact not_congr (owl_model_relation J root place D r proper.1 proper.2 x x)
   | One a =>
     intro _ agree x
     simp only [denote,individual_owl_model,agree a rfl]

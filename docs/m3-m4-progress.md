@@ -3604,3 +3604,43 @@ forest self loops and the role characteristics that rest on them.
 
 This block adds 1 public theorem. Totals are 1501 audited theorems, 865
 definitions, 438 Rust regressions and 1694 ledger obligations.
+
+## Reasoner: self restrictions in the completion forest
+
+The completion forest now decides self restrictions. A self restriction
+`∃s.Self` in the label of a node is a loop, an edge from the node to itself
+along `s`, read from the label (SelfAlong, forest::looping, forest::self_along):
+the node is its own neighbour along every role that includes `s` or its inverse
+(forest::loops_along, the fifth part of forest::neighbours). Universal
+restrictions pass along a loop in both directions like along any edge
+(LoopNeeds, LoopsOk, forest::missing_loop, forest::missing_loops), and a node
+with `¬∃r.Self` that is its own neighbour along `r`, through a loop, a link or an
+added edge, is a clash (Looped, forest::looped_from, forest::looped_node,
+`Step::Loop`), proved by the neighbour's relation in every model of the forest
+(neighbour_holds). Self restrictions and their complements are literals of the
+labels, so they are counted, chosen and merged like any other entry, and a node
+with a loop counts itself among its neighbours.
+
+The model of a complete forest relates a path to itself along the loops of its
+newest node (the fifth case of Step, selfAlong_inv), and a path corresponds to
+itself only for its own newest node (corr_tail, corr_loop), so every neighbour
+still has one neighbour path. The truth lemma covers `∃s.Self` by the loop and
+`¬∃r.Self` by the clash rule: complements of self restrictions, like number
+restrictions, must be on simple roles (SimpleCounting, CountsSimply), so the
+model relates a path to itself along `r` only through a step, which only a
+neighbour of the newest node gives.
+
+A loop can make a tree node its own neighbour next to its child or parent; a
+maximum restriction may then have to merge the child into its parent, which no
+merge does yet. The merge rule gives no answer at such a pair (LoopedPair,
+forest::looped_pair, orient_either), while merging a tree node into a named
+parent, which a loop at a named node calls for, was already proved. The
+ontology queries now take `ObjectHasSelf` and reflexive and irreflexive object
+properties, as `∃r.Self` and `¬∃r.Self` in the TBox concept, and decide them
+with the forest; the tests answer all but one of 300 random inputs with self
+restrictions and reflexive, irreflexive and functional properties, and every
+class with a model of at most three elements comes out satisfiable.
+
+This block adds 12 public theorems and 5 independent definitions. Totals are
+1513 audited theorems, 870 definitions, 440 Rust regressions and 1706 ledger
+obligations.

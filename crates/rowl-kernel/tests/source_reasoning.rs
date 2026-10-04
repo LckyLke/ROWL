@@ -333,7 +333,7 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         Some(false)
     );
     // Object property axioms outside the supported role axioms are read but not answered.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n ReflexiveObjectProperty(:p)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(ObjectPropertyChain(:p :p) :p)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
@@ -632,7 +632,7 @@ fn one_reading_answers_many_questions() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Axioms outside the supported fragment are read but not prepared.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n ReflexiveObjectProperty(:p)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(ObjectPropertyChain(:p :p) :p)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(

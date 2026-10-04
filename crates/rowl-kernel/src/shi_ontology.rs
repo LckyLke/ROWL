@@ -1,9 +1,11 @@
 //! Consistency, class satisfiability, subsumption and instance checking for an
 //! axiom closure with assertions: SHI decided by the completion graph tableau,
-//! and SHOIQ, with number restrictions on simple roles and nominals of named
-//! individuals, by the completion forest.
+//! and SHOIQ with self restrictions and reflexive and irreflexive properties,
+//! with number restrictions and complements of self restrictions on simple
+//! roles and nominals of named individuals, by the completion forest.
 //!
-//! Class expressions are translated into ALCIQO concepts (see `concepts`). Every
+//! Class expressions are translated into ALCIQO concepts with self restrictions
+//! (see `concepts`). Every
 //! class axiom becomes inclusions `C ⊑ D`: a subclass axiom is one, equivalent
 //! classes include the first member in every other member and back, disjoint
 //! classes include every member in the complement of every later member, and a
@@ -14,8 +16,9 @@
 //! `∃r.E ⊑ D` becomes `E ⊑ ∀r⁻.D`, and `E ⊓ F ⊓ … ⊑ D` becomes
 //! `E ⊑ ¬F ⊔ … ⊔ D`. Every other inclusion conjoins `¬C ⊔ D` onto the TBox
 //! concept, which holds everywhere. A domain conjoins `∀r⁻.C`, a range
-//! `∀r.C`, a functional property `≤1 r.⊤` and an inverse functional property
-//! `≤1 r⁻.⊤`.
+//! `∀r.C`, a functional property `≤1 r.⊤`, an inverse functional property
+//! `≤1 r⁻.⊤`, a reflexive property `∃r.Self` and an irreflexive property
+//! `¬∃r.Self`.
 //!
 //! The role axioms `SubObjectPropertyOf` without chains,
 //! `EquivalentObjectProperties`, `InverseObjectProperties`,
@@ -30,9 +33,9 @@
 //! stands for one more element, and the members of a `SameIndividual` axiom
 //! share the node of their representative. Class assertions and the query's
 //! concepts are facts at those nodes, and object property assertions are links.
-//! A question whose concepts have no number restriction and no nominal goes to
-//! the completion graph tableau, unless the closure has negative assertions next
-//! to role axioms. There, without role axioms, a negative object property
+//! A question whose concepts have no number restriction, self restriction or
+//! nominal goes to the completion graph tableau, unless the closure has
+//! negative assertions next to role axioms. There, without role axioms, a negative object property
 //! assertion contradicts the closure exactly when a link relates the same nodes
 //! along the same property, in either orientation, because the tableau's models
 //! relate named individuals only along links, and a `DifferentIndividuals`
@@ -51,14 +54,14 @@
 //! and ask once.
 //!
 //! The answer is `None` when an axiom has any other form, when a class
-//! expression is outside ALCIQO or has a self restriction (which `concepts`
-//! translates but no tableau decides yet), when a concept, definition, role
-//! axiom or assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty`
-//! (whose fixed meaning the tableaux do not model), when a nominal is of an
-//! anonymous individual or, in a question, of an individual the closure does
-//! not have, when a number restriction counts along a role that is not simple,
-//! when a list would exceed the `usize` range, or when the completion forest
-//! cannot go on, which the tests never reach.
+//! expression is outside ALCIQO with self restrictions, when a concept,
+//! definition, role axiom or assertion uses `owl:topObjectProperty` or
+//! `owl:bottomObjectProperty` (whose fixed meaning the tableaux do not model),
+//! when a nominal is of an anonymous individual or, in a question, of an
+//! individual the closure does not have, when a number restriction or the
+//! complement of a self restriction is on a role that is not simple, when a
+//! list would exceed the `usize` range, or when the completion forest cannot
+//! go on.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -98,8 +101,7 @@ fn named_individual(individual: &Individual) -> bool {
 }
 /// Whether no built-in class occurs as a named class, no built-in object
 /// property as a role and no anonymous individual in a nominal, so the tableaux
-/// read every name as an ordinary one, and no self restriction occurs, which no
-/// tableau decides.
+/// read every name as an ordinary one.
 fn proper(concept: &Concept) -> bool {
     match concept {
         Concept::Top => true,
@@ -108,8 +110,8 @@ fn proper(concept: &Concept) -> bool {
         Concept::NotAtom(class) => !builtin_class(class),
         Concept::One(individual) => named_individual(individual),
         Concept::NotOne(individual) => named_individual(individual),
-        Concept::HasSelf(_) => false,
-        Concept::NotSelf(_) => false,
+        Concept::HasSelf(role) => role_proper(role),
+        Concept::NotSelf(role) => role_proper(role),
         Concept::And(left, right) => proper(left) && proper(right),
         Concept::Or(left, right) => proper(left) && proper(right),
         Concept::Exists(role, filler) => role_proper(role) && proper(filler),
@@ -118,8 +120,8 @@ fn proper(concept: &Concept) -> bool {
         Concept::AtMost(_, role, filler) => role_proper(role) && proper(filler),
     }
 }
-/// Whether a number restriction occurs, which only the completion forest
-/// counts.
+/// Whether a number restriction or a self restriction occurs, which only the
+/// completion forest decides.
 fn counts(concept: &Concept) -> bool {
     match concept {
         Concept::And(left, right) => counts(left) || counts(right),
@@ -128,6 +130,8 @@ fn counts(concept: &Concept) -> bool {
         Concept::Forall(_, filler) => counts(filler),
         Concept::AtLeast(_, _, _) => true,
         Concept::AtMost(_, _, _) => true,
+        Concept::HasSelf(_) => true,
+        Concept::NotSelf(_) => true,
         _ => false,
     }
 }
@@ -530,6 +534,12 @@ fn axiom_parts(axiom: &Axiom, parts: Parts) -> Option<Parts> {
             parts,
             Concept::AtMost(1, inverse(property), Box::new(Concept::Top)),
         )),
+        Axiom::ReflexiveObjectProperty(property) => {
+            Some(conjoin(parts, Concept::HasSelf(copy_role(property))))
+        }
+        Axiom::IrreflexiveObjectProperty(property) => {
+            Some(conjoin(parts, Concept::NotSelf(copy_role(property))))
+        }
         Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(_), _) => Some(parts),
         Axiom::EquivalentObjectProperties(_) => Some(parts),
         Axiom::InverseObjectProperties(_, _) => Some(parts),

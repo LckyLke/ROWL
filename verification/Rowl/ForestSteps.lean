@@ -1714,7 +1714,8 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     (different : p.first ≠ p.second)
     (children : Named F.nodes.val x.val → (∃ a, F.nodes.val[p.first.val]? = some a ∧ a.tree = true) →
       (∃ b, F.nodes.val[p.second.val]? = some b ∧ b.tree = true) →
-      ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val) :
+      ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val)
+    (notLooped : ¬ LoopedPair F x p) :
     MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val ∧
       (orientOf F x p = (p.first,p.second) ∨ orientOf F x p = (p.second,p.first)) := by
   have firstIn := neighbour_inside shape x.val r _ first
@@ -1726,22 +1727,24 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
   obtain ⟨a,at_a⟩ : ∃ a, F.nodes.val[p.first.val]? = some a := ⟨_,List.getElem?_eq_getElem firstIn⟩
   obtain ⟨b,at_b⟩ : ∃ b, F.nodes.val[p.second.val]? = some b := ⟨_,List.getElem?_eq_getElem secondIn⟩
   obtain ⟨n,at_x⟩ : ∃ n, F.nodes.val[x.val]? = some n := ⟨_,List.getElem?_eq_getElem xIn⟩
-  -- A tree neighbour that the merge may take is a child of `x` or its parent.
+  -- A tree neighbour that the merge may take is a child of `x`, its parent or
+  -- `x` itself.
   have treeNeighbour : ∀ (z : Usize) (m : forest.Node), Neighbour P h F x.val r z.val → F.nodes.val[z.val]? = some m →
       m.tree = true → (Named F.nodes.val x.val → ¬ Repeated F.nodes.val x.val z.val) →
-      m.parent.val = x.val ∨ (n.tree = true ∧ n.parent.val = z.val) := by
+      m.parent.val = x.val ∨ (n.tree = true ∧ n.parent.val = z.val) ∨ z = x := by
     intro z m neighbour at_z tree fine
     rcases neighbour_tree shape x.val r z.val neighbour m at_z tree with ⟨m',at_z',_,_,parent,_⟩ |
-        ⟨n',at_x',xTree,parent,_⟩ | ⟨xNamed,_⟩
+        ⟨n',at_x',xTree,parent,_⟩ | ⟨xNamed,_⟩ | loop
     · rw [at_z] at at_z'
       cases at_z'
       exact .inl parent
     · rw [at_x] at at_x'
       cases at_x'
-      exact .inr ⟨xTree,parent⟩
+      exact .inr (.inl ⟨xTree,parent⟩)
     · by_cases child : m.parent.val = x.val
       · exact .inl child
       · exact absurd ⟨m,at_z,tree,child⟩ (fine xNamed)
+    · exact .inr (.inr (UScalar.eq_of_val_eq loop))
   unfold orientOf
   rw [at_a,at_b,at_x]
   simp only
@@ -1753,22 +1756,35 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
       · rw [if_pos up]
         -- `second` is a child of `x`, merged into the parent of `x`.
         rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
-            ⟨_,parent⟩
+            ⟨_,parent⟩ | loop
         · refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inl ⟨n,?_,up.1,?_⟩⟩⟩,.inr rfl⟩
           · rw [child]; exact at_x
           · rw [up.2]
         · exact absurd (by rw [← parent,up.2]) differentVal
+        · exact absurd ⟨⟨n,at_x,up.1⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inr loop⟩ notLooped
       · rw [if_neg up]
         have aParent : a.parent.val = x.val := by
           rcases treeNeighbour p.first a first at_a aTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).1) with child |
-              ⟨xTree,parent⟩
+              ⟨xTree,parent⟩ | loop
           · exact child
           · exact absurd ⟨xTree,UScalar.eq_of_val_eq parent⟩ up
+          · have xa : F.nodes.val[x.val]? = some a := by rw [← loop]; exact at_a
+            have xTree : n.tree = true := by
+              rw [at_x,Option.some.injEq] at xa
+              rw [xa]
+              exact aTree
+            exact absurd ⟨⟨n,at_x,xTree⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inl loop⟩ notLooped
         refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,?_⟩⟩,.inl rfl⟩
         rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
-            ⟨xTree,parent⟩
+            ⟨xTree,parent⟩ | loop
         · exact .inr (.inl ⟨b,at_b,bTree,by rw [child,aParent]⟩)
         · exact .inl ⟨n,by rw [aParent]; exact at_x,xTree,parent⟩
+        · have xb : F.nodes.val[x.val]? = some b := by rw [← loop]; exact at_b
+          have xTree : n.tree = true := by
+            rw [at_x,Option.some.injEq] at xb
+            rw [xb]
+            exact bTree
+          exact absurd ⟨⟨n,at_x,xTree⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inr loop⟩ notLooped
     · rw [if_neg bTree]
       have bRoot : b.tree = false := by simpa using bTree
       exact ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,.inr (.inr ⟨b,at_b,bRoot⟩)⟩⟩,.inl rfl⟩

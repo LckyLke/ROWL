@@ -290,8 +290,10 @@ fn negative_assertions_and_unsupported_inputs() {
     assert_eq!(consistent(&builtin), None);
     let in_concept = vec![sub(class(b"A"), some(TOP_OBJECT, class(b"B")))];
     assert_eq!(consistent(&in_concept), None);
-    let reflexive = vec![axiom(Axiom::ReflexiveObjectProperty(property(b"r")))];
-    assert_eq!(consistent(&reflexive), None);
+    let functional_data = vec![axiom(Axiom::FunctionalDataProperty(DataProperty {
+        iri: iri(b"weight"),
+    }))];
+    assert_eq!(consistent(&functional_data), None);
     let enumeration = ClassExpression::ObjectOneOf(NonEmpty {
         first: named(b"a"),
         rest: Vec::new(),
@@ -434,6 +436,7 @@ fn denotes(i: &Finite, e: &ClassExpression, x: usize) -> bool {
         ClassExpression::ObjectAllValuesFrom(r, e) => {
             (0..i.size).all(|y| !edge(i, r, x, y) || denotes(i, e, y))
         }
+        ClassExpression::ObjectHasSelf(r) => edge(i, r, x, x),
         _ => panic!("outside the test fragment"),
     }
 }
@@ -474,6 +477,11 @@ fn satisfied(i: &Finite, item: &AnnotatedAxiom) -> bool {
         }
         Axiom::ObjectPropertyRange(r, e) => {
             everywhere(&|x| (0..i.size).all(|y| !edge(i, r, x, y) || denotes(i, e, y)))
+        }
+        Axiom::ReflexiveObjectProperty(r) => everywhere(&|x| edge(i, r, x, x)),
+        Axiom::IrreflexiveObjectProperty(r) => everywhere(&|x| !edge(i, r, x, x)),
+        Axiom::FunctionalObjectProperty(r) => {
+            everywhere(&|x| (0..i.size).filter(|&y| edge(i, r, x, y)).count() <= 1)
         }
         _ => panic!("outside the test axioms"),
     }
@@ -655,7 +663,9 @@ fn one_preparation_answers_many_queries() {
         }
     }
     // Axioms outside the supported fragment are not prepared.
-    let unsupported = vec![axiom(Axiom::ReflexiveObjectProperty(property(b"R")))];
+    let unsupported = vec![axiom(Axiom::FunctionalDataProperty(DataProperty {
+        iri: iri(b"weight"),
+    }))];
     assert!(prepare(&unsupported).is_none());
 }
 
@@ -1289,4 +1299,175 @@ fn nominal_closures_agree_with_small_models_body() {
         "the sample must exercise inconsistent closures"
     );
     assert!(refuted > 50, "the sample must exercise satisfiable classes");
+}
+
+fn has_self(r: ObjectPropertyExpression) -> ClassExpression {
+    ClassExpression::ObjectHasSelf(r)
+}
+
+/// A deterministic pseudo-random class expression over A, B and R with self
+/// restrictions along R or its inverse.
+fn random_self_expression(seed: &mut u64, depth: u32) -> ClassExpression {
+    *seed = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    let choice = (*seed >> 33) % if depth == 0 { 4 } else { 9 };
+    let role = if (*seed >> 45).is_multiple_of(2) {
+        inverse(b"R")
+    } else {
+        property(b"R")
+    };
+    match choice {
+        0 => class(b"A"),
+        1 => class(b"B"),
+        2 | 3 => has_self(role),
+        4 => and(
+            random_self_expression(seed, depth - 1),
+            random_self_expression(seed, depth - 1),
+        ),
+        5 => or(
+            random_self_expression(seed, depth - 1),
+            random_self_expression(seed, depth - 1),
+        ),
+        6 => not(random_self_expression(seed, depth - 1)),
+        7 => some_along(role, random_self_expression(seed, depth - 1)),
+        _ => all_along(role, random_self_expression(seed, depth - 1)),
+    }
+}
+fn random_self_axiom(seed: &mut u64) -> AnnotatedAxiom {
+    *seed = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    let role = if (*seed >> 45).is_multiple_of(2) {
+        inverse(b"R")
+    } else {
+        property(b"R")
+    };
+    match (*seed >> 33) % 5 {
+        0 => axiom(Axiom::ReflexiveObjectProperty(role)),
+        1 => axiom(Axiom::IrreflexiveObjectProperty(role)),
+        2 => axiom(Axiom::FunctionalObjectProperty(role)),
+        _ => sub(
+            random_self_expression(seed, 1),
+            random_self_expression(seed, 1),
+        ),
+    }
+}
+
+/// Self restrictions are loops of the completion forest, and reflexive and
+/// irreflexive properties require or forbid them everywhere.
+#[test]
+fn self_restrictions_and_reflexive_properties() {
+    let r = || property(b"r");
+    let reflexive = vec![axiom(Axiom::ReflexiveObjectProperty(r()))];
+    assert_eq!(consistent(&reflexive), Some(true));
+    assert_eq!(
+        subsumed(&reflexive, &thing(), &has_self(inverse(b"r"))),
+        Some(true)
+    );
+    // Universal restrictions pass along a loop.
+    assert_eq!(
+        subsumed(&reflexive, &all(b"r", class(b"A")), &class(b"A")),
+        Some(true)
+    );
+    assert_eq!(
+        subsumed(&Vec::new(), &all(b"r", class(b"A")), &class(b"A")),
+        Some(false)
+    );
+    let both = vec![
+        axiom(Axiom::ReflexiveObjectProperty(r())),
+        axiom(Axiom::IrreflexiveObjectProperty(r())),
+    ];
+    assert_eq!(consistent(&both), Some(false));
+    // An irreflexive property refutes the loops of the roles it includes, in
+    // either direction, but not their other edges.
+    let irreflexive = vec![
+        axiom(Axiom::IrreflexiveObjectProperty(r())),
+        included(property(b"s"), r()),
+    ];
+    assert_eq!(
+        class_satisfiable(&irreflexive, &has_self(property(b"s"))),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&irreflexive, &has_self(inverse(b"s"))),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&irreflexive, &some(b"s", has_self(property(b"t")))),
+        Some(true)
+    );
+    // A link from an individual to itself is a loop.
+    let mut looped = irreflexive;
+    looped.push(related(r(), named(b"a"), named(b"a")));
+    assert_eq!(consistent(&looped), Some(false));
+    // Along a functional property with a loop, every successor of an
+    // individual is the individual itself.
+    let functional = vec![
+        axiom(Axiom::ReflexiveObjectProperty(r())),
+        axiom(Axiom::FunctionalObjectProperty(r())),
+        asserted(some(b"r", class(b"B")), named(b"a")),
+    ];
+    assert_eq!(
+        instance_of(&functional, &individual(b"a"), &class(b"B")),
+        Some(true)
+    );
+    // Below an anonymous element that merge would move a node into its parent,
+    // which no merge does yet.
+    let deep = vec![
+        axiom(Axiom::ReflexiveObjectProperty(r())),
+        axiom(Axiom::FunctionalObjectProperty(r())),
+    ];
+    assert_eq!(
+        class_satisfiable(
+            &deep,
+            &some(b"s", and(some(b"r", class(b"B")), not(class(b"B"))))
+        ),
+        None
+    );
+    // The complement of a self restriction needs a simple role.
+    let tangled = vec![
+        axiom(Axiom::IrreflexiveObjectProperty(r())),
+        transitive(r()),
+    ];
+    assert_eq!(consistent(&tangled), None);
+    let reflexive_transitive = vec![axiom(Axiom::ReflexiveObjectProperty(r())), transitive(r())];
+    assert_eq!(consistent(&reflexive_transitive), Some(true));
+}
+
+#[test]
+fn every_class_with_a_small_model_of_self_restrictions_is_satisfiable() {
+    let finite = interpretations();
+    let mut seed = 31;
+    let mut with_model = 0;
+    let mut without = 0;
+    let mut unanswered = 0;
+    for _ in 0..300 {
+        let items: Vec<AnnotatedAxiom> = (0..2).map(|_| random_self_axiom(&mut seed)).collect();
+        let query = random_self_expression(&mut seed, 2);
+        let small_model = finite.iter().any(|i| {
+            items.iter().all(|item| satisfied(i, item))
+                && (0..i.size).any(|x| denotes(i, &query, x))
+        });
+        match class_satisfiable(&items, &query) {
+            Some(answer) => {
+                if small_model {
+                    assert!(answer, "a model exists, so the class must be satisfiable");
+                    with_model += 1;
+                } else if !answer {
+                    without += 1;
+                }
+            }
+            None => unanswered += 1,
+        }
+    }
+    println!("with model {with_model}, without {without}, unanswered {unanswered}");
+    assert!(
+        with_model > 30,
+        "the sample must exercise satisfiable inputs"
+    );
+    assert!(
+        without > 10,
+        "the sample must exercise unsatisfiable inputs"
+    );
 }

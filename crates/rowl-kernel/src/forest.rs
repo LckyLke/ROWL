@@ -9,24 +9,28 @@
 //!    into it, the TBox concept and the unfoldings of its classes, and a tree
 //!    node or a new named node the filler it was created for (its seed);
 //! 2. along every edge, in both directions, universal restrictions pass their
-//!    filler on, and through transitive roles the restriction itself;
-//! 3. a node whose label has the nominal `{a}` is merged into the named node of
+//!    filler on, and through transitive roles the restriction itself; a self
+//!    restriction `∃s.Self` of a node is a loop, an edge from the node to
+//!    itself along `s`;
+//! 3. a node with `¬∃r.Self` that is its own neighbour along `r` is a clash;
+//! 4. a node whose label has the nominal `{a}` is merged into the named node of
 //!    `a`, the node of the first requirement with `{a}`, unless they are known
 //!    to differ, which is a clash; a nominal or the complement of one whose
 //!    individual has no named node gives no answer;
-//! 4. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
+//! 5. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
 //!    (the choose rule);
-//! 5. when `≤n r.C` of a named node counts a tree node that is not its child,
+//! 6. when `≤n r.C` of a named node counts a tree node that is not its child,
 //!    which the model may repeat, new named nodes take the place of such
 //!    nodes: the rule guesses how many neighbours along `r` satisfy `C`, from
 //!    1 up to `n`, trying each guess in turn, and creates that many new named
 //!    nodes with the seed `C`, an added edge from the node and the guess as a
 //!    bound on those neighbours; once the bound exists, the tree node is
 //!    merged with one of the first `bound` counted named neighbours;
-//! 6. when more than `n` of those neighbours satisfy `C`, two of the first
+//! 7. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
-//!    turn; when all of them differ, it is a clash;
-//! 7. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
+//!    turn; when all of them differ, it is a clash; a pair of a tree node with
+//!    a loop and its own child or parent gives no answer;
+//! 8. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
 //!    neighbours along `r` satisfying `C` than it requires, and was not
 //!    expanded yet, creates new tree nodes with the filler as their seed,
 //!    pairwise different.
@@ -44,18 +48,20 @@
 //! to the named node. A tree node is blocked when its label, its parent's label
 //! and the roles in between repeat a tree node with a tree parent on its path to
 //! its root (pairwise blocking), which counting with inverse roles needs; the
-//! added edges of blocked nodes are left out. Number restrictions must be on
-//! simple roles, which no transitive role is included in. New named nodes come
-//! after every node that created them, and each restriction of a named node
-//! gets them at most once, so the run terminates.
+//! added edges of blocked nodes are left out. Number restrictions and
+//! complements of self restrictions must be on simple roles, which no
+//! transitive role is included in. New named nodes come after every node that
+//! created them, and each restriction of a named node gets them at most once,
+//! so the run terminates.
 //!
 //! Backjumping works as in the completion graph: nodes, edges and differences
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
-//! `usize` range, that a number restriction is on a role that is not simple,
-//! that the individual of a nominal has no named node, that a restriction with
-//! a bound from new named nodes has fewer counted named neighbours than the
-//! bound, or that a self restriction would be added to a label.
+//! `usize` range, that a number restriction or the complement of a self
+//! restriction is on a role that is not simple, that the individual of a
+//! nominal has no named node, that a restriction with a bound from new named
+//! nodes has fewer counted named neighbours than the bound, or that a merge
+//! would move a tree node into its parent.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -164,6 +170,9 @@ pub enum Step {
     Nominal {
         node: usize,
         root: usize,
+    },
+    Loop {
+        node: usize,
     },
     Create {
         node: usize,
@@ -360,9 +369,69 @@ fn edges_along(
         Some(out)
     }
 }
+/// Whether the entry `item` is a self restriction `∃s.Self` whose loop leads
+/// along a role included in `role`, in either direction.
+fn looping(
+    entries: &Vec<Entry>,
+    roles: &RoleHierarchy,
+    item: usize,
+    role: &ObjectPropertyExpression,
+) -> bool {
+    if item < entries.len() {
+        match &entries[item] {
+            Entry::HasSelf(own) => {
+                if below(roles, own, role) {
+                    true
+                } else {
+                    below(roles, &inverse(own), role)
+                }
+            }
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+/// Whether a self restriction of `label[index..]` has a loop along a role
+/// included in `role`.
+fn self_along(
+    entries: &Vec<Entry>,
+    roles: &RoleHierarchy,
+    label: &Vec<usize>,
+    role: &ObjectPropertyExpression,
+    index: usize,
+) -> bool {
+    if index < label.len() {
+        if looping(entries, roles, label[index], role) {
+            true
+        } else {
+            self_along(entries, roles, label, role, index + 1)
+        }
+    } else {
+        false
+    }
+}
+/// `out` with `node` itself, when a self restriction of its label has a loop
+/// along a role included in `role`.
+fn loops_along(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    role: &ObjectPropertyExpression,
+    out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if node < graph.nodes.len() {
+        if self_along(&problem.entries, roles, &graph.nodes[node].label, role, 0) {
+            return with_node(out, node);
+        }
+    }
+    Some(out)
+}
 /// The neighbours of `node` along a role included in `role`, each once: its
-/// children, its parent, the named nodes linked to it, and the nodes an added
-/// edge from a live node relates to it.
+/// children, its parent, the named nodes linked to it, the nodes an added edge
+/// from a live node relates to it, and itself when its label has a self
+/// restriction along the role.
 fn neighbours(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -382,7 +451,11 @@ fn neighbours(
         Some(out) => out,
         None => return None,
     };
-    edges_along(graph, roles, node, role, 0, out)
+    let out = match edges_along(graph, roles, node, role, 0, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    loops_along(problem, roles, graph, node, role, out)
 }
 /// The label of a node; empty for an index out of range.
 fn label_of(graph: &Forest, node: usize) -> Vec<usize> {
@@ -648,6 +721,120 @@ fn missing_added(
         }
     } else {
         None
+    }
+}
+/// What a self restriction of `label[index..]` of `node` requires along its
+/// loop that `node` misses.
+fn missing_loop(
+    entries: &Vec<Entry>,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    index: usize,
+) -> Option<(usize, usize)> {
+    if node < graph.nodes.len() {
+        if index < graph.nodes[node].label.len() {
+            let item = graph.nodes[node].label[index];
+            let found = if item < entries.len() {
+                match &entries[item] {
+                    Entry::HasSelf(own) => missing_edge(entries, roles, graph, node, node, own),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            match found {
+                Some(found) => Some(found),
+                None => missing_loop(entries, roles, graph, node, index + 1),
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+/// The first loop of an active node of `nodes[index..]` that misses something.
+fn missing_loops(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    index: usize,
+) -> Option<(usize, usize)> {
+    if index < graph.nodes.len() {
+        let found = if graph.nodes[index].active {
+            missing_loop(&problem.entries, roles, graph, index, 0)
+        } else {
+            None
+        };
+        match found {
+            Some(found) => Some(found),
+            None => missing_loops(problem, roles, graph, index + 1),
+        }
+    } else {
+        None
+    }
+}
+/// Whether `label[index..]` of `node` has the complement `¬∃r.Self` of a self
+/// restriction while `node` is its own neighbour along `r`; `None` when there
+/// is no room.
+fn looped_from(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    index: usize,
+) -> Option<bool> {
+    if node < graph.nodes.len() {
+        if index < graph.nodes[node].label.len() {
+            let item = graph.nodes[node].label[index];
+            let here = if item < problem.entries.len() {
+                match &problem.entries[item] {
+                    Entry::NotSelf(role) => match neighbours(problem, roles, graph, node, role) {
+                        Some(list) => contains(&list, node, 0),
+                        None => return None,
+                    },
+                    _ => false,
+                }
+            } else {
+                false
+            };
+            if here {
+                Some(true)
+            } else {
+                looped_from(problem, roles, graph, node, index + 1)
+            }
+        } else {
+            Some(false)
+        }
+    } else {
+        Some(false)
+    }
+}
+/// The first active node of `nodes[index..]` with `¬∃r.Self` that is its own
+/// neighbour along `r`; `None` when there is no room.
+fn looped_node(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    index: usize,
+) -> Option<Option<usize>> {
+    if index < graph.nodes.len() {
+        let here = if graph.nodes[index].active {
+            match looped_from(problem, roles, graph, index, 0) {
+                Some(here) => here,
+                None => return None,
+            }
+        } else {
+            false
+        };
+        if here {
+            Some(Some(index))
+        } else {
+            looped_node(problem, roles, graph, index + 1)
+        }
+    } else {
+        Some(None)
     }
 }
 /// The first neighbour of `list[index..]` that decides neither `left` nor
@@ -1204,6 +1391,15 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option
         Some((node, concept)) => return Some(Step::Add { node, concept }),
         None => {}
     }
+    match missing_loops(problem, roles, graph, 0) {
+        Some((node, concept)) => return Some(Step::Add { node, concept }),
+        None => {}
+    }
+    match looped_node(problem, roles, graph, 0) {
+        Some(Some(node)) => return Some(Step::Loop { node }),
+        Some(None) => {}
+        None => return None,
+    }
     match nominal_node(problem, graph, 0) {
         Some(Some((node, root))) => return Some(Step::Nominal { node, root }),
         Some(None) => {}
@@ -1467,8 +1663,6 @@ fn add(
                     Entry::Or(left, right) => branch(
                         problem, roles, graph, node, *left, *right, next, deps, depth,
                     ),
-                    Entry::HasSelf(_) => None,
-                    Entry::NotSelf(_) => None,
                     _ => add_literal(problem, roles, graph, node, concept, next, deps, depth),
                 }
             } else {
@@ -2240,6 +2434,25 @@ fn merge(
         None
     }
 }
+/// Whether a pair of neighbours of the tree node `node` has `node` itself and
+/// another tree node, its child or its parent: no merge moves a tree node into
+/// its parent yet.
+fn looped_pair(graph: &Forest, node: usize, pair: &Pair) -> bool {
+    if node < graph.nodes.len() && pair.first < graph.nodes.len() && pair.second < graph.nodes.len()
+    {
+        if graph.nodes[node].tree && graph.nodes[pair.first].tree && graph.nodes[pair.second].tree {
+            if pair.first == node {
+                true
+            } else {
+                pair.second == node
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
 /// The merge of a pair of neighbours of `node`: a tree node into a named node,
 /// a child into the parent of `node`, a later sibling into an earlier one, a
 /// named node into another one.
@@ -2279,6 +2492,9 @@ fn choices(
     depth: usize,
 ) -> Option<Outcome> {
     if index < pairs.len() {
+        if looped_pair(&graph, node, &pairs[index]) {
+            return None;
+        }
         let (from, into) = orient(&graph, node, &pairs[index]);
         if index + 1 < pairs.len() {
             if depth < usize::MAX {
@@ -2736,6 +2952,10 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
             capped_rule(problem, roles, graph, node, restriction, depth)
         }
         Some(Step::Nominal { node, root }) => nominal(problem, roles, graph, node, root, depth),
+        Some(Step::Loop { node }) => match rule_deps(problem, &graph, node) {
+            Some(deps) => Some(Outcome::Rejected(deps)),
+            None => None,
+        },
         Some(Step::Create { node, generator }) => {
             create(problem, roles, graph, node, generator, depth)
         }
@@ -2757,12 +2977,14 @@ fn simple_from(roles: &RoleHierarchy, role: &ObjectPropertyExpression, index: us
         true
     }
 }
-/// Whether every number restriction of `entries[index..]` is on a simple role.
+/// Whether every number restriction and every complement of a self restriction
+/// of `entries[index..]` is on a simple role.
 fn counting_simple(entries: &Vec<Entry>, roles: &RoleHierarchy, index: usize) -> bool {
     if index < entries.len() {
         let simple = match &entries[index] {
             Entry::AtLeast(_, role, _) => simple_from(roles, role, 0),
             Entry::AtMost(_, role, _, _) => simple_from(roles, role, 0),
+            Entry::NotSelf(role) => simple_from(roles, role, 0),
             _ => true,
         };
         if simple {
@@ -2804,8 +3026,9 @@ fn roots(count: usize, mut graph: Forest) -> Option<Forest> {
 /// and of `facts` holds at its node and every link relates its nodes along its
 /// role. `roles` must be closed: its inclusions include their compositions and
 /// inverses, and its transitive roles their inverses. `None` means that a
-/// structure would exceed the `usize` range, that a number restriction is on a
-/// role that is not simple, or that the rules cannot go on (see above).
+/// structure would exceed the `usize` range, that a number restriction or the
+/// complement of a self restriction is on a role that is not simple, or that
+/// the rules cannot go on (see above).
 pub fn satisfiable(
     count: usize,
     query: &Vec<Fact>,
