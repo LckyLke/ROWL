@@ -76,7 +76,8 @@ structure Shape (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : 
     Active F.nodes.val n.parent.val
   links : ∀ l ∈ P.links.val, l.from.val < count ∧ l.to.val < count
   requirements : ∀ q ∈ P.requirements.val, q.node.val < count
-  edges : ∀ e ∈ F.edges.val, e.from.val < count ∧ e.to.val < count
+  edges : ∀ e ∈ F.edges.val, e.to.val < count ∧
+    (e.from.val < count ∨ ∃ n, F.nodes.val[e.from.val]? = some n ∧ n.tree = true)
   distinctIn : ∀ d ∈ F.distinct.val, d.left.val < F.nodes.val.length ∧ d.right.val < F.nodes.val.length
   literals : ∀ y, ∀ i ∈ labelOf F.nodes.val y, ∃ e, P.entries.val[i.val]? = some e ∧ Literal e
   clashFree : ∀ y, ∀ i ∈ labelOf F.nodes.val y, ∀ j ∈ labelOf F.nodes.val y, ∀ e e',
@@ -263,21 +264,61 @@ theorem edgeEnds_mem (edges : List forest.Edge) (l : ObjectPropertyExpression ×
   · rintro ⟨e,member,rfl⟩
     exact ⟨e,member,rfl⟩
 
-/-- A node that a link or an added edge relates, read through the merges, is
-    the representative of an individual. -/
+/-- A tree node is read through the merges as itself. -/
+theorem rep_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (a : Usize) (n : forest.Node) (at_a : F.nodes.val[a.val]? = some n)
+    (tree : n.tree = true) : rep F a = a := by
+  have notNamed : ¬ a.val < count := fun below => by
+    have := (shape.named a.val n at_a).mpr below
+    rw [tree] at this
+    cases this
+  unfold rep
+  rw [List.getElem?_eq_none (by rw [shape.sameLength]; omega)]
+
+/-- The source of an added edge, read through the merges, is a named node or a
+    tree node read as itself. -/
+theorem edge_from {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (e : forest.Edge) (listed : e ∈ F.edges.val) :
+    (rep F e.from).val < count ∨ (rep F e.from = e.from ∧ ∃ n, F.nodes.val[e.from.val]? = some n ∧ n.tree = true) := by
+  rcases (shape.edges e listed).2 with named | ⟨n,at_n,tree⟩
+  · exact .inl (rep_in shape e.from named).1
+  · exact .inr ⟨rep_tree shape e.from n at_n tree,n,at_n,tree⟩
+
+theorem liveEdgeEnds_mem (F : forest.Forest) (edges : List forest.Edge) (l : ObjectPropertyExpression × Usize × Usize) :
+    l ∈ edgeEnds (liveEdges F edges) ↔ ∃ e ∈ edges, Live F.nodes.val (rep F e.from).val ∧ l = (e.role,e.from,e.to) := by
+  unfold edgeEnds liveEdges
+  rw [List.mem_map]
+  constructor
+  · rintro ⟨e,member,rfl⟩
+    obtain ⟨listed,live⟩ := List.mem_filter.mp member
+    exact ⟨e,listed,by simpa using live,rfl⟩
+  · rintro ⟨e,listed,live,rfl⟩
+    exact ⟨e,List.mem_filter.mpr ⟨listed,by simpa using live⟩,rfl⟩
+
+/-- A node that a link relates, read through the merges, is the representative
+    of an individual. -/
 theorem linkAlong_rep {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat) :
-    (LinkAlong h F (linkEnds P.links.val) x r z ∨ LinkAlong h F (edgeEnds F.edges.val) x r z) →
+    LinkAlong h F (linkEnds P.links.val) x r z →
       ∃ a b : Usize, a.val < count ∧ b.val < count ∧ (rep F a).val = x ∧ (rep F b).val = z := by
-  rintro (⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩ | ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩)
+  rintro ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩
   · obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
     exact ⟨l0.from,l0.to,(shape.links l0 listed).1,(shape.links l0 listed).2,there,here⟩
   · obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
     exact ⟨l0.to,l0.from,(shape.links l0 listed).2,(shape.links l0 listed).1,there,here⟩
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
-    exact ⟨e.from,e.to,(shape.edges e listed).1,(shape.edges e listed).2,there,here⟩
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
-    exact ⟨e.to,e.from,(shape.edges e listed).2,(shape.edges e listed).1,there,here⟩
+
+/-- Nodes that a live added edge relates, read through the merges: its source is
+    live and its target is the representative of an individual. -/
+theorem edgeAlong_ends {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat)
+    (linked : LinkAlong h F (edgeEnds (liveEdges F F.edges.val)) x r z) :
+    ∃ e ∈ F.edges.val, Live F.nodes.val (rep F e.from).val ∧ (rep F e.to).val < count ∧
+      (((rep F e.from).val = x ∧ (rep F e.to).val = z) ∨ ((rep F e.to).val = x ∧ (rep F e.from).val = z)) := by
+  obtain ⟨l,member,⟨there,_,here⟩ | ⟨there,_,here⟩⟩ := linked
+  · obtain ⟨e,listed,live,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
+    exact ⟨e,listed,live,(rep_in shape e.to (shape.edges e listed).1).1,.inl ⟨there,here⟩⟩
+  · obtain ⟨e,listed,live,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
+    exact ⟨e,listed,live,(rep_in shape e.to (shape.edges e listed).1).1,.inr ⟨there,here⟩⟩
 
 /-- Every neighbour of an active node is an active node of the forest. -/
 theorem neighbour_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
@@ -290,10 +331,11 @@ theorem neighbour_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
     cases at_x'
     rw [← parent]
     exact shape.activeParents x n at_x tree act
-  · obtain ⟨_,b,_,bIn,_,rfl⟩ := linkAlong_rep shape x r z (.inl linked)
+  · obtain ⟨_,b,_,bIn,_,rfl⟩ := linkAlong_rep shape x r z linked
     exact (rep_in shape b bIn).2
-  · obtain ⟨_,b,_,bIn,_,rfl⟩ := linkAlong_rep shape x r z (.inr linked)
-    exact (rep_in shape b bIn).2
+  · obtain ⟨e,listed,live,_,⟨_,rfl⟩ | ⟨_,rfl⟩⟩ := edgeAlong_ends shape x r z linked
+    · exact (rep_in shape e.to (shape.edges e listed).1).2
+    · exact live.1
 
 /-- A neighbour is near: the parent, an active child, or a node related by a
     link or an added edge. -/
@@ -307,16 +349,18 @@ theorem neighbour_near (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F
     exact .inr (.inr (.inr (.inl ⟨l0,listed,.inl ⟨there,here⟩⟩)))
   · obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
     exact .inr (.inr (.inr (.inl ⟨l0,listed,.inr ⟨there,here⟩⟩)))
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     exact .inr (.inr (.inr (.inr ⟨e,listed,.inl ⟨there,here⟩⟩)))
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     exact .inr (.inr (.inr (.inr ⟨e,listed,.inr ⟨there,here⟩⟩)))
 
-/-- The only named neighbour of a tree node is its parent. -/
+/-- A named neighbour of a tree node is its parent or the target of a live
+    added edge from it. -/
 theorem neighbour_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (n : forest.Node) (at_x : F.nodes.val[x]? = some n)
     (tree : n.tree = true) (r : ObjectPropertyExpression) (z : Nat) (neighbour : Neighbour P h F x r z)
-    (m : forest.Node) (at_z : F.nodes.val[z]? = some m) (named : m.tree = false) : z = n.parent.val := by
+    (m : forest.Node) (at_z : F.nodes.val[z]? = some m) (named : m.tree = false) :
+    z = n.parent.val ∨ z < count := by
   rcases neighbour with ⟨m',at_z',tree',_⟩ | ⟨n',at_x',_,parent,_⟩ | linked | linked
   · rw [at_z] at at_z'
     cases at_z'
@@ -324,30 +368,38 @@ theorem neighbour_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
     cases tree'
   · rw [at_x] at at_x'
     cases at_x'
-    exact parent.symm
-  all_goals
-    obtain ⟨a,_,aIn,_,there,_⟩ := linkAlong_rep shape x r z (by first | exact .inl linked | exact .inr linked)
+    exact .inl parent.symm
+  · obtain ⟨a,_,aIn,_,there,_⟩ := linkAlong_rep shape x r z linked
     have below := (rep_in shape a aIn).1
     rw [there] at below
     have named' := (shape.named x n at_x).mpr below
     rw [tree] at named'
     cases named'
+  · exact .inr ((shape.named z m at_z).mp named)
 
-/-- A tree node that neighbours `x` is a child of `x` or its parent. -/
+/-- A tree node that neighbours `x` is a child of `x`, its parent, or, for a
+    named node `x`, the live source of an added edge into `x`. -/
 theorem neighbour_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat)
     (neighbour : Neighbour P h F x r z) (m : forest.Node) (at_z : F.nodes.val[z]? = some m) (tree : m.tree = true) :
-    ChildAlong h F.nodes.val x r z ∨ ParentAlong h F.nodes.val x r z := by
+    ChildAlong h F.nodes.val x r z ∨ ParentAlong h F.nodes.val x r z ∨ (x < count ∧ Live F.nodes.val z) := by
   rcases neighbour with child | parent | linked | linked
   · exact .inl child
-  · exact .inr parent
-  all_goals
-    obtain ⟨_,b,_,bIn,_,there⟩ := linkAlong_rep shape x r z (by first | exact .inl linked | exact .inr linked)
+  · exact .inr (.inl parent)
+  · obtain ⟨_,b,_,bIn,_,there⟩ := linkAlong_rep shape x r z linked
     have below := (rep_in shape b bIn).1
     rw [there] at below
     have named := (shape.named z m at_z).mpr below
     rw [tree] at named
     cases named
+  · obtain ⟨e,_,live,toIn,⟨_,toZ⟩ | ⟨toX,fromZ⟩⟩ := edgeAlong_ends shape x r z linked
+    · rw [toZ] at toIn
+      have named := (shape.named z m at_z).mpr toIn
+      rw [tree] at named
+      cases named
+    · rw [toX] at toIn
+      rw [fromZ] at live
+      exact .inr (.inr ⟨toIn,live⟩)
 
 theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Nat) (r : ObjectPropertyExpression) (z : Nat)
@@ -357,11 +409,16 @@ theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
   · have := shape.parents x n at_x tree
     have := (List.getElem?_eq_some_iff.mp at_x).1
     omega
-  all_goals
-    obtain ⟨_,b,_,bIn,_,there⟩ := linkAlong_rep shape x r z (by first | exact .inl linked | exact .inr linked)
+  · obtain ⟨_,b,_,bIn,_,there⟩ := linkAlong_rep shape x r z linked
     have below := (rep_in shape b bIn).1
     have := shape.countIn
     omega
+  · obtain ⟨e,listed,live,toIn,⟨_,toZ⟩ | ⟨_,fromZ⟩⟩ := edgeAlong_ends shape x r z linked
+    · have := shape.countIn
+      omega
+    · rw [fromZ] at live
+      obtain ⟨n,at_z,_⟩ := live.1
+      exact (List.getElem?_eq_some_iff.mp at_z).1
 
 /-! ### Growing labels -/
 
@@ -463,7 +520,7 @@ theorem inv_grows {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count 
   have shape := inv.shape
   refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,
       by rw [grows.1]; exact shape.countIn,by rw [grows.2.2.2.1]; exact shape.sameLength,?_,?_,?_,shape.links,
-      shape.requirements,by rw [grows.2.1]; exact shape.edges,by rw [grows.2.2.1,grows.1]; exact shape.distinctIn,
+      shape.requirements,?_,by rw [grows.2.2.1,grows.1]; exact shape.distinctIn,
       literals,clashFree⟩,nodup,?_,?_,?_⟩
   · intro y n' at_y'
     obtain ⟨n,at_y,_,_,_,tree,_⟩ := grows_back grows y n' at_y'
@@ -481,6 +538,13 @@ theorem inv_grows {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count 
     obtain ⟨n,at_y,parent,_,_,tree,active,_⟩ := grows_back grows y n' at_y'
     rw [parent,grows_active grows]
     exact shape.activeParents y n at_y (by rw [← tree]; exact tree') (by rw [← active]; exact active')
+  · intro e member
+    rw [grows.2.1] at member
+    obtain ⟨toIn,fromCases⟩ := shape.edges e member
+    refine ⟨toIn,fromCases.imp_right ?_⟩
+    rintro ⟨n,at_n,tree⟩
+    obtain ⟨n',at_n',_,_,_,tree',_⟩ := grows.2.2.2.2 _ n at_n
+    exact ⟨n',at_n',by rw [tree',tree]⟩
   · intro y
     rw [grows_done grows y]
     exact inv.doneNodup y
@@ -642,11 +706,55 @@ theorem sameLabel_of_set (L L' : List Usize) (same : (L.map (·.val)).toFinset =
     obtain ⟨j,listed,value⟩ := this.mpr ⟨i,member,rfl⟩
     rwa [show j = i from UScalar.eq_of_val_eq value] at listed
 
-/-- Along the path of an unblocked node, no two tree nodes have the same label,
-    parent's label and roles. -/
+/-- Every node of a tree path but the topmost has a tree node as its parent. -/
+theorem treePath_dropLast_parent (nodes : List forest.Node) :
+    ∀ y v, v ∈ (treePath nodes y).dropLast →
+      ∃ m q, nodes[v]? = some m ∧ nodes[m.parent.val]? = some q ∧ q.tree = true := by
+  intro y
+  induction y using Nat.strong_induction_on with
+  | _ y ih =>
+    intro v member
+    rw [treePath.eq_def] at member
+    cases at_y : nodes[y]? with
+    | none => rw [at_y] at member; simp at member
+    | some n =>
+      rw [at_y] at member
+      simp only at member
+      by_cases tree : n.tree = true
+      · rw [if_pos tree] at member
+        by_cases below : n.parent.val < y
+        · rw [dif_pos below] at member
+          cases rest : treePath nodes n.parent.val with
+          | nil => rw [rest] at member; simp at member
+          | cons w ws =>
+            rw [rest,List.dropLast_cons_cons] at member
+            rcases List.mem_cons.mp member with rfl | later
+            · -- The parent's path is not empty, so the parent is a tree node.
+              have : ∃ q, nodes[n.parent.val]? = some q ∧ q.tree = true := by
+                rw [treePath.eq_def] at rest
+                cases at_p : nodes[n.parent.val]? with
+                | none => rw [at_p] at rest; cases rest
+                | some q =>
+                  rw [at_p] at rest
+                  simp only at rest
+                  by_cases qTree : q.tree = true
+                  · exact ⟨q,rfl,qTree⟩
+                  · rw [if_neg qTree] at rest
+                    cases rest
+              obtain ⟨q,at_p,qTree⟩ := this
+              exact ⟨n,q,at_y,at_p,qTree⟩
+            · rw [← rest] at later
+              exact ih n.parent.val below v later
+        · rw [dif_neg below] at member
+          simp at member
+      · rw [if_neg tree] at member
+        simp at member
+
+/-- Along the path of an unblocked node, no two tree nodes other than the topmost
+    have the same label, parent's label and roles. -/
 theorem path_keys_nodup (nodes : List forest.Node)
     (parents : ∀ (y : Nat) (n : forest.Node), nodes[y]? = some n → n.tree = true → n.parent.val < y) :
-    ∀ x, ¬ Blocked nodes x → ((treePath nodes x).map (pairKey nodes)).Nodup := by
+    ∀ x, ¬ Blocked nodes x → (((treePath nodes x).dropLast).map (pairKey nodes)).Nodup := by
   intro x
   induction x using Nat.strong_induction_on with
   | _ x ih =>
@@ -665,34 +773,44 @@ theorem path_keys_nodup (nodes : List forest.Node)
             rw [Blocked.eq_def,at_x]
             simp only [dif_pos below]
           have parentFree : ¬ Blocked nodes n.parent.val := fun blocked => free (unfold.mpr ⟨tree,.inr blocked⟩)
-          rw [List.map_cons,List.nodup_cons]
-          refine ⟨?_,ih n.parent.val below parentFree⟩
-          intro member
-          rw [List.mem_map] at member
-          obtain ⟨v,onPath,same⟩ := member
-          apply free
-          refine unfold.mpr ⟨tree,.inl ⟨v,onPath,?_⟩⟩
-          obtain ⟨m,at_v,vTree⟩ := treePath_mem nodes n.parent.val v onPath
-          have xIn : x < nodes.length := (List.getElem?_eq_some_iff.mp at_x).1
-          have vIn : v < nodes.length := (List.getElem?_eq_some_iff.mp at_v).1
-          have vBelow := parents v m at_v vTree
-          have labelX : labelOf nodes x = n.label.val := by simp [labelOf,at_x]
-          have labelV : labelOf nodes v = m.label.val := by simp [labelOf,at_v]
-          simp only [pairKey,at_x,at_v,Prod.mk.injEq] at same
-          obtain ⟨sameLabel,sameParent,sameRoles⟩ := same
-          refine ⟨n,m,at_x,at_v,by omega,by omega,?_,sameLabel_of_set _ _ sameParent.symm,?_⟩
-          · rw [← labelX,← labelV]
-            exact sameLabel_of_set _ _ sameLabel.symm
-          · intro s
-            rw [← List.mem_toFinset,← List.mem_toFinset (l := m.roles.val),sameRoles]
+          have restNodup := ih n.parent.val below parentFree
+          cases rest : treePath nodes n.parent.val with
+          | nil => simp
+          | cons w ws =>
+            rw [rest] at restNodup
+            rw [List.dropLast_cons_cons,List.map_cons,List.nodup_cons]
+            refine ⟨?_,restNodup⟩
+            intro member
+            rw [List.mem_map] at member
+            obtain ⟨v,onPath,same⟩ := member
+            have onParentPath : v ∈ treePath nodes n.parent.val := by
+              rw [rest]; exact List.dropLast_subset _ onPath
+            obtain ⟨m',q,at_v',at_q,qTree⟩ := treePath_dropLast_parent nodes n.parent.val v (by rw [rest]; exact onPath)
+            apply free
+            refine unfold.mpr ⟨tree,.inl ⟨v,onParentPath,?_⟩⟩
+            obtain ⟨m,at_v,vTree⟩ := treePath_mem nodes n.parent.val v onParentPath
+            have sameNode : m' = m := Option.some.inj (at_v'.symm.trans at_v)
+            rw [sameNode] at at_q
+            have xIn : x < nodes.length := (List.getElem?_eq_some_iff.mp at_x).1
+            have vIn : v < nodes.length := (List.getElem?_eq_some_iff.mp at_v).1
+            have vBelow := parents v m at_v vTree
+            have labelX : labelOf nodes x = n.label.val := by simp [labelOf,at_x]
+            have labelV : labelOf nodes v = m.label.val := by simp [labelOf,at_v]
+            simp only [pairKey,at_x,at_v,Prod.mk.injEq] at same
+            obtain ⟨sameLabel,sameParent,sameRoles⟩ := same
+            refine ⟨n,m,at_x,at_v,by omega,by omega,⟨q,at_q,qTree⟩,?_,sameLabel_of_set _ _ sameParent.symm,?_⟩
+            · rw [← labelX,← labelV]
+              exact sameLabel_of_set _ _ sameLabel.symm
+            · intro s
+              rw [← List.mem_toFinset,← List.mem_toFinset (l := m.roles.val),sameRoles]
         · rw [dif_neg below]
           simp
       · rw [if_neg tree]
         simp
 
-/-- An unblocked node has at most `bound` tree nodes on its path. -/
+/-- An unblocked node has at most `bound + 1` tree nodes on its path. -/
 theorem depth_le_bound {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
-    (inv : Inv P h count F) (x : Nat) (free : ¬ Blocked F.nodes.val x) : depth F x ≤ bound P := by
+    (inv : Inv P h count F) (x : Nat) (free : ¬ Blocked F.nodes.val x) : depth F x ≤ bound P + 1 := by
   have nodup := path_keys_nodup F.nodes.val inv.shape.parents x free
   have labelSub : ∀ y, ((labelOf F.nodes.val y).map (·.val)).toFinset ∈
       (Finset.range P.entries.val.length).powerset := by
@@ -702,13 +820,13 @@ theorem depth_le_bound {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
     simp only [List.mem_toFinset,List.mem_map] at kIn
     obtain ⟨i,listed,rfl⟩ := kIn
     exact Finset.mem_range.mpr (labels_in inv.shape y i listed)
-  have sub : ((treePath F.nodes.val x).map (pairKey F.nodes.val)).toFinset ⊆
+  have sub : (((treePath F.nodes.val x).dropLast).map (pairKey F.nodes.val)).toFinset ⊆
       (Finset.range P.entries.val.length).powerset ×ˢ ((Finset.range P.entries.val.length).powerset ×ˢ
         (roleList P.entries.val).toFinset.powerset) := by
     intro k member
     rw [List.mem_toFinset,List.mem_map] at member
     obtain ⟨v,onPath,rfl⟩ := member
-    obtain ⟨m,at_v,_⟩ := treePath_mem F.nodes.val x v onPath
+    obtain ⟨m,at_v,_⟩ := treePath_mem F.nodes.val x v (List.dropLast_subset _ onPath)
     simp only [pairKey,at_v,Finset.mem_product]
     refine ⟨labelSub v,labelSub m.parent.val,?_⟩
     rw [Finset.mem_powerset]
@@ -720,12 +838,17 @@ theorem depth_le_bound {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
   simp only [Finset.card_product,Finset.card_powerset,Finset.card_range] at card
   have power : 2 ^ (roleList P.entries.val).toFinset.card ≤ 2 ^ (roleList P.entries.val).length :=
     Nat.pow_le_pow_right (by omega) (List.toFinset_card_le _)
+  have dropped : (treePath F.nodes.val x).length ≤ ((treePath F.nodes.val x).dropLast).length + 1 := by
+    rw [List.length_dropLast]
+    omega
   unfold depth bound
   calc (treePath F.nodes.val x).length
-      ≤ 2 ^ P.entries.val.length * (2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).toFinset.card) := card
-    _ ≤ 2 ^ P.entries.val.length * (2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).length) := by
-        apply Nat.mul_le_mul_left; apply Nat.mul_le_mul_left; exact power
-    _ = 2 ^ P.entries.val.length * 2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).length := by ring
+      ≤ ((treePath F.nodes.val x).dropLast).length + 1 := dropped
+    _ ≤ 2 ^ P.entries.val.length * (2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).toFinset.card) + 1 := by
+        omega
+    _ ≤ 2 ^ P.entries.val.length * (2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).length) + 1 := by
+        apply Nat.add_le_add_right; apply Nat.mul_le_mul_left; apply Nat.mul_le_mul_left; exact power
+    _ = 2 ^ P.entries.val.length * 2 ^ P.entries.val.length * 2 ^ (roleList P.entries.val).length + 1 := by ring
 
 /-! ### The measure -/
 
@@ -922,12 +1045,12 @@ theorem neighbour_holds {Object : Type u} {Value : Type v} {P : completion.Probl
     rw [models.same l0.from (by rw [here]; exact cover z near),
       models.same l0.to (by rw [there]; exact cover x.val (.inl rfl)),there,here] at link
     exact respects_below models.respects below ((relation_inv I l0.role _ _).mpr link)
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     have edge := models.edges e listed (edgeCover e listed (.inl (UScalar.eq_of_val_eq there)))
     rw [models.same e.from (by rw [there]; exact cover x.val (.inl rfl)),
       models.same e.to (by rw [here]; exact cover z near),there,here] at edge
     exact respects_below models.respects below edge
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     have edge := models.edges e listed (edgeCover e listed (.inr (UScalar.eq_of_val_eq there)))
     rw [models.same e.from (by rw [here]; exact cover z near),
       models.same e.to (by rw [there]; exact cover x.val (.inl rfl)),there,here] at edge
@@ -980,14 +1103,14 @@ theorem needs_hold {Object : Type u} {Value : Type v} {P : completion.Problem} {
       here] at link
     exact edge_need_holds I h models.respects P.entries.val wf _ (inv l0.role) c _ _
       (models.labels _ (cover _ otherNear)) ((relation_inv I l0.role _ _).mpr link) edgeNeeds
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     have otherNear : Near P F y.val (rep F e.from).val := .inr (.inr (.inr (.inr ⟨e,listed,.inr ⟨here,rfl⟩⟩)))
     have edge := models.edges e listed (edgeCover e listed (.inr (UScalar.eq_of_val_eq here)))
     rw [models.same e.from (cover _ otherNear),models.same e.to (by rw [here]; exact cover y.val (.inl rfl)),
       here] at edge
     exact edge_need_holds I h models.respects P.entries.val wf _ e.role c _ _
       (models.labels _ (cover _ otherNear)) edge edgeNeeds
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     have otherNear : Near P F y.val (rep F e.to).val := .inr (.inr (.inr (.inr ⟨e,listed,.inl ⟨here,rfl⟩⟩)))
     have edge := models.edges e listed (edgeCover e listed (.inl (UScalar.eq_of_val_eq here)))
     rw [models.same e.to (cover _ otherNear),models.same e.from (by rw [here]; exact cover y.val (.inl rfl)),
@@ -1009,11 +1132,11 @@ theorem addNeeds_active {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
   · obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
     rw [← here]
     exact (rep_in shape _ (shape.links l0 listed).1).2
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
-    rw [← here]
-    exact (rep_in shape _ (shape.edges e listed).2).2
-  · obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
+  · obtain ⟨e,listed,_,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
     rw [← here]
     exact (rep_in shape _ (shape.edges e listed).1).2
+  · obtain ⟨e,listed,live,rfl⟩ := (liveEdgeEnds_mem F _ _).mp member
+    rw [← here]
+    exact live.1
 
 end Rowl.ForestInv

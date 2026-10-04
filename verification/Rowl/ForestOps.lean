@@ -1264,6 +1264,82 @@ theorem linked_correct (F : forest.Forest) (x source into : Usize) (deps : alloc
   · refine ⟨none,?_,by simp⟩
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,sourceIn]
 
+/-- The edge from `into` that an added edge `e0` from the tree node `source`
+    becomes, also depending on the points `joined`. -/
+def CarriedEdge (source into : Usize) (joined : List Usize) (e0 e : forest.Edge) : Prop :=
+  e0.from = source ∧ e.from = into ∧ e.to = e0.to ∧ e.role = e0.role ∧
+    ∀ k, k ∈ e.deps.val ↔ k ∈ e0.deps.val ∨ k ∈ joined
+
+theorem carried_from_correct (edges : alloc.vec.Vec forest.Edge) (source into : Usize) (deps : alloc.vec.Vec Usize)
+    (index : Usize) (out : alloc.vec.Vec forest.Edge) :
+    ∃ r, forest.carried_from edges source into deps index out = .ok r ∧ ∀ out', r = some out' →
+      (∀ e ∈ out'.val, e ∈ out.val ∨ ∃ e0 ∈ edges.val, CarriedEdge source into deps.val e0 e) ∧
+      (∀ e ∈ out.val, e ∈ out'.val) := by
+  rw [forest.carried_from]
+  by_cases more : index.val < edges.val.length
+  · have lookup : edges.index_usize index = .ok edges.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have listed : edges.val[index.val] ∈ edges.val := List.getElem_mem more
+    by_cases from_source : edges.val[index.val].from = source
+    · obtain ⟨joinResult,joinRun,joinSpec⟩ := join_correct edges.val[index.val].deps deps
+      cases joinResult with
+      | none =>
+        refine ⟨none,?_,by simp⟩
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,from_source,joinRun]
+      | some joined =>
+        have joinedIs := joinSpec joined rfl
+        by_cases room : out.val.length < Usize.max
+        · let carriedEdge : forest.Edge := ⟨edges.val[index.val].role,into,edges.val[index.val].to,joined⟩
+          obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out carriedEdge room)
+          obtain ⟨r,run,spec⟩ := carried_from_correct edges source into deps next out1
+          refine ⟨r,?_,?_⟩
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,from_source,joinRun,usize_max_val,room,
+              copy_role_identity,advance,run,carriedEdge] at push ⊢
+            simp [push,run]
+          · intro out' same
+            obtain ⟨origin,kept⟩ := spec out' same
+            refine ⟨?_,fun e member => kept e (by rw [contents]; exact List.mem_append_left _ member)⟩
+            intro e member
+            rcases origin e member with fromOut1 | carried
+            · rw [contents] at fromOut1
+              rcases List.mem_append.mp fromOut1 with old | new
+              · exact .inl old
+              · rw [List.mem_singleton] at new
+                subst new
+                exact .inr ⟨edges.val[index.val],listed,from_source,rfl,rfl,rfl,joinedIs⟩
+            · exact .inr carried
+        · refine ⟨none,?_,by simp⟩
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,from_source,joinRun,usize_max_val,room]
+    · obtain ⟨r,run,spec⟩ := carried_from_correct edges source into deps next out
+      refine ⟨r,?_,spec⟩
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,from_source,advance,run]
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same
+    cases same
+    exact ⟨fun e member => .inl member,fun e member => member⟩
+termination_by edges.val.length - index.val
+decreasing_by all_goals scalar_tac
+
+/-- Carrying the added edges of the tree node `source` over to `into`: every old
+    edge stays, and every new edge is the carried copy of an old one. -/
+theorem carried_correct (F : forest.Forest) (source into : Usize) (deps : alloc.vec.Vec Usize) :
+    ∃ r, forest.carried F source into deps = .ok r ∧ ∀ F', r = some F' →
+      ∃ edges : alloc.vec.Vec forest.Edge, F' = { F with edges := edges } ∧ (∀ e ∈ F.edges.val, e ∈ edges.val) ∧
+        ∀ e ∈ edges.val, e ∈ F.edges.val ∨ ∃ e0 ∈ F.edges.val, CarriedEdge source into deps.val e0 e := by
+  have start := copy_edges_correct F.edges 0#usize (alloc.vec.Vec.new forest.Edge) (by simp) (by simp)
+  obtain ⟨r,run,spec⟩ := carried_from_correct F.edges source into deps 0#usize F.edges
+  rw [forest.carried]
+  cases r with
+  | none => exact ⟨none,by simp [start,run],by simp⟩
+  | some edges =>
+    refine ⟨some { F with edges := edges },by simp [start,run],?_⟩
+    intro F' same
+    cases same
+    obtain ⟨origin,kept⟩ := spec edges rfl
+    exact ⟨edges,rfl,kept,origin⟩
+
 theorem renamed_correct (same : alloc.vec.Vec Usize) (source into index : Usize) (out : alloc.vec.Vec Usize)
     (aligned : out.val.length = index.val) (inside : index.val ≤ same.val.length) :
     ∃ out', forest.renamed same source into index out = .ok out' ∧

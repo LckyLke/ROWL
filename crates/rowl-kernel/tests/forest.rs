@@ -686,10 +686,39 @@ fn nominals_merge_into_their_named_node() {
         let mut facts = nominals();
         facts.push(fact(0, at_least(3, r(), or(one(b"a"), one(b"b")))));
         assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
-        // A nominal deeper in a tree gets no answer yet, and so does a nominal
-        // without a named node.
+        // A nominal deeper in a tree merges its node into the named node, which
+        // gets an edge from the parent.
         let mut facts = nominals();
         facts.push(fact(0, some(r(), some(r(), one(b"b")))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        let mut facts = nominals();
+        facts.push(fact(0, some(r(), some(r(), and(one(b"b"), atom(b"A"))))));
+        facts.push(fact(2, no(b"A")));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        // Restrictions pass along the added edge in both directions.
+        let mut facts = nominals();
+        facts.push(fact(0, some(r(), and(atom(b"B"), some(r(), one(b"b"))))));
+        facts.push(fact(2, all(back(), no(b"B"))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        let mut facts = nominals();
+        facts.push(fact(0, some(r(), and(atom(b"B"), some(r(), one(b"b"))))));
+        facts.push(fact(2, all(back(), atom(b"B"))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // Every element of an infinite chain points at b; blocking stops it.
+        let chain = and(some(r(), Concept::Top), all(r(), some(back(), one(b"b"))));
+        assert_eq!(abox(3, nominals(), Vec::new(), &chain), Some(true));
+        // A maximum restriction of a named node that counts a tree node along
+        // an added edge gets no answer yet, and so does a nominal without a
+        // named node.
+        let mut facts = nominals();
+        facts.push(fact(
+            0,
+            and(
+                some(r(), and(atom(b"A"), some(r(), one(b"b")))),
+                some(r(), and(no(b"A"), some(r(), one(b"b")))),
+            ),
+        ));
+        facts.push(fact(2, at_most(1, back(), Concept::Top)));
         assert_eq!(abox(3, facts, Vec::new(), &top), None);
         let facts = vec![fact(1, some(r(), one(b"c")))];
         assert_eq!(abox(3, facts, Vec::new(), &top), None);
@@ -837,4 +866,60 @@ fn no_nominal_input_with_a_small_model_is_rejected_body() {
     );
     assert!(accepted > 50, "the sample must exercise acceptances");
     assert!(rejected > 20, "the sample must exercise rejections");
+}
+
+#[test]
+fn two_element_domains_are_decided_exactly() {
+    with_stack(two_element_domains_are_decided_exactly_body);
+}
+/// With `⊤ ⊑ {a} ⊔ {b}` every model has at most two elements, so the models of
+/// size one and two decide each input, and both answers can be checked.
+fn two_element_domains_are_decided_exactly_body() {
+    let mut seed = 211;
+    let mut accepted = 0;
+    let mut rejected = 0;
+    let mut unanswered = 0;
+    for _ in 0..800 {
+        let c = and(
+            random_nominal_concept(&mut seed, 3),
+            random_nominal_concept(&mut seed, 2),
+        );
+        let extra = random_nominal_concept(&mut seed, 1);
+        let tbox = and(or(one(b"a"), one(b"b")), extra);
+        let model = (1..=2usize).any(|size| {
+            (0..1u32 << size).any(|a| {
+                (0..1u32 << (size * size)).any(|r| {
+                    let i = Finite { size, a, b: 0, r };
+                    (0..size).any(|na| {
+                        (0..size).any(|nb| {
+                            (0..size).all(|x| nominal_holds(&i, na, nb, &tbox, x))
+                                && (0..size).any(|x| nominal_holds(&i, na, nb, &c, x))
+                        })
+                    })
+                })
+            })
+        });
+        let facts = vec![
+            fact(1, one(b"a")),
+            fact(2, one(b"b")),
+            fact(0, nominal_copy(&c)),
+        ];
+        match abox(3, facts, Vec::new(), &tbox) {
+            Some(true) => {
+                assert!(model, "an acceptance has a model of at most two elements");
+                accepted += 1;
+            }
+            Some(false) => {
+                assert!(!model, "a rejection has no model");
+                rejected += 1;
+            }
+            None => unanswered += 1,
+        }
+    }
+    assert!(accepted > 100, "the sample must exercise acceptances");
+    assert!(rejected > 100, "the sample must exercise rejections");
+    assert!(
+        unanswered < 200,
+        "most inputs must be answered: {unanswered} without an answer"
+    );
 }

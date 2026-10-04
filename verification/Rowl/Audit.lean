@@ -1297,6 +1297,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.children_along_correct
 #print axioms Rowl.ForestSearch.parent_along_correct
 #print axioms Rowl.ForestSearch.ends_correct
+#print axioms Rowl.ForestSearch.role_listed_correct
+#print axioms Rowl.ForestSearch.roles_within_correct
+#print axioms Rowl.ForestSearch.same_pair_correct
+#print axioms Rowl.ForestSearch.repeats_above_correct
+#print axioms Rowl.ForestSearch.blocked_correct
+#print axioms Rowl.ForestSearch.live_correct
 #print axioms Rowl.ForestSearch.links_along_correct
 #print axioms Rowl.ForestSearch.edges_along_correct
 #print axioms Rowl.ForestSearch.neighbours_correct
@@ -1312,13 +1318,9 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.missing_added_correct
 #print axioms Rowl.ForestSearch.undecided_correct
 #print axioms Rowl.ForestSearch.excess_iff
+#print axioms Rowl.ForestSearch.repeated_satisfying_correct
 #print axioms Rowl.ForestSearch.counting_from_correct
 #print axioms Rowl.ForestSearch.counting_correct
-#print axioms Rowl.ForestSearch.role_listed_correct
-#print axioms Rowl.ForestSearch.roles_within_correct
-#print axioms Rowl.ForestSearch.same_pair_correct
-#print axioms Rowl.ForestSearch.repeats_above_correct
-#print axioms Rowl.ForestSearch.blocked_correct
 #print axioms Rowl.ForestSearch.generating_correct
 #print axioms Rowl.ForestSearch.generator_of_correct
 #print axioms Rowl.ForestSearch.enough_iff
@@ -1361,6 +1363,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestOps.sideways_correct
 #print axioms Rowl.ForestOps.add_edges_correct
 #print axioms Rowl.ForestOps.linked_correct
+#print axioms Rowl.ForestOps.carried_from_correct
+#print axioms Rowl.ForestOps.carried_correct
 #print axioms Rowl.ForestOps.renamed_correct
 #print axioms Rowl.ForestOps.inherit_correct
 #print axioms Rowl.ForestOps.pruned_correct
@@ -1376,7 +1380,11 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestInv.rep_in
 #print axioms Rowl.ForestInv.linkEnds_mem
 #print axioms Rowl.ForestInv.edgeEnds_mem
+#print axioms Rowl.ForestInv.rep_tree
+#print axioms Rowl.ForestInv.edge_from
+#print axioms Rowl.ForestInv.liveEdgeEnds_mem
 #print axioms Rowl.ForestInv.linkAlong_rep
+#print axioms Rowl.ForestInv.edgeAlong_ends
 #print axioms Rowl.ForestInv.neighbour_active
 #print axioms Rowl.ForestInv.neighbour_near
 #print axioms Rowl.ForestInv.neighbour_named
@@ -1397,6 +1405,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestInv.insert_inv
 #print axioms Rowl.ForestInv.treePath_mem
 #print axioms Rowl.ForestInv.sameLabel_of_set
+#print axioms Rowl.ForestInv.treePath_dropLast_parent
 #print axioms Rowl.ForestInv.path_keys_nodup
 #print axioms Rowl.ForestInv.depth_le_bound
 #print axioms Rowl.ForestInv.base_pos
@@ -1432,6 +1441,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSteps.created_models
 #print axioms Rowl.ForestSteps.same_not_tree
 #print axioms Rowl.ForestSteps.moved_of_set
+#print axioms Rowl.ForestSteps.moved_carried
 #print axioms Rowl.ForestSteps.moved_correct
 #print axioms Rowl.ForestSteps.merged_correct
 #print axioms Rowl.ForestSteps.merged_back
@@ -1474,6 +1484,13 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.extension_facts
 #print axioms Rowl.ForestModel.root_facts
 #print axioms Rowl.ForestModel.tailOf_cons
+#print axioms Rowl.ForestModel.holder_cases
+#print axioms Rowl.ForestModel.treePath_named
+#print axioms Rowl.ForestModel.holder_named_parent
+#print axioms Rowl.ForestModel.tail_live
+#print axioms Rowl.ForestModel.path_named
+#print axioms Rowl.ForestModel.path_named_parent
+#print axioms Rowl.ForestModel.live_path
 #print axioms Rowl.ForestModel.individual_model
 #print axioms Rowl.ForestModel.nominalPlace_val
 #print axioms Rowl.ForestModel.linkAlong_inv
@@ -1488,6 +1505,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.path_nonempty
 #print axioms Rowl.ForestModel.step_of_neighbour
 #print axioms Rowl.ForestModel.neighbour_of_step
+#print axioms Rowl.ForestModel.corr_third
 #print axioms Rowl.ForestModel.corr_unique
 #print axioms Rowl.ForestModel.corr_function
 #print axioms Rowl.ForestModel.step_ok
@@ -2392,3 +2410,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiNominals.IsNamed
 #print axioms Rowl.ShiNominals.Mentions
 #print axioms Rowl.ShiNominals.Nominal
+#print axioms Rowl.ForestSearch.Live
+#print axioms Rowl.ForestSearch.liveEdges
+#print axioms Rowl.ForestSearch.Repeated
+#print axioms Rowl.ForestSearch.Unrepeated
+#print axioms Rowl.ForestOps.CarriedEdge

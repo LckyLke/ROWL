@@ -55,9 +55,10 @@
 //! assertion uses `owl:topObjectProperty` or `owl:bottomObjectProperty` (whose
 //! fixed meaning the tableaux do not model), when a nominal is of an anonymous
 //! individual or, in a question, of an individual the closure does not have,
-//! when the completion forest meets a nominal below an anonymous element of a
-//! tree, when a number restriction counts along a role that is not simple, or
-//! when a list would exceed the `usize` range.
+//! when a maximum restriction at the node of an individual in the completion
+//! forest counts an anonymous element that is no child of that node, reached
+//! through a nominal, when a number restriction counts along a role that is
+//! not simple, or when a list would exceed the `usize` range.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,

@@ -12,9 +12,8 @@
 //!    filler on, and through transitive roles the restriction itself;
 //! 3. a node whose label has the nominal `{a}` is merged into the named node of
 //!    `a`, the node of the first requirement with `{a}`, unless they are known
-//!    to differ, which is a clash; only named nodes and their children are
-//!    merged this way, and a nominal deeper in a tree, or a nominal or the
-//!    complement of one whose individual has no named node, gives no answer;
+//!    to differ, which is a clash; a nominal or the complement of one whose
+//!    individual has no named node gives no answer;
 //! 4. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
 //!    (the choose rule);
 //! 5. when more than `n` of those neighbours satisfy `C`, two of the first
@@ -32,17 +31,22 @@
 //!
 //! A merge moves a tree node into a sibling, into its grandparent or into a
 //! named node, or a named node into another one. The target receives the label,
-//! the roles of the edge and the differences, and the merged node is pruned with
-//! its subtree. A tree node is blocked when its label, its parent's label and
-//! the roles in between repeat on its path to its root (pairwise blocking),
-//! which counting with inverse roles needs. Number restrictions must be on
-//! simple roles, which no transitive role is included in.
+//! the edge from the parent and the added edges of the merged node, and its
+//! differences, and the merged node is pruned with its subtree. Merging a tree
+//! node into a named node adds edges from its parent, which may be a tree node,
+//! to the named node. A tree node is blocked when its label, its parent's label
+//! and the roles in between repeat a tree node with a tree parent on its path to
+//! its root (pairwise blocking), which counting with inverse roles needs; the
+//! added edges of blocked nodes are left out. Number restrictions must be on
+//! simple roles, which no transitive role is included in, and a maximum
+//! restriction of a named node that counts a tree node along an added edge
+//! gives no answer, since the model may repeat that node.
 //!
 //! Backjumping works as in the completion graph: nodes, edges and differences
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
 //! `usize` range, that a number restriction is on a role that is not simple, or
-//! that a nominal is outside what rule 3 handles.
+//! that a nominal or a maximum restriction is outside what the rules handle.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -290,8 +294,21 @@ fn links_along(
         Some(out)
     }
 }
-/// `out` with the named nodes that the edges of `edges[index..]`, read through
-/// the merges, relate to `node` along a role included in `role`.
+/// Whether a node is active and not blocked: the model has it, and so its
+/// added edges.
+fn live(graph: &Forest, node: usize) -> bool {
+    if node < graph.nodes.len() {
+        if graph.nodes[node].active {
+            !blocked(graph, node)
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+/// `out` with the nodes that the edges of `edges[index..]` from live nodes,
+/// read through the merges, relate to `node` along a role included in `role`.
 fn edges_along(
     graph: &Forest,
     roles: &RoleHierarchy,
@@ -303,16 +320,22 @@ fn edges_along(
     if index < graph.edges.len() {
         let from = representative(graph, graph.edges[index].from);
         let to = representative(graph, graph.edges[index].to);
-        match ends(roles, out, from, to, &graph.edges[index].role, node, role) {
-            Some(out) => edges_along(graph, roles, node, role, index + 1, out),
-            None => None,
-        }
+        let out = if live(graph, from) {
+            match ends(roles, out, from, to, &graph.edges[index].role, node, role) {
+                Some(out) => out,
+                None => return None,
+            }
+        } else {
+            out
+        };
+        edges_along(graph, roles, node, role, index + 1, out)
     } else {
         Some(out)
     }
 }
 /// The neighbours of `node` along a role included in `role`, each once: its
-/// children, its parent, and the named nodes linked to it.
+/// children, its parent, the named nodes linked to it, and the nodes an added
+/// edge from a live node relates to it.
 fn neighbours(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -555,8 +578,8 @@ fn missing_link(
         None
     }
 }
-/// The first edge of `edges[index..]`, read through the merges, that misses
-/// something.
+/// The first edge of `edges[index..]` from a live node, read through the
+/// merges, that misses something.
 fn missing_added(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -564,14 +587,20 @@ fn missing_added(
     index: usize,
 ) -> Option<(usize, usize)> {
     if index < graph.edges.len() {
-        match missing_edge(
-            &problem.entries,
-            roles,
-            graph,
-            representative(graph, graph.edges[index].from),
-            representative(graph, graph.edges[index].to),
-            &graph.edges[index].role,
-        ) {
+        let from = representative(graph, graph.edges[index].from);
+        let found = if live(graph, from) {
+            missing_edge(
+                &problem.entries,
+                roles,
+                graph,
+                from,
+                representative(graph, graph.edges[index].to),
+                &graph.edges[index].role,
+            )
+        } else {
+            None
+        };
+        match found {
             Some(found) => Some(found),
             None => missing_added(problem, roles, graph, index + 1),
         }
@@ -602,10 +631,41 @@ fn undecided(
         None
     }
 }
+/// Whether a tree node of `list[index..]` that is not a child of `node`
+/// satisfies `concept`: a neighbour along an added edge, which the model may
+/// repeat.
+fn repeated_satisfying(
+    entries: &Vec<Entry>,
+    graph: &Forest,
+    list: &Vec<usize>,
+    node: usize,
+    concept: usize,
+    index: usize,
+) -> bool {
+    if index < list.len() {
+        let other = list[index];
+        let mut here = false;
+        if other < graph.nodes.len() {
+            if graph.nodes[other].tree {
+                if graph.nodes[other].parent != node {
+                    here = holds(entries, &graph.nodes[other].label, concept);
+                }
+            }
+        }
+        if here {
+            true
+        } else {
+            repeated_satisfying(entries, graph, list, node, concept, index + 1)
+        }
+    } else {
+        false
+    }
+}
 /// For the maximum restrictions of `label[index..]` of `node`: the first
 /// neighbour along the role that decides neither the filler nor its complement
 /// (`choose`), or the first restriction with more neighbours that satisfy the
-/// filler than it allows (`!choose`).
+/// filler than it allows (`!choose`); no answer when a restriction of a named
+/// node counts a tree node along an added edge.
 fn counting_from(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -638,6 +698,18 @@ fn counting_from(
                                 None => {}
                             }
                         } else {
+                            if !graph.nodes[node].tree {
+                                if repeated_satisfying(
+                                    &problem.entries,
+                                    graph,
+                                    &list,
+                                    node,
+                                    *filler,
+                                    0,
+                                ) {
+                                    return None;
+                                }
+                            }
                             let many = match satisfying(
                                 &problem.entries,
                                 graph,
@@ -730,12 +802,13 @@ fn roles_within(
     }
 }
 /// Whether the tree nodes `node` and `other` have the same label, parents with
-/// the same label, and the same roles from their parents.
+/// the same label, and the same roles from their parents, where the parent of
+/// `other` is a tree node too.
 fn same_pair(graph: &Forest, node: usize, other: usize) -> bool {
     if node < graph.nodes.len() && other < graph.nodes.len() {
         let first = graph.nodes[node].parent;
         let second = graph.nodes[other].parent;
-        if first < graph.nodes.len() && second < graph.nodes.len() {
+        if first < graph.nodes.len() && second < graph.nodes.len() && graph.nodes[second].tree {
             if same_label(&graph.nodes[node].label, &graph.nodes[other].label) {
                 if same_label(&graph.nodes[first].label, &graph.nodes[second].label) {
                     if roles_within(&graph.nodes[node].roles, &graph.nodes[other].roles, 0) {
@@ -1829,29 +1902,71 @@ fn pending_from(label: &Vec<usize>, index: usize) -> Pending {
         Pending::Empty
     }
 }
-/// The forest where the neighbour `from` of `node` hands its edge over to its
-/// neighbour `into`: a merged tree node's edge goes onto the parent of `node`
-/// (`upward`), onto a sibling (`sideways`) or onto a named node (`linked`), and
-/// a merged named node passes its individuals on.
-fn moved(
-    graph: Forest,
-    node: usize,
+/// `out` with an edge from `into` for every edge of `edges[index..]` from the
+/// tree node `from`, also depending on `deps`; `None` when there is no room.
+fn carried_from(
+    edges: &Vec<Edge>,
     from: usize,
     into: usize,
-    joined: &Vec<usize>,
-) -> Option<Forest> {
-    if node < graph.nodes.len() && from < graph.nodes.len() && into < graph.nodes.len() {
-        if graph.nodes[from].tree {
-            if graph.nodes[node].tree {
-                if graph.nodes[node].parent == into {
-                    upward(graph, node, from, joined)
-                } else {
-                    sideways(graph, from, into)
-                }
-            } else if graph.nodes[into].tree {
-                sideways(graph, from, into)
+    deps: &Vec<usize>,
+    index: usize,
+    mut out: Vec<Edge>,
+) -> Option<Vec<Edge>> {
+    if index < edges.len() {
+        if edges[index].from == from {
+            let joined = match join(&edges[index].deps, deps) {
+                Some(joined) => joined,
+                None => return None,
+            };
+            if out.len() < usize::MAX {
+                out.push(Edge {
+                    role: copy_role(&edges[index].role),
+                    from: into,
+                    to: edges[index].to,
+                    deps: joined,
+                });
             } else {
-                linked(graph, node, from, into, joined)
+                return None;
+            }
+        }
+        carried_from(edges, from, into, deps, index + 1, out)
+    } else {
+        Some(out)
+    }
+}
+/// The forest where `into` also has the added edges of the tree node `from`.
+fn carried(mut graph: Forest, from: usize, into: usize, deps: &Vec<usize>) -> Option<Forest> {
+    let start = copy_edges(&graph.edges, 0, Vec::new());
+    match carried_from(&graph.edges, from, into, deps, 0, start) {
+        Some(edges) => {
+            graph.edges = edges;
+            Some(graph)
+        }
+        None => None,
+    }
+}
+/// The forest where `from` hands its edges over to `into`: a merged tree node's
+/// edge from its parent goes onto the parent of its parent (`upward`), onto a
+/// sibling (`sideways`) or onto a named node (`linked`), and its added edges go
+/// to `into`; a merged named node passes its individuals on.
+fn moved(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option<Forest> {
+    if from < graph.nodes.len() && into < graph.nodes.len() {
+        if graph.nodes[from].tree {
+            let node = graph.nodes[from].parent;
+            if node < graph.nodes.len() {
+                let graph = if graph.nodes[node].tree && graph.nodes[node].parent == into {
+                    upward(graph, node, from, joined)
+                } else if graph.nodes[into].tree {
+                    sideways(graph, from, into)
+                } else {
+                    linked(graph, node, from, into, joined)
+                };
+                match graph {
+                    Some(graph) => carried(graph, from, into, joined),
+                    None => None,
+                }
+            } else {
+                None
             }
         } else {
             let same = renamed(&graph.same, from, into, 0, Vec::new());
@@ -1863,17 +1978,11 @@ fn moved(
         None
     }
 }
-/// The forest after merging the neighbour `from` of `node` into its neighbour
-/// `into`, which then depends on `joined`: `into` gets the edge and the
-/// differences of `from`, and `from` is pruned with its subtree.
-fn merged(
-    graph: Forest,
-    node: usize,
-    from: usize,
-    into: usize,
-    joined: &Vec<usize>,
-) -> Option<Forest> {
-    let mut graph = match moved(graph, node, from, into, joined) {
+/// The forest after merging `from` into `into`, which then depends on
+/// `joined`: `into` gets the edges and the differences of `from`, and `from` is
+/// pruned with its subtree.
+fn merged(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option<Forest> {
+    let mut graph = match moved(graph, from, into, joined) {
         Some(graph) => graph,
         None => return None,
     };
@@ -1898,13 +2007,12 @@ fn merged(
         None
     }
 }
-/// Merge the neighbour `from` of `node` into its neighbour `into`, which
-/// depends on `deps`, then add the label of `from` to `into`.
+/// Merge `from` into `into`, which depends on `deps`, then add the label of
+/// `from` to `into`.
 fn merge(
     problem: &Problem,
     roles: &RoleHierarchy,
     graph: Forest,
-    node: usize,
     from: usize,
     into: usize,
     deps: Vec<usize>,
@@ -1916,7 +2024,7 @@ fn merge(
             Some(joined) => joined,
             None => return None,
         };
-        match merged(graph, node, from, into, &joined) {
+        match merged(graph, from, into, &joined) {
             Some(graph) => add(
                 problem,
                 roles,
@@ -1981,7 +2089,7 @@ fn choices(
                     Some(here) => here,
                     None => return None,
                 };
-                match merge(problem, roles, graph, node, from, into, here, depth + 1) {
+                match merge(problem, roles, graph, from, into, here, depth + 1) {
                     Some(Outcome::Accepted) => Some(Outcome::Accepted),
                     Some(Outcome::Rejected(clash)) => {
                         if contains(&clash, depth, 0) {
@@ -2011,7 +2119,7 @@ fn choices(
             }
         } else {
             match join(&deps, &skipped) {
-                Some(last) => merge(problem, roles, graph, node, from, into, last, depth),
+                Some(last) => merge(problem, roles, graph, from, into, last, depth),
                 None => None,
             }
         }
@@ -2081,9 +2189,7 @@ fn merge_rule(
     }
 }
 /// Merge `node`, whose label has a nominal on the named node `root`, into
-/// `root`: a named node directly, a child of a named node with its edge; a
-/// difference between them is a clash, and a node deeper in a tree gives no
-/// answer.
+/// `root`; a difference between them is a clash.
 fn nominal(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -2106,17 +2212,7 @@ fn nominal(
                 None => None,
             };
         }
-        if graph.nodes[node].tree {
-            let parent = graph.nodes[node].parent;
-            if parent < graph.nodes.len() {
-                if !graph.nodes[parent].tree {
-                    return merge(problem, roles, graph, parent, node, root, deps, depth);
-                }
-            }
-            None
-        } else {
-            merge(problem, roles, graph, node, node, root, deps, depth)
-        }
+        merge(problem, roles, graph, node, root, deps, depth)
     } else {
         None
     }

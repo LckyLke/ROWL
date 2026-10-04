@@ -8,14 +8,17 @@ child stands for the node above it whose pair it repeats. A named class holds
 where the label of a path's newest node lists it, and an individual with a named
 node is the path of that node; an object property relates a path to its
 extensions along the roles of the child's edge, back to its prefix along the
-inverses, and named nodes along links and added edges, closed under the
-transitive roles it includes. Every neighbour of a node in the forest
-corresponds to exactly one neighbour path with the same label, so when the
-forest is complete, every path satisfies every entry its label satisfies,
-including the number restrictions on simple roles and the nominals, which only
-the named node of their individual lists, and the model respects the role
-hierarchy and satisfies the TBox concept, the unfoldings, the requirements and
-the links.
+inverses, and paths whose newest nodes a link or an added edge from a live node
+relates, closed under the transitive roles it includes. Every neighbour of a
+node in the forest has a neighbour path with the same label, and only one
+unless it is a tree node that an added edge relates to a named node without
+being its child: every path of that tree node is a neighbour of the named
+node's path, which no maximum restriction of a named node in a complete forest
+counts. So when the forest is complete, every path satisfies every entry its
+label satisfies, including the number restrictions on simple roles and the
+nominals, which only the named node of their individual lists, and the model
+respects the role hierarchy and satisfies the TBox concept, the unfoldings, the
+requirements and the links.
 -/
 namespace Rowl.ForestModel
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -194,7 +197,7 @@ theorem path_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
     by_cases found : ∃ v ∈ treePath F.nodes.val (parentOf F.nodes.val z), SamePair F.nodes.val z v
     · obtain ⟨onPath,pair⟩ := holder_found F.nodes.val z found
       rw [parentIs] at onPath
-      obtain ⟨nz,nv,at_z',at_v,_,_,sameLabel,sameParent,sameRoles⟩ := pair
+      obtain ⟨nz,nv,at_z',at_v,_,_,_,sameLabel,sameParent,sameRoles⟩ := pair
       rw [at_z] at at_z'
       simp only [Option.some.injEq] at at_z'
       subst at_z'
@@ -267,20 +270,142 @@ theorem root_facts {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
 
 theorem tailOf_cons (a : Nat × Nat) (rest : List (Nat × Nat)) : tailOf (a :: rest) = a.1 := rfl
 
+/-- The node a child stands for is the child itself, or a node whose parent is
+    a tree node. -/
+theorem holder_cases (nodes : List forest.Node) (z : Nat) :
+    holder nodes z = z ∨ ∃ nv q : forest.Node, nodes[holder nodes z]? = some nv ∧ nodes[nv.parent.val]? = some q ∧
+      q.tree = true := by
+  by_cases found : ∃ v ∈ treePath nodes (parentOf nodes z), SamePair nodes z v
+  · obtain ⟨_,_,nv,_,at_v,_,_,⟨q,at_q,tree⟩,_⟩ := holder_found nodes z found
+    exact .inr ⟨nv,q,at_v,at_q,tree⟩
+  · exact .inl (holder_free nodes z found)
+
+/-- A named node has no tree path. -/
+theorem treePath_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (a : Nat) (named : a < count) : treePath F.nodes.val a = [] := by
+  have inside : a < F.nodes.val.length := by have := shape.countIn; omega
+  have at_a := List.getElem?_eq_getElem inside
+  have root := (shape.named a _ at_a).mpr named
+  rw [treePath.eq_def,at_a]
+  simp [root]
+
+/-- A child of a named node stands for itself. -/
+theorem holder_named_parent {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (z : Nat) (n : forest.Node) (at_z : F.nodes.val[z]? = some n)
+    (named : n.parent.val < count) : holder F.nodes.val z = z := by
+  apply holder_free
+  have parentIs : parentOf F.nodes.val z = n.parent.val := by simp [parentOf,at_z]
+  rw [parentIs,treePath_named shape _ named]
+  simp
+
+/-- The newest node of a path is live. -/
+theorem tail_live {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (p : Element count F.nodes.val) : Live F.nodes.val (tailOf p.val) := by
+  obtain ⟨x,x0,rest,pIs,active,free,_⟩ := path_shape inv p.val p.property
+  rw [pIs]
+  exact ⟨active,free⟩
+
+/-- A path whose newest node is named is the path of that node alone. -/
+theorem path_named {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (q : List (Nat × Nat)) (path : IsPath count F.nodes.val q) (named : tailOf q < count) :
+    q = [(tailOf q,tailOf q)] := by
+  obtain ⟨x,x0,rest,qIs,_,_,form⟩ := path_shape inv q path
+  subst qIs
+  simp only [tailOf] at named ⊢
+  rcases form with ⟨empty,same,_⟩ | ⟨w,w0,rest',_,n0,_,_,_,_,_,nx,at_x,treeX,_⟩
+  · rw [empty,same]
+  · exfalso
+    have := (inv.shape.named x nx at_x).mpr named
+    rw [treeX] at this
+    cases this
+
+/-- A path whose newest node is a tree node with a named parent is the path of
+    the parent extended by the node. -/
+theorem path_named_parent {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (q : List (Nat × Nat)) (path : IsPath count F.nodes.val q) (n : forest.Node)
+    (at_y : F.nodes.val[tailOf q]? = some n) (tree : n.tree = true) (named : n.parent.val < count) :
+    q = [(tailOf q,tailOf q),(n.parent.val,n.parent.val)] := by
+  have shape := inv.shape
+  obtain ⟨x,x0,rest,qIs,_,_,form⟩ := path_shape inv q path
+  subst qIs
+  simp only [tailOf] at at_y ⊢
+  rcases form with ⟨_,_,xNamed⟩ | ⟨w,w0,rest',restIs,n0,at_x0,_,_,parent0,holderIs,nx,at_x,_⟩
+  · exfalso
+    have := (shape.named x n at_y).mpr xNamed
+    rw [tree] at this
+    cases this
+  · rcases holder_cases F.nodes.val x0 with same | ⟨nv,m,at_v,at_m,mTree⟩
+    · -- An unblocked node: its parent is the previous node, a named node.
+      have xIs : x = x0 := holderIs.trans same
+      subst xIs
+      have n0Is : n0 = n := Option.some.inj (at_x0.symm.trans at_y)
+      rw [n0Is] at parent0
+      have restPath : IsPath count F.nodes.val rest := by
+        rw [restIs] at path ⊢
+        exact path_tail _ _ _ path
+      have restTail : tailOf rest = w := by rw [restIs]; rfl
+      have restRoot := path_named inv rest restPath (by rw [restTail,← parent0]; exact named)
+      rw [restTail] at restRoot
+      rw [restRoot,← parent0]
+    · -- A blocked node stands for a node with a tree parent, not a named one.
+      exfalso
+      rw [← holderIs,at_y] at at_v
+      have nvIs : nv = n := (Option.some.inj at_v).symm
+      rw [nvIs] at at_m
+      have := (shape.named _ m at_m).mpr named
+      rw [mTree] at this
+      cases this
+
+/-- Every live node is the newest node of a path. -/
+theorem live_path {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) : ∀ y, Live F.nodes.val y → ∃ q : Element count F.nodes.val, tailOf q.val = y := by
+  have shape := inv.shape
+  intro y
+  induction y using Nat.strong_induction_on with
+  | _ y ih =>
+    rintro ⟨⟨n,at_y,act⟩,free⟩
+    by_cases named : y < count
+    · exact ⟨⟨[(y,y)],IsPath.root y named ⟨n,at_y,act⟩⟩,rfl⟩
+    · have tree : n.tree = true := by
+        cases treeIs : n.tree
+        · exact absurd ((shape.named y n at_y).mp treeIs) named
+        · rfl
+      have below := shape.parents y n at_y tree
+      have parentFree : ¬ Blocked F.nodes.val n.parent.val := by
+        intro blocked
+        apply free
+        rw [Blocked.eq_def,at_y]
+        simp only [dif_pos below]
+        exact ⟨tree,.inr blocked⟩
+      obtain ⟨q,tailIs⟩ := ih n.parent.val below ⟨shape.activeParents y n at_y tree act,parentFree⟩
+      obtain ⟨x,x0,rest,qIs,_⟩ := path_shape inv q.val q.property
+      have holderIs : holder F.nodes.val y = y := by
+        apply holder_free
+        have parentIs : parentOf F.nodes.val y = n.parent.val := by simp [parentOf,at_y]
+        rw [parentIs,← child_blocked F.nodes.val y n at_y tree below parentFree]
+        exact free
+      have parentIs : n.parent.val = x := by
+        have := tailIs
+        rw [qIs] at this
+        exact this.symm
+      have path : IsPath count F.nodes.val ((holder F.nodes.val y,y) :: (x,x0) :: rest) :=
+        IsPath.child x x0 rest y n (by rw [← qIs]; exact q.property) at_y tree act parentIs
+      exact ⟨⟨_,path⟩,holderIs⟩
+
 /-! ### The model -/
 
 /-- One step along a role: from a path to its extension along a role of the
     child's edge included in the role, back from an extension to its prefix
     along a role of the child's edge whose inverse is included, and between
-    named nodes along a link or an added edge. -/
+    paths whose newest nodes a link or an added edge from a live node relates. -/
 def Step (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (count : Nat)
     (r : ObjectPropertyExpression) (p q : Element count F.nodes.val) : Prop :=
   (∃ z z', q.val = (z,z') :: p.val ∧ ∃ n : forest.Node, F.nodes.val[z']? = some n ∧
     ∃ s ∈ n.roles.val, Below h s r) ∨
   (∃ x x', p.val = (x,x') :: q.val ∧ ∃ n : forest.Node, F.nodes.val[x']? = some n ∧
     ∃ s ∈ n.roles.val, Below h (inv s) r) ∨
-  (∃ a b, p.val = [(a,a)] ∧ q.val = [(b,b)] ∧
-    (LinkAlong h F (linkEnds P.links.val) a r b ∨ LinkAlong h F (edgeEnds F.edges.val) a r b))
+  LinkAlong h F (linkEnds P.links.val) (tailOf p.val) r (tailOf q.val) ∨
+  LinkAlong h F (edgeEnds (liveEdges F F.edges.val)) (tailOf p.val) r (tailOf q.val)
 
 /-- The relation of a role: a step, or a path of steps along a transitive role
     included in it. -/
@@ -362,24 +487,20 @@ theorem step_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (closed 
     Step P h F count (inv r) p q ↔ Step P h F count r q p := by
   unfold Step
   constructor
-  · rintro (⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | ⟨a,b,pa,qb,linked⟩)
+  · rintro (⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | linked | linked)
     · exact .inr (.inl ⟨z,z',ext,n,at_z,s,sIn,(below_inv_iff h closed s r).mp below⟩)
     · refine .inl ⟨x,x',ext,n,at_x,s,sIn,?_⟩
       have := (below_inv_iff h closed (inv s) r).mp below
       rwa [inv_inv] at this
-    · refine .inr (.inr ⟨b,a,qb,pa,?_⟩)
-      rcases linked with one | two
-      · exact .inl ((linkAlong_inv h closed F _ r a b).mp one)
-      · exact .inr ((linkAlong_inv h closed F _ r a b).mp two)
-  · rintro (⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | ⟨a,b,qa,pb,linked⟩)
+    · exact .inr (.inr (.inl ((linkAlong_inv h closed F _ r _ _).mp linked)))
+    · exact .inr (.inr (.inr ((linkAlong_inv h closed F _ r _ _).mp linked)))
+  · rintro (⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | linked | linked)
     · refine .inr (.inl ⟨z,z',ext,n,at_z,s,sIn,?_⟩)
       rw [below_inv_iff h closed,inv_inv]
       exact below
     · exact .inl ⟨x,x',ext,n,at_x,s,sIn,(below_inv_iff h closed s r).mpr below⟩
-    · refine .inr (.inr ⟨b,a,pb,qa,?_⟩)
-      rcases linked with one | two
-      · exact .inl ((linkAlong_inv h closed F _ r b a).mpr one)
-      · exact .inr ((linkAlong_inv h closed F _ r b a).mpr two)
+    · exact .inr (.inr (.inl ((linkAlong_inv h closed F _ r _ _).mpr linked)))
+    · exact .inr (.inr (.inr ((linkAlong_inv h closed F _ r _ _).mpr linked)))
 
 theorem rel_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (closed : Closed h) (F : forest.Forest)
     (count : Nat) (r : ObjectPropertyExpression) (p q : Element count F.nodes.val) :
@@ -417,13 +538,11 @@ theorem relation_model (P : completion.Problem) (h : hierarchy.RoleHierarchy) (c
 theorem step_mono (P : completion.Problem) (h : hierarchy.RoleHierarchy) (closed : Closed h) (F : forest.Forest)
     (count : Nat) {s r : ObjectPropertyExpression} (included : Below h s r) (p q : Element count F.nodes.val) :
     Step P h F count s p q → Step P h F count r p q := by
-  rintro (⟨z,z',ext,n,at_z,s',sIn,below⟩ | ⟨x,x',ext,n,at_x,s',sIn,below⟩ | ⟨a,b,pa,qb,linked⟩)
+  rintro (⟨z,z',ext,n,at_z,s',sIn,below⟩ | ⟨x,x',ext,n,at_x,s',sIn,below⟩ | linked | linked)
   · exact .inl ⟨z,z',ext,n,at_z,s',sIn,closed.1 _ _ _ below included⟩
   · exact .inr (.inl ⟨x,x',ext,n,at_x,s',sIn,closed.1 _ _ _ below included⟩)
-  · refine .inr (.inr ⟨a,b,pa,qb,?_⟩)
-    rcases linked with one | two
-    · exact .inl (linkAlong_mono h closed F _ included a b one)
-    · exact .inr (linkAlong_mono h closed F _ included a b two)
+  · exact .inr (.inr (.inl (linkAlong_mono h closed F _ included _ _ linked)))
+  · exact .inr (.inr (.inr (linkAlong_mono h closed F _ included _ _ linked)))
 
 theorem rel_mono (P : completion.Problem) (h : hierarchy.RoleHierarchy) (closed : Closed h) (F : forest.Forest)
     (count : Nat) {s r : ObjectPropertyExpression} (included : Below h s r) (p q : Element count F.nodes.val) :
@@ -455,12 +574,13 @@ theorem model_respects (P : completion.Problem) (h : hierarchy.RoleHierarchy) (c
 
 /-! ### Neighbours and steps -/
 
-/-- `q` is the neighbour path of `p` for the neighbour `y` of `p`'s newest node:
-    its extension by the child `y`, its prefix when `y` is the parent, or the
-    named node `y`. -/
+/-- `q` is a neighbour path of `p` for the neighbour `y` of `p`'s newest node:
+    its extension by the child `y`, its prefix when `y` is the parent, or a path
+    whose newest node is `y`, when that path is the path of the named node `y`
+    or `p` is the path of a named node. -/
 def Corr (nodes : List forest.Node) (p q : List (Nat × Nat)) (y : Nat) : Prop :=
   q = (holder nodes y,y) :: p ∨ (∃ x x0, p = (x,x0) :: q ∧ q ≠ [] ∧ y = parentOf nodes x) ∨
-    (∃ x, p = [(x,x)] ∧ q = [(y,y)])
+    (tailOf q = y ∧ (q = [(y,y)] ∨ ∃ a, p = [(a,a)]))
 
 theorem path_nonempty {count : Nat} {nodes : List forest.Node} (p : List (Nat × Nat)) (path : IsPath count nodes p) :
     p ≠ [] := by
@@ -476,15 +596,18 @@ theorem step_of_neighbour {P : completion.Problem} {h : hierarchy.RoleHierarchy}
   have shape := inv.shape
   obtain ⟨x,x0,rest,pIs,_,_,cases⟩ := path_shape inv p.val p.property
   have tailIs : tailOf p.val = x := by rw [pIs]; rfl
-  rw [tailIs] at neighbour
-  rcases neighbour with ⟨n,at_y,tree,act,parent,s,sIn,below⟩ | ⟨n,at_x,tree,parent,s,sIn,below⟩ | linked | linked
+  rcases neighbour with child | parent | linked | linked
   · -- A child: the extension.
+    rw [tailIs] at child
+    obtain ⟨n,at_y,tree,act,parent,s,sIn,below⟩ := child
     have path : IsPath count F.nodes.val ((holder F.nodes.val y,y) :: (x,x0) :: rest) :=
       IsPath.child x x0 rest y n (by rw [← pIs]; exact p.property) at_y tree act parent
     obtain ⟨_,_,_,_,_,_,_,_,_,sameLabel,_⟩ := extension_facts inv _ _ _ path
     rw [← pIs] at path
     exact ⟨⟨_,path⟩,.inl ⟨_,y,rfl,n,at_y,s,sIn,below⟩,sameLabel,.inl rfl⟩
   · -- The parent: the prefix.
+    rw [tailIs] at parent
+    obtain ⟨n,at_x,tree,parent,s,sIn,below⟩ := parent
     rcases cases with ⟨_,_,named⟩ | ⟨w,w0,rest',restIs,n0,at_x0,_,_,_,_,nx,at_x',_,_,sameRoles,sameParent⟩
     · have := (shape.named x n at_x).mpr named
       rw [tree] at this
@@ -501,28 +624,40 @@ theorem step_of_neighbour {P : completion.Problem} {h : hierarchy.RoleHierarchy}
       rw [← parent]
       intro i
       exact (sameParent i).symm
-  all_goals
-    obtain ⟨a,b,aIn,bIn,repA,repB⟩ := linkAlong_rep shape x r y (by first | exact .inl linked | exact .inr linked)
-    have xRoot : x < count := by rw [← repA]; exact (rep_in shape a aIn).1
-    rcases cases with ⟨restEmpty,x0Is,_⟩ | ⟨w,w0,rest',restIs,n0,_,_,_,_,_,nx,at_x,treeX,_⟩
-    · have path : IsPath count F.nodes.val [(y,y)] := by
-        rw [← repB]
-        exact IsPath.root _ (rep_in shape b bIn).1 (rep_in shape b bIn).2
-      refine ⟨⟨_,path⟩,.inr (.inr ⟨x,y,by rw [pIs,restEmpty,x0Is],rfl,?_⟩),fun _ => Iff.rfl,
-        .inr (.inr ⟨x,by rw [pIs,restEmpty,x0Is],rfl⟩)⟩
-      first | exact .inl linked | exact .inr linked
-    · have := (shape.named x nx at_x).mpr xRoot
-      rw [treeX] at this
-      cases this
+  · -- A link: the path of a named node.
+    obtain ⟨_,b,_,bIn,_,repB⟩ := linkAlong_rep shape _ r y linked
+    have path : IsPath count F.nodes.val [(y,y)] := by
+      rw [← repB]
+      exact IsPath.root _ (rep_in shape b bIn).1 (rep_in shape b bIn).2
+    exact ⟨⟨_,path⟩,.inr (.inr (.inl linked)),fun _ => Iff.rfl,.inr (.inr ⟨rfl,.inl rfl⟩)⟩
+  · obtain ⟨e,listed,live,toIn,⟨_,toY⟩ | ⟨toX,fromY⟩⟩ := edgeAlong_ends shape _ r y linked
+    · -- An added edge to a named node: the path of that node.
+      rw [toY] at toIn
+      have active : Active F.nodes.val y := by
+        rw [← toY]
+        exact (rep_in shape e.to (shape.edges e listed).1).2
+      exact ⟨⟨[(y,y)],IsPath.root y toIn active⟩,.inr (.inr (.inr linked)),fun _ => Iff.rfl,
+        .inr (.inr ⟨rfl,.inl rfl⟩)⟩
+    · -- An added edge from a live node into the named node of `p`: a path of
+      -- that node.
+      rw [fromY] at live
+      obtain ⟨q,qTail⟩ := live_path inv y live
+      have pRoot : p.val = [(tailOf p.val,tailOf p.val)] :=
+        path_named inv p.val p.property (by rw [← toX]; exact toIn)
+      refine ⟨q,.inr (.inr (.inr (by rw [qTail]; exact linked))),?_,.inr (.inr ⟨qTail,.inr ⟨_,pRoot⟩⟩)⟩
+      unfold lab
+      rw [qTail]
+      exact fun _ => Iff.rfl
 
-/-- Every neighbour path is the neighbour path of a neighbour of the newest node
+/-- Every neighbour path is a neighbour path of a neighbour of the newest node
     with the same label. -/
 theorem neighbour_of_step {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (inv : Inv P h count F) (r : ObjectPropertyExpression) (p q : Element count F.nodes.val)
     (step : Step P h F count r p q) :
     ∃ y, Neighbour P h F (tailOf p.val) r y ∧ SameLabel (labelOf F.nodes.val y) (lab q) ∧
       Corr F.nodes.val p.val q.val y := by
-  rcases step with ⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | ⟨a,b,pa,qb,linked⟩
+  have shape := inv.shape
+  rcases step with ⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | linked | linked
   · obtain ⟨x,x0,rest,pIs,_,_,_⟩ := path_shape inv p.val p.property
     have qPath := q.property
     rw [ext,pIs] at qPath
@@ -552,20 +687,119 @@ theorem neighbour_of_step {P : completion.Problem} {h : hierarchy.RoleHierarchy}
     rw [qIs]
     intro i
     exact (sameParent i).symm
-  · have tailIs : tailOf p.val = a := by rw [pa]; rfl
-    rw [tailIs]
-    refine ⟨b,?_,?_,.inr (.inr ⟨a,pa,qb⟩)⟩
-    · rcases linked with one | two
-      · exact .inr (.inr (.inl one))
-      · exact .inr (.inr (.inr two))
-    · show SameLabel (labelOf F.nodes.val b) (labelOf F.nodes.val (tailOf q.val))
-      rw [qb]
-      exact fun _ => Iff.rfl
+  · refine ⟨tailOf q.val,.inr (.inr (.inl linked)),fun _ => Iff.rfl,.inr (.inr ⟨rfl,.inl ?_⟩)⟩
+    obtain ⟨_,b,_,bIn,_,repB⟩ := linkAlong_rep shape _ r _ linked
+    exact path_named inv q.val q.property (by rw [← repB]; exact (rep_in shape b bIn).1)
+  · refine ⟨tailOf q.val,.inr (.inr (.inr linked)),fun _ => Iff.rfl,.inr (.inr ⟨rfl,?_⟩)⟩
+    obtain ⟨e,_,_,toIn,⟨_,toQ⟩ | ⟨toP,_⟩⟩ := edgeAlong_ends shape _ r _ linked
+    · exact .inl (path_named inv q.val q.property (by rw [← toQ]; exact toIn))
+    · exact .inr ⟨_,path_named inv p.val p.property (by rw [← toP]; exact toIn)⟩
 
-/-- A neighbour of the newest node has only one neighbour path. -/
+/-- The neighbour paths of a neighbour of the newest node along a path's own
+    newest node agree, unless `p` is the path of a named node and the
+    neighbour a tree node that is no child of it, which the model repeats. -/
+theorem corr_third {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (p q q' : Element count F.nodes.val) (y : Nat) (one : Corr F.nodes.val p.val q.val y)
+    (tail : tailOf q'.val = y) (which : q'.val = [(y,y)] ∨ ∃ a, p.val = [(a,a)]) :
+    q = q' ∨ ∃ a, p.val = [(a,a)] ∧ Repeated F.nodes.val a y := by
+  have shape := inv.shape
+  -- A path of a named node `y` is the only path ending in `y`.
+  have namedTail : y < count → q'.val = [(y,y)] := by
+    intro named
+    have := path_named inv q'.val q'.property (by rw [tail]; exact named)
+    rw [tail] at this
+    exact this
+  rcases one with child | ⟨x,x0,pq,qne,parentIs⟩ | ⟨tailQ,whichQ⟩
+  · -- `y` is a child: of a named node, since `q'` cannot be the path of a tree node.
+    have qPath := q.property
+    rw [child] at qPath
+    obtain ⟨b,rest,pIs⟩ : ∃ b rest, p.val = b :: rest := by
+      cases hp : p.val with
+      | nil => exact absurd hp (path_nonempty _ p.property)
+      | cons b rest => exact ⟨b,rest,rfl⟩
+    rw [pIs] at qPath
+    obtain ⟨n,at_y,tree,_,parent,_⟩ := path_step _ _ _ qPath
+    rcases which with root | ⟨a,pRoot⟩
+    · exfalso
+      have := (root_facts inv (y,y) (by rw [← root]; exact q'.property)).2.1
+      have named := (shape.named y n at_y).mpr this
+      rw [tree] at named
+      cases named
+    · rw [pRoot] at pIs
+      simp only [List.cons.injEq] at pIs
+      obtain ⟨rfl,rfl⟩ := pIs
+      simp only at parent
+      have aNamed := (root_facts inv (a,a) (by rw [← pRoot]; exact p.property)).2.1
+      rw [← parent] at aNamed
+      refine .inl (Subtype.ext ?_)
+      rw [child,holder_named_parent shape y n at_y aNamed,
+        path_named_parent inv q'.val q'.property n (by rw [tail]; exact at_y) tree aNamed,tail,pRoot,parent]
+  · -- `y` is the parent: the path of a named node is the prefix.
+    rcases which with root | ⟨a,pRoot⟩
+    · have named := (root_facts inv (y,y) (by rw [← root]; exact q'.property)).2.1
+      have pPath := p.property
+      obtain ⟨b,rest,qIs⟩ : ∃ b rest, q.val = b :: rest := by
+        cases hq : q.val with
+        | nil => exact absurd hq qne
+        | cons b rest => exact ⟨b,rest,rfl⟩
+      rw [pq,qIs] at pPath
+      obtain ⟨n0,nx,at_x0,_,_,parent0,holderIs,at_x,_⟩ := extension_facts inv _ _ _ pPath
+      simp only at at_x0 parent0 holderIs at_x
+      have yIs : y = nx.parent.val := by rw [parentIs]; simp [parentOf,at_x]
+      rcases holder_cases F.nodes.val x0 with same | ⟨nv,m,at_v,at_m,mTree⟩
+      · have xIs : x = x0 := holderIs.trans same
+        rw [xIs] at at_x
+        have n0Is : n0 = nx := Option.some.inj (at_x0.symm.trans at_x)
+        rw [n0Is,← yIs] at parent0
+        have qTail : tailOf q.val = y := by rw [qIs,tailOf_cons,parent0]
+        have qRoot := path_named inv q.val q.property (by rw [qTail]; exact named)
+        rw [qTail] at qRoot
+        exact .inl (Subtype.ext (qRoot.trans root.symm))
+      · exfalso
+        rw [← holderIs,at_x] at at_v
+        have nvIs : nv = nx := (Option.some.inj at_v).symm
+        rw [nvIs,← yIs] at at_m
+        have := (shape.named y m at_m).mpr named
+        rw [mTree] at this
+        cases this
+    · exfalso
+      rw [pRoot] at pq
+      simp only [List.cons.injEq] at pq
+      exact qne pq.2.symm
+  · -- Both end in `y`: one path for a named node or a child of a named node.
+    by_cases named : y < count
+    · have qRoot := path_named inv q.val q.property (by rw [tailQ]; exact named)
+      rw [tailQ] at qRoot
+      exact .inl (Subtype.ext (qRoot.trans (namedTail named).symm))
+    · obtain ⟨a,pRoot⟩ : ∃ a, p.val = [(a,a)] := by
+        rcases whichQ with root | found
+        · exact absurd (root_facts inv (y,y) (by rw [← root]; exact q.property)).2.1 named
+        · rcases which with root | found'
+          · exact absurd (root_facts inv (y,y) (by rw [← root]; exact q'.property)).2.1 named
+          · exact found
+      obtain ⟨m,at_y,_⟩ := (tail_live inv q').1
+      rw [tail] at at_y
+      have tree : m.tree = true := by
+        cases treeIs : m.tree
+        · exact absurd ((shape.named y m at_y).mp treeIs) named
+        · rfl
+      by_cases parentIs : m.parent.val = a
+      · have aNamed := (root_facts inv (a,a) (by rw [← pRoot]; exact p.property)).2.1
+        rw [← parentIs] at aNamed
+        have qIs := path_named_parent inv q.val q.property m (by rw [tailQ]; exact at_y) tree aNamed
+        have qIs' := path_named_parent inv q'.val q'.property m (by rw [tail]; exact at_y) tree aNamed
+        rw [tailQ] at qIs
+        rw [tail] at qIs'
+        exact .inl (Subtype.ext (qIs.trans qIs'.symm))
+      · exact .inr ⟨a,pRoot,m,at_y,tree,parentIs⟩
+
+/-- A neighbour of the newest node has only one neighbour path, unless `p` is
+    the path of a named node and the neighbour a tree node that is no child of
+    it, which the model repeats. -/
 theorem corr_unique {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (inv : Inv P h count F) (p q q' : Element count F.nodes.val) (y : Nat)
-    (one : Corr F.nodes.val p.val q.val y) (two : Corr F.nodes.val p.val q'.val y) : q = q' := by
+    (one : Corr F.nodes.val p.val q.val y) (two : Corr F.nodes.val p.val q'.val y) :
+    q = q' ∨ ∃ a, p.val = [(a,a)] ∧ Repeated F.nodes.val a y := by
   have shape := inv.shape
   -- A child extension's node is a tree child of the newest node.
   have childOf : ∀ (o : Element count F.nodes.val), o.val = (holder F.nodes.val y,y) :: p.val →
@@ -591,56 +825,77 @@ theorem corr_unique {P : completion.Problem} {h : hierarchy.RoleHierarchy} {coun
     refine ⟨?_,nx,at_x,treeX⟩
     simp only [parentOf,at_x]
     exact shape.parents x nx at_x treeX
-  apply Subtype.ext
-  rcases one with qa | ⟨x,x0,pq,qne,ya⟩ | ⟨x,px,qy⟩ <;>
-    rcases two with qa' | ⟨x',x0',pq',qne',ya'⟩ | ⟨x',px',qy'⟩
-  · rw [qa,qa']
-  · exfalso
-    obtain ⟨n,at_y,tree,parent⟩ := childOf q qa
-    have tailIs : tailOf p.val = x' := by rw [pq']; rfl
+  -- A child is never the parent.
+  have childParent : ∀ (o o' : Element count F.nodes.val), o.val = (holder F.nodes.val y,y) :: p.val →
+      ∀ x x0, p.val = (x,x0) :: o'.val → o'.val ≠ [] → y = parentOf F.nodes.val x → False := by
+    intro o o' oIs x x0 pIs nonempty yIs
+    obtain ⟨n,at_y,tree,parent⟩ := childOf o oIs
+    have tailIs : tailOf p.val = x := by rw [pIs]; rfl
     have above := shape.parents y n at_y tree
-    obtain ⟨below,_⟩ := parentBelow x' x0' q'.val pq' qne'
+    obtain ⟨below,_⟩ := parentBelow x x0 o'.val pIs nonempty
     rw [parent,tailIs] at above
-    rw [ya'] at above
+    rw [yIs] at above
     omega
-  · exfalso
-    obtain ⟨n,at_y,tree,_⟩ := childOf q qa
-    have := (root_facts inv (y,y) (by rw [← qy']; exact q'.property)).2.1
-    have root := (shape.named y n at_y).mpr this
-    rw [tree] at root
-    cases root
-  · exfalso
-    obtain ⟨n,at_y,tree,parent⟩ := childOf q' qa'
-    have tailIs : tailOf p.val = x := by rw [pq]; rfl
-    have above := shape.parents y n at_y tree
-    obtain ⟨below,_⟩ := parentBelow x x0 q.val pq qne
-    rw [parent,tailIs] at above
-    rw [ya] at above
-    omega
-  · rw [pq] at pq'
-    simp only [List.cons.injEq] at pq'
-    exact pq'.2
-  · exfalso
-    rw [pq] at px'
-    simp only [List.cons.injEq] at px'
-    exact qne px'.2
-  · exfalso
-    obtain ⟨n,at_y,tree,_⟩ := childOf q' qa'
-    have := (root_facts inv (y,y) (by rw [← qy]; exact q.property)).2.1
-    have root := (shape.named y n at_y).mpr this
-    rw [tree] at root
-    cases root
-  · exfalso
-    rw [px] at pq'
-    simp only [List.cons.injEq] at pq'
-    exact qne' pq'.2.symm
-  · rw [qy,qy']
+  rcases two with child' | ⟨x',x0',pq',qne',ya'⟩ | ⟨tail',which'⟩
+  · rcases one with child | ⟨x,x0,pq,qne,ya⟩ | ⟨tail,which⟩
+    · exact .inl (Subtype.ext (child.trans child'.symm))
+    · exact (childParent q' q child' x x0 pq qne ya).elim
+    · rcases corr_third inv p q' q y (.inl child') tail which with same | repeated
+      · exact .inl same.symm
+      · exact .inr repeated
+  · rcases one with child | ⟨x,x0,pq,qne,ya⟩ | ⟨tail,which⟩
+    · exact (childParent q q' child x' x0' pq' qne' ya').elim
+    · rw [pq] at pq'
+      simp only [List.cons.injEq] at pq'
+      exact .inl (Subtype.ext pq'.2)
+    · rcases corr_third inv p q' q y (.inr (.inl ⟨x',x0',pq',qne',ya'⟩)) tail which with same | repeated
+      · exact .inl same.symm
+      · exact .inr repeated
+  · exact corr_third inv p q q' y one tail' which'
 
 /-- A neighbour path belongs to only one neighbour. -/
-theorem corr_function {nodes : List forest.Node} (p q : List (Nat × Nat)) (y y' : Nat)
-    (one : Corr nodes p q y) (two : Corr nodes p q y') : y = y' := by
-  rcases one with qa | ⟨x,x0,pq,qne,ya⟩ | ⟨x,px,qy⟩ <;>
-    rcases two with qa' | ⟨x',x0',pq',qne',ya'⟩ | ⟨x',px',qy'⟩
+theorem corr_function {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (p q : Element count F.nodes.val) (y y' : Nat)
+    (one : Corr F.nodes.val p.val q.val y) (two : Corr F.nodes.val p.val q.val y') : y = y' := by
+  have shape := inv.shape
+  -- A child extension that ends in another neighbour: the child of a named node.
+  have childThird : ∀ z z', q.val = (holder F.nodes.val z,z) :: p.val → tailOf q.val = z' →
+      (q.val = [(z',z')] ∨ ∃ a, p.val = [(a,a)]) → z = z' := by
+    intro z z' child tail which
+    rcases which with root | ⟨a,pRoot⟩
+    · exfalso
+      rw [child] at root
+      simp only [List.cons.injEq] at root
+      exact path_nonempty _ p.property root.2
+    · have qPath := q.property
+      rw [child,pRoot] at qPath
+      obtain ⟨n,at_z,_,_,parent,_⟩ := path_step _ _ _ qPath
+      have aNamed := (root_facts inv (a,a) (by rw [← pRoot]; exact p.property)).2.1
+      simp only at parent
+      rw [← parent] at aNamed
+      rw [child,tailOf_cons,holder_named_parent shape z n at_z aNamed] at tail
+      exact tail
+  -- A prefix that ends in another neighbour: the prefix is the path of a named node.
+  have parentThird : ∀ z z' x x0, p.val = (x,x0) :: q.val → q.val ≠ [] → z = parentOf F.nodes.val x →
+      tailOf q.val = z' → (q.val = [(z',z')] ∨ ∃ a, p.val = [(a,a)]) → z = z' := by
+    intro z z' x x0 pq qne zIs tail which
+    rcases which with root | ⟨a,pRoot⟩
+    · have named := (root_facts inv (z',z') (by rw [← root]; exact q.property)).2.1
+      have pPath := p.property
+      rw [pq,root] at pPath
+      obtain ⟨n0,_,at_x0,_,_,parent0,holderIs,_⟩ := extension_facts inv _ _ _ pPath
+      simp only at at_x0 parent0 holderIs
+      rw [← parent0] at named
+      rw [holder_named_parent shape x0 n0 at_x0 named] at holderIs
+      rw [zIs,holderIs]
+      simp only [parentOf,at_x0]
+      exact parent0
+    · exfalso
+      rw [pRoot] at pq
+      simp only [List.cons.injEq] at pq
+      exact qne pq.2.symm
+  rcases one with qa | ⟨x,x0,pq,qne,ya⟩ | ⟨tail,which⟩ <;>
+    rcases two with qa' | ⟨x',x0',pq',qne',ya'⟩ | ⟨tail',which'⟩
   · rw [qa] at qa'
     simp only [List.cons.injEq,Prod.mk.injEq] at qa'
     exact qa'.1.2
@@ -649,9 +904,7 @@ theorem corr_function {nodes : List forest.Node} (p q : List (Nat × Nat)) (y y'
     rw [pq'] at this
     simp at this
     omega
-  · exfalso
-    rw [px',qy'] at qa
-    simp at qa
+  · exact childThird y y' qa tail' which'
   · exfalso
     have := congrArg List.length qa'
     rw [pq] at this
@@ -660,20 +913,10 @@ theorem corr_function {nodes : List forest.Node} (p q : List (Nat × Nat)) (y y'
   · rw [pq] at pq'
     simp only [List.cons.injEq,Prod.mk.injEq] at pq'
     rw [ya,ya',pq'.1.1]
-  · exfalso
-    rw [pq] at px'
-    simp only [List.cons.injEq] at px'
-    exact qne px'.2
-  · exfalso
-    rw [px,qy] at qa'
-    simp at qa'
-  · exfalso
-    rw [px] at pq'
-    simp only [List.cons.injEq] at pq'
-    exact qne' pq'.2.symm
-  · rw [qy] at qy'
-    simp only [List.cons.injEq,Prod.mk.injEq] at qy'
-    exact qy'.1.1
+  · exact parentThird y y' x x0 pq qne ya tail' which'
+  · exact (childThird y' y qa' tail which).symm
+  · exact (parentThird y' y x' x0' pq' qne' ya' tail which).symm
+  · exact tail.symm.trans tail'
 
 /-- A step between paths gives each label what the other requires along the
     role. -/
@@ -682,7 +925,19 @@ theorem step_ok {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : 
     (p q : Element count F.nodes.val) (step : Step P h F count r p q) :
     EdgeOk P.entries.val h (lab p) r (lab q) := by
   have shape := inv.shape
-  rcases step with ⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | ⟨a,b,pa,qb,linked⟩
+  have linkOk : ∀ links : List (ObjectPropertyExpression × Usize × Usize), LinksOk P.entries.val h F links →
+      LinkAlong h F links (tailOf p.val) r (tailOf q.val) → EdgeOk P.entries.val h (lab p) r (lab q) := by
+    intro links ok along
+    have pIn := active_inside (tail_live inv p).1
+    have qIn := active_inside (tail_live inv q).1
+    obtain ⟨l,member,⟨source,included,target⟩ | ⟨target,included,source⟩⟩ := along
+    · have both := ok l member (by rw [source]; exact pIn) (by rw [target]; exact qIn)
+      rw [source,target] at both
+      exact edgeOk_mono _ h shape.closed _ _ included both.1
+    · have both := ok l member (by rw [source]; exact qIn) (by rw [target]; exact pIn)
+      rw [source,target] at both
+      exact edgeOk_mono _ h shape.closed _ _ included both.2
+  rcases step with ⟨z,z',ext,n,at_z,s,sIn,below⟩ | ⟨x,x',ext,n,at_x,s,sIn,below⟩ | linked | linked
   · obtain ⟨x,x0,rest,pIs,_,_,_⟩ := path_shape inv p.val p.property
     have qPath := q.property
     rw [ext,pIs] at qPath
@@ -720,32 +975,8 @@ theorem step_ok {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : 
     rw [labP,labQ]
     exact edgeOk_mono _ h shape.closed _ _ below
       (edgeOk_same _ h _ _ _ _ (Rowl.Concepts.inv s) sameLabel (fun _ => Iff.rfl) edge)
-  · have labP : lab p = labelOf F.nodes.val a := by unfold lab; rw [pa]; rfl
-    have labQ : lab q = labelOf F.nodes.val b := by unfold lab; rw [qb]; rfl
-    rw [labP,labQ]
-    have linkOk : ∀ (links : List (ObjectPropertyExpression × Usize × Usize)),
-        (∀ l ∈ links, l.2.1.val < count ∧ l.2.2.val < count) → LinksOk P.entries.val h F links →
-        LinkAlong h F links a r b → EdgeOk P.entries.val h (labelOf F.nodes.val a) r (labelOf F.nodes.val b) := by
-      intro links inside ok along
-      have countIn := shape.countIn
-      obtain ⟨l,member,⟨source,included,target⟩ | ⟨target,included,source⟩⟩ := along
-      · obtain ⟨fromIn,toIn⟩ := inside l member
-        have both := ok l member (by have := (rep_in shape _ fromIn).1; omega) (by have := (rep_in shape _ toIn).1; omega)
-        rw [source,target] at both
-        exact edgeOk_mono _ h shape.closed _ _ included both.1
-      · obtain ⟨fromIn,toIn⟩ := inside l member
-        have both := ok l member (by have := (rep_in shape _ fromIn).1; omega) (by have := (rep_in shape _ toIn).1; omega)
-        rw [source,target] at both
-        exact edgeOk_mono _ h shape.closed _ _ included both.2
-    rcases linked with one | two
-    · apply linkOk _ _ complete.2.2.1 one
-      intro l member
-      obtain ⟨l0,listed,rfl⟩ := (linkEnds_mem _ _).mp member
-      exact shape.links l0 listed
-    · apply linkOk _ _ complete.2.2.2.1 two
-      intro l member
-      obtain ⟨e,listed,rfl⟩ := (edgeEnds_mem _ _).mp member
-      exact shape.edges e listed
+  · exact linkOk _ complete.2.2.1 linked
+  · exact linkOk _ complete.2.2.2.1 linked
 
 /-! ### The truth lemma -/
 
@@ -891,7 +1122,7 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
           have one := gCorr k1
           have two := gCorr k2
           rw [same] at one
-          have values := corr_function _ _ _ _ one two
+          have values := corr_function inv p (g k2) _ _ one two
           apply Fin.ext
           exact (List.Nodup.getElem_inj_iff nodup).mp (UScalar.eq_of_val_eq values)
         · intro k
@@ -924,26 +1155,42 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
           rw [value]
           exact ⟨neighbour,same,corr⟩
         choose ys ysNeighbour ysSame ysCorr using pick
-        have excess : Excess P h F x r f m := by
-          refine ⟨List.ofFn ys,?_,by simp,?_⟩
-          · rw [List.nodup_ofFn]
-            intro k1 k2 same
-            apply injective
-            exact corr_unique inv p (g k1) (g k2) (ys k1).val (ysCorr k1) (by rw [same]; exact ysCorr k2)
-          · intro z listed
-            obtain ⟨k,rfl⟩ := List.mem_ofFn.mp listed
-            refine ⟨ysNeighbour k,?_⟩
-            rcases complete.2.2.2.2.1 x activeX i memberX m r f f' at_i (ys k) (ysNeighbour k) with yes | no
-            · exact yes
-            · exfalso
-              have complementHolds := ih f'.val (below f'.val (by simp [parts])) (g k)
-                ((holds_same _ _ _ (ysSame k) f'.val).mp no)
-              obtain ⟨negated,negateRun,negateSpec⟩ := negate_correct.{0,0} (meaning P.entries.val f.val)
-              rw [shape.complements i.val m r f f' at_i] at negateRun
-              simp only [Result.ok.injEq] at negateRun
-              subst negateRun
-              exact (negateSpec _ rfl _ _ (model P h F count root) (g k)).mp complementHolds (each k).2
-        exact complete.2.2.2.2.2.1 x activeX i memberX m r f f' at_i excess
+        -- Every counted neighbour satisfies the filler, since it decides it.
+        have ysHolds : ∀ k, Holds P.entries.val (labelOf F.nodes.val (ys k).val) f.val := by
+          intro k
+          rcases complete.2.2.2.2.1 x activeX i memberX m r f f' at_i (ys k) (ysNeighbour k) with yes | no
+          · exact yes
+          · exfalso
+            have complementHolds := ih f'.val (below f'.val (by simp [parts])) (g k)
+              ((holds_same _ _ _ (ysSame k) f'.val).mp no)
+            obtain ⟨negated,negateRun,negateSpec⟩ := negate_correct.{0,0} (meaning P.entries.val f.val)
+            rw [shape.complements i.val m r f f' at_i] at negateRun
+            simp only [Result.ok.injEq] at negateRun
+            subst negateRun
+            exact (negateSpec _ rfl _ _ (model P h F count root) (g k)).mp complementHolds (each k).2
+        obtain ⟨fewEnough,unrepeated⟩ := complete.2.2.2.2.2.1 x activeX i memberX m r f f' at_i
+        apply fewEnough
+        refine ⟨List.ofFn ys,?_,by simp,?_⟩
+        · rw [List.nodup_ofFn]
+          intro k1 k2 same
+          apply injective
+          rcases corr_unique inv p (g k1) (g k2) (ys k1).val (ysCorr k1) (by rw [same]; exact ysCorr k2) with
+            equal | ⟨a,pRoot,repeated⟩
+          · exact equal
+          · -- A named node counts no neighbour that the model repeats.
+            exfalso
+            have named : a < count := (root_facts inv (a,a) (by rw [← pRoot]; exact p.property)).2.1
+            have xIs : x = a := by
+              rw [pIs] at pRoot
+              simp only [List.cons.injEq,Prod.mk.injEq] at pRoot
+              exact pRoot.1.1
+            rw [← xIs] at named repeated
+            obtain ⟨n,at_x,_⟩ := activeX
+            exact unrepeated ⟨n,at_x,(shape.named x n at_x).mpr named⟩ (ys k1) (ysNeighbour k1) repeated
+              (ysHolds k1)
+        · intro z listed
+          obtain ⟨k,rfl⟩ := List.mem_ofFn.mp listed
+          exact ⟨ysNeighbour k,ysHolds k⟩
 
 /-! ### The model of a complete forest -/
 
@@ -1005,19 +1252,19 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
   · intro l member
     have inside := shape.links l member
     rw [relation_model P h shape.closed F count root]
-    exact .inl (.inr (.inr ⟨(rep F l.from).val,(rep F l.to).val,place_val shape root l.from inside.1,
-      place_val shape root l.to inside.2,
-      .inl ⟨(l.role,l.from,l.to),(linkEnds_mem _ _).mpr ⟨l,member,rfl⟩,.inl ⟨rfl,below_refl h l.role,rfl⟩⟩⟩))
+    exact .inl (.inr (.inr (.inl ⟨(l.role,l.from,l.to),(linkEnds_mem _ _).mpr ⟨l,member,rfl⟩,
+      .inl ⟨(congrArg tailOf (place_val shape root l.from inside.1)).symm,below_refl h l.role,
+        (congrArg tailOf (place_val shape root l.to inside.2)).symm⟩⟩)))
 
 /-- The completion forest decides SHOIQ problems with named individuals: it
     answers unless a structure would exceed the `usize` range, a number
-    restriction counts along a role that is not simple, a nominal is below a
-    tree node, or the individual of a nominal or of the complement of one has
-    no named node; an acceptance comes
-    with a model in `Type` of the role hierarchy where the TBox concept and
-    every definition hold everywhere and every fact and link holds at the
-    elements of its individuals, and a rejection rules out every such model,
-    in any universes. -/
+    restriction counts along a role that is not simple, a maximum restriction
+    of a named node counts a tree node that is no child of it, or the
+    individual of a nominal or of the complement of one has no named node; an
+    acceptance comes with a model in `Type` of the role hierarchy where the TBox
+    concept and every definition hold everywhere and every fact and link holds
+    at the elements of its individuals, and a rejection rules out every such
+    model, in any universes. -/
 theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)

@@ -3,19 +3,21 @@ import Rowl.Completion
 /-!
 The rule search of the completion forest, proved exact. A neighbour of a node
 along a role is an active child whose edge has a role included in it, the
-parent of a tree node whose edge has a role whose inverse is included in it, or
-a named node that a link or an added edge relates to it, read through the
-merges of named nodes. The named node of an individual is the representative of
-the node of the first requirement with its nominal. The search returns the first
-missing concept of a node or an edge, else an active node with a nominal whose
-named node is another node, else a neighbour that does not decide the filler of
-a maximum restriction, else a maximum restriction with too many neighbours, else
+parent of a tree node whose edge has a role whose inverse is included in it, a
+named node that a link relates to it, or a node that an added edge from a live
+node (active and not blocked) relates to it, read through the merges of named
+nodes. The named node of an individual is the representative of the node of the
+first requirement with its nominal. The search returns the first missing
+concept of a node or an edge, else an active node with a nominal whose named
+node is another node, else a neighbour that does not decide the filler of a
+maximum restriction, else a maximum restriction with too many neighbours, else
 an existential or minimum restriction of an unblocked node to expand, and it
 reports a complete forest exactly when none of these exists; it has no answer
 when the individual of a nominal, or of the complement of one, in the label of
-an active node has no named node. Blocking is
-pairwise: a tree node is blocked when some tree node on its path has the label,
-the parent's label and the roles from the parent of a tree node above it.
+an active node has no named node, or when a maximum restriction of a named node
+counts a tree node that is no child of it. Blocking is pairwise: a tree node is
+blocked when some tree node on its path has the label, the parent's label and
+the roles from the parent of a tree node above it whose parent is a tree node.
 -/
 namespace Rowl.ForestSearch
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -383,6 +385,366 @@ theorem ends_correct (h : hierarchy.RoleHierarchy) (out : alloc.vec.Vec Usize) (
       cases same
       exact ⟨fun z => by simp [at_source,at_target],id⟩
 
+/-- The node is part of the forest. -/
+def Active (nodes : List forest.Node) (x : Nat) : Prop :=
+  ∃ n, nodes[x]? = some n ∧ n.active = true
+
+theorem role_listed_correct (list : alloc.vec.Vec ObjectPropertyExpression) (role : ObjectPropertyExpression)
+    (index : Usize) : forest.role_listed list role index = .ok (decide (role ∈ list.val.drop index.val)) := by
+  rw [forest.role_listed]
+  by_cases more : index.val < list.val.length
+  · have lookup : list.index_usize index = .ok list.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : list.val.drop index.val = list.val[index.val] :: list.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    have rest := role_listed_correct list role index'
+    rw [nextIndex] at rest
+    rw [split]
+    by_cases here : list.val[index.val] = role
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,same_role_correct,here]
+    · have other : role ≠ list.val[index.val] := fun same => here same.symm
+      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,same_role_correct,here,decide_false,Bool.false_eq_true,advance,rest,List.mem_cons,other,false_or]
+  · have empty : list.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by list.val.length - index.val
+decreasing_by omega
+
+theorem roles_within_correct (small large : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
+    forest.roles_within small large index = .ok (decide (∀ s ∈ small.val.drop index.val, s ∈ large.val)) := by
+  rw [forest.roles_within]
+  by_cases more : index.val < small.val.length
+  · have lookup : small.index_usize index = .ok small.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : small.val.drop index.val = small.val[index.val] :: small.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    have rest := roles_within_correct small large index'
+    rw [nextIndex] at rest
+    rw [split]
+    by_cases found : small.val[index.val] ∈ large.val
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+        lookup,bind_ok,role_listed_correct,show (0#usize).val = 0 from rfl,List.drop_zero,found,decide_true,advance,
+        rest,List.forall_mem_cons,true_and]
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+        lookup,bind_ok,role_listed_correct,show (0#usize).val = 0 from rfl,List.drop_zero,found,decide_false,
+        Bool.false_eq_true,List.forall_mem_cons,false_and]
+  · have empty : small.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by small.val.length - index.val
+decreasing_by omega
+
+/-- Two nodes have the same label, parents in range with the same label, and
+    the same roles from their parents, where the parent of `y` is a tree node. -/
+def SamePair (nodes : List forest.Node) (x y : Nat) : Prop :=
+  ∃ nx ny, nodes[x]? = some nx ∧ nodes[y]? = some ny ∧ nx.parent.val < nodes.length ∧
+    ny.parent.val < nodes.length ∧ (∃ q, nodes[ny.parent.val]? = some q ∧ q.tree = true) ∧
+    SameLabel nx.label.val ny.label.val ∧
+    SameLabel (labelOf nodes nx.parent.val) (labelOf nodes ny.parent.val) ∧ (∀ s, s ∈ nx.roles.val ↔ s ∈ ny.roles.val)
+
+theorem same_pair_correct (F : forest.Forest) (x y : Usize) :
+    forest.same_pair F x y = .ok (decide (SamePair F.nodes.val x.val y.val)) := by
+  rw [forest.same_pair]
+  by_cases xIn : x.val < F.nodes.val.length
+  · by_cases yIn : y.val < F.nodes.val.length
+    · have lookupX : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem xIn]
+      have lookupY : F.nodes.index_usize y = .ok F.nodes.val[y.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem yIn]
+      have unfold : SamePair F.nodes.val x.val y.val ↔ F.nodes.val[x.val].parent.val < F.nodes.val.length ∧
+          F.nodes.val[y.val].parent.val < F.nodes.val.length ∧
+          (∃ q, F.nodes.val[F.nodes.val[y.val].parent.val]? = some q ∧ q.tree = true) ∧
+          SameLabel F.nodes.val[x.val].label.val F.nodes.val[y.val].label.val ∧
+          SameLabel (labelOf F.nodes.val F.nodes.val[x.val].parent.val)
+            (labelOf F.nodes.val F.nodes.val[y.val].parent.val) ∧
+          (∀ s, s ∈ F.nodes.val[x.val].roles.val ↔ s ∈ F.nodes.val[y.val].roles.val) := by
+        simp [SamePair,List.getElem?_eq_getElem xIn,List.getElem?_eq_getElem yIn]
+      rw [unfold]
+      by_cases px : F.nodes.val[x.val].parent.val < F.nodes.val.length
+      · by_cases py : F.nodes.val[y.val].parent.val < F.nodes.val.length
+        · have lookupPX : F.nodes.index_usize F.nodes.val[x.val].parent =
+              .ok F.nodes.val[F.nodes.val[x.val].parent.val] := by
+            simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem px]
+          have lookupPY : F.nodes.index_usize F.nodes.val[y.val].parent =
+              .ok F.nodes.val[F.nodes.val[y.val].parent.val] := by
+            simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem py]
+          have labelPX : labelOf F.nodes.val F.nodes.val[x.val].parent.val =
+              F.nodes.val[F.nodes.val[x.val].parent.val].label.val := by
+            simp [labelOf,List.getElem?_eq_getElem px]
+          have labelPY : labelOf F.nodes.val F.nodes.val[y.val].parent.val =
+              F.nodes.val[F.nodes.val[y.val].parent.val].label.val := by
+            simp [labelOf,List.getElem?_eq_getElem py]
+          rw [labelPX,labelPY]
+          have parentTree : (∃ q, F.nodes.val[F.nodes.val[y.val].parent.val]? = some q ∧ q.tree = true) ↔
+              F.nodes.val[F.nodes.val[y.val].parent.val].tree = true := by
+            simp [List.getElem?_eq_getElem py]
+          rw [parentTree]
+          by_cases treeParent : F.nodes.val[F.nodes.val[y.val].parent.val].tree = true
+          swap
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,lookupX,lookupY,px,py,lookupPY,treeParent]
+          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,↓reduceIte,alloc.vec.Vec.index_slice_index,
+            lookupX,lookupY,bind_ok,px,py,same_label_correct,lookupPX,lookupPY,roles_within_correct,
+            show (0#usize).val = 0 from rfl,List.drop_zero,true_and,treeParent]
+          by_cases one : SameLabel F.nodes.val[x.val].label.val F.nodes.val[y.val].label.val
+          · rw [decide_eq_true (show ∀ i, i ∈ F.nodes.val[x.val].label.val ↔ i ∈ F.nodes.val[y.val].label.val
+              from one)]
+            by_cases two : SameLabel F.nodes.val[F.nodes.val[x.val].parent.val].label.val
+                F.nodes.val[F.nodes.val[y.val].parent.val].label.val
+            · rw [decide_eq_true (show ∀ i, i ∈ F.nodes.val[F.nodes.val[x.val].parent.val].label.val ↔
+                i ∈ F.nodes.val[F.nodes.val[y.val].parent.val].label.val from two)]
+              by_cases three : ∀ s ∈ F.nodes.val[x.val].roles.val, s ∈ F.nodes.val[y.val].roles.val
+              · rw [decide_eq_true three]
+                simp only [↓reduceIte]
+                congr 1
+                rw [decide_eq_decide]
+                exact ⟨fun four => ⟨one,two,fun s => ⟨three s,four s⟩⟩,fun ⟨_,_,both⟩ s => (both s).mpr⟩
+              · rw [decide_eq_false three]
+                simp only [Bool.false_eq_true,↓reduceIte]
+                congr 1
+                symm
+                rw [decide_eq_false_iff_not]
+                rintro ⟨_,_,both⟩
+                exact three (fun s => (both s).mp)
+            · rw [decide_eq_false (show ¬ ∀ i, i ∈ F.nodes.val[F.nodes.val[x.val].parent.val].label.val ↔
+                i ∈ F.nodes.val[F.nodes.val[y.val].parent.val].label.val from two)]
+              simp only [Bool.false_eq_true,↓reduceIte]
+              congr 1
+              symm
+              rw [decide_eq_false_iff_not]
+              rintro ⟨_,sameParents,_⟩
+              exact two sameParents
+          · rw [decide_eq_false (show ¬ ∀ i, i ∈ F.nodes.val[x.val].label.val ↔ i ∈ F.nodes.val[y.val].label.val
+              from one)]
+            simp only [Bool.false_eq_true,↓reduceIte]
+            congr 1
+            symm
+            rw [decide_eq_false_iff_not]
+            rintro ⟨sameLabels,_⟩
+            exact one sameLabels
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,lookupX,lookupY,px,py]
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,lookupX,lookupY,px]
+    · have absent : ¬ SamePair F.nodes.val x.val y.val := by
+        rintro ⟨_,_,_,at_y,_⟩
+        have := (List.getElem?_eq_some_iff.mp at_y).1
+        omega
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,absent]
+  · have absent : ¬ SamePair F.nodes.val x.val y.val := by
+      rintro ⟨_,_,at_x,_⟩
+      have := (List.getElem?_eq_some_iff.mp at_x).1
+      omega
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,absent]
+
+/-- The tree nodes from `x` up to its root, nearest first, following parents
+    with smaller indices. -/
+def treePath (nodes : List forest.Node) (x : Nat) : List Nat :=
+  match nodes[x]? with
+  | some n =>
+    if n.tree = true then
+      if _below : n.parent.val < x then x :: treePath nodes n.parent.val else [x]
+    else []
+  | none => []
+termination_by x
+
+/-- Pairwise blocking: some tree node on the path from `x` to its root repeats
+    the pair of a tree node above it. -/
+def Blocked (nodes : List forest.Node) (x : Nat) : Prop :=
+  match nodes[x]? with
+  | some n =>
+    if _below : n.parent.val < x then
+      n.tree = true ∧ ((∃ v ∈ treePath nodes n.parent.val, SamePair nodes x v) ∨ Blocked nodes n.parent.val)
+    else False
+  | none => False
+termination_by x
+
+theorem repeats_above_correct (F : forest.Forest) (node : Usize) :
+    ∀ (n : Nat) (ancestor : Usize), ancestor.val = n → forest.repeats_above F node ancestor =
+      .ok (decide (∃ v ∈ treePath F.nodes.val ancestor.val, SamePair F.nodes.val node.val v)) := by
+  intro n
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    intro ancestor same
+    by_cases ancestorIn : ancestor.val < F.nodes.val.length
+    · have at_ancestor := List.getElem?_eq_getElem ancestorIn
+      have lookupAncestor : F.nodes.index_usize ancestor = .ok F.nodes.val[ancestor.val] := by
+        simp [alloc.vec.Vec.index_usize,at_ancestor]
+      by_cases tree : F.nodes.val[ancestor.val].tree = true
+      · by_cases equal : SamePair F.nodes.val node.val ancestor.val
+        · have lhs : forest.repeats_above F node ancestor = .ok true := by
+            rw [forest.repeats_above]
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,equal]
+          rw [lhs]
+          congr 1
+          symm
+          rw [decide_eq_true_iff]
+          refine ⟨ancestor.val,?_,equal⟩
+          rw [treePath.eq_def,at_ancestor]
+          simp only [tree,↓reduceIte]
+          split <;> simp
+        · by_cases parentVal : F.nodes.val[ancestor.val].parent.val < ancestor.val
+          · have rest := ih F.nodes.val[ancestor.val].parent.val (by omega) F.nodes.val[ancestor.val].parent rfl
+            have lhs : forest.repeats_above F node ancestor =
+                forest.repeats_above F node F.nodes.val[ancestor.val].parent := by
+              conv_lhs => rw [forest.repeats_above]
+              simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,
+                equal,parentVal]
+            rw [lhs,rest]
+            congr 1
+            rw [decide_eq_decide]
+            have path : treePath F.nodes.val ancestor.val =
+                ancestor.val :: treePath F.nodes.val F.nodes.val[ancestor.val].parent.val := by
+              rw [treePath.eq_def,at_ancestor]
+              simp [tree,dif_pos parentVal]
+            rw [path]
+            constructor
+            · rintro ⟨v,member,pair⟩
+              exact ⟨v,List.mem_cons_of_mem _ member,pair⟩
+            · rintro ⟨v,member,pair⟩
+              rcases List.mem_cons.mp member with rfl | later
+              · exact absurd pair equal
+              · exact ⟨v,later,pair⟩
+          · have lhs : forest.repeats_above F node ancestor = .ok false := by
+              rw [forest.repeats_above]
+              simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,
+                equal,parentVal]
+            rw [lhs]
+            congr 1
+            symm
+            rw [decide_eq_false_iff_not]
+            have path : treePath F.nodes.val ancestor.val = [ancestor.val] := by
+              rw [treePath.eq_def,at_ancestor]
+              simp [tree,dif_neg parentVal]
+            rw [path]
+            rintro ⟨v,member,pair⟩
+            simp only [List.mem_singleton] at member
+            subst member
+            exact equal pair
+      · have lhs : forest.repeats_above F node ancestor = .ok false := by
+          rw [forest.repeats_above]
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree]
+        rw [lhs]
+        congr 1
+        symm
+        rw [decide_eq_false_iff_not]
+        have path : treePath F.nodes.val ancestor.val = [] := by
+          rw [treePath.eq_def,at_ancestor]
+          simp [tree]
+        rw [path]
+        simp
+    · have lhs : forest.repeats_above F node ancestor = .ok false := by
+        rw [forest.repeats_above]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn]
+      rw [lhs]
+      congr 1
+      symm
+      rw [decide_eq_false_iff_not]
+      have path : treePath F.nodes.val ancestor.val = [] := by
+        rw [treePath.eq_def,List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ ancestor.val by omega)]
+      rw [path]
+      simp
+
+/-- The actual blocking test decides pairwise blocking. -/
+theorem blocked_correct (F : forest.Forest) :
+    ∀ (n : Nat) (x : Usize), x.val = n → forest.blocked F x = .ok (decide (Blocked F.nodes.val x.val)) := by
+  intro n
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    intro x same
+    by_cases inside : x.val < F.nodes.val.length
+    · have at_x := List.getElem?_eq_getElem inside
+      have lookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+        simp [alloc.vec.Vec.index_usize,at_x]
+      have unfold : Blocked F.nodes.val x.val ↔ F.nodes.val[x.val].parent.val < x.val ∧ F.nodes.val[x.val].tree = true ∧
+          ((∃ v ∈ treePath F.nodes.val F.nodes.val[x.val].parent.val, SamePair F.nodes.val x.val v) ∨
+            Blocked F.nodes.val F.nodes.val[x.val].parent.val) := by
+        rw [Blocked.eq_def,at_x]
+        simp only
+        split
+        · rename_i below
+          simp [below]
+        · rename_i below
+          simp [below]
+      by_cases tree : F.nodes.val[x.val].tree = true
+      · by_cases parentVal : F.nodes.val[x.val].parent.val < x.val
+        · have rest := ih F.nodes.val[x.val].parent.val (by omega) F.nodes.val[x.val].parent rfl
+          have repeatsRun := repeats_above_correct F x _ F.nodes.val[x.val].parent rfl
+          by_cases repeats : ∃ v ∈ treePath F.nodes.val F.nodes.val[x.val].parent.val, SamePair F.nodes.val x.val v
+          · have lhs : forest.blocked F x = .ok true := by
+              rw [forest.blocked]
+              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+                lookup,bind_ok,tree,parentVal,repeatsRun]
+              simp [repeats]
+            rw [lhs]
+            congr 1
+            symm
+            rw [decide_eq_true_iff,unfold]
+            exact ⟨parentVal,tree,.inl repeats⟩
+          · have lhs : forest.blocked F x = forest.blocked F F.nodes.val[x.val].parent := by
+              conv_lhs => rw [forest.blocked]
+              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
+                lookup,bind_ok,tree,parentVal,repeatsRun]
+              simp [repeats]
+            rw [lhs,rest]
+            congr 1
+            rw [decide_eq_decide,unfold]
+            constructor
+            · intro blocked
+              exact ⟨parentVal,tree,.inr blocked⟩
+            · rintro ⟨_,_,found | blocked⟩
+              · exact absurd found repeats
+              · exact blocked
+        · have lhs : forest.blocked F x = .ok false := by
+            rw [forest.blocked]
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree,parentVal]
+          rw [lhs]
+          congr 1
+          symm
+          rw [decide_eq_false_iff_not,unfold]
+          rintro ⟨below,_⟩
+          exact parentVal below
+      · have lhs : forest.blocked F x = .ok false := by
+          rw [forest.blocked]
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree]
+        rw [lhs]
+        congr 1
+        symm
+        rw [decide_eq_false_iff_not,unfold]
+        rintro ⟨_,isTree,_⟩
+        exact tree isTree
+    · have lhs : forest.blocked F x = .ok false := by
+        rw [forest.blocked]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]
+      rw [lhs]
+      congr 1
+      symm
+      rw [decide_eq_false_iff_not,Blocked.eq_def,
+        List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
+      simp
+
+/-- The node is part of the model: active and not blocked, so its added edges
+    count. -/
+def Live (nodes : List forest.Node) (x : Nat) : Prop := Active nodes x ∧ ¬ Blocked nodes x
+
+theorem live_correct (F : forest.Forest) (x : Usize) : forest.live F x = .ok (decide (Live F.nodes.val x.val)) := by
+  rw [forest.live]
+  by_cases inside : x.val < F.nodes.val.length
+  · have at_x := List.getElem?_eq_getElem inside
+    have lookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+      simp [alloc.vec.Vec.index_usize,at_x]
+    by_cases act : F.nodes.val[x.val].active = true
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,act,blocked_correct F _ x rfl,Live,Active,at_x]
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,act,Live,Active,at_x]
+  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,Live,Active,
+      List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
+
+/-- The added edges whose source, read through the merges, is live. -/
+noncomputable def liveEdges (F : forest.Forest) (edges : List forest.Edge) : List forest.Edge :=
+  edges.filter (fun e => decide (Live F.nodes.val (rep F e.from).val))
+
 /-- A link or edge relates `x` to `y` along `r`, read through the merges. -/
 def LinkAlong (h : hierarchy.RoleHierarchy) (F : forest.Forest) (links : List (ObjectPropertyExpression × Usize × Usize))
     (x : Nat) (r : ObjectPropertyExpression) (y : Nat) : Prop :=
@@ -452,7 +814,8 @@ decreasing_by omega
 theorem edges_along_correct (F : forest.Forest) (h : hierarchy.RoleHierarchy)
     (x : Usize) (r : ObjectPropertyExpression) (index : Usize) (out : alloc.vec.Vec Usize) :
     ∃ res, forest.edges_along F h x r index out = .ok res ∧ ∀ out', res = some out' →
-      (∀ z : Usize, z ∈ out'.val ↔ z ∈ out.val ∨ LinkAlong h F (edgeEnds (F.edges.val.drop index.val)) x.val r z.val) ∧
+      (∀ z : Usize, z ∈ out'.val ↔ z ∈ out.val ∨
+        LinkAlong h F (edgeEnds (liveEdges F (F.edges.val.drop index.val))) x.val r z.val) ∧
       (out.val.Nodup → out'.val.Nodup) := by
   rw [forest.edges_along]
   by_cases more : index.val < F.edges.val.length
@@ -463,50 +826,66 @@ theorem edges_along_correct (F : forest.Forest) (h : hierarchy.RoleHierarchy)
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨found,foundRun,foundSpec⟩ := ends_correct h out (rep F F.edges.val[index.val].from)
-      (rep F F.edges.val[index.val].to) F.edges.val[index.val].role x r
-    cases found with
-    | none =>
-      refine ⟨none,?_,by simp⟩
-      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-        lookup,bind_ok,representative_correct,foundRun]
-    | some mid =>
-      obtain ⟨midMembers,midNodup⟩ := foundSpec mid rfl
-      obtain ⟨res,run,spec⟩ := edges_along_correct F h x r index' mid
+    by_cases isLive : Live F.nodes.val (rep F F.edges.val[index.val].from).val
+    · have liveSplit : liveEdges F (F.edges.val.drop index.val) =
+          F.edges.val[index.val] :: liveEdges F (F.edges.val.drop (index.val+1)) := by
+        rw [split,liveEdges,List.filter_cons_of_pos (by simpa using isLive)]
+        rfl
+      obtain ⟨found,foundRun,foundSpec⟩ := ends_correct h out (rep F F.edges.val[index.val].from)
+        (rep F F.edges.val[index.val].to) F.edges.val[index.val].role x r
+      cases found with
+      | none =>
+        refine ⟨none,?_,by simp⟩
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,representative_correct,live_correct,decide_eq_true isLive,foundRun]
+      | some mid =>
+        obtain ⟨midMembers,midNodup⟩ := foundSpec mid rfl
+        obtain ⟨res,run,spec⟩ := edges_along_correct F h x r index' mid
+        refine ⟨res,?_,?_⟩
+        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+            lookup,bind_ok,representative_correct,live_correct,decide_eq_true isLive,foundRun,advance,run]
+        · intro out' same
+          obtain ⟨members,nodup⟩ := spec out' same
+          refine ⟨fun z => ?_,fun start => nodup (midNodup start)⟩
+          rw [members,midMembers,nextIndex,liveSplit]
+          simp only [LinkAlong,edgeEnds,List.map_cons,List.mem_cons,exists_eq_or_imp]
+          constructor
+          · rintro ((old | ⟨sx,below,rfl⟩ | ⟨tx,below,rfl⟩) | rest)
+            · exact .inl old
+            · exact .inr (.inl (.inl ⟨by rw [sx],below,rfl⟩))
+            · exact .inr (.inl (.inr ⟨by rw [tx],below,rfl⟩))
+            · exact .inr (.inr rest)
+          · rintro (old | (⟨sx,below,zIs⟩ | ⟨tx,below,zIs⟩) | rest)
+            · exact .inl (.inl old)
+            · exact .inl (.inr (.inl ⟨UScalar.eq_of_val_eq sx,below,UScalar.eq_of_val_eq zIs.symm⟩))
+            · exact .inl (.inr (.inr ⟨UScalar.eq_of_val_eq tx,below,UScalar.eq_of_val_eq zIs.symm⟩))
+            · exact .inr rest
+    · have liveSplit : liveEdges F (F.edges.val.drop index.val) = liveEdges F (F.edges.val.drop (index.val+1)) := by
+        rw [split,liveEdges,List.filter_cons_of_neg (by simpa using isLive)]
+        rfl
+      obtain ⟨res,run,spec⟩ := edges_along_correct F h x r index' out
       refine ⟨res,?_,?_⟩
       · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,representative_correct,foundRun,advance,run]
+          lookup,bind_ok,representative_correct,live_correct,decide_eq_false isLive,Bool.false_eq_true,advance,run]
       · intro out' same
         obtain ⟨members,nodup⟩ := spec out' same
-        refine ⟨fun z => ?_,fun start => nodup (midNodup start)⟩
-        rw [members,midMembers,nextIndex,split]
-        simp only [LinkAlong,edgeEnds,List.map_cons,List.mem_cons,exists_eq_or_imp]
-        constructor
-        · rintro ((old | ⟨sx,below,rfl⟩ | ⟨tx,below,rfl⟩) | rest)
-          · exact .inl old
-          · exact .inr (.inl (.inl ⟨by rw [sx],below,rfl⟩))
-          · exact .inr (.inl (.inr ⟨by rw [tx],below,rfl⟩))
-          · exact .inr (.inr rest)
-        · rintro (old | (⟨sx,below,zIs⟩ | ⟨tx,below,zIs⟩) | rest)
-          · exact .inl (.inl old)
-          · exact .inl (.inr (.inl ⟨UScalar.eq_of_val_eq sx,below,UScalar.eq_of_val_eq zIs.symm⟩))
-          · exact .inl (.inr (.inr ⟨UScalar.eq_of_val_eq tx,below,UScalar.eq_of_val_eq zIs.symm⟩))
-          · exact .inr rest
+        refine ⟨fun z => ?_,nodup⟩
+        rw [members,nextIndex,liveSplit]
   · have empty : F.edges.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
     intro out' same
     cases same
     refine ⟨fun z => ?_,id⟩
-    simp [empty,LinkAlong,edgeEnds]
+    simp [empty,LinkAlong,edgeEnds,liveEdges]
 termination_by F.edges.val.length - index.val
-decreasing_by omega
+decreasing_by all_goals omega
 
-/-- `y` is a neighbour of `x` along `r`: an active child, the parent, or a named
-    node related by a link or an added edge. -/
+/-- `y` is a neighbour of `x` along `r`: an active child, the parent, a named
+    node related by a link, or a node related by an added edge from a live node. -/
 def Neighbour (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
     (r : ObjectPropertyExpression) (y : Nat) : Prop :=
   ChildAlong h F.nodes.val x r y ∨ ParentAlong h F.nodes.val x r y ∨
-    LinkAlong h F (linkEnds P.links.val) x r y ∨ LinkAlong h F (edgeEnds F.edges.val) x r y
+    LinkAlong h F (linkEnds P.links.val) x r y ∨ LinkAlong h F (edgeEnds (liveEdges F F.edges.val)) x r y
 
 /-- The neighbour list of a node along a role lists exactly its neighbours, once
     each. -/
@@ -606,10 +985,6 @@ def NodeNeeds (P : completion.Problem) (F : forest.Forest) (x : Nat) (c : Usize)
   (∃ q ∈ P.requirements.val, (rep F q.node).val = x ∧ c = q.concept) ∨ c = P.axioms ∨
   (∃ u ∈ P.unfoldings.val, HasAtom P.entries.val (labelOf F.nodes.val x) u.class ∧ c = u.concept) ∨
   (∃ n, F.nodes.val[x]? = some n ∧ n.tree = true ∧ c = n.seed)
-
-/-- The node is part of the forest. -/
-def Active (nodes : List forest.Node) (x : Nat) : Prop :=
-  ∃ n, nodes[x]? = some n ∧ n.active = true
 
 theorem missing_requirement_correct (P : completion.Problem) (F : forest.Forest) (label : alloc.vec.Vec Usize)
     (x index : Usize) :
@@ -1081,9 +1456,9 @@ theorem missing_added_correct (P : completion.Problem) (h : hierarchy.RoleHierar
     (index : Usize) :
     ∃ r, forest.missing_added P h F index = .ok r ∧
       (∀ y c, r = some (y,c) → y.val < F.nodes.val.length ∧
-        LinkNeeds P.entries.val h F (edgeEnds F.edges.val) y.val c ∧
+        LinkNeeds P.entries.val h F (edgeEnds (liveEdges F F.edges.val)) y.val c ∧
         ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c.val) ∧
-      (r = none → LinksOk P.entries.val h F (edgeEnds (F.edges.val.drop index.val))) := by
+      (r = none → LinksOk P.entries.val h F (edgeEnds (liveEdges F (F.edges.val.drop index.val)))) := by
   rw [forest.missing_added]
   by_cases more : index.val < F.edges.val.length
   · have lookup : F.edges.index_usize index = .ok F.edges.val[index.val] := by
@@ -1093,35 +1468,53 @@ theorem missing_added_correct (P : completion.Problem) (h : hierarchy.RoleHierar
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    have memberHere : (F.edges.val[index.val].role,F.edges.val[index.val].from,F.edges.val[index.val].to) ∈
-        edgeEnds F.edges.val := List.mem_map.mpr ⟨_,List.getElem_mem more,rfl⟩
-    obtain ⟨e,eRun,eFound,eAbsent⟩ := missing_edge_correct P.entries h F (rep F F.edges.val[index.val].from)
-      (rep F F.edges.val[index.val].to) F.edges.val[index.val].role
-    cases e with
-    | some pair =>
-      obtain ⟨y,c⟩ := pair
-      refine ⟨some (y,c),?_,?_,by simp⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,eRun]
-      · intro y' c' same
-        simp only [Option.some.injEq,Prod.mk.injEq] at same
-        obtain ⟨rfl,rfl⟩ := same
-        obtain ⟨sourceIn,targetIn,which⟩ := eFound y c rfl
-        rcases which with ⟨rfl,needs,fails⟩ | ⟨rfl,needs,fails⟩
-        · exact ⟨targetIn,⟨_,memberHere,sourceIn,targetIn,.inl ⟨rfl,needs⟩⟩,fails⟩
-        · exact ⟨sourceIn,⟨_,memberHere,sourceIn,targetIn,.inr ⟨rfl,needs⟩⟩,fails⟩
-    | none =>
-      obtain ⟨r,run,found,absent⟩ := missing_added_correct P h F index'
+    obtain ⟨r,run,found,absent⟩ := missing_added_correct P h F index'
+    by_cases isLive : Live F.nodes.val (rep F F.edges.val[index.val].from).val
+    · have liveSplit : liveEdges F (F.edges.val.drop index.val) =
+          F.edges.val[index.val] :: liveEdges F (F.edges.val.drop (index.val+1)) := by
+        rw [split,liveEdges,List.filter_cons_of_pos (by simpa using isLive)]
+        rfl
+      have memberHere : (F.edges.val[index.val].role,F.edges.val[index.val].from,F.edges.val[index.val].to) ∈
+          edgeEnds (liveEdges F F.edges.val) :=
+        List.mem_map.mpr ⟨_,List.mem_filter.mpr ⟨List.getElem_mem more,by simpa using isLive⟩,rfl⟩
+      obtain ⟨e,eRun,eFound,eAbsent⟩ := missing_edge_correct P.entries h F (rep F F.edges.val[index.val].from)
+        (rep F F.edges.val[index.val].to) F.edges.val[index.val].role
+      cases e with
+      | some pair =>
+        obtain ⟨y,c⟩ := pair
+        refine ⟨some (y,c),?_,?_,by simp⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,live_correct,
+            isLive,eRun]
+        · intro y' c' same
+          simp only [Option.some.injEq,Prod.mk.injEq] at same
+          obtain ⟨rfl,rfl⟩ := same
+          obtain ⟨sourceIn,targetIn,which⟩ := eFound y c rfl
+          rcases which with ⟨rfl,needs,fails⟩ | ⟨rfl,needs,fails⟩
+          · exact ⟨targetIn,⟨_,memberHere,sourceIn,targetIn,.inl ⟨rfl,needs⟩⟩,fails⟩
+          · exact ⟨sourceIn,⟨_,memberHere,sourceIn,targetIn,.inr ⟨rfl,needs⟩⟩,fails⟩
+      | none =>
+        refine ⟨r,?_,found,?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,live_correct,
+            isLive,eRun,advance,run]
+        · intro none l member sourceIn targetIn
+          rw [liveSplit,edgeEnds,List.map_cons] at member
+          rcases List.mem_cons.mp member with rfl | later
+          · exact eAbsent rfl sourceIn targetIn
+          · exact absent none l (by rw [nextIndex,edgeEnds]; exact later) sourceIn targetIn
+    · have liveSplit : liveEdges F (F.edges.val.drop index.val) = liveEdges F (F.edges.val.drop (index.val+1)) := by
+        rw [split,liveEdges,List.filter_cons_of_neg (by simpa using isLive)]
+        rfl
       refine ⟨r,?_,found,?_⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,eRun,advance,run]
-      · intro none l member sourceIn targetIn
-        rw [split,edgeEnds,List.map_cons] at member
-        rcases List.mem_cons.mp member with rfl | later
-        · exact eAbsent rfl sourceIn targetIn
-        · exact absent none l (by rw [nextIndex,edgeEnds]; exact later) sourceIn targetIn
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,live_correct,
+          isLive,advance,run]
+      · intro none
+        rw [liveSplit]
+        rw [nextIndex] at absent
+        exact absent none
   · have empty : F.edges.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
     intro _ l member
-    simp [empty,edgeEnds] at member
+    simp [empty,edgeEnds,liveEdges] at member
 termination_by F.edges.val.length - index.val
 decreasing_by all_goals omega
 
@@ -1213,6 +1606,18 @@ theorem excess_iff (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : f
     obtain ⟨listed,holds⟩ := List.mem_filter.mp member
     exact ⟨(members z).mp listed,by simpa using holds⟩
 
+/-- A tree node `y` that is no child of `x`: a neighbour along an added edge,
+    which the model may repeat. -/
+def Repeated (nodes : List forest.Node) (x y : Nat) : Prop :=
+  ∃ m, nodes[y]? = some m ∧ m.tree = true ∧ m.parent.val ≠ x
+
+/-- For a named node `x`, no neighbour along `r` that the model may repeat
+    satisfies `c`. -/
+def Unrepeated (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
+    (r : ObjectPropertyExpression) (c : Usize) : Prop :=
+  (∃ n, F.nodes.val[x]? = some n ∧ n.tree = false) → ∀ y : Usize, Neighbour P h F x r y.val →
+    Repeated F.nodes.val x y.val → ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c.val
+
 /-- What the choose rule (`choose`) or the merge rule requires at node `x` for
     the maximum restrictions among `items`. -/
 def CountOkFrom (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (choose : Bool)
@@ -1221,7 +1626,85 @@ def CountOkFrom (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : fore
     match choose with
     | true => ∀ y : Usize, Neighbour P h F x r y.val →
         Holds P.entries.val (labelOf F.nodes.val y.val) c.val ∨ Holds P.entries.val (labelOf F.nodes.val y.val) c'.val
-    | false => ¬ Excess P h F x r c n
+    | false => ¬ Excess P h F x r c n ∧ Unrepeated P h F x r c
+
+theorem repeated_satisfying_correct (entries : alloc.vec.Vec concept_table.Entry) (F : forest.Forest)
+    (list : alloc.vec.Vec Usize) (x c index : Usize) :
+    forest.repeated_satisfying entries F list x c index = .ok (decide (∃ y ∈ list.val.drop index.val,
+      Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val)) := by
+  rw [forest.repeated_satisfying]
+  by_cases more : index.val < list.val.length
+  · have lookup : list.index_usize index = .ok list.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : list.val.drop index.val = list.val[index.val] :: list.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := repeated_satisfying_correct entries F list x c next
+    rw [nextIndex] at rest
+    obtain ⟨y,yIs⟩ : ∃ y, list.val[index.val] = y := ⟨_,rfl⟩
+    rw [yIs] at lookup split
+    rw [split]
+    simp only [List.mem_cons,exists_eq_or_imp]
+    -- The answer of the rest, when `y` does not count.
+    have skip : ¬ (Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) →
+        forest.repeated_satisfying entries F list x c next =
+          .ok (decide ((Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) ∨
+            ∃ y' ∈ list.val.drop (index.val+1),
+              Repeated F.nodes.val x.val y'.val ∧ Holds entries.val (labelOf F.nodes.val y'.val) c.val)) := by
+      intro miss
+      rw [rest]
+      congr 1
+      exact decide_eq_decide.mpr ⟨fun later => .inr later,fun both => both.resolve_left miss⟩
+    by_cases yIn : y.val < F.nodes.val.length
+    · have at_y := List.getElem?_eq_getElem yIn
+      have nodeLookup : F.nodes.index_usize y = .ok F.nodes.val[y.val] := by
+        simp [alloc.vec.Vec.index_usize,at_y]
+      have labelIs : labelOf F.nodes.val y.val = F.nodes.val[y.val].label.val := by simp [labelOf,at_y]
+      by_cases tree : F.nodes.val[y.val].tree = true
+      · by_cases parent : F.nodes.val[y.val].parent = x
+        · have miss : ¬ (Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) := by
+            rintro ⟨⟨m,at_m,_,other⟩,_⟩
+            rw [at_y,Option.some.injEq] at at_m
+            subst at_m
+            exact other (by rw [parent])
+          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+            bind_ok,yIn,nodeLookup,tree,parent,bne_self_eq_false,Bool.false_eq_true,advance,skip miss]
+          exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
+        · have parentVal : F.nodes.val[y.val].parent.val ≠ x.val := fun same => parent (UScalar.eq_of_val_eq same)
+          have repeated : Repeated F.nodes.val x.val y.val := ⟨_,at_y,tree,parentVal⟩
+          by_cases holds : Holds entries.val F.nodes.val[y.val].label.val c.val
+          · have hit : Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val :=
+              ⟨repeated,by rw [labelIs]; exact holds⟩
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,yIn,nodeLookup,tree,parent,parentVal,
+              holds_correct entries F.nodes.val[y.val].label _ c rfl,holds,hit]
+          · have miss : ¬ (Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) :=
+              fun ⟨_,holds'⟩ => holds (by rw [← labelIs]; exact holds')
+            simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+              lookup,bind_ok,yIn,nodeLookup,tree,bne_iff_ne,ne_eq,parent,not_false_eq_true,
+              holds_correct entries F.nodes.val[y.val].label _ c rfl,decide_eq_false holds,Bool.false_eq_true,advance,
+              skip miss]
+            exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
+      · have miss : ¬ (Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) := by
+          rintro ⟨⟨m,at_m,isTree,_⟩,_⟩
+          rw [at_y,Option.some.injEq] at at_m
+          subst at_m
+          exact tree isTree
+        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,yIn,nodeLookup,tree,Bool.false_eq_true,advance,skip miss]
+        exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
+    · have miss : ¬ (Repeated F.nodes.val x.val y.val ∧ Holds entries.val (labelOf F.nodes.val y.val) c.val) := by
+        rintro ⟨⟨m,at_m,_⟩,_⟩
+        have := (List.getElem?_eq_some_iff.mp at_m).1
+        omega
+      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,yIn,Bool.false_eq_true,advance,skip miss]
+      exact congrArg _ (decide_eq_decide.mpr Iff.rfl)
+  · have empty : list.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by list.val.length - index.val
+decreasing_by omega
 
 /-- A step of the choose rule (`choose`) or the merge rule at node `x`. -/
 def CountStep (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (choose : Bool)
@@ -1230,7 +1713,7 @@ def CountStep (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest
     match choose with
     | true => ∃ y : Usize, step = .Choose y c c' ∧ Neighbour P h F x.val r y.val ∧
         ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c.val ∧ ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c'.val
-    | false => step = .Merge x i ∧ Excess P h F x.val r c n
+    | false => step = .Merge x i ∧ Excess P h F x.val r c n ∧ Unrepeated P h F x.val r c
 
 theorem counting_from_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Usize)
     (choose : Bool) (index : Usize) :
@@ -1310,11 +1793,40 @@ theorem counting_from_correct (P : completion.Problem) (h : hierarchy.RoleHierar
             | false =>
               obtain ⟨many,manyRun,manySpec⟩ := satisfying_correct P.entries F list c 0#usize
                 (alloc.vec.Vec.new Usize)
+              have repeatedRun := repeated_satisfying_correct P.entries F list x c 0#usize
+              rw [show (0#usize).val = 0 from rfl,List.drop_zero] at repeatedRun
+              -- At a named node, a counted neighbour that the model may repeat gives no answer.
+              have unrepeated : ¬ (F.nodes.val[x.val].tree = false ∧ ∃ y ∈ list.val,
+                  Repeated F.nodes.val x.val y.val ∧ Holds P.entries.val (labelOf F.nodes.val y.val) c.val) →
+                  Unrepeated P h F x.val role c := by
+                intro none ⟨n',at_n,named⟩ y neighbour repeated holds
+                rw [List.getElem?_eq_getElem inside,Option.some.injEq] at at_n
+                subst at_n
+                exact none ⟨named,y,(members y).mpr neighbour,repeated,holds⟩
+              by_cases stop : F.nodes.val[x.val].tree = false ∧ ∃ y ∈ list.val,
+                  Repeated F.nodes.val x.val y.val ∧ Holds P.entries.val (labelOf F.nodes.val y.val) c.val
+              · refine ⟨none,?_,by simp,by simp⟩
+                simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,entryLookup,
+                  entry,neighboursRun,stop.1,repeatedRun,stop.2]
+              have alright := unrepeated stop
+              -- Past the check, a named node goes on like a tree node.
+              have pass : ∀ A : Result (Option (Option forest.Step)),
+                  (if F.nodes.val[x.val].tree = true then A else
+                    (do
+                      let b ← forest.repeated_satisfying P.entries F list x c 0#usize
+                      if b = true then ok none else A)) = A := by
+                intro A
+                by_cases tree : F.nodes.val[x.val].tree = true
+                · simp [tree]
+                · have named : F.nodes.val[x.val].tree = false := by simpa using tree
+                  have clear : ¬ ∃ y ∈ list.val, Repeated F.nodes.val x.val y.val ∧
+                      Holds P.entries.val (labelOf F.nodes.val y.val) c.val := fun found => stop ⟨named,found⟩
+                  simp [tree,repeatedRun,clear]
               cases many with
               | none =>
                 refine ⟨none,?_,by simp,by simp⟩
                 simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,
-                  entryLookup,entry,neighboursRun,manyRun]
+                  entryLookup,entry,neighboursRun,pass,manyRun,repeatedRun]
               | some kept =>
                 have keptIs : kept.val = list.val.filter
                     (fun y => decide (Holds P.entries.val (labelOf F.nodes.val y.val) c.val)) := by
@@ -1324,21 +1836,21 @@ theorem counting_from_correct (P : completion.Problem) (h : hierarchy.RoleHierar
                 by_cases over : n.val < kept.val.length
                 · refine ⟨some (some (.Merge x F.nodes.val[x.val].label.val[index.val])),?_,?_,by simp⟩
                   · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,
-                      entryLookup,entry,neighboursRun,manyRun,over]
+                      entryLookup,entry,neighboursRun,pass,manyRun,over]
                   · intro step same
                     simp only [Option.some.injEq] at same
                     subst same
-                    exact ⟨_,itemIn,n,role,c,c',by rw [at_item,entry],rfl,excess.mpr over⟩
+                    exact ⟨_,itemIn,n,role,c,c',by rw [at_item,entry],rfl,excess.mpr over,alright⟩
                 · refine ⟨r,?_,found,?_⟩
                   · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,more,itemLookup,itemInside,
-                      entryLookup,entry,neighboursRun,manyRun,over,advance,run]
+                      entryLookup,entry,neighboursRun,pass,manyRun,over,advance,run]
                   · intro none i member n' role' d d' at_i
                     rw [labelIs,split] at member
                     rcases List.mem_cons.mp member with rfl | later
                     · rw [at_item,entry] at at_i
                       simp only [Option.some.injEq,concept_table.Entry.AtMost.injEq] at at_i
                       obtain ⟨rfl,rfl,rfl,rfl⟩ := at_i
-                      exact fun excessive => over (excess.mp excessive)
+                      exact ⟨fun excessive => over (excess.mp excessive),alright⟩
                     · exact absent none i (by rw [labelIs,nextIndex]; exact later) n' role' d d' at_i
         | Top | Bottom | Atom _ | NotAtom _ | One _ | NotOne _ | And _ _ | Or _ _ | Exists _ _ | Forall _ _ | AtLeast _ _ _ =>
           refine ⟨r,?_,found,skip (by intro n role c c' at_i; rw [at_item,entry] at at_i; cases at_i)⟩
@@ -1422,333 +1934,6 @@ theorem counting_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
     omega
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
-
-theorem role_listed_correct (list : alloc.vec.Vec ObjectPropertyExpression) (role : ObjectPropertyExpression)
-    (index : Usize) : forest.role_listed list role index = .ok (decide (role ∈ list.val.drop index.val)) := by
-  rw [forest.role_listed]
-  by_cases more : index.val < list.val.length
-  · have lookup : list.index_usize index = .ok list.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
-    have split : list.val.drop index.val = list.val[index.val] :: list.val.drop (index.val+1) :=
-      List.drop_eq_getElem_cons more
-    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    have rest := role_listed_correct list role index'
-    rw [nextIndex] at rest
-    rw [split]
-    by_cases here : list.val[index.val] = role
-    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,same_role_correct,here]
-    · have other : role ≠ list.val[index.val] := fun same => here same.symm
-      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
-        bind_ok,same_role_correct,here,decide_false,Bool.false_eq_true,advance,rest,List.mem_cons,other,false_or]
-  · have empty : list.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
-termination_by list.val.length - index.val
-decreasing_by omega
-
-theorem roles_within_correct (small large : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
-    forest.roles_within small large index = .ok (decide (∀ s ∈ small.val.drop index.val, s ∈ large.val)) := by
-  rw [forest.roles_within]
-  by_cases more : index.val < small.val.length
-  · have lookup : small.index_usize index = .ok small.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
-    have split : small.val.drop index.val = small.val[index.val] :: small.val.drop (index.val+1) :=
-      List.drop_eq_getElem_cons more
-    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    have rest := roles_within_correct small large index'
-    rw [nextIndex] at rest
-    rw [split]
-    by_cases found : small.val[index.val] ∈ large.val
-    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-        lookup,bind_ok,role_listed_correct,show (0#usize).val = 0 from rfl,List.drop_zero,found,decide_true,advance,
-        rest,List.forall_mem_cons,true_and]
-    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-        lookup,bind_ok,role_listed_correct,show (0#usize).val = 0 from rfl,List.drop_zero,found,decide_false,
-        Bool.false_eq_true,List.forall_mem_cons,false_and]
-  · have empty : small.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
-termination_by small.val.length - index.val
-decreasing_by omega
-
-/-- Two nodes have the same label, parents in range with the same label, and
-    the same roles from their parents. -/
-def SamePair (nodes : List forest.Node) (x y : Nat) : Prop :=
-  ∃ nx ny, nodes[x]? = some nx ∧ nodes[y]? = some ny ∧ nx.parent.val < nodes.length ∧
-    ny.parent.val < nodes.length ∧ SameLabel nx.label.val ny.label.val ∧
-    SameLabel (labelOf nodes nx.parent.val) (labelOf nodes ny.parent.val) ∧ (∀ s, s ∈ nx.roles.val ↔ s ∈ ny.roles.val)
-
-theorem same_pair_correct (F : forest.Forest) (x y : Usize) :
-    forest.same_pair F x y = .ok (decide (SamePair F.nodes.val x.val y.val)) := by
-  rw [forest.same_pair]
-  by_cases xIn : x.val < F.nodes.val.length
-  · by_cases yIn : y.val < F.nodes.val.length
-    · have lookupX : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
-        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem xIn]
-      have lookupY : F.nodes.index_usize y = .ok F.nodes.val[y.val] := by
-        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem yIn]
-      have unfold : SamePair F.nodes.val x.val y.val ↔ F.nodes.val[x.val].parent.val < F.nodes.val.length ∧
-          F.nodes.val[y.val].parent.val < F.nodes.val.length ∧
-          SameLabel F.nodes.val[x.val].label.val F.nodes.val[y.val].label.val ∧
-          SameLabel (labelOf F.nodes.val F.nodes.val[x.val].parent.val)
-            (labelOf F.nodes.val F.nodes.val[y.val].parent.val) ∧
-          (∀ s, s ∈ F.nodes.val[x.val].roles.val ↔ s ∈ F.nodes.val[y.val].roles.val) := by
-        simp [SamePair,List.getElem?_eq_getElem xIn,List.getElem?_eq_getElem yIn]
-      rw [unfold]
-      by_cases px : F.nodes.val[x.val].parent.val < F.nodes.val.length
-      · by_cases py : F.nodes.val[y.val].parent.val < F.nodes.val.length
-        · have lookupPX : F.nodes.index_usize F.nodes.val[x.val].parent =
-              .ok F.nodes.val[F.nodes.val[x.val].parent.val] := by
-            simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem px]
-          have lookupPY : F.nodes.index_usize F.nodes.val[y.val].parent =
-              .ok F.nodes.val[F.nodes.val[y.val].parent.val] := by
-            simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem py]
-          have labelPX : labelOf F.nodes.val F.nodes.val[x.val].parent.val =
-              F.nodes.val[F.nodes.val[x.val].parent.val].label.val := by
-            simp [labelOf,List.getElem?_eq_getElem px]
-          have labelPY : labelOf F.nodes.val F.nodes.val[y.val].parent.val =
-              F.nodes.val[F.nodes.val[y.val].parent.val].label.val := by
-            simp [labelOf,List.getElem?_eq_getElem py]
-          rw [labelPX,labelPY]
-          simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,↓reduceIte,alloc.vec.Vec.index_slice_index,
-            lookupX,lookupY,bind_ok,px,py,same_label_correct,lookupPX,lookupPY,roles_within_correct,
-            show (0#usize).val = 0 from rfl,List.drop_zero,true_and]
-          by_cases one : SameLabel F.nodes.val[x.val].label.val F.nodes.val[y.val].label.val
-          · rw [decide_eq_true (show ∀ i, i ∈ F.nodes.val[x.val].label.val ↔ i ∈ F.nodes.val[y.val].label.val
-              from one)]
-            by_cases two : SameLabel F.nodes.val[F.nodes.val[x.val].parent.val].label.val
-                F.nodes.val[F.nodes.val[y.val].parent.val].label.val
-            · rw [decide_eq_true (show ∀ i, i ∈ F.nodes.val[F.nodes.val[x.val].parent.val].label.val ↔
-                i ∈ F.nodes.val[F.nodes.val[y.val].parent.val].label.val from two)]
-              by_cases three : ∀ s ∈ F.nodes.val[x.val].roles.val, s ∈ F.nodes.val[y.val].roles.val
-              · rw [decide_eq_true three]
-                simp only [↓reduceIte]
-                congr 1
-                rw [decide_eq_decide]
-                exact ⟨fun four => ⟨one,two,fun s => ⟨three s,four s⟩⟩,fun ⟨_,_,both⟩ s => (both s).mpr⟩
-              · rw [decide_eq_false three]
-                simp only [Bool.false_eq_true,↓reduceIte]
-                congr 1
-                symm
-                rw [decide_eq_false_iff_not]
-                rintro ⟨_,_,both⟩
-                exact three (fun s => (both s).mp)
-            · rw [decide_eq_false (show ¬ ∀ i, i ∈ F.nodes.val[F.nodes.val[x.val].parent.val].label.val ↔
-                i ∈ F.nodes.val[F.nodes.val[y.val].parent.val].label.val from two)]
-              simp only [Bool.false_eq_true,↓reduceIte]
-              congr 1
-              symm
-              rw [decide_eq_false_iff_not]
-              rintro ⟨_,sameParents,_⟩
-              exact two sameParents
-          · rw [decide_eq_false (show ¬ ∀ i, i ∈ F.nodes.val[x.val].label.val ↔ i ∈ F.nodes.val[y.val].label.val
-              from one)]
-            simp only [Bool.false_eq_true,↓reduceIte]
-            congr 1
-            symm
-            rw [decide_eq_false_iff_not]
-            rintro ⟨sameLabels,_⟩
-            exact one sameLabels
-        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,lookupX,lookupY,px,py]
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,lookupX,lookupY,px]
-    · have absent : ¬ SamePair F.nodes.val x.val y.val := by
-        rintro ⟨_,_,_,at_y,_⟩
-        have := (List.getElem?_eq_some_iff.mp at_y).1
-        omega
-      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,yIn,absent]
-  · have absent : ¬ SamePair F.nodes.val x.val y.val := by
-      rintro ⟨_,_,at_x,_⟩
-      have := (List.getElem?_eq_some_iff.mp at_x).1
-      omega
-    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,absent]
-
-/-- The tree nodes from `x` up to its root, nearest first, following parents
-    with smaller indices. -/
-def treePath (nodes : List forest.Node) (x : Nat) : List Nat :=
-  match nodes[x]? with
-  | some n =>
-    if n.tree = true then
-      if _below : n.parent.val < x then x :: treePath nodes n.parent.val else [x]
-    else []
-  | none => []
-termination_by x
-
-/-- Pairwise blocking: some tree node on the path from `x` to its root repeats
-    the pair of a tree node above it. -/
-def Blocked (nodes : List forest.Node) (x : Nat) : Prop :=
-  match nodes[x]? with
-  | some n =>
-    if _below : n.parent.val < x then
-      n.tree = true ∧ ((∃ v ∈ treePath nodes n.parent.val, SamePair nodes x v) ∨ Blocked nodes n.parent.val)
-    else False
-  | none => False
-termination_by x
-
-theorem repeats_above_correct (F : forest.Forest) (node : Usize) :
-    ∀ (n : Nat) (ancestor : Usize), ancestor.val = n → forest.repeats_above F node ancestor =
-      .ok (decide (∃ v ∈ treePath F.nodes.val ancestor.val, SamePair F.nodes.val node.val v)) := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro ancestor same
-    by_cases ancestorIn : ancestor.val < F.nodes.val.length
-    · have at_ancestor := List.getElem?_eq_getElem ancestorIn
-      have lookupAncestor : F.nodes.index_usize ancestor = .ok F.nodes.val[ancestor.val] := by
-        simp [alloc.vec.Vec.index_usize,at_ancestor]
-      by_cases tree : F.nodes.val[ancestor.val].tree = true
-      · by_cases equal : SamePair F.nodes.val node.val ancestor.val
-        · have lhs : forest.repeats_above F node ancestor = .ok true := by
-            rw [forest.repeats_above]
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,equal]
-          rw [lhs]
-          congr 1
-          symm
-          rw [decide_eq_true_iff]
-          refine ⟨ancestor.val,?_,equal⟩
-          rw [treePath.eq_def,at_ancestor]
-          simp only [tree,↓reduceIte]
-          split <;> simp
-        · by_cases parentVal : F.nodes.val[ancestor.val].parent.val < ancestor.val
-          · have rest := ih F.nodes.val[ancestor.val].parent.val (by omega) F.nodes.val[ancestor.val].parent rfl
-            have lhs : forest.repeats_above F node ancestor =
-                forest.repeats_above F node F.nodes.val[ancestor.val].parent := by
-              conv_lhs => rw [forest.repeats_above]
-              simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,
-                equal,parentVal]
-            rw [lhs,rest]
-            congr 1
-            rw [decide_eq_decide]
-            have path : treePath F.nodes.val ancestor.val =
-                ancestor.val :: treePath F.nodes.val F.nodes.val[ancestor.val].parent.val := by
-              rw [treePath.eq_def,at_ancestor]
-              simp [tree,dif_pos parentVal]
-            rw [path]
-            constructor
-            · rintro ⟨v,member,pair⟩
-              exact ⟨v,List.mem_cons_of_mem _ member,pair⟩
-            · rintro ⟨v,member,pair⟩
-              rcases List.mem_cons.mp member with rfl | later
-              · exact absurd pair equal
-              · exact ⟨v,later,pair⟩
-          · have lhs : forest.repeats_above F node ancestor = .ok false := by
-              rw [forest.repeats_above]
-              simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree,same_pair_correct,
-                equal,parentVal]
-            rw [lhs]
-            congr 1
-            symm
-            rw [decide_eq_false_iff_not]
-            have path : treePath F.nodes.val ancestor.val = [ancestor.val] := by
-              rw [treePath.eq_def,at_ancestor]
-              simp [tree,dif_neg parentVal]
-            rw [path]
-            rintro ⟨v,member,pair⟩
-            simp only [List.mem_singleton] at member
-            subst member
-            exact equal pair
-      · have lhs : forest.repeats_above F node ancestor = .ok false := by
-          rw [forest.repeats_above]
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,lookupAncestor,tree]
-        rw [lhs]
-        congr 1
-        symm
-        rw [decide_eq_false_iff_not]
-        have path : treePath F.nodes.val ancestor.val = [] := by
-          rw [treePath.eq_def,at_ancestor]
-          simp [tree]
-        rw [path]
-        simp
-    · have lhs : forest.repeats_above F node ancestor = .ok false := by
-        rw [forest.repeats_above]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn]
-      rw [lhs]
-      congr 1
-      symm
-      rw [decide_eq_false_iff_not]
-      have path : treePath F.nodes.val ancestor.val = [] := by
-        rw [treePath.eq_def,List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ ancestor.val by omega)]
-      rw [path]
-      simp
-
-/-- The actual blocking test decides pairwise blocking. -/
-theorem blocked_correct (F : forest.Forest) :
-    ∀ (n : Nat) (x : Usize), x.val = n → forest.blocked F x = .ok (decide (Blocked F.nodes.val x.val)) := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro x same
-    by_cases inside : x.val < F.nodes.val.length
-    · have at_x := List.getElem?_eq_getElem inside
-      have lookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
-        simp [alloc.vec.Vec.index_usize,at_x]
-      have unfold : Blocked F.nodes.val x.val ↔ F.nodes.val[x.val].parent.val < x.val ∧ F.nodes.val[x.val].tree = true ∧
-          ((∃ v ∈ treePath F.nodes.val F.nodes.val[x.val].parent.val, SamePair F.nodes.val x.val v) ∨
-            Blocked F.nodes.val F.nodes.val[x.val].parent.val) := by
-        rw [Blocked.eq_def,at_x]
-        simp only
-        split
-        · rename_i below
-          simp [below]
-        · rename_i below
-          simp [below]
-      by_cases tree : F.nodes.val[x.val].tree = true
-      · by_cases parentVal : F.nodes.val[x.val].parent.val < x.val
-        · have rest := ih F.nodes.val[x.val].parent.val (by omega) F.nodes.val[x.val].parent rfl
-          have repeatsRun := repeats_above_correct F x _ F.nodes.val[x.val].parent rfl
-          by_cases repeats : ∃ v ∈ treePath F.nodes.val F.nodes.val[x.val].parent.val, SamePair F.nodes.val x.val v
-          · have lhs : forest.blocked F x = .ok true := by
-              rw [forest.blocked]
-              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-                lookup,bind_ok,tree,parentVal,repeatsRun]
-              simp [repeats]
-            rw [lhs]
-            congr 1
-            symm
-            rw [decide_eq_true_iff,unfold]
-            exact ⟨parentVal,tree,.inl repeats⟩
-          · have lhs : forest.blocked F x = forest.blocked F F.nodes.val[x.val].parent := by
-              conv_lhs => rw [forest.blocked]
-              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-                lookup,bind_ok,tree,parentVal,repeatsRun]
-              simp [repeats]
-            rw [lhs,rest]
-            congr 1
-            rw [decide_eq_decide,unfold]
-            constructor
-            · intro blocked
-              exact ⟨parentVal,tree,.inr blocked⟩
-            · rintro ⟨_,_,found | blocked⟩
-              · exact absurd found repeats
-              · exact blocked
-        · have lhs : forest.blocked F x = .ok false := by
-            rw [forest.blocked]
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree,parentVal]
-          rw [lhs]
-          congr 1
-          symm
-          rw [decide_eq_false_iff_not,unfold]
-          rintro ⟨below,_⟩
-          exact parentVal below
-      · have lhs : forest.blocked F x = .ok false := by
-          rw [forest.blocked]
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree]
-        rw [lhs]
-        congr 1
-        symm
-        rw [decide_eq_false_iff_not,unfold]
-        rintro ⟨_,isTree,_⟩
-        exact tree isTree
-    · have lhs : forest.blocked F x = .ok false := by
-        rw [forest.blocked]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]
-      rw [lhs]
-      congr 1
-      symm
-      rw [decide_eq_false_iff_not,Blocked.eq_def,
-        List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
-      simp
 
 /-- An entry that creates neighbours: an existential or minimum restriction. -/
 def Generating : concept_table.Entry → Prop
@@ -2339,24 +2524,27 @@ theorem nominal_node_correct (P : completion.Problem) (F : forest.Forest) (index
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
 
-/-- Something an active node or an edge requires of node `y`. -/
+/-- Something an active node, a tree edge, a link or an added edge from a live
+    node requires of node `y`. -/
 def AddNeeds (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (y : Nat) (c : Usize) :
     Prop :=
   (Active F.nodes.val y ∧ NodeNeeds P F y c) ∨ TreeNeeds P.entries.val h F.nodes.val y c ∨
-    LinkNeeds P.entries.val h F (linkEnds P.links.val) y c ∨ LinkNeeds P.entries.val h F (edgeEnds F.edges.val) y c
+    LinkNeeds P.entries.val h F (linkEnds P.links.val) y c ∨ LinkNeeds P.entries.val h F (edgeEnds (liveEdges F F.edges.val)) y c
 
-/-- No rule applies: every active node has what it needs, every edge gives each
-    end what the other requires, every neighbour that a maximum restriction
-    counts decides its filler, no maximum restriction counts too many
-    neighbours, and every existential and minimum restriction of an unblocked
-    active node has enough neighbours satisfying its filler. -/
+/-- No rule applies: every active node has what it needs, every tree edge, link
+    and added edge from a live node gives each end what the other requires,
+    every neighbour that a maximum restriction counts decides its filler, no
+    maximum restriction counts too many neighbours, nor, at a named node, a
+    neighbour the model may repeat, every existential and minimum restriction
+    of an unblocked active node has enough neighbours satisfying its filler,
+    and every nominal is on the named node of its individual. -/
 def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) : Prop :=
   (∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c → Holds P.entries.val (labelOf F.nodes.val y) c.val) ∧
   (∀ child n, F.nodes.val[child]? = some n → n.tree = true → n.active = true →
     n.parent.val < F.nodes.val.length → ∀ s ∈ n.roles.val,
       EdgeOk P.entries.val h (labelOf F.nodes.val n.parent.val) s (labelOf F.nodes.val child) ∧
       EdgeOk P.entries.val h (labelOf F.nodes.val child) (inv s) (labelOf F.nodes.val n.parent.val)) ∧
-  LinksOk P.entries.val h F (linkEnds P.links.val) ∧ LinksOk P.entries.val h F (edgeEnds F.edges.val) ∧
+  LinksOk P.entries.val h F (linkEnds P.links.val) ∧ LinksOk P.entries.val h F (edgeEnds (liveEdges F F.edges.val)) ∧
   (∀ y, Active F.nodes.val y → CountOk P h F true y) ∧ (∀ y, Active F.nodes.val y → CountOk P h F false y) ∧
   (∀ y, Active F.nodes.val y → ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e role c n,
     P.entries.val[i.val]? = some e → generatorOf e = some (role,n,c) → Enough P h F y role c n) ∧

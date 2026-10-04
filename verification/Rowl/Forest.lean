@@ -500,23 +500,23 @@ theorem fresh_succ {F : forest.Forest} {fresh fresh' : Nat} (freshF : FreshFores
   · intro e member k kIn; have := freshF.2.1 e member k kIn; omega
   · intro d member k kIn; have := freshF.2.2 d member k kIn; omega
 
-/-- A merge of two neighbours terminates; a rejection rules out every model under
-    the rejected points that places them on one element, and those points
-    include the ones the merge was given. -/
+/-- A merge terminates; a rejection rules out every model under the rejected
+    points that places the two nodes on one element, and those points include
+    the ones the merge was given. -/
 theorem merge_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
     (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
       FreshForest F fresh.val →
       ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r)
-    (F : forest.Forest) (x source into : Usize) (deps : alloc.vec.Vec Usize) (fresh : Usize)
-    (inv : Inv P h count F) (mergeShape : MergeShape count F x.val source.val into.val)
+    (F : forest.Forest) (source into : Usize) (deps : alloc.vec.Vec Usize) (fresh : Usize)
+    (inv : Inv P h count F) (mergeShape : MergeShape count F source.val into.val)
     (small : ForestInv.measure P F ≤ M) (freshF : FreshForest F fresh.val)
     (freshDeps : ∀ k ∈ deps.val, k.val < fresh.val) :
-    ∃ r, forest.merge P h F x source into deps fresh = .ok r ∧
+    ∃ r, forest.merge P h F source into deps fresh = .ok r ∧
       (r = some .Accepted → ∃ F' : forest.Forest, Inv P h count F' ∧ Complete P h F') ∧
       (∀ D : alloc.vec.Vec Usize, r = some (.Rejected D) → (∀ k ∈ D.val, k.val < fresh.val) ∧
         ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
           Models P h F I π D.val → Sub deps.val D.val ∧ π source.val ≠ π into.val) := by
-  have activeS := mergeShape.2.2.1
+  have activeS := mergeShape.2.1
   have sourceIn := active_inside activeS
   have at_s : F.nodes.val[source.val]? = some F.nodes.val[source.val] := List.getElem?_eq_getElem sourceIn
   have lookupS : F.nodes.index_usize source = .ok F.nodes.val[source.val] := by
@@ -531,7 +531,7 @@ theorem merge_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (co
   | none => exact ⟨none,by simp,by simp,by simp⟩
   | some joined =>
   have joinedIs := joinSpec joined rfl
-  obtain ⟨mergedResult,mergedRun,mergedSpec⟩ := merged_correct F inv.shape x source into joined mergeShape
+  obtain ⟨mergedResult,mergedRun,mergedSpec⟩ := merged_correct F inv.shape source into joined mergeShape
   simp only [mergedRun]
   cases mergedResult with
   | none => exact ⟨none,by simp,by simp,by simp⟩
@@ -587,7 +587,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     (F : forest.Forest) (x : Usize) (pairs : alloc.vec.Vec forest.Pair) (deps : alloc.vec.Vec Usize) (fresh : Usize)
     (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M) (freshF : FreshForest F fresh.val)
     (freshDeps : ∀ k ∈ deps.val, k.val < fresh.val)
-    (shapes : ∀ p ∈ pairs.val, MergeShape count F x.val (orientOf F x p).1.val (orientOf F x p).2.val)
+    (shapes : ∀ p ∈ pairs.val, MergeShape count F (orientOf F x p).1.val (orientOf F x p).2.val)
     (collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
       (D : List Usize), Sub deps.val D → Models P h F I π D →
         ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val) :
@@ -611,7 +611,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
     have pairIn : pairs.val[index.val] ∈ pairs.val := List.getElem_mem more
     obtain ⟨src,dst,orientIs⟩ : ∃ src dst, orientOf F x pairs.val[index.val] = (src,dst) := ⟨_,_,rfl⟩
-    have shapeHere : MergeShape count F x.val src.val dst.val := by
+    have shapeHere : MergeShape count F src.val dst.val := by
       have := shapes _ pairIn
       rw [orientIs] at this
       exact this
@@ -633,7 +633,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
           intro k
           rw [hereSpec here rfl k,pointValue]
           simp
-        obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F x src dst here fresh' inv
+        obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F src dst here fresh' inv
           shapeHere small (fresh_succ freshF (by omega)) (by
             intro k member
             rw [freshIs]
@@ -726,7 +726,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
         simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,lastRun]
       | some last =>
       have lastMembers := lastSpec last rfl
-      obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F x src dst last fresh inv
+      obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F src dst last fresh inv
         shapeHere small freshF (by
           intro k member
           rcases (lastMembers k).mp member with given | old
@@ -787,7 +787,8 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
     (F : forest.Forest) (x i fresh : Usize) (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M)
     (freshF : FreshForest F fresh.val) (active : Active F.nodes.val x.val) (member : i ∈ labelOf F.nodes.val x.val)
     (n : Usize) (r : ObjectPropertyExpression) (c c' : Usize)
-    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) (excess : Excess P h F x.val r c n) :
+    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) (excess : Excess P h F x.val r c n)
+    (unrepeated : Unrepeated P h F x.val r c) :
     ∃ res, forest.merge_rule P h F x i fresh = .ok res ∧ Answers.{u,v} P h count F 0 [] [] fresh.val res := by
   have xIn := active_inside active
   have wf := inv.shape.wellFormed
@@ -874,7 +875,15 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
         · exact freshF.1 y k there
         · exact freshF.2.1 e eIn k there
       · exact freshF.2.2 d (List.mem_of_mem_drop dIn) k kIn
-    have shapes : ∀ p ∈ pairs.val, MergeShape count F x.val (orientOf F x p).1.val (orientOf F x p).2.val := by
+    -- At a named node, the counted neighbours are no tree nodes that the model may repeat.
+    have fine : ∀ y z, y ∈ chosen.val → z ∈ chosen.val → x.val < count →
+        ¬ Repeated F.nodes.val x.val y.val ∧ ¬ Repeated F.nodes.val x.val z.val := by
+      intro y z yIn zIn named
+      obtain ⟨n',at_x⟩ : ∃ n', F.nodes.val[x.val]? = some n' := ⟨_,List.getElem?_eq_getElem xIn⟩
+      have root : n'.tree = false := (inv.shape.named _ n' at_x).mpr named
+      exact ⟨fun repeated => unrepeated ⟨n',at_x,root⟩ y (chosenProps y yIn).1 repeated (chosenProps y yIn).2,
+        fun repeated => unrepeated ⟨n',at_x,root⟩ z (chosenProps z zIn).1 repeated (chosenProps z zIn).2⟩
+    have shapes : ∀ p ∈ pairs.val, MergeShape count F (orientOf F x p).1.val (orientOf F x p).2.val := by
       intro p listed
       rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
       · simp at empty
@@ -885,7 +894,8 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
           omega
         exact (orient_shape inv.shape x active r p
           (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
-          (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different).1
+          (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different
+          (by rw [first,second]; exact fine _ _ (List.getElem_mem ha) (List.getElem_mem hb))).1
     have collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
         (D : List Usize), Sub deps1.val D → Models P h F I π D →
           ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val := by
@@ -944,7 +954,8 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
           have := (List.Nodup.getElem_inj_iff chosenNodup).mp same
           omega
         rcases (orient_shape inv.shape x active r p (chosenProps _ (List.getElem_mem ha)).1
-          (chosenProps _ (List.getElem_mem hb)).1 different).2 with same | same
+          (chosenProps _ (List.getElem_mem hb)).1 different
+          (fine _ _ (List.getElem_mem ha) (List.getElem_mem hb))).2 with same | same
         · rw [same]
           exact equal
         · rw [same]
@@ -991,9 +1002,8 @@ theorem create_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (c
 /-- The nominal rule for a nominal of an active node whose named node is another
     node terminates and means what `Answers` says: every model under the points
     of both nodes places them on the individual of the nominal, so a recorded
-    difference between them is a clash; otherwise a named node, or a child of a
-    named node, is merged into the named node of the nominal. A deeper tree node
-    has no answer. -/
+    difference between them is a clash; otherwise the node is merged into the
+    named node of the nominal. -/
 theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
     (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
       FreshForest F fresh.val →
@@ -1099,40 +1109,20 @@ theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
   · simp only [differ_correct,show (0#usize).val = 0 from rfl,List.drop_zero,decide_eq_false differ,bind_ok,
       Bool.false_eq_true,↓reduceIte]
     -- A merge of `x` into the named node: every model places them on one element.
-    have merged : ∀ y : Usize, MergeShape count F y.val x.val named.val →
-        ∃ res, forest.merge P h F y x named deps fresh = .ok res ∧
-          Answers.{u,v} P h count F 0 [] [] fresh.val res := by
-      intro y shape
-      obtain ⟨r,run,sound,complete⟩ := merge_correct.{u,v} P h count M IH F y x named deps fresh inv shape small
-        freshF freshDeps
-      refine ⟨r,run,sound,?_⟩
-      intro D rejected
-      obtain ⟨bound,rules⟩ := complete D rejected
-      refine ⟨bound,?_⟩
-      rintro ⟨Object,Value,I,π,models,_⟩
-      obtain ⟨sub,separate⟩ := rules Object Value I π models
-      exact separate (meet Object Value I π D.val sub models)
-    by_cases tree : F.nodes.val[x.val].tree = true
-    · have parentBelow := inv.shape.parents x.val _ at_x tree
-      have parentIn : F.nodes.val[x.val].parent.val < F.nodes.val.length := by omega
-      have at_parent : F.nodes.val[F.nodes.val[x.val].parent.val]? =
-          some F.nodes.val[F.nodes.val[x.val].parent.val] := List.getElem?_eq_getElem parentIn
-      have lookupParent : F.nodes.index_usize F.nodes.val[x.val].parent =
-          .ok F.nodes.val[F.nodes.val[x.val].parent.val] := by
-        simp [alloc.vec.Vec.index_usize,at_parent]
-      simp only [tree,↓reduceIte,alloc.vec.Vec.len_val,UScalar.lt_equiv,parentIn,alloc.vec.Vec.index_slice_index,
-        lookupParent,bind_ok]
-      by_cases parentTree : F.nodes.val[F.nodes.val[x.val].parent.val].tree = true
-      · exact ⟨none,by simp [parentTree],by simp,by simp⟩
-      · simp only [parentTree,Bool.false_eq_true,↓reduceIte]
-        have activeParent := inv.shape.activeParents x.val _ at_x tree xActive
-        have parentNamed : F.nodes.val[x.val].parent.val < count :=
-          (inv.shape.named _ _ at_parent).mp (by simpa using parentTree)
-        exact merged _ ⟨apart,activeParent,active,activeNamed,
-          .inl ⟨_,at_x,tree,rfl,.inr (.inr ⟨parentNamed,namedBelow⟩)⟩⟩
-    · have xNamed : x.val < count := (inv.shape.named _ _ at_x).mp (by simpa using tree)
-      simp only [tree,Bool.false_eq_true,↓reduceIte]
-      exact merged x ⟨apart,active,active,activeNamed,.inr ⟨xNamed,namedBelow⟩⟩
+    have shape : MergeShape count F x.val named.val := by
+      refine ⟨apart,active,activeNamed,?_⟩
+      by_cases tree : F.nodes.val[x.val].tree = true
+      · exact .inl ⟨_,at_x,tree,.inr (.inr namedBelow)⟩
+      · exact .inr ⟨(inv.shape.named _ _ at_x).mp (by simpa using tree),namedBelow⟩
+    obtain ⟨r,run,sound,complete⟩ := merge_correct.{u,v} P h count M IH F x named deps fresh inv shape small
+      freshF freshDeps
+    refine ⟨r,run,sound,?_⟩
+    intro D rejected
+    obtain ⟨bound,rules⟩ := complete D rejected
+    refine ⟨bound,?_⟩
+    rintro ⟨Object,Value,I,π,models,_⟩
+    obtain ⟨sub,separate⟩ := rules Object Value I π models
+    exact separate (meet Object Value I π D.val sub models)
 
 /-- The main loop terminates on every forest that keeps the invariant and whose
     points are below `fresh`, and its answer means what `Answers` says. -/
@@ -1240,11 +1230,11 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
     obtain ⟨bound,none⟩ := complete D rejected
     exact ⟨bound,fun model => none (fullModel_any P h F 0 y.val [] deps.val D.val model)⟩
   | Merge x i =>
-    obtain ⟨activeX,i',member,n,r,c,c',at_i,stepIs,excess⟩ := mergeCase x i rfl
+    obtain ⟨activeX,i',member,n,r,c,c',at_i,stepIs,excess,unrepeated⟩ := mergeCase x i rfl
     simp only [forest.Step.Merge.injEq,true_and] at stepIs
     subst stepIs
     obtain ⟨res,run,answers⟩ := merge_rule_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX
-      member n r c c' at_i excess
+      member n r c c' at_i excess unrepeated
     exact ⟨res,by simp [run],answers⟩
   | Nominal x named =>
     obtain ⟨activeX,i,member,a,at_i,namedIs,different⟩ := nominalCase x named rfl
@@ -1410,8 +1400,9 @@ def Interned (P : completion.Problem) (query facts : List completion.Fact) (link
     every model, in any universes, of the role hierarchy in which the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its named individuals. No answer means that a structure
-    would exceed the `usize` range or that a number restriction counts along a
-    role that is not simple. -/
+    would exceed the `usize` range, that a number restriction counts along a
+    role that is not simple, or that a nominal or a maximum restriction is
+    outside what the rules handle. -/
 theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)

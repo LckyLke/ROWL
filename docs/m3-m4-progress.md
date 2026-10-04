@@ -3486,3 +3486,40 @@ value restrictions of named individuals.
 This block adds 21 public theorems, removes 2, adds 3 independent definitions
 and removes 1. Totals are 1435 audited theorems, 846 definitions, 435 Rust
 regressions and 1628 ledger obligations.
+
+## Reasoner: nominals below anonymous elements
+
+The nominal rule of the completion forest (forest::nominal) now merges a node
+whose label has `{a}` into the named node of `a` at any depth, not only a named
+node or a child of one. A merge (forest::moved) hands the edge of a merged tree
+node over to its grandparent or to a sibling as before, and otherwise, when the
+target is a named node, adds edges from the merged node's parent, which may now
+be a tree node, to the target; the merged node's own added edges move to the
+target (forest::carried, carried_correct, CarriedEdge, moved_carried). The shape
+of a forest (Shape) allows added edges from tree nodes to named nodes, and the
+shape of a merge (MergeShape) covers the merge of any node into a named node.
+
+Added edges count only from live nodes, active and not blocked (Live,
+forest::live, liveEdges): the neighbours, the needs of edges and the
+completeness of a forest read only those. Pairwise blocking now only repeats
+tree nodes whose parent is a tree node (SamePair), so the node that a blocked
+node stands for never has a named parent that an added edge could reach too,
+and the depth of an unblocked node is at most one more than the number of
+different pairs (depth_le_bound).
+
+The model of a complete forest relates paths by their newest nodes along links
+and added edges (Step), so every path of a live tree node with an added edge to
+a named node is a neighbour of the path of that node, and every live node has a
+path (live_path). Every neighbour path still comes from one neighbour
+(corr_function), and a neighbour has one neighbour path unless it is a tree node
+that an added edge relates to a named node without being its child (corr_unique,
+corr_third). The model may repeat such a node, so the maximum restrictions of a
+named node must not count it: the rule search gives no answer when one does
+(Repeated, Unrepeated, forest::repeated_satisfying), a complete forest has no
+such count (CountOk), and the truth lemma relies on that. satisfiable_correct
+keeps its statement; the forest and the ontology queries now answer questions
+whose nominals reach anonymous elements below others, apart from that count.
+
+This block adds 18 public theorems and 5 independent definitions. Totals are
+1453 audited theorems, 851 definitions, 436 Rust regressions and 1646 ledger
+obligations.

@@ -312,8 +312,16 @@ theorem created_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {coun
       have parentIn := shape.parents x.val nx created.at_x tree
       exact (created_active created _ (by omega)).mpr (shape.activeParents x.val nx created.at_x tree act)
     · exact (created_active created _ xIn).mpr active
-  · rw [created.edges]
-    exact shape.edges
+  · intro e member
+    rw [created.edges] at member
+    obtain ⟨toIn,fromCases⟩ := shape.edges e member
+    refine ⟨toIn,fromCases.imp_right ?_⟩
+    rintro ⟨n,at_n,tree⟩
+    obtain ⟨n0,n',at_n0,at_n',_,_,_,_,tree',_⟩ := created_old created e.from.val
+      (List.getElem?_eq_some_iff.mp at_n).1
+    rw [at_n] at at_n0
+    cases at_n0
+    exact ⟨n',at_n',by rw [tree',tree]⟩
   · intro d member
     rw [created.length]
     rcases (created.distinct d).mp member with old | ⟨_,_,high,_⟩
@@ -572,8 +580,14 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
         exact fillerHolds
   · intro edge listed sub
     rw [created.edges] at listed
-    have := shape.edges edge listed
-    rw [old _ (by omega),old _ (by omega)]
+    obtain ⟨toIn,fromCases⟩ := shape.edges edge listed
+    have fromIn : edge.from.val < F.nodes.val.length := by
+      rcases fromCases with named | ⟨n,at_n,_⟩
+      · have := shape.countIn
+        omega
+      · exact (List.getElem?_eq_some_iff.mp at_n).1
+    have := shape.countIn
+    rw [old _ fromIn,old _ (by omega)]
     exact models.edges edge listed sub
   · intro d listed sub
     rcases (created.distinct d).mp listed with oldFact | ⟨low,less,high,depsIs⟩
@@ -590,43 +604,45 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
 
 /-! ### Merging two neighbours -/
 
-/-- How a merge of two neighbours of `x` goes: `source`, a child of `x`, into the
-    parent of `x`, into another child of `x` or, when `x` is named, into a named
-    node; or a named `source` into a named node. -/
-def MergeShape (count : Nat) (F : forest.Forest) (x source into : Nat) : Prop :=
-  source ≠ into ∧ Active F.nodes.val x ∧ Active F.nodes.val source ∧ Active F.nodes.val into ∧
-  ((∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧ ns.parent.val = x ∧
-      ((∃ nx : forest.Node, F.nodes.val[x]? = some nx ∧ nx.tree = true ∧ nx.parent.val = into) ∨
-       (∃ ni : forest.Node, F.nodes.val[into]? = some ni ∧ ni.tree = true ∧ ni.parent.val = x) ∨
-       (x < count ∧ into < count))) ∨
+/-- How a merge goes: `source`, a tree node, into the parent of its parent, into
+    a sibling or into a named node; or a named `source` into a named node. -/
+def MergeShape (count : Nat) (F : forest.Forest) (source into : Nat) : Prop :=
+  source ≠ into ∧ Active F.nodes.val source ∧ Active F.nodes.val into ∧
+  ((∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧
+      ((∃ np : forest.Node, F.nodes.val[ns.parent.val]? = some np ∧ np.tree = true ∧ np.parent.val = into) ∨
+       (∃ ni : forest.Node, F.nodes.val[into]? = some ni ∧ ni.tree = true ∧ ni.parent.val = ns.parent.val) ∨
+       into < count)) ∨
    (source < count ∧ into < count))
 
-/-- A role a merge adds to the edge into `y`: the inverse of a role of `source`,
-    a child of `x`, when `y` is `x` below `into`, or a role of `source` when `y`
-    is its sibling `into`. -/
-def NewRole (F : forest.Forest) (x source into y : Nat) (s : ObjectPropertyExpression) : Prop :=
-  ∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧ ns.parent.val = x ∧
-    ((y = x ∧ (∃ nx : forest.Node, F.nodes.val[x]? = some nx ∧ nx.parent.val = into) ∧
+/-- A role a merge adds to the edge into `y`: the inverse of a role of the tree
+    node `source` when `y` is its parent below `into`, or a role of `source`
+    when `y` is its sibling `into`. -/
+def NewRole (F : forest.Forest) (source into y : Nat) (s : ObjectPropertyExpression) : Prop :=
+  ∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧
+    ((y = ns.parent.val ∧ (∃ np : forest.Node, F.nodes.val[ns.parent.val]? = some np ∧ np.parent.val = into) ∧
         ∃ s0 ∈ ns.roles.val, s = inv s0) ∨
-     (y = into ∧ (∃ ni : forest.Node, F.nodes.val[into]? = some ni ∧ ni.parent.val = x) ∧ s ∈ ns.roles.val))
+     (y = into ∧ (∃ ni : forest.Node, F.nodes.val[into]? = some ni ∧ ni.parent.val = ns.parent.val) ∧
+        s ∈ ns.roles.val))
 
-/-- An edge a merge adds: from the named node `x` to the named node `into` along a
-    role of `source`, a child of `x`. -/
-def NewEdge (F : forest.Forest) (count x source into : Nat) (joined : List Usize) (e : forest.Edge) : Prop :=
-  e.from.val = x ∧ e.to.val = into ∧ x < count ∧ into < count ∧ e.deps.val = joined ∧
-  ∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧ ns.parent.val = x ∧ e.role ∈ ns.roles.val
+/-- An edge a merge adds: from the parent of the tree node `source` to the named
+    node `into` along a role of `source`, or from `into` for an added edge from
+    `source`, also depending on the points of the merge. -/
+def NewEdge (F : forest.Forest) (count source into : Nat) (joined : List Usize) (e : forest.Edge) : Prop :=
+  ∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧
+    ((e.from = ns.parent ∧ e.to.val = into ∧ into < count ∧ e.deps.val = joined ∧ e.role ∈ ns.roles.val) ∨
+     (∃ e0 ∈ F.edges.val, e0.from.val = source ∧ e.from.val = into ∧ e.to = e0.to ∧ e.role = e0.role ∧
+        ∀ k, k ∈ e.deps.val ↔ k ∈ e0.deps.val ∨ k ∈ joined))
 
-/-- `G` hands the edge of `source` over to `into`: new roles on one edge, new
-    edges between named nodes, or the individuals of a named `source` passed to
-    `into`. -/
-structure Moved (count : Nat) (F G : forest.Forest) (x source into : Nat) (joined : List Usize) : Prop where
+/-- `G` hands the edges of `source` over to `into`: new roles on one edge, new
+    added edges, or the individuals of a named `source` passed to `into`. -/
+structure Moved (count : Nat) (F G : forest.Forest) (source into : Nat) (joined : List Usize) : Prop where
   length : G.nodes.val.length = F.nodes.val.length
   distinct : G.distinct = F.distinct
   node : ∀ (y : Nat) (n : forest.Node), F.nodes.val[y]? = some n → ∃ n' : forest.Node, G.nodes.val[y]? = some n' ∧
     n'.label = n.label ∧ n'.parent = n.parent ∧ n'.seed = n.seed ∧ n'.tree = n.tree ∧ n'.done = n.done ∧
     n'.active = n.active ∧ Sub n.deps.val n'.deps.val ∧ (∀ k ∈ n'.deps.val, k ∈ n.deps.val ∨ k ∈ joined) ∧
-    (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ ((y = into ∨ Sub joined n'.deps.val) ∧ NewRole F x source into y s))
-  edges : ∀ e ∈ G.edges.val, e ∈ F.edges.val ∨ NewEdge F count x source into joined e
+    (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ ((y = into ∨ Sub joined n'.deps.val) ∧ NewRole F source into y s))
+  edges : ∀ e ∈ G.edges.val, e ∈ F.edges.val ∨ NewEdge F count source into joined e
   sameLength : G.same.val.length = F.same.val.length
   same : ∀ (a : Nat) (b : Usize), G.same.val[a]? = some b → ∃ b0 : Usize, F.same.val[a]? = some b0 ∧
     ((b0.val ≠ source ∧ b = b0) ∨ (b0.val = source ∧ b.val = into ∧ into < count))
@@ -644,17 +660,17 @@ theorem same_not_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
 
 /-- Changing the roles and the points of one node, as `upward` and `sideways` do. -/
 theorem moved_of_set {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
-    (shape : Shape P h count F) (x source into : Nat) (joined : List Usize) (ns : forest.Node)
+    (shape : Shape P h count F) (source into : Nat) (joined : List Usize) (ns : forest.Node)
     (at_s : F.nodes.val[source]? = some ns) (sourceTree : ns.tree = true)
     (y : Usize) (yIn : y.val < F.nodes.val.length) (roles : alloc.vec.Vec ObjectPropertyExpression)
     (deps : alloc.vec.Vec Usize)
     (rolesOk : ∀ s ∈ roles.val, s ∈ F.nodes.val[y.val].roles.val ∨
-      ((y.val = into ∨ Sub joined deps.val) ∧ NewRole F x source into y.val s))
+      ((y.val = into ∨ Sub joined deps.val) ∧ NewRole F source into y.val s))
     (depsUp : Sub F.nodes.val[y.val].deps.val deps.val)
     (depsDown : ∀ k ∈ deps.val, k ∈ F.nodes.val[y.val].deps.val ∨ k ∈ joined) :
     Moved count F { F with nodes := (F.nodes.set y
       ⟨F.nodes.val[y.val].label,F.nodes.val[y.val].parent,roles,F.nodes.val[y.val].seed,F.nodes.val[y.val].tree,
-        F.nodes.val[y.val].active,F.nodes.val[y.val].done,deps⟩) } x source into joined := by
+        F.nodes.val[y.val].active,F.nodes.val[y.val].done,deps⟩) } source into joined := by
   obtain ⟨length,other,here⟩ := set_node F.nodes y yIn
     ⟨F.nodes.val[y.val].label,F.nodes.val[y.val].parent,roles,F.nodes.val[y.val].seed,F.nodes.val[y.val].tree,
       F.nodes.val[y.val].active,F.nodes.val[y.val].done,deps⟩
@@ -670,27 +686,51 @@ theorem moved_of_set {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
   · intro a b at_a
     refine ⟨b,at_a,.inl ⟨same_not_tree shape source ns at_s sourceTree b (List.mem_of_getElem? at_a),rfl⟩⟩
 
-/-- The structural part of a merge hands the edge of `source` over to `into`. -/
+/-- Carrying the added edges of the tree node `source` over to `into` after the
+    rest of a move keeps the move. -/
+theorem moved_carried {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F G1 : forest.Forest}
+    (shape : Shape P h count F) (source into : Usize) (joined : alloc.vec.Vec Usize) (ns : forest.Node)
+    (at_s : F.nodes.val[source.val]? = some ns) (sourceTree : ns.tree = true) (different : source.val ≠ into.val)
+    (moved : Moved count F G1 source.val into.val joined.val) :
+    ∃ r, forest.carried G1 source into joined = .ok r ∧ ∀ G, r = some G →
+      Moved count F G source.val into.val joined.val := by
+  obtain ⟨r,run,spec⟩ := carried_correct G1 source into joined
+  refine ⟨r,run,?_⟩
+  intro G same
+  obtain ⟨edges,rfl,_,origin⟩ := spec G same
+  refine ⟨moved.length,moved.distinct,moved.node,?_,moved.sameLength,moved.same⟩
+  intro e member
+  rcases origin e member with old | ⟨e0,e0In,e0From,eFrom,eTo,eRole,eDeps⟩
+  · exact moved.edges e old
+  · -- The carried edge comes from an old edge: the new edges of the move do not start at `source`.
+    have e0Old : e0 ∈ F.edges.val := by
+      rcases moved.edges e0 e0In with old | ⟨ns',at_s',_,⟨linkFrom,_⟩ | ⟨_,_,_,carriedFrom,_⟩⟩
+      · exact old
+      · rw [at_s] at at_s'
+        cases at_s'
+        have below := shape.parents source.val ns at_s sourceTree
+        rw [← linkFrom,e0From] at below
+        omega
+      · exact absurd (by rw [← carriedFrom,e0From]) different
+    exact .inr ⟨ns,at_s,sourceTree,.inr ⟨e0,e0Old,by rw [e0From],by rw [eFrom],eTo,eRole,eDeps⟩⟩
+
+/-- The structural part of a merge hands the edges of `source` over to `into`. -/
 theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} (F : forest.Forest)
-    (shape : Shape P h count F) (x source into : Usize) (joined : alloc.vec.Vec Usize)
-    (mergeShape : MergeShape count F x.val source.val into.val) :
-    ∃ r, forest.moved F x source into joined = .ok r ∧ ∀ G, r = some G →
-      Moved count F G x.val source.val into.val joined.val := by
-  obtain ⟨different,activeX,activeS,activeI,cases⟩ := mergeShape
-  have xIn := active_inside activeX
+    (shape : Shape P h count F) (source into : Usize) (joined : alloc.vec.Vec Usize)
+    (mergeShape : MergeShape count F source.val into.val) :
+    ∃ r, forest.moved F source into joined = .ok r ∧ ∀ G, r = some G →
+      Moved count F G source.val into.val joined.val := by
+  obtain ⟨different,activeS,activeI,cases⟩ := mergeShape
   have sourceIn := active_inside activeS
   have intoIn := active_inside activeI
   have at_s : F.nodes.val[source.val]? = some F.nodes.val[source.val] := List.getElem?_eq_getElem sourceIn
-  have at_x : F.nodes.val[x.val]? = some F.nodes.val[x.val] := List.getElem?_eq_getElem xIn
   have at_i : F.nodes.val[into.val]? = some F.nodes.val[into.val] := List.getElem?_eq_getElem intoIn
   have lookupS : F.nodes.index_usize source = .ok F.nodes.val[source.val] := by
     simp [alloc.vec.Vec.index_usize,at_s]
-  have lookupX : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
-    simp [alloc.vec.Vec.index_usize,at_x]
   have lookupI : F.nodes.index_usize into = .ok F.nodes.val[into.val] := by
     simp [alloc.vec.Vec.index_usize,at_i]
   rw [forest.moved]
-  simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,xIn,sourceIn,intoIn,↓reduceIte,alloc.vec.Vec.index_slice_index,
+  simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,sourceIn,intoIn,↓reduceIte,alloc.vec.Vec.index_slice_index,
     lookupS,bind_ok]
   by_cases sTree : F.nodes.val[source.val].tree = true
   · have sourceRoot : ¬ source.val < count := by
@@ -698,101 +738,132 @@ theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
       have := (shape.named _ _ at_s).mpr below
       rw [sTree] at this
       cases this
-    obtain ⟨ns,at_s',_,sParent,shapeCases⟩ := cases.resolve_right (fun both => sourceRoot both.1)
+    obtain ⟨ns,at_s',_,shapeCases⟩ := cases.resolve_right (fun both => sourceRoot both.1)
     rw [at_s] at at_s'
     cases at_s'
-    simp only [sTree,↓reduceIte,lookupX,bind_ok]
-    by_cases xTree : F.nodes.val[x.val].tree = true
-    · simp only [xTree,↓reduceIte]
-      by_cases up : F.nodes.val[x.val].parent = into
+    -- The parent of `source`, whose edge the merge hands over.
+    have parentIn : F.nodes.val[source.val].parent.val < F.nodes.val.length := by
+      have := shape.parents source.val _ at_s sTree
+      omega
+    have at_p : F.nodes.val[F.nodes.val[source.val].parent.val]? =
+        some F.nodes.val[F.nodes.val[source.val].parent.val] := List.getElem?_eq_getElem parentIn
+    have lookupP : F.nodes.index_usize F.nodes.val[source.val].parent =
+        .ok F.nodes.val[F.nodes.val[source.val].parent.val] := by
+      simp [alloc.vec.Vec.index_usize,at_p]
+    simp only [sTree,↓reduceIte,parentIn,lookupP,bind_ok]
+    -- After the edge of the parent, the added edges of `source` follow.
+    have carry : ∀ G1, Moved count F G1 source.val into.val joined.val →
+        ∃ r, forest.carried G1 source into joined = .ok r ∧ ∀ G, r = some G →
+          Moved count F G source.val into.val joined.val :=
+      fun G1 moved1 => moved_carried shape source into joined _ at_s sTree different moved1
+    -- A sibling `into` takes the roles of `source`.
+    have toSibling : F.nodes.val[into.val].tree = true →
+        (∃ ni : forest.Node, F.nodes.val[into.val]? = some ni ∧ ni.tree = true ∧
+          ni.parent.val = F.nodes.val[source.val].parent.val) →
+        ∃ r, (do
+            let graph1 ← forest.sideways F source into
+            match graph1 with
+            | none => ok none
+            | some graph2 => forest.carried graph2 source into joined) = .ok r ∧ ∀ G, r = some G →
+          Moved count F G source.val into.val joined.val := by
+      intro _ intoSibling
+      obtain ⟨r,run,spec⟩ := sideways_correct F source into
+      cases r with
+      | none => exact ⟨none,by simp [run],by simp⟩
+      | some G1 =>
+        obtain ⟨_,_,roles,rolesIs,rfl⟩ := spec _ rfl
+        have moved1 := moved_of_set (count := count) shape source.val into.val joined.val _ at_s sTree into intoIn
+          roles F.nodes.val[into.val].deps
+          (by
+            intro s member
+            rw [rolesIs] at member
+            rcases List.mem_append.mp member with old | new
+            · exact .inl old
+            · obtain ⟨ni,at_i',_,iParent⟩ := intoSibling
+              exact .inr ⟨.inl rfl,F.nodes.val[source.val],at_s,sTree,.inr ⟨rfl,⟨ni,at_i',iParent⟩,new⟩⟩)
+          (fun k listed => listed) (fun k listed => .inl listed)
+        obtain ⟨r,run2,spec2⟩ := carry _ moved1
+        exact ⟨r,by simp [run,run2],spec2⟩
+    -- A named `into` gets edges from the parent of `source`.
+    have toNamed : F.nodes.val[into.val].tree = false →
+        ∃ r, (do
+            let graph1 ← forest.linked F F.nodes.val[source.val].parent source into joined
+            match graph1 with
+            | none => ok none
+            | some graph2 => forest.carried graph2 source into joined) = .ok r ∧ ∀ G, r = some G →
+          Moved count F G source.val into.val joined.val := by
+      intro iRoot
+      have intoNamed : into.val < count := (shape.named _ _ at_i).mp iRoot
+      obtain ⟨r,run,spec⟩ := linked_correct F F.nodes.val[source.val].parent source into joined
+      cases r with
+      | none => exact ⟨none,by simp [run],by simp⟩
+      | some G1 =>
+        obtain ⟨_,edges,edgesIs,rfl⟩ := spec _ rfl
+        have moved1 : Moved count F { F with edges := edges } source.val into.val joined.val := by
+          refine ⟨rfl,rfl,?_,?_,rfl,?_⟩
+          · intro z n at_z
+            exact ⟨n,at_z,rfl,rfl,rfl,rfl,rfl,rfl,fun k member => member,fun k member => .inl member,
+              fun s member => .inl member⟩
+          · intro e member
+            rw [edgesIs] at member
+            rcases List.mem_append.mp member with old | new
+            · exact .inl old
+            · obtain ⟨s,sIn,rfl⟩ := List.mem_map.mp new
+              exact .inr ⟨F.nodes.val[source.val],at_s,sTree,.inl ⟨rfl,rfl,intoNamed,rfl,sIn⟩⟩
+          · intro a b at_a
+            refine ⟨b,at_a,.inl ⟨same_not_tree shape source.val _ at_s sTree b (List.mem_of_getElem? at_a),rfl⟩⟩
+        obtain ⟨r,run2,spec2⟩ := carry _ moved1
+        exact ⟨r,by simp [run,run2],spec2⟩
+    by_cases pTree : F.nodes.val[F.nodes.val[source.val].parent.val].tree = true
+    · simp only [pTree,↓reduceIte]
+      by_cases up : F.nodes.val[F.nodes.val[source.val].parent.val].parent = into
       · simp only [up,↓reduceIte]
-        obtain ⟨r,run,spec⟩ := upward_correct F x source joined
-        refine ⟨r,run,?_⟩
-        intro G same
-        obtain ⟨_,_,roles,deps',rolesIs,depsIs,rfl⟩ := spec G same
-        apply moved_of_set shape x.val source.val into.val joined.val _ at_s sTree x xIn roles deps'
-        · intro s member
-          rw [rolesIs] at member
-          rcases List.mem_append.mp member with old | new
-          · exact .inl old
-          · obtain ⟨s0,s0In,rfl⟩ := List.mem_map.mp new
-            exact .inr ⟨.inr (fun k listed => (depsIs k).mpr (.inr listed)),F.nodes.val[source.val],at_s,sTree,
-              sParent,.inl ⟨rfl,⟨F.nodes.val[x.val],at_x,by rw [up]⟩,s0,s0In,rfl⟩⟩
-        · intro k listed
-          exact (depsIs k).mpr (.inl listed)
-        · intro k listed
-          exact (depsIs k).mp listed
-      · simp only [up,↓reduceIte]
-        have intoChild : ∃ ni : forest.Node, F.nodes.val[into.val]? = some ni ∧ ni.tree = true ∧
-            ni.parent.val = x.val := by
-          rcases shapeCases with ⟨nx,at_x',_,parent⟩ | child | ⟨xRoot,_⟩
-          · rw [at_x] at at_x'
-            cases at_x'
-            exact absurd (UScalar.eq_of_val_eq parent) up
-          · exact child
-          · have := (shape.named _ _ at_x).mpr xRoot
-            rw [xTree] at this
-            cases this
-        obtain ⟨r,run,spec⟩ := sideways_correct F source into
-        refine ⟨r,run,?_⟩
-        intro G same
-        obtain ⟨_,_,roles,rolesIs,rfl⟩ := spec G same
-        apply moved_of_set shape x.val source.val into.val joined.val _ at_s sTree into intoIn roles
-        · intro s member
-          rw [rolesIs] at member
-          rcases List.mem_append.mp member with old | new
-          · exact .inl old
-          · obtain ⟨ni,at_i',_,iParent⟩ := intoChild
-            exact .inr ⟨.inl rfl,F.nodes.val[source.val],at_s,sTree,sParent,.inr ⟨rfl,⟨ni,at_i',iParent⟩,new⟩⟩
-        · exact fun k listed => listed
-        · exact fun k listed => .inl listed
-    · simp only [xTree,Bool.false_eq_true,↓reduceIte,lookupI,bind_ok]
-      by_cases iTree : F.nodes.val[into.val].tree = true
-      · simp only [iTree,↓reduceIte]
-        have intoChild : ∃ ni : forest.Node, F.nodes.val[into.val]? = some ni ∧ ni.tree = true ∧
-            ni.parent.val = x.val := by
-          rcases shapeCases with ⟨nx,at_x',tree,_⟩ | child | ⟨_,intoRoot⟩
-          · rw [at_x] at at_x'
-            cases at_x'
-            exact absurd tree xTree
-          · exact child
-          · have := (shape.named _ _ at_i).mpr intoRoot
+        obtain ⟨r,run,spec⟩ := upward_correct F F.nodes.val[source.val].parent source joined
+        cases r with
+        | none => exact ⟨none,by simp [run],by simp⟩
+        | some G1 =>
+          obtain ⟨_,_,roles,deps',rolesIs,depsIs,rfl⟩ := spec _ rfl
+          have moved1 := moved_of_set (count := count) shape source.val into.val joined.val _ at_s sTree
+            F.nodes.val[source.val].parent parentIn roles deps'
+            (by
+              intro s member
+              rw [rolesIs] at member
+              rcases List.mem_append.mp member with old | new
+              · exact .inl old
+              · obtain ⟨s0,s0In,rfl⟩ := List.mem_map.mp new
+                exact .inr ⟨.inr (fun k listed => (depsIs k).mpr (.inr listed)),F.nodes.val[source.val],at_s,sTree,
+                  .inl ⟨rfl,⟨_,at_p,by rw [up]⟩,s0,s0In,rfl⟩⟩)
+            (fun k listed => (depsIs k).mpr (.inl listed)) (fun k listed => (depsIs k).mp listed)
+          obtain ⟨r,run2,spec2⟩ := carry _ moved1
+          exact ⟨r,by simp [run,run2],spec2⟩
+      · simp only [up,↓reduceIte,lookupI,bind_ok]
+        by_cases iTree : F.nodes.val[into.val].tree = true
+        · simp only [iTree,↓reduceIte]
+          apply toSibling iTree
+          rcases shapeCases with ⟨np,at_p',_,pParent⟩ | sibling | intoNamed
+          · rw [at_p] at at_p'
+            cases at_p'
+            exact absurd (UScalar.eq_of_val_eq pParent) up
+          · exact sibling
+          · have := (shape.named _ _ at_i).mpr intoNamed
             rw [iTree] at this
             cases this
-        obtain ⟨r,run,spec⟩ := sideways_correct F source into
-        refine ⟨r,run,?_⟩
-        intro G same
-        obtain ⟨_,_,roles,rolesIs,rfl⟩ := spec G same
-        apply moved_of_set shape x.val source.val into.val joined.val _ at_s sTree into intoIn roles
-        · intro s member
-          rw [rolesIs] at member
-          rcases List.mem_append.mp member with old | new
-          · exact .inl old
-          · obtain ⟨ni,at_i',_,iParent⟩ := intoChild
-            exact .inr ⟨.inl rfl,F.nodes.val[source.val],at_s,sTree,sParent,.inr ⟨rfl,⟨ni,at_i',iParent⟩,new⟩⟩
-        · exact fun k listed => listed
-        · exact fun k listed => .inl listed
+        · simp only [iTree,Bool.false_eq_true,↓reduceIte]
+          exact toNamed (by simpa using iTree)
+    · simp only [pTree,Bool.false_eq_true,↓reduceIte,lookupI,bind_ok]
+      by_cases iTree : F.nodes.val[into.val].tree = true
+      · simp only [iTree,↓reduceIte]
+        apply toSibling iTree
+        rcases shapeCases with ⟨np,at_p',npTree,_⟩ | sibling | intoNamed
+        · rw [at_p] at at_p'
+          cases at_p'
+          exact absurd npTree pTree
+        · exact sibling
+        · have := (shape.named _ _ at_i).mpr intoNamed
+          rw [iTree] at this
+          cases this
       · simp only [iTree,Bool.false_eq_true,↓reduceIte]
-        have roots : x.val < count ∧ into.val < count := by
-          refine ⟨?_,?_⟩
-          · exact (shape.named _ _ at_x).mp (by simpa using xTree)
-          · exact (shape.named _ _ at_i).mp (by simpa using iTree)
-        obtain ⟨r,run,spec⟩ := linked_correct F x source into joined
-        refine ⟨r,run,?_⟩
-        intro G same
-        obtain ⟨_,edges,edgesIs,rfl⟩ := spec G same
-        refine ⟨rfl,rfl,?_,?_,rfl,?_⟩
-        · intro z n at_z
-          exact ⟨n,at_z,rfl,rfl,rfl,rfl,rfl,rfl,fun k member => member,fun k member => .inl member,
-            fun s member => .inl member⟩
-        · intro e member
-          rw [edgesIs] at member
-          rcases List.mem_append.mp member with old | new
-          · exact .inl old
-          · obtain ⟨s,sIn,rfl⟩ := List.mem_map.mp new
-            exact .inr ⟨rfl,rfl,roots.1,roots.2,rfl,F.nodes.val[source.val],at_s,sTree,sParent,sIn⟩
-        · intro a b at_a
-          refine ⟨b,at_a,.inl ⟨same_not_tree shape source.val _ at_s sTree b (List.mem_of_getElem? at_a),rfl⟩⟩
+        exact toNamed (by simpa using iTree)
   · have roots : source.val < count ∧ into.val < count := by
       rcases cases with ⟨ns,at_s',tree,_⟩ | both
       · rw [at_s] at at_s'
@@ -827,37 +898,36 @@ theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
           subst at_a
           exact .inl ⟨fun same' => hit (UScalar.eq_of_val_eq same'),rfl⟩
 
-/-- `G` merges `source`, a neighbour of `x`, into `into` with the points
-    `joined`: the edge of `source` handed over, `source` and its subtree
-    inactive, and `into` active with the points of the merge and the
-    differences of `source`. -/
-structure Merged (count : Nat) (F G : forest.Forest) (x source into : Usize) (joined : List Usize) : Prop where
+/-- `G` merges `source` into `into` with the points `joined`: the edges of
+    `source` handed over, `source` and its subtree inactive, and `into` active
+    with the points of the merge and the differences of `source`. -/
+structure Merged (count : Nat) (F G : forest.Forest) (source into : Usize) (joined : List Usize) : Prop where
   length : G.nodes.val.length = F.nodes.val.length
   node : ∀ (y : Nat) (n : forest.Node), F.nodes.val[y]? = some n → ∃ n' : forest.Node, G.nodes.val[y]? = some n' ∧
     n'.label = n.label ∧ n'.parent = n.parent ∧ n'.seed = n.seed ∧ n'.tree = n.tree ∧ n'.done = n.done ∧
     (n'.active = true → n.active = true) ∧ (n.tree = false → y ≠ source.val → n'.active = n.active) ∧
     Sub n.deps.val n'.deps.val ∧ (∀ k ∈ n'.deps.val, k ∈ n.deps.val ∨ k ∈ joined) ∧
-    (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ (Sub joined n'.deps.val ∧ NewRole F x.val source.val into.val y s))
+    (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ (Sub joined n'.deps.val ∧ NewRole F source.val into.val y s))
   sourceGone : ¬ Active G.nodes.val source.val
   intoActive : Active G.nodes.val into.val
   intoDeps : Sub joined (nodeDeps G into.val)
   activeParents : ∀ (y : Nat) (n' : forest.Node), G.nodes.val[y]? = some n' → n'.tree = true → n'.active = true →
     Active G.nodes.val n'.parent.val
-  edges : ∀ e ∈ G.edges.val, e ∈ F.edges.val ∨ NewEdge F count x.val source.val into.val joined e
+  edges : ∀ e ∈ G.edges.val, e ∈ F.edges.val ∨ NewEdge F count source.val into.val joined e
   sameLength : G.same.val.length = F.same.val.length
   same : ∀ (a : Nat) (b : Usize), G.same.val[a]? = some b → ∃ b0 : Usize, F.same.val[a]? = some b0 ∧
     ((b0.val ≠ source.val ∧ b = b0) ∨ (b0.val = source.val ∧ b.val = into.val ∧ into.val < count))
   distinct : ∀ d ∈ G.distinct.val, d ∈ F.distinct.val ∨ ∃ d0 ∈ F.distinct.val, Inherited source into joined d0 d
 
-/-- A merge of two neighbours hands the edge over, deactivates the merged node
-    with its subtree, keeps `into` active and makes it depend on the merge. -/
+/-- A merge hands the edges over, deactivates the merged node with its subtree,
+    keeps `into` active and makes it depend on the merge. -/
 theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} (F : forest.Forest)
-    (shape : Shape P h count F) (x source into : Usize) (joined : alloc.vec.Vec Usize)
-    (mergeShape : MergeShape count F x.val source.val into.val) :
-    ∃ r, forest.merged F x source into joined = .ok r ∧ ∀ G, r = some G →
-      Merged count F G x source into joined.val := by
-  obtain ⟨r1,run1,spec1⟩ := moved_correct F shape x source into joined mergeShape
-  obtain ⟨different,activeX,activeS,activeI,cases⟩ := mergeShape
+    (shape : Shape P h count F) (source into : Usize) (joined : alloc.vec.Vec Usize)
+    (mergeShape : MergeShape count F source.val into.val) :
+    ∃ r, forest.merged F source into joined = .ok r ∧ ∀ G, r = some G →
+      Merged count F G source into joined.val := by
+  obtain ⟨r1,run1,spec1⟩ := moved_correct F shape source into joined mergeShape
+  obtain ⟨different,activeS,activeI,cases⟩ := mergeShape
   have sourceIn := active_inside activeS
   have intoIn := active_inside activeI
   rw [forest.merged,run1]
@@ -1087,10 +1157,10 @@ theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
       · rw [tree1,tree,parent1]
         have parentAct := shape.activeParents into.val ni at_i tree iAct
         have parentLow := shape.parents into.val ni at_i tree
-        rcases cases with ⟨ns,at_s,sTree,sParent,shapeCases⟩ | ⟨_,intoRoot⟩
+        rcases cases with ⟨ns,at_s,sTree,shapeCases⟩ | ⟨_,intoRoot⟩
         · have sourceAbove := shape.parents source.val ns at_s sTree
-          rcases shapeCases with ⟨nx,at_x,xTree,xParent⟩ | ⟨ni',at_i',_,iParent⟩ | ⟨_,intoRoot⟩
-          · have := shape.parents x.val nx at_x xTree
+          rcases shapeCases with ⟨np,at_p,npTree,npParent⟩ | ⟨ni',at_i',_,iParent⟩ | intoRoot
+          · have := shape.parents ns.parent.val np at_p npTree
             rw [keep ni.parent.val (by omega) parentAct]
             simp
           · rw [at_i] at at_i'
@@ -1143,14 +1213,14 @@ theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
         exact .inr ⟨d0,by rw [← moved.distinct]; exact d0In,inh⟩
 
 section MergedFacts
-variable {count : Nat} {F G : forest.Forest} {x source into : Usize} {joined : List Usize}
+variable {count : Nat} {F G : forest.Forest} {source into : Usize} {joined : List Usize}
 
-theorem merged_back (merged : Merged count F G x source into joined) (y : Nat) (n' : forest.Node)
+theorem merged_back (merged : Merged count F G source into joined) (y : Nat) (n' : forest.Node)
     (at_y' : G.nodes.val[y]? = some n') : ∃ n : forest.Node, F.nodes.val[y]? = some n ∧
       n'.label = n.label ∧ n'.parent = n.parent ∧ n'.seed = n.seed ∧ n'.tree = n.tree ∧ n'.done = n.done ∧
       (n'.active = true → n.active = true) ∧ (n.tree = false → y ≠ source.val → n'.active = n.active) ∧
       Sub n.deps.val n'.deps.val ∧ (∀ k ∈ n'.deps.val, k ∈ n.deps.val ∨ k ∈ joined) ∧
-      (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ (Sub joined n'.deps.val ∧ NewRole F x.val source.val into.val y s)) := by
+      (∀ s ∈ n'.roles.val, s ∈ n.roles.val ∨ (Sub joined n'.deps.val ∧ NewRole F source.val into.val y s)) := by
   have yIn : y < F.nodes.val.length := by rw [← merged.length]; exact (List.getElem?_eq_some_iff.mp at_y').1
   obtain ⟨n'',at_y'',rest⟩ := merged.node y F.nodes.val[y] (List.getElem?_eq_getElem yIn)
   rw [at_y'] at at_y''
@@ -1158,13 +1228,13 @@ theorem merged_back (merged : Merged count F G x source into joined) (y : Nat) (
   subst at_y''
   exact ⟨_,List.getElem?_eq_getElem yIn,rest⟩
 
-theorem merged_none (merged : Merged count F G x source into joined) (y : Nat) (absent : F.nodes.val[y]? = none) :
+theorem merged_none (merged : Merged count F G source into joined) (y : Nat) (absent : F.nodes.val[y]? = none) :
     G.nodes.val[y]? = none := by
   rw [List.getElem?_eq_none_iff] at absent ⊢
   rw [merged.length]
   exact absent
 
-theorem merged_label (merged : Merged count F G x source into joined) (y : Nat) :
+theorem merged_label (merged : Merged count F G source into joined) (y : Nat) :
     labelOf G.nodes.val y = labelOf F.nodes.val y := by
   unfold labelOf
   cases at_y : F.nodes.val[y]? with
@@ -1173,7 +1243,7 @@ theorem merged_label (merged : Merged count F G x source into joined) (y : Nat) 
     obtain ⟨n',at_y',label,_⟩ := merged.node y n at_y
     simp only [at_y',label]
 
-theorem merged_done (merged : Merged count F G x source into joined) (y : Nat) :
+theorem merged_done (merged : Merged count F G source into joined) (y : Nat) :
     doneOf G.nodes.val y = doneOf F.nodes.val y := by
   unfold doneOf
   cases at_y : F.nodes.val[y]? with
@@ -1182,7 +1252,7 @@ theorem merged_done (merged : Merged count F G x source into joined) (y : Nat) :
     obtain ⟨n',at_y',_,_,_,_,done,_⟩ := merged.node y n at_y
     simp only [at_y',done]
 
-theorem merged_deps (merged : Merged count F G x source into joined) (y : Nat) :
+theorem merged_deps (merged : Merged count F G source into joined) (y : Nat) :
     Sub (nodeDeps F y) (nodeDeps G y) ∧ ∀ k ∈ nodeDeps G y, k ∈ nodeDeps F y ∨ k ∈ joined := by
   unfold nodeDeps
   cases at_y : F.nodes.val[y]? with
@@ -1194,7 +1264,7 @@ theorem merged_deps (merged : Merged count F G x source into joined) (y : Nat) :
     rw [at_y']
     exact ⟨up,down⟩
 
-theorem merged_treePath (merged : Merged count F G x source into joined) :
+theorem merged_treePath (merged : Merged count F G source into joined) :
     ∀ y, treePath G.nodes.val y = treePath F.nodes.val y := by
   intro y
   induction y using Nat.strong_induction_on with
@@ -1213,7 +1283,7 @@ theorem merged_treePath (merged : Merged count F G x source into joined) :
         · rfl
       · rfl
 
-theorem merged_active (merged : Merged count F G x source into joined) (y : Nat) :
+theorem merged_active (merged : Merged count F G source into joined) (y : Nat) :
     Active G.nodes.val y → Active F.nodes.val y := by
   rintro ⟨n',at_y',act⟩
   obtain ⟨n,at_y,_,_,_,_,_,back,_⟩ := merged_back merged y n' at_y'
@@ -1223,8 +1293,8 @@ end MergedFacts
 
 /-- A merge keeps the invariant. -/
 theorem merged_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F G : forest.Forest}
-    {x source into : Usize} {joined : List Usize} (inv : Inv P h count F)
-    (merged : Merged count F G x source into joined) : Inv P h count G := by
+    {source into : Usize} {joined : List Usize} (inv : Inv P h count F)
+    (merged : Merged count F G source into joined) : Inv P h count G := by
   have shape := inv.shape
   refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,
     by rw [merged.length]; exact shape.countIn,by rw [merged.sameLength]; exact shape.sameLength,?_,?_,
@@ -1247,10 +1317,32 @@ theorem merged_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
     obtain ⟨n,at_y,_,parent,_,tree,_⟩ := merged_back merged y n' at_y'
     rw [parent]
     exact shape.parents y n at_y (by rw [← tree]; exact tree')
-  · intro e member
-    rcases merged.edges e member with old | ⟨_,_,xRoot,intoRoot,_⟩
-    · exact shape.edges e old
-    · omega
+  · -- An end that is no named node is a tree node, in `F` as in `G`.
+    have treeOrNamed : ∀ k : Usize, k.val < F.nodes.val.length →
+        k.val < count ∨ ∃ n, G.nodes.val[k.val]? = some n ∧ n.tree = true := by
+      intro k kIn
+      obtain ⟨n,at_k⟩ : ∃ n, F.nodes.val[k.val]? = some n := ⟨_,List.getElem?_eq_getElem kIn⟩
+      obtain ⟨n',at_k',_,_,_,tree',_⟩ := merged.node k.val n at_k
+      by_cases tree : n.tree = true
+      · exact .inr ⟨n',at_k',by rw [tree',tree]⟩
+      · exact .inl ((shape.named _ n at_k).mp (by simpa using tree))
+    intro e member
+    rcases merged.edges e member with old | ⟨ns,at_s,sTree,⟨fromIs,toIs,intoNamed,_,_⟩ | ⟨e0,e0In,_,fromIs,toIs,_,_⟩⟩
+    · obtain ⟨toIn,fromCases⟩ := shape.edges e old
+      refine ⟨toIn,fromCases.imp_right ?_⟩
+      rintro ⟨n,at_n,tree⟩
+      obtain ⟨n',at_n',_,_,_,tree',_⟩ := merged.node _ n at_n
+      exact ⟨n',at_n',by rw [tree',tree]⟩
+    · refine ⟨by rw [toIs]; exact intoNamed,?_⟩
+      rw [fromIs]
+      have := shape.parents source.val ns at_s sTree
+      have := (List.getElem?_eq_some_iff.mp at_s).1
+      exact treeOrNamed _ (by omega)
+    · refine ⟨by rw [toIs]; exact (shape.edges e0 e0In).1,?_⟩
+      have intoIn := active_inside (merged_active merged _ merged.intoActive)
+      have : e.from = into := UScalar.eq_of_val_eq fromIs
+      rw [this]
+      exact treeOrNamed into intoIn
   · intro d member
     rw [merged.length]
     rcases merged.distinct d member with old | ⟨d0,d0In,left,ends,_⟩
@@ -1279,15 +1371,15 @@ theorem merged_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
     exact inv.doneIn y i member
   · intro y n' at_y' s member
     obtain ⟨n,at_y,_,_,_,_,_,_,_,_,_,roles⟩ := merged_back merged y n' at_y'
-    rcases roles s member with old | ⟨_,ns,at_s,_,_,cases⟩
+    rcases roles s member with old | ⟨_,ns,at_s,_,cases⟩
     · exact inv.roles y n at_y s old
     · rcases cases with ⟨_,_,s0,s0In,rfl⟩ | ⟨_,_,sIn⟩
       · exact inv_listed _ _ (inv.roles _ ns at_s s0 s0In)
       · exact inv.roles _ ns at_s s sIn
 
 /-- The points of a merged forest are those of the forest and of the merge. -/
-theorem merged_fresh {count : Nat} {F G : forest.Forest} {x source into : Usize} {joined : List Usize}
-    (merged : Merged count F G x source into joined) {fresh : Nat} (freshF : FreshForest F fresh)
+theorem merged_fresh {count : Nat} {F G : forest.Forest} {source into : Usize} {joined : List Usize}
+    (merged : Merged count F G source into joined) {fresh : Nat} (freshF : FreshForest F fresh)
     (joinedFresh : ∀ k ∈ joined, k.val < fresh) : FreshForest G fresh := by
   refine ⟨?_,?_,?_⟩
   · intro y k member
@@ -1295,10 +1387,13 @@ theorem merged_fresh {count : Nat} {F G : forest.Forest} {x source into : Usize}
     · exact freshF.1 y k old
     · exact joinedFresh k new
   · intro e member k kIn
-    rcases merged.edges e member with old | ⟨_,_,_,_,depsIs,_⟩
+    rcases merged.edges e member with old | ⟨_,_,_,⟨_,_,_,depsIs,_⟩ | ⟨e0,e0In,_,_,_,_,deps⟩⟩
     · exact freshF.2.1 e old k kIn
     · rw [depsIs] at kIn
       exact joinedFresh k kIn
+    · rcases (deps k).mp kIn with old | new
+      · exact freshF.2.1 e0 e0In k old
+      · exact joinedFresh k new
   · intro d member k kIn
     rcases merged.distinct d member with old | ⟨d0,d0In,_,_,deps⟩
     · exact freshF.2.2 d old k kIn
@@ -1309,8 +1404,8 @@ theorem merged_fresh {count : Nat} {F G : forest.Forest} {x source into : Usize}
 /-- A merge decreases the measure: the merged node no longer counts and no other
     weight grows. -/
 theorem merged_measure {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F G : forest.Forest}
-    {x source into : Usize} {joined : List Usize} (inv : Inv P h count F)
-    (merged : Merged count F G x source into joined) (activeS : Active F.nodes.val source.val) :
+    {source into : Usize} {joined : List Usize} (inv : Inv P h count F)
+    (merged : Merged count F G source into joined) (activeS : Active F.nodes.val source.val) :
     ForestInv.measure P G < ForestInv.measure P F := by
   have weightLe : ∀ y, weight P G y ≤ weight P F y := by
     intro y
@@ -1336,8 +1431,8 @@ theorem merged_measure {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
     the merge are in `D`, models the merged forest, with the label of `source`
     at `into`. -/
 theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem} {h : hierarchy.RoleHierarchy}
-    {count : Nat} {F G : forest.Forest} {x source into : Usize} {joined : List Usize}
-    (merged : Merged count F G x source into joined) (sourceDeps : Sub (nodeDeps F source.val) joined)
+    {count : Nat} {F G : forest.Forest} {source into : Usize} {joined : List Usize}
+    (merged : Merged count F G source into joined) (sourceDeps : Sub (nodeDeps F source.val) joined)
     {I : Interpretation Object Value} {π : Nat → Object} {D : List Usize} (models : Models P h F I π D)
     (equal : Sub joined D → π source.val = π into.val) :
     Models P h G I π D ∧
@@ -1346,7 +1441,7 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
     fun sub k member => sub k (merged.intoDeps k member)
   have sourceSub : Sub joined D → Sub (nodeDeps F source.val) D :=
     fun sub k member => sub k (sourceDeps k member)
-  -- The edges of `source` from `x`, when the merge holds.
+  -- The edge of `source` from its parent, when the merge holds.
   have sourceEdges : Sub joined D → ∀ ns : forest.Node, F.nodes.val[source.val]? = some ns → ns.tree = true →
       ∀ s ∈ ns.roles.val, objectRelation I s (π ns.parent.val) (π into.val) := by
     intro sub ns at_s tree s sIn
@@ -1381,11 +1476,10 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
     refine ⟨?_,by rw [seed]; exact old.2⟩
     intro s member
     rw [parent]
-    rcases roles s member with oldRole | ⟨joinedIn,ns,at_s,sTree,sParent,cases⟩
+    rcases roles s member with oldRole | ⟨joinedIn,ns,at_s,sTree,cases⟩
     · exact old.1 s oldRole
     · have joinedSub : Sub joined D := fun k listed => sub k (joinedIn k listed)
       have edges := sourceEdges joinedSub ns at_s sTree
-      rw [sParent] at edges
       rcases cases with ⟨rfl,⟨nx,at_x,xParent⟩,s0,s0In,rfl⟩ | ⟨rfl,⟨ni,at_i,iParent⟩,sIn⟩
       · rw [at_y] at at_x
         simp only [Option.some.injEq] at at_x
@@ -1398,13 +1492,20 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
         rw [iParent]
         exact edges s sIn
   · intro e member sub
-    rcases merged.edges e member with old | ⟨fromX,toInto,_,_,depsIs,ns,at_s,sTree,sParent,roleIn⟩
+    rcases merged.edges e member with old |
+        ⟨ns,at_s,sTree,⟨fromIs,toInto,_,depsIs,roleIn⟩ | ⟨e0,e0In,e0From,fromInto,toIs,roleIs,deps⟩⟩
     · exact models.edges e old sub
     · rw [depsIs] at sub
       have edges := sourceEdges sub ns at_s sTree
-      rw [sParent] at edges
-      rw [fromX,toInto]
+      rw [fromIs,toInto]
       exact edges e.role roleIn
+    · -- An added edge of `source`, now from `into`.
+      have sub0 : Sub e0.deps.val D := fun k listed => sub k ((deps k).mpr (.inl listed))
+      have joinedSub : Sub joined D := fun k listed => sub k ((deps k).mpr (.inr listed))
+      have edge := models.edges e0 e0In sub0
+      rw [e0From,equal joinedSub] at edge
+      rw [fromInto,toIs,roleIs]
+      exact edge
   · intro d member sub
     rcases merged.distinct d member with old | ⟨d0,d0In,left,ends,deps⟩
     · exact models.distinct d old sub
@@ -1422,12 +1523,14 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
     exact models.labels source.val (sourceSub sub) c member
 
 /-- A pair of neighbours of an active node, oriented as `orient` does, has the
-    shape of a merge. -/
+    shape of a merge, when, at a named node, neither is a tree node that is no
+    child of it. -/
 theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (shape : Shape P h count F) (x : Usize) (active : Active F.nodes.val x.val) (r : ObjectPropertyExpression)
     (p : forest.Pair) (first : Neighbour P h F x.val r p.first.val) (second : Neighbour P h F x.val r p.second.val)
-    (different : p.first ≠ p.second) :
-    MergeShape count F x.val (orientOf F x p).1.val (orientOf F x p).2.val ∧
+    (different : p.first ≠ p.second)
+    (children : x.val < count → ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val) :
+    MergeShape count F (orientOf F x p).1.val (orientOf F x p).2.val ∧
       (orientOf F x p = (p.first,p.second) ∨ orientOf F x p = (p.second,p.first)) := by
   have firstIn := neighbour_inside shape x.val r _ first
   have secondIn := neighbour_inside shape x.val r _ second
@@ -1440,33 +1543,22 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
   obtain ⟨n,at_x⟩ : ∃ n, F.nodes.val[x.val]? = some n := ⟨_,List.getElem?_eq_getElem xIn⟩
   have rootIff : ∀ (y : Nat) (m : forest.Node), F.nodes.val[y]? = some m → (m.tree = false ↔ y < count) :=
     shape.named
-  -- A tree neighbour that is not the parent of `x` is a child of `x`.
-  have child : ∀ (z : Usize) (m : forest.Node), Neighbour P h F x.val r z.val → F.nodes.val[z.val]? = some m →
-      m.tree = true → (n.tree = true → n.parent.val ≠ z.val) → m.parent.val = x.val := by
-    intro z m neighbour at_z tree notParent
+  -- A tree neighbour that the merge may take is a child of `x` or its parent.
+  have treeNeighbour : ∀ (z : Usize) (m : forest.Node), Neighbour P h F x.val r z.val → F.nodes.val[z.val]? = some m →
+      m.tree = true → (x.val < count → ¬ Repeated F.nodes.val x.val z.val) →
+      m.parent.val = x.val ∨ (n.tree = true ∧ n.parent.val = z.val) := by
+    intro z m neighbour at_z tree fine
     rcases neighbour_tree shape x.val r z.val neighbour m at_z tree with ⟨m',at_z',_,_,parent,_⟩ |
-        ⟨n',at_x',xTree,parent,_⟩
+        ⟨n',at_x',xTree,parent,_⟩ | ⟨xNamed,_⟩
     · rw [at_z] at at_z'
-      simp only [Option.some.injEq] at at_z'
-      subst at_z'
-      exact parent
+      cases at_z'
+      exact .inl parent
     · rw [at_x] at at_x'
-      simp only [Option.some.injEq] at at_x'
-      subst at_x'
-      exact absurd parent (notParent xTree)
-  -- A named neighbour of a tree node `x` is its parent.
-  have named : ∀ (z : Usize) (m : forest.Node), Neighbour P h F x.val r z.val → F.nodes.val[z.val]? = some m →
-      m.tree = false → n.tree = true → z.val = n.parent.val :=
-    fun z m neighbour at_z root xTree => neighbour_named shape x.val n at_x xTree r z.val neighbour m at_z root
-  -- The last alternative of a merge into a named node.
-  have intoNamed : ∀ (z : Usize) (m : forest.Node), Neighbour P h F x.val r z.val → F.nodes.val[z.val]? = some m →
-      m.tree = false → ((∃ nx : forest.Node, F.nodes.val[x.val]? = some nx ∧ nx.tree = true ∧
-        nx.parent.val = z.val) ∨ (x.val < count ∧ z.val < count)) := by
-    intro z m neighbour at_z root
-    by_cases xTree : n.tree = true
-    · exact .inl ⟨n,at_x,xTree,(named z m neighbour at_z root xTree).symm⟩
-    · have xRoot : n.tree = false := by simpa using xTree
-      exact .inr ⟨(rootIff _ n at_x).mp xRoot,(rootIff _ m at_z).mp root⟩
+      cases at_x'
+      exact .inr ⟨xTree,parent⟩
+    · by_cases child : m.parent.val = x.val
+      · exact .inl child
+      · exact absurd ⟨m,at_z,tree,child⟩ (fine xNamed)
   unfold orientOf
   rw [at_a,at_b,at_x]
   simp only
@@ -1476,44 +1568,33 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     · rw [if_pos bTree]
       by_cases up : n.tree = true ∧ n.parent = p.first
       · rw [if_pos up]
-        refine ⟨⟨Ne.symm differentVal,active,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,?_,
-          .inl ⟨n,at_x,up.1,by rw [up.2]⟩⟩⟩,.inr rfl⟩
-        exact child p.second b second at_b bTree (fun _ same => differentVal (by rw [← same,up.2]))
+        -- `second` is a child of `x`, merged into the parent of `x`.
+        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named).2) with child |
+            ⟨_,parent⟩
+        · refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inl ⟨n,?_,up.1,?_⟩⟩⟩,.inr rfl⟩
+          · rw [child]; exact at_x
+          · rw [up.2]
+        · exact absurd (by rw [← parent,up.2]) differentVal
       · rw [if_neg up]
         have aParent : a.parent.val = x.val := by
-          apply child p.first a first at_a aTree
-          intro xTree same
-          exact up ⟨xTree,UScalar.eq_of_val_eq same⟩
-        refine ⟨⟨differentVal,active,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,aParent,?_⟩⟩,.inl rfl⟩
-        rcases neighbour_tree shape x.val r _ second b at_b bTree with ⟨b',at_b',_,_,parent,_⟩ |
-            ⟨n',at_x',xTree,parent,_⟩
-        · rw [at_b] at at_b'
-          simp only [Option.some.injEq] at at_b'
-          subst at_b'
-          exact .inr (.inl ⟨b,at_b,bTree,parent⟩)
-        · exact .inl ⟨n',at_x',xTree,parent⟩
+          rcases treeNeighbour p.first a first at_a aTree (fun named => (children named).1) with child |
+              ⟨xTree,parent⟩
+          · exact child
+          · exact absurd ⟨xTree,UScalar.eq_of_val_eq parent⟩ up
+        refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,?_⟩⟩,.inl rfl⟩
+        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named).2) with child |
+            ⟨xTree,parent⟩
+        · exact .inr (.inl ⟨b,at_b,bTree,by rw [child,aParent]⟩)
+        · exact .inl ⟨n,by rw [aParent]; exact at_x,xTree,parent⟩
     · rw [if_neg bTree]
       have bRoot : b.tree = false := by simpa using bTree
-      have aParent : a.parent.val = x.val := by
-        apply child p.first a first at_a aTree
-        intro xTree same
-        exact differentVal (by rw [named p.second b second at_b bRoot xTree,same])
-      refine ⟨⟨differentVal,active,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,aParent,?_⟩⟩,.inl rfl⟩
-      rcases intoNamed p.second b second at_b bRoot with up | roots
-      · exact .inl up
-      · exact .inr (.inr roots)
+      exact ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,.inr (.inr ((rootIff _ b at_b).mp bRoot))⟩⟩,
+        .inl rfl⟩
   · rw [if_neg aTree]
     have aRoot : a.tree = false := by simpa using aTree
-    refine ⟨⟨Ne.symm differentVal,active,activeSecond,activeFirst,?_⟩,.inr rfl⟩
+    refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,?_⟩,.inr rfl⟩
     by_cases bTree : b.tree = true
-    · have bParent : b.parent.val = x.val := by
-        apply child p.second b second at_b bTree
-        intro xTree same
-        exact differentVal (by rw [named p.first a first at_a aRoot xTree,same])
-      refine .inl ⟨b,at_b,bTree,bParent,?_⟩
-      rcases intoNamed p.first a first at_a aRoot with up | roots
-      · exact .inl up
-      · exact .inr (.inr roots)
+    · exact .inl ⟨b,at_b,bTree,.inr (.inr ((rootIff _ a at_a).mp aRoot))⟩
     · have bRoot : b.tree = false := by simpa using bTree
       exact .inr ⟨(rootIff _ b at_b).mp bRoot,(rootIff _ a at_a).mp aRoot⟩
 
