@@ -1,8 +1,9 @@
 //! Consistency, class satisfiability, subsumption and instance checking for an
 //! axiom closure with assertions: SHI decided by the completion graph tableau,
-//! and SHOIQ with self restrictions and reflexive and irreflexive properties,
-//! with number restrictions and complements of self restrictions on simple
-//! roles and nominals of named individuals, by the completion forest.
+//! and SHOIQ with self restrictions and reflexive, irreflexive, asymmetric and
+//! disjoint properties, with number restrictions, complements of self
+//! restrictions and disjoint pairs on simple roles and nominals of named
+//! individuals, by the completion forest.
 //!
 //! Class expressions are translated into ALCIQO concepts with self restrictions
 //! (see `concepts`). Every
@@ -26,7 +27,10 @@
 //! object properties, become a role hierarchy. Every inclusion is added with
 //! its inverse, each together with its compositions with the inclusions already
 //! listed, and every transitive property with its inverse, so the hierarchy
-//! stays closed as the tableaux require.
+//! stays closed as the tableaux require. `AsymmetricObjectProperty` and
+//! `DisjointObjectProperties` become its disjoint pairs: an asymmetric property
+//! is disjoint from its inverse, and the members of a disjointness axiom are
+//! pairwise disjoint.
 //!
 //! Every individual of an assertion, equality or inequality, and every
 //! individual of a nominal of the closure, gets a node after node 0, which
@@ -35,7 +39,7 @@
 //! concepts are facts at those nodes, and object property assertions are links.
 //! A question whose concepts have no number restriction, self restriction or
 //! nominal goes to the completion graph tableau, unless the closure has
-//! negative assertions next to role axioms. There, without role axioms, a negative object property
+//! negative assertions next to role axioms or disjoint pairs. There, without role axioms, a negative object property
 //! assertion contradicts the closure exactly when a link relates the same nodes
 //! along the same property, in either orientation, because the tableau's models
 //! relate named individuals only along links, and a `DifferentIndividuals`
@@ -58,10 +62,10 @@
 //! definition, role axiom or assertion uses `owl:topObjectProperty` or
 //! `owl:bottomObjectProperty` (whose fixed meaning the tableaux do not model),
 //! when a nominal is of an anonymous individual or, in a question, of an
-//! individual the closure does not have, when a number restriction or the
-//! complement of a self restriction is on a role that is not simple, when a
-//! list would exceed the `usize` range, or when the completion forest cannot
-//! go on.
+//! individual the closure does not have, when a number restriction, the
+//! complement of a self restriction or a disjoint pair is on a role that is not
+//! simple, when a list would exceed the `usize` range, or when the completion
+//! forest cannot go on.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -77,7 +81,7 @@ use crate::alc_ontology::{
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
 use crate::forest;
-use crate::hierarchy::{below, is_transitive, Inclusion, RoleHierarchy};
+use crate::hierarchy::{below, is_transitive, Disjoint, Inclusion, RoleHierarchy};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, Individual, NamedIndividual,
     ObjectPropertyExpression, SubObjectPropertyExpression,
@@ -544,7 +548,9 @@ fn axiom_parts(axiom: &Axiom, parts: Parts) -> Option<Parts> {
         Axiom::EquivalentObjectProperties(_) => Some(parts),
         Axiom::InverseObjectProperties(_, _) => Some(parts),
         Axiom::SymmetricObjectProperty(_) => Some(parts),
+        Axiom::AsymmetricObjectProperty(_) => Some(parts),
         Axiom::TransitiveObjectProperty(_) => Some(parts),
+        Axiom::DisjointObjectProperties(_) => Some(parts),
         Axiom::AnnotationAssertion(_, _, _) => Some(parts),
         Axiom::SubAnnotationPropertyOf(_, _) => Some(parts),
         Axiom::AnnotationPropertyDomain(_, _) => Some(parts),
@@ -788,16 +794,142 @@ fn hierarchy_from(
         Some(roles)
     }
 }
-/// The role hierarchy of a closure, closed under composition and inverses.
+/// The hierarchy with `left` and `right` disjoint; `None` when there is no
+/// room.
+fn add_disjoint(
+    mut roles: RoleHierarchy,
+    left: &ObjectPropertyExpression,
+    right: &ObjectPropertyExpression,
+) -> Option<RoleHierarchy> {
+    if roles.disjoint.len() < usize::MAX {
+        roles.disjoint.push(Disjoint {
+            left: copy_role(left),
+            right: copy_role(right),
+        });
+        Some(roles)
+    } else {
+        None
+    }
+}
+/// The hierarchy with `values[first]` disjoint from every role of
+/// `values[index..]`.
+fn apart_with(
+    values: &Vec<ObjectPropertyExpression>,
+    first: usize,
+    index: usize,
+    roles: RoleHierarchy,
+) -> Option<RoleHierarchy> {
+    if first < values.len() && index < values.len() {
+        match add_disjoint(roles, &values[first], &values[index]) {
+            Some(roles) => apart_with(values, first, index + 1, roles),
+            None => None,
+        }
+    } else {
+        Some(roles)
+    }
+}
+/// The hierarchy with every role of `values[index..]` disjoint from every
+/// later one.
+fn roles_apart(
+    values: &Vec<ObjectPropertyExpression>,
+    index: usize,
+    roles: RoleHierarchy,
+) -> Option<RoleHierarchy> {
+    if index < values.len() {
+        match apart_with(values, index, index + 1, roles) {
+            Some(roles) => roles_apart(values, index + 1, roles),
+            None => None,
+        }
+    } else {
+        Some(roles)
+    }
+}
+/// `out` with copies of `values[index..]`.
+fn copy_roles_from(
+    values: &Vec<ObjectPropertyExpression>,
+    index: usize,
+    mut out: Vec<ObjectPropertyExpression>,
+) -> Option<Vec<ObjectPropertyExpression>> {
+    if index < values.len() {
+        if out.len() < usize::MAX {
+            out.push(copy_role(&values[index]));
+            copy_roles_from(values, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The hierarchy with every member disjoint from every later one.
+fn add_disjoint_members(
+    roles: RoleHierarchy,
+    members: &AtLeastTwo<ObjectPropertyExpression>,
+) -> Option<RoleHierarchy> {
+    let mut values = Vec::new();
+    values.push(copy_role(&members.first));
+    values.push(copy_role(&members.second));
+    match copy_roles_from(&members.rest, 0, values) {
+        Some(values) => roles_apart(&values, 0, roles),
+        None => None,
+    }
+}
+/// The hierarchy with the disjoint pairs of the asymmetric and disjoint object
+/// properties of `items[index..]`: an asymmetric role is disjoint from its
+/// inverse; `None` when there is no room.
+fn constraints_from(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    roles: RoleHierarchy,
+) -> Option<RoleHierarchy> {
+    if index < items.len() {
+        let roles = match &items[index].axiom {
+            Axiom::AsymmetricObjectProperty(role) => {
+                let flipped = inverse(role);
+                add_disjoint(roles, role, &flipped)
+            }
+            Axiom::DisjointObjectProperties(members) => add_disjoint_members(roles, members),
+            _ => Some(roles),
+        };
+        match roles {
+            Some(roles) => constraints_from(items, index + 1, roles),
+            None => None,
+        }
+    } else {
+        Some(roles)
+    }
+}
+/// The role hierarchy of a closure, closed under composition and inverses,
+/// with the disjoint pairs of its asymmetric and disjoint object properties.
 pub fn role_hierarchy(items: &Vec<AnnotatedAxiom>) -> Option<RoleHierarchy> {
-    hierarchy_from(
+    let pairs = match constraints_from(
         items,
         0,
         RoleHierarchy {
             inclusions: Vec::new(),
             transitive: Vec::new(),
+            disjoint: Vec::new(),
         },
-    )
+    ) {
+        Some(roles) => roles.disjoint,
+        None => return None,
+    };
+    match hierarchy_from(
+        items,
+        0,
+        RoleHierarchy {
+            inclusions: Vec::new(),
+            transitive: Vec::new(),
+            disjoint: Vec::new(),
+        },
+    ) {
+        Some(roles) => Some(RoleHierarchy {
+            inclusions: roles.inclusions,
+            transitive: roles.transitive,
+            disjoint: pairs,
+        }),
+        None => None,
+    }
 }
 /// Whether neither role of an inclusion is a built-in object property.
 fn pair_proper(sub: &ObjectPropertyExpression, sup: &ObjectPropertyExpression) -> bool {
@@ -834,6 +966,8 @@ fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
             Axiom::InverseObjectProperties(first, second) => pair_proper(first, second),
             Axiom::SymmetricObjectProperty(property) => role_proper(property),
             Axiom::TransitiveObjectProperty(property) => role_proper(property),
+            Axiom::AsymmetricObjectProperty(property) => role_proper(property),
+            Axiom::DisjointObjectProperties(members) => members_proper(members),
             _ => true,
         };
         here && roles_proper(items, index + 1)
@@ -1390,6 +1524,11 @@ fn denied_from(
 fn tangled(items: &Vec<AnnotatedAxiom>, roles: &RoleHierarchy) -> bool {
     has_negative(items, 0) && !(roles.inclusions.len() == 0 && roles.transitive.len() == 0)
 }
+/// Whether the closure has asymmetric or disjoint object properties, which
+/// only the completion forest decides.
+fn constrained(roles: &RoleHierarchy) -> bool {
+    roles.disjoint.len() != 0
+}
 /// An axiom closure read once for many queries: its individuals, the
 /// representative node of every node, what its class axioms require, the facts
 /// of its class assertions, the facts the completion forest also gets (the
@@ -1477,8 +1616,10 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         None => return None,
     };
     let denied = denied_from(items, &nodes, &same, &links, 0);
-    let forest =
-        closure_counts(&parts, &facts) || closure_nominal(&parts, &facts) || tangled(items, &roles);
+    let forest = closure_counts(&parts, &facts)
+        || closure_nominal(&parts, &facts)
+        || tangled(items, &roles)
+        || constrained(&roles);
     let clash = clash_from(items, &nodes, &same, 0);
     Some(Prepared {
         nodes,

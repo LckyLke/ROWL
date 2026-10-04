@@ -1,5 +1,6 @@
 //! Role hierarchies with inverse roles: inclusions between object property
-//! expressions and transitive object property expressions.
+//! expressions, transitive object property expressions, and pairs of object
+//! property expressions that relate no pair together.
 //!
 //! The completion graph tableau needs closed hierarchies: the inclusions
 //! include their compositions and, with every inclusion `r ⊑ s`, the inclusion
@@ -14,11 +15,18 @@ pub struct Inclusion {
     pub sub: ObjectPropertyExpression,
     pub sup: ObjectPropertyExpression,
 }
-/// Inclusions between object property expressions and the transitive object
-/// property expressions.
+/// No pair is related by both `left` and `right`; an asymmetric role is
+/// disjoint from its inverse.
+pub struct Disjoint {
+    pub left: ObjectPropertyExpression,
+    pub right: ObjectPropertyExpression,
+}
+/// Inclusions between object property expressions, the transitive object
+/// property expressions, and disjoint pairs of them.
 pub struct RoleHierarchy {
     pub inclusions: Vec<Inclusion>,
     pub transitive: Vec<ObjectPropertyExpression>,
+    pub disjoint: Vec<Disjoint>,
 }
 
 /// Whether `inclusions[index..]` lists `sub ⊑ sup`.

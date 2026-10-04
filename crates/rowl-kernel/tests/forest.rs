@@ -46,6 +46,7 @@ fn none() -> RoleHierarchy {
     RoleHierarchy {
         inclusions: Vec::new(),
         transitive: Vec::new(),
+        disjoint: Vec::new(),
     }
 }
 /// Satisfiability of one concept under a TBox concept and role axioms.
@@ -249,6 +250,7 @@ fn number_restrictions_need_simple_roles() {
     let transitive = RoleHierarchy {
         inclusions: Vec::new(),
         transitive: vec![r(), back()],
+        disjoint: Vec::new(),
     };
     let c = at_most(1, r(), Concept::Top);
     assert_eq!(concept_sat(c, &Concept::Top, &transitive), None);
@@ -265,6 +267,7 @@ fn number_restrictions_need_simple_roles() {
             },
         ],
         transitive: vec![named(b"t"), inverted(b"t")],
+        disjoint: Vec::new(),
     };
     let c = at_least(2, back(), Concept::Top);
     assert_eq!(concept_sat(c, &Concept::Top, &below), None);

@@ -12,7 +12,9 @@
 //!    filler on, and through transitive roles the restriction itself; a self
 //!    restriction `∃s.Self` of a node is a loop, an edge from the node to
 //!    itself along `s`;
-//! 3. a node with `¬∃r.Self` that is its own neighbour along `r` is a clash;
+//! 3. a node with `¬∃r.Self` that is its own neighbour along `r` is a clash,
+//!    and so is a node with one neighbour along both roles of a disjoint pair
+//!    of the role hierarchy, such as an asymmetric role and its inverse;
 //! 4. a node whose label has the nominal `{a}` is merged into the named node of
 //!    `a`, the node of the first requirement with `{a}`, unless they are known
 //!    to differ, which is a clash; a nominal or the complement of one whose
@@ -50,8 +52,8 @@
 //! for the roles of every existential and minimum restriction. A tree node is blocked when its label, its parent's label
 //! and the roles in between repeat a tree node with a tree parent on its path to
 //! its root (pairwise blocking), which counting with inverse roles needs; the
-//! added edges of blocked nodes are left out. Number restrictions and
-//! complements of self restrictions must be on simple roles, which no
+//! added edges of blocked nodes are left out. Number restrictions, complements
+//! of self restrictions and disjoint pairs must be on simple roles, which no
 //! transitive role is included in. New named nodes come after every node that
 //! created them, and each restriction of a named node gets them at most once,
 //! so the run terminates.
@@ -59,12 +61,12 @@
 //! Backjumping works as in the completion graph: nodes, edges and differences
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
-//! `usize` range, that a number restriction or the complement of a self
-//! restriction is on a role that is not simple, that the individual of a
-//! nominal has no named node, that a restriction with a bound from new named
-//! nodes has fewer counted named neighbours than the bound, or that the table
-//! has no self restriction for a role of an edge that a merge turns into
-//! loops.
+//! `usize` range, that a number restriction, the complement of a self
+//! restriction or a disjoint pair is on a role that is not simple, that the
+//! individual of a nominal has no named node, that a restriction with a bound
+//! from new named nodes has fewer counted named neighbours than the bound, or
+//! that the table has no self restriction for a role of an edge that a merge
+//! turns into loops.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -175,6 +177,9 @@ pub enum Step {
         root: usize,
     },
     Loop {
+        node: usize,
+    },
+    Overlap {
         node: usize,
     },
     Create {
@@ -840,6 +845,71 @@ fn looped_node(
         Some(None)
     }
 }
+/// Whether some node of `left[index..]` is listed in `right`.
+fn common(left: &Vec<usize>, right: &Vec<usize>, index: usize) -> bool {
+    if index < left.len() {
+        if contains(right, left[index], 0) {
+            true
+        } else {
+            common(left, right, index + 1)
+        }
+    } else {
+        false
+    }
+}
+/// Whether a disjoint pair of `roles.disjoint[index..]` has a common neighbour
+/// of `node` along both roles; `None` when there is no room.
+fn overlap_from(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    node: usize,
+    index: usize,
+) -> Option<bool> {
+    if index < roles.disjoint.len() {
+        let left = match neighbours(problem, roles, graph, node, &roles.disjoint[index].left) {
+            Some(left) => left,
+            None => return None,
+        };
+        let right = match neighbours(problem, roles, graph, node, &roles.disjoint[index].right) {
+            Some(right) => right,
+            None => return None,
+        };
+        if common(&left, &right, 0) {
+            Some(true)
+        } else {
+            overlap_from(problem, roles, graph, node, index + 1)
+        }
+    } else {
+        Some(false)
+    }
+}
+/// The first active node of `nodes[index..]` with a common neighbour along the
+/// two roles of a disjoint pair; `None` when there is no room.
+fn overlap_node(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+    index: usize,
+) -> Option<Option<usize>> {
+    if index < graph.nodes.len() {
+        let here = if graph.nodes[index].active {
+            match overlap_from(problem, roles, graph, index, 0) {
+                Some(here) => here,
+                None => return None,
+            }
+        } else {
+            false
+        };
+        if here {
+            Some(Some(index))
+        } else {
+            overlap_node(problem, roles, graph, index + 1)
+        }
+    } else {
+        Some(None)
+    }
+}
 /// The first neighbour of `list[index..]` that decides neither `left` nor
 /// `right`.
 fn undecided(
@@ -1400,6 +1470,11 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option
     }
     match looped_node(problem, roles, graph, 0) {
         Some(Some(node)) => return Some(Step::Loop { node }),
+        Some(None) => {}
+        None => return None,
+    }
+    match overlap_node(problem, roles, graph, 0) {
+        Some(Some(node)) => return Some(Step::Overlap { node }),
         Some(None) => {}
         None => return None,
     }
@@ -3026,6 +3101,10 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
             Some(deps) => Some(Outcome::Rejected(deps)),
             None => None,
         },
+        Some(Step::Overlap { node }) => match rule_deps(problem, &graph, node) {
+            Some(deps) => Some(Outcome::Rejected(deps)),
+            None => None,
+        },
         Some(Step::Create { node, generator }) => {
             create(problem, roles, graph, node, generator, depth)
         }
@@ -3087,6 +3166,23 @@ fn counting_simple(entries: &Vec<Entry>, roles: &RoleHierarchy, index: usize) ->
         true
     }
 }
+/// Whether both roles of every disjoint pair of `roles.disjoint[index..]` are
+/// simple.
+fn disjoint_simple(roles: &RoleHierarchy, index: usize) -> bool {
+    if index < roles.disjoint.len() {
+        if simple_from(roles, &roles.disjoint[index].left, 0) {
+            if simple_from(roles, &roles.disjoint[index].right, 0) {
+                disjoint_simple(roles, index + 1)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        true
+    }
+}
 /// The roots for `count` named individuals, each merged only into itself.
 fn roots(count: usize, mut graph: Forest) -> Option<Forest> {
     if graph.nodes.len() < count {
@@ -3117,9 +3213,9 @@ fn roots(count: usize, mut graph: Forest) -> Option<Forest> {
 /// and of `facts` holds at its node and every link relates its nodes along its
 /// role. `roles` must be closed: its inclusions include their compositions and
 /// inverses, and its transitive roles their inverses. `None` means that a
-/// structure would exceed the `usize` range, that a number restriction or the
-/// complement of a self restriction is on a role that is not simple, or that
-/// the rules cannot go on (see above).
+/// structure would exceed the `usize` range, that a number restriction, the
+/// complement of a self restriction or a disjoint pair is on a role that is not
+/// simple, or that the rules cannot go on (see above).
 pub fn satisfiable(
     count: usize,
     query: &Vec<Fact>,
@@ -3155,6 +3251,9 @@ pub fn satisfiable(
         None => return None,
     };
     if !counting_simple(&entries, roles, 0) {
+        return None;
+    }
+    if !disjoint_simple(roles, 0) {
         return None;
     }
     let graph = match roots(

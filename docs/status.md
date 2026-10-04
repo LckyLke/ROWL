@@ -805,7 +805,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   ontology queries; every random input of the tests with such nominals is
   answered. No answer remains only when a bound has fewer counted named
   neighbours than it allows, which the tests never reach.
-- Reasoner track, fourteenth stage (in progress): SROIQ role features. The
+- Reasoner track, fourteenth stage: SROIQ role features. The
   concepts and the concept table have self restrictions `∃r.Self` and their
   complements, which hold exactly at the elements that `r` relates to
   themselves, or not: concepts::translate covers `ObjectHasSelf`, proved exact
@@ -824,20 +824,26 @@ progress. Full OWL parsing and executable reasoning are still future work.
   the parent, whose self restrictions the table has for the role of every
   existential and minimum restriction. The tests answer every one of 300
   random inputs with self restrictions and reflexive, irreflexive and
-  functional properties.
-- 1518 audited public theorems and 870 audited semantic definitions. Consistency,
+  functional properties. Asymmetric and disjoint object properties become
+  disjoint pairs of the role hierarchy, an asymmetric property paired with its
+  inverse: a node with one neighbour along both roles of a pair is a clash,
+  the model of a complete forest keeps every pair apart, and the pairs must be
+  on simple roles. The ontology queries take both axioms and decide them with
+  the forest.
+- 1531 audited public theorems and 874 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
   roles, nominals of named individuals and self restrictions, functional,
-  inverse functional, reflexive and irreflexive object properties, class,
-  object property and negative object property assertions, individual
-  equalities and inequalities, and inclusions, equivalences, inverses,
-  symmetry and transitivity of object property expressions (SHOIQ with self
-  restrictions), also directly from Functional Syntax source bytes.
+  inverse functional, reflexive, irreflexive, asymmetric and disjoint object
+  properties, class, object property and negative object property
+  assertions, individual equalities and inequalities, and inclusions,
+  equivalences, inverses, symmetry and transitivity of object property
+  expressions (SROIQ without role chains and without the universal and empty
+  roles), also directly from Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 440 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 442 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -852,7 +858,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1711-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1724-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

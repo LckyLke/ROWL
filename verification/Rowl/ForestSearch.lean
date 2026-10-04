@@ -11,8 +11,9 @@ loop along the role. The named node of an individual is the representative of
 the node of the first requirement with its nominal. The search returns the
 first missing concept of a node, an edge or a loop (with the seeds of tree
 nodes and of new named nodes), else an active node with `¬∃r.Self` that is its
-own neighbour along `r`, which is a clash, else an active node with a nominal
-whose named node is another node,
+own neighbour along `r`, or with a common neighbour along the two roles of a
+disjoint pair of the hierarchy, which is a clash, else an active node with a
+nominal whose named node is another node,
 else a neighbour that does not decide the filler of a maximum restriction, else,
 for a maximum restriction of a named node that counts a tree node that is no
 child of it, new named nodes when the restriction has no bound from them yet
@@ -3221,6 +3222,164 @@ theorem looped_node_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
 
+/-- A clash at a disjoint pair: a common neighbour of `x` along both roles of a
+    disjoint pair of the hierarchy. -/
+def Overlap (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat) : Prop :=
+  ∃ d ∈ h.disjoint.val, ∃ y : Usize, Neighbour P h F x d.left y.val ∧ Neighbour P h F x d.right y.val
+
+theorem common_correct (left right : alloc.vec.Vec Usize) (index : Usize) :
+    forest.common left right index = .ok (decide (∃ y ∈ left.val.drop index.val, y ∈ right.val)) := by
+  rw [forest.common]
+  by_cases more : index.val < left.val.length
+  · have lookup : left.index_usize index = .ok left.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : left.val.drop index.val = left.val[index.val] :: left.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    have rest := common_correct left right index'
+    rw [nextIndex] at rest
+    rw [split]
+    by_cases here : left.val[index.val] ∈ right.val
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,here,decide_true]
+      exact congrArg _ (decide_eq_true ⟨_,List.mem_cons_self ..,here⟩).symm
+    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,contains_correct,show (0#usize).val = 0 from rfl,List.drop_zero,here,decide_false,
+        Bool.false_eq_true,advance,rest]
+      congr 1
+      apply decide_eq_decide.mpr
+      constructor
+      · rintro ⟨y,member,found⟩
+        exact ⟨y,List.mem_cons_of_mem _ member,found⟩
+      · rintro ⟨y,member,found⟩
+        rcases List.mem_cons.mp member with rfl | later
+        · exact absurd found here
+        · exact ⟨y,later,found⟩
+  · have empty : left.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by left.val.length - index.val
+decreasing_by omega
+
+theorem overlap_from_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest)
+    (x index : Usize) :
+    ∃ r, forest.overlap_from P h F x index = .ok r ∧ ∀ b, r = some b →
+      (b = true ↔ ∃ d ∈ h.disjoint.val.drop index.val, ∃ y : Usize,
+        Neighbour P h F x.val d.left y.val ∧ Neighbour P h F x.val d.right y.val) := by
+  rw [forest.overlap_from]
+  by_cases more : index.val < h.disjoint.val.length
+  · have lookup : h.disjoint.index_usize index = .ok h.disjoint.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : h.disjoint.val.drop index.val = h.disjoint.val[index.val] :: h.disjoint.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    obtain ⟨leftResult,leftRun,leftSpec⟩ := neighbours_correct P h F x h.disjoint.val[index.val].left
+    cases leftResult with
+    | none =>
+      exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,leftRun],by simp⟩
+    | some left =>
+    obtain ⟨leftMembers,_⟩ := leftSpec left rfl
+    obtain ⟨rightResult,rightRun,rightSpec⟩ := neighbours_correct P h F x h.disjoint.val[index.val].right
+    cases rightResult with
+    | none =>
+      exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,leftRun,rightRun],by simp⟩
+    | some right =>
+    obtain ⟨rightMembers,_⟩ := rightSpec right rfl
+    have commonIff : (∃ y ∈ left.val, y ∈ right.val) ↔ ∃ y : Usize,
+        Neighbour P h F x.val h.disjoint.val[index.val].left y.val ∧
+          Neighbour P h F x.val h.disjoint.val[index.val].right y.val := by
+      constructor
+      · rintro ⟨y,inLeft,inRight⟩
+        exact ⟨y,(leftMembers y).mp inLeft,(rightMembers y).mp inRight⟩
+      · rintro ⟨y,inLeft,inRight⟩
+        exact ⟨y,(leftMembers y).mpr inLeft,(rightMembers y).mpr inRight⟩
+    rw [split]
+    by_cases here : ∃ y ∈ left.val, y ∈ right.val
+    · refine ⟨some true,?_,?_⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,leftRun,rightRun,common_correct,show (0#usize).val = 0 from rfl,List.drop_zero,here,decide_true]
+      · intro b same
+        cases same
+        simp only [true_iff]
+        exact ⟨_,List.mem_cons_self ..,commonIff.mp here⟩
+    · obtain ⟨r,run,spec⟩ := overlap_from_correct P h F x index'
+      refine ⟨r,?_,?_⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,leftRun,rightRun,common_correct,show (0#usize).val = 0 from rfl,List.drop_zero,here,decide_false,
+          Bool.false_eq_true,advance,run]
+      · intro b same
+        rw [spec b same,nextIndex]
+        constructor
+        · rintro ⟨d,member,found⟩
+          exact ⟨d,List.mem_cons_of_mem _ member,found⟩
+        · rintro ⟨d,member,found⟩
+          rcases List.mem_cons.mp member with rfl | later
+          · exact absurd (commonIff.mpr found) here
+          · exact ⟨d,later,found⟩
+  · have empty : h.disjoint.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨some false,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro b same
+    cases same
+    simp [empty]
+termination_by h.disjoint.val.length - index.val
+decreasing_by omega
+
+theorem overlap_node_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest)
+    (index : Usize) :
+    ∃ r, forest.overlap_node P h F index = .ok r ∧
+      (∀ x, r = some (some x) → Active F.nodes.val x.val ∧ Overlap P h F x.val) ∧
+      (r = some none → ∀ y, index.val ≤ y → Active F.nodes.val y → ¬ Overlap P h F y) := by
+  rw [forest.overlap_node]
+  by_cases more : index.val < F.nodes.val.length
+  · have lookup : F.nodes.index_usize index = .ok F.nodes.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have at_index : F.nodes.val[index.val]? = some F.nodes.val[index.val] := List.getElem?_eq_getElem more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    obtain ⟨r,run,found,absent⟩ := overlap_node_correct P h F index'
+    have skip : (Active F.nodes.val index.val → ¬ Overlap P h F index.val) →
+        r = some none → ∀ y, index.val ≤ y → Active F.nodes.val y → ¬ Overlap P h F y := by
+      intro here none y low active
+      by_cases same : y = index.val
+      · subst same
+        exact here active
+      · exact absent none y (by omega) active
+    by_cases active : F.nodes.val[index.val].active = true
+    · obtain ⟨l,lRun,lSpec⟩ := overlap_from_correct P h F index 0#usize
+      cases l with
+      | none => exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,lRun],by simp,by simp⟩
+      | some b =>
+        have iff := lSpec b rfl
+        simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at iff
+        cases b with
+        | true =>
+          refine ⟨some (some index),by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,lRun],?_,
+            by simp⟩
+          intro x same
+          simp only [Option.some.injEq] at same
+          subst same
+          exact ⟨⟨_,at_index,active⟩,iff.mp rfl⟩
+        | false =>
+          refine ⟨r,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,lRun,advance,run],found,
+            skip ?_⟩
+          intro _ overlap
+          exact absurd (iff.mpr overlap) (by simp)
+    · refine ⟨r,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,active,advance,run],found,skip ?_⟩
+      rintro ⟨n,at_n,isActive⟩
+      rw [at_index] at at_n
+      cases at_n
+      exact absurd isActive active
+  · refine ⟨some none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
+    intro _ y low ⟨n,at_n,_⟩
+    have := (List.getElem?_eq_some_iff.mp at_n).1
+    omega
+termination_by F.nodes.val.length - index.val
+decreasing_by all_goals omega
+
 /-- Something an active node, a tree edge, a link, an added edge from a live
     node or a loop requires of node `y`. -/
 def AddNeeds (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (y : Nat) (c : Usize) :
@@ -3236,8 +3395,9 @@ def AddNeeds (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.
     neighbour the model may repeat, every existential and minimum restriction
     of an unblocked active node has enough neighbours satisfying its filler,
     every nominal is on the named node of its individual, every loop of an
-    active node gives it what it requires along the loop, and no active node
-    with `¬∃r.Self` is its own neighbour along `r`. -/
+    active node gives it what it requires along the loop, no active node with
+    `¬∃r.Self` is its own neighbour along `r`, and no active node has a common
+    neighbour along the two roles of a disjoint pair. -/
 def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) : Prop :=
   (∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c → Holds P.entries.val (labelOf F.nodes.val y) c.val) ∧
   (∀ child n, F.nodes.val[child]? = some n → n.tree = true → n.active = true →
@@ -3249,7 +3409,8 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.
   (∀ y, Active F.nodes.val y → ¬ Blocked F.nodes.val y → ∀ i ∈ labelOf F.nodes.val y, ∀ e role c n,
     P.entries.val[i.val]? = some e → generatorOf e = some (role,n,c) → Enough P h F y role c n) ∧
   (∀ y, Active F.nodes.val y → NominalOkAt P F y) ∧
-  (∀ y, Active F.nodes.val y → LoopsOk P.entries.val h F y) ∧ (∀ y, Active F.nodes.val y → ¬ Looped P h F y)
+  (∀ y, Active F.nodes.val y → LoopsOk P.entries.val h F y) ∧ (∀ y, Active F.nodes.val y → ¬ Looped P h F y) ∧
+  (∀ y, Active F.nodes.val y → ¬ Overlap P h F y)
 
 /-- The rule search returns a concept that a node lacks and that a node or edge
     requires, a nominal of an active node that names another node, a neighbour
@@ -3268,6 +3429,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
       (∀ x root, r = some (.Nominal x root) → Active F.nodes.val x.val ∧ ∃ i ∈ labelOf F.nodes.val x.val, ∃ a,
         P.entries.val[i.val]? = some (.One a) ∧ NominalRoot P F a = some root ∧ root ≠ x) ∧
       (∀ x, r = some (.Loop x) → Active F.nodes.val x.val ∧ Looped P h F x.val) ∧
+      (∀ x, r = some (.Overlap x) → Active F.nodes.val x.val ∧ Overlap P h F x.val) ∧
       (∀ x i, r = some (.Create x i) → Active F.nodes.val x.val ∧ ¬ Blocked F.nodes.val x.val ∧
         i ∈ labelOf F.nodes.val x.val ∧ ∃ e role c n, P.entries.val[i.val]? = some e ∧
         generatorOf e = some (role,n,c) ∧ i ∉ doneOf F.nodes.val x.val ∧ ¬ Enough P h F x.val role c n) ∧
@@ -3279,7 +3441,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | some pair =>
     obtain ⟨y,c⟩ := pair
     obtain ⟨⟨n,at_y,act⟩,needs,fails⟩ := found0 y c rfl
-    refine ⟨some (.Add y c),by simp [run0],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Add y c),by simp [run0],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3290,7 +3452,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | some pair =>
     obtain ⟨y,c⟩ := pair
     obtain ⟨inside,needs,fails⟩ := found1 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Add y c),by simp [run0,run1],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3301,7 +3463,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | some pair =>
     obtain ⟨y,c⟩ := pair
     obtain ⟨inside,needs,fails⟩ := found2 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Add y c),by simp [run0,run1,run2],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3312,7 +3474,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | some pair =>
     obtain ⟨y,c⟩ := pair
     obtain ⟨inside,needs,fails⟩ := found3 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3323,7 +3485,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | some pair =>
     obtain ⟨y,c⟩ := pair
     obtain ⟨inside,needs,fails⟩ := found14 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3,run14],?_,by simp,by simp,by simp,by simp,by simp,by simp,
+    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3,run14],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
       by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
@@ -3333,25 +3495,39 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   obtain ⟨r15,run15,found15,absent15⟩ := looped_node_correct P h F 0#usize
   cases r15 with
   | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15],by simp,by simp,by simp,by simp,by simp,by simp,
-      by simp,by simp,by simp⟩
+      by simp,by simp,by simp,by simp⟩
   | some r16 =>
   cases r16 with
   | some x =>
     refine ⟨some (.Loop x),by simp [run0,run1,run2,run3,run14,run15],by simp,by simp,by simp,by simp,by simp,by simp,
-      ?_,by simp,by simp⟩
+      ?_,by simp,by simp,by simp⟩
     intro x' same
     simp only [Option.some.injEq,forest.Step.Loop.injEq] at same
     subst same
     exact found15 x rfl
   | none =>
+  obtain ⟨r17,run17,found17,absent17⟩ := overlap_node_correct P h F 0#usize
+  cases r17 with
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17],by simp,by simp,by simp,by simp,by simp,
+      by simp,by simp,by simp,by simp,by simp⟩
+  | some r18 =>
+  cases r18 with
+  | some x =>
+    refine ⟨some (.Overlap x),by simp [run0,run1,run2,run3,run14,run15,run17],by simp,by simp,by simp,by simp,
+      by simp,by simp,by simp,?_,by simp,by simp⟩
+    intro x' same
+    simp only [Option.some.injEq,forest.Step.Overlap.injEq] at same
+    subst same
+    exact found17 x rfl
+  | none =>
   obtain ⟨r12,run12,found12,absent12⟩ := nominal_node_correct P F 0#usize
   cases r12 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run12],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r13 =>
   cases r13 with
   | some pair =>
     obtain ⟨x,root⟩ := pair
-    refine ⟨some (.Nominal x root),by simp [run0,run1,run2,run3,run14,run15,run12],by simp,by simp,by simp,by simp,by simp,?_,by simp,by simp,by simp⟩
+    refine ⟨some (.Nominal x root),by simp [run0,run1,run2,run3,run14,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,?_,by simp,by simp,by simp,by simp⟩
     intro x' root' same
     simp only [Option.some.injEq,forest.Step.Nominal.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3359,13 +3535,13 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r4,run4,found4,absent4⟩ := counting_correct P h F true 0#usize
   cases r4 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run12,run4],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r5 =>
   cases r5 with
   | some step =>
     obtain ⟨x,active,i,member,n,role,c,c',at_i,y,isChoose,neighbour,one,two⟩ := found4 step rfl
     subst isChoose
-    refine ⟨some (.Choose y c c'),by simp [run0,run1,run2,run3,run14,run15,run12,run4],by simp,?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Choose y c c'),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4],by simp,?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' d d' same
     simp only [Option.some.injEq,forest.Step.Choose.injEq] at same
     obtain ⟨rfl,rfl,rfl⟩ := same
@@ -3373,27 +3549,27 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r6,run6,found6,absent6⟩ := counting_correct P h F false 0#usize
   cases r6 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r7 =>
   cases r7 with
   | some step =>
     obtain ⟨x,active,i,member,n,role,c,c',at_i,cases⟩ := found6 step rfl
     have counted : CountStep P h F false x step := ⟨i,member,n,role,c,c',at_i,cases⟩
     rcases cases with ⟨rfl,_⟩ | ⟨_,⟨rfl,_⟩ | ⟨rfl,_⟩⟩
-    · refine ⟨some (.Merge x i),by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6],by simp,by simp,?_,by simp,by simp,
-        by simp,by simp,by simp,by simp⟩
+    · refine ⟨some (.Merge x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,?_,by simp,by simp,
+        by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Merge.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
       exact ⟨active,counted⟩
-    · refine ⟨some (.Name x i),by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6],by simp,by simp,by simp,?_,by simp,
-        by simp,by simp,by simp,by simp⟩
+    · refine ⟨some (.Name x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,?_,by simp,
+        by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Name.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
       exact ⟨active,counted⟩
-    · refine ⟨some (.Capped x i),by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6],by simp,by simp,by simp,by simp,?_,
-        by simp,by simp,by simp,by simp⟩
+    · refine ⟨some (.Capped x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,?_,
+        by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Capped.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
@@ -3401,13 +3577,13 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r8,run8,found8,absent8⟩ := missing_successor_correct P h F true 0#usize
   cases r8 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
       by simp⟩
   | some r9 =>
   cases r9 with
   | some pair =>
     obtain ⟨x,i⟩ := pair
-    refine ⟨some (.Create x i),by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,?_,
+    refine ⟨some (.Create x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,?_,
       by simp⟩
     intro x' i' same
     simp only [Option.some.injEq,forest.Step.Create.injEq] at same
@@ -3417,14 +3593,14 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r10,run10,found10,absent10⟩ := missing_successor_correct P h F false 0#usize
   cases r10 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
       by simp,by simp⟩
   | some r11 =>
   cases r11 with
-  | some pair => exact ⟨some .Stuck,by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,
-      by simp,by simp,by simp,by simp⟩
+  | some pair => exact ⟨some .Stuck,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,
+      by simp,by simp,by simp,by simp,by simp⟩
   | none =>
-  refine ⟨some .Done,by simp [run0,run1,run2,run3,run14,run15,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  refine ⟨some .Done,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
     ?_⟩
   intro _
   rw [zero] at absent2 absent3
@@ -3438,6 +3614,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
       absent10 rfl y (Nat.zero_le _) isActive free i member e role c n at_i gen (by simp),
     fun y isActive => absent12 rfl y (Nat.zero_le _) isActive,
     fun y isActive => absent14 rfl y (Nat.zero_le _) isActive,
-    fun y isActive => absent15 rfl y (Nat.zero_le _) isActive⟩
+    fun y isActive => absent15 rfl y (Nat.zero_le _) isActive,
+    fun y isActive => absent17 rfl y (Nat.zero_le _) isActive⟩
 
 end Rowl.ForestSearch

@@ -3673,3 +3673,45 @@ where a loop meets a successor along a functional property.
 This block adds 6 public theorems and 1 independent definition and removes the
 guard's theorem and definition. Totals are 1518 audited theorems, 870
 definitions, 440 Rust regressions and 1711 ledger obligations.
+
+## Reasoner: asymmetric and disjoint object properties
+
+The role hierarchy now lists disjoint pairs of object property expressions
+(hierarchy::Disjoint), which no pair may be related by together (Constrained).
+The role axioms of a closure give them (shi_ontology::constraints_from,
+ConstraintsHold): an `AsymmetricObjectProperty` is the pair of the property and
+its inverse, and a `DisjointObjectProperties` axiom the pairs of every member
+with every later one (shi_ontology::add_disjoint_members,
+shi_ontology::roles_apart, shi_ontology::apart_with). The pairs are computed
+apart from the inclusions and added to the hierarchy that the inclusions give
+(shi_ontology::role_hierarchy), so an interpretation respects the hierarchy
+exactly when it satisfies the role axioms and keeps the pairs apart exactly
+when it satisfies the asymmetric and disjoint object properties
+(role_hierarchy_correct). The class parts leave both axioms to the hierarchy
+(ConstraintAxiom).
+
+The completion forest treats a node with a common neighbour along both roles of
+a pair as a clash (Overlap, forest::common, forest::overlap_from,
+forest::overlap_node, `Step::Overlap`), since every model relates the node to
+that neighbour along both roles (neighbour_holds). Its models keep the pairs
+apart (a new part of Models), and the model of a complete forest does too: when
+both roles are simple (SimpleCounting, forest::disjoint_simple), a pair of
+paths related along both is a step along each, whose neighbours of the newest
+node coincide (corr_function), and a complete forest has no Overlap
+(model_constrained). With an asymmetric property, a loop is such a common
+neighbour, so asymmetry also refutes self restrictions along the property.
+
+The ontology queries take both axioms (with their roles not built in,
+RoleProper) and route every closure with disjoint pairs to the forest
+(shi_ontology::constrained); its acceptances come with an OWL model that
+satisfies the axioms (owl_model_constraint_axiom), and every OWL model of the
+closure keeps the pairs apart, so the rejections stay exact. Disjoint pairs on
+roles that are not simple get no answer. This completes the stage: self
+restrictions and reflexive, irreflexive, asymmetric and disjoint object
+properties are decided with proofs, and of the role constructs of SROIQ only
+role chains and the universal and empty roles (owl:topObjectProperty,
+owl:bottomObjectProperty) remain.
+
+This block adds 13 public theorems and 4 independent definitions. Totals are
+1531 audited theorems, 874 definitions, 442 Rust regressions and 1724 ledger
+obligations.

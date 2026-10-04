@@ -77,6 +77,7 @@ fn hierarchy(
     RoleHierarchy {
         inclusions: all_inclusions,
         transitive: all_transitive,
+        disjoint: Vec::new(),
     }
 }
 fn none() -> RoleHierarchy {

@@ -18,15 +18,15 @@ node's path, which no maximum restriction of a named node in a complete forest
 counts. So when the forest is complete, every path satisfies every entry its
 label satisfies, including the number restrictions and complements of self
 restrictions on simple roles and the nominals, which only the named node of
-their individual lists, and the model
-respects the role hierarchy and satisfies the TBox concept, the unfoldings, the
-requirements and the links.
+their individual lists, the model keeps the disjoint pairs of the hierarchy,
+on simple roles, apart, and it respects the role hierarchy and satisfies the
+TBox concept, the unfoldings, the requirements and the links.
 -/
 namespace Rowl.ForestModel
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote negate_correct)
-open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below)
+open Rowl.Hierarchy (Below Closed Respects Constrained transitives below_refl respects_below)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild parts TransitiveClosed Complements)
 open Rowl.CompletionSearch (Holds Complementary HasAtom EdgeOk EdgeNeeds HasUniversal SameLabel holds_listed)
 open Rowl.CompletionModel (holds_same edgeOk_same edgeOk_mono below_inv_iff)
@@ -1100,8 +1100,8 @@ theorem truth {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Na
         · obtain ⟨y,neighbour,_,corr⟩ := neighbour_of_step inv s p p step
           rw [corr_tail F.nodes.val p.val y corr,tailIs] at neighbour
           rw [labIs] at member
-          exact complete.2.2.2.2.2.2.2.2.2 x activeX ⟨i,member,s,at_i,neighbour⟩
-        · exact shape.simple.2.2 c s at_c t transitive tr
+          exact complete.2.2.2.2.2.2.2.2.2.1 x activeX ⟨i,member,s,at_i,neighbour⟩
+        · exact shape.simple.2.2.1 c s at_c t transitive tr
       | Atom k =>
         obtain ⟨i,member,value⟩ := holds
         exact ⟨i,member,by rw [value]; exact at_c⟩
@@ -1307,14 +1307,42 @@ theorem place_val {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count 
   show [((rep F (Classical.choose found)).val,(rep F (Classical.choose found)).val)] = _
   rw [chosen]
 
+/-- The model relates no pair along both roles of a disjoint pair: both roles
+    are simple, so such a pair is a step along each, whose neighbours of the
+    newest node coincide, and a complete forest has no common neighbour along
+    them. -/
+theorem model_constrained {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (inv : Inv P h count F) (complete : Complete P h F) (root : Element count F.nodes.val) :
+    Constrained (model P h F count root) h := by
+  have shape := inv.shape
+  intro d member p q ⟨left,right⟩
+  rw [relation_model P h shape.closed F count root] at left right
+  have stepOf : ∀ r, (∀ t ∈ transitives h, ¬ Below h t r) → Rel P h F count r p q → Step P h F count r p q := by
+    intro r simple related
+    rcases related with step | ⟨t,transitive,tr,_⟩
+    · exact step
+    · exact absurd tr (simple t transitive)
+  obtain ⟨leftSimple,rightSimple⟩ := shape.simple.2.2.2 d member
+  obtain ⟨y,yLeft,_,yCorr⟩ := neighbour_of_step inv d.left p q (stepOf d.left leftSimple left)
+  obtain ⟨y',yRight,_,yCorr'⟩ := neighbour_of_step inv d.right p q (stepOf d.right rightSimple right)
+  rw [← corr_function inv p q y y' yCorr yCorr'] at yRight
+  obtain ⟨x,x0,rest,pIs,activeX,_,_⟩ := path_shape inv p.val p.property
+  have tailIs : tailOf p.val = x := by rw [pIs]; rfl
+  rw [tailIs] at yLeft yRight
+  have yIn := neighbour_inside shape x d.left y yLeft
+  have bounded := alloc.vec.Vec.len_ineq F.nodes
+  let u : Usize := Usize.ofNatCore y (by scalar_tac)
+  have value : u.val = y := UScalar.ofNatCore_val_eq _
+  exact complete.2.2.2.2.2.2.2.2.2.2 x activeX ⟨d,member,u,by rw [value]; exact yLeft,by rw [value]; exact yRight⟩
+
 /-- A complete forest that keeps the invariant, with at least one individual, has
-    a model in `Type` of the role hierarchy where the TBox concept and the
-    unfoldings hold everywhere and every requirement and link holds at the
-    elements of its individuals. -/
+    a model in `Type` of the role hierarchy and its disjoint pairs where the TBox
+    concept and the unfoldings hold everywhere and every requirement and link
+    holds at the elements of its individuals. -/
 theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
     (inv : Inv P h count F) (complete : Complete P h F) (positive : 0 < count) :
     ∃ (Object : Type) (I : Interpretation Object Unit) (π : Nat → Object),
-      Respects I h ∧ (∀ y, denote I (meaning P.entries.val P.axioms.val) y) ∧
+      Respects I h ∧ Constrained I h ∧ (∀ y, denote I (meaning P.entries.val P.axioms.val) y) ∧
       (∀ w ∈ P.unfoldings.val, ∀ y, I.classes w.class y → denote I (meaning P.entries.val w.concept.val) y) ∧
       (∀ q ∈ P.requirements.val, denote I (meaning P.entries.val q.concept.val) (π q.node.val)) ∧
       (∀ l ∈ P.links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) := by
@@ -1328,7 +1356,7 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
     rw [pIs]
     exact activeX
   refine ⟨Element count F.nodes.val,model P h F count root,place shape root,
-    model_respects P h shape.closed F count root,?_,?_,?_,?_⟩
+    model_respects P h shape.closed F count root,model_constrained inv complete root,?_,?_,?_,?_⟩
   · intro p
     exact truth inv complete root _ p (complete.1 _ (activeTail p) P.axioms (.inr (.inl rfl)))
   · intro w member p classes
@@ -1349,15 +1377,16 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
       .inl ⟨(congrArg tailOf (place_val shape root l.from inside.1)).symm,below_refl h l.role,
         (congrArg tailOf (place_val shape root l.to inside.2)).symm⟩⟩)))
 
-/-- The completion forest decides SHOIQ problems with named individuals: it
-    answers unless a structure would exceed the `usize` range, a number
-    restriction or the complement of a self restriction is on a role that is
-    not simple, a restriction with a bound from new named nodes has fewer
+/-- The completion forest decides SHOIQ problems with named individuals,
+    self restrictions and disjoint roles: it answers unless a structure would
+    exceed the `usize` range, a number restriction, the complement of a self
+    restriction or a disjoint pair is on a role that is not simple, a restriction with a bound from new named nodes has fewer
     counted named neighbours than the bound, the table has no self restriction
     for a role of an edge that a merge into a tree parent turns into loops, or
     the individual of a nominal or of the complement of one has no named node;
     an
-    acceptance comes with a model in `Type` of the role hierarchy where the TBox
+    acceptance comes with a model in `Type` of the role hierarchy and its
+    disjoint pairs where the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its individuals, and a rejection rules out every such
     model, in any universes. -/
@@ -1368,12 +1397,12 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
     (linksIn : ∀ l ∈ links.val, l.from.val < count.val ∧ l.to.val < count.val) :
     ∃ r, forest.satisfiable count query facts links axioms definitions h = .ok r ∧
       (r = some true → ∃ (Object : Type) (I : Interpretation Object Unit) (π : Nat → Object),
-        Respects I h ∧ (∀ y, denote I axioms y) ∧
+        Respects I h ∧ Constrained I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
         (∀ f ∈ query.val ++ facts.val, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) ∧
       (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
-        Respects I h ∧ (∀ y, denote I axioms y) ∧
+        Respects I h ∧ Constrained I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
         (∀ f ∈ query.val ++ facts.val, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
@@ -1382,9 +1411,9 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   refine ⟨r,run,?_,rejected⟩
   intro yes
   obtain ⟨P,F,⟨axMeaning,linksIs,corresponds,unfolds⟩,inv,complete⟩ := accepted yes
-  obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold⟩ :=
+  obtain ⟨Object,I,π,respects,constrained,axiomsHold,unfoldingsHold,requirementsHold,linksHold⟩ :=
     model_of_complete inv complete positive
-  refine ⟨Object,I,π,respects,?_,?_,?_,?_⟩
+  refine ⟨Object,I,π,respects,constrained,?_,?_,?_,?_⟩
   · intro y
     have := axiomsHold y
     rwa [axMeaning] at this

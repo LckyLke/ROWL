@@ -21,7 +21,7 @@ namespace Rowl.ForestSteps
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote)
-open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below)
+open Rowl.Hierarchy (Below Closed Respects Constrained transitives below_refl respects_below)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild)
 open Rowl.CompletionSearch (Holds Complementary)
 open Rowl.Completion (Sub copy_label_correct join_correct sum_drop label_le)
@@ -573,7 +573,7 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
   let π' : Nat → Object := fun y => if y < F.nodes.val.length then π y else f (y - F.nodes.val.length)
   have old : ∀ y, y < F.nodes.val.length → π' y = π y := fun y yIn => by simp [π',yIn]
   have countIn := shape.countIn
-  refine ⟨π',⟨models.respects,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩⟩
+  refine ⟨π',⟨models.respects,models.constrained,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩⟩
   · intro q listed
     rw [old _ (by have := shape.requirements q listed; omega)]
     exact models.requirements q listed
@@ -1641,7 +1641,7 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
     intro sub ns at_s tree s sIn
     rw [← equal sub]
     exact (models.tree source.val ns at_s tree (by simpa [nodeDeps,at_s] using sourceSub sub)).1 s sIn
-  refine ⟨⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,
+  refine ⟨⟨models.respects,models.constrained,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,
     by rw [merged.caps]; exact models.caps⟩,?_⟩
   · intro a sub
     by_cases aIn : a.val < G.same.val.length
@@ -2241,7 +2241,7 @@ theorem named_models {Object : Type u} {Value : Type v} {P : completion.Problem}
   have old : ∀ y, y < F.nodes.val.length → π' y = π y := fun y yIn => by simp [π',yIn]
   have countIn := shape.countIn
   have length := named_length made
-  refine ⟨π',models.respects,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩
+  refine ⟨π',models.respects,models.constrained,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩
   · intro q listed
     rw [old _ (by have := shape.requirements q listed; omega)]
     exact models.requirements q listed

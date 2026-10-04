@@ -483,6 +483,9 @@ fn satisfied(i: &Finite, item: &AnnotatedAxiom) -> bool {
         Axiom::FunctionalObjectProperty(r) => {
             everywhere(&|x| (0..i.size).filter(|&y| edge(i, r, x, y)).count() <= 1)
         }
+        Axiom::AsymmetricObjectProperty(r) => {
+            everywhere(&|x| (0..i.size).all(|y| !edge(i, r, x, y) || !edge(i, r, y, x)))
+        }
         _ => panic!("outside the test axioms"),
     }
 }
@@ -1479,6 +1482,124 @@ fn every_class_with_a_small_model_of_self_restrictions_is_satisfiable() {
         }
     }
     assert_eq!(unanswered, 0, "every sample is answered");
+    assert!(
+        with_model > 30,
+        "the sample must exercise satisfiable inputs"
+    );
+    assert!(
+        without > 10,
+        "the sample must exercise unsatisfiable inputs"
+    );
+}
+
+/// Asymmetric and disjoint object properties forbid pairs of edges, also
+/// through loops and inclusions.
+#[test]
+fn asymmetric_and_disjoint_properties() {
+    let r = || property(b"r");
+    let s = || property(b"s");
+    let asymmetric = vec![axiom(Axiom::AsymmetricObjectProperty(r()))];
+    assert_eq!(consistent(&asymmetric), Some(true));
+    assert_eq!(class_satisfiable(&asymmetric, &has_self(r())), Some(false));
+    assert_eq!(
+        class_satisfiable(&asymmetric, &some(b"r", thing())),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(
+            &asymmetric,
+            &and(
+                some(b"r", class(b"A")),
+                all_along(inverse(b"r"), not(class(b"A")))
+            )
+        ),
+        Some(true)
+    );
+    let mut both_ways = asymmetric;
+    both_ways.push(related(r(), named(b"a"), named(b"b")));
+    assert_eq!(consistent(&both_ways), Some(true));
+    both_ways.push(related(r(), named(b"b"), named(b"a")));
+    assert_eq!(consistent(&both_ways), Some(false));
+    // A symmetric and asymmetric property relates nothing.
+    let symmetric = vec![
+        axiom(Axiom::AsymmetricObjectProperty(r())),
+        axiom(Axiom::SymmetricObjectProperty(r())),
+    ];
+    assert_eq!(consistent(&symmetric), Some(true));
+    assert_eq!(
+        class_satisfiable(&symmetric, &some(b"r", thing())),
+        Some(false)
+    );
+    // Disjoint properties relate no pair together, also through inclusions.
+    let disjoint = vec![
+        axiom(Axiom::DisjointObjectProperties(two(r(), s(), Vec::new()))),
+        related(r(), named(b"a"), named(b"b")),
+    ];
+    assert_eq!(consistent(&disjoint), Some(true));
+    let mut reversed = disjoint;
+    reversed.push(related(s(), named(b"b"), named(b"a")));
+    assert_eq!(consistent(&reversed), Some(true));
+    reversed.push(related(s(), named(b"a"), named(b"b")));
+    assert_eq!(consistent(&reversed), Some(false));
+    let below_both = vec![
+        axiom(Axiom::DisjointObjectProperties(two(r(), s(), Vec::new()))),
+        included(property(b"t"), r()),
+        included(property(b"t"), s()),
+    ];
+    assert_eq!(
+        class_satisfiable(&below_both, &some(b"t", thing())),
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&below_both, &and(some(b"r", thing()), some(b"s", thing()))),
+        Some(true)
+    );
+    // Successors along both roles that a functional super-role merges.
+    let mut merged = below_both;
+    merged.push(included(r(), property(b"u")));
+    merged.push(included(s(), property(b"u")));
+    merged.push(axiom(Axiom::FunctionalObjectProperty(property(b"u"))));
+    assert_eq!(
+        class_satisfiable(&merged, &and(some(b"r", thing()), some(b"s", thing()))),
+        Some(false)
+    );
+    // Three disjoint members, pairwise.
+    let three = vec![axiom(Axiom::DisjointObjectProperties(two(
+        r(),
+        s(),
+        vec![property(b"v")],
+    )))];
+    let mut v_and_s = three;
+    v_and_s.push(related(property(b"v"), named(b"a"), named(b"b")));
+    v_and_s.push(related(s(), named(b"a"), named(b"b")));
+    assert_eq!(consistent(&v_and_s), Some(false));
+    // Disjoint pairs need simple roles.
+    let tangled = vec![axiom(Axiom::AsymmetricObjectProperty(r())), transitive(r())];
+    assert_eq!(consistent(&tangled), None);
+}
+
+#[test]
+fn every_class_with_a_small_model_of_asymmetric_properties_is_satisfiable() {
+    let finite = interpretations();
+    let mut seed = 47;
+    let mut with_model = 0;
+    let mut without = 0;
+    for _ in 0..300 {
+        let mut items: Vec<AnnotatedAxiom> = (0..2).map(|_| random_self_axiom(&mut seed)).collect();
+        items.push(axiom(Axiom::AsymmetricObjectProperty(property(b"R"))));
+        let query = random_self_expression(&mut seed, 2);
+        let small_model = finite.iter().any(|i| {
+            items.iter().all(|item| satisfied(i, item))
+                && (0..i.size).any(|x| denotes(i, &query, x))
+        });
+        let answer = class_satisfiable(&items, &query).expect("every sample is answered");
+        if small_model {
+            assert!(answer, "a model exists, so the class must be satisfiable");
+            with_model += 1;
+        } else if !answer {
+            without += 1;
+        }
+    }
     assert!(
         with_model > 30,
         "the sample must exercise satisfiable inputs"

@@ -22,7 +22,7 @@ namespace Rowl.ForestInv
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote)
-open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below)
+open Rowl.Hierarchy (Below Closed Respects Constrained transitives below_refl respects_below)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild TransitiveClosed Complements parts)
 open Rowl.CompletionSearch (Holds Complementary Clashes HasAtom EdgeNeeds SameLabel)
 open Rowl.Completion (Sub holds_mono holds_denote edge_need_holds label_le grow_strict sum_drop)
@@ -39,11 +39,13 @@ def Literal : concept_table.Entry → Prop
   | _ => False
 
 /-- Every number restriction and every complement of a self restriction of the
-    table is on a simple role: no transitive role is included in it. -/
+    table, and every disjoint pair of the hierarchy, is on simple roles: no
+    transitive role is included in them. -/
 def SimpleCounting (h : hierarchy.RoleHierarchy) (entries : List concept_table.Entry) : Prop :=
   (∀ (i : Nat) n r c, entries[i]? = some (.AtLeast n r c) → ∀ t ∈ transitives h, ¬ Below h t r) ∧
   (∀ (i : Nat) n r c d, entries[i]? = some (.AtMost n r c d) → ∀ t ∈ transitives h, ¬ Below h t r) ∧
-  (∀ (i : Nat) r, entries[i]? = some (.NotSelf r) → ∀ t ∈ transitives h, ¬ Below h t r)
+  (∀ (i : Nat) r, entries[i]? = some (.NotSelf r) → ∀ t ∈ transitives h, ¬ Below h t r) ∧
+  (∀ d ∈ h.disjoint.val, (∀ t ∈ transitives h, ¬ Below h t d.left) ∧ ∀ t ∈ transitives h, ¬ Below h t d.right)
 
 /-- The roles of an entry that creates neighbours, and their inverses. -/
 def generatorRoles : concept_table.Entry → List ObjectPropertyExpression
@@ -186,7 +188,8 @@ def CapHolds {Object : Type u} {Value : Type v} (entries : List concept_table.En
       (fun y => objectRelation I r (π cap.node.val) y ∧ denote I (meaning entries c.val) y)
 
 /-- An interpretation with a placement of every node that holds under the branch
-    points `D`: it respects the role hierarchy, the TBox concept and the
+    points `D`: it respects the role hierarchy and its disjoint pairs, the TBox
+    concept and the
     unfoldings hold everywhere, every requirement and link holds for the
     individuals, each individual sits where its representative does, and the
     labels, tree edges and seeds, the seeds of new named nodes, added edges,
@@ -195,6 +198,7 @@ def CapHolds {Object : Type u} {Value : Type v} (entries : List concept_table.En
 structure Models {Object : Type u} {Value : Type v} (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     (F : forest.Forest) (I : Interpretation Object Value) (π : Nat → Object) (D : List Usize) : Prop where
   respects : Respects I h
+  constrained : Constrained I h
   axioms : ∀ z, denote I (meaning P.entries.val P.axioms.val) z
   unfoldings : ∀ w ∈ P.unfoldings.val, ∀ z, I.classes w.class z → denote I (meaning P.entries.val w.concept.val) z
   requirements : ∀ q ∈ P.requirements.val, denote I (meaning P.entries.val q.concept.val) (π q.node.val)
@@ -1111,7 +1115,7 @@ theorem models_transfer {Object : Type u} {Value : Type v} {P : completion.Probl
     (models : Models P h F I π D) : Models P h F I π D' := by
   have lift : ∀ X : List Usize, (∀ k ∈ X, k.val < fresh) → Sub X D' → Sub X D :=
     fun X below sub k member => within k (below k member) (sub k member)
-  refine ⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,?_⟩
+  refine ⟨models.respects,models.constrained,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,?_⟩
   · intro a sub
     exact models.same a (lift _ (freshF.1 _) sub)
   · intro y sub
@@ -1191,7 +1195,7 @@ theorem fullModel_insert (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
       simp only [nodeDeps] at listed ⊢
       rw [other y same]
       exact listed
-  refine ⟨Object,Value,I,π,⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,
+  refine ⟨Object,Value,I,π,⟨models.respects,models.constrained,models.axioms,models.unfoldings,models.requirements,models.links,
     ?_,?_,?_,models.edges,models.distinct,?_,models.caps⟩,fun sub c member => extra sub c (List.mem_cons_of_mem _ member)⟩
   · intro a sub
     exact models.same a (depsAt _ sub).1

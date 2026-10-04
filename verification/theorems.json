@@ -1557,7 +1557,8 @@
         "Rowl.Hierarchy.is_transitive_correct",
         "Rowl.Hierarchy.respects_inv",
         "Rowl.Hierarchy.closed_of_empty",
-        "Rowl.Hierarchy.respects_of_empty"
+        "Rowl.Hierarchy.respects_of_empty",
+        "Rowl.Hierarchy.constrained_of_empty"
       ]
     },
     {
@@ -1749,6 +1750,12 @@
         "Rowl.ShiRoles.add_equivalent_correct",
         "Rowl.ShiRoles.add_transitive_correct",
         "Rowl.ShiRoles.hierarchy_from_correct",
+        "Rowl.ShiRoles.add_disjoint_correct",
+        "Rowl.ShiRoles.apart_with_correct",
+        "Rowl.ShiRoles.roles_apart_correct",
+        "Rowl.ShiRoles.copy_roles_from_correct",
+        "Rowl.ShiRoles.add_disjoint_members_correct",
+        "Rowl.ShiRoles.constraints_from_correct",
         "Rowl.ShiRoles.role_hierarchy_correct"
       ]
     },
@@ -1776,6 +1783,7 @@
         "Rowl.ShiOntology.owl_model_relation",
         "Rowl.ShiOntology.atLeast_lift",
         "Rowl.ShiOntology.owl_model_agrees",
+        "Rowl.ShiOntology.constrained_correct",
         "Rowl.ShiOntology.tangled_correct",
         "Rowl.ShiOntology.prepare_correct",
         "Rowl.ShiOntology.prepared_supported",
@@ -1859,6 +1867,9 @@
         "Rowl.ForestSearch.missing_loops_correct",
         "Rowl.ForestSearch.looped_from_correct",
         "Rowl.ForestSearch.looped_node_correct",
+        "Rowl.ForestSearch.common_correct",
+        "Rowl.ForestSearch.overlap_from_correct",
+        "Rowl.ForestSearch.overlap_node_correct",
         "Rowl.ForestSearch.next_step_correct"
       ]
     },
@@ -2067,6 +2078,7 @@
         "Rowl.Forest.simple_from_correct",
         "Rowl.Forest.counting_simple_correct",
         "Rowl.Forest.simpleCounting_of",
+        "Rowl.Forest.disjoint_simple_correct",
         "Rowl.Forest.roots_correct",
         "Rowl.Forest.loop_entries_correct",
         "Rowl.Forest.satisfiable_answers"
@@ -2118,6 +2130,7 @@
         "Rowl.ForestModel.step_ok",
         "Rowl.ForestModel.truth",
         "Rowl.ForestModel.place_val",
+        "Rowl.ForestModel.model_constrained",
         "Rowl.ForestModel.model_of_complete",
         "Rowl.ForestModel.satisfiable_correct"
       ]
@@ -3062,6 +3075,10 @@
     "Rowl.ForestSearch.LoopNeeds",
     "Rowl.ForestSearch.LoopsOk",
     "Rowl.ForestSearch.Looped",
-    "Rowl.ForestOps.IntoParent"
+    "Rowl.ForestOps.IntoParent",
+    "Rowl.Hierarchy.Constrained",
+    "Rowl.ShiParts.ConstraintAxiom",
+    "Rowl.ShiRoles.ConstraintsHold",
+    "Rowl.ForestSearch.Overlap"
   ]
 }

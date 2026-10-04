@@ -94,6 +94,7 @@ fn closing_adds_the_restrictions_of_transitive_roles() {
             },
         ],
         transitive: vec![named(b"hasPart"), inverted(b"hasPart")],
+        disjoint: Vec::new(),
     };
     let (entries, _) = intern(Vec::new(), &only(named(b"contains"), atom(b"Safe"))).expect("room");
     let (entries, _) = intern(entries, &only(inverted(b"contains"), atom(b"Used"))).expect("room");

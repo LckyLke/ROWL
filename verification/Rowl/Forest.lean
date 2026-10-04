@@ -7,7 +7,8 @@ restriction of an unblocked node, merges two neighbours, merges a node into
 the named node of its nominal, or creates new named nodes for a maximum
 restriction of a named node, and each of these decreases the measure, so `run`
 terminates on every forest that keeps the invariant; a node with `¬∃r.Self`
-that is its own neighbour along `r` is a clash. An acceptance comes with a
+that is its own neighbour along `r`, or with a common neighbour along both roles
+of a disjoint pair, is a clash. An acceptance comes with a
 complete forest that keeps the invariant; a rejection with a set of branch
 points rules out every model, in any universes, that holds under those points. Branching on a disjunction or on
 a neighbour's choice for a maximum restriction retries the second alternative
@@ -26,7 +27,7 @@ namespace Rowl.Forest
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote negate_correct)
-open Rowl.Hierarchy (Below Closed Respects transitives below_refl respects_below below_correct)
+open Rowl.Hierarchy (Below Closed Respects Constrained transitives below_refl respects_below below_correct)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild parts Complements complements_append FromOriginal Added)
 open Rowl.CompletionSearch (Holds Complementary Clashes contains_correct clashes_correct holds_listed)
 open Rowl.Completion (Sub pendingList pendingWeight three_pow_lt join_correct without_from_correct
@@ -1848,8 +1849,8 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       ∃ r, forest.run P h F' fresh' = .ok r ∧ Answers.{u,v} P h count F' 0 [] [] fresh'.val r :=
     fun F' fresh' smaller inv' fresh'' => ih _ smaller F' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
-  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,loopCase,createCase,doneCase⟩ :=
-    next_step_correct P h F
+  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,loopCase,overlapCase,createCase,
+    doneCase⟩ := next_step_correct P h F
   rw [forest.run,stepRun]
   cases step with
   | none => exact ⟨none,by simp,by simp,by simp⟩
@@ -2004,6 +2005,27 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       have notSelf := models.labels x.val (covers x.val (.inl rfl)) i member
       rw [meaning.eq_def,at_i] at notSelf
       exact notSelf related
+  | Overlap x =>
+    -- A common neighbour along both roles of a disjoint pair: no model.
+    obtain ⟨activeX,d,dIn,y,left,right⟩ := overlapCase x rfl
+    obtain ⟨ruleResult,ruleRun,ruleSpec⟩ := rule_deps_correct P F x (active_inside activeX)
+    cases ruleResult with
+    | none => exact ⟨none,by simp [ruleRun],by simp,by simp⟩
+    | some deps =>
+    obtain ⟨covers,edgeCovers,origin⟩ := ruleSpec deps rfl
+    refine ⟨some (.Rejected deps),by simp [ruleRun],by simp,?_⟩
+    intro D same
+    simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+    subst same
+    refine ⟨?_,?_⟩
+    · intro k listed
+      rcases origin k listed with ⟨z,there⟩ | ⟨e,eIn,there⟩
+      · exact freshF.1 z k there
+      · exact freshF.2.1 e eIn k there
+    · rintro ⟨Object,Value,I,π,models,_⟩
+      exact models.constrained d dIn (π x.val) (π y.val)
+        ⟨neighbour_holds models x d.left y.val left covers edgeCovers,
+          neighbour_holds models x d.right y.val right covers edgeCovers⟩
   | Create x i =>
     obtain ⟨activeX,free,member,_,_,_,_,_,_,notDone,_⟩ := createCase x i rfl
     obtain ⟨res,run,answers⟩ := create_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX free
@@ -2100,14 +2122,47 @@ termination_by entries.val.length - index.val
 decreasing_by omega
 
 theorem simpleCounting_of (h : hierarchy.RoleHierarchy) (entries : List concept_table.Entry)
-    (simple : ∀ e ∈ entries, CountsSimply h e) : SimpleCounting h entries := by
-  refine ⟨?_,?_,?_⟩
+    (simple : ∀ e ∈ entries, CountsSimply h e)
+    (pairs : ∀ d ∈ h.disjoint.val, (∀ t ∈ transitives h, ¬ Below h t d.left) ∧ ∀ t ∈ transitives h, ¬ Below h t d.right) :
+    SimpleCounting h entries := by
+  refine ⟨?_,?_,?_,pairs⟩
   · intro i n r c at_i
     exact simple _ (List.mem_of_getElem? at_i)
   · intro i n r c d at_i
     exact simple _ (List.mem_of_getElem? at_i)
   · intro i r at_i
     exact simple _ (List.mem_of_getElem? at_i)
+
+theorem disjoint_simple_correct (h : hierarchy.RoleHierarchy) (index : Usize) :
+    forest.disjoint_simple h index = .ok (decide (∀ d ∈ h.disjoint.val.drop index.val,
+      (∀ t ∈ transitives h, ¬ Below h t d.left) ∧ ∀ t ∈ transitives h, ¬ Below h t d.right)) := by
+  rw [forest.disjoint_simple]
+  by_cases more : index.val < h.disjoint.val.length
+  · have lookup : h.disjoint.index_usize index = .ok h.disjoint.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : h.disjoint.val.drop index.val = h.disjoint.val[index.val] :: h.disjoint.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := disjoint_simple_correct h next
+    rw [nextIndex] at rest
+    rw [split]
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+      bind_ok,simple_from_correct,show (0#usize).val = 0 from rfl,List.drop_zero,List.forall_mem_cons,transitives]
+    by_cases left : ∀ t ∈ h.transitive.val, ¬ Below h t h.disjoint.val[index.val].left
+    · by_cases right : ∀ t ∈ h.transitive.val, ¬ Below h t h.disjoint.val[index.val].right
+      · simp only [decide_eq_true left,decide_eq_true right,↓reduceIte,advance,bind_ok,rest,transitives]
+        congr 1
+        exact decide_eq_decide.mpr ⟨fun later => ⟨⟨left,right⟩,later⟩,fun both => both.2⟩
+      · simp only [decide_eq_true left,decide_eq_false right,Bool.false_eq_true,↓reduceIte]
+        simp [right]
+    · simp only [decide_eq_false left,Bool.false_eq_true,↓reduceIte]
+      simp [left]
+  · have empty : h.disjoint.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty]
+termination_by h.disjoint.val.length - index.val
+decreasing_by omega
 
 /-- A named node with an empty label. -/
 def root : forest.Node :=
@@ -2231,7 +2286,8 @@ decreasing_by all_goals omega
 
 /-- The completion forest terminates. An acceptance comes with a complete forest
     that keeps the invariant for the interned input; a rejection rules out
-    every model, in any universes, of the role hierarchy in which the TBox
+    every model, in any universes, of the role hierarchy and its disjoint pairs
+    in which the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its named individuals. No answer means that a structure
     would exceed the `usize` range, that a number restriction or the complement
@@ -2246,7 +2302,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
       (r = some true → ∃ (P : completion.Problem) (F : forest.Forest),
         Interned P query.val facts.val links.val axioms definitions.val ∧ Inv P h count.val F ∧ Complete P h F) ∧
       (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
-        Respects I h ∧ (∀ y, denote I axioms y) ∧
+        Respects I h ∧ Constrained I h ∧ (∀ y, denote I axioms y) ∧
         (∀ d ∈ definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
         (∀ f ∈ query.val ++ facts.val, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
@@ -2306,8 +2362,19 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
   · refine ⟨none,?_,by simp,by simp⟩
     rw [forest.satisfiable]
     simp [run0,runq,run1,run2,runl,run3,counting_simple_correct,simple]
-  have simpleCounting : SimpleCounting h t3.val := simpleCounting_of h t3.val simple
   have simple' : ∀ e ∈ t3.val.drop (0#usize).val, CountsSimply h e := by simpa using simple
+  by_cases pairsSimple : ∀ d ∈ h.disjoint.val,
+      (∀ t ∈ transitives h, ¬ Below h t d.left) ∧ ∀ t ∈ transitives h, ¬ Below h t d.right
+  swap
+  · refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.satisfiable]
+    simp only [run0,runq,run1,run2,runl,run3,bind_ok,uncurry_apply_pair,counting_simple_correct]
+    rw [decide_eq_true simple']
+    simp [disjoint_simple_correct,pairsSimple]
+  have simpleCounting : SimpleCounting h t3.val := simpleCounting_of h t3.val simple pairsSimple
+  have pairsSimple' : ∀ d ∈ h.disjoint.val.drop (0#usize).val,
+      (∀ t ∈ transitives h, ¬ Below h t d.left) ∧ ∀ t ∈ transitives h, ¬ Below h t d.right := by
+    simpa using pairsSimple
   obtain ⟨F0,run4,length0,roots0,sameLength0,sameIs0,edges0,distinct0,caps0⟩ := roots_correct count
     ⟨alloc.vec.Vec.new forest.Node,alloc.vec.Vec.new forest.Edge,alloc.vec.Vec.new forest.Distinct,
       alloc.vec.Vec.new Usize,alloc.vec.Vec.new forest.Cap⟩ (by simp) (by simp) (by simp) (by simp)
@@ -2433,6 +2500,8 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     rw [forest.satisfiable]
     simp only [run0,runq,run1,run2,runl,run3,bind_ok,uncurry_apply_pair,counting_simple_correct,linksCopy,run4]
     rw [decide_eq_true simple']
+    simp only [↓reduceIte,bind_ok,disjoint_simple_correct]
+    rw [decide_eq_true pairsSimple']
     simp only [↓reduceIte,bind_ok,run4,linksCopy,run']
     cases r with
     | none => simpa using same
@@ -2449,9 +2518,9 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
   | Rejected D =>
     refine ⟨some false,code _ rfl,by simp,?_⟩
     intro _
-    rintro ⟨Object,Value,I,π,respects,axiomsHold,definitionsHold,factsHold,linksHold⟩
+    rintro ⟨Object,Value,I,π,respects,constrained,axiomsHold,definitionsHold,factsHold,linksHold⟩
     apply (complete D rfl).2
-    refine ⟨Object,Value,I,π,⟨respects,?_,?_,?_,linksHold,?_,?_,?_,?_,?_,?_,
+    refine ⟨Object,Value,I,π,⟨respects,constrained,?_,?_,?_,linksHold,?_,?_,?_,?_,?_,?_,
       by intro cap member; rw [caps0] at member; simp at member⟩,by simp⟩
     · intro y
       show denote I (meaning t3.val ax.val) y

@@ -154,4 +154,15 @@ theorem respects_of_empty {Object : Type u} {Value : Type v} (I : Interpretation
     simp [inclusionList,noInclusions] at listed
   · intro t listed
     simp [transitives,noTransitive] at listed
+
+/-- The interpretation relates no pair along both roles of a listed disjoint
+    pair. -/
+def Constrained {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (h : hierarchy.RoleHierarchy) : Prop :=
+  ∀ d ∈ h.disjoint.val, ∀ x y, ¬ (objectRelation I d.left x y ∧ objectRelation I d.right x y)
+
+theorem constrained_of_empty {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (h : hierarchy.RoleHierarchy) (noPairs : h.disjoint.val = []) : Constrained I h := by
+  intro d listed
+  simp [noPairs] at listed
 end Rowl.Hierarchy

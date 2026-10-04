@@ -9,15 +9,18 @@ compositions with the inclusions already listed, skipping the inclusions the
 hierarchy already has, and every transitive role with its inverse. The result
 is closed under composition and inverses, as the completion graph tableau
 requires, and an interpretation respects it exactly when it satisfies every role
-axiom of the closure.
+axiom of the closure. Its disjoint pairs come from the asymmetric object
+properties, each disjoint from its inverse, and from the disjoint object
+properties, pairwise, and an interpretation keeps them apart exactly when it
+satisfies those axioms.
 -/
 namespace Rowl.ShiRoles
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv inverse_correct copy_role_identity same_role_correct)
-open Rowl.Hierarchy (Below Closed Respects inclusionList transitives below_refl respects_below below_correct
-  is_transitive_correct closed_of_empty)
-open Rowl.ShiParts (RoleAxiom)
+open Rowl.Hierarchy (Below Closed Respects Constrained inclusionList transitives below_refl respects_below
+  below_correct is_transitive_correct closed_of_empty constrained_of_empty)
+open Rowl.ShiParts (RoleAxiom ConstraintAxiom)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
@@ -717,22 +720,323 @@ theorem hierarchy_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : U
 termination_by items.val.length - index.val
 decreasing_by all_goals omega
 
+/-- What the asymmetric and disjoint object properties of a closure require:
+    every one of them holds. -/
+def ConstraintsHold {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (items : List AnnotatedAxiom) : Prop :=
+  ∀ a ∈ items, ConstraintAxiom a.axiom → Rowl.Owl.satisfies I a.axiom
+
+/-- Adding a disjoint pair appends it. -/
+theorem add_disjoint_correct (h : hierarchy.RoleHierarchy) (left right : ObjectPropertyExpression) :
+    ∃ result, shi_ontology.add_disjoint h left right = .ok result ∧ ∀ h', result = some h' →
+      h'.disjoint.val = h.disjoint.val ++ [⟨left,right⟩] := by
+  rw [shi_ontology.add_disjoint]
+  by_cases room : h.disjoint.val.length < Usize.max
+  · obtain ⟨pushed,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec h.disjoint (⟨left,right⟩ : hierarchy.Disjoint) room)
+    refine ⟨some { h with disjoint := pushed },?_,?_⟩
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room,copy_role_identity,push]
+    · intro h' same
+      cases same
+      exact contents
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room],by simp⟩
+
+/-- The pairs of `values[first]` with every role of `values[index..]`. -/
+theorem apart_with_correct (values : alloc.vec.Vec ObjectPropertyExpression) (first index : Usize)
+    (h : hierarchy.RoleHierarchy) :
+    ∃ result, shi_ontology.apart_with values first index h = .ok result ∧ ∀ h', result = some h' →
+      ∀ d, d ∈ h'.disjoint.val ↔ d ∈ h.disjoint.val ∨ ∃ (j : Nat) (hf : first.val < values.val.length)
+        (hj : j < values.val.length), index.val ≤ j ∧ d = ⟨values.val[first.val],values.val[j]⟩ := by
+  rw [shi_ontology.apart_with]
+  by_cases firstIn : first.val < values.val.length
+  · by_cases more : index.val < values.val.length
+    · have l1 : values.index_usize first = .ok values.val[first.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem firstIn]
+      have l2 : values.index_usize index = .ok values.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+      obtain ⟨added,addRun,addSpec⟩ := add_disjoint_correct h values.val[first.val] values.val[index.val]
+      cases added with
+      | none =>
+        exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,firstIn,more,l1,l2,addRun],by simp⟩
+      | some h1 =>
+        have h1Is := addSpec h1 rfl
+        obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+        have nextIndex : index'.val = index.val + 1 := by simpa using indexValue
+        obtain ⟨result,run,spec⟩ := apart_with_correct values first index' h1
+        refine ⟨result,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,firstIn,more,l1,l2,addRun,advance,run],?_⟩
+        intro h' same d
+        rw [spec h' same d,h1Is,nextIndex]
+        constructor
+        · rintro (old | ⟨j,hf,hj,low,rfl⟩)
+          · rcases List.mem_append.mp old with older | single
+            · exact .inl older
+            · rw [List.mem_singleton] at single
+              subst single
+              exact .inr ⟨index.val,firstIn,more,le_refl _,rfl⟩
+          · exact .inr ⟨j,hf,hj,by omega,rfl⟩
+        · rintro (old | ⟨j,hf,hj,low,rfl⟩)
+          · exact .inl (List.mem_append_left _ old)
+          · by_cases here : j = index.val
+            · subst here
+              exact .inl (List.mem_append_right _ (List.mem_singleton.mpr rfl))
+            · exact .inr ⟨j,hf,hj,by omega,rfl⟩
+    · refine ⟨some h,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,firstIn,more],?_⟩
+      intro h' same d
+      cases same
+      constructor
+      · exact .inl
+      · rintro (old | ⟨j,hf,hj,low,_⟩)
+        · exact old
+        · omega
+  · refine ⟨some h,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,firstIn],?_⟩
+    intro h' same d
+    cases same
+    constructor
+    · exact .inl
+    · rintro (old | ⟨j,hf,_⟩)
+      · exact old
+      · exact absurd hf firstIn
+termination_by values.val.length - index.val
+decreasing_by omega
+
+/-- The pairs of every role of `values[index..]` with every later one. -/
+theorem roles_apart_correct (values : alloc.vec.Vec ObjectPropertyExpression) (index : Usize)
+    (h : hierarchy.RoleHierarchy) :
+    ∃ result, shi_ontology.roles_apart values index h = .ok result ∧ ∀ h', result = some h' →
+      ∀ d, d ∈ h'.disjoint.val ↔ d ∈ h.disjoint.val ∨ ∃ (i j : Nat) (hi : i < values.val.length)
+        (hj : j < values.val.length), index.val ≤ i ∧ i < j ∧ d = ⟨values.val[i],values.val[j]⟩ := by
+  rw [shi_ontology.roles_apart]
+  by_cases more : index.val < values.val.length
+  · obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val + 1 := by simpa using indexValue
+    obtain ⟨first,firstRun,firstSpec⟩ := apart_with_correct values index index' h
+    cases first with
+    | none => exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,advance,firstRun],by simp⟩
+    | some h1 =>
+      obtain ⟨result,run,spec⟩ := roles_apart_correct values index' h1
+      refine ⟨result,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,advance,firstRun,run],?_⟩
+      intro h' same d
+      rw [spec h' same d,firstSpec h1 rfl d,nextIndex]
+      constructor
+      · rintro ((old | ⟨j,hf,hj,low,rfl⟩) | ⟨i,j,hi,hj,low,less,rfl⟩)
+        · exact .inl old
+        · exact .inr ⟨index.val,j,hf,hj,le_refl _,by omega,rfl⟩
+        · exact .inr ⟨i,j,hi,hj,by omega,less,rfl⟩
+      · rintro (old | ⟨i,j,hi,hj,low,less,rfl⟩)
+        · exact .inl (.inl old)
+        · by_cases here : i = index.val
+          · subst here
+            exact .inl (.inr ⟨j,hi,hj,by omega,rfl⟩)
+          · exact .inr ⟨i,j,hi,hj,by omega,less,rfl⟩
+  · refine ⟨some h,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro h' same d
+    cases same
+    constructor
+    · exact .inl
+    · rintro (old | ⟨i,j,hi,hj,low,_⟩)
+      · exact old
+      · omega
+termination_by values.val.length - index.val
+decreasing_by omega
+
+/-- Copying roles appends them. -/
+theorem copy_roles_from_correct (values : alloc.vec.Vec ObjectPropertyExpression) (index : Usize)
+    (out : alloc.vec.Vec ObjectPropertyExpression) :
+    ∃ result, shi_ontology.copy_roles_from values index out = .ok result ∧ ∀ out', result = some out' →
+      out'.val = out.val ++ values.val.drop index.val := by
+  rw [shi_ontology.copy_roles_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : values.val.drop index.val = values.val[index.val] :: values.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    by_cases room : out.val.length < Usize.max
+    · obtain ⟨pushed,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out values.val[index.val] room)
+      obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : index'.val = index.val + 1 := by simpa using indexValue
+      obtain ⟨result,run,spec⟩ := copy_roles_from_correct values index' pushed
+      refine ⟨result,?_,?_⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,usize_max_val,lookup,copy_role_identity,push,
+          advance,run]
+      · intro out' same
+        rw [spec out' same,contents,nextIndex,split]
+        simp
+    · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,usize_max_val],by simp⟩
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same
+    cases same
+    simp [List.drop_eq_nil_iff.mpr (show values.val.length ≤ index.val by omega)]
+termination_by values.val.length - index.val
+decreasing_by omega
+
+/-- The pairs of every member of a disjointness axiom with every later one. -/
+theorem add_disjoint_members_correct (h : hierarchy.RoleHierarchy) (members : AtLeastTwo ObjectPropertyExpression) :
+    ∃ result, shi_ontology.add_disjoint_members h members = .ok result ∧ ∀ h', result = some h' →
+      ∀ d, d ∈ h'.disjoint.val ↔ d ∈ h.disjoint.val ∨ ∃ (i j : Nat) (hi : i < members.elements.length)
+        (hj : j < members.elements.length), i < j ∧ d = ⟨members.elements[i],members.elements[j]⟩ := by
+  rw [shi_ontology.add_disjoint_members]
+  obtain ⟨one,onePush,oneContents⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec (alloc.vec.Vec.new ObjectPropertyExpression) members.first (by simp; scalar_tac))
+  obtain ⟨two,twoPush,twoContents⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec one members.second (by rw [oneContents]; simp; scalar_tac))
+  obtain ⟨copied,copyRun,copySpec⟩ := copy_roles_from_correct members.rest 0#usize two
+  cases copied with
+  | none => exact ⟨none,by simp [copy_role_identity,onePush,twoPush,copyRun],by simp⟩
+  | some values =>
+    have valuesIs : values.val = members.elements := by
+      rw [copySpec values rfl,twoContents,oneContents]
+      simp [AtLeastTwo.elements]
+    obtain ⟨result,run,spec⟩ := roles_apart_correct values 0#usize h
+    refine ⟨result,by simp [copy_role_identity,onePush,twoPush,copyRun,run],?_⟩
+    intro h' same d
+    rw [spec h' same d]
+    have zero : (0#usize).val = 0 := rfl
+    constructor
+    · rintro (old | ⟨i,j,hi,hj,_,less,rfl⟩)
+      · exact .inl old
+      · refine .inr ⟨i,j,by rw [← valuesIs]; exact hi,by rw [← valuesIs]; exact hj,less,?_⟩
+        simp only [valuesIs]
+    · rintro (old | ⟨i,j,hi,hj,less,rfl⟩)
+      · exact .inl old
+      · refine .inr ⟨i,j,by rw [valuesIs]; exact hi,by rw [valuesIs]; exact hj,by rw [zero]; omega,less,?_⟩
+        simp only [valuesIs]
+
+/-- Pairs of positions with a property are the pairwise property of the list. -/
+private theorem pairs_pairwise {α : Type} (xs : List α) (R : α → α → Prop) :
+    (∀ (i j : Nat) (hi : i < xs.length) (hj : j < xs.length), i < j → R xs[i] xs[j]) ↔ xs.Pairwise R := by
+  rw [List.pairwise_iff_getElem]
+
+/-- The disjoint pairs of the asymmetric and disjoint object properties of
+    `items[index..]`: an interpretation keeps them apart exactly when it keeps
+    the pairs it started from apart and satisfies those axioms. -/
+theorem constraints_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (h : hierarchy.RoleHierarchy) :
+    ∃ result, shi_ontology.constraints_from items index h = .ok result ∧
+      ∀ h', result = some h' → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+        (Constrained I h' ↔ Constrained I h ∧ ConstraintsHold I (items.val.drop index.val)) := by
+  rw [shi_ontology.constraints_from]
+  by_cases more : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : items.val.drop index.val = items.val[index.val] :: items.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    -- After this axiom's step, the rest of the axioms follow by recursion.
+    have continuation : ∀ middle : Option hierarchy.RoleHierarchy,
+        (∀ mid, middle = some mid → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+          (Constrained I mid ↔ Constrained I h ∧ (ConstraintAxiom items.val[index.val].axiom →
+            Rowl.Owl.satisfies I items.val[index.val].axiom))) →
+        ∃ result, (match middle with
+          | none => (ok none : Result (Option hierarchy.RoleHierarchy))
+          | some roles2 => shi_ontology.constraints_from items next roles2) = .ok result ∧
+          ∀ h', result = some h' → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+            (Constrained I h' ↔ Constrained I h ∧ ConstraintsHold I (items.val.drop index.val)) := by
+      intro middle middleSpec
+      cases middle with
+      | none => exact ⟨none,rfl,by intro h' impossible; cases impossible⟩
+      | some mid =>
+        obtain ⟨result,run,spec⟩ := constraints_from_correct items next mid
+        refine ⟨result,run,?_⟩
+        intro h' same Object Value I
+        rw [spec h' same Object Value I,middleSpec mid rfl Object Value I,nextIndex,split]
+        simp only [ConstraintsHold,List.forall_mem_cons]
+        tauto
+    have unchanged : ¬ ConstraintAxiom items.val[index.val].axiom → ∃ result,
+        (match (some h : Option hierarchy.RoleHierarchy) with
+          | none => (ok none : Result (Option hierarchy.RoleHierarchy))
+          | some roles2 => shi_ontology.constraints_from items next roles2) = .ok result ∧
+          ∀ h', result = some h' → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+            (Constrained I h' ↔ Constrained I h ∧ ConstraintsHold I (items.val.drop index.val)) := by
+      intro notConstraint
+      apply continuation (some h)
+      intro mid same Object Value I
+      cases same
+      simp [notConstraint]
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+      bind_ok,advance]
+    cases here : items.val[index.val].axiom with
+    | AsymmetricObjectProperty role =>
+      obtain ⟨added,addRun,addSpec⟩ := add_disjoint_correct h role (inv role)
+      simp only [inverse_correct,addRun,bind_ok]
+      apply continuation added
+      intro h' same Object Value I
+      rw [here]
+      simp only [Constrained,addSpec h' same,List.mem_append,List.mem_singleton,ConstraintAxiom,
+        Rowl.Owl.satisfies,true_implies]
+      constructor
+      · intro all
+        refine ⟨fun d member => all d (.inl member),fun x y forward backward => ?_⟩
+        exact all ⟨role,inv role⟩ (.inr rfl) x y ⟨forward,(relation_inv I role x y).mpr backward⟩
+      · rintro ⟨old,asymmetric⟩ d (member | rfl)
+        · exact old d member
+        · rintro x y ⟨forward,backward⟩
+          exact asymmetric x y forward ((relation_inv I role x y).mp backward)
+    | DisjointObjectProperties members =>
+      obtain ⟨added,addRun,addSpec⟩ := add_disjoint_members_correct h members
+      simp only [addRun,bind_ok]
+      apply continuation added
+      intro h' same Object Value I
+      rw [here]
+      simp only [ConstraintAxiom,Rowl.Owl.satisfies,Rowl.Owl.pairwiseDisjoint,true_implies]
+      rw [← pairs_pairwise]
+      constructor
+      · intro all
+        refine ⟨fun d member => all d ((addSpec h' same d).mpr (.inl member)),?_⟩
+        intro i j hi hj less xy both
+        exact all ⟨members.elements[i],members.elements[j]⟩
+          ((addSpec h' same _).mpr (.inr ⟨i,j,hi,hj,less,rfl⟩)) xy.1 xy.2 both
+      · rintro ⟨old,pairwise⟩ d member
+        rcases (addSpec h' same d).mp member with older | ⟨i,j,hi,hj,less,rfl⟩
+        · exact old d older
+        · intro x y both
+          exact pairwise i j hi hj less (x,y) both
+    | _ => simp only [bind_ok]; exact unchanged (by simp [here,ConstraintAxiom])
+  · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨some h,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro h' same Object Value I
+    cases same
+    simp [ConstraintsHold,empty]
+termination_by items.val.length - index.val
+decreasing_by all_goals omega
+
 /-- The actual role hierarchy of a closure is closed under composition and
-    inverses, and an interpretation respects it exactly when it satisfies every
-    role axiom of the closure. -/
+    inverses; an interpretation respects it exactly when it satisfies every
+    role axiom of the closure, and keeps its disjoint pairs apart exactly when
+    it satisfies every asymmetric and disjoint object property of the
+    closure. -/
 theorem role_hierarchy_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ result, shi_ontology.role_hierarchy items = .ok result ∧
       ∀ h, result = some h → Closed h ∧ ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
-        (Respects I h ↔ RolesHold I items.val) := by
+        (Respects I h ↔ RolesHold I items.val) ∧ (Constrained I h ↔ ConstraintsHold I items.val) := by
   rw [shi_ontology.role_hierarchy]
+  obtain ⟨pairsResult,pairsRun,pairsSpec⟩ := constraints_from_correct.{u,v} items 0#usize
+    ⟨alloc.vec.Vec.new hierarchy.Inclusion,alloc.vec.Vec.new ObjectPropertyExpression,
+      alloc.vec.Vec.new hierarchy.Disjoint⟩
+  cases pairsResult with
+  | none => exact ⟨none,by simp [pairsRun],by simp⟩
+  | some pairs =>
   obtain ⟨result,run,spec⟩ := hierarchy_from_correct.{u,v} items 0#usize
-    ⟨alloc.vec.Vec.new hierarchy.Inclusion,alloc.vec.Vec.new ObjectPropertyExpression⟩ (closed_of_empty _ rfl rfl)
-  refine ⟨result,run,?_⟩
+    ⟨alloc.vec.Vec.new hierarchy.Inclusion,alloc.vec.Vec.new ObjectPropertyExpression,
+      alloc.vec.Vec.new hierarchy.Disjoint⟩ (closed_of_empty _ rfl rfl)
+  cases result with
+  | none => exact ⟨none,by simp [pairsRun,run],by simp⟩
+  | some h1 =>
+  refine ⟨some { h1 with disjoint := pairs.disjoint },by simp [pairsRun,run],?_⟩
   intro h same
-  obtain ⟨closed,meaning⟩ := spec h same
-  refine ⟨closed,fun Object Value I => ?_⟩
-  rw [meaning Object Value I]
-  simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
-  exact ⟨fun both => both.2,fun holds => ⟨Rowl.Hierarchy.respects_of_empty I _ rfl rfl,holds⟩⟩
+  cases same
+  obtain ⟨closed,meaning⟩ := spec h1 rfl
+  refine ⟨closed,fun Object Value I => ⟨?_,?_⟩⟩
+  · show Respects I h1 ↔ _
+    rw [meaning Object Value I]
+    simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
+    exact ⟨fun both => both.2,fun holds => ⟨Rowl.Hierarchy.respects_of_empty I _ rfl rfl,holds⟩⟩
+  · show Constrained I pairs ↔ _
+    rw [pairsSpec pairs rfl Object Value I]
+    simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
+    exact ⟨fun both => both.2,fun holds => ⟨constrained_of_empty I _ rfl,holds⟩⟩
 
 end Rowl.ShiRoles

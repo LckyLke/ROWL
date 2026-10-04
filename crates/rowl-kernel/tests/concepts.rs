@@ -159,6 +159,7 @@ fn hierarchies_list_inclusions_and_transitive_roles() {
             },
         ],
         transitive: vec![named(b"hasPart"), inverted(b"hasPart")],
+        disjoint: Vec::new(),
     };
     assert!(below(&roles, &named(b"hasComponent"), &named(b"hasPart")));
     assert!(below(

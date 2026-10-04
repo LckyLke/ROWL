@@ -1094,6 +1094,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Hierarchy.respects_inv
 #print axioms Rowl.Hierarchy.closed_of_empty
 #print axioms Rowl.Hierarchy.respects_of_empty
+#print axioms Rowl.Hierarchy.constrained_of_empty
 #print axioms Rowl.ConceptTable.meaning_at
 #print axioms Rowl.ConceptTable.meaning_append
 #print axioms Rowl.ConceptTable.wellFormed_append
@@ -1249,6 +1250,12 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiRoles.add_equivalent_correct
 #print axioms Rowl.ShiRoles.add_transitive_correct
 #print axioms Rowl.ShiRoles.hierarchy_from_correct
+#print axioms Rowl.ShiRoles.add_disjoint_correct
+#print axioms Rowl.ShiRoles.apart_with_correct
+#print axioms Rowl.ShiRoles.roles_apart_correct
+#print axioms Rowl.ShiRoles.copy_roles_from_correct
+#print axioms Rowl.ShiRoles.add_disjoint_members_correct
+#print axioms Rowl.ShiRoles.constraints_from_correct
 #print axioms Rowl.ShiRoles.role_hierarchy_correct
 #print axioms Rowl.ShiOntology.proper_correct
 #print axioms Rowl.ShiOntology.counts_correct
@@ -1270,6 +1277,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.owl_model_relation
 #print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
+#print axioms Rowl.ShiOntology.constrained_correct
 #print axioms Rowl.ShiOntology.tangled_correct
 #print axioms Rowl.ShiOntology.prepare_correct
 #print axioms Rowl.ShiOntology.prepared_supported
@@ -1347,6 +1355,9 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.missing_loops_correct
 #print axioms Rowl.ForestSearch.looped_from_correct
 #print axioms Rowl.ForestSearch.looped_node_correct
+#print axioms Rowl.ForestSearch.common_correct
+#print axioms Rowl.ForestSearch.overlap_from_correct
+#print axioms Rowl.ForestSearch.overlap_node_correct
 #print axioms Rowl.ForestSearch.next_step_correct
 #print axioms Rowl.ForestOps.copy_roles_correct
 #print axioms Rowl.ForestOps.copy_nodes_correct
@@ -1531,6 +1542,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Forest.simple_from_correct
 #print axioms Rowl.Forest.counting_simple_correct
 #print axioms Rowl.Forest.simpleCounting_of
+#print axioms Rowl.Forest.disjoint_simple_correct
 #print axioms Rowl.Forest.roots_correct
 #print axioms Rowl.Forest.loop_entries_correct
 #print axioms Rowl.Forest.satisfiable_answers
@@ -1576,6 +1588,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestModel.step_ok
 #print axioms Rowl.ForestModel.truth
 #print axioms Rowl.ForestModel.place_val
+#print axioms Rowl.ForestModel.model_constrained
 #print axioms Rowl.ForestModel.model_of_complete
 #print axioms Rowl.ForestModel.satisfiable_correct
 #print axioms Rowl.FunctionalIndividuals.individual_kind_total_correct
@@ -2499,3 +2512,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.LoopsOk
 #print axioms Rowl.ForestSearch.Looped
 #print axioms Rowl.ForestOps.IntoParent
+#print axioms Rowl.Hierarchy.Constrained
+#print axioms Rowl.ShiParts.ConstraintAxiom
+#print axioms Rowl.ShiRoles.ConstraintsHold
+#print axioms Rowl.ForestSearch.Overlap

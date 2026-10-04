@@ -12,10 +12,11 @@ definitions (`ShiParts`), the role axioms the role hierarchy (`ShiRoles`), and
 the assertions the facts and links of the named individuals, which equal
 individuals place at one node (`ShiEquality`). A question whose concepts have
 no number restriction, self restriction or nominal, about a closure without
-negative assertions next to role axioms, goes to the completion graph tableau,
-whose models keep different nodes apart; every other question goes to the
-completion forest, which handles self restrictions, number restrictions and
-complements of self restrictions on simple roles, and nominals of named
+negative assertions next to role axioms and without asymmetric or disjoint
+object properties, goes to the completion graph tableau, whose models keep
+different nodes apart; every other question goes to the completion forest,
+which handles self restrictions, number restrictions, complements of self
+restrictions and disjoint pairs on simple roles, and nominals of named
 individuals, with the nominal of every individual at its node and the
 inequalities and negative assertions as facts (`ShiNominals`); every answer
 the kernel gives is exact for the OWL definitions.
@@ -32,12 +33,12 @@ open Rowl.Owl (Interpretation classDenote objectRelation thing nothing topObject
 open Rowl.Nnf (Fixes Polar fixes_of_interpretation)
 open Rowl.Concepts (denote inv relation_inv Translatable Correct translate_total_correct translate_meaning inverse_correct
   copy_role_identity same_role_correct)
-open Rowl.Hierarchy (Below Closed Respects)
+open Rowl.Hierarchy (Below Closed Respects Constrained)
 open Rowl.Internalization (Assertion)
 open Rowl.AlcOntology (builtin_class_correct role_proper_correct RoleOf IndividualsOf PositionOf PositionFrom
   positionOf_le positionOf_present positionFrom_absent position_of individuals_from_correct has_negative_correct
   Negative owlModel owl_model_valid embedding Placement placement_zero placement_at assertion_of_individual)
-open Rowl.ShiParts (SupportedAxiom RoleAxiom Equality ClassPart PartsHold class_parts_correct)
+open Rowl.ShiParts (SupportedAxiom RoleAxiom ConstraintAxiom Equality ClassPart PartsHold class_parts_correct)
 open Rowl.ShiEquality (MembersOf Equal Representative RepOf Joins Clashes members_from_correct joins_of
   node_of_correct representative_value repOf_le clash_from_correct)
 open Rowl.ShiNominals (IsNamed Mentions Nominal not_mentions nominal_correct facts_nominal_correct
@@ -98,6 +99,8 @@ def RoleProper : Axiom → Prop
       (RoleOf q ≠ topObject ∧ RoleOf q ≠ bottomObject)
   | .SymmetricObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
   | .TransitiveObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  | .AsymmetricObjectProperty p => RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
+  | .DisjointObjectProperties xs => ∀ p ∈ xs.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject
   | _ => True
 
 /-- A negative object property assertion whose individuals' nodes some link
@@ -490,6 +493,15 @@ theorem roles_proper_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usi
     | TransitiveObjectProperty p =>
       simp only [role_proper_correct,bind_ok]
       have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simpa [item] using this
+    | AsymmetricObjectProperty p =>
+      simp only [role_proper_correct,bind_ok]
+      have := finish (decide (RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject)) (by simp [item,RoleProper])
+      simpa [item] using this
+    | DisjointObjectProperties members =>
+      simp only [members_proper_correct,bind_ok]
+      have := finish (decide (∀ p ∈ members.elements, RoleOf p ≠ topObject ∧ RoleOf p ≠ bottomObject))
+        (by simp [item,RoleProper])
       simpa [item] using this
     | _ =>
       simp only [bind_ok]
@@ -956,6 +968,29 @@ private theorem owl_model_role_axiom {Object : Type} (J : Interpretation Object 
       ((relation p proper.1 proper.2 x y).mp first) ((relation p proper.1 proper.2 y z).mp second))
   | _ => simp [RoleAxiom] at role
 
+/-- An asymmetric or disjoint object property without built-in properties that
+    holds in the tableau model holds in its OWL interpretation. -/
+private theorem owl_model_constraint_axiom {Object : Type} (J : Interpretation Object Unit) (root : Object)
+    (place : Individual → Object) {Native : Type w} (D : DatatypeMap Native) (a : Axiom)
+    (constraint : ConstraintAxiom a) (proper : RoleProper a) (holds : Rowl.Owl.satisfies J a) :
+    Rowl.Owl.satisfies (owlModel.{u,v,w} J root place D) a := by
+  have relation := owl_model_relation.{u,v,w} J root place D
+  cases a with
+  | AsymmetricObjectProperty p =>
+    simp only [RoleProper] at proper
+    simp only [Rowl.Owl.satisfies] at holds ⊢
+    intro x y forward backward
+    exact holds x.down y.down ((relation p proper.1 proper.2 x y).mp forward)
+      ((relation p proper.1 proper.2 y x).mp backward)
+  | DisjointObjectProperties members =>
+    simp only [RoleProper] at proper
+    simp only [Rowl.Owl.satisfies,Rowl.Owl.pairwiseDisjoint] at holds ⊢
+    refine holds.imp_of_mem ?_
+    intro a b aIn bIn apart xy both
+    exact apart (xy.1.down,xy.2.down) ⟨(relation a (proper a aIn).1 (proper a aIn).2 xy.1 xy.2).mp both.1,
+      (relation b (proper b bIn).1 (proper b bIn).2 xy.1 xy.2).mp both.2⟩
+  | _ => simp [ConstraintAxiom] at constraint
+
 /-- What `prepare` computes from a closure: its individuals, including those of
     the nominals of its class parts and assertions, with room for one more node,
     the representatives of its equalities, its class parts, the facts of its
@@ -999,8 +1034,27 @@ structure PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
   forest : p.forest = true ↔ (Counts p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, Counts d.concept) ∨
     ∃ q ∈ p.facts.val, Counts q.concept) ∨ (Nominal p.parts.axioms ∨
       (∃ d ∈ p.parts.definitions.val, Nominal d.concept) ∨ ∃ q ∈ p.facts.val, Nominal q.concept) ∨
-    ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (p.roles.inclusions.val = [] ∧ p.roles.transitive.val = []))
+    ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (p.roles.inclusions.val = [] ∧ p.roles.transitive.val = [])) ∨
+    p.roles.disjoint.val ≠ []
   clash : p.clash = true ↔ ∃ item ∈ items.val, Clashes p.same.val p.nodes.val item.axiom
+
+/-- The check for disjoint pairs, which only the completion forest decides, is
+    exact. -/
+theorem constrained_correct (h : hierarchy.RoleHierarchy) :
+    shi_ontology.constrained h = .ok (decide (h.disjoint.val ≠ [])) := by
+  rw [shi_ontology.constrained]
+  have lenIff : alloc.vec.Vec.len h.disjoint = 0#usize ↔ h.disjoint.val = [] := by
+    constructor
+    · intro same
+      have := congrArg UScalar.val same
+      simpa using this
+    · intro empty
+      exact UScalar.eq_of_val_eq (by simp [empty])
+  by_cases empty : h.disjoint.val = []
+  · rw [lenIff.mpr empty]
+    simp [empty]
+  · have notZero : ¬ alloc.vec.Vec.len h.disjoint = 0#usize := fun zero => empty (lenIff.mp zero)
+    simp [notZero,empty]
 
 /-- The check for negative assertions next to role axioms is exact. -/
 theorem tangled_correct (items : alloc.vec.Vec AnnotatedAxiom) (h : hierarchy.RoleHierarchy) :
@@ -1140,14 +1194,15 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
   have denial := denied_from_correct items nodes same links 0#usize
   have clashing := clash_from_correct items nodes same 0#usize
   rw [zero,List.drop_zero] at denial clashing
-  simp only [linksRun,run9,run10,run11,bind_ok,denial,tangled_correct,closure_counts_correct,
+  simp only [linksRun,run9,run10,run11,bind_ok,denial,tangled_correct,constrained_correct,closure_counts_correct,
     closure_nominal_correct,clashing]
   refine ⟨some ⟨nodes,same,parts,facts,bound,h,links,
     decide (∃ item ∈ items.val, Denies same.val nodes.val links.val item.axiom),
     decide ((Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
       ∃ q ∈ facts.val, Counts q.concept) ∨ (Nominal parts.axioms ∨
         (∃ d ∈ parts.definitions.val, Nominal d.concept) ∨ ∃ q ∈ facts.val, Nominal q.concept) ∨
-      ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (h.inclusions.val = [] ∧ h.transitive.val = []))),
+      ((∃ item ∈ items.val, Negative item.axiom) ∧ ¬ (h.inclusions.val = [] ∧ h.transitive.val = [])) ∨
+      h.disjoint.val ≠ []),
     decide (∃ item ∈ items.val, Clashes same.val nodes.val item.axiom)⟩,?_,?_⟩
   · by_cases counting : Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
         ∃ q ∈ facts.val, Counts q.concept
@@ -1155,7 +1210,18 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     · by_cases nominal : Nominal parts.axioms ∨ (∃ d ∈ parts.definitions.val, Nominal d.concept) ∨
           ∃ q ∈ facts.val, Nominal q.concept
       · simp [counting,nominal]
-      · simp [counting,nominal]
+      · simp only [counting,nominal,false_or,decide_false,Bool.false_eq_true,↓reduceIte]
+        split
+        · rename_i isTangled
+          rw [decide_eq_true_eq] at isTangled
+          simp [isTangled]
+        · rename_i notTangled
+          rw [decide_eq_true_eq] at notTangled
+          have same : decide (h.disjoint.val ≠ []) = decide ((∃ item ∈ items.val, Negative item.axiom) ∧
+              ¬ (h.inclusions.val = [] ∧ h.transitive.val = []) ∨ h.disjoint.val ≠ []) :=
+            decide_eq_decide.mpr ⟨fun nonempty => .inr nonempty,fun either => either.resolve_left notTangled⟩
+          rw [same]
+          simp only [bind_ok]
   intro p same'
   cases same'
   have factsKept : ∀ q ∈ facts.val, q ∈ bound.val := fun q member => kept11 q (kept10 q (kept9 q member))
@@ -1410,8 +1476,9 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
   -- A model in `Type` from the tableau that answered, where no negative
   -- assertion relates its individuals, the members of every inequality are
   -- apart, and the individual of every nominal sits at its node.
-  obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,negatives,apart,agree⟩ : ∃ (Obj : Type)
-      (J : Interpretation Obj Unit) (π : Nat → Obj), Respects J p.roles ∧ (∀ y, denote J p.parts.axioms y) ∧
+  obtain ⟨Obj,J,π,respects,constrained,tbox,defs,factsHold,linksHold,negatives,apart,agree⟩ : ∃ (Obj : Type)
+      (J : Interpretation Obj Unit) (π : Nat → Obj), Respects J p.roles ∧ Constrained J p.roles ∧
+      (∀ y, denote J p.parts.axioms y) ∧
       (∀ d ∈ p.parts.definitions.val, ∀ y, J.classes d.class y → denote J d.concept y) ∧
       (∀ f ∈ extra.val ++ p.facts.val, denote J f.concept (π f.node.val)) ∧
       (∀ l ∈ p.links.val, objectRelation J l.role (π l.from.val) (π l.to.val)) ∧
@@ -1429,7 +1496,7 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         p.links p.parts.axioms p.parts.definitions p.roles closed (by omega) boundIn' linksIn'
       rw [forestRun] at forestRun'
       cases Result.ok_injective forestRun'
-      obtain ⟨Obj,J,π,respects,tbox,defs,boundHold,linksHold⟩ := sound rfl
+      obtain ⟨Obj,J,π,respects,constrained,tbox,defs,boundHold,linksHold⟩ := sound rfl
       -- Every individual sits where its nominal is.
       have named : ∀ a ∈ p.nodes.val, Rowl.Owl.individual J a = π (RepOf p.same.val p.nodes.val a) := by
         intro a member
@@ -1437,7 +1504,8 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         have holds := boundHold q (List.mem_append_right _ qIn)
         rw [qConcept,qNode] at holds
         exact holds
-      refine ⟨Obj,J,π,respects,tbox,defs,?_,linksHold,?_,?_,fun a mentioned => named a (mentionedIn a mentioned)⟩
+      refine ⟨Obj,J,π,respects,constrained,tbox,defs,?_,linksHold,?_,?_,
+        fun a mentioned => named a (mentionedIn a mentioned)⟩
       · intro f member
         rcases List.mem_append.mp member with given | old
         · exact boundHold f (List.mem_append_left _ given)
@@ -1468,11 +1536,18 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         have := data.forest.mpr (.inr (.inl nominal))
         rw [notForest] at this
         cases this
-      refine ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,?_,?_,?_⟩
+      -- No disjoint pair reaches the completion graph tableau.
+      have noPairs : p.roles.disjoint.val = [] := by
+        by_contra pairs
+        have := data.forest.mpr (.inr (.inr (.inr pairs)))
+        rw [notForest] at this
+        cases this
+      refine ⟨Obj,J,π,respects,Rowl.Hierarchy.constrained_of_empty J p.roles noPairs,tbox,defs,factsHold,linksHold,
+        ?_,?_,?_⟩
       · intro item member r a b statement related
         have alone : p.roles.inclusions.val = [] ∧ p.roles.transitive.val = [] := by
           by_contra roles
-          have := data.forest.mpr (.inr (.inr ⟨⟨item,member,by rw [statement]; trivial⟩,roles⟩))
+          have := data.forest.mpr (.inr (.inr (.inl ⟨⟨item,member,by rw [statement]; trivial⟩,roles⟩)))
           rw [notForest] at this
           cases this
         obtain ⟨l,lIn,found⟩ := exactLinks alone.1 alone.2 r (RepOf p.same.val p.nodes.val a)
@@ -1525,7 +1600,8 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
     exact (agrees d.concept proper.2 (fun a m => agree a (.inr (.inl ⟨d,member,m⟩))) x).mpr
       (defs d member x.down classesJ)
   have classParts := (partsMeaning p.parts rfl _ _ (owlModel.{u,v,w} J (π 0) place D) fixes).mp partsHold
-  have rolesHold := (respectsIff Obj Unit J).mp respects
+  have rolesHold := (respectsIff Obj Unit J).1.mp respects
+  have constraintsHold := (respectsIff Obj Unit J).2.mp constrained
   refine ⟨ULift.{u} Obj,owlModel.{u,v,w} J (π 0) place D,fun n => ULift.up (π n),
     ⟨vocabulary,valid,(owlModel.{u,v,w} J (π 0) place D).anonymousIndividuals,?_⟩,fun a => individualAt a,?_⟩
   · rw [with_own_anonymous]
@@ -1574,11 +1650,15 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
       · by_cases role : RoleAxiom item.axiom
         · exact owl_model_role_axiom J (π 0) place D item.axiom role (data.rolesProper item member)
             (rolesHold item member role)
-        · rcases classParts item member with assertion' | equality' | role' | holds
-          · exact absurd assertion' assertion
-          · exact absurd equality' equality
-          · exact absurd role' role
-          · exact holds
+        · by_cases constraint : ConstraintAxiom item.axiom
+          · exact owl_model_constraint_axiom J (π 0) place D item.axiom constraint (data.rolesProper item member)
+              (constraintsHold item member constraint)
+          · rcases classParts item member with assertion' | equality' | role' | constraint' | holds
+            · exact absurd assertion' assertion
+            · exact absurd equality' equality
+            · exact absurd role' role
+            · exact absurd constraint' constraint
+            · exact holds
   · intro q member
     have inBoth : q ∈ extra.val ++ p.facts.val := List.mem_append_left _ member
     exact (agrees q.concept (properFacts q inBoth) (fun a m => agree a (.inr (.inr ⟨q,inBoth,m⟩)))
@@ -1695,8 +1775,10 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
   rw [data.parts] at partsRun'
   cases Result.ok_injective partsRun'
   have partsHold := (partsMeaning p.parts rfl _ _ (withAnonymous I g) fixes).mpr
-    (fun item member => .inr (.inr (.inr (satisfied item member))))
-  have respects := (respectsIff Object Value (withAnonymous I g)).mpr (fun item member _ => satisfied item member)
+    (fun item member => .inr (.inr (.inr (.inr (satisfied item member)))))
+  have respects := (respectsIff Object Value (withAnonymous I g)).1.mpr (fun item member _ => satisfied item member)
+  have constrained := (respectsIff Object Value (withAnonymous I g)).2.mpr
+    (fun item member _ => satisfied item member)
   rcases outcome with ⟨clashTrue,rfl⟩ | ⟨_,_,forestRun⟩ | ⟨_,_,_,_,⟨deniedTrue,rfl⟩ | ⟨_,tableauRun⟩⟩
   · exfalso
     obtain ⟨item,itemIn,clashes⟩ := data.clash.mp clashTrue
@@ -1723,7 +1805,8 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
     cases answer with
     | true => rfl
     | false =>
-      refine absurd ⟨Object,Value,withAnonymous I g,f,respects,partsHold.1,partsHold.2,?_,linkHolds⟩ (complete rfl)
+      refine absurd ⟨Object,Value,withAnonymous I g,f,respects,constrained,partsHold.1,partsHold.2,?_,linkHolds⟩
+        (complete rfl)
       intro q member
       rcases List.mem_append.mp member with given | old
       · exact extraHolds' q given
