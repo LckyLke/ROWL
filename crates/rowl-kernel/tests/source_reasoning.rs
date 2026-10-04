@@ -725,3 +725,78 @@ fn the_universal_role_is_answered_from_source_bytes() {
         Some(true)
     );
 }
+
+#[test]
+fn number_and_self_restrictions_are_answered_from_source_bytes() {
+    let scope = b"plant".to_vec();
+    let class = |local: &str| {
+        ClassExpression::Class(Class {
+            iri: iri(&format!("https://example.org/{local}")),
+        })
+    };
+    let individual = |local: &str| NamedIndividual {
+        iri: iri(&format!("https://example.org/{local}")),
+    };
+    let document = |axioms: &str| {
+        format!("Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n{axioms})")
+            .into_bytes()
+    };
+    // A pump with two seals cannot have at most one part.
+    let bytes = document(
+        " SubClassOf(:Pump ObjectMinCardinality(2 :hasPart :Seal))\n SubClassOf(:Pump ObjectMaxCardinality(1 :hasPart))\n",
+    );
+    assert_eq!(
+        answer(source_class_satisfiable(
+            &bytes,
+            &limits(),
+            &scope,
+            &class("Pump")
+        )),
+        Some(false)
+    );
+    let bytes = document(" SubClassOf(:Pump ObjectMinCardinality(2 :hasPart :Seal))\n");
+    assert_eq!(
+        answer(source_class_satisfiable(
+            &bytes,
+            &limits(),
+            &scope,
+            &class("Pump")
+        )),
+        Some(true)
+    );
+    // Two different parts contradict a maximum of one; without the difference
+    // they are the same part.
+    let bytes = document(
+        " ClassAssertion(ObjectMaxCardinality(1 :hasPart) :p1)\n ObjectPropertyAssertion(:hasPart :p1 :s1)\n ObjectPropertyAssertion(:hasPart :p1 :s2)\n DifferentIndividuals(:s1 :s2)\n",
+    );
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
+    let bytes = document(
+        " ClassAssertion(ObjectExactCardinality(1 :hasPart) :p1)\n ObjectPropertyAssertion(:hasPart :p1 :s1)\n ObjectPropertyAssertion(:hasPart :p1 :s2)\n ClassAssertion(:Seal :s2)\n",
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("s1"),
+            &class("Seal")
+        )),
+        Some(true)
+    );
+    // A self restriction contradicts an irreflexive property.
+    let bytes = document(
+        " SubClassOf(:SelfMonitoring ObjectHasSelf(:monitors))\n IrreflexiveObjectProperty(:monitors)\n",
+    );
+    assert_eq!(
+        answer(source_class_satisfiable(
+            &bytes,
+            &limits(),
+            &scope,
+            &class("SelfMonitoring")
+        )),
+        Some(false)
+    );
+}

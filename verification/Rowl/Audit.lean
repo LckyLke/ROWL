@@ -587,6 +587,9 @@ import Rowl.DataOntology
 #print axioms Rowl.Decimal.read_accepted_iff
 #print axioms Rowl.Decimal.read_span_error_is_first_digit
 #print axioms Rowl.Decimal.read_span_accepts_iff
+#print axioms Rowl.Decimal.read_bounded_total_correct
+#print axioms Rowl.Decimal.read_bounded_some_iff
+#print axioms Rowl.Decimal.read_bounded_none_iff
 #print axioms Rowl.FunctionalIntegers.ascii_span_source
 #print axioms Rowl.FunctionalIntegers.integer_language_iff
 #print axioms Rowl.FunctionalIntegers.integer_candidate_iff
@@ -888,9 +891,11 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalClasses.read_class_total_correct
 #print axioms Rowl.FunctionalClasses.read_connective_total_correct
 #print axioms Rowl.FunctionalClasses.read_members_total_correct
+#print axioms Rowl.FunctionalClasses.read_filler_total_correct
 #print axioms Rowl.FunctionalClasses.class_execution
 #print axioms Rowl.FunctionalClasses.connective_execution
 #print axioms Rowl.FunctionalClasses.members_execution
+#print axioms Rowl.FunctionalClasses.filler_execution
 #print axioms Rowl.FunctionalClasses.read_class_result_iff
 #print axioms Rowl.FunctionalClasses.read_class_expression_result_iff
 #print axioms Rowl.FunctionalClasses.read_members_result_iff
@@ -946,6 +951,9 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalModel.individuals_from_correct
 #print axioms Rowl.FunctionalModel.enumeration_correct
 #print axioms Rowl.FunctionalModel.individual_members_correct
+#print axioms Rowl.FunctionalModel.natural_correct
+#print axioms Rowl.FunctionalModel.natural_of_value
+#print axioms Rowl.FunctionalModel.cardinality_correct
 #print axioms Rowl.FunctionalModel.class_correct
 #print axioms Rowl.FunctionalModel.rest_from_correct
 #print axioms Rowl.FunctionalModel.members_of_correct
@@ -963,6 +971,7 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalModel.class_run_shaped
 #print axioms Rowl.FunctionalModel.connective_run_shaped
 #print axioms Rowl.FunctionalModel.members_run_shaped
+#print axioms Rowl.FunctionalModel.filler_run_shaped
 #print axioms Rowl.FunctionalModel.class_step_shaped
 #print axioms Rowl.FunctionalModel.list_run_shaped
 #print axioms Rowl.FunctionalModel.body_run_shaped
@@ -3253,3 +3262,7 @@ import Rowl.DataOntology
 #print axioms Rowl.DataOntology.itemIndividuals
 #print axioms Rowl.DataOntology.KnownTo
 #print axioms Rowl.DataOntology.DataPrepared
+#print axioms Rowl.Decimal.Bounded
+#print axioms Rowl.FunctionalClasses.FillerRun
+#print axioms Rowl.FunctionalModel.NaturalOf
+#print axioms Rowl.FunctionalModel.CardinalityOf

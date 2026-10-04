@@ -3988,3 +3988,37 @@ axioms yet, and facets remain pending.
 This block adds 340 public theorems and 78 definitions. Totals are 2094
 audited theorems, 1034 definitions, 481 Rust regressions and 2287 ledger
 obligations.
+
+## M3: self and number restrictions in Functional Syntax
+
+The class-expression reader (`functional_classes`) now reads `ObjectHasSelf`
+and `ObjectMinCardinality`, `ObjectMaxCardinality` and `ObjectExactCardinality`
+with or without a filler, so documents use every object class expression that
+the ontology queries decide. A number restriction reads, after its `(`, an
+integer token, an object property expression, the optional filler (none before
+`)` or at the end, `read_filler`) and `)`. The number's ASCII digits are read
+by the bounded decimal reader `decimal::read_bounded`: it returns the value as a
+machine integer exactly when the span is a nonempty run of digits inside the
+bytes whose value is at most the count limit (`Rowl.Decimal.Bounded`,
+`read_bounded_total_correct`, `read_bounded_some_iff`, `read_bounded_none_iff`),
+and it stops as soon as a prefix exceeds the limit, so a number such as a
+thousand nines is rejected at its token without forming its value; the earlier
+`read_span` would build the unary natural of any number. The count limit thus
+bounds the members of each intersection, union and enumeration and the value of
+each number restriction, and a larger number is the count-limit error at the
+number, before the property is read.
+
+The independent grammar gains the self and number restriction bodies and the
+optional filler (`FillerRun`), in the same mutual derivation as class
+expressions, connective bodies and member sequences, with both directions
+proved (`read_filler_total_correct`, `filler_execution`). The mapping into the
+model turns a self restriction into `ObjectHasSelf` and a number restriction
+into the restriction of its bound with the number as a unary natural
+(`NaturalOf`, `natural_correct`, `natural_of_value`, `CardinalityOf`) and the
+model of its filler; every accepted expression is still shaped, so every read
+document maps (`filler_run_shaped`). The source queries answer from the bytes
+of documents with number and self restrictions. The six data restrictions are
+still reported as unsupported.
+
+This block adds 9 public theorems and 4 definitions. Totals are 2103 audited
+theorems, 1038 definitions, 485 Rust regressions and 2296 ledger obligations.

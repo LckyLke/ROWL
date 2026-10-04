@@ -2,13 +2,16 @@
 //!
 //! Reads named classes, `ObjectIntersectionOf`, `ObjectUnionOf`,
 //! `ObjectComplementOf`, `ObjectOneOf`, `ObjectSomeValuesFrom`,
-//! `ObjectAllValuesFrom` and `ObjectHasValue`, with object property expressions
-//! `IRI` or `ObjectInverseOf( IRI )` and individuals read by the proved
-//! individual reader. The other ten class-expression forms are reported as
-//! unsupported at their keyword; later stages read them. Records keep the
-//! original keyword and IRI tokens and the IRIs resolved through the checked
-//! prefix table.
+//! `ObjectAllValuesFrom`, `ObjectHasValue`, `ObjectHasSelf` and
+//! `ObjectMinCardinality`, `ObjectMaxCardinality` and `ObjectExactCardinality`
+//! with or without a filler, with object property expressions `IRI` or
+//! `ObjectInverseOf( IRI )` and individuals read by the proved individual
+//! reader. The six data restrictions are reported as unsupported at their
+//! keyword; a later stage reads them. Records keep the original keyword, number
+//! and IRI tokens, the values of the numbers and the IRIs resolved through the
+//! checked prefix table.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
+use crate::decimal::read_bounded;
 use crate::functional::{Keyword, Terminal, Token};
 use crate::functional_header::{iri_kind, HeaderIri};
 use crate::functional_individuals::{
@@ -23,9 +26,17 @@ pub enum SourceObjectProperty {
     Named(HeaderIri),
     Inverse { keyword: Token, property: HeaderIri },
 }
+/// The bound of a number restriction.
+#[derive(Clone, Copy)]
+pub enum Bound {
+    Min,
+    Max,
+    Exact,
+}
 /// A class expression of the supported forms. Intersections and unions keep
 /// their members, at least two, in source order; enumerations keep their
-/// individuals, at least one, in source order.
+/// individuals, at least one, in source order; a number restriction keeps its
+/// number token, its value and its filler if one is written.
 pub enum SourceClass {
     Named(HeaderIri),
     IntersectionOf {
@@ -59,11 +70,23 @@ pub enum SourceClass {
         property: SourceObjectProperty,
         individual: SourceIndividual,
     },
+    HasSelf {
+        keyword: Token,
+        property: SourceObjectProperty,
+    },
+    Cardinality {
+        keyword: Token,
+        bound: Bound,
+        number: Token,
+        value: usize,
+        property: SourceObjectProperty,
+        filler: Option<Box<SourceClass>>,
+    },
 }
 /// `depth` bounds connective nesting: 0 permits only named classes, because
 /// each level uses the physical stack. `count` bounds the members of each
-/// intersection, union and enumeration. `iri` bounds every final IRI and node
-/// ID.
+/// intersection, union and enumeration and the value of each number
+/// restriction. `iri` bounds every final IRI and node ID.
 pub struct ClassLimits {
     pub depth: usize,
     pub count: usize,
@@ -76,6 +99,8 @@ pub enum ClassExpected {
     Property,
     Iri,
     Close,
+    /// The nonnegative integer of a number restriction.
+    Number,
 }
 pub enum ClassError {
     Expected {
@@ -91,13 +116,15 @@ pub enum ClassError {
     DepthLimit {
         offset: usize,
     },
+    /// Too many members, or a number above the count limit (at its token).
     CountLimit {
         offset: usize,
     },
 }
 /// A supported connective: an intersection (`true`) or union (`false`), a
 /// complement, an existential (`true`) or universal (`false`) restriction, an
-/// enumeration of individuals, or a restriction to one individual value.
+/// enumeration of individuals, a restriction to one individual value, a self
+/// restriction or a number restriction.
 #[derive(Clone, Copy)]
 enum ClassForm {
     Junction(bool),
@@ -105,6 +132,8 @@ enum ClassForm {
     Restriction(bool),
     OneOf,
     HasValue,
+    SelfRestriction,
+    Cardinality(Bound),
 }
 enum ClassKeyword {
     Connective(ClassForm),
@@ -130,10 +159,18 @@ fn class_keyword(terminal: Terminal) -> ClassKeyword {
         }
         Terminal::Keyword(Keyword::ObjectOneOf) => ClassKeyword::Connective(ClassForm::OneOf),
         Terminal::Keyword(Keyword::ObjectHasValue) => ClassKeyword::Connective(ClassForm::HasValue),
-        Terminal::Keyword(Keyword::ObjectHasSelf) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::ObjectMinCardinality) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::ObjectMaxCardinality) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::ObjectExactCardinality) => ClassKeyword::Unsupported,
+        Terminal::Keyword(Keyword::ObjectHasSelf) => {
+            ClassKeyword::Connective(ClassForm::SelfRestriction)
+        }
+        Terminal::Keyword(Keyword::ObjectMinCardinality) => {
+            ClassKeyword::Connective(ClassForm::Cardinality(Bound::Min))
+        }
+        Terminal::Keyword(Keyword::ObjectMaxCardinality) => {
+            ClassKeyword::Connective(ClassForm::Cardinality(Bound::Max))
+        }
+        Terminal::Keyword(Keyword::ObjectExactCardinality) => {
+            ClassKeyword::Connective(ClassForm::Cardinality(Bound::Exact))
+        }
         Terminal::Keyword(Keyword::DataSomeValuesFrom) => ClassKeyword::Unsupported,
         Terminal::Keyword(Keyword::DataAllValuesFrom) => ClassKeyword::Unsupported,
         Terminal::Keyword(Keyword::DataHasValue) => ClassKeyword::Unsupported,
@@ -159,6 +196,7 @@ fn expected_terminal(expected: ClassExpected, terminal: Terminal) -> bool {
         ClassExpected::Property => inverse_keyword(terminal) || iri_kind(terminal).is_some(),
         ClassExpected::Iri => iri_kind(terminal).is_some(),
         ClassExpected::Close => closes(terminal),
+        ClassExpected::Number => matches!(terminal, Terminal::Integer),
     }
 }
 fn take_expected(
@@ -412,6 +450,76 @@ fn read_connective(
                 remaining,
             ))
         }
+        ClassForm::SelfRestriction => {
+            let (property, tokens) = match read_object_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((SourceClass::HasSelf { keyword, property }, remaining))
+        }
+        ClassForm::Cardinality(bound) => {
+            let (number, tokens) = match take_expected(tokens, ClassExpected::Number, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let value = match read_bounded(bytes, number.start, number.end, limits.count) {
+                Some(value) => value,
+                None => {
+                    return Err(ClassError::CountLimit {
+                        offset: number.start,
+                    })
+                }
+            };
+            let (property, tokens) = match read_object_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (filler, tokens) = match read_filler(table, bytes, tokens, depth, limits) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((
+                SourceClass::Cardinality {
+                    keyword,
+                    bound,
+                    number,
+                    value,
+                    property,
+                    filler,
+                },
+                remaining,
+            ))
+        }
+    }
+}
+/// The optional filler of a number restriction: none before `)` or at the end,
+/// and otherwise one class expression.
+fn read_filler(
+    table: &PrefixTable<'_>,
+    bytes: &Vec<u8>,
+    tokens: Tokens,
+    depth: usize,
+    limits: &ClassLimits,
+) -> Result<(Option<Box<SourceClass>>, Tokens), ClassError> {
+    match tokens {
+        Tokens::Empty => Ok((None, Tokens::Empty)),
+        Tokens::Cons { token, next } => {
+            if closes(token.terminal) {
+                return Ok((None, Tokens::Cons { token, next }));
+            }
+            match read_class(table, bytes, Tokens::Cons { token, next }, depth, limits) {
+                Ok((filler, remaining)) => Ok((Some(Box::new(filler)), remaining)),
+                Err(error) => Err(error),
+            }
+        }
     }
 }
 /// The maximal member sequence, stopping before `)` or at the end.
@@ -450,10 +558,12 @@ pub(crate) fn read_members(
 /// step in source order with original offsets (EOF errors use the source
 /// length): at a connective keyword the nesting depth, then `(`, the operands in
 /// order (each member of an intersection, union or enumeration after checking
-/// the member count), then the two-member minimum of an intersection or union or
-/// the one-member minimum of an enumeration, then `)`. The unchanged suffix
-/// after the expression is returned. The other class-expression forms are
-/// reported as unsupported.
+/// the member count, and the number of a number restriction, an integer token
+/// whose ASCII digits have a value of at most the count limit, before its
+/// property and its filler), then the two-member minimum of an intersection or
+/// union or the one-member minimum of an enumeration, then `)`. The unchanged
+/// suffix after the expression is returned. The data restrictions are reported
+/// as unsupported.
 pub fn read_class_expression(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,

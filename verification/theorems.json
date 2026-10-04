@@ -772,7 +772,10 @@
         "Rowl.Decimal.read_span_accepted_iff",
         "Rowl.Decimal.read_accepted_iff",
         "Rowl.Decimal.read_span_error_is_first_digit",
-        "Rowl.Decimal.read_span_accepts_iff"
+        "Rowl.Decimal.read_span_accepts_iff",
+        "Rowl.Decimal.read_bounded_total_correct",
+        "Rowl.Decimal.read_bounded_some_iff",
+        "Rowl.Decimal.read_bounded_none_iff"
       ]
     },
     {
@@ -1266,9 +1269,11 @@
         "Rowl.FunctionalClasses.read_class_total_correct",
         "Rowl.FunctionalClasses.read_connective_total_correct",
         "Rowl.FunctionalClasses.read_members_total_correct",
+        "Rowl.FunctionalClasses.read_filler_total_correct",
         "Rowl.FunctionalClasses.class_execution",
         "Rowl.FunctionalClasses.connective_execution",
         "Rowl.FunctionalClasses.members_execution",
+        "Rowl.FunctionalClasses.filler_execution",
         "Rowl.FunctionalClasses.read_class_result_iff",
         "Rowl.FunctionalClasses.read_class_expression_result_iff",
         "Rowl.FunctionalClasses.read_members_result_iff",
@@ -1348,6 +1353,9 @@
         "Rowl.FunctionalModel.individuals_from_correct",
         "Rowl.FunctionalModel.enumeration_correct",
         "Rowl.FunctionalModel.individual_members_correct",
+        "Rowl.FunctionalModel.natural_correct",
+        "Rowl.FunctionalModel.natural_of_value",
+        "Rowl.FunctionalModel.cardinality_correct",
         "Rowl.FunctionalModel.class_correct",
         "Rowl.FunctionalModel.rest_from_correct",
         "Rowl.FunctionalModel.members_of_correct",
@@ -1365,6 +1373,7 @@
         "Rowl.FunctionalModel.class_run_shaped",
         "Rowl.FunctionalModel.connective_run_shaped",
         "Rowl.FunctionalModel.members_run_shaped",
+        "Rowl.FunctionalModel.filler_run_shaped",
         "Rowl.FunctionalModel.class_step_shaped",
         "Rowl.FunctionalModel.list_run_shaped",
         "Rowl.FunctionalModel.body_run_shaped",
@@ -3885,6 +3894,10 @@
     "Rowl.DataOntology.Adds",
     "Rowl.DataOntology.itemIndividuals",
     "Rowl.DataOntology.KnownTo",
-    "Rowl.DataOntology.DataPrepared"
+    "Rowl.DataOntology.DataPrepared",
+    "Rowl.Decimal.Bounded",
+    "Rowl.FunctionalClasses.FillerRun",
+    "Rowl.FunctionalModel.NaturalOf",
+    "Rowl.FunctionalModel.CardinalityOf"
   ]
 }

@@ -462,13 +462,17 @@ progress. Full OWL parsing and executable reasoning are still future work.
   take one class expression of the reasoner's fragment (named classes,
   intersections, unions, complements, enumerations of individuals with
   `ObjectOneOf`, existential and universal restrictions on an object property or
-  its `ObjectInverseOf`, and individual value restrictions with
-  `ObjectHasValue`), or one `SubClassOf`, `EquivalentClasses`,
-  `DisjointClasses`, `DisjointUnion`, `ObjectPropertyDomain` or
-  `ObjectPropertyRange` axiom with its annotations, at a caller-supplied
-  position. Individuals and individual lists have their own proved reader. The
-  other ten class-expression forms are reported as unsupported.
-  Nesting depth and member counts have explicit limits. Errors report the first
+  its `ObjectInverseOf`, individual value restrictions with `ObjectHasValue`,
+  self restrictions with `ObjectHasSelf`, and `ObjectMinCardinality`,
+  `ObjectMaxCardinality` and `ObjectExactCardinality` with or without a filler),
+  or one `SubClassOf`, `EquivalentClasses`, `DisjointClasses`, `DisjointUnion`,
+  `ObjectPropertyDomain` or `ObjectPropertyRange` axiom with its annotations, at
+  a caller-supplied position. Individuals and individual lists have their own
+  proved reader. The number of a number restriction is read by a proved bounded
+  decimal reader: its value is at most the count limit, and a larger number is
+  rejected at its token without forming its value. The six data restrictions are
+  reported as unsupported.
+  Nesting depth, member counts and numbers have explicit limits. Errors report the first
   failing step in source order with original offsets. The recursive reader is
   proved total by well-founded recursion on the token count, and both readers
   have exact result/error equivalence to an independent grammar. Source
@@ -514,7 +518,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   caller-supplied scope, and original tokens are dropped. Assertions keep their
   class expression or property and their named or anonymous individuals,
   enumerations, value restrictions, `SameIndividual` and `DifferentIndividuals`
-  their individuals in source order, and object property axioms their
+  their individuals in source order, number restrictions their numbers as
+  unary naturals and their fillers, and object property axioms their
   properties, chains and member lists. Every mapping is proved total, and every
   result corresponds to its source records under an independent structural
   correspondence. The mapping declines only a member list, property chain or
@@ -895,7 +900,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. The Functional Syntax reader does not
   read data axioms yet.
-- 2094 audited public theorems and 1034 audited semantic definitions. Consistency,
+- 2103 audited public theorems and 1038 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -909,7 +914,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 481 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 485 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -924,7 +929,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2287-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2296-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -971,8 +976,8 @@ connect that exact source table to IRI value/error contracts. The following
 ontology/version identity and maximal leading imports also have source-derived
 value/error composition proofs. Ontology annotations, including nested ones,
 now have source-derived value/error composition proofs as well, and so do single
-entity declarations, annotation axioms, ALC class expressions and class, domain
-and range axioms, and whole documents of those axioms with their closing syntax
+entity declarations, annotation axioms, object class expressions (with self and
+number restrictions) and class, domain and range axioms, and whole documents of those axioms with their closing syntax
 and end of source. The other logical axioms are reported as unsupported. Read
 documents map into the raw model with a proved exact correspondence, and the ALC
 queries compose with the reader and the mapping from the original bytes;

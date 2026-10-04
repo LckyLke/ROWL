@@ -1,4 +1,4 @@
-use rowl_kernel::decimal::{read, read_span, ReadError};
+use rowl_kernel::decimal::{read, read_bounded, read_span, ReadError};
 use rowl_kernel::probes::Natural;
 
 fn value(number: &Natural) -> usize {
@@ -120,4 +120,51 @@ fn long_leading_zeroes_preserve_small_exact_values() {
     source.extend_from_slice(b"003");
     assert_eq!(accepted(&source), 3);
     assert_eq!(accepted(&[b'0'; 128]), 0);
+}
+
+#[test]
+fn bounded_reading_returns_exactly_the_values_up_to_the_limit() {
+    // Every span of every short digit word against a range of limits agrees
+    // with an independent oracle.
+    let words: [&[u8]; 8] = [
+        b"0",
+        b"7",
+        b"10",
+        b"0042",
+        b"999",
+        b"1a2",
+        b"",
+        b"18446744073709551616",
+    ];
+    for word in words {
+        let bytes = word.to_vec();
+        for start in 0..=bytes.len() + 1 {
+            for end in 0..=bytes.len() + 1 {
+                for limit in [0usize, 1, 9, 10, 42, 100, 999, 1000, usize::MAX] {
+                    let oracle = if start < end && end <= bytes.len() {
+                        let span = &bytes[start..end];
+                        if span.iter().all(u8::is_ascii_digit) {
+                            std::str::from_utf8(span)
+                                .ok()
+                                .and_then(|text| text.parse::<u128>().ok())
+                                .filter(|value| *value <= limit as u128)
+                                .map(|value| value as usize)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    assert_eq!(read_bounded(&bytes, start, end, limit), oracle);
+                }
+            }
+        }
+    }
+    // A long word is rejected as soon as its value passes the limit, and
+    // leading zeros never count.
+    let long = vec![b'9'; 100_000];
+    assert_eq!(read_bounded(&long, 0, long.len(), 1000), None);
+    let mut padded = vec![b'0'; 1000];
+    padded.push(b'5');
+    assert_eq!(read_bounded(&padded, 0, padded.len(), 5), Some(5));
 }

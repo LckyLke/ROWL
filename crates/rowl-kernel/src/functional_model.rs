@@ -10,7 +10,7 @@ use crate::functional_annotation_axioms::{SourceAnnotationAxiomBody, SourceAnnot
 use crate::functional_annotations::{SourceAnnotation, SourceAnnotationValue};
 use crate::functional_assertions::SourceAssertionBody;
 use crate::functional_class_axioms::SourceClassAxiomBody;
-use crate::functional_classes::{SourceClass, SourceObjectProperty};
+use crate::functional_classes::{Bound, SourceClass, SourceObjectProperty};
 use crate::functional_declarations::{SourceEntity, SourceEntityKind};
 use crate::functional_document::{SourceAxiom, SourceDocument};
 use crate::functional_header::{HeaderIri, ImportReference, SourceOntologyIdentity};
@@ -25,6 +25,7 @@ use crate::model::{
     Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty, ObjectPropertyExpression,
     OntologyIdentity, RawOntology, SubObjectPropertyExpression,
 };
+use crate::probes::Natural;
 
 fn copy_from(source: &Vec<u8>, index: usize, mut target: Vec<u8>) -> Vec<u8> {
     if index < source.len() {
@@ -144,6 +145,27 @@ fn individual_members(
         rest: individuals_from(values, 2, Vec::new(), scope),
     })
 }
+/// The number `value`.
+fn natural(value: usize) -> Natural {
+    if value == 0 {
+        Natural::Zero
+    } else {
+        Natural::Succ(Box::new(natural(value - 1)))
+    }
+}
+/// The number restriction of a bound.
+fn cardinality(
+    bound: Bound,
+    value: Natural,
+    property: ObjectPropertyExpression,
+    filler: Option<Box<ClassExpression>>,
+) -> ClassExpression {
+    match bound {
+        Bound::Min => ClassExpression::ObjectMinCardinality(value, property, filler),
+        Bound::Max => ClassExpression::ObjectMaxCardinality(value, property, filler),
+        Bound::Exact => ClassExpression::ObjectExactCardinality(value, property, filler),
+    }
+}
 fn class(source: &SourceClass, scope: &Vec<u8>) -> Option<ClassExpression> {
     match source {
         SourceClass::Named(name) => Some(ClassExpression::Class(Class { iri: iri(name) })),
@@ -189,6 +211,32 @@ fn class(source: &SourceClass, scope: &Vec<u8>) -> Option<ClassExpression> {
             self::property(property),
             individual(value, scope),
         )),
+        SourceClass::HasSelf { property, .. } => {
+            Some(ClassExpression::ObjectHasSelf(self::property(property)))
+        }
+        SourceClass::Cardinality {
+            bound,
+            value,
+            property,
+            filler,
+            ..
+        } => match filler {
+            Some(filler) => match class(filler, scope) {
+                Some(filler) => Some(cardinality(
+                    *bound,
+                    natural(*value),
+                    self::property(property),
+                    Some(Box::new(filler)),
+                )),
+                None => None,
+            },
+            None => Some(cardinality(
+                *bound,
+                natural(*value),
+                self::property(property),
+                None,
+            )),
+        },
     }
 }
 fn rest_from(

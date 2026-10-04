@@ -61,6 +61,16 @@ def IndividualMembersModel (scope : alloc.vec.Vec U8) (members : List SourceIndi
 def PropertyOf : SourceObjectProperty → model.ObjectPropertyExpression
   | .Named iri => .Property ⟨IriOf iri⟩
   | .Inverse _ iri => .Inverse ⟨IriOf iri⟩
+/-- The unary natural number of a natural number. -/
+def NaturalOf : Nat → probes.Natural
+  | 0 => .Zero
+  | n+1 => .Succ (NaturalOf n)
+/-- The model number restriction of a bound. -/
+def CardinalityOf : functional_classes.Bound → probes.Natural → model.ObjectPropertyExpression →
+    Option model.ClassExpression → model.ClassExpression
+  | .Min, value, property, filler => .ObjectMinCardinality value property filler
+  | .Max, value, property, filler => .ObjectMaxCardinality value property filler
+  | .Exact, value, property, filler => .ObjectExactCardinality value property filler
 def EntityOf (entity : SourceEntity) : model.Entity :=
   match entity.kind with
   | .Class => .Class ⟨IriOf entity.iri⟩
@@ -99,7 +109,7 @@ end
 mutual
 /-- A model class expression corresponds to a source class expression with the
     same constructor, exact IRIs, the models of its individuals in the caller's
-    scope and corresponding operands. -/
+    scope, the numbers of its number restrictions and corresponding operands. -/
 inductive ClassModel (scope : alloc.vec.Vec U8) : SourceClass → model.ClassExpression → Prop
   | named {iri : HeaderIri} : ClassModel scope (.Named iri) (.Class ⟨IriOf iri⟩)
   | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceClass}
@@ -125,6 +135,17 @@ inductive ClassModel (scope : alloc.vec.Vec U8) : SourceClass → model.ClassExp
   | value {keyword : functional.Token} {property : SourceObjectProperty} {individual : SourceIndividual} :
       ClassModel scope (.HasValue keyword property individual)
         (.ObjectHasValue (PropertyOf property) (IndividualOf scope individual))
+  | self {keyword : functional.Token} {property : SourceObjectProperty} :
+      ClassModel scope (.HasSelf keyword property) (.ObjectHasSelf (PropertyOf property))
+  | cardinality {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : SourceObjectProperty} :
+      ClassModel scope (.Cardinality keyword bound number value property none)
+        (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) none)
+  | qualified {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : SourceObjectProperty} {filler : SourceClass} {target : model.ClassExpression}
+      (inner : ClassModel scope filler target) :
+      ClassModel scope (.Cardinality keyword bound number value property (some filler))
+        (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) (some target))
 /-- A member list of at least two expressions corresponds to the model's first,
     second and remaining members, in order. -/
 inductive MembersModel (scope : alloc.vec.Vec U8) : List SourceClass → model.AtLeastTwo model.ClassExpression → Prop
@@ -256,8 +277,8 @@ def OntologyModel (scope : alloc.vec.Vec U8) (tail : SourceDocumentTail) (ontolo
   List.Forall₂ (AxiomModel scope) tail.axioms.val ontology.axioms.val
 
 /-- Every intersection and union in a class expression has at least two
-    members and every enumeration at least one: the shape the class grammar
-    accepts and model member lists need. -/
+    members and every enumeration at least one, also inside fillers: the shape
+    the class grammar accepts and model member lists need. -/
 inductive Shaped : SourceClass → Prop
   | named {iri : HeaderIri} : Shaped (.Named iri)
   | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceClass}
@@ -276,6 +297,12 @@ inductive Shaped : SourceClass → Prop
       (enough : 1 ≤ members.val.length) : Shaped (.OneOf keyword members)
   | value {keyword : functional.Token} {property : SourceObjectProperty} {individual : SourceIndividual} :
       Shaped (.HasValue keyword property individual)
+  | self {keyword : functional.Token} {property : SourceObjectProperty} : Shaped (.HasSelf keyword property)
+  | cardinality {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : SourceObjectProperty} : Shaped (.Cardinality keyword bound number value property none)
+  | qualified {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : SourceObjectProperty} {filler : SourceClass} (inner : Shaped filler) :
+      Shaped (.Cardinality keyword bound number value property (some filler))
 /-- A class axiom whose member lists have at least two members and whose class
     expressions are shaped. -/
 def ShapedAxiom : SourceClassAxiomBody → Prop
@@ -571,6 +598,34 @@ theorem individual_members_correct (values : alloc.vec.Vec SourceIndividual) (sc
     rw [restList]
     simp [shape]
 
+/-- A machine integer maps to its unary natural number. -/
+theorem natural_correct (value : Usize) : functional_model.natural value = .ok (NaturalOf value.val) := by
+  rw [functional_model.natural]
+  by_cases zero : value.val = 0
+  · simp [UScalar.eq_equiv,show (0#usize).val = 0 from rfl,zero,NaturalOf]
+  · obtain ⟨previous,subRun,subValue⟩ := WP.spec_imp_exists
+      (Usize.sub_spec (x := value) (y := 1#usize) (by scalar_tac))
+    have previousIs : previous.val = value.val-1 := by
+      have : (1#usize).val = 1 := rfl
+      omega
+    have recursive := natural_correct previous
+    obtain ⟨n,valueIs⟩ : ∃ n, value.val = n+1 := ⟨value.val-1,by omega⟩
+    simp only [UScalar.eq_equiv,show (0#usize).val = 0 from rfl,zero,↓reduceIte,subRun,bind_ok,recursive,
+      previousIs,valueIs,Nat.add_sub_cancel,Nat.add_one_ne_zero,NaturalOf]
+termination_by value.val
+decreasing_by
+  have : (1#usize).val = 1 := rfl
+  omega
+/-- The unary natural number of a number has that value. -/
+theorem natural_of_value (n : Nat) : Rowl.Probes.naturalValue (NaturalOf n) = n := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp [NaturalOf,Rowl.Probes.naturalValue,ih]
+theorem cardinality_correct (bound : functional_classes.Bound) (value : probes.Natural)
+    (property : model.ObjectPropertyExpression) (filler : Option model.ClassExpression) :
+    functional_model.cardinality bound value property filler = .ok (CardinalityOf bound value property filler) := by
+  cases bound <;> rfl
+
 mutual
 /-- Every source class expression maps, when it maps, to its corresponding
     model class expression; every shaped expression maps. -/
@@ -639,6 +694,25 @@ theorem class_correct (source : SourceClass) (scope : alloc.vec.Vec U8) :
   | HasValue keyword property value =>
     exact ⟨some (.ObjectHasValue (PropertyOf property) (IndividualOf scope value)),
       by simp [property_correct,individual_correct],(by intro target same; cases same; exact .value),fun _ => rfl⟩
+  | HasSelf keyword property =>
+    exact ⟨some (.ObjectHasSelf (PropertyOf property)),by simp [property_correct],
+      (by intro target same; cases same; exact .self),fun _ => rfl⟩
+  | Cardinality keyword bound number value property filler =>
+    cases filler with
+    | none =>
+      exact ⟨some (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) none),
+        by simp [natural_correct,property_correct,cardinality_correct],
+        (by intro target same; cases same; exact .cardinality),fun _ => rfl⟩
+    | some filler =>
+      obtain ⟨result,read,correct,total⟩ := class_correct filler scope
+      cases result with
+      | none =>
+        exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+          by intro shaped; cases shaped with | qualified inner => exact absurd (total inner) (by simp)⟩
+      | some target =>
+        exact ⟨some (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) (some target)),
+          by simp [read,natural_correct,property_correct,cardinality_correct],
+          (by intro target' same; cases same; exact .qualified (correct target rfl)),fun _ => rfl⟩
 termination_by (sizeOf source,0)
 decreasing_by
   all_goals
@@ -1152,11 +1226,19 @@ open RowlRust.functional_lexer (Tokens)
 open RowlRust.functional_classes (ClassError ClassForm)
 open RowlRust.functional_class_axioms (ClassAxiomError AxiomForm)
 open RowlRust.functional_document (DocumentError)
-open Rowl.FunctionalClasses (ClassRun ConnectiveRun MembersRun)
+open Rowl.FunctionalClasses (ClassRun ConnectiveRun MembersRun FillerRun)
 open Rowl.FunctionalClassAxioms (ClassStep ListRun BodyRun)
 open RowlRust.functional_document (AxiomFamily)
 open Rowl.FunctionalDocument (AxiomStep AxiomsRun TailRun)
 variable {rows : List prefixes.Declaration} {source : List U8} {eof : Usize}
+
+/-- A number restriction is shaped when its filler, if any, is. -/
+private theorem shaped_cardinality {keyword number : functional.Token} {bound : functional_classes.Bound}
+    {value : Usize} {property : SourceObjectProperty} {filler : Option SourceClass}
+    (inner : ∀ f, filler = some f → Shaped f) : Shaped (.Cardinality keyword bound number value property filler) := by
+  cases filler with
+  | none => exact .cardinality
+  | some f => exact .qualified (inner f rfl)
 
 mutual
 /-- Every class expression the independent class grammar accepts is shaped. -/
@@ -1210,6 +1292,17 @@ theorem connective_run_shaped {count limit : Nat} :
   | _, _, _, _, _, .valueError _ _, _, _, same => by cases same
   | _, _, _, _, _, .valueCloseError _ _ _, _, _, same => by cases same
   | _, _, _, _, _, .hasValue _ _ _, _, _, same => by cases same; exact .value
+  | _, _, _, _, _, .selfPropertyError _, _, _, same => by cases same
+  | _, _, _, _, _, .selfCloseError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .hasSelf _ _, _, _, same => by cases same; exact .self
+  | _, _, _, _, _, .numberError _, _, _, same => by cases same
+  | _, _, _, _, _, .countError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .countPropertyError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .countFillerError _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .countCloseError _ _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .cardinality _ _ _ fillerRun _, _, _, same => by
+    cases same
+    exact shaped_cardinality (filler_run_shaped fillerRun rfl)
 /-- Every member sequence the independent class grammar accepts extends the
     shaped members before it with shaped members. -/
 theorem members_run_shaped {count limit : Nat} :
@@ -1235,6 +1328,19 @@ theorem members_run_shaped {count limit : Nat} :
       · exact earlier member old
       · rw [List.mem_singleton.mp new]
         exact class_run_shaped memberRun rfl) same
+/-- Every filler the independent class grammar accepts is shaped. -/
+theorem filler_run_shaped {count limit : Nat} :
+    ∀ {depth : Nat} {tokens : Tokens} {result : core.result.Result (Option SourceClass × Tokens) ClassError},
+      FillerRun rows source eof count limit depth tokens result →
+      ∀ {filler : Option SourceClass} {rest : Tokens}, result = .Ok (filler,rest) →
+        ∀ value, filler = some value → Shaped value
+  | _, _, _, .empty, _, _, same, _, isSome => by cases same; cases isSome
+  | _, _, _, .stop _, _, _, same, _, isSome => by cases same; cases isSome
+  | _, _, _, .fillerError _ _, _, _, same, _, _ => by cases same
+  | _, _, _, .filler _ fillerRun, _, _, same, _, isSome => by
+    cases same
+    cases isSome
+    exact class_run_shaped fillerRun rfl
 end
 
 /-- Every class expression the class axiom grammar accepts is shaped. -/

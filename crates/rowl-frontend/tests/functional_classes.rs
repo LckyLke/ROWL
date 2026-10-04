@@ -1,7 +1,7 @@
 use rowl_frontend::functional::{Keyword, Terminal};
 use rowl_frontend::functional_annotations::{read_annotations, AnnotationLimits};
 use rowl_frontend::functional_classes::{
-    read_class_expression, read_object_property, ClassError, ClassExpected, ClassLimits,
+    read_class_expression, read_object_property, Bound, ClassError, ClassExpected, ClassLimits,
     SourceClass, SourceObjectProperty,
 };
 use rowl_frontend::functional_header::read_header_tail;
@@ -117,6 +117,28 @@ fn text(class: &SourceClass) -> String {
             property_text(property),
             individual_text(individual)
         ),
+        SourceClass::HasSelf { property, .. } => format!("self({})", property_text(property)),
+        SourceClass::Cardinality {
+            bound,
+            value,
+            property,
+            filler,
+            ..
+        } => {
+            let bound = match bound {
+                Bound::Min => "min",
+                Bound::Max => "max",
+                Bound::Exact => "exact",
+            };
+            match filler {
+                Some(filler) => format!(
+                    "{bound}({value},{},{})",
+                    property_text(property),
+                    text(filler)
+                ),
+                None => format!("{bound}({value},{})", property_text(property)),
+            }
+        }
     }
 }
 fn expected(result: Result<(SourceClass, Tokens), ClassError>) -> (&'static str, usize) {
@@ -128,6 +150,7 @@ fn expected(result: Result<(SourceClass, Tokens), ClassError>) -> (&'static str,
                 ClassExpected::Property => "property",
                 ClassExpected::Iri => "iri",
                 ClassExpected::Close => "close",
+                ClassExpected::Number => "number",
             };
             (kind, offset)
         }
@@ -258,6 +281,74 @@ fn enumerations_and_individual_values_keep_their_individuals() {
 }
 
 #[test]
+fn self_and_number_restrictions_keep_their_numbers_and_fillers() {
+    let (bytes, result) = read(
+        "ObjectIntersectionOf(ObjectHasSelf(ObjectInverseOf(:monitors)) ObjectMinCardinality(002 :hasPart :Pump) ObjectMaxCardinality(0 :hasPart) ObjectExactCardinality(10 ObjectInverseOf(:partOf) ObjectComplementOf(:Valve)))",
+        &limits(5, 10),
+    );
+    let (class, _) = result.unwrap_or_else(|_| panic!("fixture must be accepted"));
+    assert_eq!(
+        text(&class),
+        "and(self(inv(monitors)),min(2,hasPart,Pump),max(0,hasPart),exact(10,inv(partOf),not(Valve)))"
+    );
+    match &class {
+        SourceClass::IntersectionOf { members, .. } => match &members[1] {
+            SourceClass::Cardinality {
+                keyword, number, ..
+            } => {
+                assert!(matches!(
+                    keyword.terminal,
+                    Terminal::Keyword(Keyword::ObjectMinCardinality)
+                ));
+                assert!(matches!(number.terminal, Terminal::Integer));
+                assert_eq!(number.start, offset(&bytes, "002", 0));
+                assert_eq!(number.end, offset(&bytes, "002", 0) + 3);
+            }
+            _ => panic!("the second member is a number restriction"),
+        },
+        _ => panic!("the outer expression is an intersection"),
+    }
+}
+
+#[test]
+fn numbers_are_checked_against_the_count_limit_before_the_property() {
+    let (_, result) = read("ObjectMaxCardinality(10 :hasPart)", &limits(5, 10));
+    assert!(result.is_ok(), "a number at the count limit is accepted");
+    let (bytes, result) = read("ObjectMaxCardinality(0011 undeclared:p)", &limits(5, 10));
+    match result {
+        Err(ClassError::CountLimit { offset: at }) => assert_eq!(at, offset(&bytes, "0011", 0)),
+        _ => panic!("numbers above the count limit are reported at the number"),
+    }
+    // A number far beyond any machine integer is rejected without its value.
+    let huge = "9".repeat(5000);
+    let (bytes, result) = read(&format!("ObjectMinCardinality({huge} :p)"), &limits(5, 10));
+    match result {
+        Err(ClassError::CountLimit { offset: at }) => assert_eq!(at, offset(&bytes, &huge, 0)),
+        _ => panic!("huge numbers are reported at the number"),
+    }
+    let (bytes, result) = read("ObjectMinCardinality(:p 1)", &limits(5, 10));
+    assert_eq!(expected(result), ("number", offset(&bytes, ":p", 0)));
+    let (bytes, result) = read("ObjectMinCardinality(", &limits(5, 10));
+    assert_eq!(expected(result), ("number", bytes.len()));
+    let (bytes, result) = read("ObjectExactCardinality(1 :p :A :B)", &limits(5, 10));
+    assert_eq!(expected(result), ("close", offset(&bytes, ":B", 0)));
+    let (bytes, result) = read("ObjectExactCardinality(1 :p", &limits(5, 10));
+    assert_eq!(expected(result), ("close", bytes.len()));
+    let (bytes, result) = read("ObjectHasSelf(:p :q)", &limits(5, 10));
+    assert_eq!(expected(result), ("close", offset(&bytes, ":q", 0)));
+    let (bytes, result) = read(
+        "ObjectMinCardinality(1 :p ObjectComplementOf(:A))",
+        &limits(1, 10),
+    );
+    match result {
+        Err(ClassError::DepthLimit { offset: at }) => {
+            assert_eq!(at, offset(&bytes, "ObjectComplementOf", 0))
+        }
+        _ => panic!("fillers are one level deeper"),
+    }
+}
+
+#[test]
 fn errors_follow_source_order() {
     let (bytes, result) = read("ObjectIntersectionOf(:A)", &limits(5, 10));
     assert_eq!(expected(result), ("class", offset(&bytes, ")", 1)));
@@ -282,12 +373,12 @@ fn errors_follow_source_order() {
     assert_eq!(expected(result), ("close", offset(&bytes, ":A", 0)));
     let (bytes, result) = read("ObjectComplementOf(:A :B)", &limits(5, 10));
     assert_eq!(expected(result), ("close", offset(&bytes, ":B", 0)));
-    let (bytes, result) = read("ObjectUnionOf(:A ObjectHasSelf(:p))", &limits(5, 10));
+    let (bytes, result) = read("ObjectUnionOf(:A DataHasValue(:d \"1\"))", &limits(5, 10));
     match result {
         Err(ClassError::Unsupported { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "ObjectHasSelf", 0))
+            assert_eq!(at, offset(&bytes, "DataHasValue", 0))
         }
-        _ => panic!("the other class-expression forms are not read yet"),
+        _ => panic!("the data restrictions are not read yet"),
     }
     let (bytes, result) = read("ObjectUnionOf(:A undeclared:B)", &limits(5, 10));
     match result {
@@ -347,7 +438,7 @@ fn random_expression(seed: &mut u64, depth: u32) -> (String, String) {
     *seed = seed
         .wrapping_mul(6364136223846793005)
         .wrapping_add(1442695040888963407);
-    let choice = (*seed >> 33) % if depth == 0 { 2 } else { 7 };
+    let choice = (*seed >> 33) % if depth == 0 { 2 } else { 9 };
     match choice {
         0 => (":A".to_string(), "A".to_string()),
         1 => (format!("<{EX}B>"), "B".to_string()),
@@ -380,6 +471,39 @@ fn random_expression(seed: &mut u64, depth: u32) -> (String, String) {
                 format!("ObjectComplementOf({source})"),
                 format!("not({shape})"),
             )
+        }
+        7 => {
+            let inverse = (*seed >> 41) % 2 == 1;
+            let (property, property_shape) = if inverse {
+                ("ObjectInverseOf(:R)", "inv(R)")
+            } else {
+                (":R", "R")
+            };
+            (
+                format!("ObjectHasSelf({property})"),
+                format!("self({property_shape})"),
+            )
+        }
+        8 => {
+            let (keyword, bound) = match (*seed >> 42) % 3 {
+                0 => ("ObjectMinCardinality", "min"),
+                1 => ("ObjectMaxCardinality", "max"),
+                _ => ("ObjectExactCardinality", "exact"),
+            };
+            let value = (*seed >> 44) % 11;
+            let zeros = "0".repeat(((*seed >> 48) % 3) as usize);
+            if (*seed >> 50) % 2 == 1 {
+                let (source, shape) = random_expression(seed, depth - 1);
+                (
+                    format!("{keyword}({zeros}{value} :R {source})"),
+                    format!("{bound}({value},R,{shape})"),
+                )
+            } else {
+                (
+                    format!("{keyword}({zeros}{value} :R)"),
+                    format!("{bound}({value},R)"),
+                )
+            }
         }
         _ => {
             let inverse = (*seed >> 41) % 2 == 1;

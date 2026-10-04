@@ -222,7 +222,7 @@ fn errors_report_the_first_failing_step() {
         _ => panic!("only individuals belong in the list"),
     }
     // A class expression error keeps the class stage.
-    let (_, result) = read("ClassAssertion(ObjectHasSelf(:p) :pump1))");
+    let (_, result) = read("ClassAssertion(DataHasValue(:d \"1\") :pump1))");
     assert!(matches!(
         result,
         Err(AssertionError::Class(ClassError::Unsupported { .. }))

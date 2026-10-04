@@ -258,4 +258,198 @@ theorem read_span_accepts_iff (bytes : alloc.vec.Vec U8) (start finish : Usize) 
       | Empty offset => have := correct.2.1; omega
       | InvalidDigit offset => exact False.elim (bad_excludes_digits _ _ _ _ fits correct.2.2 digits)
 
+/-- A bounded reading: a nonempty span inside the bytes of ASCII digits whose
+    decimal value is at most the limit. -/
+def Bounded (bytes : List U8) (start finish limit value : Nat) : Prop :=
+  start < finish ∧ finish ≤ bytes.length ∧ Digits (Slice bytes start finish) ∧
+    Numeric (Slice bytes start finish) 0 = value ∧ value ≤ limit
+
+private theorem numeric_grows (bytes : List U8) (initial : Nat) : initial ≤ Numeric bytes initial := by
+  induction bytes generalizing initial with
+  | nil => simp [Numeric]
+  | cons head tail ih =>
+    have step := ih (10*initial+(head.val-48))
+    simp only [Numeric,List.foldl_cons] at step ⊢
+    omega
+private theorem numeric_cons (head : U8) (tail : List U8) (initial : Nat) :
+    Numeric (head::tail) initial = Numeric tail (10*initial+(head.val-48)) := by
+  simp [Numeric]
+
+/-- The bounded scan from `position`: the remaining bytes are inside the
+    source, all digits, and their value after `previous` is at most the limit. -/
+private def BoundedFrom (bytes : List U8) (position finish previous limit value : Nat) : Prop :=
+  (position < finish → finish ≤ bytes.length) ∧ Digits (Slice bytes position finish) ∧
+    Numeric (Slice bytes position finish) previous = value ∧ value ≤ limit
+
+private theorem bounded_from_total (bytes : alloc.vec.Vec U8) (position finish previous limit : Usize)
+    (before : position.val ≤ finish.val) (small : previous.val ≤ limit.val) :
+    ∃ result, bounded_from bytes position finish previous limit = .ok result ∧
+      ∀ value : Usize, result = some value ↔
+        BoundedFrom bytes.val position.val finish.val previous.val limit.val value.val := by
+  rw [bounded_from]
+  by_cases atEnd : finish.val ≤ position.val
+  · have equal : position.val = finish.val := by omega
+    refine ⟨some previous,by simp [atEnd],?_⟩
+    intro value
+    simp only [BoundedFrom,equal,slice_empty,lt_irrefl,false_implies,true_and]
+    constructor
+    · intro same
+      cases Option.some.inj same
+      exact ⟨by simp [Digits],by simp [Numeric],small⟩
+    · rintro ⟨_,numeric,_⟩
+      simp only [Numeric,List.foldl_nil] at numeric
+      exact congrArg some (UScalar.eq_imp _ _ numeric)
+  · have inBefore : position.val < finish.val := by omega
+    by_cases outside : bytes.val.length ≤ position.val
+    · refine ⟨none,by simp [atEnd,alloc.vec.Vec.len_val,outside],?_⟩
+      intro value
+      simp only [reduceCtorEq,false_iff]
+      rintro ⟨fits,_,_,_⟩
+      have := fits inBefore
+      omega
+    · have inside : position.val < bytes.val.length := by omega
+      have lookup : bytes.index_usize position = .ok bytes.val[position.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+      have notDigitFails : ¬ Digit bytes.val[position.val] →
+          ∀ value, ¬ BoundedFrom bytes.val position.val finish.val previous.val limit.val value := by
+        rintro notDigit value ⟨fitsWhen,digits,_,_⟩
+        rw [slice_step _ _ _ inBefore (fitsWhen inBefore),digits_cons] at digits
+        exact notDigit digits.1
+      simp only [ge_iff_le,UScalar.le_equiv,atEnd,↓reduceIte,alloc.vec.Vec.len_val,outside,
+        alloc.vec.Vec.index_slice_index,lookup,bind_ok]
+      by_cases low : bytes.val[position.val].val < 48
+      · refine ⟨none,by simp [low],?_⟩
+        intro value
+        simp only [reduceCtorEq,false_iff]
+        exact notDigitFails (by unfold Digit; omega) value.val
+      · by_cases high : 57 < bytes.val[position.val].val
+        · refine ⟨none,by simp [low,high],?_⟩
+          intro value
+          simp only [reduceCtorEq,false_iff]
+          exact notDigitFails (by unfold Digit; omega) value.val
+        · have digit : Digit bytes.val[position.val] := by unfold Digit; omega
+          obtain ⟨tenth,tenthRun,tenthValue⟩ := UScalar.div_spec limit (y := 10#usize) (by simp)
+          have ten : (10#usize).val = 10 := rfl
+          rw [ten] at tenthValue
+          by_cases big : tenth.val < previous.val
+          · refine ⟨none,by simp [low,high,tenthRun,big],?_⟩
+            intro value
+            simp only [reduceCtorEq,false_iff]
+            rintro ⟨fitsWhen,_,numeric,bounded⟩
+            rw [slice_step _ _ _ inBefore (fitsWhen inBefore),numeric_cons] at numeric
+            have grows := numeric_grows (Slice bytes.val (position.val+1) finish.val)
+              (10*previous.val+(bytes.val[position.val].val-48))
+            omega
+          · obtain ⟨shifted,shiftedRun,shiftedValue⟩ := WP.spec_imp_exists
+              (UScalar.mul_spec (x := previous) (y := 10#usize) (by rw [ten]; scalar_tac))
+            rw [ten] at shiftedValue
+            obtain ⟨payload,payloadRun,payloadValue⟩ := WP.spec_imp_exists
+              (U8.sub_spec (x := bytes.val[position.val]) (y := 48#u8) (by scalar_tac))
+            have payloadIs : payload.val = bytes.val[position.val].val-48 := by
+              have : (48#u8).val = 48 := rfl
+              simp only [this] at payloadValue
+              omega
+            have castIs : (UScalar.cast .Usize payload).val = payload.val := U8.cast_Usize_val_eq payload
+            have castRun : (lift (UScalar.cast .Usize payload) : Result Usize) = .ok (UScalar.cast .Usize payload) :=
+              rfl
+            obtain ⟨room,roomRun,roomValue⟩ := WP.spec_imp_exists
+              (Usize.sub_spec (x := limit) (y := shifted) (by scalar_tac))
+            by_cases over : room.val < payload.val
+            · refine ⟨none,by simp [low,high,tenthRun,big,shiftedRun,payloadRun,castRun,roomRun,over],?_⟩
+              intro value
+              simp only [reduceCtorEq,false_iff]
+              rintro ⟨fitsWhen,_,numeric,bounded⟩
+              rw [slice_step _ _ _ inBefore (fitsWhen inBefore),numeric_cons] at numeric
+              have grows := numeric_grows (Slice bytes.val (position.val+1) finish.val)
+                (10*previous.val+(bytes.val[position.val].val-48))
+              omega
+            · obtain ⟨next,nextRun,nextValue⟩ := WP.spec_imp_exists
+                (Usize.add_spec (x := position) (y := 1#usize) (by scalar_tac))
+              have nextIs : next.val = position.val+1 := by simpa using nextValue
+              obtain ⟨sum,sumRun,sumValue⟩ := WP.spec_imp_exists
+                (Usize.add_spec (x := shifted) (y := UScalar.cast .Usize payload) (by scalar_tac))
+              have sumIs : sum.val = 10*previous.val+(bytes.val[position.val].val-48) := by
+                rw [castIs] at sumValue
+                omega
+              obtain ⟨result,executed,correct⟩ :=
+                bounded_from_total bytes next finish sum limit (by omega) (by omega)
+              refine ⟨result,by simp [low,high,tenthRun,big,shiftedRun,payloadRun,castRun,roomRun,over,nextRun,
+                sumRun,executed],?_⟩
+              intro value
+              rw [correct value]
+              simp only [BoundedFrom,nextIs,sumIs]
+              by_cases fitsAll : finish.val ≤ bytes.val.length
+              · rw [slice_step _ _ _ inBefore fitsAll,digits_cons,numeric_cons]
+                constructor
+                · rintro ⟨_,digits,numeric,bounded⟩
+                  exact ⟨fun _ => fitsAll,⟨digit,digits⟩,numeric,bounded⟩
+                · rintro ⟨_,⟨_,digits⟩,numeric,bounded⟩
+                  exact ⟨fun _ => fitsAll,digits,numeric,bounded⟩
+              · constructor
+                · rintro ⟨fitsWhen,_⟩
+                  exact absurd (fitsWhen (by omega)) fitsAll
+                · rintro ⟨fitsWhen,_⟩
+                  exact absurd (fitsWhen inBefore) fitsAll
+termination_by finish.val-position.val
+decreasing_by omega
+
+/-- The bounded reader is total, and returns exactly the value of a nonempty
+    span of ASCII digits inside the bytes when that value is at most the limit,
+    without forming any larger value. -/
+theorem read_bounded_total_correct (bytes : alloc.vec.Vec U8) (start finish limit : Usize) :
+    ∃ result, read_bounded bytes start finish limit = .ok result ∧
+      ∀ value : Usize, result = some value ↔ Bounded bytes.val start.val finish.val limit.val value.val := by
+  rw [read_bounded]
+  by_cases empty : finish.val ≤ start.val
+  · refine ⟨none,by simp [empty],?_⟩
+    intro value
+    simp only [reduceCtorEq,false_iff]
+    rintro ⟨nonempty,_⟩
+    omega
+  · obtain ⟨result,executed,correct⟩ :=
+      bounded_from_total bytes start finish 0#usize limit (by omega) (by simp)
+    refine ⟨result,by simp [empty,executed],?_⟩
+    intro value
+    rw [correct value]
+    have zero : (0#usize).val = 0 := rfl
+    simp only [BoundedFrom,Bounded,zero]
+    constructor
+    · rintro ⟨fits,digits,numeric,bounded⟩
+      exact ⟨by omega,fits (by omega),digits,numeric,bounded⟩
+    · rintro ⟨_,fits,digits,numeric,bounded⟩
+      exact ⟨fun _ => fits,digits,numeric,bounded⟩
+/-- A value is read exactly when it is the bounded reading of the span. -/
+theorem read_bounded_some_iff (bytes : alloc.vec.Vec U8) (start finish limit value : Usize) :
+    read_bounded bytes start finish limit = .ok (some value) ↔
+      Bounded bytes.val start.val finish.val limit.val value.val := by
+  obtain ⟨result,executed,correct⟩ := read_bounded_total_correct bytes start finish limit
+  rw [executed]
+  constructor
+  · intro same
+    exact (correct value).mp (Result.ok_injective same)
+  · intro bounded
+    rw [(correct value).mpr bounded]
+/-- Nothing is read exactly when the span has no bounded reading. -/
+theorem read_bounded_none_iff (bytes : alloc.vec.Vec U8) (start finish limit : Usize) :
+    read_bounded bytes start finish limit = .ok none ↔
+      ∀ value, ¬ Bounded bytes.val start.val finish.val limit.val value := by
+  obtain ⟨result,executed,correct⟩ := read_bounded_total_correct bytes start finish limit
+  rw [executed]
+  constructor
+  · intro same value bounded
+    have below : value ≤ Usize.max := le_trans bounded.2.2.2.2 (by scalar_tac)
+    have lt : value < 2 ^ UScalarTy.Usize.numBits := by
+      have := Usize.max_def
+      have pos : 0 < 2 ^ UScalarTy.Usize.numBits := Nat.two_pow_pos _
+      simp only [Usize.numBits] at this
+      omega
+    have valueIs : (Usize.ofNatCore value lt).val = value := UScalar.ofNatCore_val_eq lt
+    have read := (correct (Usize.ofNatCore value lt)).mpr (by rw [valueIs]; exact bounded)
+    rw [Result.ok_injective same] at read
+    cases read
+  · intro none'
+    cases result with
+    | none => rfl
+    | some value => exact absurd ((correct value).mp rfl) (none' value.val)
+
 end Rowl.Decimal

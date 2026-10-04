@@ -61,3 +61,43 @@ pub fn read_span(bytes: &Vec<u8>, start: usize, end: usize) -> Result<Natural, R
 pub fn read(bytes: &Vec<u8>) -> Result<Natural, ReadError> {
     read_span(bytes, 0, bytes.len())
 }
+/// The value of the digits `bytes[position..end]` after `previous`, while it
+/// stays at most `limit`.
+#[allow(clippy::manual_range_contains)] // Keep comparisons explicit for extraction.
+fn bounded_from(
+    bytes: &Vec<u8>,
+    position: usize,
+    end: usize,
+    previous: usize,
+    limit: usize,
+) -> Option<usize> {
+    if position >= end {
+        return Some(previous);
+    }
+    if position >= bytes.len() {
+        return None;
+    }
+    let byte = bytes[position];
+    if byte < b'0' || byte > b'9' {
+        return None;
+    }
+    if previous > limit / 10 {
+        return None;
+    }
+    let shifted = previous * 10;
+    let digit = (byte - b'0') as usize;
+    if digit > limit - shifted {
+        return None;
+    }
+    bounded_from(bytes, position + 1, end, shifted + digit, limit)
+}
+/// The value of a nonempty original source span of ASCII digits when it is at
+/// most `limit`, as a machine integer; `None` for an empty span, a span beyond
+/// the bytes, a byte that is no digit or a larger value. Leading zeroes are
+/// accepted, and no value above `limit` is ever formed.
+pub fn read_bounded(bytes: &Vec<u8>, start: usize, end: usize, limit: usize) -> Option<usize> {
+    if start >= end {
+        return None;
+    }
+    bounded_from(bytes, start, end, 0, limit)
+}

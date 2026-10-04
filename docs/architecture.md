@@ -581,12 +581,16 @@ their original endpoints. The proof composes the independently extracted
 frontend and kernel over the same immutable bytes; no cross-crate external
 implementation or caller span metadata is assumed correct.
 
-This completes the integer payload stage. Parsing the surrounding cardinality
-expression, remaining IRI/name payload construction, complete document syntax,
-byte-derived imports/scopes and full OWL validation/reasoning remain pending.
-The unary natural representation has no mathematical machine-integer cap, but
-its cost is proportional to its represented value. Physical memory/stack,
-efficient arithmetic and typed cancellation/resource outcomes remain M8 work.
+This completes the integer payload stage. The unary natural representation has
+no mathematical machine-integer cap, but its cost is proportional to its
+represented value, so the class-expression reader does not use `read_span` for
+the numbers of number restrictions. `decimal::read_bounded` reads them as
+machine integers instead: it returns a span's value exactly when the span is a
+nonempty run of ASCII digits inside the bytes whose value is at most a caller's
+limit, and it stops as soon as a prefix exceeds the limit, so no larger value is
+ever formed. The model mapping then builds the unary natural of a value that is
+at most the count limit. Physical memory/stack, efficient arithmetic and typed
+cancellation/resource outcomes remain M8 work.
 
 ### Canonical source spans and nonquoted name values
 
@@ -819,26 +823,26 @@ closure. Checking them per declaration here would miss conflicts between axioms.
 
 ### Functional Syntax class expressions and class axioms
 
-Class expressions are recursive, so the reader is three mutually recursive
-functions: one class expression, one connective body after its `(`, and the
-maximal member sequence of an intersection or union. Each call either consumes a
-token or hands the same tokens to a function of lower rank, so termination is
-proved from the lexicographic pair (token count, rank) without fuel. The
-independent grammar mirrors that structure as three mutually inductive
-derivations. Totality carries a progress fact: a class expression consumes at
+Class expressions are recursive, so the reader is four mutually recursive
+functions: one class expression, one connective body after its `(`, the maximal
+member sequence of an intersection or union, and the optional filler of a
+number restriction. Each call either consumes a token or hands the same tokens
+to a function of lower rank, so termination is proved from the lexicographic
+pair (token count, rank) without fuel. The independent grammar mirrors that
+structure as four mutually inductive derivations. Totality carries a progress fact: a class expression consumes at
 least one token, and a member sequence never returns more tokens than it was
 given. The converse, that every derivation is the actual result, uses the same
 measure.
 
-The reader covers the forms the reasoner can decide: named classes,
-intersections, unions, complements and existential and universal restrictions.
-Object property expressions include `ObjectInverseOf`, which the reasoner does
-not support yet; the frontend reads it anyway, because reading is independent of
-the reasoning fragment. The other twelve class-expression forms are reported as
-`Unsupported` at their keyword rather than as a syntax error, so a later stage can
-extend the reader without changing earlier diagnostics. `ClassLimits.depth`
-bounds connective nesting, because each level uses the physical stack. `count`
-bounds each member list.
+The reader covers the object class expressions: named classes, intersections,
+unions, complements, enumerations, existential, universal, value and self
+restrictions, and number restrictions with or without a filler, over object
+property expressions that include `ObjectInverseOf`. The six data restrictions
+are reported as `Unsupported` at their keyword rather than as a syntax error, so
+a later stage can extend the reader without changing earlier diagnostics.
+`ClassLimits.depth` bounds connective nesting, because each level uses the
+physical stack. `count` bounds each member list and the number of each number
+restriction.
 
 The six class axioms compose the annotation reader, the class reader and the
 object property reader. Their member lists reuse the member sequence followed by

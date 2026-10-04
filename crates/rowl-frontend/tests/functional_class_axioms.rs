@@ -80,6 +80,20 @@ fn class(class: &SourceClass) -> String {
         } => format!("all({},{})", self::property(property), self::class(filler)),
         SourceClass::OneOf { members, .. } => format!("one[{}]", members.len()),
         SourceClass::HasValue { property, .. } => format!("value({})", self::property(property)),
+        SourceClass::HasSelf { property, .. } => format!("self({})", self::property(property)),
+        SourceClass::Cardinality {
+            value,
+            property,
+            filler,
+            ..
+        } => match filler {
+            Some(filler) => format!(
+                "count({value},{},{})",
+                self::property(property),
+                self::class(filler)
+            ),
+            None => format!("count({value},{})", self::property(property)),
+        },
     }
 }
 fn list(members: &[SourceClass]) -> String {
@@ -130,6 +144,7 @@ fn expected(result: Result<(SourceClassAxiom, Tokens), ClassAxiomError>) -> (&'s
                 ClassExpected::Property => "property",
                 ClassExpected::Iri => "class iri",
                 ClassExpected::Close => "class close",
+                ClassExpected::Number => "class number",
             };
             (kind, offset)
         }
@@ -228,11 +243,11 @@ fn errors_follow_source_order() {
         }
         _ => panic!("the union class IRI resolves through the prefix table"),
     }
-    let (bytes, result) = read("SubClassOf(:A ObjectHasSelf(:p))");
+    let (bytes, result) = read("SubClassOf(:A DataHasValue(:d \"1\"))");
     match result {
         Err(ClassAxiomError::Class(ClassError::Unsupported { offset: at })) => {
-            assert_eq!(at, offset(&bytes, "ObjectHasSelf", 0))
+            assert_eq!(at, offset(&bytes, "DataHasValue", 0))
         }
-        _ => panic!("the other class-expression forms are not read yet"),
+        _ => panic!("the data restrictions are not read yet"),
     }
 }
