@@ -1412,8 +1412,8 @@ fn self_restrictions_and_reflexive_properties() {
         instance_of(&functional, &individual(b"a"), &class(b"B")),
         Some(true)
     );
-    // Below an anonymous element that merge would move a node into its parent,
-    // which no merge does yet.
+    // Below an anonymous element, the successor merges into its parent, whose
+    // edge becomes a loop.
     let deep = vec![
         axiom(Axiom::ReflexiveObjectProperty(r())),
         axiom(Axiom::FunctionalObjectProperty(r())),
@@ -1423,7 +1423,24 @@ fn self_restrictions_and_reflexive_properties() {
             &deep,
             &some(b"s", and(some(b"r", class(b"B")), not(class(b"B"))))
         ),
-        None
+        Some(false)
+    );
+    assert_eq!(
+        class_satisfiable(&deep, &some(b"s", some(b"r", class(b"B")))),
+        Some(true)
+    );
+    // The loop along a role included in the reflexive one comes from the merge.
+    let mut included_loop = deep;
+    included_loop.push(included(property(b"t"), r()));
+    assert_eq!(
+        class_satisfiable(
+            &included_loop,
+            &some(
+                b"s",
+                and(some(b"t", class(b"B")), not(has_self(property(b"t"))))
+            )
+        ),
+        Some(false)
     );
     // The complement of a self restriction needs a simple role.
     let tangled = vec![
@@ -1461,7 +1478,7 @@ fn every_class_with_a_small_model_of_self_restrictions_is_satisfiable() {
             None => unanswered += 1,
         }
     }
-    println!("with model {with_model}, without {without}, unanswered {unanswered}");
+    assert_eq!(unanswered, 0, "every sample is answered");
     assert!(
         with_model > 30,
         "the sample must exercise satisfiable inputs"

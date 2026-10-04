@@ -7,7 +7,8 @@ existential or minimum restriction of an unblocked node appends its children
 with their seed, pairwise different, and marks the restriction as expanded; a
 model of the restriction provides different witnesses for the children.
 Merging a neighbour `source` of `x` into a neighbour `into` hands the edge of
-`source` over to `into`, gives `into` the differences of `source`, deactivates
+`source` over to `into`, unless `into` is its tree parent, whose loops the merge
+adds instead, gives `into` the differences of `source`, deactivates
 `source` with its subtree and makes `into` depend on the points of the merge; a
 model that places both on one element models the merged forest with the label
 of `source` at `into`. New named nodes for a maximum restriction of a named
@@ -661,13 +662,14 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
 /-! ### Merging two neighbours -/
 
 /-- How a merge goes: `source`, a tree node, into the parent of its parent, into
-    a sibling or into a named node; or a named `source` into a named node. -/
+    a sibling, into a named node or into its tree parent; or a named `source`
+    into a named node. -/
 def MergeShape (F : forest.Forest) (source into : Nat) : Prop :=
   source ≠ into ∧ Active F.nodes.val source ∧ Active F.nodes.val into ∧
   ((∃ ns : forest.Node, F.nodes.val[source]? = some ns ∧ ns.tree = true ∧
       ((∃ np : forest.Node, F.nodes.val[ns.parent.val]? = some np ∧ np.tree = true ∧ np.parent.val = into) ∨
        (∃ ni : forest.Node, F.nodes.val[into]? = some ni ∧ ni.tree = true ∧ ni.parent.val = ns.parent.val) ∨
-       Named F.nodes.val into)) ∨
+       Named F.nodes.val into ∨ ns.parent.val = into)) ∨
    (Named F.nodes.val source ∧ Named F.nodes.val into))
 
 /-- A role a merge adds to the edge into `y`: the inverse of a role of the tree
@@ -749,6 +751,18 @@ theorem moved_of_set {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
         fun k member => .inl member,fun s member => .inl member⟩
   · intro a b at_a
     refine ⟨b,at_a,.inl ⟨same_not_tree shape source ns at_s sourceTree b (List.mem_of_getElem? at_a),rfl⟩⟩
+
+/-- Keeping the forest as it is hands nothing over yet. -/
+theorem moved_refl {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
+    (shape : Shape P h count F) (source into : Nat) (joined : List Usize) (ns : forest.Node)
+    (at_s : F.nodes.val[source]? = some ns) (sourceTree : ns.tree = true) : Moved F F source into joined := by
+  refine ⟨rfl,rfl,?_,fun e member => .inl ⟨member,fun named => absurd named (tree_not_named at_s sourceTree)⟩,
+    rfl,?_,rfl⟩
+  · intro z n at_z
+    exact ⟨n,at_z,rfl,rfl,rfl,rfl,rfl,rfl,fun k member => member,fun k member => .inl member,
+      fun s member => .inl member⟩
+  · intro a b at_a
+    exact ⟨b,at_a,.inl ⟨same_not_tree shape source ns at_s sourceTree b (List.mem_of_getElem? at_a),rfl⟩⟩
 
 /-- Carrying the added edges of the tree node `source` over to `into` after the
     rest of a move keeps the move. -/
@@ -900,25 +914,37 @@ theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
       · simp only [up,↓reduceIte,lookupI,bind_ok]
         by_cases iTree : F.nodes.val[into.val].tree = true
         · simp only [iTree,↓reduceIte]
+          by_cases atParent : F.nodes.val[source.val].parent = into
+          · rw [if_pos atParent]
+            obtain ⟨r,run2,spec2⟩ := carry F (moved_refl shape source.val into.val joined.val _ at_s sTree)
+            exact ⟨r,by simp [run2],spec2⟩
+          rw [if_neg atParent]
           apply toSibling iTree
-          rcases shapeCases with ⟨np,at_p',_,pParent⟩ | sibling | intoNamed
+          rcases shapeCases with ⟨np,at_p',_,pParent⟩ | sibling | intoNamed | parentCase
           · rw [at_p] at at_p'
             cases at_p'
             exact absurd (UScalar.eq_of_val_eq pParent) up
           · exact sibling
           · exact absurd intoNamed (tree_not_named at_i iTree)
+          · exact absurd (UScalar.eq_of_val_eq parentCase) atParent
         · simp only [iTree,Bool.false_eq_true,↓reduceIte]
           exact toNamed (by simpa using iTree)
     · simp only [pTree,Bool.false_eq_true,↓reduceIte,lookupI,bind_ok]
       by_cases iTree : F.nodes.val[into.val].tree = true
       · simp only [iTree,↓reduceIte]
+        by_cases atParent : F.nodes.val[source.val].parent = into
+        · rw [if_pos atParent]
+          obtain ⟨r,run2,spec2⟩ := carry F (moved_refl shape source.val into.val joined.val _ at_s sTree)
+          exact ⟨r,by simp [run2],spec2⟩
+        rw [if_neg atParent]
         apply toSibling iTree
-        rcases shapeCases with ⟨np,at_p',npTree,_⟩ | sibling | intoNamed
+        rcases shapeCases with ⟨np,at_p',npTree,_⟩ | sibling | intoNamed | parentCase
         · rw [at_p] at at_p'
           cases at_p'
           exact absurd npTree pTree
         · exact sibling
         · exact absurd intoNamed (tree_not_named at_i iTree)
+        · exact absurd (UScalar.eq_of_val_eq parentCase) atParent
       · simp only [iTree,Bool.false_eq_true,↓reduceIte]
         exact toNamed (by simpa using iTree)
   · have roots : Named F.nodes.val source.val ∧ Named F.nodes.val into.val := by
@@ -1255,7 +1281,7 @@ theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
         have parentLow := shape.parents into.val ni at_i tree
         rcases cases with ⟨ns,at_s,sTree,shapeCases⟩ | ⟨_,intoRoot⟩
         · have sourceAbove := shape.parents source.val ns at_s sTree
-          rcases shapeCases with ⟨np,at_p,npTree,npParent⟩ | ⟨ni',at_i',_,iParent⟩ | intoRoot
+          rcases shapeCases with ⟨np,at_p,npTree,npParent⟩ | ⟨ni',at_i',_,iParent⟩ | intoRoot | parentCase
           · have := shape.parents ns.parent.val np at_p npTree
             rw [keep ni.parent.val (by omega) parentAct]
             simp
@@ -1265,6 +1291,9 @@ theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
             rw [keep ni.parent.val (by omega) parentAct]
             simp
           · exact absurd intoRoot (tree_not_named at_i tree)
+          · -- `into` is the parent of `source`, above it.
+            rw [keep ni.parent.val (by omega) parentAct]
+            simp
         · exact absurd intoRoot (tree_not_named at_i tree)
       · rw [tree1]
         simp [tree]
@@ -1714,8 +1743,7 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     (different : p.first ≠ p.second)
     (children : Named F.nodes.val x.val → (∃ a, F.nodes.val[p.first.val]? = some a ∧ a.tree = true) →
       (∃ b, F.nodes.val[p.second.val]? = some b ∧ b.tree = true) →
-      ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val)
-    (notLooped : ¬ LoopedPair F x p) :
+      ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val) :
     MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val ∧
       (orientOf F x p = (p.first,p.second) ∨ orientOf F x p = (p.second,p.first)) := by
   have firstIn := neighbour_inside shape x.val r _ first
@@ -1754,45 +1782,68 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     · rw [if_pos bTree]
       by_cases up : n.tree = true ∧ n.parent = p.first
       · rw [if_pos up]
-        -- `second` is a child of `x`, merged into the parent of `x`.
+        -- `second` is a child of `x` merged into the parent of `x`, or `x` itself.
         rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
             ⟨_,parent⟩ | loop
         · refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inl ⟨n,?_,up.1,?_⟩⟩⟩,.inr rfl⟩
           · rw [child]; exact at_x
           · rw [up.2]
         · exact absurd (by rw [← parent,up.2]) differentVal
-        · exact absurd ⟨⟨n,at_x,up.1⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inr loop⟩ notLooped
-      · rw [if_neg up]
-        have aParent : a.parent.val = x.val := by
-          rcases treeNeighbour p.first a first at_a aTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).1) with child |
-              ⟨xTree,parent⟩ | loop
-          · exact child
-          · exact absurd ⟨xTree,UScalar.eq_of_val_eq parent⟩ up
-          · have xa : F.nodes.val[x.val]? = some a := by rw [← loop]; exact at_a
-            have xTree : n.tree = true := by
-              rw [at_x,Option.some.injEq] at xa
-              rw [xa]
-              exact aTree
-            exact absurd ⟨⟨n,at_x,xTree⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inl loop⟩ notLooped
-        refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,?_⟩⟩,.inl rfl⟩
-        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
-            ⟨xTree,parent⟩ | loop
-        · exact .inr (.inl ⟨b,at_b,bTree,by rw [child,aParent]⟩)
-        · exact .inl ⟨n,by rw [aParent]; exact at_x,xTree,parent⟩
-        · have xb : F.nodes.val[x.val]? = some b := by rw [← loop]; exact at_b
-          have xTree : n.tree = true := by
+        · -- `x` itself into its parent.
+          have xb : F.nodes.val[x.val]? = some b := by rw [← loop]; exact at_b
+          have bIs : b = n := by
             rw [at_x,Option.some.injEq] at xb
-            rw [xb]
-            exact bTree
-          exact absurd ⟨⟨n,at_x,xTree⟩,⟨a,at_a,aTree⟩,⟨b,at_b,bTree⟩,.inr loop⟩ notLooped
+            exact xb.symm
+          refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inr (.inr (.inr ?_))⟩⟩,.inr rfl⟩
+          rw [bIs,up.2]
+      · rw [if_neg up]
+        by_cases selfFirst : n.tree = true ∧ p.first = x
+        · rw [if_pos selfFirst]
+          have xa : F.nodes.val[x.val]? = some a := by rw [← selfFirst.2]; exact at_a
+          have aIs : a = n := by
+            rw [at_x,Option.some.injEq] at xa
+            exact xa.symm
+          by_cases parentSecond : n.parent = p.second
+          · -- `x` into its parent.
+            rw [if_pos parentSecond]
+            refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,.inr (.inr (.inr ?_))⟩⟩,.inl rfl⟩
+            rw [aIs,parentSecond]
+          · -- A child of `x` into `x`.
+            rw [if_neg parentSecond]
+            rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
+                ⟨_,parent⟩ | loop
+            · refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inr (.inr (.inr ?_))⟩⟩,
+                .inr rfl⟩
+              rw [child,selfFirst.2]
+            · exact absurd (UScalar.eq_of_val_eq parent) parentSecond
+            · exact absurd (loop.trans selfFirst.2.symm) (Ne.symm different)
+        · rw [if_neg selfFirst]
+          have aParent : a.parent.val = x.val := by
+            rcases treeNeighbour p.first a first at_a aTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).1) with child |
+                ⟨xTree,parent⟩ | loop
+            · exact child
+            · exact absurd ⟨xTree,UScalar.eq_of_val_eq parent⟩ up
+            · have xa : F.nodes.val[x.val]? = some a := by rw [← loop]; exact at_a
+              have xTree : n.tree = true := by
+                rw [at_x,Option.some.injEq] at xa
+                rw [xa]
+                exact aTree
+              exact absurd ⟨xTree,loop⟩ selfFirst
+          refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,?_⟩⟩,.inl rfl⟩
+          rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
+              ⟨xTree,parent⟩ | loop
+          · exact .inr (.inl ⟨b,at_b,bTree,by rw [child,aParent]⟩)
+          · exact .inl ⟨n,by rw [aParent]; exact at_x,xTree,parent⟩
+          · -- A child of `x` into `x`.
+            exact .inr (.inr (.inr (by rw [aParent,loop])))
     · rw [if_neg bTree]
       have bRoot : b.tree = false := by simpa using bTree
-      exact ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,.inr (.inr ⟨b,at_b,bRoot⟩)⟩⟩,.inl rfl⟩
+      exact ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,.inr (.inr (.inl ⟨b,at_b,bRoot⟩))⟩⟩,.inl rfl⟩
   · rw [if_neg aTree]
     have aRoot : a.tree = false := by simpa using aTree
     refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,?_⟩,.inr rfl⟩
     by_cases bTree : b.tree = true
-    · exact .inl ⟨b,at_b,bTree,.inr (.inr ⟨a,at_a,aRoot⟩)⟩
+    · exact .inl ⟨b,at_b,bTree,.inr (.inr (.inl ⟨a,at_a,aRoot⟩))⟩
     · have bRoot : b.tree = false := by simpa using bTree
       exact .inr ⟨⟨b,at_b,bRoot⟩,⟨a,at_a,aRoot⟩⟩
 

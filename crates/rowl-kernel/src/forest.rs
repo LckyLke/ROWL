@@ -28,8 +28,7 @@
 //!    merged with one of the first `bound` counted named neighbours;
 //! 7. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
-//!    turn; when all of them differ, it is a clash; a pair of a tree node with
-//!    a loop and its own child or parent gives no answer;
+//!    turn; when all of them differ, it is a clash;
 //! 8. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
 //!    neighbours along `r` satisfying `C` than it requires, and was not
 //!    expanded yet, creates new tree nodes with the filler as their seed,
@@ -40,12 +39,15 @@
 //! created keep them from being merged, so the check passes, and otherwise
 //! there is no answer.
 //!
-//! A merge moves a tree node into a sibling, into its grandparent or into a
-//! named node, or a named node into another one. The target receives the label,
-//! the edge from the parent and the added edges of the merged node, and its
-//! differences, and the merged node is pruned with its subtree. Merging a tree
-//! node into a named node adds edges from its parent, which may be a tree node,
-//! to the named node. A tree node is blocked when its label, its parent's label
+//! A merge moves a tree node into a sibling, into its grandparent, into its
+//! tree parent or into a named node, or a named node into another one. The
+//! target receives the label, the edge from the parent and the added edges of
+//! the merged node, and its differences, and the merged node is pruned with its
+//! subtree. Merging a tree node into a named node adds edges from its parent,
+//! which may be a tree node, to the named node; merging it into its tree parent,
+//! which only a loop of one of them calls for, turns the edge into loops: the
+//! parent gets the self restrictions of the edge's roles, which the table has
+//! for the roles of every existential and minimum restriction. A tree node is blocked when its label, its parent's label
 //! and the roles in between repeat a tree node with a tree parent on its path to
 //! its root (pairwise blocking), which counting with inverse roles needs; the
 //! added edges of blocked nodes are left out. Number restrictions and
@@ -60,8 +62,9 @@
 //! `usize` range, that a number restriction or the complement of a self
 //! restriction is on a role that is not simple, that the individual of a
 //! nominal has no named node, that a restriction with a bound from new named
-//! nodes has fewer counted named neighbours than the bound, or that a merge
-//! would move a tree node into its parent.
+//! nodes has fewer counted named neighbours than the bound, or that the table
+//! has no self restriction for a role of an edge that a merge turns into
+//! loops.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -2335,8 +2338,9 @@ fn relinked(
 }
 /// The forest where `from` hands its edges over to `into`: a merged tree node's
 /// edge from its parent goes onto the parent of its parent (`upward`), onto a
-/// sibling (`sideways`) or onto a named node (`linked`), and its added edges go
-/// to `into`; a merged named node passes its individuals and its added edges
+/// sibling (`sideways`) or onto a named node (`linked`), or becomes loops of its
+/// tree parent, which the merge adds to the parent's label, and its added edges
+/// go to `into`; a merged named node passes its individuals and its added edges
 /// on.
 fn moved(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option<Forest> {
     if from < graph.nodes.len() && into < graph.nodes.len() {
@@ -2346,7 +2350,12 @@ fn moved(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option
                 let graph = if graph.nodes[node].tree && graph.nodes[node].parent == into {
                     upward(graph, node, from, joined)
                 } else if graph.nodes[into].tree {
-                    sideways(graph, from, into)
+                    if node == into {
+                        // Into the parent: the edge becomes loops, which the merge adds.
+                        Some(graph)
+                    } else {
+                        sideways(graph, from, into)
+                    }
                 } else {
                     linked(graph, node, from, into, joined)
                 };
@@ -2401,8 +2410,76 @@ fn merged(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Optio
         None
     }
 }
+/// Whether the entry is a self restriction whose loop along `role`, in either
+/// direction, it is.
+fn loop_for(entry: &Entry, role: &ObjectPropertyExpression) -> bool {
+    match entry {
+        Entry::HasSelf(own) => {
+            if same_role(own, role) {
+                true
+            } else {
+                same_role(&inverse(own), role)
+            }
+        }
+        _ => false,
+    }
+}
+/// The first entry of `entries[index..]` that is a self restriction for a
+/// loop along `role`.
+fn loop_entry(
+    entries: &Vec<Entry>,
+    role: &ObjectPropertyExpression,
+    index: usize,
+) -> Option<usize> {
+    if index < entries.len() {
+        if loop_for(&entries[index], role) {
+            Some(index)
+        } else {
+            loop_entry(entries, role, index + 1)
+        }
+    } else {
+        None
+    }
+}
+/// `out` with a self restriction for a loop along each role of
+/// `roles[index..]`; `None` when the table has none for one of them.
+fn loops_of(
+    entries: &Vec<Entry>,
+    roles: &Vec<ObjectPropertyExpression>,
+    index: usize,
+    mut out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if index < roles.len() {
+        match loop_entry(entries, &roles[index], 0) {
+            Some(found) => {
+                if out.len() < usize::MAX {
+                    out.push(found);
+                    loops_of(entries, roles, index + 1, out)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// Whether `into` is the tree parent of the tree node `from`.
+fn into_parent(graph: &Forest, from: usize, into: usize) -> bool {
+    if from < graph.nodes.len() && into < graph.nodes.len() {
+        if graph.nodes[from].tree && graph.nodes[into].tree {
+            graph.nodes[from].parent == into
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
 /// Merge `from` into `into`, which depends on `deps`, then add the label of
-/// `from` to `into`.
+/// `from` to `into`, and, when `into` is its tree parent, the loops along the
+/// roles of its edge.
 fn merge(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -2414,6 +2491,14 @@ fn merge(
 ) -> Option<Outcome> {
     if from < graph.nodes.len() {
         let label = copy_label(&graph.nodes[from].label, 0, Vec::new());
+        let label = if into_parent(&graph, from, into) {
+            match loops_of(&problem.entries, &graph.nodes[from].roles, 0, label) {
+                Some(label) => label,
+                None => return None,
+            }
+        } else {
+            label
+        };
         let joined = match join(&deps, &graph.nodes[from].deps) {
             Some(joined) => joined,
             None => return None,
@@ -2434,27 +2519,9 @@ fn merge(
         None
     }
 }
-/// Whether a pair of neighbours of the tree node `node` has `node` itself and
-/// another tree node, its child or its parent: no merge moves a tree node into
-/// its parent yet.
-fn looped_pair(graph: &Forest, node: usize, pair: &Pair) -> bool {
-    if node < graph.nodes.len() && pair.first < graph.nodes.len() && pair.second < graph.nodes.len()
-    {
-        if graph.nodes[node].tree && graph.nodes[pair.first].tree && graph.nodes[pair.second].tree {
-            if pair.first == node {
-                true
-            } else {
-                pair.second == node
-            }
-        } else {
-            false
-        }
-    } else {
-        false
-    }
-}
 /// The merge of a pair of neighbours of `node`: a tree node into a named node,
 /// a child into the parent of `node`, a later sibling into an earlier one, a
+/// tree node into its tree parent when one of them is `node` with a loop, a
 /// named node into another one.
 fn orient(graph: &Forest, node: usize, pair: &Pair) -> (usize, usize) {
     let first = pair.first;
@@ -2466,6 +2533,12 @@ fn orient(graph: &Forest, node: usize, pair: &Pair) -> (usize, usize) {
             }
             if graph.nodes[node].tree {
                 if graph.nodes[node].parent == first {
+                    return (second, first);
+                }
+                if first == node {
+                    if graph.nodes[node].parent == second {
+                        return (first, second);
+                    }
                     return (second, first);
                 }
             }
@@ -2492,9 +2565,6 @@ fn choices(
     depth: usize,
 ) -> Option<Outcome> {
     if index < pairs.len() {
-        if looped_pair(&graph, node, &pairs[index]) {
-            return None;
-        }
         let (from, into) = orient(&graph, node, &pairs[index]);
         if index + 1 < pairs.len() {
             if depth < usize::MAX {
@@ -2964,6 +3034,27 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
         None => None,
     }
 }
+/// `entries` with the self restriction `∃r.Self` of the role `r` of every
+/// existential and minimum restriction of `entries[index..limit]`, which a
+/// merge into a tree parent adds as a loop; `None` when there is no room.
+fn loop_entries(entries: Vec<Entry>, limit: usize, index: usize) -> Option<Vec<Entry>> {
+    if index < limit && index < entries.len() {
+        let role = match &entries[index] {
+            Entry::Exists(role, _) => Some(copy_role(role)),
+            Entry::AtLeast(_, role, _) => Some(copy_role(role)),
+            _ => None,
+        };
+        match role {
+            Some(role) => match intern(entries, &Concept::HasSelf(role)) {
+                Some((entries, _)) => loop_entries(entries, limit, index + 1),
+                None => None,
+            },
+            None => loop_entries(entries, limit, index + 1),
+        }
+    } else {
+        Some(entries)
+    }
+}
 /// Whether no transitive role of `roles.transitive[index..]` is included in
 /// `role`.
 fn simple_from(roles: &RoleHierarchy, role: &ObjectPropertyExpression, index: usize) -> bool {
@@ -3052,6 +3143,11 @@ pub fn satisfiable(
     };
     let (entries, unfoldings) = match intern_definitions(entries, definitions, 0, Vec::new()) {
         Some(pair) => pair,
+        None => return None,
+    };
+    let limit = entries.len();
+    let entries = match loop_entries(entries, limit, 0) {
+        Some(entries) => entries,
         None => return None,
     };
     let entries = match close(entries, roles) {

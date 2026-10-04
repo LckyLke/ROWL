@@ -819,11 +819,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   restrictions, must be on simple roles, so the truth lemma covers both. The
   ontology queries now take `ObjectHasSelf` and reflexive and irreflexive
   object properties (as `∃r.Self` and `¬∃r.Self` in the TBox concept) and
-  decide them with the forest. A merge of a tree node into its own parent,
-  which only a loop calls for, gets no answer yet; the tests answer all but
-  one of 300 random inputs with self restrictions and reflexive, irreflexive
-  and functional properties.
-- 1513 audited public theorems and 870 audited semantic definitions. Consistency,
+  decide them with the forest. A loop can make a maximum restriction merge a
+  tree node into its own parent: the edge between them then becomes loops of
+  the parent, whose self restrictions the table has for the role of every
+  existential and minimum restriction. The tests answer every one of 300
+  random inputs with self restrictions and reflexive, irreflexive and
+  functional properties.
+- 1518 audited public theorems and 870 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -850,7 +852,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1706-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1711-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

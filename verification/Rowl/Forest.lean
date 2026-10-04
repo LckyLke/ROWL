@@ -13,7 +13,8 @@ points rules out every model, in any universes, that holds under those points. B
 a neighbour's choice for a maximum restriction retries the second alternative
 only when the first failure depends on the new branch point; merging tries the
 pairs of neighbours that are not known to differ in turn, since in every model
-of a maximum restriction two of its counted neighbours coincide. Every model
+of a maximum restriction two of its counted neighbours coincide; merging a tree
+node into its tree parent adds the loops of their edge to the parent. Every model
 places a node with a nominal and the named node of its individual on the
 individual, so their merge is forced and a difference between them is a clash.
 Every model of a maximum restriction of a named node has an exact number of
@@ -543,52 +544,105 @@ theorem merge_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (co
     simp [alloc.vec.Vec.index_usize,at_s]
   have labelCopy := copy_label_correct F.nodes.val[source.val].label 0#usize (alloc.vec.Vec.new Usize) (by simp)
     (by simp)
-  obtain ⟨joinedResult,joinRun,joinSpec⟩ := join_correct deps F.nodes.val[source.val].deps
   rw [forest.merge]
   simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,sourceIn,↓reduceIte,alloc.vec.Vec.index_slice_index,lookupS,
-    bind_ok,labelCopy,joinRun]
-  cases joinedResult with
-  | none => exact ⟨none,by simp,by simp,by simp⟩
-  | some joined =>
-  have joinedIs := joinSpec joined rfl
-  obtain ⟨mergedResult,mergedRun,mergedSpec⟩ := merged_correct F inv.shape source into joined mergeShape
-  simp only [mergedRun]
-  cases mergedResult with
-  | none => exact ⟨none,by simp,by simp,by simp⟩
-  | some G =>
-  have merged := mergedSpec G rfl
-  have sourceDeps : Sub (nodeDeps F source.val) joined.val := by
-    intro k member
-    exact (joinedIs k).mpr (.inr (by simpa [nodeDeps,at_s] using member))
-  have joinedFresh : ∀ k ∈ joined.val, k.val < fresh.val := by
-    intro k member
-    rcases (joinedIs k).mp member with given | old
-    · exact freshDeps k given
-    · exact freshF.1 source.val k (by simp [nodeDeps,at_s,old])
-  have invG := merged_inv inv merged mergeShape.2.1
-  have smaller := merged_measure inv merged activeS
-  obtain ⟨r,run,sound,complete⟩ := add_correct.{u,v} P h count M IH _
-    (pendingOf (F.nodes.val[source.val].label.val.drop (0#usize).val)) G into joined fresh rfl invG
-    merged.intoActive (merged_fresh merged freshF joinedFresh) joinedFresh (by
-      intro F' inv' grows' _ _
-      have := measure_le_grows P grows' invG.nodup
-      omega)
-  refine ⟨r,by simp only [pending_from_correct,bind_ok,run],sound,?_⟩
-  intro D rejected
-  obtain ⟨bound,none⟩ := complete D rejected
-  refine ⟨bound,?_⟩
-  intro Object Value I π models
-  by_cases equal : Sub joined.val D.val → π source.val = π into.val
-  · exfalso
-    obtain ⟨modelsG,extra⟩ := merged_models merged sourceDeps models equal
-    apply none
-    refine ⟨Object,Value,I,π,modelsG,?_⟩
-    intro sub c member
-    rw [pendingList_of] at member
-    simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at member
-    exact extra sub c (by simp [labelOf,at_s,member])
-  · obtain ⟨sub,different⟩ := Classical.not_imp.mp equal
-    exact ⟨fun k member => sub k ((joinedIs k).mpr (.inl member)),different⟩
+    bind_ok,labelCopy,into_parent_correct]
+  -- The rest of the merge, with the label of `source` and, when `into` is its
+  -- tree parent, the loops of its edge to add to `into`.
+  have tail : ∀ (extra : alloc.vec.Vec Usize) (zero : Usize), zero.val = 0 →
+      (∀ c ∈ extra.val, c ∈ F.nodes.val[source.val].label.val ∨
+      (F.nodes.val[source.val].tree = true ∧ F.nodes.val[source.val].parent = into ∧
+        ∃ s ∈ F.nodes.val[source.val].roles.val, ∃ q, P.entries.val[c.val]? = some (.HasSelf q) ∧
+          (q = s ∨ Rowl.Concepts.inv q = s))) →
+      ∃ r, (do
+          let o ← completion.join deps F.nodes.val[source.val].deps
+          match o with
+            | none => ok none
+            | some joined => do
+              let o1 ← forest.merged F source into joined
+              match o1 with
+                | none => ok none
+                | some graph1 => do
+                  let p ← forest.pending_from extra zero
+                  forest.add P h graph1 into p joined fresh) = .ok r ∧
+        (r = some .Accepted → ∃ F' : forest.Forest, Inv P h count F' ∧ Complete P h F') ∧
+        (∀ D : alloc.vec.Vec Usize, r = some (.Rejected D) → (∀ k ∈ D.val, k.val < fresh.val) ∧
+          ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
+            Models P h F I π D.val → Sub deps.val D.val ∧ π source.val ≠ π into.val) := by
+    intro extra zero zeroIs extraOk
+    obtain ⟨joinedResult,joinRun,joinSpec⟩ := join_correct deps F.nodes.val[source.val].deps
+    simp only [joinRun,bind_tc_ok]
+    cases joinedResult with
+    | none => exact ⟨none,by simp,by simp,by simp⟩
+    | some joined =>
+    have joinedIs := joinSpec joined rfl
+    obtain ⟨mergedResult,mergedRun,mergedSpec⟩ := merged_correct F inv.shape source into joined mergeShape
+    simp only [mergedRun,bind_tc_ok]
+    cases mergedResult with
+    | none => exact ⟨none,by simp,by simp,by simp⟩
+    | some G =>
+    have merged := mergedSpec G rfl
+    have sourceDeps : Sub (nodeDeps F source.val) joined.val := by
+      intro k member
+      exact (joinedIs k).mpr (.inr (by simpa [nodeDeps,at_s] using member))
+    have joinedFresh : ∀ k ∈ joined.val, k.val < fresh.val := by
+      intro k member
+      rcases (joinedIs k).mp member with given | old
+      · exact freshDeps k given
+      · exact freshF.1 source.val k (by simp [nodeDeps,at_s,old])
+    have invG := merged_inv inv merged mergeShape.2.1
+    have smaller := merged_measure inv merged activeS
+    obtain ⟨r,run,sound,complete⟩ := add_correct.{u,v} P h count M IH _
+      (pendingOf (extra.val.drop zero.val)) G into joined fresh rfl invG
+      merged.intoActive (merged_fresh merged freshF joinedFresh) joinedFresh (by
+        intro F' inv' grows' _ _
+        have := measure_le_grows P grows' invG.nodup
+        omega)
+    refine ⟨r,by simp only [pending_from_correct,bind_tc_ok,run],sound,?_⟩
+    intro D rejected
+    obtain ⟨bound,none⟩ := complete D rejected
+    refine ⟨bound,?_⟩
+    intro Object Value I π models
+    by_cases equal : Sub joined.val D.val → π source.val = π into.val
+    · exfalso
+      obtain ⟨modelsG,extra⟩ := merged_models merged sourceDeps models equal
+      apply none
+      refine ⟨Object,Value,I,π,modelsG,?_⟩
+      intro sub c member
+      rw [pendingList_of] at member
+      simp only [zeroIs,List.drop_zero] at member
+      rcases extraOk c member with listed | ⟨sTree,parentIs,s,sIn,q,at_c,which⟩
+      · exact extra sub c (by simp [labelOf,at_s,listed])
+      · -- A loop along a role of the edge of `source`, whose ends are now one element.
+        have edge := (models.tree source.val _ at_s sTree
+          (fun k listed => sub k (sourceDeps k (by simpa [nodeDeps,at_s] using listed)))).1 s sIn
+        rw [parentIs,equal sub] at edge
+        rw [meaning_at P.entries.val inv.shape.wellFormed c.val _ at_c]
+        rcases which with rfl | rfl
+        · exact edge
+        · exact (relation_inv I q _ _).mp edge
+    · obtain ⟨sub,different⟩ := Classical.not_imp.mp equal
+      exact ⟨fun k member => sub k ((joinedIs k).mpr (.inl member)),different⟩
+  by_cases parentIs : IntoParent F source into
+  · simp only [decide_eq_true parentIs,↓reduceIte]
+    obtain ⟨ns,ni,at_s',_,sTree,_,parent⟩ := parentIs
+    rw [at_s] at at_s'
+    cases at_s'
+    obtain ⟨loops,loopsRun,loopsSpec⟩ := loops_of_correct P.entries F.nodes.val[source.val].roles 0#usize
+      F.nodes.val[source.val].label
+    rw [loopsRun]
+    simp only [bind_ok]
+    cases loops with
+    | none => exact ⟨none,by simp,by simp,by simp⟩
+    | some label1 =>
+      simp only
+      apply tail label1 0#usize rfl
+      intro c member
+      rcases loopsSpec label1 rfl c member with listed | found
+      · exact .inl listed
+      · exact .inr ⟨sTree,parent,found⟩
+  · simp only [decide_eq_false parentIs,Bool.false_eq_true,↓reduceIte]
+    exact tail F.nodes.val[source.val].label 0#usize rfl (fun c member => .inl member)
 
 theorem mem_take_succ {α : Type} (l : List α) (i : Nat) (inside : i < l.length) (p : α)
     (member : p ∈ l.take (i + 1)) : p ∈ l.take i ∨ p = l[i] := by
@@ -607,7 +661,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     (F : forest.Forest) (x : Usize) (pairs : alloc.vec.Vec forest.Pair) (deps : alloc.vec.Vec Usize) (fresh : Usize)
     (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M) (freshF : FreshForest F fresh.val)
     (freshDeps : ∀ k ∈ deps.val, k.val < fresh.val)
-    (shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p → MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val)
+    (shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val)
     (collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
       (D : List Usize), Sub deps.val D → Models P h F I π D →
         ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val) :
@@ -630,13 +684,9 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
     have pairIn : pairs.val[index.val] ∈ pairs.val := List.getElem_mem more
-    -- A pair that would merge a tree node into its parent gives no answer.
-    by_cases looped : LoopedPair F x pairs.val[index.val]
-    · refine ⟨none,?_,by simp,by simp⟩
-      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped]
     obtain ⟨src,dst,orientIs⟩ : ∃ src dst, orientOf F x pairs.val[index.val] = (src,dst) := ⟨_,_,rfl⟩
     have shapeHere : MergeShape F src.val dst.val := by
-      have := shapes _ pairIn looped
+      have := shapes _ pairIn
       rw [orientIs] at this
       exact this
     by_cases notLast : next.val < pairs.val.length
@@ -650,7 +700,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
         cases hereResult with
         | none =>
           refine ⟨none,?_,by simp,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun]
         | some here =>
         have hereMembers : ∀ k, k ∈ here.val ↔ k ∈ deps.val ∨ k = fresh := by
@@ -668,13 +718,13 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
         cases r1 with
         | none =>
           refine ⟨none,?_,by simp,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1]
         | some outcome =>
         cases outcome with
         | Accepted =>
           refine ⟨some .Accepted,?_,fun _ => sound1 rfl,by simp⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1]
         | Rejected D1 =>
         obtain ⟨bound1,rules1⟩ := complete1 D1 rfl
@@ -685,7 +735,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
           cases skippedResult with
           | none =>
             refine ⟨none,?_,by simp,by simp⟩
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
               usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends,
               restRun,skippedRun]
           | some skipped1 =>
@@ -721,11 +771,11 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
                 rw [orientIs]
                 exact (rules1 Object Value I π models1).2)
           refine ⟨r,?_,answers⟩
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
             usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends,
             restRun,skippedRun,run]
         · refine ⟨some (.Rejected D1),?_,by simp,?_⟩
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
               usize_max_val,room,copy_forest_correct,pointRun,hereRun,advance',run1,contains_correct,depends]
           intro D same
           simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
@@ -740,14 +790,14 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
             have := (rules1 Object Value I π models).1 fresh ((hereMembers fresh).mpr (.inr rfl))
             exact depends this
       · refine ⟨none,?_,by simp,by simp⟩
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,
           usize_max_val,room]
     · -- The last pair: its merge depends on the points of the earlier failures.
       obtain ⟨lastResult,lastRun,lastSpec⟩ := join_correct deps skipped
       cases lastResult with
       | none =>
         refine ⟨none,?_,by simp,by simp⟩
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,lastRun]
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,lastRun]
       | some last =>
       have lastMembers := lastSpec last rfl
       obtain ⟨r1,run1,sound1,complete1⟩ := merge_correct.{u,v} P h count M IH F src dst last fresh inv
@@ -757,7 +807,7 @@ theorem choices_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
           · exact freshDeps k given
           · exact freshSkipped k old)
       refine ⟨r1,?_,sound1,?_⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,looped_pair_correct,looped,orient_correct,orientIs,advance,notLast,lastRun,
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,orient_correct,orientIs,advance,notLast,lastRun,
           run1]
       intro D rejected
       obtain ⟨bound,rules⟩ := complete1 D rejected
@@ -905,9 +955,8 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
       intro y z yIn zIn named
       exact ⟨fun repeated => unrepeated named y (chosenProps y yIn).1 repeated (chosenProps y yIn).2,
         fun repeated => unrepeated named z (chosenProps z zIn).1 repeated (chosenProps z zIn).2⟩
-    have shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p →
-        MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
-      intro p listed notLooped
+    have shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
+      intro p listed
       rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
       · simp at empty
       · have different : p.first ≠ p.second := by
@@ -918,8 +967,7 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
         exact (orient_shape inv.shape x active r p
           (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
           (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different
-          (by rw [first,second]; exact fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)
-          notLooped).1
+          (by rw [first,second]; exact fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)).1
     have collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
         (D : List Usize), Sub deps1.val D → Models P h F I π D →
           ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val := by
@@ -1540,9 +1588,8 @@ theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
         · exact freshF.2.1 e eIn j there
       · exact freshF.2.2.2 _ capIn j capDep
     · exact freshF.2.2.1 d (List.mem_of_mem_drop dIn) j jIn
-  have shapes : ∀ p ∈ pairs.val, ¬ LoopedPair F x p →
-      MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
-    intro p listed notLooped
+  have shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
+    intro p listed
     rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
     · simp at empty
     · have different : p.first ≠ p.second := by
@@ -1552,7 +1599,7 @@ theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarch
         omega
       refine (orient_shape inv.shape x active r p
         (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
-        (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different ?_ notLooped).1
+        (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different ?_).1
       intro _ firstTree secondTree
       exfalso
       rw [first] at firstTree
@@ -1774,7 +1821,7 @@ theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     have shape : MergeShape F x.val named.val := by
       refine ⟨apart,active,activeNamed,?_⟩
       by_cases tree : F.nodes.val[x.val].tree = true
-      · exact .inl ⟨_,at_x,tree,.inr (.inr namedBelow)⟩
+      · exact .inl ⟨_,at_x,tree,.inr (.inr (.inl namedBelow))⟩
       · exact .inr ⟨⟨_,at_x,by simpa using tree⟩,namedBelow⟩
     obtain ⟨r,run,sound,complete⟩ := merge_correct.{u,v} P h count M IH F x named deps fresh inv shape small
       freshF freshDeps
@@ -2124,6 +2171,64 @@ def Interned (P : completion.Problem) (query facts : List completion.Fact) (link
     Corresponds (query ++ facts) P.entries.val P.requirements.val ∧
     Unfolds definitions P.entries.val P.unfoldings.val
 
+/-- Interning the self restriction of the role of every existential and minimum
+    restriction of `entries[index..limit]` keeps the table well formed, only
+    appends to it and keeps the complements of maximum restrictions. -/
+theorem loop_entries_correct (entries : alloc.vec.Vec concept_table.Entry) (limit index : Usize)
+    (wf : WellFormed entries.val) :
+    ∃ r, forest.loop_entries entries limit index = .ok r ∧ ∀ t, r = some t →
+      WellFormed t.val ∧ (∃ more, t.val = entries.val ++ more) ∧ (Complements entries.val → Complements t.val) := by
+  rw [forest.loop_entries]
+  by_cases low : index.val < limit.val
+  · by_cases more : index.val < entries.val.length
+    · have lookup : entries.index_usize index = .ok entries.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+      obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : index'.val = index.val + 1 := by simpa using indexValue
+      obtain ⟨e,eIs⟩ : ∃ e, entries.val[index.val] = e := ⟨_,rfl⟩
+      rw [eIs] at lookup
+      simp only [UScalar.lt_equiv,low,↓reduceIte,alloc.vec.Vec.len_val,more,alloc.vec.Vec.index_slice_index,
+        lookup,bind_ok]
+      cases e with
+      | Exists role c =>
+        obtain ⟨res,run,spec⟩ := Rowl.ConceptTable.intern_correct (.HasSelf role) entries wf
+        cases res with
+        | none => exact ⟨none,by simp [Rowl.Concepts.copy_role_identity,run],by simp⟩
+        | some pair =>
+          obtain ⟨t1,k⟩ := pair
+          obtain ⟨wf1,⟨more1,grows1⟩,_,_,keeps1⟩ := spec t1 k rfl
+          obtain ⟨r,run2,spec2⟩ := loop_entries_correct t1 limit index' wf1
+          refine ⟨r,by simp [Rowl.Concepts.copy_role_identity,run,advance,run2],?_⟩
+          intro t same
+          obtain ⟨wf2,⟨more2,grows2⟩,keeps2⟩ := spec2 t same
+          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,fun c => keeps2 (keeps1 c)⟩
+      | AtLeast n role c =>
+        obtain ⟨res,run,spec⟩ := Rowl.ConceptTable.intern_correct (.HasSelf role) entries wf
+        cases res with
+        | none => exact ⟨none,by simp [Rowl.Concepts.copy_role_identity,run],by simp⟩
+        | some pair =>
+          obtain ⟨t1,k⟩ := pair
+          obtain ⟨wf1,⟨more1,grows1⟩,_,_,keeps1⟩ := spec t1 k rfl
+          obtain ⟨r,run2,spec2⟩ := loop_entries_correct t1 limit index' wf1
+          refine ⟨r,by simp [Rowl.Concepts.copy_role_identity,run,advance,run2],?_⟩
+          intro t same
+          obtain ⟨wf2,⟨more2,grows2⟩,keeps2⟩ := spec2 t same
+          exact ⟨wf2,⟨more1 ++ more2,by rw [grows2,grows1,List.append_assoc]⟩,fun c => keeps2 (keeps1 c)⟩
+      | _ =>
+        obtain ⟨r,run,spec⟩ := loop_entries_correct entries limit index' wf
+        exact ⟨r,by simp [advance,run],spec⟩
+    · refine ⟨some entries,by simp [UScalar.lt_equiv,low,alloc.vec.Vec.len_val,more],?_⟩
+      intro t same
+      cases same
+      exact ⟨wf,⟨[],by simp⟩,id⟩
+  · refine ⟨some entries,by simp [UScalar.lt_equiv,low],?_⟩
+    intro t same
+    cases same
+    exact ⟨wf,⟨[],by simp⟩,id⟩
+termination_by limit.val - index.val
+decreasing_by all_goals omega
+
 /-- The completion forest terminates. An acceptance comes with a complete forest
     that keeps the invariant for the interned input; a rejection rules out
     every model, in any universes, of the role hierarchy in which the TBox
@@ -2131,7 +2236,7 @@ def Interned (P : completion.Problem) (query facts : List completion.Fact) (link
     at the elements of its named individuals. No answer means that a structure
     would exceed the `usize` range, that a number restriction or the complement
     of a self restriction is on a role that is not simple, or that a nominal, a
-    maximum restriction or a merge is outside what the rules handle. -/
+    maximum restriction or a loop is outside what the rules handle. -/
 theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec completion.Fact)
     (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) (closed : Closed h)
@@ -2178,15 +2283,21 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
   | some pair2 =>
   obtain ⟨t2,unfoldings⟩ := pair2
   obtain ⟨wf2,⟨more2,grows2⟩,unfolds2,keeps2⟩ := spec2 t2 unfoldings rfl
-  obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h t2 wf2
+  obtain ⟨rl,runl,specl⟩ := loop_entries_correct t2 (alloc.vec.Vec.len t2) 0#usize wf2
+  cases rl with
+  | none => exact ⟨none,by rw [forest.satisfiable]; simp [run0,runq,run1,run2,runl],by simp,by simp⟩
+  | some tl =>
+  obtain ⟨wfl,⟨morel,growsl⟩,keepsl⟩ := specl tl rfl
+  obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h tl wfl
   cases r3 with
-  | none => exact ⟨none,by rw [forest.satisfiable]; simp [run0,runq,run1,run2,run3],by simp,by simp⟩
+  | none => exact ⟨none,by rw [forest.satisfiable]; simp [run0,runq,run1,run2,runl,run3],by simp,by simp⟩
   | some t3 =>
   obtain ⟨wf3,⟨more3,grows3,fromOriginal⟩,closedTable⟩ := spec3 t3 rfl
   have complements2 : Complements t2.val := keeps2 (keeps1 (keepsq (keeps0 emptyComplements)))
+  have complementsl : Complements tl.val := keepsl complements2
   have complements3 : Complements t3.val := by
     rw [grows3]
-    apply complements_append _ _ wf2 complements2
+    apply complements_append _ _ wfl complementsl
     intro j n r c d at_j
     obtain ⟨_,_,_,_,_,t,_,_,isForall⟩ := fromOriginal _ (List.mem_of_getElem? at_j)
     cases isForall
@@ -2194,7 +2305,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
   swap
   · refine ⟨none,?_,by simp,by simp⟩
     rw [forest.satisfiable]
-    simp [run0,runq,run1,run2,run3,counting_simple_correct,simple]
+    simp [run0,runq,run1,run2,runl,run3,counting_simple_correct,simple]
   have simpleCounting : SimpleCounting h t3.val := simpleCounting_of h t3.val simple
   have simple' : ∀ e ∈ t3.val.drop (0#usize).val, CountsSimply h e := by simpa using simple
   obtain ⟨F0,run4,length0,roots0,sameLength0,sameIs0,edges0,distinct0,caps0⟩ := roots_correct count
@@ -2205,15 +2316,20 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     have insideq : ax.val < tq.val.length := by rw [growsq]; simp; omega
     have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
     have inside2 : ax.val < t2.val.length := by rw [grows2]; simp; omega
-    rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf2 _ inside2,grows2,
+    have insidel : ax.val < tl.val.length := by rw [growsl]; simp; omega
+    rw [grows3,Rowl.ConceptTable.meaning_append _ _ wfl _ insidel,growsl,
+      Rowl.ConceptTable.meaning_append _ _ wf2 _ inside2,grows2,
       Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,Rowl.ConceptTable.meaning_append _ _ wfq _ insideq,
       growsq,Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,axMeaning]
-  have corresponds3 : Corresponds (query.val ++ facts.val) t3.val requirements.val := by
-    rw [grows3,grows2]
+  have correspondsl : Corresponds (query.val ++ facts.val) tl.val requirements.val := by
+    rw [growsl,grows2]
     exact corresponds_append _ _ _ (by rw [← grows2]; exact wf2) _ (corresponds_append _ _ _ wf1 _ corresponds1)
+  have corresponds3 : Corresponds (query.val ++ facts.val) t3.val requirements.val := by
+    rw [grows3]
+    exact corresponds_append _ _ _ wfl _ correspondsl
   have unfolds3 : Unfolds definitions.val t3.val unfoldings.val := by
     rw [grows3]
-    exact unfolds_append _ _ _ wf2 _ unfolds2
+    exact unfolds_append _ _ _ wfl _ (by rw [growsl]; exact unfolds_append _ _ _ wf2 _ unfolds2)
   have rootNode : ∀ (y : Nat) (n : forest.Node), F0.nodes.val[y]? = some n → n = root :=
     fun y n at_y => roots0 n (List.mem_of_getElem? at_y)
   have rootLabel : ∀ y, labelOf F0.nodes.val y = [] := by
@@ -2315,7 +2431,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
       forest.satisfiable count query facts links axioms definitions h = .ok rest := by
     intro rest same
     rw [forest.satisfiable]
-    simp only [run0,runq,run1,run2,run3,bind_ok,uncurry_apply_pair,counting_simple_correct,linksCopy,run4]
+    simp only [run0,runq,run1,run2,runl,run3,bind_ok,uncurry_apply_pair,counting_simple_correct,linksCopy,run4]
     rw [decide_eq_true simple']
     simp only [↓reduceIte,bind_ok,run4,linksCopy,run']
     cases r with

@@ -1353,9 +1353,10 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
     answers unless a structure would exceed the `usize` range, a number
     restriction or the complement of a self restriction is on a role that is
     not simple, a restriction with a bound from new named nodes has fewer
-    counted named neighbours than the bound, a merge would move a tree node
-    into its parent, or the individual of a nominal or of the complement of one
-    has no named node; an
+    counted named neighbours than the bound, the table has no self restriction
+    for a role of an edge that a merge into a tree parent turns into loops, or
+    the individual of a nominal or of the complement of one has no named node;
+    an
     acceptance comes with a model in `Type` of the role hierarchy where the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its individuals, and a rejection rules out every such

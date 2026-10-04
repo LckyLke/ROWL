@@ -1374,7 +1374,10 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestOps.first_nodes_correct
 #print axioms Rowl.ForestOps.orient_either
 #print axioms Rowl.ForestOps.orient_correct
-#print axioms Rowl.ForestOps.looped_pair_correct
+#print axioms Rowl.ForestOps.into_parent_correct
+#print axioms Rowl.ForestOps.loop_for_correct
+#print axioms Rowl.ForestOps.loop_entry_correct
+#print axioms Rowl.ForestOps.loops_of_correct
 #print axioms Rowl.ForestOps.add_roles_correct
 #print axioms Rowl.ForestOps.upward_correct
 #print axioms Rowl.ForestOps.sideways_correct
@@ -1473,6 +1476,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSteps.created_models
 #print axioms Rowl.ForestSteps.same_not_tree
 #print axioms Rowl.ForestSteps.moved_of_set
+#print axioms Rowl.ForestSteps.moved_refl
 #print axioms Rowl.ForestSteps.moved_carried
 #print axioms Rowl.ForestSteps.moved_correct
 #print axioms Rowl.ForestSteps.merged_correct
@@ -1528,6 +1532,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.Forest.counting_simple_correct
 #print axioms Rowl.Forest.simpleCounting_of
 #print axioms Rowl.Forest.roots_correct
+#print axioms Rowl.Forest.loop_entries_correct
 #print axioms Rowl.Forest.satisfiable_answers
 #print axioms Rowl.ForestModel.blocked_down
 #print axioms Rowl.ForestModel.named_free
@@ -2493,4 +2498,4 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.LoopNeeds
 #print axioms Rowl.ForestSearch.LoopsOk
 #print axioms Rowl.ForestSearch.Looped
-#print axioms Rowl.ForestOps.LoopedPair
+#print axioms Rowl.ForestOps.IntoParent

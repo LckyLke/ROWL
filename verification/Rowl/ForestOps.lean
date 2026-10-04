@@ -10,7 +10,7 @@ subtree of the merged node.
 -/
 namespace Rowl.ForestOps
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
-open Rowl.Concepts (inv inverse_correct copy_role_identity)
+open Rowl.Concepts (inv inverse_correct copy_role_identity same_role_correct)
 open Rowl.CompletionSearch (contains_correct)
 open Rowl.Completion (copy_label_correct join_correct join_from_correct)
 open Rowl.ForestSearch
@@ -1192,7 +1192,10 @@ def orientOf (F : forest.Forest) (x : Usize) (pair : forest.Pair) : Usize × Usi
   | some a, some b, some n =>
     if a.tree = true then
       if b.tree = true then
-        if n.tree = true ∧ n.parent = pair.first then (pair.second,pair.first) else (pair.first,pair.second)
+        if n.tree = true ∧ n.parent = pair.first then (pair.second,pair.first)
+        else if n.tree = true ∧ pair.first = x then
+          (if n.parent = pair.second then (pair.first,pair.second) else (pair.second,pair.first))
+        else (pair.first,pair.second)
       else (pair.first,pair.second)
     else (pair.second,pair.first)
   | _, _, _ => (pair.second,pair.first)
@@ -1221,7 +1224,12 @@ theorem orient_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
           · by_cases c : F.nodes.val[x.val].tree = true
             · by_cases d : F.nodes.val[x.val].parent = pair.first
               · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
-              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
+              · by_cases e : pair.first = x
+                · by_cases f : F.nodes.val[x.val].parent = pair.second
+                  · have g : pair.second ≠ x := fun same => d (by rw [f,same,e])
+                    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d,e,f,g]
+                  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d,e,f]
+                · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d,e]
             · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c]
           · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,a,b]
         · by_cases b : F.nodes.val[pair.second.val].tree = true <;>
@@ -1233,43 +1241,113 @@ theorem orient_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
   · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,orientOf,
       List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.first.val by omega)]
 
-/-- A pair of neighbours of the tree node `x` with `x` itself and another tree
-    node, its child or its parent: no merge moves a tree node into its parent. -/
-def LoopedPair (F : forest.Forest) (x : Usize) (pair : forest.Pair) : Prop :=
-  (∃ n : forest.Node, F.nodes.val[x.val]? = some n ∧ n.tree = true) ∧
-  (∃ a : forest.Node, F.nodes.val[pair.first.val]? = some a ∧ a.tree = true) ∧
-  (∃ b : forest.Node, F.nodes.val[pair.second.val]? = some b ∧ b.tree = true) ∧
-  (pair.first = x ∨ pair.second = x)
+/-- `into` is the tree parent of the tree node `source`. -/
+def IntoParent (F : forest.Forest) (source into : Usize) : Prop :=
+  ∃ ns ni : forest.Node, F.nodes.val[source.val]? = some ns ∧ F.nodes.val[into.val]? = some ni ∧
+    ns.tree = true ∧ ni.tree = true ∧ ns.parent = into
 
-theorem looped_pair_correct (F : forest.Forest) (x : Usize) (pair : forest.Pair) :
-    forest.looped_pair F x pair = .ok (decide (LoopedPair F x pair)) := by
-  rw [forest.looped_pair]
-  by_cases one : x.val < F.nodes.val.length
-  · by_cases two : pair.first.val < F.nodes.val.length
-    · by_cases three : pair.second.val < F.nodes.val.length
-      · have l1 : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
-          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
-        have l2 : F.nodes.index_usize pair.first = .ok F.nodes.val[pair.first.val] := by
-          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem two]
-        have l3 : F.nodes.index_usize pair.second = .ok F.nodes.val[pair.second.val] := by
-          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem three]
-        simp only [LoopedPair,List.getElem?_eq_getElem one,List.getElem?_eq_getElem two,
-          List.getElem?_eq_getElem three,Option.some.injEq,exists_eq_left']
-        by_cases a : F.nodes.val[x.val].tree = true
-        · by_cases b : F.nodes.val[pair.first.val].tree = true
-          · by_cases c : F.nodes.val[pair.second.val].tree = true
-            · by_cases d : pair.first = x
-              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
-              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c,d]
-            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,l3,a,b,c]
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,l2,a,b]
-        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,l1,a]
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,three,LoopedPair,
-          List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.second.val by omega)]
-    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,LoopedPair,
-        List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ pair.first.val by omega)]
-  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,LoopedPair,
-      List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ x.val by omega)]
+theorem into_parent_correct (F : forest.Forest) (source into : Usize) :
+    forest.into_parent F source into = .ok (decide (IntoParent F source into)) := by
+  rw [forest.into_parent]
+  by_cases one : source.val < F.nodes.val.length
+  · by_cases two : into.val < F.nodes.val.length
+    · have l1 : F.nodes.index_usize source = .ok F.nodes.val[source.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+      have l2 : F.nodes.index_usize into = .ok F.nodes.val[into.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem two]
+      simp only [IntoParent,List.getElem?_eq_getElem one,List.getElem?_eq_getElem two,Option.some.injEq,
+        exists_eq_left']
+      by_cases a : F.nodes.val[source.val].tree = true
+      · by_cases b : F.nodes.val[into.val].tree = true
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,l1,l2,a,b]
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,l1,l2,a,b]
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,l1,a]
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,two,IntoParent,
+        List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ into.val by omega)]
+  · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,one,IntoParent,
+      List.getElem?_eq_none_iff.mpr (show F.nodes.val.length ≤ source.val by omega)]
+
+/-- The loop test of an entry is exact: a self restriction along the role or
+    its inverse. -/
+theorem loop_for_correct (e : concept_table.Entry) (r : ObjectPropertyExpression) :
+    forest.loop_for e r = .ok (decide (∃ q, e = .HasSelf q ∧ (q = r ∨ inv q = r))) := by
+  cases e with
+  | HasSelf q =>
+    rw [forest.loop_for]
+    simp only [same_role_correct,inverse_correct,bind_ok,concept_table.Entry.HasSelf.injEq,exists_eq_left']
+    by_cases first : q = r <;> simp [first]
+  | _ => rw [forest.loop_for]; simp
+
+/-- A found loop entry is a self restriction for a loop along the role. -/
+theorem loop_entry_correct (entries : alloc.vec.Vec concept_table.Entry) (r : ObjectPropertyExpression)
+    (index : Usize) :
+    ∃ res, forest.loop_entry entries r index = .ok res ∧ ∀ k, res = some k →
+      ∃ q, entries.val[k.val]? = some (.HasSelf q) ∧ (q = r ∨ inv q = r) := by
+  rw [forest.loop_entry]
+  by_cases more : index.val < entries.val.length
+  · have lookup : entries.index_usize index = .ok entries.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    obtain ⟨res,run,spec⟩ := loop_entry_correct entries r index'
+    by_cases here : ∃ q, entries.val[index.val] = .HasSelf q ∧ (q = r ∨ inv q = r)
+    · refine ⟨some index,?_,?_⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+          bind_ok,loop_for_correct,here,decide_true]
+      · intro k same
+        cases same
+        obtain ⟨q,isSelf,which⟩ := here
+        exact ⟨q,by rw [List.getElem?_eq_getElem more,isSelf],which⟩
+    · refine ⟨res,?_,spec⟩
+      simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+        bind_ok,loop_for_correct,here,decide_false,Bool.false_eq_true,advance,run]
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp⟩
+termination_by entries.val.length - index.val
+decreasing_by
+  have : index'.val = index.val + 1 := by simpa using indexValue
+  omega
+
+/-- The loops of a list of roles are self restrictions for loops along them. -/
+theorem loops_of_correct (entries : alloc.vec.Vec concept_table.Entry)
+    (roles : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ res, forest.loops_of entries roles index out = .ok res ∧ ∀ out', res = some out' →
+      ∀ k ∈ out'.val, k ∈ out.val ∨ ∃ s ∈ roles.val, ∃ q, entries.val[k.val]? = some (.HasSelf q) ∧
+        (q = s ∨ inv q = s) := by
+  rw [forest.loops_of]
+  by_cases more : index.val < roles.val.length
+  · have lookup : roles.index_usize index = .ok roles.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    obtain ⟨found,foundRun,foundSpec⟩ := loop_entry_correct entries roles.val[index.val] 0#usize
+    cases found with
+    | none =>
+      exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,foundRun],by simp⟩
+    | some k =>
+      by_cases room : out.val.length < Usize.max
+      · obtain ⟨pushed,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out k room)
+        obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+        obtain ⟨res,run,spec⟩ := loops_of_correct entries roles index' pushed
+        refine ⟨res,?_,?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,foundRun,usize_max_val,room,push,advance,run]
+        · intro out' same j member
+          rcases spec out' same j member with old | found
+          · rw [contents] at old
+            rcases List.mem_append.mp old with earlier | single
+            · exact .inl earlier
+            · rw [List.mem_singleton] at single
+              subst single
+              exact .inr ⟨roles.val[index.val],List.getElem_mem more,foundSpec _ rfl⟩
+          · exact .inr found
+      · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,foundRun,usize_max_val,room],
+          by simp⟩
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same k member
+    cases same
+    exact .inl member
+termination_by roles.val.length - index.val
+decreasing_by
+  have : index'.val = index.val + 1 := by simpa using indexValue
+  omega
 
 theorem add_roles_correct (list : alloc.vec.Vec ObjectPropertyExpression) (invert : Bool) (index : Usize)
     (out : alloc.vec.Vec ObjectPropertyExpression) :

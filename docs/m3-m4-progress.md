@@ -3644,3 +3644,32 @@ class with a model of at most three elements comes out satisfiable.
 This block adds 12 public theorems and 5 independent definitions. Totals are
 1513 audited theorems, 870 definitions, 440 Rust regressions and 1706 ledger
 obligations.
+
+## Reasoner: merges into a tree parent
+
+A loop can make a tree node its own neighbour next to its tree child or its
+tree parent, and a maximum restriction may then have to merge the child into
+its parent, which the previous block left without an answer. The merge rule
+now orients such a pair as the merge of the child into its parent
+(forest::orient, orient_shape, orient_either), a new case of a merge
+(MergeShape) that keeps the edges as they are (forest::moved, moved_refl) and
+carries the added edges of the child over as before. The edge between the two
+becomes loops of the parent: the merge adds to the parent's label, after the
+label of the child, the self restriction for a loop along each role of the edge
+(IntoParent, forest::into_parent, forest::loop_for, forest::loop_entry,
+forest::loops_of), and every model where the two nodes coincide relates the
+parent to itself along those roles, so the rejections stay sound
+(merge_correct). The table has these self restrictions: forest::satisfiable
+interns the self restriction of the role of every existential and minimum
+restriction before closing the table (forest::loop_entries,
+loop_entries_correct), and the roles of every edge are among those roles and
+their inverses, whose loops the same self restrictions are.
+
+The guard of the previous block (LoopedPair, forest::looped_pair) is gone, and
+the tests now answer every one of 300 random inputs with self restrictions and
+reflexive, irreflexive and functional properties, also below anonymous elements
+where a loop meets a successor along a functional property.
+
+This block adds 6 public theorems and 1 independent definition and removes the
+guard's theorem and definition. Totals are 1518 audited theorems, 870
+definitions, 440 Rust regressions and 1711 ledger obligations.

@@ -1892,7 +1892,10 @@
         "Rowl.ForestOps.first_nodes_correct",
         "Rowl.ForestOps.orient_either",
         "Rowl.ForestOps.orient_correct",
-        "Rowl.ForestOps.looped_pair_correct",
+        "Rowl.ForestOps.into_parent_correct",
+        "Rowl.ForestOps.loop_for_correct",
+        "Rowl.ForestOps.loop_entry_correct",
+        "Rowl.ForestOps.loops_of_correct",
         "Rowl.ForestOps.add_roles_correct",
         "Rowl.ForestOps.upward_correct",
         "Rowl.ForestOps.sideways_correct",
@@ -2003,6 +2006,7 @@
         "Rowl.ForestSteps.created_models",
         "Rowl.ForestSteps.same_not_tree",
         "Rowl.ForestSteps.moved_of_set",
+        "Rowl.ForestSteps.moved_refl",
         "Rowl.ForestSteps.moved_carried",
         "Rowl.ForestSteps.moved_correct",
         "Rowl.ForestSteps.merged_correct",
@@ -2064,6 +2068,7 @@
         "Rowl.Forest.counting_simple_correct",
         "Rowl.Forest.simpleCounting_of",
         "Rowl.Forest.roots_correct",
+        "Rowl.Forest.loop_entries_correct",
         "Rowl.Forest.satisfiable_answers"
       ]
     },
@@ -3057,6 +3062,6 @@
     "Rowl.ForestSearch.LoopNeeds",
     "Rowl.ForestSearch.LoopsOk",
     "Rowl.ForestSearch.Looped",
-    "Rowl.ForestOps.LoopedPair"
+    "Rowl.ForestOps.IntoParent"
   ]
 }
