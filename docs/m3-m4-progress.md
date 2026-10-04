@@ -3715,3 +3715,63 @@ owl:bottomObjectProperty) remain.
 This block adds 13 public theorems and 4 independent definitions. Totals are
 1531 audited theorems, 874 definitions, 442 Rust regressions and 1724 ledger
 obligations.
+
+## Reasoner: role chains for the completion forest
+
+The fifteenth stage adds the complex role inclusions `r1 ∘ … ∘ rn ⊑ r` of
+SROIQ. Its first block decides them for the completion forest through an
+encoding, leaving the forest and its proofs untouched; the ontology queries
+take the chain axioms in the next block.
+
+A role is complex when the role of a chain is included in it (Complex,
+role_chains::complex). Every complex role `c` has an automaton (Trans,
+role_chains::transitions, transitions_correct): from its initial to its final
+state along `c`, and along every complex role strictly included in `c`; back
+from the final to the initial state for a transitive role or a chain of two
+roles equivalent to `c`; and for every other chain whose role is equivalent to
+`c` a segment of new states along its roles, back to the final state when its
+first role is equivalent to `c`, back to the initial state when its last role
+is, and from the initial to the final state otherwise (segOf,
+role_chains::segment). In every model of the role hierarchy and the chains an
+automaton accepts exactly the pairs its role relates (accepts_initial,
+accepts_of_rel).
+
+A universal restriction `∀c.C` on a complex role becomes a fresh class, the
+atom of the automaton's initial state with the filler `C`, and every atom gets a
+definition that the forest unfolds lazily (role_chains::encode,
+role_chains::unfold, role_chains::generate): the filler at the final state and,
+for every transition, the atom of its target with the same filler, behind
+`∀c.` for an edge along `c`, behind `∀s.` along a role `s` that is not complex,
+nested in the atom of the initial state of a complex role `s`, and plainly for
+a return. In the filler of a maximum restriction, where a concept stands in a
+negative position, an existential restriction on a complex role becomes the
+complement of the atom for the complement of its filler (Enc). The atoms are
+named by a space and the eight bytes of their index (nameOf, nameOf_injective),
+and no class of the problem may start with a space. The table keeps its atoms
+distinct and lets fillers mention only earlier atoms (TableOk), and a bound of
+2^20 atoms ends the encoding of a hierarchy that is not regular without an
+answer.
+
+Both directions are proved model-theoretically. A model of the role hierarchy
+and the chains becomes a model of the encoding once each atom holds where every
+path that its automaton reads leads into its filler (withAtoms, enc_sound,
+atom_defined). Conversely, the relations that the inclusions, the transitive
+roles and the chains derive from a model of the encoding (Stage, Closure) form
+a model of the role hierarchy and the chains (closureModel, accept_model):
+roles that no chain reaches keep their relations (stage_simple), so number
+restrictions, self restrictions and their complements, and disjoint pairs,
+which must be on such roles, keep their meaning, and the atoms carry their
+fillers along every derived pair (stage_atoms, enc_complete). With the chains
+completed by their mirrors (role_chains::copy_chains, Closes),
+role_chains::satisfiable answers as forest::satisfiable with the chains as
+further role axioms: its acceptances come with a model of the hierarchy, the
+chains and the disjoint pairs, and its rejections rule out every such model
+(Rowl.Chains.satisfiable_correct). Without chains it is the forest itself. The
+tests decide uncle chains, left and right recursive chains, inverse paths,
+chains through inclusions and named individuals, and every one of 300 random
+concepts over two chains, all with a model of at most three elements coming out
+satisfiable.
+
+This block adds 111 public theorems and 30 independent definitions. Totals are
+1642 audited theorems, 904 definitions, 450 Rust regressions and 1835 ledger
+obligations.

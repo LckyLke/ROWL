@@ -33226,6 +33226,1266 @@ def rdf.original_dataset
   (selection : rdf.DatasetSelection) : Result rdf.RawDataset := do
   ok selection.dataset
 
+/-- [rowl_kernel::role_chains::Chain]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 70:0-73:1
+    Visibility: public -/
+structure role_chains.Chain where
+  roles : alloc.vec.Vec model.ObjectPropertyExpression
+  sup : model.ObjectPropertyExpression
+
+/-- [rowl_kernel::role_chains::State]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 75:0-81:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.State where
+| Initial : role_chains.State
+| Final : role_chains.State
+| Inside : Std.Usize → Std.Usize → role_chains.State
+
+/-- [rowl_kernel::role_chains::Label]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 83:0-90:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.Label where
+| Direct : role_chains.Label
+| Role : model.ObjectPropertyExpression → role_chains.Label
+| Empty : role_chains.Label
+
+/-- [rowl_kernel::role_chains::Transition]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 92:0-95:1
+    Visibility: public -/
+structure role_chains.Transition where
+  label : role_chains.Label
+  target : role_chains.State
+
+/-- [rowl_kernel::role_chains::Filler]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 97:0-100:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_chains.Filler where
+| Base : Std.Usize → role_chains.Filler
+| Atom : Std.Usize → role_chains.Filler
+
+/-- [rowl_kernel::role_chains::Atom]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 102:0-106:1
+    Visibility: public -/
+structure role_chains.Atom where
+  role : model.ObjectPropertyExpression
+  state : role_chains.State
+  filler : role_chains.Filler
+
+/-- [rowl_kernel::role_chains::Segment]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 109:0-114:1
+    Visibility: public -/
+structure role_chains.Segment where
+  start : role_chains.State
+  «end» : role_chains.State
+  offset : Std.Usize
+  length : Std.Usize
+
+/-- [rowl_kernel::role_chains::LIMIT]
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 117:0-117:31 -/
+@[global_simps, irreducible] def role_chains.LIMIT : Std.Usize := 1048576#usize
+
+/-- [rowl_kernel::role_chains::equivalent]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 120:0-130:1 -/
+def role_chains.equivalent
+  (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
+  (right : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let b ← hierarchy.below roles left right
+  if b
+  then hierarchy.below roles right left
+  else ok false
+
+/-- [rowl_kernel::role_chains::complex_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 132:0-147:1 -/
+def role_chains.complex_from
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let b ← hierarchy.below roles c.sup role
+    if b
+    then ok true
+    else
+      let i1 ← index + 1#usize
+      role_chains.complex_from roles chains role i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::complex]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 149:0-155:1
+    Visibility: public -/
+def role_chains.complex
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  role_chains.complex_from roles chains role 0#usize
+
+/-- [rowl_kernel::role_chains::copy_state]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 157:0-163:1 -/
+def role_chains.copy_state
+  (state : role_chains.State) : Result role_chains.State := do
+  match state with
+  | role_chains.State.Initial => ok role_chains.State.Initial
+  | role_chains.State.Final => ok role_chains.State.Final
+  | role_chains.State.Inside _ _ => ok state
+
+/-- [rowl_kernel::role_chains::same_state]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 165:0-186:1 -/
+def role_chains.same_state
+  (left : role_chains.State) (right : role_chains.State) : Result Bool := do
+  match left with
+  | role_chains.State.Initial =>
+    match right with
+    | role_chains.State.Initial => ok true
+    | role_chains.State.Final => ok false
+    | role_chains.State.Inside _ _ => ok false
+  | role_chains.State.Final =>
+    match right with
+    | role_chains.State.Initial => ok false
+    | role_chains.State.Final => ok true
+    | role_chains.State.Inside _ _ => ok false
+  | role_chains.State.Inside chain position =>
+    match right with
+    | role_chains.State.Initial => ok false
+    | role_chains.State.Final => ok false
+    | role_chains.State.Inside other place =>
+      if chain = other
+      then ok (position = place)
+      else ok false
+
+/-- [rowl_kernel::role_chains::copy_filler]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 188:0-193:1 -/
+def role_chains.copy_filler
+  (filler : role_chains.Filler) : Result role_chains.Filler := do
+  match filler with
+  | role_chains.Filler.Base _ => ok filler
+  | role_chains.Filler.Atom _ => ok filler
+
+/-- [rowl_kernel::role_chains::same_filler]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 195:0-206:1 -/
+def role_chains.same_filler
+  (left : role_chains.Filler) (right : role_chains.Filler) : Result Bool := do
+  match left with
+  | role_chains.Filler.Base index =>
+    match right with
+    | role_chains.Filler.Base other => ok (index = other)
+    | role_chains.Filler.Atom _ => ok false
+  | role_chains.Filler.Atom index =>
+    match right with
+    | role_chains.Filler.Base _ => ok false
+    | role_chains.Filler.Atom other => ok (index = other)
+
+/-- [rowl_kernel::role_chains::twin]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 208:0-222:1 -/
+def role_chains.twin
+  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chain.roles
+  if i = 2#usize
+  then
+    let b ← role_chains.equivalent roles chain.sup role
+    if b
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles 0#usize
+      let b1 ← role_chains.equivalent roles ope role
+      if b1
+      then
+        let ope1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) chain.roles 1#usize
+        role_chains.equivalent roles ope1 role
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::role_chains::segment]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 225:0-264:1 -/
+def role_chains.segment
+  (roles : hierarchy.RoleHierarchy) (chain : role_chains.Chain)
+  (role : model.ObjectPropertyExpression) :
+  Result (Option role_chains.Segment)
+  := do
+  let length := alloc.vec.Vec.len chain.roles
+  if length < 2#usize
+  then ok none
+  else
+    let b ← role_chains.equivalent roles chain.sup role
+    if b
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles 0#usize
+      let b1 ← role_chains.equivalent roles ope role
+      if b1
+      then
+        if length = 2#usize
+        then
+          let ope1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) chain.roles 1#usize
+          let b2 ← role_chains.equivalent roles ope1 role
+          if b2
+          then ok none
+          else
+            let i ← length - 1#usize
+            ok (some
+              {
+                start := role_chains.State.Final,
+                «end» := role_chains.State.Final,
+                offset := 1#usize,
+                length := i
+              })
+        else
+          let i ← length - 1#usize
+          ok (some
+            {
+              start := role_chains.State.Final,
+              «end» := role_chains.State.Final,
+              offset := 1#usize,
+              length := i
+            })
+      else
+        let i ← length - 1#usize
+        let ope1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) chain.roles i
+        let b2 ← role_chains.equivalent roles ope1 role
+        if b2
+        then
+          ok (some
+            {
+              start := role_chains.State.Initial,
+              «end» := role_chains.State.Initial,
+              offset := 0#usize,
+              length := i
+            })
+        else
+          ok (some
+            {
+              start := role_chains.State.Initial,
+              «end» := role_chains.State.Final,
+              offset := 0#usize,
+              length
+            })
+    else ok none
+
+/-- [rowl_kernel::role_chains::step]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 267:0-279:1 -/
+def role_chains.step
+  (chain : role_chains.Chain) (index : Std.Usize)
+  (segment : role_chains.Segment) (position : Std.Usize) :
+  Result role_chains.Transition
+  := do
+  let i ← segment.offset + position
+  let i1 := alloc.vec.Vec.len chain.roles
+  let label ←
+    if i < i1
+    then
+      do
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) chain.roles i
+      let ope1 ← concepts.copy_role ope
+      ok (role_chains.Label.Role ope1)
+    else ok role_chains.Label.Empty
+  let i2 ← position + 1#usize
+  if i2 = segment.length
+  then let target ← role_chains.copy_state segment.end
+       ok { label, target }
+  else ok { label, target := (role_chains.State.Inside index i2) }
+
+/-- [rowl_kernel::role_chains::sub_transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 282:0-309:1 -/
+def role_chains.sub_transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec role_chains.Transition) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  let i := alloc.vec.Vec.len roles.inclusions
+  if index < i
+  then
+    let inclusion ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Inclusion) roles.inclusions index
+    let b ← concepts.same_role inclusion.sup role
+    if b
+    then
+      let b1 ← role_chains.complex roles chains inclusion.sub
+      if b1
+      then
+        let b2 ← hierarchy.below roles role inclusion.sub
+        if b2
+        then
+          let i1 ← index + 1#usize
+          role_chains.sub_transitions roles chains role i1 out
+        else
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let ope ← concepts.copy_role inclusion.sub
+            let out1 ←
+              alloc.vec.Vec.push out
+                ({
+                   label := (role_chains.Label.Role ope),
+                   target := role_chains.State.Final
+                 } : role_chains.Transition)
+            let i2 ← index + 1#usize
+            role_chains.sub_transitions roles chains role i2 out1
+          else ok none
+      else
+        let i1 ← index + 1#usize
+        role_chains.sub_transitions roles chains role i1 out
+    else
+      let i1 ← index + 1#usize
+      role_chains.sub_transitions roles chains role i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::transitive_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 312:0-322:1 -/
+def role_chains.transitive_from
+  (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles.transitive
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles.transitive index
+    let b ← role_chains.equivalent roles ope role
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         role_chains.transitive_from roles role i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::chain_transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 325:0-367:1 -/
+def role_chains.chain_transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Transition) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let chain ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let b ← role_chains.twin roles chain role
+    if b
+    then
+      match state with
+      | role_chains.State.Initial =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role
+          role_chains.State.Initial i1 out
+      | role_chains.State.Final =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({
+                 label := role_chains.Label.Empty,
+                 target := role_chains.State.Initial
+               } : role_chains.Transition)
+          let i2 ← index + 1#usize
+          role_chains.chain_transitions roles chains role
+            role_chains.State.Final i2 out1
+        else ok none
+      | role_chains.State.Inside _ _ =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role state i1 out
+    else
+      let o ← role_chains.segment roles chain role
+      match o with
+      | none =>
+        let i1 ← index + 1#usize
+        role_chains.chain_transitions roles chains role state i1 out
+      | some segment =>
+        let b1 ← role_chains.same_state segment.start state
+        if b1
+        then
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let t ← role_chains.step chain index segment 0#usize
+            let out1 ← alloc.vec.Vec.push out t
+            let i2 ← index + 1#usize
+            role_chains.chain_transitions roles chains role state i2 out1
+          else ok none
+        else
+          let i1 ← index + 1#usize
+          role_chains.chain_transitions roles chains role state i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::transitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 369:0-414:1
+    Visibility: public -/
+def role_chains.transitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State) :
+  Result (Option (alloc.vec.Vec role_chains.Transition))
+  := do
+  match state with
+  | role_chains.State.Initial =>
+    let out ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
+        ({ label := role_chains.Label.Direct, target := role_chains.State.Final
+         } : role_chains.Transition)
+    let o ← role_chains.sub_transitions roles chains role 0#usize out
+    match o with
+    | none => ok none
+    | some out1 =>
+      role_chains.chain_transitions roles chains role role_chains.State.Initial
+        0#usize out1
+  | role_chains.State.Final =>
+    let b ← role_chains.transitive_from roles role 0#usize
+    let out ←
+      if b
+      then
+        alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition)
+          ({
+             label := role_chains.Label.Empty,
+             target := role_chains.State.Initial
+           } : role_chains.Transition)
+      else ok (alloc.vec.Vec.new role_chains.Transition)
+    role_chains.chain_transitions roles chains role role_chains.State.Final
+      0#usize out
+  | role_chains.State.Inside index position =>
+    let i := alloc.vec.Vec.len chains
+    if index < i
+    then
+      let c ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          role_chains.Chain) chains index
+      let o ← role_chains.segment roles c role
+      match o with
+      | none => ok (some (alloc.vec.Vec.new role_chains.Transition))
+      | some segment =>
+        if 0#usize < position
+        then
+          if position < segment.length
+          then
+            let t ← role_chains.step c index segment position
+            let out ←
+              alloc.vec.Vec.push (alloc.vec.Vec.new role_chains.Transition) t
+            ok (some out)
+          else ok (some (alloc.vec.Vec.new role_chains.Transition))
+        else ok (some (alloc.vec.Vec.new role_chains.Transition))
+    else ok (some (alloc.vec.Vec.new role_chains.Transition))
+
+/-- [rowl_kernel::role_chains::bytes]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 417:0-426:1 -/
+def role_chains.bytes
+  (value : Std.Usize) (count : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if count < 8#usize
+  then
+    let i := alloc.vec.Vec.len out
+    let out1 ←
+      if i < core.num.Usize.MAX
+      then
+        do
+        let i1 ← value % 256#usize
+        let i2 ← lift (UScalar.cast .U8 i1)
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i1 ← value / 256#usize
+    let i2 ← count + 1#usize
+    role_chains.bytes i1 i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::name]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 428:0-436:1
+    Visibility: public -/
+def role_chains.name (index : Std.Usize) : Result model.Class := do
+  let spelling ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) 32#u8
+  let v ← role_chains.bytes index 0#usize spelling
+  ok { iri := { spelling := v } }
+
+/-- [rowl_kernel::role_chains::spaced]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 438:0-444:1 -/
+def role_chains.spaced («class» : model.Class) : Result Bool := do
+  let i := alloc.vec.Vec.len «class».iri.spelling
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        «class».iri.spelling 0#usize
+    ok (i1 = 32#u8)
+  else ok false
+
+/-- [rowl_kernel::role_chains::fits]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 448:0-486:1 -/
+def role_chains.fits
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (concept : concepts.Concept) :
+  Result Bool
+  := do
+  match concept with
+  | concepts.Concept.Top => ok true
+  | concepts.Concept.Bottom => ok true
+  | concepts.Concept.Atom «class» =>
+    let b ← role_chains.spaced «class»
+    ok (¬ b)
+  | concepts.Concept.NotAtom «class» =>
+    let b ← role_chains.spaced «class»
+    ok (¬ b)
+  | concepts.Concept.One _ => ok true
+  | concepts.Concept.NotOne _ => ok true
+  | concepts.Concept.HasSelf role =>
+    let b ← role_chains.complex roles chains role
+    ok (¬ b)
+  | concepts.Concept.NotSelf role =>
+    let b ← role_chains.complex roles chains role
+    ok (¬ b)
+  | concepts.Concept.And left right =>
+    let b ← role_chains.fits roles chains left
+    if b
+    then role_chains.fits roles chains right
+    else ok false
+  | concepts.Concept.Or left right =>
+    let b ← role_chains.fits roles chains left
+    if b
+    then role_chains.fits roles chains right
+    else ok false
+  | concepts.Concept.Exists _ filler => role_chains.fits roles chains filler
+  | concepts.Concept.Forall _ filler => role_chains.fits roles chains filler
+  | concepts.Concept.AtLeast _ role filler =>
+    let b ← role_chains.complex roles chains role
+    if b
+    then ok false
+    else role_chains.fits roles chains filler
+  | concepts.Concept.AtMost _ role filler =>
+    let b ← role_chains.complex roles chains role
+    if b
+    then ok false
+    else role_chains.fits roles chains filler
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::find_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 489:0-509:1 -/
+def role_chains.find_from
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (filler : role_chains.Filler) (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let atom ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Atom) atoms index
+    let b ← concepts.same_role atom.role role
+    if b
+    then
+      let b1 ← role_chains.same_state atom.state state
+      if b1
+      then
+        let b2 ← role_chains.same_filler atom.filler filler
+        if b2
+        then ok index
+        else
+          let i1 ← index + 1#usize
+          role_chains.find_from atoms role state filler i1
+      else
+        let i1 ← index + 1#usize
+        role_chains.find_from atoms role state filler i1
+    else
+      let i1 ← index + 1#usize
+      role_chains.find_from atoms role state filler i1
+  else ok (alloc.vec.Vec.len atoms)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::atom_for]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 512:0-532:1 -/
+def role_chains.atom_for
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (state : role_chains.State)
+  (filler : role_chains.Filler) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × Std.Usize))
+  := do
+  let found ← role_chains.find_from atoms role state filler 0#usize
+  let i := alloc.vec.Vec.len atoms
+  if found < i
+  then ok (some (atoms, found))
+  else
+    let i1 := alloc.vec.Vec.len atoms
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ← concepts.copy_role role
+      let s ← role_chains.copy_state state
+      let f ← role_chains.copy_filler filler
+      let atoms1 ←
+        alloc.vec.Vec.push atoms ({ role := ope, state := s, filler := f } :
+          role_chains.Atom)
+      ok (some (atoms1, found))
+    else ok none
+
+/-- [rowl_kernel::role_chains::universal]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 534:0-550:1 -/
+def role_chains.universal
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (role : model.ObjectPropertyExpression) (filler : concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len bases
+  if i < core.num.Usize.MAX
+  then
+    let base := alloc.vec.Vec.len bases
+    let bases1 ← alloc.vec.Vec.push bases filler
+    let o ←
+      role_chains.atom_for atoms role role_chains.State.Initial
+        (role_chains.Filler.Base base)
+    match o with
+    | none => ok none
+    | some p => let (atoms1, index) := p
+                ok (some (atoms1, bases1, index))
+  else ok none
+
+/-- [rowl_kernel::role_chains::encode]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 554:0-668:1 -/
+def role_chains.encode
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (concept : concepts.Concept) (positive : Bool)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × concepts.Concept))
+  := do
+  match concept with
+  | concepts.Concept.Top =>
+    let c ← concepts.copy_concept concepts.Concept.Top
+    ok (some (atoms, bases, c))
+  | concepts.Concept.Bottom =>
+    let c ← concepts.copy_concept concepts.Concept.Bottom
+    ok (some (atoms, bases, c))
+  | concepts.Concept.Atom _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotAtom _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.One _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotOne _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.HasSelf _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.NotSelf _ =>
+    let c ← concepts.copy_concept concept
+    ok (some (atoms, bases, c))
+  | concepts.Concept.And left right =>
+    let o ← role_chains.encode roles chains left positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, first) := t
+      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
+      match o1 with
+      | none => ok none
+      | some t1 =>
+        let (atoms2, bases2, second) := t1
+        ok (some (atoms2, bases2, concepts.Concept.And first second))
+  | concepts.Concept.Or left right =>
+    let o ← role_chains.encode roles chains left positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, first) := t
+      let o1 ← role_chains.encode roles chains right positive atoms1 bases1
+      match o1 with
+      | none => ok none
+      | some t1 =>
+        let (atoms2, bases2, second) := t1
+        ok (some (atoms2, bases2, concepts.Concept.Or first second))
+  | concepts.Concept.Exists role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      if positive
+      then
+        let ope ← concepts.copy_role role
+        ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
+      else
+        let b ← role_chains.complex roles chains role
+        if b
+        then
+          let o1 ← concepts.negate inner
+          match o1 with
+          | none => ok none
+          | some complement =>
+            let o2 ← role_chains.universal atoms1 bases1 role complement
+            match o2 with
+            | none => ok none
+            | some t1 =>
+              let (atoms2, bases2, index) := t1
+              let c ← role_chains.name index
+              ok (some (atoms2, bases2, concepts.Concept.NotAtom c))
+        else
+          let ope ← concepts.copy_role role
+          ok (some (atoms1, bases1, concepts.Concept.Exists ope inner))
+  | concepts.Concept.Forall role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      if positive
+      then
+        let b ← role_chains.complex roles chains role
+        if b
+        then
+          let o1 ← role_chains.universal atoms1 bases1 role inner
+          match o1 with
+          | none => ok none
+          | some t1 =>
+            let (atoms2, bases2, index) := t1
+            let c ← role_chains.name index
+            ok (some (atoms2, bases2, concepts.Concept.Atom c))
+        else
+          let ope ← concepts.copy_role role
+          ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
+      else
+        let ope ← concepts.copy_role role
+        ok (some (atoms1, bases1, concepts.Concept.Forall ope inner))
+  | concepts.Concept.AtLeast n role filler =>
+    let o ← role_chains.encode roles chains filler positive atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      let ope ← concepts.copy_role role
+      ok (some (atoms1, bases1, concepts.Concept.AtLeast n ope inner))
+  | concepts.Concept.AtMost n role filler =>
+    let o ← role_chains.encode roles chains filler (¬ positive) atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, inner) := t
+      let ope ← concepts.copy_role role
+      ok (some (atoms1, bases1, concepts.Concept.AtMost n ope inner))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::filler_concept]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 670:0-681:1 -/
+def role_chains.filler_concept
+  (bases : alloc.vec.Vec concepts.Concept) (filler : role_chains.Filler) :
+  Result concepts.Concept
+  := do
+  match filler with
+  | role_chains.Filler.Base index =>
+    let i := alloc.vec.Vec.len bases
+    if index < i
+    then
+      let c ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concepts.Concept) bases index
+      concepts.copy_concept c
+    else ok concepts.Concept.Top
+  | role_chains.Filler.Atom index =>
+    let c ← role_chains.name index
+    ok (concepts.Concept.Atom c)
+
+/-- [rowl_kernel::role_chains::unfold_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 684:0-737:1 -/
+def role_chains.unfold_from
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (transitions : alloc.vec.Vec role_chains.Transition)
+  (role : model.ObjectPropertyExpression) (filler : role_chains.Filler)
+  (index : Std.Usize) (atoms : alloc.vec.Vec role_chains.Atom)
+  (acc : concepts.Concept) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len transitions
+  if index < i
+  then
+    let transition ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Transition) transitions index
+    let o ← role_chains.atom_for atoms role transition.target filler
+    match o with
+    | none => ok none
+    | some p =>
+      let (atoms1, target) := p
+      match transition.label with
+      | role_chains.Label.Direct =>
+        let ope ← concepts.copy_role role
+        let c ← role_chains.name target
+        let i1 ← index + 1#usize
+        role_chains.unfold_from roles chains transitions role filler i1 atoms1
+          (concepts.Concept.And acc (concepts.Concept.Forall ope
+          (concepts.Concept.Atom c)))
+      | role_chains.Label.Role along =>
+        let b ← role_chains.complex roles chains along
+        if b
+        then
+          let o1 ←
+            role_chains.atom_for atoms1 along role_chains.State.Initial
+              (role_chains.Filler.Atom target)
+          match o1 with
+          | none => ok none
+          | some p1 =>
+            let (atoms2, nested) := p1
+            let c ← role_chains.name nested
+            let i1 ← index + 1#usize
+            role_chains.unfold_from roles chains transitions role filler i1
+              atoms2 (concepts.Concept.And acc (concepts.Concept.Atom c))
+        else
+          let ope ← concepts.copy_role along
+          let c ← role_chains.name target
+          let i1 ← index + 1#usize
+          role_chains.unfold_from roles chains transitions role filler i1
+            atoms1 (concepts.Concept.And acc (concepts.Concept.Forall ope
+            (concepts.Concept.Atom c)))
+      | role_chains.Label.Empty =>
+        let c ← role_chains.name target
+        let i1 ← index + 1#usize
+        role_chains.unfold_from roles chains transitions role filler i1 atoms1
+          (concepts.Concept.And acc (concepts.Concept.Atom c))
+  else ok (some (atoms, acc))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::unfold]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 739:0-763:1 -/
+def role_chains.unfold
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × concepts.Concept))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Atom) atoms index
+    let role ← concepts.copy_role a.role
+    let state ← role_chains.copy_state a.state
+    let filler ← role_chains.copy_filler a.filler
+    let start ←
+      match state with
+      | role_chains.State.Initial => ok concepts.Concept.Top
+      | role_chains.State.Final => role_chains.filler_concept bases filler
+      | role_chains.State.Inside _ _ => ok concepts.Concept.Top
+    let o ← role_chains.transitions roles chains role state
+    match o with
+    | none => ok none
+    | some transitions =>
+      role_chains.unfold_from roles chains transitions role filler 0#usize
+        atoms start
+  else ok none
+
+/-- [rowl_kernel::role_chains::generate]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 766:0-795:1 -/
+def role_chains.generate
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (atoms : alloc.vec.Vec role_chains.Atom) (index : Std.Usize)
+  (out : alloc.vec.Vec completion.Definition) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    completion.Definition)))
+  := do
+  let i := alloc.vec.Vec.len atoms
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len atoms
+    if role_chains.LIMIT < i1
+    then ok none
+    else
+      let o ← role_chains.unfold roles chains bases atoms index
+      match o with
+      | none => ok none
+      | some p =>
+        let (atoms1, concept) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let c ← role_chains.name index
+          let out1 ←
+            alloc.vec.Vec.push out ({ «class» := c, concept } :
+              completion.Definition)
+          let i3 ← index + 1#usize
+          role_chains.generate roles chains bases atoms1 i3 out1
+        else ok none
+  else ok (some (atoms, out))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::reversed]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 843:0-858:1 -/
+def role_chains.reversed
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (count : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  if 0#usize < count
+  then
+    let i ← count - 1#usize
+    let i1 := alloc.vec.Vec.len roles
+    let out1 ←
+      if i < i1
+      then
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          do
+          let ope ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.ObjectPropertyExpression) roles i
+          let ope1 ← concepts.inverse ope
+          alloc.vec.Vec.push out ope1
+        else ok out
+      else ok out
+    role_chains.reversed roles i out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::copied]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 827:0-840:1 -/
+def role_chains.copied
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let ope ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.ObjectPropertyExpression) roles index
+        let ope1 ← concepts.copy_role ope
+        alloc.vec.Vec.push out ope1
+      else ok out
+    let i2 ← index + 1#usize
+    role_chains.copied roles i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::copy_chains]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 798:0-825:1 -/
+def role_chains.copy_chains
+  (chains : alloc.vec.Vec role_chains.Chain) (mirror : Bool)
+  (index : Std.Usize) (out : alloc.vec.Vec role_chains.Chain) :
+  Result (Option (alloc.vec.Vec role_chains.Chain))
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let chain ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let roles ←
+      if mirror
+      then
+        let i1 := alloc.vec.Vec.len chain.roles
+        role_chains.reversed chain.roles i1 (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+      else
+        role_chains.copied chain.roles 0#usize (alloc.vec.Vec.new
+          model.ObjectPropertyExpression)
+    let sup ←
+      if mirror
+      then concepts.inverse chain.sup
+      else concepts.copy_role chain.sup
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let out1 ← alloc.vec.Vec.push out ({ roles, sup } : role_chains.Chain)
+      let i2 ← index + 1#usize
+      role_chains.copy_chains chains mirror i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::long_from]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 860:0-870:1 -/
+def role_chains.long_from
+  (chains : alloc.vec.Vec role_chains.Chain) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len chains
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        role_chains.Chain) chains index
+    let i1 := alloc.vec.Vec.len c.roles
+    if i1 < 2#usize
+    then ok false
+    else let i2 ← index + 1#usize
+         role_chains.long_from chains i2
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::pairs_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 872:0-885:1 -/
+def role_chains.pairs_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles.disjoint
+  if index < i
+  then
+    let pair ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        hierarchy.Disjoint) roles.disjoint index
+    let b ← role_chains.complex roles chains pair.left
+    if b
+    then ok false
+    else
+      let b1 ← role_chains.complex roles chains pair.right
+      if b1
+      then ok false
+      else let i1 ← index + 1#usize
+           role_chains.pairs_fit roles chains i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::facts_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 887:0-897:1 -/
+def role_chains.facts_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let b ← role_chains.fits roles chains f.concept
+    if b
+    then let i1 ← index + 1#usize
+         role_chains.facts_fit roles chains facts i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::definitions_fit]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 899:0-916:1 -/
+def role_chains.definitions_fit
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let b ← role_chains.spaced d.class
+    if b
+    then ok false
+    else
+      let b1 ← role_chains.fits roles chains d.concept
+      if b1
+      then
+        let i1 ← index + 1#usize
+        role_chains.definitions_fit roles chains definitions i1
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::encode_facts]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 918:0-945:1 -/
+def role_chains.encode_facts
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (out : alloc.vec.Vec completion.Fact) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × (alloc.vec.Vec completion.Fact)))
+  := do
+  let i := alloc.vec.Vec.len facts
+  if index < i
+  then
+    let f ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Fact) facts index
+    let o ← role_chains.encode roles chains f.concept true atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, concept) := t
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out { f with concept }
+        let i2 ← index + 1#usize
+        role_chains.encode_facts roles chains facts i2 atoms1 bases1 out1
+      else ok none
+  else ok (some (atoms, bases, out))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::encode_definitions]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 948:0-984:1 -/
+def role_chains.encode_definitions
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (bases : alloc.vec.Vec concepts.Concept)
+  (out : alloc.vec.Vec completion.Definition) :
+  Result (Option ((alloc.vec.Vec role_chains.Atom) × (alloc.vec.Vec
+    concepts.Concept) × (alloc.vec.Vec completion.Definition)))
+  := do
+  let i := alloc.vec.Vec.len definitions
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Definition) definitions index
+    let o ← role_chains.encode roles chains d.concept true atoms bases
+    match o with
+    | none => ok none
+    | some t =>
+      let (atoms1, bases1, concept) := t
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let i2 ← nnf.copy_iri d.class.iri
+        let out1 ←
+          alloc.vec.Vec.push out ({ «class» := { iri := i2 }, concept } :
+            completion.Definition)
+        let i3 ← index + 1#usize
+        role_chains.encode_definitions roles chains definitions i3 atoms1
+          bases1 out1
+      else ok none
+  else ok (some (atoms, bases, out))
+partial_fixpoint
+
+/-- [rowl_kernel::role_chains::satisfiable]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 989:0-1052:1
+    Visibility: public -/
+def role_chains.satisfiable
+  (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
+  (facts : alloc.vec.Vec completion.Fact)
+  (links : alloc.vec.Vec completion.Link) (axioms : concepts.Concept)
+  (definitions : alloc.vec.Vec completion.Definition)
+  (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
+  :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len chains
+  if i = 0#usize
+  then forest.satisfiable count query facts links axioms definitions roles
+  else
+    let b ← role_chains.long_from chains 0#usize
+    if b
+    then
+      let o ←
+        role_chains.copy_chains chains false 0#usize (alloc.vec.Vec.new
+          role_chains.Chain)
+      match o with
+      | none => ok none
+      | some copies =>
+        let o1 ← role_chains.copy_chains chains true 0#usize copies
+        match o1 with
+        | none => ok none
+        | some all =>
+          let b1 ← role_chains.pairs_fit roles all 0#usize
+          if b1
+          then
+            let b2 ← role_chains.fits roles all axioms
+            if b2
+            then
+              let b3 ← role_chains.facts_fit roles all query 0#usize
+              if b3
+              then
+                let b4 ← role_chains.facts_fit roles all facts 0#usize
+                if b4
+                then
+                  let b5 ←
+                    role_chains.definitions_fit roles all definitions 0#usize
+                  if b5
+                  then
+                    let o2 ←
+                      role_chains.encode roles all axioms true
+                        (alloc.vec.Vec.new role_chains.Atom) (alloc.vec.Vec.new
+                        concepts.Concept)
+                    match o2 with
+                    | none => ok none
+                    | some triple =>
+                      let (atoms, bases, axioms1) := triple
+                      let o3 ←
+                        role_chains.encode_facts roles all query 0#usize atoms
+                          bases (alloc.vec.Vec.new completion.Fact)
+                      match o3 with
+                      | none => ok none
+                      | some triple1 =>
+                        let (atoms1, bases1, query1) := triple1
+                        let o4 ←
+                          role_chains.encode_facts roles all facts 0#usize
+                            atoms1 bases1 (alloc.vec.Vec.new completion.Fact)
+                        match o4 with
+                        | none => ok none
+                        | some triple2 =>
+                          let (atoms2, bases2, facts1) := triple2
+                          let o5 ←
+                            role_chains.encode_definitions roles all
+                              definitions 0#usize atoms2 bases2
+                              (alloc.vec.Vec.new completion.Definition)
+                          match o5 with
+                          | none => ok none
+                          | some triple3 =>
+                            let (atoms3, bases3, definitions1) := triple3
+                            let o6 ←
+                              role_chains.generate roles all bases3 atoms3
+                                0#usize definitions1
+                            match o6 with
+                            | none => ok none
+                            | some pair =>
+                              let (_, definitions2) := pair
+                              forest.satisfiable count query1 facts1 links
+                                axioms1 definitions2 roles
+                  else ok none
+                else ok none
+              else ok none
+            else ok none
+          else ok none
+    else ok none
+
 /-- [rowl_kernel::roles::Role]
     Source: 'crates/rowl-kernel/src/roles.rs', lines 15:0-18:1
     Visibility: public -/

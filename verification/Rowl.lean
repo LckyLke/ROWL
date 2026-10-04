@@ -131,6 +131,10 @@ import Rowl.ForestInv
 import Rowl.ForestSteps
 import Rowl.Forest
 import Rowl.ForestModel
+import Rowl.ChainSemantics
+import Rowl.ChainOps
+import Rowl.ChainModel
+import Rowl.Chains
 import Rowl.ShiParts
 import Rowl.ShiRoles
 import Rowl.ShiEquality
