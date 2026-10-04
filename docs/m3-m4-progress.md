@@ -3542,3 +3542,43 @@ answers are unchanged.
 This block adds 13 public theorems and 3 independent definitions. Totals are
 1466 audited theorems, 854 definitions, 436 Rust regressions and 1659 ledger
 obligations.
+
+## Reasoner: new named nodes for counting through nominals
+
+A maximum restriction `≤n r.C` of a named node must not count a tree node that
+is not its child, since the model may repeat that node. The completion forest
+no longer gives up there: the rule for new named nodes (forest::name_rule,
+forest::guesses) guesses the number of neighbours along `r` that satisfy `C`,
+from 1 to `n`, and creates that many new named nodes (forest::named,
+forest::fresh_named, NamedMade): each with the seed `C`, an added edge from the
+node along `r`, pairwise different, and the guess as a bound on those
+neighbours (Cap, CapHolds). Once the bound exists, the rule (forest::capped_rule)
+merges the tree node with one of the first `bound` counted named neighbours,
+trying each pair not known to differ in turn. New named nodes get their seed
+like tree nodes (Seeded, forest::seeded), and a model of the forest gives
+seeds and bounds their meaning (Models).
+
+Every model of the restriction has an exact number of counted neighbours
+between 1 and `n` (exactly_between), so a rejection of every guess rules out
+every model, and a guess that a failure does not depend on is not retried
+(guesses_correct, named_rejected, name_rule_correct). With the bound, the
+counted named neighbours and the tree node are `bound + 1` neighbours in every
+model of the bound, so two of them coincide (capped_rule_correct). The run
+terminates because the measure now adds, for every maximum restriction of a
+named node without a bound, a weight that is the larger the earlier the node
+(nameWeight, nameUnit, nameBase); new named nodes come after the node that made
+them, so they and their own restrictions weigh less than the restriction that
+got its bound (named_measure), and every other step keeps that weight
+(nameWeight_eq, nameWeight_append). Named nodes may now be merged into each
+other with their added edges relinked, which the previous block proved.
+
+The forest now answers every random input of the tests with nominals of named
+individuals, also those whose models are infinite chains collapsing onto a
+named node's bounded neighbours, and the ontology queries decide maximum
+cardinalities of individuals that anonymous elements reach through value
+restrictions. No answer remains only when a bound has fewer counted named
+neighbours than it allows, which the tests never reach.
+
+This block adds 34 public theorems and 11 independent definitions. Totals are
+1500 audited theorems, 865 definitions, 438 Rust regressions and 1693 ledger
+obligations.

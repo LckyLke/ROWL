@@ -3,17 +3,19 @@ import Rowl.ForestOps
 /-!
 What the completion forest's run maintains and why it ends. The invariant
 keeps a well-formed table whose maximum restrictions record their complements
-and count along simple roles, roots exactly for the named individuals, each
-individual read through the merges as an active root, active tree nodes below
-active parents, clash-free labels of literals without repetitions, the
-expanded restrictions among the label, and edge roles from a finite list. The
-measure weights each active node by the room below it and the room left in
-its label and its expanded restrictions; pairwise blocking bounds the depth of
-an unblocked node by the number of different label pairs and role sets. A
-model of a forest under a set of branch points places every node so that the
-problem holds, each individual sits where its representative does, and the
-labels, tree edges, seeds, added edges and differences hold whenever the
-points they depend on are in the set.
+and count along simple roles, a named node for every individual, each
+individual read through the merges as an active named node, active tree nodes
+below active parents, clash-free labels of literals without repetitions, the
+expanded restrictions among the label, edge roles from a finite list, and
+bounds from new named nodes on existing nodes. The measure weights each active
+node by the room below it and the room left in its label and its expanded
+restrictions, and every maximum restriction of a named node without a bound
+from new named nodes by a weight that is the larger the earlier the node;
+pairwise blocking bounds the depth of an unblocked node by the number of
+different label pairs and role sets. A model of a forest under a set of branch
+points places every node so that the problem holds, each individual sits where
+its representative does, and the labels, tree edges, seeds, added edges,
+differences and bounds hold whenever the points they depend on are in the set.
 -/
 namespace Rowl.ForestInv
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -98,6 +100,7 @@ structure Shape (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : 
   literals : ∀ y, ∀ i ∈ labelOf F.nodes.val y, ∃ e, P.entries.val[i.val]? = some e ∧ Literal e
   clashFree : ∀ y, ∀ i ∈ labelOf F.nodes.val y, ∀ j ∈ labelOf F.nodes.val y, ∀ e e',
     P.entries.val[i.val]? = some e → P.entries.val[j.val]? = some e' → ¬ Complementary e e'
+  capsIn : ∀ cap ∈ F.caps.val, cap.node.val < F.nodes.val.length
 
 /-- What the run maintains: the shape, labels and expanded restrictions without
     repetitions, the expanded restrictions among the label, and edge roles from
@@ -130,24 +133,62 @@ def factor (P : completion.Problem) (F : forest.Forest) (y : Nat) : Nat :=
 noncomputable def weight (P : completion.Problem) (F : forest.Forest) (y : Nat) : Nat :=
   if Active F.nodes.val y then base P ^ (bound P + 2 - depth F y) * factor P F y else 0
 
-/-- The termination measure: the sum of the weights. -/
-noncomputable def measure (P : completion.Problem) (F : forest.Forest) : Nat :=
+/-- The weight of the tree: the sum of the weights of the nodes. -/
+noncomputable def treeMeasure (P : completion.Problem) (F : forest.Forest) : Nat :=
   ∑ y ∈ Finset.range F.nodes.val.length, weight P F y
+
+/-- The table entry `i` is a maximum restriction. -/
+def AtMostAt (P : completion.Problem) (i : Nat) : Prop := ∃ n r c c', P.entries.val[i]? = some (.AtMost n r c c')
+
+/-- The restriction `i` of node `y` has a bound from new named nodes. -/
+def Capped (F : forest.Forest) (y i : Nat) : Prop := ∃ cap ∈ F.caps.val, cap.node.val = y ∧ cap.restriction.val = i
+
+/-- The bound of a maximum restriction. -/
+def atMostCount : concept_table.Entry → Nat
+  | .AtMost n _ _ _ => n.val
+  | _ => 0
+
+/-- More than the weight that a new named node brings to the tree. -/
+def nameUnit (P : completion.Problem) : Nat := base P ^ (bound P + 2) * (2 * P.entries.val.length + 1) + 1
+
+/-- More than the number of new named nodes for one restriction times the
+    number of restrictions of the table, each of which may get its own. -/
+def nameBase (P : completion.Problem) : Nat := (P.entries.val.map atMostCount).sum * (P.entries.val.length + 1) + 1
+
+/-- The weight of the maximum restrictions of named nodes without a bound from
+    new named nodes yet: the earlier the node, the heavier, so that new named
+    nodes for one restriction weigh less than the restriction did. -/
+noncomputable def nameWeight (P : completion.Problem) (F : forest.Forest) : Nat :=
+  ∑ y ∈ Finset.range F.nodes.val.length, ∑ i ∈ Finset.range P.entries.val.length,
+    if Named F.nodes.val y ∧ AtMostAt P i ∧ ¬ Capped F y i then nameUnit P * nameBase P ^ (Usize.max - y) else 0
+
+/-- The termination measure: the weight of the tree and of the restrictions that
+    may still get new named nodes. -/
+noncomputable def measure (P : completion.Problem) (F : forest.Forest) : Nat := treeMeasure P F + nameWeight P F
 
 /-- `F'` grows `F`: the same nodes, edges, differences and representatives,
     with every old label contained in the new one. -/
 def Grows (F F' : forest.Forest) : Prop :=
   F'.nodes.val.length = F.nodes.val.length ∧ F'.edges = F.edges ∧ F'.distinct = F.distinct ∧ F'.same = F.same ∧
-  ∀ (y : Nat) (n : forest.Node), F.nodes.val[y]? = some n → ∃ n' : forest.Node, F'.nodes.val[y]? = some n' ∧
+  F'.caps = F.caps ∧ ∀ (y : Nat) (n : forest.Node), F.nodes.val[y]? = some n → ∃ n' : forest.Node, F'.nodes.val[y]? = some n' ∧
     n'.parent = n.parent ∧ n'.roles = n.roles ∧ n'.seed = n.seed ∧ n'.tree = n.tree ∧ n'.active = n.active ∧
     n'.done = n.done ∧ ∀ i ∈ n.label.val, i ∈ n'.label.val
+
+/-- A bound from new named nodes holds at the element of its node: at most
+    `bound` neighbours along the role of its restriction satisfy the filler. -/
+def CapHolds {Object : Type u} {Value : Type v} (entries : List concept_table.Entry)
+    (I : Interpretation Object Value) (π : Nat → Object) (cap : forest.Cap) : Prop :=
+  ∀ n r c c', entries[cap.restriction.val]? = some (.AtMost n r c c') →
+    Rowl.Owl.AtMost cap.bound.val
+      (fun y => objectRelation I r (π cap.node.val) y ∧ denote I (meaning entries c.val) y)
 
 /-- An interpretation with a placement of every node that holds under the branch
     points `D`: it respects the role hierarchy, the TBox concept and the
     unfoldings hold everywhere, every requirement and link holds for the
     individuals, each individual sits where its representative does, and the
-    labels, tree edges and seeds, added edges and differences hold when the
-    points they depend on are in `D`. -/
+    labels, tree edges and seeds, the seeds of new named nodes, added edges,
+    differences and bounds from new named nodes hold when the points they
+    depend on are in `D`. -/
 structure Models {Object : Type u} {Value : Type v} (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     (F : forest.Forest) (I : Interpretation Object Value) (π : Nat → Object) (D : List Usize) : Prop where
   respects : Respects I h
@@ -162,6 +203,9 @@ structure Models {Object : Type u} {Value : Type v} (P : completion.Problem) (h 
       denote I (meaning P.entries.val n.seed.val) (π y)
   edges : ∀ e ∈ F.edges.val, Sub e.deps.val D → objectRelation I e.role (π e.from.val) (π e.to.val)
   distinct : ∀ d ∈ F.distinct.val, Sub d.deps.val D → π d.left.val ≠ π d.right.val
+  seeds : ∀ (y : Nat) (n : forest.Node), F.nodes.val[y]? = some n → n.tree = false → F.same.val.length ≤ y →
+    Sub n.deps.val D → denote I (meaning P.entries.val n.seed.val) (π y)
+  caps : ∀ cap ∈ F.caps.val, Sub cap.deps.val D → CapHolds P.entries.val I π cap
 
 /-- A model of the forest, in any universes, that also has the extra entries at
     node `x` when the points `deps` are in `D`. -/
@@ -173,7 +217,7 @@ def FullModel (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest
 /-- Every branch point the forest depends on is below `fresh`. -/
 def FreshForest (F : forest.Forest) (fresh : Nat) : Prop :=
   (∀ y, ∀ k ∈ nodeDeps F y, k.val < fresh) ∧ (∀ e ∈ F.edges.val, ∀ k ∈ e.deps.val, k.val < fresh) ∧
-  (∀ d ∈ F.distinct.val, ∀ k ∈ d.deps.val, k.val < fresh)
+  (∀ d ∈ F.distinct.val, ∀ k ∈ d.deps.val, k.val < fresh) ∧ (∀ cap ∈ F.caps.val, ∀ k ∈ cap.deps.val, k.val < fresh)
 
 /-- What a run of the forest means: an acceptance comes with a complete forest
     that keeps the invariant, and a rejection with a set of branch points below
@@ -472,12 +516,12 @@ theorem neighbour_inside {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
 /-! ### Growing labels -/
 
 theorem grows_refl (F : forest.Forest) : Grows F F :=
-  ⟨rfl,rfl,rfl,rfl,fun _ n at_y => ⟨n,at_y,rfl,rfl,rfl,rfl,rfl,rfl,fun _ member => member⟩⟩
+  ⟨rfl,rfl,rfl,rfl,rfl,fun _ n at_y => ⟨n,at_y,rfl,rfl,rfl,rfl,rfl,rfl,fun _ member => member⟩⟩
 
 theorem grows_trans {F F' F'' : forest.Forest} (one : Grows F F') (two : Grows F' F'') : Grows F F'' := by
-  obtain ⟨length1,edges1,distinct1,same1,nodes1⟩ := one
-  obtain ⟨length2,edges2,distinct2,same2,nodes2⟩ := two
-  refine ⟨length2.trans length1,edges2.trans edges1,distinct2.trans distinct1,same2.trans same1,?_⟩
+  obtain ⟨length1,edges1,distinct1,same1,caps1,nodes1⟩ := one
+  obtain ⟨length2,edges2,distinct2,same2,caps2,nodes2⟩ := two
+  refine ⟨length2.trans length1,edges2.trans edges1,distinct2.trans distinct1,same2.trans same1,caps2.trans caps1,?_⟩
   intro y n at_y
   obtain ⟨n',at_y',parent1,roles1,seed1,tree1,active1,done1,label1⟩ := nodes1 y n at_y
   obtain ⟨n'',at_y'',parent2,roles2,seed2,tree2,active2,done2,label2⟩ := nodes2 y n' at_y'
@@ -489,7 +533,7 @@ theorem grows_back {F F' : forest.Forest} (grows : Grows F F') (y : Nat) (n' : f
       n'.parent = n.parent ∧ n'.roles = n.roles ∧ n'.seed = n.seed ∧ n'.tree = n.tree ∧ n'.active = n.active ∧
       n'.done = n.done ∧ ∀ i ∈ n.label.val, i ∈ n'.label.val := by
   have yIn : y < F.nodes.val.length := by rw [← grows.1]; exact (List.getElem?_eq_some_iff.mp at_y').1
-  obtain ⟨n'',at_y'',rest⟩ := grows.2.2.2.2 y F.nodes.val[y] (List.getElem?_eq_getElem yIn)
+  obtain ⟨n'',at_y'',rest⟩ := grows.2.2.2.2.2 y F.nodes.val[y] (List.getElem?_eq_getElem yIn)
   rw [at_y'] at at_y''
   cases at_y''
   exact ⟨_,List.getElem?_eq_getElem yIn,rest⟩
@@ -508,7 +552,7 @@ theorem grows_label {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
   | none => rw [at_y] at member; cases member
   | some n =>
     rw [at_y] at member
-    obtain ⟨n',at_y',_,_,_,_,_,_,labels⟩ := grows.2.2.2.2 y n at_y
+    obtain ⟨n',at_y',_,_,_,_,_,_,labels⟩ := grows.2.2.2.2.2 y n at_y
     rw [at_y']
     exact labels i member
 
@@ -518,7 +562,7 @@ theorem grows_done {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
   cases at_y : F.nodes.val[y]? with
   | none => rw [grows_none grows y at_y]
   | some n =>
-    obtain ⟨n',at_y',_,_,_,_,_,done,_⟩ := grows.2.2.2.2 y n at_y
+    obtain ⟨n',at_y',_,_,_,_,_,done,_⟩ := grows.2.2.2.2.2 y n at_y
     simp only [at_y',done]
 
 theorem grows_active {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
@@ -528,7 +572,7 @@ theorem grows_active {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
     obtain ⟨n,at_y,_,_,_,_,same,_⟩ := grows_back grows y n' at_y'
     exact ⟨n,at_y,by rw [← same]; exact active⟩
   · rintro ⟨n,at_y,active⟩
-    obtain ⟨n',at_y',_,_,_,_,same,_⟩ := grows.2.2.2.2 y n at_y
+    obtain ⟨n',at_y',_,_,_,_,same,_⟩ := grows.2.2.2.2.2 y n at_y
     exact ⟨n',at_y',by rw [same]; exact active⟩
 
 theorem grows_named {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
@@ -538,7 +582,7 @@ theorem grows_named {F F' : forest.Forest} (grows : Grows F F') (y : Nat) :
     obtain ⟨n,at_y,_,_,_,same,_⟩ := grows_back grows y n' at_y'
     exact ⟨n,at_y,by rw [← same]; exact named⟩
   · rintro ⟨n,at_y,named⟩
-    obtain ⟨n',at_y',_,_,_,same,_⟩ := grows.2.2.2.2 y n at_y
+    obtain ⟨n',at_y',_,_,_,same,_⟩ := grows.2.2.2.2.2 y n at_y
     exact ⟨n',at_y',by rw [same]; exact named⟩
 
 theorem grows_namedEnd {F F' : forest.Forest} (grows : Grows F F') (count y : Nat) :
@@ -555,7 +599,7 @@ theorem grows_treePath {F F' : forest.Forest} (grows : Grows F F') :
     cases at_y : F.nodes.val[y]? with
     | none => rw [grows_none grows y at_y]
     | some n =>
-      obtain ⟨n',at_y',parent,_,_,tree,_⟩ := grows.2.2.2.2 y n at_y
+      obtain ⟨n',at_y',parent,_,_,tree,_⟩ := grows.2.2.2.2.2 y n at_y
       rw [at_y']
       simp only [tree,parent]
       split
@@ -585,7 +629,7 @@ theorem inv_grows {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count 
   refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,
       by rw [grows.1]; exact shape.countIn,by rw [grows.2.2.2.1]; exact shape.sameLength,?_,?_,?_,shape.links,
       shape.requirements,?_,by rw [grows.2.2.1,grows.1]; exact shape.distinctIn,
-      literals,clashFree⟩,nodup,?_,?_,?_⟩
+      literals,clashFree,by rw [grows.2.2.2.2.1,grows.1]; exact shape.capsIn⟩,nodup,?_,?_,?_⟩
   · intro y n' at_y'
     obtain ⟨n,at_y,_,_,_,tree,_⟩ := grows_back grows y n' at_y'
     rw [tree]
@@ -607,7 +651,7 @@ theorem inv_grows {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count 
     obtain ⟨toIn,fromCases⟩ := shape.edges e member
     refine ⟨(grows_namedEnd grows count _).mpr toIn,fromCases.imp (grows_namedEnd grows count _).mpr ?_⟩
     rintro ⟨n,at_n,tree⟩
-    obtain ⟨n',at_n',_,_,_,tree',_⟩ := grows.2.2.2.2 _ n at_n
+    obtain ⟨n',at_n',_,_,_,tree',_⟩ := grows.2.2.2.2.2 _ n at_n
     exact ⟨n',at_n',by rw [tree',tree]⟩
   · intro y
     rw [grows_done grows y]
@@ -665,7 +709,7 @@ theorem insert_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count
   have grows : Grows F { F with nodes := (F.nodes.set x
       ⟨label,F.nodes.val[x.val].parent,F.nodes.val[x.val].roles,F.nodes.val[x.val].seed,
         F.nodes.val[x.val].tree,F.nodes.val[x.val].active,F.nodes.val[x.val].done,joined⟩) } := by
-    refine ⟨length,rfl,rfl,rfl,?_⟩
+    refine ⟨length,rfl,rfl,rfl,rfl,?_⟩
     intro y n at_y
     by_cases same : y = x.val
     · subst same
@@ -958,11 +1002,72 @@ theorem weight_lt_grows (P : completion.Problem) {F F' : forest.Forest} (grows :
   rw [grows_done grows y]
   omega
 
+/-- The weight of the restrictions that may still get new named nodes depends
+    only on the named nodes and the bounds from new named nodes. -/
+theorem nameWeight_eq (P : completion.Problem) {F F' : forest.Forest}
+    (length : F'.nodes.val.length = F.nodes.val.length) (named : ∀ y, Named F'.nodes.val y ↔ Named F.nodes.val y)
+    (caps : F'.caps = F.caps) : nameWeight P F' = nameWeight P F := by
+  have capped : ∀ y i, Capped F' y i ↔ Capped F y i := by
+    intro y i
+    unfold Capped
+    rw [caps]
+  unfold nameWeight
+  rw [length]
+  apply Finset.sum_congr rfl
+  intro y _
+  apply Finset.sum_congr rfl
+  intro i _
+  by_cases cond : Named F.nodes.val y ∧ AtMostAt P i ∧ ¬ Capped F y i
+  · rw [if_pos ⟨(named y).mpr cond.1,cond.2.1,fun c => cond.2.2 ((capped y i).mp c)⟩,if_pos cond]
+  · rw [if_neg (fun c' => cond ⟨(named y).mp c'.1,c'.2.1,fun c => c'.2.2 ((capped y i).mpr c)⟩),if_neg cond]
+
+/-- New nodes that are no named nodes add no weight to the restrictions that may
+    still get new named nodes. -/
+theorem nameWeight_append (P : completion.Problem) {F F' : forest.Forest}
+    (longer : F.nodes.val.length ≤ F'.nodes.val.length)
+    (named : ∀ y, y < F.nodes.val.length → (Named F'.nodes.val y ↔ Named F.nodes.val y))
+    (fresh : ∀ y, F.nodes.val.length ≤ y → ¬ Named F'.nodes.val y) (caps : F'.caps = F.caps) :
+    nameWeight P F' = nameWeight P F := by
+  have capped : ∀ y i, Capped F' y i ↔ Capped F y i := by
+    intro y i
+    unfold Capped
+    rw [caps]
+  unfold nameWeight
+  rw [← Finset.sum_range_add_sum_Ico _ longer]
+  have zero : ∑ y ∈ Finset.Ico F.nodes.val.length F'.nodes.val.length, ∑ i ∈ Finset.range P.entries.val.length,
+      (if Named F'.nodes.val y ∧ AtMostAt P i ∧ ¬ Capped F' y i then nameUnit P * nameBase P ^ (Usize.max - y)
+        else 0) = 0 := by
+    apply Finset.sum_eq_zero
+    intro y member
+    apply Finset.sum_eq_zero
+    intro i _
+    exact if_neg (fun ⟨isNamed,_⟩ => fresh y (Finset.mem_Ico.mp member).1 isNamed)
+  rw [zero,Nat.add_zero]
+  apply Finset.sum_congr rfl
+  intro y member
+  apply Finset.sum_congr rfl
+  intro i _
+  have same := named y (Finset.mem_range.mp member)
+  by_cases cond : Named F.nodes.val y ∧ AtMostAt P i ∧ ¬ Capped F y i
+  · rw [if_pos ⟨same.mpr cond.1,cond.2.1,fun c => cond.2.2 ((capped y i).mp c)⟩,if_pos cond]
+  · rw [if_neg (fun c' => cond ⟨same.mp c'.1,c'.2.1,fun c => c'.2.2 ((capped y i).mpr c)⟩),if_neg cond]
+
+theorem treeMeasure_le_grows (P : completion.Problem) {F F' : forest.Forest} (grows : Grows F F')
+    (nodup : ∀ y, (labelOf F.nodes.val y).Nodup) : treeMeasure P F' ≤ treeMeasure P F := by
+  unfold treeMeasure
+  rw [grows.1]
+  exact Finset.sum_le_sum (fun y _ => weight_le_grows P grows y (nodup y))
+
+theorem nameWeight_grows (P : completion.Problem) {F F' : forest.Forest} (grows : Grows F F') :
+    nameWeight P F' = nameWeight P F :=
+  nameWeight_eq P grows.1 (grows_named grows) grows.2.2.2.2.1
+
 theorem measure_le_grows (P : completion.Problem) {F F' : forest.Forest} (grows : Grows F F')
     (nodup : ∀ y, (labelOf F.nodes.val y).Nodup) : measure P F' ≤ measure P F := by
   unfold measure
-  rw [grows.1]
-  exact Finset.sum_le_sum (fun y _ => weight_le_grows P grows y (nodup y))
+  rw [nameWeight_grows P grows]
+  have := treeMeasure_le_grows P grows nodup
+  omega
 
 /-- Growing the label of an active node strictly decreases the measure. -/
 theorem measure_lt_label {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat}
@@ -970,6 +1075,9 @@ theorem measure_lt_label {P : completion.Problem} {h : hierarchy.RoleHierarchy} 
     (active : Active F.nodes.val x) (longer : (labelOf F.nodes.val x).length < (labelOf F'.nodes.val x).length) :
     measure P F' < measure P F := by
   unfold measure
+  rw [nameWeight_grows P grows]
+  suffices treeMeasure P F' < treeMeasure P F by omega
+  unfold treeMeasure
   rw [grows.1]
   apply Finset.sum_lt_sum
   · intro y _
@@ -989,7 +1097,7 @@ theorem models_transfer {Object : Type u} {Value : Type v} {P : completion.Probl
     (models : Models P h F I π D) : Models P h F I π D' := by
   have lift : ∀ X : List Usize, (∀ k ∈ X, k.val < fresh) → Sub X D' → Sub X D :=
     fun X below sub k member => within k (below k member) (sub k member)
-  refine ⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_⟩
+  refine ⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,?_⟩
   · intro a sub
     exact models.same a (lift _ (freshF.1 _) sub)
   · intro y sub
@@ -1002,7 +1110,14 @@ theorem models_transfer {Object : Type u} {Value : Type v} {P : completion.Probl
   · intro e member sub
     exact models.edges e member (lift _ (freshF.2.1 e member) sub)
   · intro d member sub
-    exact models.distinct d member (lift _ (freshF.2.2 d member) sub)
+    exact models.distinct d member (lift _ (freshF.2.2.1 d member) sub)
+  · intro y n at_y named beyond sub
+    apply models.seeds y n at_y named beyond
+    apply lift _ _ sub
+    intro k member
+    exact freshF.1 y k (by simp [nodeDeps,at_y,member])
+  · intro cap member sub
+    exact models.caps cap member (lift _ (freshF.2.2.2 cap member) sub)
 
 theorem fullModel_drop (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) (x : Nat)
     (c : Usize) (rest deps D : List Usize) :
@@ -1063,7 +1178,7 @@ theorem fullModel_insert (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
       rw [other y same]
       exact listed
   refine ⟨Object,Value,I,π,⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,
-    ?_,?_,?_,models.edges,models.distinct⟩,fun sub c member => extra sub c (List.mem_cons_of_mem _ member)⟩
+    ?_,?_,?_,models.edges,models.distinct,?_,models.caps⟩,fun sub c member => extra sub c (List.mem_cons_of_mem _ member)⟩
   · intro a sub
     exact models.same a (depsAt _ sub).1
   · intro y sub i member
@@ -1088,6 +1203,15 @@ theorem fullModel_insert (P : completion.Problem) (h : hierarchy.RoleHierarchy) 
       exact models.tree _ F.nodes.val[x.val] at_x isTree (by rw [← oldDeps]; exact oldSub)
     · rw [other y same] at at_y
       exact models.tree y n at_y isTree sub
+  · intro y n at_y named beyond sub
+    by_cases same : y = x.val
+    · subst same
+      rw [here] at at_y
+      cases at_y
+      have oldSub := (depsAt _ (by simp only [nodeDeps]; rw [here]; exact sub)).1
+      exact models.seeds _ F.nodes.val[x.val] at_x named beyond (by rw [← oldDeps]; exact oldSub)
+    · rw [other y same] at at_y
+      exact models.seeds y n at_y named beyond sub
 
 /-- In a model, a neighbour along `r` is reached along `r` when the points of
     the two nodes and of the added edges at `x` are in `D`. -/
@@ -1136,7 +1260,7 @@ theorem needs_hold {Object : Type u} {Value : Type v} {P : completion.Problem} {
     (needs : AddNeeds P h F y.val c) (cover : ∀ z, Near P F y.val z → Sub (nodeDeps F z) D)
     (edgeCover : ∀ e ∈ F.edges.val, (rep F e.from = y ∨ rep F e.to = y) → Sub e.deps.val D) :
     denote I (meaning P.entries.val c.val) (π y.val) := by
-  rcases needs with ⟨_,⟨q,member,node,rfl⟩ | rfl | ⟨w,member,⟨i,listed,at_i⟩,rfl⟩ | ⟨n,at_y,tree,rfl⟩⟩ |
+  rcases needs with ⟨_,⟨q,member,node,rfl⟩ | rfl | ⟨w,member,⟨i,listed,at_i⟩,rfl⟩ | ⟨n,at_y,seeded,rfl⟩⟩ |
       ⟨child,n,at_child,tree,active,_,s,role,⟨rfl,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ |
       ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩ | ⟨l,member,_,_,⟨here,edgeNeeds⟩ | ⟨here,edgeNeeds⟩⟩
   · have := models.requirements q member
@@ -1145,7 +1269,11 @@ theorem needs_hold {Object : Type u} {Value : Type v} {P : completion.Problem} {
   · apply models.unfoldings w member
     have := models.labels y.val (cover y.val (.inl rfl)) i listed
     rwa [meaning_at P.entries.val wf i.val _ at_i] at this
-  · exact (models.tree y.val n at_y tree (by simpa [nodeDeps,at_y] using cover y.val (.inl rfl))).2
+  · -- The seed, of a tree node or of a new named node.
+    cases treeIs : n.tree
+    · exact models.seeds y.val n at_y treeIs (seeded.resolve_left (by simp [treeIs]))
+        (by simpa [nodeDeps,at_y] using cover y.val (.inl rfl))
+    · exact (models.tree y.val n at_y treeIs (by simpa [nodeDeps,at_y] using cover y.val (.inl rfl))).2
   · -- The tree edge into `y` from its parent.
     have parentNear : Near P F y.val n.parent.val := .inr (.inl ⟨n,at_child,tree,rfl⟩)
     exact edge_need_holds I h models.respects P.entries.val wf _ s c (π n.parent.val) (π y.val)

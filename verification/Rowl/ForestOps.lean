@@ -133,12 +133,41 @@ theorem copy_distinct_correct (distinct : alloc.vec.Vec forest.Distinct) (index 
 termination_by distinct.val.length - index.val
 decreasing_by omega
 
+theorem copy_caps_correct (caps : alloc.vec.Vec forest.Cap) (index : Usize)
+    (out : alloc.vec.Vec forest.Cap) (copied : out.val = caps.val.take index.val)
+    (inside : index.val ≤ caps.val.length) : forest.copy_caps caps index out = .ok caps := by
+  rw [forest.copy_caps]
+  by_cases more : index.val < caps.val.length
+  · have lookup : caps.index_usize index = .ok caps.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := caps.property; scalar_tac
+    have depsCopy := copy_label_correct caps.val[index.val].deps 0#usize (alloc.vec.Vec.new Usize) (by simp)
+      (by simp)
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out caps.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_caps_correct caps next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,depsCopy,push,advance,rest]
+  · have full : index.val = caps.val.length := by omega
+    have same : out = caps := by
+      apply (alloc.vec.Vec.eq_iff out caps).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by caps.val.length - index.val
+decreasing_by omega
+
 /-- Copying the forest reproduces it exactly. -/
 theorem copy_forest_correct (F : forest.Forest) : forest.copy_forest F = .ok F := by
   rw [forest.copy_forest,copy_nodes_correct F.nodes 0#usize _ (by simp) (by simp),
     copy_edges_correct F.edges 0#usize _ (by simp) (by simp),
     copy_distinct_correct F.distinct 0#usize _ (by simp) (by simp),
-    copy_label_correct F.same 0#usize _ (by simp) (by simp)]
+    copy_label_correct F.same 0#usize _ (by simp) (by simp),
+    copy_caps_correct F.caps 0#usize _ (by simp) (by simp)]
   simp only [bind_ok]
 
 /-- Adding an item to the label of a node in range: the label gets the item and
@@ -380,6 +409,141 @@ theorem pairwise_correct (F : forest.Forest) (x : Usize) (deps : alloc.vec.Vec U
       · omega
 termination_by F.nodes.val.length - x.val
 decreasing_by all_goals omega
+
+/-- A new named node for a restriction of `x`, with the seed `filler` and the
+    points `deps`. -/
+def freshNode (x filler : Usize) (deps : alloc.vec.Vec Usize) : forest.Node :=
+  ⟨alloc.vec.Vec.new Usize,x,alloc.vec.Vec.new ObjectPropertyExpression,filler,false,true,alloc.vec.Vec.new Usize,deps⟩
+
+/-- Creating new named nodes appends `count` of them, each with an added edge
+    from `x` along `role`. -/
+theorem fresh_named_correct (F : forest.Forest) (x : Usize) (role : ObjectPropertyExpression) (filler : Usize)
+    (deps : alloc.vec.Vec Usize) (count : Usize) :
+    ∃ r, forest.fresh_named F x role filler deps count = .ok r ∧ ∀ F', r = some F' →
+      F'.nodes.val = F.nodes.val ++ List.replicate count.val (freshNode x filler deps) ∧
+      (∀ e ∈ F'.edges.val, e ∈ F.edges.val ∨ (e.role = role ∧ e.from = x ∧ F.nodes.val.length ≤ e.to.val ∧
+        e.to.val < F.nodes.val.length + count.val ∧ e.deps = deps)) ∧
+      F'.distinct = F.distinct ∧ F'.same = F.same ∧ F'.caps = F.caps := by
+  rw [forest.fresh_named]
+  by_cases positive : count > 0#usize
+  · have countPositive : 0 < count.val := by
+      have := positive; simp [GT.gt,UScalar.lt_equiv] at this; omega
+    by_cases room : F.nodes.val.length < Usize.max
+    · by_cases edgeRoom : F.edges.val.length < Usize.max
+      · have depsCopy := copy_label_correct deps 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)
+        obtain ⟨nodes1,nodesPush,nodesContents⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec F.nodes (freshNode x filler deps) room)
+        obtain ⟨edges1,edgesPush,edgesContents⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec F.edges ⟨role,x,F.nodes.len,deps⟩ edgeRoom)
+        obtain ⟨less,lower,lowerValue⟩ := WP.spec_imp_exists (Usize.sub_spec (x := count) (y := 1#usize)
+          (by scalar_tac))
+        have lessIs : less.val = count.val - 1 := by simp at lowerValue; omega
+        obtain ⟨r,run,spec⟩ := fresh_named_correct { F with nodes := nodes1, edges := edges1 } x role filler deps less
+        refine ⟨r,?_,?_⟩
+        · simp only [positive,↓reduceIte,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room,edgeRoom,
+            copy_role_identity,bind_ok,depsCopy]
+          simp only [freshNode] at nodesPush
+          simp [nodesPush,edgesPush,lower,run]
+        · intro F' same
+          obtain ⟨nodesIs,edgesSpec,distinct,sameIs,caps⟩ := spec F' same
+          have nodes1Length : nodes1.val.length = F.nodes.val.length + 1 := by rw [nodesContents]; simp
+          refine ⟨?_,?_,distinct,sameIs,caps⟩
+          · rw [nodesIs,nodesContents,lessIs,List.append_assoc]
+            congr 1
+            cases hc : count.val with
+            | zero => omega
+            | succ k => simp [List.replicate_succ]
+          · intro e member
+            rcases edgesSpec e member with old | ⟨roleIs,fromIs,low,high,depsIs⟩
+            · simp only at old
+              rw [edgesContents] at old
+              rcases List.mem_append.mp old with older | new
+              · exact .inl older
+              · rw [List.mem_singleton] at new
+                subst new
+                refine .inr ⟨rfl,rfl,by simp [alloc.vec.Vec.len_val],?_,rfl⟩
+                simp [alloc.vec.Vec.len_val]
+                omega
+            · simp only at low high
+              rw [nodes1Length] at low high
+              exact .inr ⟨roleIs,fromIs,by omega,by omega,depsIs⟩
+      · refine ⟨none,?_,by simp⟩
+        simp [positive,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room,edgeRoom]
+    · refine ⟨none,?_,by simp⟩
+      simp [positive,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room]
+  · have zero : count.val = 0 := by
+      simp [GT.gt,UScalar.lt_equiv] at positive; omega
+    refine ⟨some F,by simp [positive],?_⟩
+    intro F' same
+    cases same
+    refine ⟨by simp [zero],fun e member => .inl member,rfl,rfl,rfl⟩
+termination_by count.val
+decreasing_by omega
+
+/-- `F'` has `count` new named nodes for the restriction `i` of `x`, after the
+    old nodes: each with the seed `filler`, the points `deps` and an added edge
+    from `x` along `role`, pairwise different, and the bound `count` on the
+    neighbours that the restriction counts. -/
+structure NamedMade (F F' : forest.Forest) (x i : Usize) (role : ObjectPropertyExpression) (filler : Usize)
+    (count : Nat) (deps : alloc.vec.Vec Usize) : Prop where
+  nodes : F'.nodes.val = F.nodes.val ++ List.replicate count (freshNode x filler deps)
+  edges : ∀ e ∈ F'.edges.val, e ∈ F.edges.val ∨ (e.role = role ∧ e.from = x ∧ F.nodes.val.length ≤ e.to.val ∧
+    e.to.val < F.nodes.val.length + count ∧ e.deps = deps)
+  distinct : ∀ d, d ∈ F'.distinct.val ↔ d ∈ F.distinct.val ∨ (F.nodes.val.length ≤ d.left.val ∧
+    d.left.val < d.right.val ∧ d.right.val < F.nodes.val.length + count ∧ d.deps = deps)
+  same : F'.same = F.same
+  caps : ∀ cap, cap ∈ F'.caps.val ↔ cap ∈ F.caps.val ∨
+    (cap.node = x ∧ cap.restriction = i ∧ cap.bound.val = count ∧ cap.deps = deps)
+  capped : ∃ cap ∈ F'.caps.val, cap.node = x ∧ cap.restriction = i
+
+/-- Making the new named nodes of a restriction. -/
+theorem named_correct (F : forest.Forest) (x i : Usize) (role : ObjectPropertyExpression) (filler count : Usize)
+    (deps : alloc.vec.Vec Usize) :
+    ∃ r, forest.named F x i role filler count deps = .ok r ∧ ∀ F', r = some F' →
+      NamedMade F F' x i role filler count.val deps := by
+  rw [forest.named]
+  obtain ⟨r1,run1,spec1⟩ := fresh_named_correct F x role filler deps count
+  cases r1 with
+  | none => exact ⟨none,by simp [run1],by simp⟩
+  | some G1 =>
+  obtain ⟨nodes1,edges1,distinct1,same1,caps1⟩ := spec1 G1 rfl
+  obtain ⟨r2,run2,spec2⟩ := pairwise_correct G1 F.nodes.len deps
+  cases r2 with
+  | none => exact ⟨none,by simp [run1,run2],by simp⟩
+  | some G2 =>
+  obtain ⟨distinct,G2Is,distinctIs⟩ := spec2 G2 rfl
+  subst G2Is
+  by_cases room : G1.caps.val.length < Usize.max
+  · have depsCopy := copy_label_correct deps 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)
+    obtain ⟨caps,capsPush,capsContents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec G1.caps ⟨x,i,count,deps⟩ room)
+    refine ⟨some { G1 with distinct := distinct, caps := caps },?_,?_⟩
+    · simp [run1,run2,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room,depsCopy,capsPush]
+    · intro F' same
+      cases same
+      have length1 : G1.nodes.val.length = F.nodes.val.length + count.val := by rw [nodes1]; simp
+      refine ⟨nodes1,edges1,?_,same1,?_,⟨x,i,count,deps⟩,by rw [capsContents]; simp,rfl,rfl⟩
+      · intro d
+        simp only
+        rw [distinctIs d,distinct1,length1]
+        simp [alloc.vec.Vec.len_val]
+      · intro cap
+        simp only
+        rw [capsContents,caps1]
+        simp only [List.mem_append,List.mem_singleton]
+        constructor
+        · rintro (old | rfl)
+          · exact .inl old
+          · exact .inr ⟨rfl,rfl,rfl,rfl⟩
+        · rintro (old | ⟨node,restriction,bound,depsIs⟩)
+          · exact .inl old
+          · refine .inr ?_
+            cases cap
+            simp only at node restriction bound depsIs
+            subst node restriction depsIs
+            rw [show count = _ from UScalar.eq_of_val_eq bound.symm]
+  · refine ⟨none,?_,by simp⟩
+    simp [run1,run2,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,room]
 
 /-- The branch points the node `y` depends on. -/
 def nodeDeps (F : forest.Forest) (y : Nat) : List Usize :=

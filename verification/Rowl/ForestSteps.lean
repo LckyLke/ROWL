@@ -1,16 +1,20 @@
 import Rowl.ForestInv
 
 /-!
-The two steps of the completion forest that change its structure, proved to
-keep the invariant, to decrease the measure and to carry models over.
-Expanding an existential or minimum restriction of an unblocked node appends
-its children with their seed, pairwise different, and marks the restriction as
-expanded; a model of the restriction provides different witnesses for the
-children. Merging a neighbour `source` of `x` into a neighbour `into` hands the
-edge of `source` over to `into`, gives `into` the differences of `source`,
-deactivates `source` with its subtree and makes `into` depend on the points of
-the merge; a model that places both on one element models the merged forest
-with the label of `source` at `into`.
+The steps of the completion forest that change its structure, proved to keep
+the invariant, to decrease the measure and to carry models over. Expanding an
+existential or minimum restriction of an unblocked node appends its children
+with their seed, pairwise different, and marks the restriction as expanded; a
+model of the restriction provides different witnesses for the children.
+Merging a neighbour `source` of `x` into a neighbour `into` hands the edge of
+`source` over to `into`, gives `into` the differences of `source`, deactivates
+`source` with its subtree and makes `into` depend on the points of the merge; a
+model that places both on one element models the merged forest with the label
+of `source` at `into`. New named nodes for a maximum restriction of a named
+node come after the old nodes, pairwise different, with an added edge from the
+node and a bound on its counted neighbours; the restriction loses more weight
+than they bring, and a model where the node has exactly as many counted
+neighbours as new nodes places them there.
 -/
 namespace Rowl.ForestSteps
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -41,6 +45,7 @@ structure Created (F F' : forest.Forest) (x i : Usize) (role : ObjectPropertyExp
   length : F'.nodes.val.length = F.nodes.val.length + count
   edges : F'.edges = F.edges
   same : F'.same = F.same
+  caps : F'.caps = F.caps
   old : ∀ y, y ≠ x.val → y < F.nodes.val.length → F'.nodes.val[y]? = F.nodes.val[y]?
   here : ∃ done : alloc.vec.Vec Usize, done.val = nx.done.val ++ [i] ∧ F'.nodes.val[x.val]? = some { nx with done := done }
   new : ∃ roles : alloc.vec.Vec ObjectPropertyExpression, roles.val = [role] ∧ ∀ k < count,
@@ -94,7 +99,7 @@ theorem expanded_correct (entries : alloc.vec.Vec concept_table.Entry) (F : fore
           room,alloc.vec.Vec.index_mut_slice_index,alloc.vec.Vec.index_mut_usize,push]
       · intro F' same
         cases same
-        refine ⟨e,role,filler,count,F.nodes.val[x.val],rfl,gen,⟨at_x,?_,rfl,rfl,?_,?_,?_,?_⟩⟩
+        refine ⟨e,role,filler,count,F.nodes.val[x.val],rfl,gen,⟨at_x,?_,rfl,rfl,rfl,?_,?_,?_,?_⟩⟩
         · simp [alloc.vec.Vec.set_val_eq,nodesIs]
         · intro y different yIn
           simp only [alloc.vec.Vec.set_val_eq]
@@ -303,7 +308,7 @@ theorem created_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {coun
   have shape := inv.shape
   have countIn := shape.countIn
   refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,?_,?_,?_,?_,?_,
-    shape.links,shape.requirements,?_,?_,?_,?_⟩,?_,?_,?_,?_⟩
+    shape.links,shape.requirements,?_,?_,?_,?_,?_⟩,?_,?_,?_,?_⟩
   · intro y n' at_y'
     rcases created_lookup created y n' at_y' with ⟨_,_,at_y⟩ | ⟨rfl,done,_,rfl⟩ | ⟨low,_,roles,_,rfl⟩
     · exact shape.named y n' at_y
@@ -362,6 +367,11 @@ theorem created_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {coun
       exact shape.clashFree y j member k listed' e e' at_j at_k
     · rw [if_neg yIn] at member
       cases member
+  · intro cap member
+    rw [created.caps] at member
+    rw [created.length]
+    have := shape.capsIn cap member
+    omega
   · intro y
     rw [created_label created y]
     split
@@ -409,7 +419,7 @@ theorem created_fresh {F F' : forest.Forest} {x i : Usize} {role : ObjectPropert
     {cnt : Nat} {nx : forest.Node} (created : Created F F' x i role filler cnt nx) {fresh : Nat}
     (freshF : FreshForest F fresh) : FreshForest F' fresh := by
   have depsX : nodeDeps F x.val = nx.deps.val := by simp [nodeDeps,created.at_x]
-  refine ⟨?_,?_,?_⟩
+  refine ⟨?_,?_,?_,?_⟩
   · intro y k member
     rw [created_deps created y] at member
     split at member
@@ -421,9 +431,11 @@ theorem created_fresh {F F' : forest.Forest} {x i : Usize} {role : ObjectPropert
     exact freshF.2.1
   · intro d member k kIn
     rcases (created.distinct d).mp member with old | ⟨_,_,_,depsIs⟩
-    · exact freshF.2.2 d old k kIn
+    · exact freshF.2.2.1 d old k kIn
     · rw [depsIs] at kIn
       exact freshF.1 x.val k (by rw [depsX]; exact kIn)
+  · rw [created.caps]
+    exact freshF.2.2.2
 
 /-- Expanding a restriction of an active unblocked node decreases the measure:
     the node loses the room of one restriction, worth more than all the new
@@ -519,8 +531,17 @@ theorem created_measure {P : completion.Problem} {h : hierarchy.RoleHierarchy} {
     calc cnt * (base P ^ (bound P + 2 - (depth F x.val + 1)) * (2 * P.entries.val.length + 1))
         = (cnt * (2 * P.entries.val.length + 1)) * base P ^ (bound P + 2 - (depth F x.val + 1)) := by ring
       _ < base P * base P ^ (bound P + 2 - (depth F x.val + 1)) := Nat.mul_lt_mul_of_pos_right small positive
-  unfold ForestInv.measure
-  rw [created.length,Finset.sum_range_add,newSum]
+  have names : nameWeight P F' = nameWeight P F := by
+    apply nameWeight_append P (by rw [created.length]; omega) (fun y yIn => created_named created y yIn) _
+      created.caps
+    intro y low named
+    obtain ⟨m,at_y,root⟩ := named
+    rcases created_lookup created y m at_y with ⟨yIn,_,_⟩ | ⟨rfl,_⟩ | ⟨_,_,roles,_,rfl⟩
+    · omega
+    · omega
+    · simp [child] at root
+  unfold ForestInv.measure treeMeasure
+  rw [names,created.length,Finset.sum_range_add,newSum]
   omega
 
 /-- A model of the forest where the expanded restriction holds at the node has
@@ -551,7 +572,7 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
   let π' : Nat → Object := fun y => if y < F.nodes.val.length then π y else f (y - F.nodes.val.length)
   have old : ∀ y, y < F.nodes.val.length → π' y = π y := fun y yIn => by simp [π',yIn]
   have countIn := shape.countIn
-  refine ⟨π',⟨models.respects,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_⟩⟩
+  refine ⟨π',⟨models.respects,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩⟩
   · intro q listed
     rw [old _ (by have := shape.requirements q listed; omega)]
     exact models.requirements q listed
@@ -621,6 +642,21 @@ theorem created_models {Object : Type u} {Value : Type v} {P : completion.Proble
       intro same
       have := injective _ (by omega) _ (by omega) same
       omega
+  · intro y n' at_y' named beyond sub
+    rw [created.same] at beyond
+    rcases created_lookup created y n' at_y' with ⟨yIn,_,at_y⟩ | ⟨rfl,done,_,rfl⟩ | ⟨low,high,roles,rolesIs,rfl⟩
+    · rw [old y yIn]
+      exact models.seeds y n' at_y named beyond sub
+    · dsimp only at named sub ⊢
+      rw [old _ xIn]
+      exact models.seeds x.val nx created.at_x named beyond sub
+    · simp [child] at named
+  · intro cap member sub
+    rw [created.caps] at member
+    have capIn := shape.capsIn cap member
+    intro n r c c' at_i
+    rw [old _ capIn]
+    exact models.caps cap member sub n r c c' at_i
 
 /-! ### Merging two neighbours -/
 
@@ -674,6 +710,7 @@ structure Moved (F G : forest.Forest) (source into : Nat) (joined : List Usize) 
   sameLength : G.same.val.length = F.same.val.length
   same : ∀ (a : Nat) (b : Usize), G.same.val[a]? = some b → ∃ b0 : Usize, F.same.val[a]? = some b0 ∧
     ((b0.val ≠ source ∧ b = b0) ∨ (b0.val = source ∧ b.val = into ∧ Named F.nodes.val into))
+  caps : G.caps = F.caps
 
 /-- The individuals are never read as a tree node. -/
 theorem same_not_tree {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F : forest.Forest}
@@ -701,7 +738,7 @@ theorem moved_of_set {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     ⟨F.nodes.val[y.val].label,F.nodes.val[y.val].parent,roles,F.nodes.val[y.val].seed,F.nodes.val[y.val].tree,
       F.nodes.val[y.val].active,F.nodes.val[y.val].done,deps⟩
   refine ⟨length,rfl,?_,fun e member => .inl ⟨member,fun named => absurd named (tree_not_named at_s sourceTree)⟩,
-    rfl,?_⟩
+    rfl,?_,rfl⟩
   · intro z n at_z
     by_cases same : z = y.val
     · subst same
@@ -725,7 +762,7 @@ theorem moved_carried {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
   refine ⟨r,run,?_⟩
   intro G same
   obtain ⟨edges,rfl,_,origin⟩ := spec G same
-  refine ⟨moved.length,moved.distinct,moved.node,?_,moved.sameLength,moved.same⟩
+  refine ⟨moved.length,moved.distinct,moved.node,?_,moved.sameLength,moved.same,moved.caps⟩
   intro e member
   rcases origin e member with old | ⟨e0,e0In,e0From,eFrom,eTo,eRole,eDeps⟩
   · exact moved.edges e old
@@ -824,7 +861,7 @@ theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
       | some G1 =>
         obtain ⟨_,edges,edgesIs,rfl⟩ := spec _ rfl
         have moved1 : Moved F { F with edges := edges } source.val into.val joined.val := by
-          refine ⟨rfl,rfl,?_,?_,rfl,?_⟩
+          refine ⟨rfl,rfl,?_,?_,rfl,?_,rfl⟩
           · intro z n at_z
             exact ⟨n,at_z,rfl,rfl,rfl,rfl,rfl,rfl,fun k member => member,fun k member => .inl member,
               fun s member => .inl member⟩
@@ -901,7 +938,7 @@ theorem moved_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {co
     refine ⟨some { F with same := same', edges := edges },by simp [run,runEdges],?_⟩
     intro G same
     cases same
-    refine ⟨rfl,rfl,?_,?_,by simp [sameIs],?_⟩
+    refine ⟨rfl,rfl,?_,?_,by simp [sameIs],?_,rfl⟩
     · intro z n at_z
       exact ⟨n,at_z,rfl,rfl,rfl,rfl,rfl,rfl,fun k member => member,fun k member => .inl member,
         fun s member => .inl member⟩
@@ -975,6 +1012,7 @@ structure Merged (F G : forest.Forest) (source into : Usize) (joined : List Usiz
   same : ∀ (a : Nat) (b : Usize), G.same.val[a]? = some b → ∃ b0 : Usize, F.same.val[a]? = some b0 ∧
     ((b0.val ≠ source.val ∧ b = b0) ∨ (b0.val = source.val ∧ b.val = into.val ∧ Named F.nodes.val into.val))
   distinct : ∀ d ∈ G.distinct.val, d ∈ F.distinct.val ∨ ∃ d0 ∈ F.distinct.val, Inherited source into joined d0 d
+  caps : G.caps = F.caps
 
 /-- A merge hands the edges over, deactivates the merged node with its subtree,
     keeps `into` active and makes it depend on the merge. -/
@@ -1157,7 +1195,8 @@ theorem merged_correct {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
         · subst same
           exact ⟨{ nodes.val[into.val] with deps := depends },by rw [finalAt,if_pos rfl],act⟩
         · exact ⟨_,by rw [finalAt,if_neg same,List.getElem?_eq_getElem yIn2],act⟩
-    refine ⟨by simp [prunedLength,vLength,moved.length],?_,?_,?_,?_,?_,moved.edges,moved.sameLength,moved.same,?_⟩
+    refine ⟨by simp [prunedLength,vLength,moved.length],?_,?_,?_,?_,?_,moved.edges,moved.sameLength,moved.same,?_,
+      moved.caps⟩
     · intro y n at_y
       obtain ⟨n1,at_y1,label1,parent1,seed1,tree1,done1,active1,depsUp1,depsDown1,roles1⟩ := moved.node y n at_y
       obtain ⟨m,at_m,label,parent,roles,seed,tree,done,active,deps⟩ := nodeG y n1 at_y1
@@ -1371,7 +1410,8 @@ theorem merged_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
   have shape := inv.shape
   refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,
     by rw [merged.length]; exact shape.countIn,by rw [merged.sameLength]; exact shape.sameLength,?_,?_,
-    merged.activeParents,shape.links,shape.requirements,?_,?_,?_,?_⟩,?_,?_,?_,?_⟩
+    merged.activeParents,shape.links,shape.requirements,?_,?_,?_,?_,
+    by rw [merged.caps,merged.length]; exact shape.capsIn⟩,?_,?_,?_,?_⟩
   · intro y n' at_y'
     obtain ⟨n,at_y,_,_,_,tree,_⟩ := merged_back merged y n' at_y'
     rw [tree]
@@ -1498,7 +1538,7 @@ theorem merged_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count
 theorem merged_fresh {F G : forest.Forest} {source into : Usize} {joined : List Usize}
     (merged : Merged F G source into joined) {fresh : Nat} (freshF : FreshForest F fresh)
     (joinedFresh : ∀ k ∈ joined, k.val < fresh) : FreshForest G fresh := by
-  refine ⟨?_,?_,?_⟩
+  refine ⟨?_,?_,?_,by rw [merged.caps]; exact freshF.2.2.2⟩
   · intro y k member
     rcases (merged_deps merged y).2 k member with old | new
     · exact freshF.1 y k old
@@ -1517,9 +1557,9 @@ theorem merged_fresh {F G : forest.Forest} {source into : Usize} {joined : List 
       · exact joinedFresh k new
   · intro d member k kIn
     rcases merged.distinct d member with old | ⟨d0,d0In,_,_,deps⟩
-    · exact freshF.2.2 d old k kIn
+    · exact freshF.2.2.1 d old k kIn
     · rcases (deps k).mp kIn with old | new
-      · exact freshF.2.2 d0 d0In k old
+      · exact freshF.2.2.1 d0 d0In k old
       · exact joinedFresh k new
 
 /-- A merge decreases the measure: the merged node no longer counts and no other
@@ -1536,7 +1576,11 @@ theorem merged_measure {P : completion.Problem} {h : hierarchy.RoleHierarchy} {c
     · rw [if_pos act,if_pos (merged_active merged y act)]
     · rw [if_neg act]
       exact Nat.zero_le _
+  have names : nameWeight P G = nameWeight P F := nameWeight_eq P merged.length (merged_named merged) merged.caps
   unfold ForestInv.measure
+  rw [names]
+  suffices treeMeasure P G < treeMeasure P F by omega
+  unfold treeMeasure
   rw [merged.length]
   apply Finset.sum_lt_sum (fun y _ => weightLe y)
   refine ⟨source.val,Finset.mem_range.mpr (active_inside activeS),?_⟩
@@ -1568,7 +1612,8 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
     intro sub ns at_s tree s sIn
     rw [← equal sub]
     exact (models.tree source.val ns at_s tree (by simpa [nodeDeps,at_s] using sourceSub sub)).1 s sIn
-  refine ⟨⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_⟩,?_⟩
+  refine ⟨⟨models.respects,models.axioms,models.unfoldings,models.requirements,models.links,?_,?_,?_,?_,?_,?_,
+    by rw [merged.caps]; exact models.caps⟩,?_⟩
   · intro a sub
     by_cases aIn : a.val < G.same.val.length
     · obtain ⟨b,at_a⟩ : ∃ b, G.same.val[a.val]? = some b := ⟨_,List.getElem?_eq_getElem aIn⟩
@@ -1651,6 +1696,11 @@ theorem merged_models {Object : Type u} {Value : Type v} {P : completion.Problem
         exact differ
       · rw [right,← d0Right]
         exact Ne.symm differ
+  · intro y n' at_y' named beyond sub
+    obtain ⟨n,at_y,_,_,seed,tree,_,_,_,up,_⟩ := merged_back merged y n' at_y'
+    rw [seed]
+    exact models.seeds y n at_y (by rw [← tree]; exact named) (by rw [← merged.sameLength]; exact beyond)
+      (fun k listed => sub k (up k listed))
   · intro sub c member
     rw [← equal sub]
     exact models.labels source.val (sourceSub sub) c member
@@ -1662,7 +1712,8 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     (shape : Shape P h count F) (x : Usize) (active : Active F.nodes.val x.val) (r : ObjectPropertyExpression)
     (p : forest.Pair) (first : Neighbour P h F x.val r p.first.val) (second : Neighbour P h F x.val r p.second.val)
     (different : p.first ≠ p.second)
-    (children : Named F.nodes.val x.val →
+    (children : Named F.nodes.val x.val → (∃ a, F.nodes.val[p.first.val]? = some a ∧ a.tree = true) →
+      (∃ b, F.nodes.val[p.second.val]? = some b ∧ b.tree = true) →
       ¬ Repeated F.nodes.val x.val p.first.val ∧ ¬ Repeated F.nodes.val x.val p.second.val) :
     MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val ∧
       (orientOf F x p = (p.first,p.second) ∨ orientOf F x p = (p.second,p.first)) := by
@@ -1701,7 +1752,7 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
       by_cases up : n.tree = true ∧ n.parent = p.first
       · rw [if_pos up]
         -- `second` is a child of `x`, merged into the parent of `x`.
-        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named).2) with child |
+        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
             ⟨_,parent⟩
         · refine ⟨⟨Ne.symm differentVal,activeSecond,activeFirst,.inl ⟨b,at_b,bTree,.inl ⟨n,?_,up.1,?_⟩⟩⟩,.inr rfl⟩
           · rw [child]; exact at_x
@@ -1709,12 +1760,12 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
         · exact absurd (by rw [← parent,up.2]) differentVal
       · rw [if_neg up]
         have aParent : a.parent.val = x.val := by
-          rcases treeNeighbour p.first a first at_a aTree (fun named => (children named).1) with child |
+          rcases treeNeighbour p.first a first at_a aTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).1) with child |
               ⟨xTree,parent⟩
           · exact child
           · exact absurd ⟨xTree,UScalar.eq_of_val_eq parent⟩ up
         refine ⟨⟨differentVal,activeFirst,activeSecond,.inl ⟨a,at_a,aTree,?_⟩⟩,.inl rfl⟩
-        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named).2) with child |
+        rcases treeNeighbour p.second b second at_b bTree (fun named => (children named ⟨a,at_a,aTree⟩ ⟨b,at_b,bTree⟩).2) with child |
             ⟨xTree,parent⟩
         · exact .inr (.inl ⟨b,at_b,bTree,by rw [child,aParent]⟩)
         · exact .inl ⟨n,by rw [aParent]; exact at_x,xTree,parent⟩
@@ -1728,5 +1779,478 @@ theorem orient_shape {P : completion.Problem} {h : hierarchy.RoleHierarchy} {cou
     · exact .inl ⟨b,at_b,bTree,.inr (.inr ⟨a,at_a,aRoot⟩)⟩
     · have bRoot : b.tree = false := by simpa using bTree
       exact .inr ⟨⟨b,at_b,bRoot⟩,⟨a,at_a,aRoot⟩⟩
+
+
+/-! ### New named nodes -/
+
+section NamedMade
+variable {F F' : forest.Forest} {x i : Usize} {role : ObjectPropertyExpression} {filler : Usize} {cnt : Nat}
+  {deps : alloc.vec.Vec Usize}
+
+theorem named_length (made : NamedMade F F' x i role filler cnt deps) :
+    F'.nodes.val.length = F.nodes.val.length + cnt := by
+  rw [made.nodes]
+  simp
+
+theorem named_old (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (yIn : y < F.nodes.val.length) :
+    F'.nodes.val[y]? = F.nodes.val[y]? := by
+  rw [made.nodes,List.getElem?_append_left yIn]
+
+theorem named_new (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (low : F.nodes.val.length ≤ y)
+    (high : y < F.nodes.val.length + cnt) : F'.nodes.val[y]? = some (freshNode x filler deps) := by
+  rw [made.nodes,List.getElem?_append_right low,List.getElem?_replicate]
+  simp only [ite_eq_left_iff,reduceCtorEq,imp_false,not_not]
+  omega
+
+/-- Every node of the forest with new named nodes is an old node or a new one. -/
+theorem named_lookup (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (n' : forest.Node)
+    (at_y : F'.nodes.val[y]? = some n') :
+    (y < F.nodes.val.length ∧ F.nodes.val[y]? = some n') ∨
+    (F.nodes.val.length ≤ y ∧ y < F.nodes.val.length + cnt ∧ n' = freshNode x filler deps) := by
+  have yIn : y < F'.nodes.val.length := (List.getElem?_eq_some_iff.mp at_y).1
+  rw [named_length made] at yIn
+  by_cases old : y < F.nodes.val.length
+  · rw [named_old made y old] at at_y
+    exact .inl ⟨old,at_y⟩
+  · rw [named_new made y (by omega) yIn] at at_y
+    exact .inr ⟨by omega,yIn,(Option.some.inj at_y).symm⟩
+
+theorem named_label (made : NamedMade F F' x i role filler cnt deps) (y : Nat) :
+    labelOf F'.nodes.val y = if y < F.nodes.val.length then labelOf F.nodes.val y else [] := by
+  by_cases yIn : y < F.nodes.val.length
+  · rw [if_pos yIn]
+    unfold labelOf
+    rw [named_old made y yIn]
+  · rw [if_neg yIn]
+    unfold labelOf
+    by_cases new : y < F.nodes.val.length + cnt
+    · rw [named_new made y (by omega) new]
+      simp [freshNode]
+    · rw [List.getElem?_eq_none_iff.mpr (by rw [named_length made]; omega)]
+
+theorem named_done (made : NamedMade F F' x i role filler cnt deps) (y : Nat) :
+    doneOf F'.nodes.val y = if y < F.nodes.val.length then doneOf F.nodes.val y else [] := by
+  by_cases yIn : y < F.nodes.val.length
+  · rw [if_pos yIn]
+    unfold doneOf
+    rw [named_old made y yIn]
+  · rw [if_neg yIn]
+    unfold doneOf
+    by_cases new : y < F.nodes.val.length + cnt
+    · rw [named_new made y (by omega) new]
+      simp [freshNode]
+    · rw [List.getElem?_eq_none_iff.mpr (by rw [named_length made]; omega)]
+
+theorem named_deps (made : NamedMade F F' x i role filler cnt deps) (y : Nat) :
+    nodeDeps F' y = if y < F.nodes.val.length then nodeDeps F y else
+      if y < F.nodes.val.length + cnt then deps.val else [] := by
+  by_cases yIn : y < F.nodes.val.length
+  · rw [if_pos yIn]
+    unfold nodeDeps
+    rw [named_old made y yIn]
+  · rw [if_neg yIn]
+    unfold nodeDeps
+    by_cases new : y < F.nodes.val.length + cnt
+    · rw [named_new made y (by omega) new,if_pos new]
+      simp [freshNode]
+    · rw [if_neg new,List.getElem?_eq_none_iff.mpr (by rw [named_length made]; omega)]
+
+theorem named_active (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (yIn : y < F.nodes.val.length) :
+    Active F'.nodes.val y ↔ Active F.nodes.val y := by
+  unfold Active
+  rw [named_old made y yIn]
+
+theorem named_named (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (yIn : y < F.nodes.val.length) :
+    Named F'.nodes.val y ↔ Named F.nodes.val y := by
+  unfold Named
+  rw [named_old made y yIn]
+
+theorem named_treePath (made : NamedMade F F' x i role filler cnt deps) :
+    ∀ y, y < F.nodes.val.length → treePath F'.nodes.val y = treePath F.nodes.val y := by
+  intro y
+  induction y using Nat.strong_induction_on with
+  | _ y ih =>
+    intro yIn
+    rw [treePath.eq_def,treePath.eq_def F.nodes.val,named_old made y yIn]
+    split
+    · split
+      · split
+        · rename_i below
+          rw [ih _ below (by omega)]
+        · rfl
+      · rfl
+    · rfl
+
+theorem named_rep (made : NamedMade F F' x i role filler cnt deps) (a : Usize) : rep F' a = rep F a := by
+  unfold rep
+  rw [made.same]
+
+theorem named_namedEnd (made : NamedMade F F' x i role filler cnt deps) (c y : Nat) (named : NamedEnd F c y) :
+    NamedEnd F' c y := by
+  rcases named with below | ⟨named,active⟩
+  · exact .inl below
+  · have yIn := active_inside active
+    exact .inr ⟨(named_named made y yIn).mpr named,(named_active made y yIn).mpr active⟩
+
+/-- A new named node is an active named node. -/
+theorem named_fresh_named (made : NamedMade F F' x i role filler cnt deps) (y : Nat) (low : F.nodes.val.length ≤ y)
+    (high : y < F.nodes.val.length + cnt) : Named F'.nodes.val y ∧ Active F'.nodes.val y :=
+  ⟨⟨_,named_new made y low high,rfl⟩,⟨_,named_new made y low high,rfl⟩⟩
+
+end NamedMade
+
+/-- New named nodes for a restriction of an active named node keep the invariant. -/
+theorem named_inv {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F F' : forest.Forest}
+    {x i : Usize} {role : ObjectPropertyExpression} {filler : Usize} {cnt : Nat} {deps : alloc.vec.Vec Usize}
+    (inv : Inv P h count F) (made : NamedMade F F' x i role filler cnt deps) (named : Named F.nodes.val x.val)
+    (active : Active F.nodes.val x.val) : Inv P h count F' := by
+  have shape := inv.shape
+  have countIn := shape.countIn
+  have xIn := active_inside active
+  have length := named_length made
+  refine ⟨⟨shape.wellFormed,shape.complements,shape.closedTable,shape.closed,shape.simple,?_,by omega,
+    by rw [made.same]; exact shape.sameLength,?_,?_,?_,shape.links,shape.requirements,?_,?_,?_,?_,?_⟩,?_,?_,?_,?_⟩
+  · intro y n' at_y' below
+    rcases named_lookup made y n' at_y' with ⟨_,at_y⟩ | ⟨low,_,rfl⟩
+    · exact shape.named y n' at_y below
+    · rfl
+  · intro b member
+    rw [made.same] at member
+    obtain ⟨isNamed,act⟩ := shape.reps b member
+    have bIn := active_inside act
+    exact ⟨(named_named made _ bIn).mpr isNamed,(named_active made _ bIn).mpr act⟩
+  · intro y n' at_y' tree
+    rcases named_lookup made y n' at_y' with ⟨_,at_y⟩ | ⟨_,_,rfl⟩
+    · exact shape.parents y n' at_y tree
+    · cases tree
+  · intro y n' at_y' tree act
+    rcases named_lookup made y n' at_y' with ⟨yIn,at_y⟩ | ⟨_,_,rfl⟩
+    · have parentIn := shape.parents y n' at_y tree
+      exact (named_active made _ (by omega)).mpr (shape.activeParents y n' at_y tree act)
+    · cases tree
+  · intro e member
+    rcases made.edges e member with old | ⟨_,fromX,low,high,_⟩
+    · obtain ⟨toIn,fromCases⟩ := shape.edges e old
+      refine ⟨named_namedEnd made count _ toIn,fromCases.imp (named_namedEnd made count _) ?_⟩
+      rintro ⟨n,at_n,tree⟩
+      have fromIn := (List.getElem?_eq_some_iff.mp at_n).1
+      exact ⟨n,by rw [named_old made _ fromIn]; exact at_n,tree⟩
+    · refine ⟨.inr (named_fresh_named made _ low high),?_⟩
+      rw [fromX]
+      exact .inl (.inr ⟨(named_named made _ xIn).mpr named,(named_active made _ xIn).mpr active⟩)
+  · intro d member
+    rw [length]
+    rcases (made.distinct d).mp member with old | ⟨_,_,high,_⟩
+    · have := shape.distinctIn d old
+      omega
+    · omega
+  · intro y j member
+    rw [named_label made y] at member
+    split at member
+    · exact shape.literals y j member
+    · cases member
+  · intro y j member k listed' e e' at_j at_k
+    rw [named_label made y] at member listed'
+    by_cases yIn : y < F.nodes.val.length
+    · rw [if_pos yIn] at member listed'
+      exact shape.clashFree y j member k listed' e e' at_j at_k
+    · rw [if_neg yIn] at member
+      cases member
+  · intro cap member
+    rw [length]
+    rcases (made.caps cap).mp member with old | ⟨node,_⟩
+    · have := shape.capsIn cap old
+      omega
+    · rw [node]
+      omega
+  · intro y
+    rw [named_label made y]
+    split
+    · exact inv.nodup y
+    · exact List.nodup_nil
+  · intro y
+    rw [named_done made y]
+    split
+    · exact inv.doneNodup y
+    · exact List.nodup_nil
+  · intro y j listed'
+    rw [named_done made y] at listed'
+    rw [named_label made y]
+    split
+    · rename_i yIn
+      rw [if_pos yIn] at listed'
+      exact inv.doneIn y j listed'
+    · rename_i yIn
+      rw [if_neg yIn] at listed'
+      cases listed'
+  · intro y n' at_y' s member
+    rcases named_lookup made y n' at_y' with ⟨_,at_y⟩ | ⟨_,_,rfl⟩
+    · exact inv.roles y n' at_y s member
+    · simp [freshNode] at member
+
+/-- The points of a forest with new named nodes are those of the forest and the
+    given ones. -/
+theorem named_fresh {F F' : forest.Forest} {x i : Usize} {role : ObjectPropertyExpression} {filler : Usize}
+    {cnt : Nat} {deps : alloc.vec.Vec Usize} (made : NamedMade F F' x i role filler cnt deps) {fresh : Nat}
+    (freshF : FreshForest F fresh) (depsFresh : ∀ k ∈ deps.val, k.val < fresh) : FreshForest F' fresh := by
+  refine ⟨?_,?_,?_,?_⟩
+  · intro y k member
+    rw [named_deps made y] at member
+    split at member
+    · exact freshF.1 y k member
+    · split at member
+      · exact depsFresh k member
+      · cases member
+  · intro e member k kIn
+    rcases made.edges e member with old | ⟨_,_,_,_,depsIs⟩
+    · exact freshF.2.1 e old k kIn
+    · rw [depsIs] at kIn
+      exact depsFresh k kIn
+  · intro d member k kIn
+    rcases (made.distinct d).mp member with old | ⟨_,_,_,depsIs⟩
+    · exact freshF.2.2.1 d old k kIn
+    · rw [depsIs] at kIn
+      exact depsFresh k kIn
+  · intro cap member k kIn
+    rcases (made.caps cap).mp member with old | ⟨_,_,_,depsIs⟩
+    · exact freshF.2.2.2 cap old k kIn
+    · rw [depsIs] at kIn
+      exact depsFresh k kIn
+
+
+/-- New named nodes for a maximum restriction of a named node without a bound
+    decrease the measure: the restriction loses its weight, which is more than
+    the new nodes bring to the tree and the weight of their own restrictions. -/
+theorem named_measure {P : completion.Problem} {F F' : forest.Forest}
+    {x i : Usize} {role : ObjectPropertyExpression} {filler : Usize} {cnt : Nat} {deps : alloc.vec.Vec Usize}
+    (made : NamedMade F F' x i role filler cnt deps) (xIn : x.val < F.nodes.val.length)
+    (named : Named F.nodes.val x.val) (most : AtMostAt P i.val) (iIn : i.val < P.entries.val.length)
+    (uncapped : ¬ Capped F x.val i.val) (few : cnt ≤ (P.entries.val.map atMostCount).sum)
+    (room : F'.nodes.val.length ≤ Usize.max) :
+    ForestInv.measure P F' < ForestInv.measure P F := by
+  have length := named_length made
+  have positive : 0 < nameBase P := by unfold nameBase; omega
+  have unitPositive : 0 < nameUnit P := by unfold nameUnit; omega
+  -- The tree weight grows by less than `nameUnit` per new node.
+  have oldWeight : ∀ y < F.nodes.val.length, weight P F' y = weight P F y := by
+    intro y yIn
+    unfold weight factor depth
+    rw [named_treePath made y yIn,named_label made y,if_pos yIn,named_done made y,if_pos yIn]
+    by_cases act : Active F.nodes.val y
+    · rw [if_pos act,if_pos ((named_active made y yIn).mpr act)]
+    · rw [if_neg act,if_neg (fun a => act ((named_active made y yIn).mp a))]
+  have newWeight : ∀ y, weight P F' y ≤ nameUnit P - 1 := by
+    intro y
+    unfold weight
+    split
+    · have power : base P ^ (bound P + 2 - depth F' y) ≤ base P ^ (bound P + 2) :=
+        Nat.pow_le_pow_right (base_pos P) (by omega)
+      have room' : factor P F' y ≤ 2 * P.entries.val.length + 1 := by unfold factor; omega
+      have := Nat.mul_le_mul power room'
+      unfold nameUnit
+      omega
+    · omega
+  have treeLe : treeMeasure P F' ≤ treeMeasure P F + cnt * (nameUnit P - 1) := by
+    unfold treeMeasure
+    rw [length,Finset.sum_range_add]
+    have old : ∑ y ∈ Finset.range F.nodes.val.length, weight P F' y =
+        ∑ y ∈ Finset.range F.nodes.val.length, weight P F y :=
+      Finset.sum_congr rfl (fun y member => oldWeight y (Finset.mem_range.mp member))
+    have new : ∑ k ∈ Finset.range cnt, weight P F' (F.nodes.val.length + k) ≤ cnt * (nameUnit P - 1) := by
+      calc ∑ k ∈ Finset.range cnt, weight P F' (F.nodes.val.length + k)
+          ≤ ∑ _k ∈ Finset.range cnt, (nameUnit P - 1) := Finset.sum_le_sum (fun k _ => newWeight _)
+        _ = cnt * (nameUnit P - 1) := by simp
+    omega
+  -- The bounds: the new one at `x`, and the old ones.
+  have cappedBack : ∀ y j, Capped F' y j → Capped F y j ∨ (y = x.val ∧ j = i.val) := by
+    rintro y j ⟨cap,member,node,restriction⟩
+    rcases (made.caps cap).mp member with old | ⟨capNode,capRestriction,_,_⟩
+    · exact .inl ⟨cap,old,node,restriction⟩
+    · exact .inr ⟨by rw [← node,capNode],by rw [← restriction,capRestriction]⟩
+  have cappedKept : ∀ y j, Capped F y j → Capped F' y j := by
+    rintro y j ⟨cap,member,node,restriction⟩
+    exact ⟨cap,(made.caps cap).mpr (.inl member),node,restriction⟩
+  have cappedX : Capped F' x.val i.val := by
+    obtain ⟨cap,member,node,restriction⟩ := made.capped
+    exact ⟨cap,member,by rw [node],by rw [restriction]⟩
+  -- The summands of the weight of the restrictions.
+  let term : forest.Forest → Nat → Nat → Nat := fun G y j =>
+    if Named G.nodes.val y ∧ AtMostAt P j ∧ ¬ Capped G y j then nameUnit P * nameBase P ^ (Usize.max - y) else 0
+  have weightIs : ∀ G, nameWeight P G = ∑ y ∈ Finset.range G.nodes.val.length,
+      ∑ j ∈ Finset.range P.entries.val.length, term G y j := fun G => rfl
+  have oldTerm : ∀ y < F.nodes.val.length, ∀ j, term F' y j ≤ term F y j := by
+    intro y yIn j
+    simp only [term]
+    by_cases cond : Named F'.nodes.val y ∧ AtMostAt P j ∧ ¬ Capped F' y j
+    · rw [if_pos cond,if_pos ⟨(named_named made y yIn).mp cond.1,cond.2.1,
+        fun c => cond.2.2 (cappedKept y j c)⟩]
+    · rw [if_neg cond]
+      exact Nat.zero_le _
+  have xTerm : term F' x.val i.val + nameUnit P * nameBase P ^ (Usize.max - x.val) ≤ term F x.val i.val := by
+    simp only [term]
+    rw [if_neg (fun cond => cond.2.2 cappedX),if_pos ⟨named,most,uncapped⟩]
+    omega
+  have oldPart : ∑ y ∈ Finset.range F.nodes.val.length, ∑ j ∈ Finset.range P.entries.val.length, term F' y j +
+      nameUnit P * nameBase P ^ (Usize.max - x.val) ≤
+      ∑ y ∈ Finset.range F.nodes.val.length, ∑ j ∈ Finset.range P.entries.val.length, term F y j := by
+    apply sum_drop _ x.val _ xIn
+    · intro y yIn
+      exact Finset.sum_le_sum (fun j _ => oldTerm y yIn j)
+    · exact sum_drop _ i.val _ iIn _ _ (fun j _ => oldTerm x.val xIn j) xTerm
+  -- Every new node is later than `x`, so its restrictions weigh less.
+  have smaller : ∀ y, x.val < y → nameUnit P * nameBase P ^ (Usize.max - y) ≤
+      nameUnit P * nameBase P ^ (Usize.max - x.val - 1) := by
+    intro y later
+    apply Nat.mul_le_mul_left
+    exact Nat.pow_le_pow_right positive (by omega)
+  have newPart : ∑ k ∈ Finset.range cnt, ∑ j ∈ Finset.range P.entries.val.length,
+      term F' (F.nodes.val.length + k) j ≤
+      cnt * (P.entries.val.length * (nameUnit P * nameBase P ^ (Usize.max - x.val - 1))) := by
+    calc ∑ k ∈ Finset.range cnt, ∑ j ∈ Finset.range P.entries.val.length, term F' (F.nodes.val.length + k) j
+        ≤ ∑ _k ∈ Finset.range cnt, ∑ _j ∈ Finset.range P.entries.val.length,
+            nameUnit P * nameBase P ^ (Usize.max - x.val - 1) := by
+          apply Finset.sum_le_sum
+          intro k _
+          apply Finset.sum_le_sum
+          intro j _
+          simp only [term]
+          split
+          · exact smaller _ (by omega)
+          · exact Nat.zero_le _
+      _ = cnt * (P.entries.val.length * (nameUnit P * nameBase P ^ (Usize.max - x.val - 1))) := by simp
+  have nameLe : nameWeight P F' + nameUnit P * nameBase P ^ (Usize.max - x.val) ≤
+      nameWeight P F + cnt * (P.entries.val.length * (nameUnit P * nameBase P ^ (Usize.max - x.val - 1))) := by
+    rw [weightIs F',weightIs F,length,Finset.sum_range_add]
+    omega
+  -- The restriction weighs more than all the new nodes bring.
+  have xBelow : x.val + 1 ≤ Usize.max := by omega
+  have power : nameBase P ^ (Usize.max - x.val) = nameBase P * nameBase P ^ (Usize.max - x.val - 1) := by
+    rw [← pow_succ']
+    congr 1
+    omega
+  have unitPower : 1 ≤ nameBase P ^ (Usize.max - x.val - 1) := Nat.one_le_pow _ _ positive
+  have bound : cnt * (nameUnit P - 1) + cnt * (P.entries.val.length * (nameUnit P * nameBase P ^ (Usize.max -
+      x.val - 1))) < nameUnit P * nameBase P ^ (Usize.max - x.val) := by
+    set M := nameUnit P * nameBase P ^ (Usize.max - x.val - 1) with hM
+    have unitLe : nameUnit P - 1 ≤ M := by
+      have : nameUnit P ≤ M := by
+        rw [hM]
+        exact Nat.le_mul_of_pos_right _ unitPower
+      omega
+    have mPositive : 0 < M := Nat.mul_pos unitPositive (by omega)
+    have sumBound := few
+    calc cnt * (nameUnit P - 1) + cnt * (P.entries.val.length * M)
+        ≤ cnt * M + cnt * (P.entries.val.length * M) := by
+          have := Nat.mul_le_mul_left cnt unitLe
+          omega
+      _ = cnt * ((P.entries.val.length + 1) * M) := by ring
+      _ ≤ (P.entries.val.map atMostCount).sum * ((P.entries.val.length + 1) * M) := Nat.mul_le_mul_right _ few
+      _ < ((P.entries.val.map atMostCount).sum * (P.entries.val.length + 1) + 1) * M := by
+          have : (P.entries.val.map atMostCount).sum * ((P.entries.val.length + 1) * M) =
+              (P.entries.val.map atMostCount).sum * (P.entries.val.length + 1) * M := by ring
+          rw [this,Nat.add_mul,Nat.one_mul]
+          omega
+      _ = nameUnit P * nameBase P ^ (Usize.max - x.val) := by
+          rw [power,hM]
+          unfold nameBase
+          ring
+  unfold ForestInv.measure
+  omega
+
+/-- A model of the forest whose node `x` has exactly `cnt` neighbours along the
+    role of the restriction `i` that satisfy its filler, given by `g`, models
+    the forest with new named nodes placed on them. -/
+theorem named_models {Object : Type u} {Value : Type v} {P : completion.Problem} {h : hierarchy.RoleHierarchy}
+    {count : Nat} {F F' : forest.Forest} {x i : Usize} {role : ObjectPropertyExpression} {filler : Usize} {cnt : Nat}
+    {deps : alloc.vec.Vec Usize} (shape : Shape P h count F) (made : NamedMade F F' x i role filler cnt deps)
+    (xIn : x.val < F.nodes.val.length) {I : Interpretation Object Value} {π : Nat → Object} {D : List Usize}
+    (models : Models P h F I π D) (g : Nat → Object)
+    (witnesses : Sub deps.val D → (∀ k < cnt, objectRelation I role (π x.val) (g k) ∧
+      denote I (meaning P.entries.val filler.val) (g k)) ∧ (∀ a < cnt, ∀ b < cnt, g a = g b → a = b))
+    (bounded : Sub deps.val D → ∀ n r c c', P.entries.val[i.val]? = some (.AtMost n r c c') →
+      Rowl.Owl.AtMost cnt (fun y => objectRelation I r (π x.val) y ∧ denote I (meaning P.entries.val c.val) y)) :
+    ∃ π' : Nat → Object, Models P h F' I π' D := by
+  let π' : Nat → Object := fun y => if y < F.nodes.val.length then π y else g (y - F.nodes.val.length)
+  have old : ∀ y, y < F.nodes.val.length → π' y = π y := fun y yIn => by simp [π',yIn]
+  have countIn := shape.countIn
+  have length := named_length made
+  refine ⟨π',models.respects,models.axioms,models.unfoldings,?_,?_,?_,?_,?_,?_,?_,?_,?_⟩
+  · intro q listed
+    rw [old _ (by have := shape.requirements q listed; omega)]
+    exact models.requirements q listed
+  · intro l listed
+    have := shape.links l listed
+    rw [old _ (by omega),old _ (by omega)]
+    exact models.links l listed
+  · intro a sub
+    rw [named_rep made a] at sub ⊢
+    by_cases aIn : a.val < F.same.val.length
+    · have repIn := active_inside (rep_in shape a (by rw [← shape.sameLength]; exact aIn)).2
+      rw [named_deps made,if_pos repIn] at sub
+      rw [old _ (by rw [shape.sameLength] at aIn; omega),old _ repIn]
+      exact models.same a sub
+    · have same : rep F a = a := by
+        simp [rep,List.getElem?_eq_none_iff.mpr (show F.same.val.length ≤ a.val by omega)]
+      rw [same]
+  · intro y sub j listed
+    rw [named_label made y] at listed
+    split at listed
+    · rename_i yIn
+      rw [named_deps made,if_pos yIn] at sub
+      rw [old y yIn]
+      exact models.labels y sub j listed
+    · cases listed
+  · intro y n' at_y' tree sub
+    rcases named_lookup made y n' at_y' with ⟨yIn,at_y⟩ | ⟨_,_,rfl⟩
+    · have parentIn := shape.parents y n' at_y tree
+      rw [old y yIn,old _ (by omega)]
+      exact models.tree y n' at_y tree sub
+    · cases tree
+  · intro e member sub
+    rcases made.edges e member with oldEdge | ⟨roleIs,fromX,low,high,depsIs⟩
+    · obtain ⟨toIn,fromCases⟩ := shape.edges e oldEdge
+      have fromIn : e.from.val < F.nodes.val.length := by
+        rcases fromCases with namedFrom | ⟨n,at_n,_⟩
+        · exact namedEnd_inside shape namedFrom
+        · exact (List.getElem?_eq_some_iff.mp at_n).1
+      rw [old _ fromIn,old _ (namedEnd_inside shape toIn)]
+      exact models.edges e oldEdge sub
+    · rw [depsIs] at sub
+      obtain ⟨each,_⟩ := witnesses sub
+      rw [fromX,roleIs,old _ xIn]
+      simp only [π',show ¬ e.to.val < F.nodes.val.length by omega,if_false]
+      exact (each _ (by omega)).1
+  · intro d listed sub
+    rcases (made.distinct d).mp listed with oldFact | ⟨low,less,high,depsIs⟩
+    · have := shape.distinctIn d oldFact
+      rw [old _ this.1,old _ this.2]
+      exact models.distinct d oldFact sub
+    · rw [depsIs] at sub
+      obtain ⟨_,injective⟩ := witnesses sub
+      simp only [π',show ¬ d.left.val < F.nodes.val.length by omega,
+        show ¬ d.right.val < F.nodes.val.length by omega,if_false]
+      intro same
+      have := injective _ (by omega) _ (by omega) same
+      omega
+  · intro y n' at_y' isNamed beyond sub
+    rw [made.same] at beyond
+    rcases named_lookup made y n' at_y' with ⟨yIn,at_y⟩ | ⟨low,high,rfl⟩
+    · rw [old y yIn]
+      exact models.seeds y n' at_y isNamed beyond sub
+    · obtain ⟨each,_⟩ := witnesses sub
+      simp only [π',show ¬ y < F.nodes.val.length by omega,if_false]
+      exact (each _ (by omega)).2
+  · intro cap member sub
+    rcases (made.caps cap).mp member with oldCap | ⟨node,restriction,boundIs,depsIs⟩
+    · have capIn := shape.capsIn cap oldCap
+      intro n r c c' at_i
+      have := models.caps cap oldCap sub n r c c' at_i
+      rw [old _ capIn]
+      exact this
+    · rw [depsIs] at sub
+      intro n r c c' at_i
+      rw [restriction] at at_i
+      rw [boundIs,node,old _ xIn]
+      exact bounded sub n r c c' at_i
 
 end Rowl.ForestSteps

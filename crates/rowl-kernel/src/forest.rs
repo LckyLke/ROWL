@@ -7,7 +7,7 @@
 //!
 //! 1. every active node satisfies the requirements of the individuals merged
 //!    into it, the TBox concept and the unfoldings of its classes, and a tree
-//!    node the filler it was created for (its seed);
+//!    node or a new named node the filler it was created for (its seed);
 //! 2. along every edge, in both directions, universal restrictions pass their
 //!    filler on, and through transitive roles the restriction itself;
 //! 3. a node whose label has the nominal `{a}` is merged into the named node of
@@ -16,10 +16,17 @@
 //!    individual has no named node gives no answer;
 //! 4. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
 //!    (the choose rule);
-//! 5. when more than `n` of those neighbours satisfy `C`, two of the first
+//! 5. when `≤n r.C` of a named node counts a tree node that is not its child,
+//!    which the model may repeat, new named nodes take the place of such
+//!    nodes: the rule guesses how many neighbours along `r` satisfy `C`, from
+//!    1 up to `n`, trying each guess in turn, and creates that many new named
+//!    nodes with the seed `C`, an added edge from the node and the guess as a
+//!    bound on those neighbours; once the bound exists, the tree node is
+//!    merged with one of the first `bound` counted named neighbours;
+//! 6. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
 //!    turn; when all of them differ, it is a clash;
-//! 6. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
+//! 7. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
 //!    neighbours along `r` satisfying `C` than it requires, and was not
 //!    expanded yet, creates new tree nodes with the filler as their seed,
 //!    pairwise different.
@@ -38,15 +45,17 @@
 //! and the roles in between repeat a tree node with a tree parent on its path to
 //! its root (pairwise blocking), which counting with inverse roles needs; the
 //! added edges of blocked nodes are left out. Number restrictions must be on
-//! simple roles, which no transitive role is included in, and a maximum
-//! restriction of a named node that counts a tree node along an added edge
-//! gives no answer, since the model may repeat that node.
+//! simple roles, which no transitive role is included in. New named nodes come
+//! after every node that created them, and each restriction of a named node
+//! gets them at most once, so the run terminates.
 //!
 //! Backjumping works as in the completion graph: nodes, edges and differences
 //! record the branch points they depend on, and a choice that a failure did not
 //! depend on is not retried. `None` means that a structure would exceed the
-//! `usize` range, that a number restriction is on a role that is not simple, or
-//! that a nominal or a maximum restriction is outside what the rules handle.
+//! `usize` range, that a number restriction is on a role that is not simple,
+//! that the individual of a nominal has no named node, or that a restriction
+//! with a bound from new named nodes has fewer counted named neighbours than the
+//! bound.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -105,19 +114,29 @@ pub struct Distinct {
     pub right: usize,
     pub deps: Vec<usize>,
 }
+/// A bound on the neighbours of a named node along the role of its maximum
+/// restriction `restriction` that satisfy the filler: the number of new named
+/// nodes the rule for that restriction guessed and created.
+pub struct Cap {
+    pub node: usize,
+    pub restriction: usize,
+    pub bound: usize,
+    pub deps: Vec<usize>,
+}
 /// Two nodes that may be merged.
 pub struct Pair {
     pub first: usize,
     pub second: usize,
 }
-/// The state of a run: the nodes, the edges that merges added, the
-/// differences, and for every named individual the named node it was merged
-/// into (its own node while that is active).
+/// The state of a run: the nodes, the added edges, the differences, for every
+/// named individual the named node it was merged into (its own node while that
+/// is active), and the bounds that new named nodes were created for.
 pub struct Forest {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
     pub distinct: Vec<Distinct>,
     pub same: Vec<usize>,
+    pub caps: Vec<Cap>,
 }
 /// The next rule to apply.
 pub enum Step {
@@ -131,6 +150,14 @@ pub enum Step {
         right: usize,
     },
     Merge {
+        node: usize,
+        restriction: usize,
+    },
+    Name {
+        node: usize,
+        restriction: usize,
+    },
+    Capped {
         node: usize,
         restriction: usize,
     },
@@ -414,8 +441,23 @@ fn missing_requirement(
         None
     }
 }
+/// Whether `node` has a seed: a tree node, or a named node beyond the
+/// individuals' nodes.
+fn seeded(graph: &Forest, node: usize) -> bool {
+    if node < graph.nodes.len() {
+        if graph.nodes[node].tree {
+            true
+        } else if node < graph.same.len() {
+            false
+        } else {
+            true
+        }
+    } else {
+        false
+    }
+}
 /// What the label of the active node `node` misses: a requirement, the TBox
-/// concept, an unfolding, or a tree node's seed.
+/// concept, an unfolding, or the seed of a tree node or of a new named node.
 fn missing_at(problem: &Problem, graph: &Forest, node: usize) -> Option<usize> {
     if node < graph.nodes.len() {
         let label = &graph.nodes[node].label;
@@ -428,7 +470,7 @@ fn missing_at(problem: &Problem, graph: &Forest, node: usize) -> Option<usize> {
                     match missing_unfolding(problem, label, 0) {
                         Some(concept) => Some(concept),
                         None => {
-                            if graph.nodes[node].tree {
+                            if seeded(graph, node) {
                                 if !holds(&problem.entries, label, graph.nodes[node].seed) {
                                     return Some(graph.nodes[node].seed);
                                 }
@@ -661,11 +703,70 @@ fn repeated_satisfying(
         false
     }
 }
+/// The index of the first cap of `caps[index..]` on the restriction
+/// `restriction` of `node`.
+fn cap_at(caps: &Vec<Cap>, node: usize, restriction: usize, index: usize) -> Option<usize> {
+    if index < caps.len() {
+        if caps[index].node == node {
+            if caps[index].restriction == restriction {
+                return Some(index);
+            }
+        }
+        cap_at(caps, node, restriction, index + 1)
+    } else {
+        None
+    }
+}
+/// `out` with the named nodes of `list[index..]`; `None` when there is no room.
+fn named_of(
+    graph: &Forest,
+    list: &Vec<usize>,
+    index: usize,
+    mut out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if index < list.len() {
+        let mut named = false;
+        if list[index] < graph.nodes.len() {
+            named = !graph.nodes[list[index]].tree;
+        }
+        if named {
+            if out.len() < usize::MAX {
+                out.push(list[index]);
+            } else {
+                return None;
+            }
+        }
+        named_of(graph, list, index + 1, out)
+    } else {
+        Some(out)
+    }
+}
+/// The first tree node of `list[index..]` that is not a child of `node`.
+fn first_repeated(graph: &Forest, list: &Vec<usize>, node: usize, index: usize) -> Option<usize> {
+    if index < list.len() {
+        let other = list[index];
+        let mut here = false;
+        if other < graph.nodes.len() {
+            if graph.nodes[other].tree {
+                here = graph.nodes[other].parent != node;
+            }
+        }
+        if here {
+            Some(other)
+        } else {
+            first_repeated(graph, list, node, index + 1)
+        }
+    } else {
+        None
+    }
+}
 /// For the maximum restrictions of `label[index..]` of `node`: the first
 /// neighbour along the role that decides neither the filler nor its complement
 /// (`choose`), or the first restriction with more neighbours that satisfy the
-/// filler than it allows (`!choose`); no answer when a restriction of a named
-/// node counts a tree node along an added edge.
+/// filler than it allows (`!choose`). A restriction of a named node that counts
+/// a tree node along an added edge asks for new named nodes, and once they exist
+/// for a merge into one of them; no answer when it has fewer counted named
+/// neighbours than their bound.
 fn counting_from(
     problem: &Problem,
     roles: &RoleHierarchy,
@@ -698,18 +799,6 @@ fn counting_from(
                                 None => {}
                             }
                         } else {
-                            if !graph.nodes[node].tree {
-                                if repeated_satisfying(
-                                    &problem.entries,
-                                    graph,
-                                    &list,
-                                    node,
-                                    *filler,
-                                    0,
-                                ) {
-                                    return None;
-                                }
-                            }
                             let many = match satisfying(
                                 &problem.entries,
                                 graph,
@@ -721,7 +810,41 @@ fn counting_from(
                                 Some(many) => many,
                                 None => return None,
                             };
-                            if *n < many.len() {
+                            let mut repeated = false;
+                            if !graph.nodes[node].tree {
+                                repeated = repeated_satisfying(
+                                    &problem.entries,
+                                    graph,
+                                    &list,
+                                    node,
+                                    *filler,
+                                    0,
+                                );
+                            }
+                            if repeated {
+                                match cap_at(&graph.caps, node, item, 0) {
+                                    Some(cap) => {
+                                        let named = match named_of(graph, &many, 0, Vec::new()) {
+                                            Some(named) => named,
+                                            None => return None,
+                                        };
+                                        if graph.caps[cap].bound <= named.len() {
+                                            found = Some(Step::Capped {
+                                                node,
+                                                restriction: item,
+                                            });
+                                        } else {
+                                            return None;
+                                        }
+                                    }
+                                    None => {
+                                        found = Some(Step::Name {
+                                            node,
+                                            restriction: item,
+                                        });
+                                    }
+                                }
+                            } else if *n < many.len() {
                                 found = Some(Step::Merge {
                                     node,
                                     restriction: item,
@@ -1168,12 +1291,28 @@ fn copy_distinct(distinct: &Vec<Distinct>, index: usize, mut out: Vec<Distinct>)
         out
     }
 }
+fn copy_caps(caps: &Vec<Cap>, index: usize, mut out: Vec<Cap>) -> Vec<Cap> {
+    if index < caps.len() {
+        if out.len() < usize::MAX {
+            out.push(Cap {
+                node: caps[index].node,
+                restriction: caps[index].restriction,
+                bound: caps[index].bound,
+                deps: copy_label(&caps[index].deps, 0, Vec::new()),
+            });
+        }
+        copy_caps(caps, index + 1, out)
+    } else {
+        out
+    }
+}
 fn copy_forest(graph: &Forest) -> Forest {
     Forest {
         nodes: copy_nodes(&graph.nodes, 0, Vec::new()),
         edges: copy_edges(&graph.edges, 0, Vec::new()),
         distinct: copy_distinct(&graph.distinct, 0, Vec::new()),
         same: copy_label(&graph.same, 0, Vec::new()),
+        caps: copy_caps(&graph.caps, 0, Vec::new()),
     }
 }
 /// The forest with `item` added to the label of `node`, which then also depends
@@ -2247,6 +2386,282 @@ fn merge_rule(
         None
     }
 }
+/// The rule for a maximum restriction of a named node, with a bound from new
+/// named nodes, that counts a tree node along an added edge: in every model of
+/// the bound, two of its first `bound` counted named neighbours and that tree
+/// node coincide, so merge such a pair, or report a clash when they all differ.
+fn capped_rule(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: Forest,
+    node: usize,
+    restriction: usize,
+    depth: usize,
+) -> Option<Outcome> {
+    if restriction < problem.entries.len() {
+        match &problem.entries[restriction] {
+            Entry::AtMost(_, role, filler, _) => {
+                let cap = match cap_at(&graph.caps, node, restriction, 0) {
+                    Some(cap) => cap,
+                    None => return None,
+                };
+                let list = match neighbours(problem, roles, &graph, node, role) {
+                    Some(list) => list,
+                    None => return None,
+                };
+                let many = match satisfying(&problem.entries, &graph, &list, *filler, 0, Vec::new())
+                {
+                    Some(many) => many,
+                    None => return None,
+                };
+                let named = match named_of(&graph, &many, 0, Vec::new()) {
+                    Some(named) => named,
+                    None => return None,
+                };
+                let mut chosen = first_nodes(&named, graph.caps[cap].bound, 0, Vec::new());
+                if chosen.len() < graph.caps[cap].bound {
+                    return None;
+                }
+                let other = match first_repeated(&graph, &many, node, 0) {
+                    Some(other) => other,
+                    None => return None,
+                };
+                if chosen.len() < usize::MAX {
+                    chosen.push(other);
+                } else {
+                    return None;
+                }
+                let deps = match rule_deps(problem, &graph, node) {
+                    Some(deps) => deps,
+                    None => return None,
+                };
+                let deps = match join(&deps, &graph.caps[cap].deps) {
+                    Some(deps) => deps,
+                    None => return None,
+                };
+                let deps = match differences_deps(&graph, &chosen, 0, deps) {
+                    Some(deps) => deps,
+                    None => return None,
+                };
+                let pairs = match pairs_from(&graph, &chosen, 0, Vec::new()) {
+                    Some(pairs) => pairs,
+                    None => return None,
+                };
+                choices(
+                    problem,
+                    roles,
+                    graph,
+                    node,
+                    &pairs,
+                    0,
+                    deps,
+                    Vec::new(),
+                    depth,
+                )
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+/// The forest with `count` more named nodes, each with the seed `filler` and an
+/// added edge from `node` along `role`, depending on `deps`.
+fn fresh_named(
+    mut graph: Forest,
+    node: usize,
+    role: &ObjectPropertyExpression,
+    filler: usize,
+    deps: &Vec<usize>,
+    count: usize,
+) -> Option<Forest> {
+    if count > 0 {
+        if graph.nodes.len() < usize::MAX {
+            if graph.edges.len() < usize::MAX {
+                let index = graph.nodes.len();
+                graph.nodes.push(Node {
+                    label: Vec::new(),
+                    parent: node,
+                    roles: Vec::new(),
+                    seed: filler,
+                    tree: false,
+                    active: true,
+                    done: Vec::new(),
+                    deps: copy_label(deps, 0, Vec::new()),
+                });
+                graph.edges.push(Edge {
+                    role: copy_role(role),
+                    from: node,
+                    to: index,
+                    deps: copy_label(deps, 0, Vec::new()),
+                });
+                fresh_named(graph, node, role, filler, deps, count - 1)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(graph)
+    }
+}
+/// The forest with `count` new named nodes for the restriction `restriction`
+/// of `node`, along `role` with the seed `filler`, pairwise different, and the
+/// bound `count` on the neighbours of `node` that the restriction counts, all
+/// depending on `deps`.
+fn named(
+    graph: Forest,
+    node: usize,
+    restriction: usize,
+    role: &ObjectPropertyExpression,
+    filler: usize,
+    count: usize,
+    deps: &Vec<usize>,
+) -> Option<Forest> {
+    let first = graph.nodes.len();
+    let graph = match fresh_named(graph, node, role, filler, deps, count) {
+        Some(graph) => graph,
+        None => return None,
+    };
+    let mut graph = match pairwise(graph, first, deps) {
+        Some(graph) => graph,
+        None => return None,
+    };
+    if graph.caps.len() < usize::MAX {
+        graph.caps.push(Cap {
+            node,
+            restriction,
+            bound: count,
+            deps: copy_label(deps, 0, Vec::new()),
+        });
+        Some(graph)
+    } else {
+        None
+    }
+}
+/// Try the guesses `many..=n` for the number of neighbours of `node` that the
+/// restriction `restriction` counts, each creating that many new named nodes:
+/// all but the last under the branch point `depth`, skipping the rest when a
+/// failure does not depend on it, and the last depending on the points the
+/// earlier failures depended on (`skipped`). Without a guess left, it is a
+/// clash.
+fn guesses(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: Forest,
+    node: usize,
+    restriction: usize,
+    role: &ObjectPropertyExpression,
+    filler: usize,
+    n: usize,
+    many: usize,
+    deps: Vec<usize>,
+    skipped: Vec<usize>,
+    depth: usize,
+) -> Option<Outcome> {
+    if many <= n {
+        if many < n {
+            if depth < usize::MAX {
+                let other = copy_forest(&graph);
+                let mut point = Vec::new();
+                point.push(depth);
+                let here = match join(&deps, &point) {
+                    Some(here) => here,
+                    None => return None,
+                };
+                let made = match named(graph, node, restriction, role, filler, many, &here) {
+                    Some(made) => made,
+                    None => return None,
+                };
+                match run(problem, roles, made, depth + 1) {
+                    Some(Outcome::Accepted) => Some(Outcome::Accepted),
+                    Some(Outcome::Rejected(clash)) => {
+                        if contains(&clash, depth, 0) {
+                            let rest = without_from(&clash, depth, 0, Vec::new());
+                            match join(&skipped, &rest) {
+                                Some(skipped) => guesses(
+                                    problem,
+                                    roles,
+                                    other,
+                                    node,
+                                    restriction,
+                                    role,
+                                    filler,
+                                    n,
+                                    many + 1,
+                                    deps,
+                                    skipped,
+                                    depth,
+                                ),
+                                None => None,
+                            }
+                        } else {
+                            Some(Outcome::Rejected(clash))
+                        }
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            let last = match join(&deps, &skipped) {
+                Some(last) => last,
+                None => return None,
+            };
+            match named(graph, node, restriction, role, filler, many, &last) {
+                Some(made) => run(problem, roles, made, depth),
+                None => None,
+            }
+        }
+    } else {
+        match join(&deps, &skipped) {
+            Some(clash) => Some(Outcome::Rejected(clash)),
+            None => None,
+        }
+    }
+}
+/// The rule for a maximum restriction `≤n r.C` of a named node that counts a
+/// tree node along an added edge, which the model may repeat: every model of the
+/// restriction has between 1 and `n` neighbours along `r` satisfying `C`, so
+/// guess their number and create that many new named nodes for them.
+fn name_rule(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: Forest,
+    node: usize,
+    restriction: usize,
+    depth: usize,
+) -> Option<Outcome> {
+    if restriction < problem.entries.len() {
+        match &problem.entries[restriction] {
+            Entry::AtMost(n, role, filler, _) => {
+                let deps = match rule_deps(problem, &graph, node) {
+                    Some(deps) => deps,
+                    None => return None,
+                };
+                guesses(
+                    problem,
+                    roles,
+                    graph,
+                    node,
+                    restriction,
+                    role,
+                    *filler,
+                    *n,
+                    1,
+                    deps,
+                    Vec::new(),
+                    depth,
+                )
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
 /// Merge `node`, whose label has a nominal on the named node `root`, into
 /// `root`; a difference between them is a clash.
 fn nominal(
@@ -2311,6 +2726,12 @@ fn run(problem: &Problem, roles: &RoleHierarchy, graph: Forest, depth: usize) ->
         },
         Some(Step::Merge { node, restriction }) => {
             merge_rule(problem, roles, graph, node, restriction, depth)
+        }
+        Some(Step::Name { node, restriction }) => {
+            name_rule(problem, roles, graph, node, restriction, depth)
+        }
+        Some(Step::Capped { node, restriction }) => {
+            capped_rule(problem, roles, graph, node, restriction, depth)
         }
         Some(Step::Nominal { node, root }) => nominal(problem, roles, graph, node, root, depth),
         Some(Step::Create { node, generator }) => {
@@ -2381,8 +2802,8 @@ fn roots(count: usize, mut graph: Forest) -> Option<Forest> {
 /// and of `facts` holds at its node and every link relates its nodes along its
 /// role. `roles` must be closed: its inclusions include their compositions and
 /// inverses, and its transitive roles their inverses. `None` means that a
-/// structure would exceed the `usize` range or that a number restriction is on
-/// a role that is not simple.
+/// structure would exceed the `usize` range, that a number restriction is on a
+/// role that is not simple, or that the rules cannot go on (see above).
 pub fn satisfiable(
     count: usize,
     query: &Vec<Fact>,
@@ -2422,6 +2843,7 @@ pub fn satisfiable(
             edges: Vec::new(),
             distinct: Vec::new(),
             same: Vec::new(),
+            caps: Vec::new(),
         },
     ) {
         Some(graph) => graph,

@@ -1226,9 +1226,10 @@ theorem model_of_complete {P : completion.Problem} {h : hierarchy.RoleHierarchy}
 
 /-- The completion forest decides SHOIQ problems with named individuals: it
     answers unless a structure would exceed the `usize` range, a number
-    restriction counts along a role that is not simple, a maximum restriction
-    of a named node counts a tree node that is no child of it, or the
-    individual of a nominal or of the complement of one has no named node; an
+    restriction counts along a role that is not simple, a restriction with a
+    bound from new named nodes has fewer counted named neighbours than the
+    bound, or the individual of a nominal or of the complement of one has no
+    named node; an
     acceptance comes with a model in `Type` of the role hierarchy where the TBox
     concept and every definition hold everywhere and every fact and link holds
     at the elements of its individuals, and a rejection rules out every such

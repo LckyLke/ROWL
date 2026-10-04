@@ -11,8 +11,9 @@ one extracted function from the original bytes to an answer. An error is
 exactly the reader's first error. Every document the reader accepts maps to a
 raw OWL ontology that corresponds to its source records, and the result is then
 the kernel's query on those axioms: no answer means the axioms or the query are
-outside the supported fragment or a `usize` limit was reached, and an answer is
-exact for the OWL 2 Direct Semantics of the axioms. To answer many questions,
+outside the supported fragment, a `usize` limit was reached or the completion
+forest cannot go on, and an answer is exact for the OWL 2 Direct Semantics of
+the axioms. To answer many questions,
 `source_prepared` reads and prepares the bytes once; the prepared queries of
 `Rowl.ShiOntology` are then exact for the same axioms.
 -/

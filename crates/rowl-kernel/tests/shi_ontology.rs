@@ -1068,6 +1068,39 @@ fn nominals_name_their_individuals() {
     );
 }
 
+/// A maximum restriction of an individual that counts anonymous elements
+/// reaching it through a nominal gets new named nodes for them.
+#[test]
+fn counting_through_nominals() {
+    let a = || named(b"a");
+    let b = || named(b"b");
+    let reaches = |c: ClassExpression| some(b"r", and(c, has_value(b"r", b())));
+    let predecessors = |n: usize| {
+        ClassExpression::ObjectMaxCardinality(natural(n), inverse(b"r"), Some(Box::new(thing())))
+    };
+    // Two r-successors of a that differ in A both have b as an r-successor, but
+    // b has at most one r-predecessor.
+    let differing = || and(reaches(class(b"A")), reaches(not(class(b"A"))));
+    let items = vec![asserted(differing(), a()), asserted(predecessors(1), b())];
+    assert_eq!(consistent(&items), Some(false));
+    let items = vec![asserted(differing(), a()), asserted(predecessors(2), b())];
+    assert_eq!(consistent(&items), Some(true));
+    // Successors that agree are then one element.
+    let items = vec![
+        asserted(and(reaches(class(b"A")), reaches(class(b"B"))), a()),
+        asserted(predecessors(1), b()),
+    ];
+    assert_eq!(consistent(&items), Some(true));
+    assert_eq!(
+        instance_of(
+            &items,
+            &individual(b"a"),
+            &some(b"r", and(class(b"A"), class(b"B")))
+        ),
+        Some(true)
+    );
+}
+
 /// A finite OWL interpretation of A, B and R with the individuals a and b.
 struct Named<'a> {
     base: &'a Finite,

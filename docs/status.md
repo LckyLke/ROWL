@@ -781,23 +781,31 @@ progress. Full OWL parsing and executable reasoning are still future work.
   inequalities and negative assertions next to counting or role axioms are now
   decided. A nominal of an anonymous individual, or in a question of an
   individual the closure does not have, gets no answer.
-- Reasoner track, thirteenth stage, first part: nominals at any depth. The
-  completion forest's nominal rule now merges a node with `{a}` at any depth
+- Reasoner track, thirteenth stage: nominals anywhere. The completion
+  forest's nominal rule now merges a node with `{a}` at any depth
   into the named node of `a`: the parent of a merged tree node, a named or a
   tree node, gets an added edge to the named node, and the added edges of the
   merged node move to the named node. Added edges count only from live nodes
   (active and not blocked), and pairwise blocking only repeats tree nodes with
   a tree parent, so the model of a complete forest relates every path of a live
   tree node with an added edge to the path of the named node, and the truth
-  lemma is proved for these edges. Since the model may repeat such a tree node,
-  a maximum restriction of a named node that counts a tree node that is no
-  child of it gets no answer; the other nominals of named individuals below
-  anonymous elements, such as value restrictions reached through existential
-  restrictions, are now decided by the forest and the ontology queries.
-  Named nodes are no longer tied to individuals, and a merged named node
-  hands its added edges on to its target, which prepares the forest for new
-  named nodes.
-- 1466 audited public theorems and 854 audited semantic definitions. Consistency,
+  lemma is proved for these edges. Named nodes are no longer tied to
+  individuals, and a merged named node hands its added edges on to its target.
+  Since the model may repeat such a tree node, a maximum restriction `≤n r.C`
+  of a named node must not count it: the forest then guesses the number of
+  neighbours along `r` that satisfy `C`, from 1 to `n`, and creates that many
+  new named nodes with the seed `C`, an added edge from the node and the guess
+  as a bound; with the bound, the tree node is merged with one of the counted
+  named neighbours. Every model of the restriction has an exact number of such
+  neighbours, so the guesses are proved complete with backjumping, and a
+  measure that weights every restriction without a bound by the index of its
+  node, the earlier the heavier, proves that the run still terminates. Value
+  restrictions, enumerations and counting through nominals of named
+  individuals below anonymous elements are now decided by the forest and the
+  ontology queries; every random input of the tests with such nominals is
+  answered. No answer remains only when a bound has fewer counted named
+  neighbours than it allows, which the tests never reach.
+- 1500 audited public theorems and 865 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -805,12 +813,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   object properties, class, object property and negative object property
   assertions, individual equalities and inequalities, and inclusions,
   equivalences, inverses, symmetry and transitivity of object property
-  expressions (SHOIQ), also directly from Functional Syntax source bytes; a
-  maximum restriction of an individual that counts an anonymous element
-  reaching it through a nominal gets no answer yet.
+  expressions (SHOIQ), also directly from Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 436 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 438 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -825,7 +831,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1659-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1693-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

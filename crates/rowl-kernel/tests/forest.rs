@@ -707,9 +707,9 @@ fn nominals_merge_into_their_named_node() {
         // Every element of an infinite chain points at b; blocking stops it.
         let chain = and(some(r(), Concept::Top), all(r(), some(back(), one(b"b"))));
         assert_eq!(abox(3, nominals(), Vec::new(), &chain), Some(true));
-        // A maximum restriction of a named node that counts a tree node along
-        // an added edge gets no answer yet, and so does a nominal without a
-        // named node.
+        // A maximum restriction of a named node that counts tree nodes along
+        // added edges gets new named nodes for them: b allows one predecessor,
+        // but its two predecessors differ in A.
         let mut facts = nominals();
         facts.push(fact(
             0,
@@ -719,7 +719,8 @@ fn nominals_merge_into_their_named_node() {
             ),
         ));
         facts.push(fact(2, at_most(1, back(), Concept::Top)));
-        assert_eq!(abox(3, facts, Vec::new(), &top), None);
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        // A nominal without a named node gets no answer.
         let facts = vec![fact(1, some(r(), one(b"c")))];
         assert_eq!(abox(3, facts, Vec::new(), &top), None);
         // A requirement {c} makes its node the named node of c.
@@ -821,6 +822,7 @@ fn no_nominal_input_with_a_small_model_is_rejected_body() {
     let mut with_model = 0;
     let mut accepted = 0;
     let mut rejected = 0;
+    let mut unanswered = 0;
     for _ in 0..600 {
         let c = and(
             random_nominal_concept(&mut seed, 3),
@@ -857,7 +859,7 @@ fn no_nominal_input_with_a_small_model_is_rejected_body() {
         match answer {
             Some(true) => accepted += 1,
             Some(false) => rejected += 1,
-            None => {}
+            None => unanswered += 1,
         }
     }
     assert!(
@@ -866,6 +868,7 @@ fn no_nominal_input_with_a_small_model_is_rejected_body() {
     );
     assert!(accepted > 50, "the sample must exercise acceptances");
     assert!(rejected > 20, "the sample must exercise rejections");
+    assert_eq!(unanswered, 0, "every input is answered");
 }
 
 #[test]
@@ -918,8 +921,59 @@ fn two_element_domains_are_decided_exactly_body() {
     }
     assert!(accepted > 100, "the sample must exercise acceptances");
     assert!(rejected > 100, "the sample must exercise rejections");
-    assert!(
-        unanswered < 200,
-        "most inputs must be answered: {unanswered} without an answer"
-    );
+    assert_eq!(unanswered, 0, "every input is answered");
+}
+
+#[test]
+fn new_named_nodes_bound_what_a_nominal_counts() {
+    with_stack(|| {
+        let top = Concept::Top;
+        let nominals = || vec![fact(1, one(b"a")), fact(2, one(b"b"))];
+        let reaches_b = |c: Concept| some(r(), and(c, some(r(), one(b"b"))));
+        // Two predecessors of b that agree may be one element.
+        let mut facts = nominals();
+        facts.push(fact(0, and(reaches_b(atom(b"A")), reaches_b(atom(b"B")))));
+        facts.push(fact(2, at_most(1, back(), Concept::Top)));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // Three pairwise different predecessors need room for three.
+        let three = || {
+            and(
+                reaches_b(and(atom(b"A"), atom(b"B"))),
+                and(reaches_b(and(atom(b"A"), no(b"B"))), reaches_b(no(b"A"))),
+            )
+        };
+        for (bound, answer) in [(1, false), (2, false), (3, true)] {
+            let mut facts = nominals();
+            facts.push(fact(0, three()));
+            facts.push(fact(2, at_most(bound, back(), Concept::Top)));
+            assert_eq!(
+                abox(3, facts, Vec::new(), &top),
+                Some(answer),
+                "at most {bound} predecessors"
+            );
+        }
+        // Only the predecessors that satisfy the filler count.
+        let mut facts = nominals();
+        facts.push(fact(0, three()));
+        facts.push(fact(2, at_most(1, back(), atom(b"A"))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(false));
+        let mut facts = nominals();
+        facts.push(fact(0, three()));
+        facts.push(fact(2, at_most(2, back(), atom(b"A"))));
+        assert_eq!(abox(3, facts, Vec::new(), &top), Some(true));
+        // Every element has an r-successor and b precedes every r-successor,
+        // so b's bound limits all successors of the infinite chains: one with
+        // successors inside and outside B needs room for two.
+        let follow = and(some(r(), Concept::Top), all(r(), some(back(), one(b"b"))));
+        for (bound, answer) in [(1, false), (2, true)] {
+            let mut facts = nominals();
+            facts.push(fact(0, and(some(r(), atom(b"B")), some(r(), no(b"B")))));
+            facts.push(fact(2, at_most(bound, r(), Concept::Top)));
+            assert_eq!(
+                abox(3, facts, Vec::new(), &follow),
+                Some(answer),
+                "b with at most {bound} successors"
+            );
+        }
+    });
 }

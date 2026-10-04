@@ -3,10 +3,10 @@ import Rowl.ForestSteps
 /-!
 The completion forest's run: totality and the meaning of its rejections. Every
 rule application adds a literal to the label of an active node, expands a
-restriction of an unblocked node, merges two neighbours, or merges a named node
-or a child of one into the named node of its nominal, and each of these
-decreases the measure, so `run` terminates on every forest that keeps the
-invariant. An acceptance comes with a complete forest that keeps the
+restriction of an unblocked node, merges two neighbours, merges a node into
+the named node of its nominal, or creates new named nodes for a maximum
+restriction of a named node, and each of these decreases the measure, so `run`
+terminates on every forest that keeps the invariant. An acceptance comes with a complete forest that keeps the
 invariant; a rejection with a set of branch points rules out every model, in
 any universes, that holds under those points. Branching on a disjunction or on
 a neighbour's choice for a maximum restriction retries the second alternative
@@ -15,6 +15,10 @@ pairs of neighbours that are not known to differ in turn, since in every model
 of a maximum restriction two of its counted neighbours coincide. Every model
 places a node with a nominal and the named node of its individual on the
 individual, so their merge is forced and a difference between them is a clash.
+Every model of a maximum restriction of a named node has an exact number of
+counted neighbours, between 1 and the bound when one exists, so the rule for new
+named nodes tries the guesses in turn, and the bound it records makes the
+neighbour it counts coincide with one of as many counted named neighbours.
 -/
 namespace Rowl.Forest
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -285,7 +289,8 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
               obtain ⟨inv1,grows1,others1,new1⟩ := insert_inv P h count F inv x xIn c P.entries.val[c.val] at_c
                 literal present clash label joined labelValue F1 F1Is
               have fresh1 : FreshForest F1 fresh.val := by
-                refine ⟨?_,by rw [grows1.2.1]; exact freshF.2.1,by rw [grows1.2.2.1]; exact freshF.2.2⟩
+                refine ⟨?_,by rw [grows1.2.1]; exact freshF.2.1,by rw [grows1.2.2.1]; exact freshF.2.2.1,
+                  by rw [grows1.2.2.2.2.1]; exact freshF.2.2.2⟩
                 intro y k member
                 rw [F1Is] at member
                 obtain ⟨_,other,here⟩ := set_node F.nodes x xIn
@@ -440,10 +445,11 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
         apply branch_correct P h count F x a b next deps fresh (c :: pendingList next) freshF freshDeps
         · intro deps' fresh' _ freshDeps'
           have freshF' : FreshForest F fresh'.val := by
-            refine ⟨?_,?_,?_⟩
+            refine ⟨?_,?_,?_,?_⟩
             · intro y k member; have := freshF.1 y k member; omega
             · intro e member k kIn; have := freshF.2.1 e member k kIn; omega
-            · intro d member k kIn; have := freshF.2.2 d member k kIn; omega
+            · intro d member k kIn; have := freshF.2.2.1 d member k kIn; omega
+            · intro cap member k kIn; have := freshF.2.2.2 cap member k kIn; omega
           exact ih _ smallerLeft (.Item a next) F x deps' fresh' rfl inv active freshF' freshDeps'
             (branchProgress a (fun L holds => orHolds L (.inl holds)))
         · intro deps' freshDeps'
@@ -495,10 +501,11 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
 
 theorem fresh_succ {F : forest.Forest} {fresh fresh' : Nat} (freshF : FreshForest F fresh) (more : fresh ≤ fresh') :
     FreshForest F fresh' := by
-  refine ⟨?_,?_,?_⟩
+  refine ⟨?_,?_,?_,?_⟩
   · intro y k member; have := freshF.1 y k member; omega
   · intro e member k kIn; have := freshF.2.1 e member k kIn; omega
-  · intro d member k kIn; have := freshF.2.2 d member k kIn; omega
+  · intro d member k kIn; have := freshF.2.2.1 d member k kIn; omega
+  · intro cap member k kIn; have := freshF.2.2.2 cap member k kIn; omega
 
 /-- A merge terminates; a rejection rules out every model under the rejected
     points that places the two nodes on one element, and those points include
@@ -874,7 +881,7 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
       · rcases origin k old with ⟨y,there⟩ | ⟨e,eIn,there⟩
         · exact freshF.1 y k there
         · exact freshF.2.1 e eIn k there
-      · exact freshF.2.2 d (List.mem_of_mem_drop dIn) k kIn
+      · exact freshF.2.2.1 d (List.mem_of_mem_drop dIn) k kIn
     -- At a named node, the counted neighbours are no tree nodes that the model may repeat.
     have fine : ∀ y z, y ∈ chosen.val → z ∈ chosen.val → Named F.nodes.val x.val →
         ¬ Repeated F.nodes.val x.val y.val ∧ ¬ Repeated F.nodes.val x.val z.val := by
@@ -893,7 +900,7 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
         exact (orient_shape inv.shape x active r p
           (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
           (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different
-          (by rw [first,second]; exact fine _ _ (List.getElem_mem ha) (List.getElem_mem hb))).1
+          (by rw [first,second]; exact fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)).1
     have collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
         (D : List Usize), Sub deps1.val D → Models P h F I π D →
           ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val := by
@@ -953,7 +960,7 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
           omega
         rcases (orient_shape inv.shape x active r p (chosenProps _ (List.getElem_mem ha)).1
           (chosenProps _ (List.getElem_mem hb)).1 different
-          (fine _ _ (List.getElem_mem ha) (List.getElem_mem hb))).2 with same | same
+          (fun named _ _ => fine _ _ (List.getElem_mem ha) (List.getElem_mem hb) named)).2 with same | same
         · rw [same]
           exact equal
         · rw [same]
@@ -967,6 +974,650 @@ theorem merge_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy
   · refine ⟨none,?_,by simp,by simp⟩
     rw [forest.merge_rule]
     simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,usize_max_val,room]
+
+/-- Between at least one and at most `n` elements with a property, there is an
+    exact number of them. -/
+theorem exactly_between {α : Type u} (Q : α → Prop) (n : Nat) (one : Rowl.Owl.AtLeast 1 Q)
+    (most : Rowl.Owl.AtMost n Q) : ∃ k, 1 ≤ k ∧ k ≤ n ∧ Rowl.Owl.Exactly k Q := by
+  have found : ∃ j, Rowl.Owl.AtMost j Q := ⟨n,most⟩
+  obtain ⟨k,kMost,kMin⟩ : ∃ k, Rowl.Owl.AtMost k Q ∧ ∀ j < k, ¬ Rowl.Owl.AtMost j Q :=
+    ⟨Nat.find found,Nat.find_spec found,fun j lt => Nat.find_min found lt⟩
+  have kLe : k ≤ n := by
+    by_contra more
+    exact kMin n (by omega) most
+  have kPos : 1 ≤ k := by
+    by_contra zero
+    have isZero : k = 0 := by omega
+    subst isZero
+    exact kMost one
+  have kLeast : Rowl.Owl.AtLeast k Q := by
+    have notBelow := kMin (k - 1) (by omega)
+    unfold Rowl.Owl.AtMost at notBelow
+    have := not_not.mp notBelow
+    rwa [show k - 1 + 1 = k by omega] at this
+  exact ⟨k,kPos,kLe,kLeast,kMost⟩
+
+/-- A rejection of the forest with the new named nodes of a guess rules out every
+    model of the forest, under the rejected points, in which the node has as
+    many counted neighbours as guessed, and those points include the ones the
+    new nodes were given. -/
+theorem named_rejected {P : completion.Problem} {h : hierarchy.RoleHierarchy} {count : Nat} {F F' : forest.Forest}
+    {x i : Usize} {n : Usize} {r : ObjectPropertyExpression} {c c' : Usize} {many : Nat}
+    {deps : alloc.vec.Vec Usize} {D : List Usize} (inv : Inv P h count F) (made : NamedMade F F' x i r c many deps)
+    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) (xIn : x.val < F.nodes.val.length)
+    (none : ¬ FullModel.{u,v} P h F' 0 [] [] D) :
+    ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
+      Models P h F I π D → Sub deps.val D ∧
+        ¬ Rowl.Owl.Exactly many (fun y => objectRelation I r (π x.val) y ∧ denote I (meaning P.entries.val c.val) y) := by
+  intro Object Value I π models
+  by_contra notBoth
+  apply none
+  -- Without the points of the new nodes, or with the right guess, the forest
+  -- with the new nodes has a model.
+  have placed : ∃ g : Nat → Object, (Sub deps.val D → (∀ k < many, objectRelation I r (π x.val) (g k) ∧
+      denote I (meaning P.entries.val c.val) (g k)) ∧ (∀ a < many, ∀ b < many, g a = g b → a = b)) ∧
+      (Sub deps.val D → ∀ n' r' d d', P.entries.val[i.val]? = some (.AtMost n' r' d d') →
+        Rowl.Owl.AtMost many
+          (fun y => objectRelation I r' (π x.val) y ∧ denote I (meaning P.entries.val d.val) y)) := by
+    by_cases sub : Sub deps.val D
+    · have exactly : Rowl.Owl.Exactly many
+          (fun y => objectRelation I r (π x.val) y ∧ denote I (meaning P.entries.val c.val) y) := by
+        by_contra wrong
+        exact notBoth ⟨sub,wrong⟩
+      obtain ⟨⟨f,injective,each⟩,most⟩ := exactly
+      refine ⟨fun k => if hk : k < many then f ⟨k,hk⟩ else π x.val,fun _ => ⟨?_,?_⟩,?_⟩
+      · intro k kIn
+        simp only [dif_pos kIn]
+        exact each ⟨k,kIn⟩
+      · intro a aIn b bIn same
+        simp only [dif_pos aIn,dif_pos bIn] at same
+        exact congrArg Fin.val (injective same)
+      · intro _ n' r' d d' at_i'
+        rw [at_i] at at_i'
+        simp only [Option.some.injEq,concept_table.Entry.AtMost.injEq] at at_i'
+        obtain ⟨_,rfl,rfl,_⟩ := at_i'
+        exact most
+    · exact ⟨fun _ => π x.val,fun yes => absurd yes sub,fun yes => absurd yes sub⟩
+  obtain ⟨g,witnesses,bounded⟩ := placed
+  obtain ⟨π',models'⟩ := named_models inv.shape made xIn models g witnesses bounded
+  exact ⟨Object,Value,I,π',models',by simp⟩
+
+theorem atMostCount_le_sum (entries : List concept_table.Entry) (i : Nat) (e : concept_table.Entry)
+    (at_i : entries[i]? = some e) : atMostCount e ≤ (entries.map atMostCount).sum := by
+  have member : atMostCount e ∈ entries.map atMostCount := List.mem_map.mpr ⟨e,List.mem_of_getElem? at_i,rfl⟩
+  exact List.le_sum_of_mem member
+
+/-- Trying the guesses from `many` up to `n` for the number of counted
+    neighbours terminates. When every model under the points of the rule has an
+    exact number of them between 1 and `n`, and the models under `skipped` none
+    of the earlier ones, the answer means what `Answers` says. -/
+theorem guesses_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
+    (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
+      FreshForest F fresh.val →
+      ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r)
+    (F : forest.Forest) (x i n : Usize) (r : ObjectPropertyExpression) (c c' : Usize)
+    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) (deps : alloc.vec.Vec Usize) (fresh : Usize)
+    (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M) (freshF : FreshForest F fresh.val)
+    (freshDeps : ∀ k ∈ deps.val, k.val < fresh.val) (activeX : Active F.nodes.val x.val)
+    (namedX : Named F.nodes.val x.val) (uncapped : ¬ Capped F x.val i.val)
+    (fits : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+      (D : List Usize), Sub deps.val D → Models P h F I π D → ∃ k, 1 ≤ k ∧ k ≤ n.val ∧
+        Rowl.Owl.Exactly k (fun y => objectRelation I r (π x.val) y ∧ denote I (meaning P.entries.val c.val) y)) :
+    ∀ (gap : Nat) (many : Usize) (skipped : alloc.vec.Vec Usize), n.val + 1 - many.val = gap → 1 ≤ many.val →
+      (∀ k ∈ skipped.val, k.val < fresh.val) →
+      (∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+        (D : List Usize), Sub skipped.val D → Models P h F I π D → ∀ k, 1 ≤ k → k < many.val →
+          ¬ Rowl.Owl.Exactly k
+            (fun y => objectRelation I r (π x.val) y ∧ denote I (meaning P.entries.val c.val) y)) →
+      ∃ res, forest.guesses P h F x i r c n many deps skipped fresh = .ok res ∧
+        Answers.{u,v} P h count F 0 [] [] fresh.val res := by
+  have xIn := active_inside activeX
+  have iIn : i.val < P.entries.val.length := (List.getElem?_eq_some_iff.mp at_i).1
+  have most : AtMostAt P i.val := ⟨n,r,c,c',at_i⟩
+  have nSum : n.val ≤ (P.entries.val.map atMostCount).sum :=
+    atMostCount_le_sum P.entries.val i.val _ at_i
+  -- Making the new named nodes of a guess keeps the invariant and lightens the forest.
+  have makes : ∀ (F' : forest.Forest) (k : Nat) (deps' : alloc.vec.Vec Usize),
+      NamedMade F F' x i r c k deps' → k ≤ n.val →
+      Inv P h count F' ∧ ForestInv.measure P F' < ForestInv.measure P F := by
+    intro F' k deps' made few
+    refine ⟨named_inv inv made namedX activeX,named_measure made xIn namedX most iIn uncapped (by omega) ?_⟩
+    have := F'.nodes.property
+    simp [Usize.max] at this ⊢
+    scalar_tac
+  intro gap
+  induction gap using Nat.strong_induction_on with
+  | _ gap ih =>
+  intro many skipped remaining positive freshSkipped excluded
+  rw [forest.guesses]
+  by_cases within : many.val ≤ n.val
+  · by_cases notLast : many.val < n.val
+    · by_cases room : fresh.val < Usize.max
+      · obtain ⟨point,pointRun,pointValue⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec (alloc.vec.Vec.new Usize) fresh (by simp; scalar_tac))
+        obtain ⟨hereResult,hereRun,hereSpec⟩ := join_correct deps point
+        obtain ⟨fresh',advance',freshValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := fresh) (y := 1#usize) (by scalar_tac))
+        have freshIs : fresh'.val = fresh.val + 1 := by simpa using freshValue
+        obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := many) (y := 1#usize) (by scalar_tac))
+        have nextIs : next.val = many.val + 1 := by simpa using nextValue
+        cases hereResult with
+        | none =>
+          refine ⟨none,?_,by simp,by simp⟩
+          simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+            pointRun,hereRun]
+        | some here =>
+        have hereMembers : ∀ k, k ∈ here.val ↔ k ∈ deps.val ∨ k = fresh := by
+          intro k
+          rw [hereSpec here rfl k,pointValue]
+          simp
+        have hereFresh : ∀ k ∈ here.val, k.val < fresh'.val := by
+          intro k member
+          rw [freshIs]
+          rcases (hereMembers k).mp member with given | rfl
+          · have := freshDeps k given
+            omega
+          · omega
+        obtain ⟨namedResult,namedRun,namedSpec⟩ := named_correct F x i r c many here
+        cases namedResult with
+        | none =>
+          refine ⟨none,?_,by simp,by simp⟩
+          simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+            pointRun,hereRun,namedRun]
+        | some F' =>
+        have made := namedSpec F' rfl
+        obtain ⟨inv',smaller⟩ := makes F' many.val here made within
+        have freshF' : FreshForest F' fresh'.val :=
+          named_fresh made (fresh_succ freshF (by omega)) hereFresh
+        obtain ⟨r1,run1,sound1,complete1⟩ := IH F' fresh' (by omega) inv' freshF'
+        cases r1 with
+        | none =>
+          refine ⟨none,?_,by simp,by simp⟩
+          simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+            pointRun,hereRun,namedRun,advance',run1]
+        | some outcome =>
+        cases outcome with
+        | Accepted =>
+          refine ⟨some .Accepted,?_,fun _ => sound1 rfl,by simp⟩
+          simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+            pointRun,hereRun,namedRun,advance',run1]
+        | Rejected D1 =>
+        obtain ⟨bound1,none1⟩ := complete1 D1 rfl
+        have rules1 := named_rejected inv made at_i xIn none1
+        by_cases depends : fresh ∈ D1.val
+        · obtain ⟨rest,restRun,restSpec⟩ := without_from_correct D1 fresh 0#usize (alloc.vec.Vec.new Usize)
+            (by simp)
+          obtain ⟨skippedResult,skippedRun,skippedSpec⟩ := join_correct skipped rest
+          cases skippedResult with
+          | none =>
+            refine ⟨none,?_,by simp,by simp⟩
+            simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+              pointRun,hereRun,namedRun,advance',run1,contains_correct,depends,restRun,skippedRun]
+          | some skipped1 =>
+          have skippedMembers : ∀ k, k ∈ skipped1.val ↔ k ∈ skipped.val ∨ (k ∈ D1.val ∧ k ≠ fresh) := by
+            intro k
+            rw [skippedSpec skipped1 rfl k,restSpec k]
+            simp
+          obtain ⟨res,run,answers⟩ := ih (gap - 1) (by omega) next skipped1 (by omega) (by omega)
+            (by
+              intro k member
+              rcases (skippedMembers k).mp member with old | ⟨listed,other⟩
+              · exact freshSkipped k old
+              · have := bound1 k listed
+                rw [freshIs] at this
+                have : k.val ≠ fresh.val := fun same => other (UScalar.eq_of_val_eq same)
+                omega)
+            (by
+              intro Object Value I π D sub models k low high
+              rw [nextIs] at high
+              by_cases earlier : k < many.val
+              · exact excluded Object Value I π D (fun j listed => sub j ((skippedMembers j).mpr (.inl listed)))
+                  models k low earlier
+              · have kIs : k = many.val := by omega
+                subst kIs
+                -- A model under the new skipped points is one under the failure's points.
+                have models1 : Models P h F I π D1.val := by
+                  apply models_transfer freshF _ models
+                  intro j below listed
+                  apply sub j
+                  apply (skippedMembers j).mpr
+                  refine .inr ⟨listed,?_⟩
+                  intro same
+                  rw [same] at below
+                  omega
+                exact (rules1 Object Value I π models1).2)
+          refine ⟨res,?_,answers⟩
+          simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+            pointRun,hereRun,namedRun,advance',run1,contains_correct,depends,restRun,skippedRun,advance,run]
+        · refine ⟨some (.Rejected D1),?_,by simp,?_⟩
+          · simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room,copy_forest_correct,
+              pointRun,hereRun,namedRun,advance',run1,contains_correct,depends]
+          intro D same
+          simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+          subst same
+          refine ⟨?_,?_⟩
+          · intro k member
+            have bound := bound1 k member
+            rw [freshIs] at bound
+            have : k.val ≠ fresh.val := fun same => depends (by rw [← UScalar.eq_of_val_eq same]; exact member)
+            omega
+          · rintro ⟨Object,Value,I,π,models,_⟩
+            have := (rules1 Object Value I π models).1 fresh ((hereMembers fresh).mpr (.inr rfl))
+            exact depends this
+      · refine ⟨none,?_,by simp,by simp⟩
+        simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,usize_max_val,room]
+    · -- The last guess: its nodes depend on the points of the earlier failures.
+      have isLast : many.val = n.val := by omega
+      obtain ⟨lastResult,lastRun,lastSpec⟩ := join_correct deps skipped
+      cases lastResult with
+      | none =>
+        refine ⟨none,?_,by simp,by simp⟩
+        simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,lastRun]
+      | some last =>
+      have lastMembers := lastSpec last rfl
+      have lastFresh : ∀ k ∈ last.val, k.val < fresh.val := by
+        intro k member
+        rcases (lastMembers k).mp member with given | old
+        · exact freshDeps k given
+        · exact freshSkipped k old
+      obtain ⟨namedResult,namedRun,namedSpec⟩ := named_correct F x i r c many last
+      cases namedResult with
+      | none =>
+        refine ⟨none,?_,by simp,by simp⟩
+        simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,lastRun,namedRun]
+      | some F' =>
+      have made := namedSpec F' rfl
+      obtain ⟨inv',smaller⟩ := makes F' many.val last made within
+      obtain ⟨r1,run1,sound1,complete1⟩ := IH F' fresh (by omega) inv' (named_fresh made freshF lastFresh)
+      refine ⟨r1,?_,sound1,?_⟩
+      · simp [UScalar.le_equiv,UScalar.lt_equiv,within,notLast,lastRun,namedRun,run1]
+      intro D rejected
+      obtain ⟨bound,none⟩ := complete1 D rejected
+      refine ⟨bound,?_⟩
+      rintro ⟨Object,Value,I,π,models,_⟩
+      obtain ⟨sub,wrong⟩ := named_rejected inv made at_i xIn none Object Value I π models
+      obtain ⟨k,low,high,exactly⟩ := fits Object Value I π D.val
+        (fun j listed => sub j ((lastMembers j).mpr (.inl listed))) models
+      by_cases earlier : k < many.val
+      · exact excluded Object Value I π D.val (fun j listed => sub j ((lastMembers j).mpr (.inr listed))) models
+          k low earlier exactly
+      · have kIs : k = many.val := by omega
+        rw [kIs] at exactly
+        exact wrong exactly
+  · -- No guess is left: every model under the points has an excluded number.
+    obtain ⟨clashResult,clashRun,clashSpec⟩ := join_correct deps skipped
+    cases clashResult with
+    | none =>
+      refine ⟨none,?_,by simp,by simp⟩
+      simp [UScalar.le_equiv,UScalar.lt_equiv,within,clashRun]
+    | some clash =>
+    have clashMembers := clashSpec clash rfl
+    refine ⟨some (.Rejected clash),by simp [UScalar.le_equiv,UScalar.lt_equiv,within,clashRun],by simp,?_⟩
+    intro D same
+    simp only [Option.some.injEq,completion.Outcome.Rejected.injEq] at same
+    subst same
+    refine ⟨?_,?_⟩
+    · intro k member
+      rcases (clashMembers k).mp member with given | old
+      · exact freshDeps k given
+      · exact freshSkipped k old
+    · rintro ⟨Object,Value,I,π,models,_⟩
+      obtain ⟨k,low,high,exactly⟩ := fits Object Value I π clash.val
+        (fun j listed => (clashMembers j).mpr (.inl listed)) models
+      exact excluded Object Value I π clash.val (fun j listed => (clashMembers j).mpr (.inr listed)) models
+        k low (by omega) exactly
+
+/-- The rule for a maximum restriction of a named node that counts a neighbour
+    the model may repeat, without a bound from new named nodes, terminates and
+    means what `Answers` says: every model of the restriction has between 1 and
+    `n` counted neighbours, so some guess is right in every model. -/
+theorem name_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
+    (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
+      FreshForest F fresh.val →
+      ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r)
+    (F : forest.Forest) (x i fresh : Usize) (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M)
+    (freshF : FreshForest F fresh.val) (active : Active F.nodes.val x.val) (member : i ∈ labelOf F.nodes.val x.val)
+    (n : Usize) (r : ObjectPropertyExpression) (c c' : Usize)
+    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) (repeated : ¬ Unrepeated P h F x.val r c)
+    (uncapped : ∀ cap ∈ F.caps.val, ¬ (cap.node = x ∧ cap.restriction = i)) :
+    ∃ res, forest.name_rule P h F x i fresh = .ok res ∧ Answers.{u,v} P h count F 0 [] [] fresh.val res := by
+  have xIn := active_inside active
+  have wf := inv.shape.wellFormed
+  have iIn : i.val < P.entries.val.length := (List.getElem?_eq_some_iff.mp at_i).1
+  have entryIs : P.entries.val[i.val] = .AtMost n r c c' := by
+    rw [List.getElem?_eq_getElem iIn] at at_i
+    simpa using at_i
+  have lookup : P.entries.index_usize i = .ok (.AtMost n r c c') := by
+    simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem iIn,entryIs]
+  -- The named node and a counted neighbour the model may repeat.
+  obtain ⟨namedX,found⟩ := Classical.not_imp.mp repeated
+  obtain ⟨y,found⟩ := Classical.not_forall.mp found
+  obtain ⟨neighbour,found⟩ := Classical.not_imp.mp found
+  obtain ⟨_,holdsY⟩ := Classical.not_imp.mp found
+  have holdsY : Holds P.entries.val (labelOf F.nodes.val y.val) c.val := not_not.mp holdsY
+  have notCapped : ¬ Capped F x.val i.val := by
+    rintro ⟨cap,listed,node,restriction⟩
+    exact uncapped cap listed ⟨UScalar.eq_of_val_eq node,UScalar.eq_of_val_eq restriction⟩
+  obtain ⟨ruleResult,ruleRun,ruleSpec⟩ := rule_deps_correct P F x xIn
+  cases ruleResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.name_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,ruleRun]
+  | some deps =>
+  obtain ⟨covers,edgeCovers,origin⟩ := ruleSpec deps rfl
+  have freshDeps : ∀ k ∈ deps.val, k.val < fresh.val := by
+    intro k listed
+    rcases origin k listed with ⟨z,there⟩ | ⟨e,eIn,there⟩
+    · exact freshF.1 z k there
+    · exact freshF.2.1 e eIn k there
+  have fits : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+      (D : List Usize), Sub deps.val D → Models P h F I π D → ∃ k, 1 ≤ k ∧ k ≤ n.val ∧
+        Rowl.Owl.Exactly k (fun z => objectRelation I r (π x.val) z ∧ denote I (meaning P.entries.val c.val) z) := by
+    intro Object Value I π D sub models
+    have cover : ∀ z, Near P F x.val z → Sub (nodeDeps F z) D :=
+      fun z near k listed => sub k (covers z near k listed)
+    have edgeCover : ∀ e ∈ F.edges.val, (rep F e.from = x ∨ rep F e.to = x) → Sub e.deps.val D :=
+      fun e eIn touches k listed => sub k (edgeCovers e eIn touches k listed)
+    have atMost := models.labels x.val (cover x.val (.inl rfl)) i member
+    rw [meaning_at P.entries.val wf i.val _ at_i] at atMost
+    simp only [rebuild,denote] at atMost
+    apply exactly_between _ n.val _ atMost
+    refine ⟨fun _ => π y.val,fun a b _ => Subsingleton.elim a b,fun _ => ⟨?_,?_⟩⟩
+    · exact neighbour_holds models x r _ neighbour cover edgeCover
+    · exact holds_denote P.entries.val wf I _ _
+        (models.labels _ (cover _ (neighbour_near P h F x.val r _ neighbour))) c.val holdsY
+  obtain ⟨res,run,answers⟩ := guesses_correct.{u,v} P h count M IH F x i n r c c' at_i deps fresh inv small freshF
+    freshDeps active namedX notCapped fits _ 1#usize (alloc.vec.Vec.new Usize) rfl (by simp) (by simp)
+    (by intro _ _ _ _ _ _ _ k low high; simp at high; omega)
+  refine ⟨res,?_,answers⟩
+  rw [forest.name_rule]
+  simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,ruleRun,run]
+
+/-- The merge for a maximum restriction of a named node with a bound from new
+    named nodes that counts a neighbour the model may repeat terminates and
+    means what `Answers` says: in every model of the bound, two of its first
+    `bound` counted named neighbours and that neighbour coincide, so some pair
+    that is not known to differ is merged in every model. -/
+theorem capped_rule_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (M : Nat)
+    (IH : ∀ (F : forest.Forest) (fresh : Usize), ForestInv.measure P F < M → Inv P h count F →
+      FreshForest F fresh.val →
+      ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r)
+    (F : forest.Forest) (x i fresh : Usize) (inv : Inv P h count F) (small : ForestInv.measure P F ≤ M)
+    (freshF : FreshForest F fresh.val) (active : Active F.nodes.val x.val)
+    (n : Usize) (r : ObjectPropertyExpression) (c c' : Usize)
+    (at_i : P.entries.val[i.val]? = some (.AtMost n r c c')) :
+    ∃ res, forest.capped_rule P h F x i fresh = .ok res ∧ Answers.{u,v} P h count F 0 [] [] fresh.val res := by
+  have xIn := active_inside active
+  have wf := inv.shape.wellFormed
+  have iIn : i.val < P.entries.val.length := (List.getElem?_eq_some_iff.mp at_i).1
+  have entryIs : P.entries.val[i.val] = .AtMost n r c c' := by
+    rw [List.getElem?_eq_getElem iIn] at at_i
+    simpa using at_i
+  have lookup : P.entries.index_usize i = .ok (.AtMost n r c c') := by
+    simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem iIn,entryIs]
+  obtain ⟨capResult,capRun,capFound,_⟩ := cap_at_correct F.caps x i 0#usize
+  cases capResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun]
+  | some k =>
+  obtain ⟨kIn,kNode,kRestriction⟩ := capFound k rfl
+  have capLookup : F.caps.index_usize k = .ok F.caps.val[k.val] := by
+    simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem kIn]
+  have capIn : F.caps.val[k.val] ∈ F.caps.val := List.getElem_mem kIn
+  obtain ⟨listResult,listRun,listSpec⟩ := neighbours_correct P h F x r
+  cases listResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun]
+  | some list =>
+  obtain ⟨members,nodup⟩ := listSpec list rfl
+  obtain ⟨manyResult,manyRun,manySpec⟩ := satisfying_correct P.entries F list c 0#usize (alloc.vec.Vec.new Usize)
+  cases manyResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun]
+  | some many =>
+  have manyIs : many.val = list.val.filter
+      (fun y => decide (Holds P.entries.val (labelOf F.nodes.val y.val) c.val)) := by
+    simpa using manySpec many rfl
+  obtain ⟨namedResult,namedRun,namedSpec⟩ := named_of_correct F many 0#usize (alloc.vec.Vec.new Usize)
+  cases namedResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun]
+  | some named =>
+  have namedIs : named.val = many.val.filter
+      (fun y => decide (∃ m, F.nodes.val[y.val]? = some m ∧ m.tree = false)) := by
+    simpa using namedSpec named rfl
+  obtain ⟨chosen,chosenRun,chosenIs⟩ := first_nodes_correct named F.caps.val[k.val].bound 0#usize
+    (alloc.vec.Vec.new Usize) (by simp)
+  have chosenVal : chosen.val = named.val.take F.caps.val[k.val].bound.val := by
+    rw [chosenIs]
+    simp
+  by_cases short : chosen.val.length < F.caps.val[k.val].bound.val
+  · refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short]
+  obtain ⟨otherResult,otherRun,otherFound,_⟩ := first_repeated_correct F many x 0#usize
+  cases otherResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun]
+  | some other =>
+  obtain ⟨otherIn,otherRepeated⟩ := otherFound other rfl
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at otherIn
+  by_cases room : chosen.val.length < Usize.max
+  swap
+  · refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room]
+  obtain ⟨chosen1,push,chosen1Is⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec chosen other room)
+  obtain ⟨ruleResult,ruleRun,ruleSpec⟩ := rule_deps_correct P F x xIn
+  cases ruleResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room,push,ruleRun]
+  | some deps =>
+  obtain ⟨covers,edgeCovers,origin⟩ := ruleSpec deps rfl
+  obtain ⟨joinResult,joinRun,joinSpec⟩ := join_correct deps F.caps.val[k.val].deps
+  cases joinResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room,push,ruleRun,joinRun]
+  | some deps0 =>
+  have deps0Members := joinSpec deps0 rfl
+  obtain ⟨diffResult,diffRun,diffSpec⟩ := differences_deps_correct F chosen1 0#usize deps0
+  cases diffResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room,push,ruleRun,joinRun,
+      diffRun]
+  | some deps1 =>
+  have deps1Members := diffSpec deps1 rfl
+  obtain ⟨pairsResult,pairsRun,pairsSpec⟩ := pairs_from_correct F chosen1 0#usize (alloc.vec.Vec.new forest.Pair)
+  cases pairsResult with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [forest.capped_rule]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+      alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room,push,ruleRun,joinRun,
+      diffRun,pairsRun]
+  | some pairs =>
+  have pairsMembers := pairsSpec pairs rfl
+  -- The chosen nodes: the first `bound` named counted neighbours and the repeated one.
+  have chosenLength : chosen1.val.length = F.caps.val[k.val].bound.val + 1 := by
+    rw [chosen1Is]
+    have : chosen.val.length ≤ F.caps.val[k.val].bound.val := by
+      rw [chosenVal,List.length_take]
+      omega
+    simp
+    omega
+  have namedIn : ∀ z ∈ chosen.val, z ∈ many.val ∧ ∃ m, F.nodes.val[z.val]? = some m ∧ m.tree = false := by
+    intro z listed
+    rw [chosenVal] at listed
+    have inNamed := List.mem_of_mem_take listed
+    rw [namedIs,List.mem_filter] at inNamed
+    exact ⟨inNamed.1,by simpa using inNamed.2⟩
+  have chosenProps : ∀ z ∈ chosen1.val, Neighbour P h F x.val r z.val ∧
+      Holds P.entries.val (labelOf F.nodes.val z.val) c.val := by
+    intro z listed
+    rw [chosen1Is] at listed
+    have inMany : z ∈ many.val := by
+      rcases List.mem_append.mp listed with old | new
+      · exact (namedIn z old).1
+      · rw [List.mem_singleton] at new
+        rw [new]
+        exact otherIn
+    rw [manyIs,List.mem_filter] at inMany
+    exact ⟨(members z).mp inMany.1,by simpa using inMany.2⟩
+  -- Only the repeated neighbour is a tree node.
+  have treeIs : ∀ z ∈ chosen1.val, (∃ m, F.nodes.val[z.val]? = some m ∧ m.tree = true) → z = other := by
+    intro z listed ⟨m,at_z,tree⟩
+    rw [chosen1Is] at listed
+    rcases List.mem_append.mp listed with old | new
+    · obtain ⟨_,m',at_z',root⟩ := namedIn z old
+      rw [at_z] at at_z'
+      cases at_z'
+      rw [tree] at root
+      cases root
+    · exact List.mem_singleton.mp new
+  have chosenNodup : chosen1.val.Nodup := by
+    rw [chosen1Is]
+    apply List.nodup_append.mpr
+    refine ⟨?_,List.nodup_singleton _,?_⟩
+    · rw [chosenVal,namedIs,manyIs]
+      exact List.Nodup.sublist (List.take_sublist _ _) ((nodup.filter _).filter _)
+    · intro a listed b single same
+      rw [List.mem_singleton] at single
+      subst single
+      subst same
+      obtain ⟨_,m,at_a,root⟩ := namedIn _ listed
+      obtain ⟨m',at_a',tree,_⟩ := otherRepeated
+      rw [at_a] at at_a'
+      cases at_a'
+      rw [root] at tree
+      cases tree
+  have freshDeps1 : ∀ k ∈ deps1.val, k.val < fresh.val := by
+    intro j listed
+    rcases (deps1Members j).mp listed with old | ⟨d,dIn,_,_,jIn⟩
+    · rcases (deps0Members j).mp old with rule | capDep
+      · rcases origin j rule with ⟨y,there⟩ | ⟨e,eIn,there⟩
+        · exact freshF.1 y j there
+        · exact freshF.2.1 e eIn j there
+      · exact freshF.2.2.2 _ capIn j capDep
+    · exact freshF.2.2.1 d (List.mem_of_mem_drop dIn) j jIn
+  have shapes : ∀ p ∈ pairs.val, MergeShape F (orientOf F x p).1.val (orientOf F x p).2.val := by
+    intro p listed
+    rcases (pairsMembers p).mp listed with empty | ⟨a,b,ha,hb,_,less,first,second,_⟩
+    · simp at empty
+    · have different : p.first ≠ p.second := by
+        rw [first,second]
+        intro same
+        have := (List.Nodup.getElem_inj_iff chosenNodup).mp same
+        omega
+      refine (orient_shape inv.shape x active r p
+        (by rw [first]; exact (chosenProps _ (List.getElem_mem ha)).1)
+        (by rw [second]; exact (chosenProps _ (List.getElem_mem hb)).1) different ?_).1
+      intro _ firstTree secondTree
+      exfalso
+      rw [first] at firstTree
+      rw [second] at secondTree
+      apply different
+      rw [first,second,treeIs _ (List.getElem_mem ha) firstTree,treeIs _ (List.getElem_mem hb) secondTree]
+  have collide : ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object)
+      (D : List Usize), Sub deps1.val D → Models P h F I π D →
+        ∃ p ∈ pairs.val, π (orientOf F x p).1.val = π (orientOf F x p).2.val := by
+    intro Object Value I π D sub models
+    have cover : ∀ y, Near P F x.val y → Sub (nodeDeps F y) D :=
+      fun y near j listed => sub j ((deps1Members j).mpr (.inl ((deps0Members j).mpr (.inl (covers y near j listed)))))
+    have edgeCover : ∀ e ∈ F.edges.val, (rep F e.from = x ∨ rep F e.to = x) → Sub e.deps.val D :=
+      fun e eIn touches j listed =>
+        sub j ((deps1Members j).mpr (.inl ((deps0Members j).mpr (.inl (edgeCovers e eIn touches j listed)))))
+    have capSub : Sub F.caps.val[k.val].deps.val D :=
+      fun j listed => sub j ((deps1Members j).mpr (.inl ((deps0Members j).mpr (.inr listed))))
+    have atMost := models.caps _ capIn capSub n r c c' (by rw [kRestriction]; exact at_i)
+    rw [kNode] at atMost
+    simp only [Rowl.Owl.AtMost] at atMost
+    -- Two of the chosen neighbours coincide.
+    obtain ⟨a,b,ha,hb,less,equal⟩ : ∃ a b, ∃ (ha : a < chosen1.val.length) (hb : b < chosen1.val.length),
+        a < b ∧ π chosen1.val[a].val = π chosen1.val[b].val := by
+      by_contra noCollision
+      apply atMost
+      refine ⟨fun j => π (chosen1.val[j.val]'(by rw [chosenLength]; exact j.isLt)).val,?_,?_⟩
+      · intro j1 j2 same
+        apply Fin.ext
+        by_contra different
+        rcases Nat.lt_or_gt_of_ne different with lt | gt
+        · exact noCollision ⟨j1.val,j2.val,_,_,lt,same⟩
+        · exact noCollision ⟨j2.val,j1.val,_,_,gt,same.symm⟩
+      · intro j
+        have inChosen : chosen1.val[j.val]'(by rw [chosenLength]; exact j.isLt) ∈ chosen1.val :=
+          List.getElem_mem _
+        obtain ⟨neighbour,holds⟩ := chosenProps _ inChosen
+        exact ⟨neighbour_holds models x r _ neighbour cover edgeCover,
+          holds_denote P.entries.val wf I _ _
+            (models.labels _ (cover _ (neighbour_near P h F x.val r _ neighbour))) c.val holds⟩
+    by_cases differ : Differ F chosen1.val[a] chosen1.val[b]
+    · exfalso
+      obtain ⟨d,dIn,ends⟩ := differ
+      have dDeps : Sub d.deps.val D := by
+        intro j jIn
+        apply sub j
+        apply (deps1Members j).mpr
+        refine .inr ⟨d,by simpa using dIn,?_,?_,jIn⟩
+        · rcases ends with ⟨l,_⟩ | ⟨l,_⟩
+          · rw [l]; exact List.getElem_mem _
+          · rw [l]; exact List.getElem_mem _
+        · rcases ends with ⟨_,r'⟩ | ⟨_,r'⟩
+          · rw [r']; exact List.getElem_mem _
+          · rw [r']; exact List.getElem_mem _
+      have apart := models.distinct d dIn dDeps
+      rcases ends with ⟨l,r'⟩ | ⟨l,r'⟩
+      · rw [l,r'] at apart
+        exact apart equal
+      · rw [l,r'] at apart
+        exact apart equal.symm
+    · let p : forest.Pair := ⟨chosen1.val[a],chosen1.val[b]⟩
+      have pIn : p ∈ pairs.val := (pairsMembers p).mpr (.inr ⟨a,b,ha,hb,Nat.zero_le _,less,rfl,rfl,differ⟩)
+      refine ⟨p,pIn,?_⟩
+      have different : p.first ≠ p.second := by
+        intro same
+        have := (List.Nodup.getElem_inj_iff chosenNodup).mp same
+        omega
+      rcases (orient_shape inv.shape x active r p (chosenProps _ (List.getElem_mem ha)).1
+        (chosenProps _ (List.getElem_mem hb)).1 different (fun _ firstTree secondTree => by
+          exfalso
+          exact different ((treeIs _ (List.getElem_mem ha) firstTree).trans
+            (treeIs _ (List.getElem_mem hb) secondTree).symm))).2 with
+          same | same
+      · rw [same]
+        exact equal
+      · rw [same]
+        exact equal.symm
+  obtain ⟨res,run,answers⟩ := choices_correct.{u,v} P h count M IH F x pairs deps1 fresh inv small freshF
+    freshDeps1 shapes collide _ 0#usize (alloc.vec.Vec.new Usize) rfl (by simp) (by simp)
+  refine ⟨res,?_,answers⟩
+  rw [forest.capped_rule]
+  simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,iIn,lookup,capRun,listRun,manyRun,namedRun,
+    alloc.vec.Vec.index_slice_index,capLookup,chosenRun,short,otherRun,usize_max_val,room,push,ruleRun,joinRun,
+    diffRun,pairsRun,run]
 
 /-- Expanding a restriction of an active unblocked node, then running on,
     terminates and means what `Answers` says. -/
@@ -1088,7 +1739,7 @@ theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
     · intro k listed
       rcases (clashMembers k).mp listed with old | ⟨d,dIn,_,_,kIn⟩
       · exact freshDeps k old
-      · exact freshF.2.2 d (List.mem_of_mem_drop dIn) k kIn
+      · exact freshF.2.2.1 d (List.mem_of_mem_drop dIn) k kIn
     · rintro ⟨Object,Value,I,π,models,_⟩
       obtain ⟨d,dIn,ends⟩ := differ
       have dDeps : Sub d.deps.val clash.val := by
@@ -1137,7 +1788,8 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       ∃ r, forest.run P h F' fresh' = .ok r ∧ Answers.{u,v} P h count F' 0 [] [] fresh'.val r :=
     fun F' fresh' smaller inv' fresh'' => ih _ smaller F' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
-  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nominalCase,createCase,doneCase⟩ := next_step_correct P h F
+  obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,createCase,doneCase⟩ :=
+    next_step_correct P h F
   rw [forest.run,stepRun]
   cases step with
   | none => exact ⟨none,by simp,by simp,by simp⟩
@@ -1228,11 +1880,42 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
     obtain ⟨bound,none⟩ := complete D rejected
     exact ⟨bound,fun model => none (fullModel_any P h F 0 y.val [] deps.val D.val model)⟩
   | Merge x i =>
-    obtain ⟨activeX,i',member,n,r,c,c',at_i,stepIs,excess,unrepeated⟩ := mergeCase x i rfl
+    obtain ⟨activeX,i',member,n,r,c,c',at_i,cases⟩ := mergeCase x i rfl
+    obtain ⟨stepIs,excess,unrepeated⟩ : forest.Step.Merge x i = .Merge x i' ∧ Excess P h F x.val r c n ∧
+        Unrepeated P h F x.val r c := by
+      rcases cases with merge | ⟨_,⟨isName,_⟩ | ⟨isCapped,_⟩⟩
+      · exact merge
+      · cases isName
+      · cases isCapped
     simp only [forest.Step.Merge.injEq,true_and] at stepIs
     subst stepIs
     obtain ⟨res,run,answers⟩ := merge_rule_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX
       member n r c c' at_i excess unrepeated
+    exact ⟨res,by simp [run],answers⟩
+  | Name x i =>
+    obtain ⟨activeX,i',member,n,r,c,c',at_i,cases⟩ := nameCase x i rfl
+    obtain ⟨stepIs,repeated,uncapped⟩ : forest.Step.Name x i = .Name x i' ∧ ¬ Unrepeated P h F x.val r c ∧
+        ∀ cap ∈ F.caps.val, ¬ (cap.node = x ∧ cap.restriction = i') := by
+      rcases cases with ⟨isMerge,_⟩ | ⟨repeated,⟨isName,uncapped⟩ | ⟨isCapped,_⟩⟩
+      · cases isMerge
+      · exact ⟨isName,repeated,uncapped⟩
+      · cases isCapped
+    simp only [forest.Step.Name.injEq,true_and] at stepIs
+    subst stepIs
+    obtain ⟨res,run,answers⟩ := name_rule_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX
+      member n r c c' at_i repeated uncapped
+    exact ⟨res,by simp [run],answers⟩
+  | Capped x i =>
+    obtain ⟨activeX,i',_,n,r,c,c',at_i,cases⟩ := cappedCase x i rfl
+    obtain stepIs : forest.Step.Capped x i = .Capped x i' := by
+      rcases cases with ⟨isMerge,_⟩ | ⟨_,⟨isName,_⟩ | ⟨isCapped,_⟩⟩
+      · cases isMerge
+      · cases isName
+      · exact isCapped
+    simp only [forest.Step.Capped.injEq,true_and] at stepIs
+    subst stepIs
+    obtain ⟨res,run,answers⟩ := capped_rule_correct.{u,v} P h count m IH F x i fresh inv (by omega) freshF activeX
+      n r c c' at_i
     exact ⟨res,by simp [run],answers⟩
   | Nominal x named =>
     obtain ⟨activeX,i,member,a,at_i,namedIs,different⟩ := nominalCase x named rfl
@@ -1341,7 +2024,7 @@ theorem roots_correct (count : Usize) (F : forest.Forest) (inside : F.nodes.val.
     (sameIs : ∀ (i : Nat) (b : Usize), F.same.val[i]? = some b → b.val = i) :
     ∃ F', forest.roots count F = .ok (some F') ∧ F'.nodes.val.length = count.val ∧ (∀ n ∈ F'.nodes.val, n = root) ∧
       F'.same.val.length = count.val ∧ (∀ (i : Nat) (b : Usize), F'.same.val[i]? = some b → b.val = i) ∧
-      F'.edges = F.edges ∧ F'.distinct = F.distinct := by
+      F'.edges = F.edges ∧ F'.distinct = F.distinct ∧ F'.caps = F.caps := by
   rw [forest.roots]
   by_cases more : F.nodes.val.length < count.val
   · have room : F.nodes.val.length < Usize.max := by have := count.hBounds; scalar_tac
@@ -1349,7 +2032,7 @@ theorem roots_correct (count : Usize) (F : forest.Forest) (inside : F.nodes.val.
     obtain ⟨nodes1,pushNodes,nodesIs⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec F.nodes root room)
     obtain ⟨same1,pushSame,sameIs1⟩ := WP.spec_imp_exists
       (alloc.vec.Vec.push_spec F.same (alloc.vec.Vec.len F.nodes) sameRoom)
-    obtain ⟨F',run,length',roots',sameLength',sameIs',edges',distinct'⟩ := roots_correct count
+    obtain ⟨F',run,length',roots',sameLength',sameIs',edges',distinct',caps'⟩ := roots_correct count
       { F with nodes := nodes1, same := same1 } (by simp [nodesIs]; omega)
       (by
         intro n member
@@ -1374,12 +2057,12 @@ theorem roots_correct (count : Usize) (F : forest.Forest) (inside : F.nodes.val.
           simp only [List.getElem?_cons_zero,Option.some.injEq] at at_i
           rw [← at_i]
           simp [iIs,sameLength])
-    refine ⟨F',?_,length',roots',sameLength',sameIs',edges',distinct'⟩
+    refine ⟨F',?_,length',roots',sameLength',sameIs',edges',distinct',caps'⟩
     simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room]
     have pushNodes' : F.nodes.push ⟨alloc.vec.Vec.new Usize,0#usize,alloc.vec.Vec.new ObjectPropertyExpression,0#usize,
         false,true,alloc.vec.Vec.new Usize,alloc.vec.Vec.new Usize⟩ = .ok nodes1 := pushNodes
     simp [pushNodes',pushSame,run]
-  · refine ⟨F,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by omega,roots,by omega,sameIs,rfl,rfl⟩
+  · refine ⟨F,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by omega,roots,by omega,sameIs,rfl,rfl,rfl⟩
 termination_by count.val - F.nodes.val.length
 decreasing_by
   simp [nodesIs]
@@ -1466,9 +2149,9 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     simp [run0,runq,run1,run2,run3,counting_simple_correct,simple]
   have simpleCounting : SimpleCounting h t3.val := simpleCounting_of h t3.val simple
   have simple' : ∀ e ∈ t3.val.drop (0#usize).val, CountsSimply h e := by simpa using simple
-  obtain ⟨F0,run4,length0,roots0,sameLength0,sameIs0,edges0,distinct0⟩ := roots_correct count
+  obtain ⟨F0,run4,length0,roots0,sameLength0,sameIs0,edges0,distinct0,caps0⟩ := roots_correct count
     ⟨alloc.vec.Vec.new forest.Node,alloc.vec.Vec.new forest.Edge,alloc.vec.Vec.new forest.Distinct,
-      alloc.vec.Vec.new Usize⟩ (by simp) (by simp) (by simp) (by simp)
+      alloc.vec.Vec.new Usize,alloc.vec.Vec.new forest.Cap⟩ (by simp) (by simp) (by simp) (by simp)
   let P : completion.Problem := { entries := t3, links, requirements, unfoldings, axioms := ax }
   have axMeaning3 : meaning t3.val ax.val = axioms := by
     have insideq : ax.val < tq.val.length := by rw [growsq]; simp; omega
@@ -1517,7 +2200,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     rfl
   have inv0 : Inv P h count.val F0 := by
     refine ⟨⟨wf3,complements3,closedTable closed.1,closed,simpleCounting,?_,by rw [length0],sameLength0,?_,?_,?_,
-      linksIn,?_,?_,?_,?_,?_⟩,?_,?_,?_,?_⟩
+      linksIn,?_,?_,?_,?_,?_,by intro cap member; rw [caps0] at member; simp at member⟩,?_,?_,?_,?_⟩
     · intro y n at_y _
       rw [rootNode y n at_y]
       rfl
@@ -1564,7 +2247,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
       rw [rootNode y n at_y] at member
       simp [root] at member
   have fresh0 : FreshForest F0 (0#usize).val := by
-    refine ⟨?_,?_,?_⟩
+    refine ⟨?_,?_,?_,by intro cap member; rw [caps0] at member; simp at member⟩
     · intro y k member
       rw [rootDeps y] at member
       cases member
@@ -1604,7 +2287,8 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     intro _
     rintro ⟨Object,Value,I,π,respects,axiomsHold,definitionsHold,factsHold,linksHold⟩
     apply (complete D rfl).2
-    refine ⟨Object,Value,I,π,⟨respects,?_,?_,?_,linksHold,?_,?_,?_,?_,?_⟩,by simp⟩
+    refine ⟨Object,Value,I,π,⟨respects,?_,?_,?_,linksHold,?_,?_,?_,?_,?_,?_,
+      by intro cap member; rw [caps0] at member; simp at member⟩,by simp⟩
     · intro y
       show denote I (meaning t3.val ax.val) y
       rw [axMeaning3]
@@ -1636,5 +2320,10 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     · intro d member
       rw [distinct0] at member
       simp at member
+    · intro y n at_y _ beyond
+      have := (List.getElem?_eq_some_iff.mp at_y).1
+      rw [length0] at this
+      rw [sameLength0] at beyond
+      omega
 
 end Rowl.Forest
