@@ -200,4 +200,36 @@ theorem well_formed_accepted_iff (bytes : alloc.vec.Vec U8) :
   obtain ⟨result, hr, hc⟩ := matches_utf8_total_correct e bytes
   have matcher := matches_utf8_accepted_iff e bytes
   cases result <;> simp_all [langtag.well_formed]
+private theorem nil_not_range (lower upper : Nat) : ([] : List Nat) ∉ Range lower upper := by
+  simp [Range]
+private theorem nil_not_mul {a b : Language Nat} (h : ([] : List Nat) ∉ a) : ([] : List Nat) ∉ a * b := by
+  rw [Language.mem_mul]
+  rintro ⟨x, hx, y, _, e⟩
+  rw [List.append_eq_nil_iff] at e
+  exact h (e.1 ▸ hx)
+private theorem nil_not_pow {a : Language Nat} (h : ([] : List Nat) ∉ a) (n : Nat) :
+    ([] : List Nat) ∉ a ^ (n + 1) := by
+  rw [pow_succ']
+  exact nil_not_mul h
+private theorem nil_not_case_char (cp : Nat) : ([] : List Nat) ∉ CaseChar cp := by
+  unfold CaseChar
+  split <;> simp [Language.mem_add, Ch, nil_not_range]
+private theorem nil_not_word (text : String) (nonempty : text.toList ≠ []) : ([] : List Nat) ∉ Word text := by
+  unfold Word
+  cases h : text.toList with
+  | nil => exact absurd h nonempty
+  | cons c rest => exact nil_not_mul (nil_not_case_char _)
+/-- Every well-formed language tag has at least one character. -/
+theorem well_formed_nonempty : ([] : List Nat) ∉ WellFormedLanguage := by
+  have alpha : ([] : List Nat) ∉ Alpha := by simp [Alpha, Language.mem_add, nil_not_range]
+  have subtag : ([] : List Nat) ∉ LanguageSubtag := by
+    simp only [LanguageSubtag, Language.mem_add, Between, not_or]
+    exact ⟨nil_not_mul (nil_not_mul (nil_not_pow alpha 1)), nil_not_pow alpha 3, nil_not_mul (nil_not_pow alpha 4)⟩
+  have priv : ([] : List Nat) ∉ PrivateUse := nil_not_mul (by simp [Language.mem_add, Ch, nil_not_range])
+  have grand : ([] : List Nat) ∉ Grandfathered := by
+    simp only [Grandfathered, Language.mem_add, not_or]
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
+      exact nil_not_word _ (by decide)
+  simp only [WellFormedLanguage, Language.mem_add, not_or]
+  exact ⟨nil_not_mul subtag, priv, grand⟩
 end Rowl.LangTag

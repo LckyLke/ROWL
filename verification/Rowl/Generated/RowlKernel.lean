@@ -14431,6 +14431,1613 @@ def datatype_restrictions.check_structural_datatypes
   | datatype_restrictions.DatatypeDefinitionCheck.Cycle smaller larger =>
     ok (datatype_restrictions.StructuralDatatypeCheck.Cycle smaller larger)
 
+/-- [rowl_kernel::datatypes::DataValue]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 34:0-45:1
+    Visibility: public -/
+@[discriminant isize]
+inductive datatypes.DataValue where
+| Number :
+  Bool →
+  alloc.vec.Vec Std.U8 →
+  alloc.vec.Vec Std.U8 →
+  datatypes.DataValue
+| Text : alloc.vec.Vec Std.U8 → datatypes.DataValue
+| Tagged :
+  alloc.vec.Vec Std.U8 →
+  alloc.vec.Vec Std.U8 →
+  datatypes.DataValue
+| Truth : Bool → datatypes.DataValue
+
+/-- [rowl_kernel::datatypes::Kind]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 49:0-55:1
+    Visibility: public -/
+@[discriminant isize]
+inductive datatypes.Kind where
+| Integer : datatypes.Kind
+| Decimal : datatypes.Kind
+| String : datatypes.Kind
+| Plain : datatypes.Kind
+| Boolean : datatypes.Kind
+
+/-- [rowl_kernel::datatypes::{impl core::clone::Clone for rowl_kernel::datatypes::Kind}::clone]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 48:9-48:14
+    Visibility: public -/
+def datatypes.Kind.Insts.CoreCloneClone.clone
+  (self : datatypes.Kind) : Result datatypes.Kind := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::datatypes::{impl core::clone::Clone for rowl_kernel::datatypes::Kind}]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 48:9-48:14 -/
+@[reducible]
+def datatypes.Kind.Insts.CoreCloneClone : core.clone.Clone datatypes.Kind := {
+  clone := datatypes.Kind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::datatypes::{impl core::marker::Copy for rowl_kernel::datatypes::Kind}]
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 48:16-48:20 -/
+@[reducible]
+def datatypes.Kind.Insts.CoreMarkerCopy : core.marker.Copy datatypes.Kind := {
+  cloneInst := datatypes.Kind.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::datatypes::equal_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 57:0-63:1 -/
+def datatypes.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         datatypes.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::same_pattern]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 64:0-66:1 -/
+def datatypes.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then datatypes.equal_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::datatypes::kind_of]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 68:0-86:1
+    Visibility: public -/
+def datatypes.kind_of
+  (datatype : model.Datatype) : Result (Option datatypes.Kind) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8,
+        103#u8, 101#u8, 114#u8
+        ]))
+  let b ← datatypes.same_pattern datatype.iri.spelling s
+  if b
+  then ok (some datatypes.Kind.Integer)
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 40#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+          104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 101#u8, 99#u8, 105#u8,
+          109#u8, 97#u8, 108#u8
+          ]))
+    let b1 ← datatypes.same_pattern datatype.iri.spelling s1
+    if b1
+    then ok (some datatypes.Kind.Decimal)
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 39#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8,
+            116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+            ]))
+      let b2 ← datatypes.same_pattern datatype.iri.spelling s2
+      if b2
+      then ok (some datatypes.Kind.String)
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 55#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+              115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
+              105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+              ]))
+        let b3 ← datatypes.same_pattern datatype.iri.spelling s3
+        if b3
+        then ok (some datatypes.Kind.Plain)
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 40#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+                76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+                98#u8, 111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
+                ]))
+          let b4 ← datatypes.same_pattern datatype.iri.spelling s4
+          if b4
+          then ok (some datatypes.Kind.Boolean)
+          else ok none
+
+/-- [rowl_kernel::datatypes::is_digit]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 88:0-90:1 -/
+def datatypes.is_digit (byte : Std.U8) : Result Bool := do
+  ok ((48#u8 <= byte) && (byte <= 57#u8))
+
+/-- [rowl_kernel::datatypes::digits_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 92:0-102:1 -/
+def datatypes.digits_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      let b ← datatypes.is_digit i1
+      if b
+      then let i2 ← index + 1#usize
+           datatypes.digits_from bytes i2 «end»
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::skip_zeros]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 104:0-114:1 -/
+def datatypes.skip_zeros
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      if i1 = 48#u8
+      then let i2 ← index + 1#usize
+           datatypes.skip_zeros bytes i2 «end»
+      else ok index
+    else ok «end»
+  else ok «end»
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::trim_zeros]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 116:0-126:1 -/
+def datatypes.trim_zeros
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if start < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if «end» <= i
+    then
+      let i1 ← «end» - 1#usize
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes i1
+      if i2 = 48#u8
+      then datatypes.trim_zeros bytes start i1
+      else ok «end»
+    else ok start
+  else ok start
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::copy_range]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 128:0-135:1 -/
+def datatypes.copy_range
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      let out1 ← alloc.vec.Vec.push out i1
+      let i2 ← index + 1#usize
+      datatypes.copy_range bytes i2 «end» out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::find_byte]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 137:0-147:1 -/
+def datatypes.find_byte
+  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) (index : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = byte
+    then ok index
+    else let i2 ← index + 1#usize
+         datatypes.find_byte bytes byte i2
+  else ok (alloc.vec.Vec.len bytes)
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::signed]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 149:0-155:1 -/
+def datatypes.signed (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len lexical
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        lexical 0#usize
+    if i1 = 43#u8
+    then ok true
+    else ok (i1 = 45#u8)
+  else ok false
+
+/-- [rowl_kernel::datatypes::minus]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 157:0-163:1 -/
+def datatypes.minus (lexical : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len lexical
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        lexical 0#usize
+    ok (i1 = 45#u8)
+  else ok false
+
+/-- [rowl_kernel::datatypes::number_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 166:0-179:1 -/
+def datatypes.number_from
+  (lexical : alloc.vec.Vec Std.U8) (negative : Bool) (start : Std.Usize)
+  (dot : Std.Usize) (after : Std.Usize) :
+  Result datatypes.DataValue
+  := do
+  let first ← datatypes.skip_zeros lexical start dot
+  let i := alloc.vec.Vec.len lexical
+  let last ← datatypes.trim_zeros lexical after i
+  let integer ←
+    datatypes.copy_range lexical first dot (alloc.vec.Vec.new Std.U8)
+  let fraction ←
+    datatypes.copy_range lexical after last (alloc.vec.Vec.new Std.U8)
+  let i1 := alloc.vec.Vec.len integer
+  let zero ←
+    if i1 = 0#usize
+    then let i2 := alloc.vec.Vec.len fraction
+         ok (i2 = 0#usize)
+    else ok false
+  if negative
+  then ok (datatypes.DataValue.Number (¬ zero) integer fraction)
+  else ok (datatypes.DataValue.Number false integer fraction)
+
+/-- [rowl_kernel::datatypes::shaped]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 183:0-189:1 -/
+def datatypes.shaped
+  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) (start : Std.Usize)
+  (dot : Std.Usize) (after : Std.Usize) :
+  Result Bool
+  := do
+  let length := alloc.vec.Vec.len lexical
+  if whole
+  then
+    if dot < length
+    then ok false
+    else
+      let b ← datatypes.digits_from lexical start dot
+      if b
+      then
+        let b1 ← datatypes.digits_from lexical after length
+        if b1
+        then
+          let b2 ← if dot = start
+                     then ok (after = length)
+                     else ok false
+          ok (¬ b2)
+        else ok false
+      else ok false
+  else
+    let b ← datatypes.digits_from lexical start dot
+    if b
+    then
+      let b1 ← datatypes.digits_from lexical after length
+      if b1
+      then
+        let b2 ← if dot = start
+                   then ok (after = length)
+                   else ok false
+        ok (¬ b2)
+      else ok false
+    else ok false
+
+/-- [rowl_kernel::datatypes::number_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 192:0-202:1 -/
+def datatypes.number_value
+  (lexical : alloc.vec.Vec Std.U8) (whole : Bool) :
+  Result (Option datatypes.DataValue)
+  := do
+  let length := alloc.vec.Vec.len lexical
+  let b ← datatypes.signed lexical
+  let start ← if b
+                then ok 1#usize
+                else ok 0#usize
+  let dot ← datatypes.find_byte lexical 46#u8 start
+  let after ← if dot < length
+                then dot + 1#usize
+                else ok length
+  let b1 ← datatypes.shaped lexical whole start dot after
+  if b1
+  then
+    let b2 ← datatypes.minus lexical
+    let dv ← datatypes.number_from lexical b2 start dot after
+    ok (some dv)
+  else ok none
+
+/-- [rowl_kernel::unicode::xml_character]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 137:0-144:1
+    Visibility: public -/
+def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
+  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
+    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
+    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
+    (codepoint <= 1114111#u32)))
+
+/-- [rowl_kernel::unicode::continuation]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
+def unicode.continuation (byte : Std.U8) : Result Bool := do
+  ok ((byte >= 128#u8) && (byte <= 191#u8))
+
+/-- [rowl_kernel::unicode::four]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
+def unicode.four
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let b ← unicode.continuation second
+  let b1 ← unicode.continuation third
+  let b2 ← unicode.continuation fourth
+  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
+    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
+    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 240#u32
+    let i2 ← i1 * 262144#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 4096#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i8 * 64#u32
+    let i10 ← i6 + i9
+    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
+    let i12 ← i11 - 128#u32
+    let i13 ← i10 + i12
+    ok (some i13)
+  else ok none
+
+/-- [rowl_kernel::unicode::three]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
+def unicode.three
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let tail ← unicode.continuation second
+  let b ← unicode.continuation third
+  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
+    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
+    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
+    (first <= 239#u8)) && tail)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 224#u32
+    let i2 ← i1 * 4096#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 64#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i6 + i8
+    ok (some i9)
+  else ok none
+
+/-- [rowl_kernel::unicode::two]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
+def unicode.two
+  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
+  let b ← unicode.continuation second
+  if ((first >= 194#u8) && (first <= 223#u8)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 192#u32
+    let i2 ← i1 * 64#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i2 + i4
+    ok (some i5)
+  else ok none
+
+/-- [rowl_kernel::unicode::TextError]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextError where
+| InvalidPosition : Std.Usize → unicode.TextError
+| InvalidUtf8 : Std.Usize → unicode.TextError
+| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
+
+/-- [rowl_kernel::unicode::Decoded]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Decoded where
+| End : unicode.Decoded
+| Scalar : Std.U32 → Std.Usize → unicode.Decoded
+| Error : unicode.TextError → unicode.Decoded
+
+/-- [rowl_kernel::unicode::decode_next]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
+    Visibility: public -/
+def unicode.decode_next
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.Decoded
+  := do
+  let length := alloc.vec.Vec.len bytes
+  if offset > length
+  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
+  else
+    if offset = length
+    then ok unicode.Decoded.End
+    else
+      let first ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes offset
+      if first < 128#u8
+      then
+        let i ← lift (core.convert.num.FromU32U8.from first)
+        let i1 ← offset + 1#usize
+        ok (unicode.Decoded.Scalar i i1)
+      else
+        let remaining ← length - offset
+        if first < 224#u8
+        then
+          if remaining >= 2#usize
+          then
+            let i ← offset + 1#usize
+            let i1 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                Std.U8) bytes i
+            let o ← unicode.two first i1
+            match o with
+            | none =>
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+            | some codepoint =>
+              let i2 ← offset + 2#usize
+              ok (unicode.Decoded.Scalar codepoint i2)
+          else
+            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+        else
+          if first < 240#u8
+          then
+            if remaining >= 3#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let o ← unicode.three first i1 i3
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i4 ← offset + 3#usize
+                ok (unicode.Decoded.Scalar codepoint i4)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+          else
+            if remaining >= 4#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let i4 ← offset + 3#usize
+              let i5 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i4
+              let o ← unicode.four first i1 i3 i5
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i6 ← offset + 4#usize
+                ok (unicode.Decoded.Scalar codepoint i6)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+
+/-- [rowl_kernel::unicode::Scalars]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Scalars where
+| Empty : unicode.Scalars
+| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
+
+/-- [rowl_kernel::unicode::TextScan]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextScan where
+| Valid : unicode.Scalars → unicode.TextScan
+| Invalid : unicode.TextError → unicode.TextScan
+
+/-- [rowl_kernel::unicode::read_from]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
+def unicode.read_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.TextScan
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
+  | unicode.Decoded.Scalar codepoint next =>
+    let b ← unicode.xml_character codepoint
+    if b
+    then
+      let ts ← unicode.read_from bytes next
+      match ts with
+      | unicode.TextScan.Valid tail =>
+        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
+          tail))
+      | unicode.TextScan.Invalid _ => ok ts
+    else
+      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
+        codepoint))
+  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
+partial_fixpoint
+
+/-- [rowl_kernel::unicode::read_text]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
+    Visibility: public -/
+def unicode.read_text
+  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
+  unicode.read_from bytes 0#usize
+
+/-- [rowl_kernel::datatypes::xml_text]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 204:0-209:1 -/
+def datatypes.xml_text (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let ts ← unicode.read_text bytes
+  match ts with
+  | unicode.TextScan.Valid _ => ok true
+  | unicode.TextScan.Invalid _ => ok false
+
+/-- [rowl_kernel::datatypes::last_byte]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 211:0-221:1 -/
+def datatypes.last_byte
+  (bytes : alloc.vec.Vec Std.U8) (byte : Std.U8) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if 0#usize < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if «end» <= i
+    then
+      let i1 ← «end» - 1#usize
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes i1
+      if i2 = byte
+      then ok i1
+      else datatypes.last_byte bytes byte i1
+    else ok (alloc.vec.Vec.len bytes)
+  else ok (alloc.vec.Vec.len bytes)
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::lower]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 223:0-229:1 -/
+def datatypes.lower (byte : Std.U8) : Result Std.U8 := do
+  if (65#u8 <= byte) && (byte <= 90#u8)
+  then byte + 32#u8
+  else ok byte
+
+/-- [rowl_kernel::datatypes::lower_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 231:0-238:1 -/
+def datatypes.lower_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i2 ← datatypes.lower i1
+    let out1 ← alloc.vec.Vec.push out i2
+    let i3 ← index + 1#usize
+    datatypes.lower_from bytes i3 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::regular::Expression]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.Expression where
+| Empty : regular.Expression
+| Epsilon : regular.Expression
+| Interval : Std.U32 → Std.U32 → regular.Expression
+| Alternative :
+  regular.Expression →
+  regular.Expression →
+  regular.Expression
+| Sequence : regular.Expression → regular.Expression → regular.Expression
+| Repeat : regular.Expression → regular.Expression
+
+/-- [rowl_kernel::regular::repeat]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 71:0-76:1
+    Visibility: public -/
+def regular.repeat
+  (expression : regular.Expression) : Result regular.Expression := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Epsilon
+  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+  | regular.Expression.Interval _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Alternative _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Sequence _ _ =>
+    ok (regular.Expression.Repeat expression)
+  | regular.Expression.Repeat _ => ok (regular.Expression.Repeat expression)
+
+/-- [rowl_kernel::regular::sequence]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 62:0-69:1
+    Visibility: public -/
+def regular.sequence
+  (left : regular.Expression) (right : regular.Expression) :
+  Result regular.Expression
+  := do
+  match left with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+    | regular.Expression.Interval _ _ => ok right
+    | regular.Expression.Alternative _ _ => ok right
+    | regular.Expression.Sequence _ _ => ok right
+    | regular.Expression.Repeat _ => ok right
+  | regular.Expression.Interval _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Alternative _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Sequence _ _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+  | regular.Expression.Repeat _ =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Empty
+    | regular.Expression.Epsilon => ok left
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Sequence left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Sequence left right)
+
+/-- [rowl_kernel::regular::alternate]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 54:0-60:1
+    Visibility: public -/
+def regular.alternate
+  (left : regular.Expression) (right : regular.Expression) :
+  Result regular.Expression
+  := do
+  match left with
+  | regular.Expression.Empty => ok right
+  | regular.Expression.Epsilon =>
+    match right with
+    | regular.Expression.Empty => ok regular.Expression.Epsilon
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon
+        regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
+  | regular.Expression.Interval _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Alternative _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Sequence _ _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+  | regular.Expression.Repeat _ =>
+    match right with
+    | regular.Expression.Empty => ok left
+    | regular.Expression.Epsilon =>
+      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
+    | regular.Expression.Interval _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Alternative _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Sequence _ _ =>
+      ok (regular.Expression.Alternative left right)
+    | regular.Expression.Repeat _ =>
+      ok (regular.Expression.Alternative left right)
+
+/-- [rowl_kernel::regular::nullable]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 45:0-52:1
+    Visibility: public -/
+def regular.nullable (expression : regular.Expression) : Result Bool := do
+  match expression with
+  | regular.Expression.Empty => ok false
+  | regular.Expression.Epsilon => ok true
+  | regular.Expression.Interval _ _ => ok false
+  | regular.Expression.Alternative left right =>
+    let b ← regular.nullable left
+    if b
+    then ok true
+    else regular.nullable right
+  | regular.Expression.Sequence left right =>
+    let b ← regular.nullable left
+    if b
+    then regular.nullable right
+    else ok false
+  | regular.Expression.Repeat _ => ok true
+partial_fixpoint
+
+/-- [rowl_kernel::regular::copy_expression]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 25:0-43:1
+    Visibility: public -/
+def regular.copy_expression
+  (expression : regular.Expression) : Result regular.Expression := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
+  | regular.Expression.Interval _ _ => ok expression
+  | regular.Expression.Alternative left right =>
+    let e ← regular.copy_expression left
+    let e1 ← regular.copy_expression right
+    ok (regular.Expression.Alternative e e1)
+  | regular.Expression.Sequence left right =>
+    let e ← regular.copy_expression left
+    let e1 ← regular.copy_expression right
+    ok (regular.Expression.Sequence e e1)
+  | regular.Expression.Repeat inner =>
+    let e ← regular.copy_expression inner
+    ok (regular.Expression.Repeat e)
+partial_fixpoint
+
+/-- [rowl_kernel::regular::derivative]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 80:0-108:1
+    Visibility: public -/
+def regular.derivative
+  (expression : regular.Expression) (codepoint : Std.U32) :
+  Result regular.Expression
+  := do
+  match expression with
+  | regular.Expression.Empty => ok regular.Expression.Empty
+  | regular.Expression.Epsilon => ok regular.Expression.Empty
+  | regular.Expression.Interval lower upper =>
+    if lower <= codepoint
+    then
+      if codepoint <= upper
+      then ok regular.Expression.Epsilon
+      else ok regular.Expression.Empty
+    else ok regular.Expression.Empty
+  | regular.Expression.Alternative left right =>
+    let e ← regular.derivative left codepoint
+    let e1 ← regular.derivative right codepoint
+    regular.alternate e e1
+  | regular.Expression.Sequence left right =>
+    let accepts_empty ← regular.nullable left
+    let right_derivative ←
+      if accepts_empty
+      then
+        do
+        let e ← regular.copy_expression right
+        regular.derivative e codepoint
+      else ok regular.Expression.Empty
+    let e ← regular.derivative left codepoint
+    let joined ← regular.sequence e right
+    regular.alternate joined right_derivative
+  | regular.Expression.Repeat inner =>
+    let original ← regular.copy_expression inner
+    let e ← regular.derivative inner codepoint
+    let e1 ← regular.repeat original
+    regular.sequence e e1
+partial_fixpoint
+
+/-- [rowl_kernel::regular::MatchResult]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.MatchResult where
+| Matched : Bool → regular.MatchResult
+| MalformedUtf8 : unicode.TextError → regular.MatchResult
+
+/-- [rowl_kernel::regular::match_from]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 110:0-118:1 -/
+def regular.match_from
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
+  (offset : Std.Usize) :
+  Result regular.MatchResult
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End =>
+    let b ← regular.nullable expression
+    ok (regular.MatchResult.Matched b)
+  | unicode.Decoded.Scalar codepoint next =>
+    let e ← regular.derivative expression codepoint
+    regular.match_from e bytes next
+  | unicode.Decoded.Error error => ok (regular.MatchResult.MalformedUtf8 error)
+partial_fixpoint
+
+/-- [rowl_kernel::regular::matches_utf8]:
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 123:0-125:1
+    Visibility: public -/
+def regular.matches_utf8
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
+  Result regular.MatchResult
+  := do
+  regular.match_from expression bytes 0#usize
+
+/-- [rowl_kernel::langtag::cat]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 16:0-18:1 -/
+def langtag.cat
+  (a : regular.Expression) (b : regular.Expression) :
+  Result regular.Expression
+  := do
+  ok (regular.Expression.Sequence a b)
+
+/-- [rowl_kernel::langtag::range]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 7:0-9:1 -/
+def langtag.range
+  (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
+  ok (regular.Expression.Interval lower upper)
+
+/-- [rowl_kernel::langtag::ch]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 10:0-12:1 -/
+def langtag.ch (cp : Std.U32) : Result regular.Expression := do
+  langtag.range cp cp
+
+/-- [rowl_kernel::langtag::dashed]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 63:0-65:1 -/
+def langtag.dashed (a : regular.Expression) : Result regular.Expression := do
+  let e ← langtag.ch 45#u32
+  langtag.cat e a
+
+/-- [rowl_kernel::langtag::digit]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 48:0-50:1 -/
+def langtag.digit : Result regular.Expression := do
+  langtag.range 48#u32 57#u32
+
+/-- [rowl_kernel::langtag::alt]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 13:0-15:1 -/
+def langtag.alt
+  (a : regular.Expression) (b : regular.Expression) :
+  Result regular.Expression
+  := do
+  ok (regular.Expression.Alternative a b)
+
+/-- [rowl_kernel::langtag::alpha]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 45:0-47:1 -/
+def langtag.alpha : Result regular.Expression := do
+  let e ← langtag.range 65#u32 90#u32
+  let e1 ← langtag.range 97#u32 122#u32
+  langtag.alt e e1
+
+/-- [rowl_kernel::langtag::alnum]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 51:0-53:1 -/
+def langtag.alnum : Result regular.Expression := do
+  let e ← langtag.alpha
+  let e1 ← langtag.digit
+  langtag.alt e e1
+
+/-- [rowl_kernel::langtag::opt]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 19:0-21:1 -/
+def langtag.opt (a : regular.Expression) : Result regular.Expression := do
+  langtag.alt regular.Expression.Epsilon a
+
+/-- [rowl_kernel::langtag::up_to]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 35:0-41:1 -/
+def langtag.up_to
+  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
+  if n = 0#u8
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression a
+    let i ← n - 1#u8
+    let e1 ← langtag.up_to a i
+    let e2 ← langtag.cat e e1
+    langtag.opt e2
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::exact]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 28:0-34:1 -/
+def langtag.exact
+  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
+  if n = 0#u8
+  then ok regular.Expression.Epsilon
+  else
+    let e ← regular.copy_expression a
+    let i ← n - 1#u8
+    let e1 ← langtag.exact a i
+    langtag.cat e e1
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::between]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 42:0-44:1 -/
+def langtag.between
+  (a : regular.Expression) (lower : Std.U8) (extra : Std.U8) :
+  Result regular.Expression
+  := do
+  let e ← langtag.exact a lower
+  let e1 ← langtag.up_to a extra
+  langtag.cat e e1
+
+/-- [rowl_kernel::langtag::star]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 22:0-24:1 -/
+def langtag.star (a : regular.Expression) : Result regular.Expression := do
+  ok (regular.Expression.Repeat a)
+
+/-- [rowl_kernel::langtag::plus]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 25:0-27:1 -/
+def langtag.plus (a : regular.Expression) : Result regular.Expression := do
+  let e ← regular.copy_expression a
+  let e1 ← langtag.star a
+  langtag.cat e e1
+
+/-- [rowl_kernel::langtag::private_use]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 106:0-108:1 -/
+def langtag.private_use : Result regular.Expression := do
+  let e ← langtag.ch 120#u32
+  let e1 ← langtag.ch 88#u32
+  let e2 ← langtag.alt e e1
+  let e3 ← langtag.alnum
+  let e4 ← langtag.between e3 1#u8 7#u8
+  let e5 ← langtag.dashed e4
+  let e6 ← langtag.plus e5
+  langtag.cat e2 e6
+
+/-- [rowl_kernel::langtag::singleton]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 54:0-62:1 -/
+def langtag.singleton : Result regular.Expression := do
+  let e ← langtag.digit
+  let e1 ← langtag.range 65#u32 87#u32
+  let e2 ← langtag.range 89#u32 90#u32
+  let e3 ← langtag.alt e1 e2
+  let e4 ← langtag.range 97#u32 119#u32
+  let e5 ← langtag.range 121#u32 122#u32
+  let e6 ← langtag.alt e4 e5
+  let e7 ← langtag.alt e3 e6
+  langtag.alt e e7
+
+/-- [rowl_kernel::langtag::extension]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 103:0-105:1 -/
+def langtag.extension : Result regular.Expression := do
+  let e ← langtag.singleton
+  let e1 ← langtag.alnum
+  let e2 ← langtag.between e1 2#u8 6#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.plus e3
+  langtag.cat e e4
+
+/-- [rowl_kernel::langtag::variant]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 100:0-102:1 -/
+def langtag.variant : Result regular.Expression := do
+  let e ← langtag.alnum
+  let e1 ← langtag.between e 5#u8 3#u8
+  let e2 ← langtag.digit
+  let e3 ← langtag.exact e 3#u8
+  let e4 ← langtag.cat e2 e3
+  langtag.alt e1 e4
+
+/-- [rowl_kernel::langtag::language]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 93:0-99:1 -/
+def langtag.language : Result regular.Expression := do
+  let e ← langtag.alpha
+  let e1 ← langtag.exact e 3#u8
+  let e2 ← langtag.exact e 3#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.up_to e3 2#u8
+  let extlang ← langtag.cat e1 e4
+  let e5 ← langtag.between e 2#u8 1#u8
+  let e6 ← langtag.dashed extlang
+  let e7 ← langtag.opt e6
+  let e8 ← langtag.cat e5 e7
+  let e9 ← langtag.exact e 4#u8
+  let e10 ← langtag.between e 5#u8 3#u8
+  let e11 ← langtag.alt e9 e10
+  langtag.alt e8 e11
+
+/-- [rowl_kernel::langtag::langtag]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 109:0-123:1 -/
+def langtag.langtag : Result regular.Expression := do
+  let e ← langtag.language
+  let e1 ← langtag.alpha
+  let e2 ← langtag.exact e1 4#u8
+  let e3 ← langtag.dashed e2
+  let e4 ← langtag.opt e3
+  let e5 ← langtag.exact e1 2#u8
+  let e6 ← langtag.digit
+  let e7 ← langtag.exact e6 3#u8
+  let e8 ← langtag.alt e5 e7
+  let e9 ← langtag.dashed e8
+  let e10 ← langtag.opt e9
+  let e11 ← langtag.variant
+  let e12 ← langtag.dashed e11
+  let e13 ← langtag.star e12
+  let e14 ← langtag.extension
+  let e15 ← langtag.dashed e14
+  let e16 ← langtag.star e15
+  let e17 ← langtag.private_use
+  let e18 ← langtag.dashed e17
+  let e19 ← langtag.opt e18
+  let e20 ← langtag.cat e16 e19
+  let e21 ← langtag.cat e13 e20
+  let e22 ← langtag.cat e10 e21
+  let e23 ← langtag.cat e4 e22
+  langtag.cat e e23
+
+/-- [rowl_kernel::langtag::literal_from]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 66:0-78:1 -/
+def langtag.literal_from
+  (bytes : Slice Std.U8) (position : Std.Usize) :
+  Result regular.Expression
+  := do
+  let i := Slice.len bytes
+  if position = i
+  then ok regular.Expression.Epsilon
+  else
+    let i1 ← Slice.index_usize bytes position
+    let value ← lift (core.convert.num.FromU32U8.from i1)
+    let token ←
+      if value >= 97#u32
+      then
+        if value <= 122#u32
+        then
+          do
+          let e ← langtag.ch value
+          let i2 ← value - 32#u32
+          let e1 ← langtag.ch i2
+          langtag.alt e e1
+        else langtag.ch value
+      else langtag.ch value
+    let i2 ← position + 1#usize
+    let e ← langtag.literal_from bytes i2
+    langtag.cat token e
+partial_fixpoint
+
+/-- [rowl_kernel::langtag::literal]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 79:0-81:1 -/
+def langtag.literal (bytes : Slice Std.U8) : Result regular.Expression := do
+  langtag.literal_from bytes 0#usize
+
+/-- [rowl_kernel::langtag::grandfathered]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 82:0-92:1 -/
+def langtag.grandfathered : Result regular.Expression := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        101#u8, 110#u8, 45#u8, 103#u8, 98#u8, 45#u8, 111#u8, 101#u8, 100#u8
+        ]))
+  let e ← langtag.literal s
+  let s1 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 97#u8, 109#u8, 105#u8 ]))
+  let e1 ← langtag.literal s1
+  let s2 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 98#u8, 110#u8, 110#u8 ]))
+  let e2 ← langtag.literal s2
+  let s3 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        105#u8, 45#u8, 100#u8, 101#u8, 102#u8, 97#u8, 117#u8, 108#u8, 116#u8
+        ]))
+  let e3 ← langtag.literal s3
+  let s4 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        105#u8, 45#u8, 101#u8, 110#u8, 111#u8, 99#u8, 104#u8, 105#u8, 97#u8,
+        110#u8
+        ]))
+  let e4 ← langtag.literal s4
+  let s5 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 104#u8, 97#u8, 107#u8 ]))
+  let e5 ← langtag.literal s5
+  let s6 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        105#u8, 45#u8, 107#u8, 108#u8, 105#u8, 110#u8, 103#u8, 111#u8, 110#u8
+        ]))
+  let e6 ← langtag.literal s6
+  let s7 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 108#u8, 117#u8, 120#u8 ]))
+  let e7 ← langtag.literal s7
+  let s8 ←
+    lift (Array.to_slice
+      (Array.make 7#usize [
+        105#u8, 45#u8, 109#u8, 105#u8, 110#u8, 103#u8, 111#u8
+        ]))
+  let e8 ← langtag.literal s8
+  let s9 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        105#u8, 45#u8, 110#u8, 97#u8, 118#u8, 97#u8, 106#u8, 111#u8
+        ]))
+  let e9 ← langtag.literal s9
+  let s10 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 112#u8, 119#u8, 110#u8 ]))
+  let e10 ← langtag.literal s10
+  let s11 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 111#u8 ]))
+  let e11 ← langtag.literal s11
+  let s12 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 121#u8 ]))
+  let e12 ← langtag.literal s12
+  let s13 ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 115#u8, 117#u8 ]))
+  let e13 ← langtag.literal s13
+  let s14 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 102#u8, 114#u8
+        ]))
+  let e14 ← langtag.literal s14
+  let s15 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 110#u8, 108#u8
+        ]))
+  let e15 ← langtag.literal s15
+  let s16 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        115#u8, 103#u8, 110#u8, 45#u8, 99#u8, 104#u8, 45#u8, 100#u8, 101#u8
+        ]))
+  let e16 ← langtag.literal s16
+  let s17 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        97#u8, 114#u8, 116#u8, 45#u8, 108#u8, 111#u8, 106#u8, 98#u8, 97#u8,
+        110#u8
+        ]))
+  let e17 ← langtag.literal s17
+  let s18 ←
+    lift (Array.to_slice
+      (Array.make 11#usize [
+        99#u8, 101#u8, 108#u8, 45#u8, 103#u8, 97#u8, 117#u8, 108#u8, 105#u8,
+        115#u8, 104#u8
+        ]))
+  let e18 ← langtag.literal s18
+  let s19 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 98#u8, 111#u8, 107#u8 ]))
+  let e19 ← langtag.literal s19
+  let s20 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 110#u8, 121#u8, 110#u8 ]))
+  let e20 ← langtag.literal s20
+  let s21 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 103#u8, 117#u8, 111#u8, 121#u8, 117#u8
+        ]))
+  let e21 ← langtag.literal s21
+  let s22 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 104#u8, 97#u8, 107#u8, 107#u8, 97#u8
+        ]))
+  let e22 ← langtag.literal s22
+  let s23 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8 ]))
+  let e23 ← langtag.literal s23
+  let s24 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8, 45#u8, 110#u8, 97#u8,
+        110#u8
+        ]))
+  let e24 ← langtag.literal s24
+  let s25 ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        122#u8, 104#u8, 45#u8, 120#u8, 105#u8, 97#u8, 110#u8, 103#u8
+        ]))
+  let e25 ← langtag.literal s25
+  let e26 ← langtag.alt e24 e25
+  let e27 ← langtag.alt e23 e26
+  let e28 ← langtag.alt e22 e27
+  let e29 ← langtag.alt e21 e28
+  let e30 ← langtag.alt e20 e29
+  let e31 ← langtag.alt e19 e30
+  let e32 ← langtag.alt e18 e31
+  let e33 ← langtag.alt e17 e32
+  let e34 ← langtag.alt e16 e33
+  let e35 ← langtag.alt e15 e34
+  let e36 ← langtag.alt e14 e35
+  let e37 ← langtag.alt e13 e36
+  let e38 ← langtag.alt e12 e37
+  let e39 ← langtag.alt e11 e38
+  let e40 ← langtag.alt e10 e39
+  let e41 ← langtag.alt e9 e40
+  let e42 ← langtag.alt e8 e41
+  let e43 ← langtag.alt e7 e42
+  let e44 ← langtag.alt e6 e43
+  let e45 ← langtag.alt e5 e44
+  let e46 ← langtag.alt e4 e45
+  let e47 ← langtag.alt e3 e46
+  let e48 ← langtag.alt e2 e47
+  let e49 ← langtag.alt e1 e48
+  langtag.alt e e49
+
+/-- [rowl_kernel::langtag::grammar]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 126:0-128:1
+    Visibility: public -/
+def langtag.grammar : Result regular.Expression := do
+  let e ← langtag.langtag
+  let e1 ← langtag.private_use
+  let e2 ← langtag.grandfathered
+  let e3 ← langtag.alt e1 e2
+  langtag.alt e e3
+
+/-- [rowl_kernel::langtag::well_formed]:
+    Source: 'crates/rowl-kernel/src/langtag.rs', lines 135:0-137:1
+    Visibility: public -/
+def langtag.well_formed (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let e ← langtag.grammar
+  let mr ← regular.matches_utf8 e bytes
+  match mr with
+  | regular.MatchResult.Matched b => if b
+                                     then ok true
+                                     else ok false
+  | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::datatypes::tagged_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 240:0-248:1 -/
+def datatypes.tagged_value
+  (text : alloc.vec.Vec Std.U8) (tag : alloc.vec.Vec Std.U8) :
+  Result (Option datatypes.DataValue)
+  := do
+  let i := alloc.vec.Vec.len tag
+  if i = 0#usize
+  then ok (some (datatypes.DataValue.Text text))
+  else
+    let b ← langtag.well_formed tag
+    if b
+    then
+      let v ← datatypes.lower_from tag 0#usize (alloc.vec.Vec.new Std.U8)
+      ok (some (datatypes.DataValue.Tagged text v))
+    else ok none
+
+/-- [rowl_kernel::datatypes::plain_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 251:0-266:1 -/
+def datatypes.plain_value
+  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
+  let i := alloc.vec.Vec.len lexical
+  let «at» ← datatypes.last_byte lexical 64#u8 i
+  let i1 := alloc.vec.Vec.len lexical
+  if «at» < i1
+  then
+    let text ←
+      datatypes.copy_range lexical 0#usize «at» (alloc.vec.Vec.new Std.U8)
+    let b ← datatypes.xml_text text
+    if b
+    then
+      let i2 ← «at» + 1#usize
+      let i3 := alloc.vec.Vec.len lexical
+      let v ← datatypes.copy_range lexical i2 i3 (alloc.vec.Vec.new Std.U8)
+      datatypes.tagged_value text v
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::datatypes::truth_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 268:0-276:1 -/
+def datatypes.truth_value
+  (lexical : alloc.vec.Vec Std.U8) : Result (Option datatypes.DataValue) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+  let b ← datatypes.same_pattern lexical s
+  if b
+  then ok (some (datatypes.DataValue.Truth true))
+  else
+    let s1 ← lift (Array.to_slice (Array.make 1#usize [ 49#u8 ]))
+    let b1 ← datatypes.same_pattern lexical s1
+    if b1
+    then ok (some (datatypes.DataValue.Truth true))
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+      let b2 ← datatypes.same_pattern lexical s2
+      if b2
+      then ok (some (datatypes.DataValue.Truth false))
+      else
+        let s3 ← lift (Array.to_slice (Array.make 1#usize [ 48#u8 ]))
+        let b3 ← datatypes.same_pattern lexical s3
+        if b3
+        then ok (some (datatypes.DataValue.Truth false))
+        else ok none
+
+/-- [rowl_kernel::datatypes::kind_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 279:0-298:1
+    Visibility: public -/
+def datatypes.kind_value
+  (kind : datatypes.Kind) (lexical : alloc.vec.Vec Std.U8) :
+  Result (Option datatypes.DataValue)
+  := do
+  match kind with
+  | datatypes.Kind.Integer => datatypes.number_value lexical true
+  | datatypes.Kind.Decimal => datatypes.number_value lexical false
+  | datatypes.Kind.String =>
+    let b ← datatypes.xml_text lexical
+    if b
+    then
+      let i := alloc.vec.Vec.len lexical
+      let v ←
+        datatypes.copy_range lexical 0#usize i (alloc.vec.Vec.new Std.U8)
+      ok (some (datatypes.DataValue.Text v))
+    else ok none
+  | datatypes.Kind.Plain => datatypes.plain_value lexical
+  | datatypes.Kind.Boolean => datatypes.truth_value lexical
+
+/-- [rowl_kernel::datatypes::literal_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 301:0-306:1
+    Visibility: public -/
+def datatypes.literal_value
+  (literal : model.Literal) : Result (Option datatypes.DataValue) := do
+  let o ← datatypes.kind_of literal.datatype
+  match o with
+  | none => ok none
+  | some kind => datatypes.kind_value kind literal.lexical
+
+/-- [rowl_kernel::datatypes::same_bytes_from]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 307:0-313:1 -/
+def datatypes.same_bytes_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           datatypes.same_bytes_from left right i4
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::datatypes::same_bytes]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 314:0-316:1 -/
+def datatypes.same_bytes
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then datatypes.same_bytes_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::datatypes::same_value]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 318:0-337:1
+    Visibility: public -/
+def datatypes.same_value
+  (left : datatypes.DataValue) (right : datatypes.DataValue) :
+  Result Bool
+  := do
+  match left with
+  | datatypes.DataValue.Number a b c =>
+    match right with
+    | datatypes.DataValue.Number d e f =>
+      if a = d
+      then
+        let b1 ← datatypes.same_bytes b e
+        if b1
+        then datatypes.same_bytes c f
+        else ok false
+      else ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Text a =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text b => datatypes.same_bytes a b
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Tagged a b =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged c d =>
+      let b1 ← datatypes.same_bytes a c
+      if b1
+      then datatypes.same_bytes b d
+      else ok false
+    | datatypes.DataValue.Truth _ => ok false
+  | datatypes.DataValue.Truth a =>
+    match right with
+    | datatypes.DataValue.Number _ _ _ => ok false
+    | datatypes.DataValue.Text _ => ok false
+    | datatypes.DataValue.Tagged _ _ => ok false
+    | datatypes.DataValue.Truth b => ok (a = b)
+
+/-- [rowl_kernel::datatypes::in_kind]:
+    Source: 'crates/rowl-kernel/src/datatypes.rs', lines 339:0-360:1
+    Visibility: public -/
+def datatypes.in_kind
+  (value : datatypes.DataValue) (kind : datatypes.Kind) : Result Bool := do
+  match value with
+  | datatypes.DataValue.Number _ _ fraction =>
+    match kind with
+    | datatypes.Kind.Integer =>
+      let i := alloc.vec.Vec.len fraction
+      ok (i = 0#usize)
+    | datatypes.Kind.Decimal => ok true
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Text _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok true
+    | datatypes.Kind.Plain => ok true
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Tagged _ _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok true
+    | datatypes.Kind.Boolean => ok false
+  | datatypes.DataValue.Truth _ =>
+    match kind with
+    | datatypes.Kind.Integer => ok false
+    | datatypes.Kind.Decimal => ok false
+    | datatypes.Kind.String => ok false
+    | datatypes.Kind.Plain => ok false
+    | datatypes.Kind.Boolean => ok true
+
 /-- [rowl_kernel::decimal::ReadError]
     Source: 'crates/rowl-kernel/src/decimal.rs', lines 7:0-11:1
     Visibility: public -/
@@ -18915,21 +20522,6 @@ def functional.Terminal.Insts.CoreMarkerCopy : core.marker.Copy
   cloneInst := functional.Terminal.Insts.CoreCloneClone
 }
 
-/-- [rowl_kernel::regular::Expression]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.Expression where
-| Empty : regular.Expression
-| Epsilon : regular.Expression
-| Interval : Std.U32 → Std.U32 → regular.Expression
-| Alternative :
-  regular.Expression →
-  regular.Expression →
-  regular.Expression
-| Sequence : regular.Expression → regular.Expression → regular.Expression
-| Repeat : regular.Expression → regular.Expression
-
 /-- [rowl_kernel::functional::range]:
     Source: 'crates/rowl-kernel/src/functional.rs', lines 99:0-101:1 -/
 def functional.range
@@ -19799,226 +21391,6 @@ def names.abbreviated_grammar : Result regular.Expression := do
   let e1 ← names.local_word
   names.cat e e1
 
-/-- [rowl_kernel::langtag::cat]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 16:0-18:1 -/
-def langtag.cat
-  (a : regular.Expression) (b : regular.Expression) :
-  Result regular.Expression
-  := do
-  ok (regular.Expression.Sequence a b)
-
-/-- [rowl_kernel::langtag::range]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 7:0-9:1 -/
-def langtag.range
-  (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
-  ok (regular.Expression.Interval lower upper)
-
-/-- [rowl_kernel::langtag::ch]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 10:0-12:1 -/
-def langtag.ch (cp : Std.U32) : Result regular.Expression := do
-  langtag.range cp cp
-
-/-- [rowl_kernel::langtag::dashed]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 63:0-65:1 -/
-def langtag.dashed (a : regular.Expression) : Result regular.Expression := do
-  let e ← langtag.ch 45#u32
-  langtag.cat e a
-
-/-- [rowl_kernel::langtag::digit]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 48:0-50:1 -/
-def langtag.digit : Result regular.Expression := do
-  langtag.range 48#u32 57#u32
-
-/-- [rowl_kernel::langtag::alt]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 13:0-15:1 -/
-def langtag.alt
-  (a : regular.Expression) (b : regular.Expression) :
-  Result regular.Expression
-  := do
-  ok (regular.Expression.Alternative a b)
-
-/-- [rowl_kernel::langtag::alpha]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 45:0-47:1 -/
-def langtag.alpha : Result regular.Expression := do
-  let e ← langtag.range 65#u32 90#u32
-  let e1 ← langtag.range 97#u32 122#u32
-  langtag.alt e e1
-
-/-- [rowl_kernel::langtag::alnum]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 51:0-53:1 -/
-def langtag.alnum : Result regular.Expression := do
-  let e ← langtag.alpha
-  let e1 ← langtag.digit
-  langtag.alt e e1
-
-/-- [rowl_kernel::regular::copy_expression]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 25:0-43:1
-    Visibility: public -/
-def regular.copy_expression
-  (expression : regular.Expression) : Result regular.Expression := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-  | regular.Expression.Interval _ _ => ok expression
-  | regular.Expression.Alternative left right =>
-    let e ← regular.copy_expression left
-    let e1 ← regular.copy_expression right
-    ok (regular.Expression.Alternative e e1)
-  | regular.Expression.Sequence left right =>
-    let e ← regular.copy_expression left
-    let e1 ← regular.copy_expression right
-    ok (regular.Expression.Sequence e e1)
-  | regular.Expression.Repeat inner =>
-    let e ← regular.copy_expression inner
-    ok (regular.Expression.Repeat e)
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::opt]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 19:0-21:1 -/
-def langtag.opt (a : regular.Expression) : Result regular.Expression := do
-  langtag.alt regular.Expression.Epsilon a
-
-/-- [rowl_kernel::langtag::up_to]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 35:0-41:1 -/
-def langtag.up_to
-  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
-  if n = 0#u8
-  then ok regular.Expression.Epsilon
-  else
-    let e ← regular.copy_expression a
-    let i ← n - 1#u8
-    let e1 ← langtag.up_to a i
-    let e2 ← langtag.cat e e1
-    langtag.opt e2
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::exact]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 28:0-34:1 -/
-def langtag.exact
-  (a : regular.Expression) (n : Std.U8) : Result regular.Expression := do
-  if n = 0#u8
-  then ok regular.Expression.Epsilon
-  else
-    let e ← regular.copy_expression a
-    let i ← n - 1#u8
-    let e1 ← langtag.exact a i
-    langtag.cat e e1
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::between]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 42:0-44:1 -/
-def langtag.between
-  (a : regular.Expression) (lower : Std.U8) (extra : Std.U8) :
-  Result regular.Expression
-  := do
-  let e ← langtag.exact a lower
-  let e1 ← langtag.up_to a extra
-  langtag.cat e e1
-
-/-- [rowl_kernel::langtag::star]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 22:0-24:1 -/
-def langtag.star (a : regular.Expression) : Result regular.Expression := do
-  ok (regular.Expression.Repeat a)
-
-/-- [rowl_kernel::langtag::plus]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 25:0-27:1 -/
-def langtag.plus (a : regular.Expression) : Result regular.Expression := do
-  let e ← regular.copy_expression a
-  let e1 ← langtag.star a
-  langtag.cat e e1
-
-/-- [rowl_kernel::langtag::private_use]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 106:0-108:1 -/
-def langtag.private_use : Result regular.Expression := do
-  let e ← langtag.ch 120#u32
-  let e1 ← langtag.ch 88#u32
-  let e2 ← langtag.alt e e1
-  let e3 ← langtag.alnum
-  let e4 ← langtag.between e3 1#u8 7#u8
-  let e5 ← langtag.dashed e4
-  let e6 ← langtag.plus e5
-  langtag.cat e2 e6
-
-/-- [rowl_kernel::langtag::singleton]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 54:0-62:1 -/
-def langtag.singleton : Result regular.Expression := do
-  let e ← langtag.digit
-  let e1 ← langtag.range 65#u32 87#u32
-  let e2 ← langtag.range 89#u32 90#u32
-  let e3 ← langtag.alt e1 e2
-  let e4 ← langtag.range 97#u32 119#u32
-  let e5 ← langtag.range 121#u32 122#u32
-  let e6 ← langtag.alt e4 e5
-  let e7 ← langtag.alt e3 e6
-  langtag.alt e e7
-
-/-- [rowl_kernel::langtag::extension]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 103:0-105:1 -/
-def langtag.extension : Result regular.Expression := do
-  let e ← langtag.singleton
-  let e1 ← langtag.alnum
-  let e2 ← langtag.between e1 2#u8 6#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.plus e3
-  langtag.cat e e4
-
-/-- [rowl_kernel::langtag::variant]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 100:0-102:1 -/
-def langtag.variant : Result regular.Expression := do
-  let e ← langtag.alnum
-  let e1 ← langtag.between e 5#u8 3#u8
-  let e2 ← langtag.digit
-  let e3 ← langtag.exact e 3#u8
-  let e4 ← langtag.cat e2 e3
-  langtag.alt e1 e4
-
-/-- [rowl_kernel::langtag::language]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 93:0-99:1 -/
-def langtag.language : Result regular.Expression := do
-  let e ← langtag.alpha
-  let e1 ← langtag.exact e 3#u8
-  let e2 ← langtag.exact e 3#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.up_to e3 2#u8
-  let extlang ← langtag.cat e1 e4
-  let e5 ← langtag.between e 2#u8 1#u8
-  let e6 ← langtag.dashed extlang
-  let e7 ← langtag.opt e6
-  let e8 ← langtag.cat e5 e7
-  let e9 ← langtag.exact e 4#u8
-  let e10 ← langtag.between e 5#u8 3#u8
-  let e11 ← langtag.alt e9 e10
-  langtag.alt e8 e11
-
-/-- [rowl_kernel::langtag::langtag]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 109:0-123:1 -/
-def langtag.langtag : Result regular.Expression := do
-  let e ← langtag.language
-  let e1 ← langtag.alpha
-  let e2 ← langtag.exact e1 4#u8
-  let e3 ← langtag.dashed e2
-  let e4 ← langtag.opt e3
-  let e5 ← langtag.exact e1 2#u8
-  let e6 ← langtag.digit
-  let e7 ← langtag.exact e6 3#u8
-  let e8 ← langtag.alt e5 e7
-  let e9 ← langtag.dashed e8
-  let e10 ← langtag.opt e9
-  let e11 ← langtag.variant
-  let e12 ← langtag.dashed e11
-  let e13 ← langtag.star e12
-  let e14 ← langtag.extension
-  let e15 ← langtag.dashed e14
-  let e16 ← langtag.star e15
-  let e17 ← langtag.private_use
-  let e18 ← langtag.dashed e17
-  let e19 ← langtag.opt e18
-  let e20 ← langtag.cat e16 e19
-  let e21 ← langtag.cat e13 e20
-  let e22 ← langtag.cat e10 e21
-  let e23 ← langtag.cat e4 e22
-  langtag.cat e e23
-
 /-- [rowl_kernel::langtag::normal_grammar]:
     Source: 'crates/rowl-kernel/src/langtag.rs', lines 132:0-134:1
     Visibility: public -/
@@ -20581,445 +21953,6 @@ def functional.grammar
   | functional.Terminal.AbbreviatedIri => names.abbreviated_grammar
   | functional.Terminal.Whitespace => functional.whitespace
   | functional.Terminal.Comment => functional.comment
-
-/-- [rowl_kernel::unicode::continuation]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
-def unicode.continuation (byte : Std.U8) : Result Bool := do
-  ok ((byte >= 128#u8) && (byte <= 191#u8))
-
-/-- [rowl_kernel::unicode::four]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
-def unicode.four
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let b ← unicode.continuation second
-  let b1 ← unicode.continuation third
-  let b2 ← unicode.continuation fourth
-  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
-    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
-    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 240#u32
-    let i2 ← i1 * 262144#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 4096#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i8 * 64#u32
-    let i10 ← i6 + i9
-    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
-    let i12 ← i11 - 128#u32
-    let i13 ← i10 + i12
-    ok (some i13)
-  else ok none
-
-/-- [rowl_kernel::unicode::three]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
-def unicode.three
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let tail ← unicode.continuation second
-  let b ← unicode.continuation third
-  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
-    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
-    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
-    (first <= 239#u8)) && tail)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 224#u32
-    let i2 ← i1 * 4096#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 64#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i6 + i8
-    ok (some i9)
-  else ok none
-
-/-- [rowl_kernel::unicode::two]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
-def unicode.two
-  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
-  let b ← unicode.continuation second
-  if ((first >= 194#u8) && (first <= 223#u8)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 192#u32
-    let i2 ← i1 * 64#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i2 + i4
-    ok (some i5)
-  else ok none
-
-/-- [rowl_kernel::unicode::TextError]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextError where
-| InvalidPosition : Std.Usize → unicode.TextError
-| InvalidUtf8 : Std.Usize → unicode.TextError
-| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
-
-/-- [rowl_kernel::unicode::Decoded]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.Decoded where
-| End : unicode.Decoded
-| Scalar : Std.U32 → Std.Usize → unicode.Decoded
-| Error : unicode.TextError → unicode.Decoded
-
-/-- [rowl_kernel::unicode::decode_next]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
-    Visibility: public -/
-def unicode.decode_next
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.Decoded
-  := do
-  let length := alloc.vec.Vec.len bytes
-  if offset > length
-  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
-  else
-    if offset = length
-    then ok unicode.Decoded.End
-    else
-      let first ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes offset
-      if first < 128#u8
-      then
-        let i ← lift (core.convert.num.FromU32U8.from first)
-        let i1 ← offset + 1#usize
-        ok (unicode.Decoded.Scalar i i1)
-      else
-        let remaining ← length - offset
-        if first < 224#u8
-        then
-          if remaining >= 2#usize
-          then
-            let i ← offset + 1#usize
-            let i1 ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                Std.U8) bytes i
-            let o ← unicode.two first i1
-            match o with
-            | none =>
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-            | some codepoint =>
-              let i2 ← offset + 2#usize
-              ok (unicode.Decoded.Scalar codepoint i2)
-          else
-            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-        else
-          if first < 240#u8
-          then
-            if remaining >= 3#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let o ← unicode.three first i1 i3
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i4 ← offset + 3#usize
-                ok (unicode.Decoded.Scalar codepoint i4)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-          else
-            if remaining >= 4#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let i4 ← offset + 3#usize
-              let i5 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i4
-              let o ← unicode.four first i1 i3 i5
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i6 ← offset + 4#usize
-                ok (unicode.Decoded.Scalar codepoint i6)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-
-/-- [rowl_kernel::regular::repeat]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 71:0-76:1
-    Visibility: public -/
-def regular.repeat
-  (expression : regular.Expression) : Result regular.Expression := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Epsilon
-  | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-  | regular.Expression.Interval _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Alternative _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Sequence _ _ =>
-    ok (regular.Expression.Repeat expression)
-  | regular.Expression.Repeat _ => ok (regular.Expression.Repeat expression)
-
-/-- [rowl_kernel::regular::sequence]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 62:0-69:1
-    Visibility: public -/
-def regular.sequence
-  (left : regular.Expression) (right : regular.Expression) :
-  Result regular.Expression
-  := do
-  match left with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok regular.Expression.Epsilon
-    | regular.Expression.Interval _ _ => ok right
-    | regular.Expression.Alternative _ _ => ok right
-    | regular.Expression.Sequence _ _ => ok right
-    | regular.Expression.Repeat _ => ok right
-  | regular.Expression.Interval _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Alternative _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Sequence _ _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-  | regular.Expression.Repeat _ =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Empty
-    | regular.Expression.Epsilon => ok left
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Sequence left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Sequence left right)
-
-/-- [rowl_kernel::regular::alternate]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 54:0-60:1
-    Visibility: public -/
-def regular.alternate
-  (left : regular.Expression) (right : regular.Expression) :
-  Result regular.Expression
-  := do
-  match left with
-  | regular.Expression.Empty => ok right
-  | regular.Expression.Epsilon =>
-    match right with
-    | regular.Expression.Empty => ok regular.Expression.Epsilon
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon
-        regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative regular.Expression.Epsilon right)
-  | regular.Expression.Interval _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Alternative _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Sequence _ _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-  | regular.Expression.Repeat _ =>
-    match right with
-    | regular.Expression.Empty => ok left
-    | regular.Expression.Epsilon =>
-      ok (regular.Expression.Alternative left regular.Expression.Epsilon)
-    | regular.Expression.Interval _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Alternative _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Sequence _ _ =>
-      ok (regular.Expression.Alternative left right)
-    | regular.Expression.Repeat _ =>
-      ok (regular.Expression.Alternative left right)
-
-/-- [rowl_kernel::regular::nullable]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 45:0-52:1
-    Visibility: public -/
-def regular.nullable (expression : regular.Expression) : Result Bool := do
-  match expression with
-  | regular.Expression.Empty => ok false
-  | regular.Expression.Epsilon => ok true
-  | regular.Expression.Interval _ _ => ok false
-  | regular.Expression.Alternative left right =>
-    let b ← regular.nullable left
-    if b
-    then ok true
-    else regular.nullable right
-  | regular.Expression.Sequence left right =>
-    let b ← regular.nullable left
-    if b
-    then regular.nullable right
-    else ok false
-  | regular.Expression.Repeat _ => ok true
-partial_fixpoint
-
-/-- [rowl_kernel::regular::derivative]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 80:0-108:1
-    Visibility: public -/
-def regular.derivative
-  (expression : regular.Expression) (codepoint : Std.U32) :
-  Result regular.Expression
-  := do
-  match expression with
-  | regular.Expression.Empty => ok regular.Expression.Empty
-  | regular.Expression.Epsilon => ok regular.Expression.Empty
-  | regular.Expression.Interval lower upper =>
-    if lower <= codepoint
-    then
-      if codepoint <= upper
-      then ok regular.Expression.Epsilon
-      else ok regular.Expression.Empty
-    else ok regular.Expression.Empty
-  | regular.Expression.Alternative left right =>
-    let e ← regular.derivative left codepoint
-    let e1 ← regular.derivative right codepoint
-    regular.alternate e e1
-  | regular.Expression.Sequence left right =>
-    let accepts_empty ← regular.nullable left
-    let right_derivative ←
-      if accepts_empty
-      then
-        do
-        let e ← regular.copy_expression right
-        regular.derivative e codepoint
-      else ok regular.Expression.Empty
-    let e ← regular.derivative left codepoint
-    let joined ← regular.sequence e right
-    regular.alternate joined right_derivative
-  | regular.Expression.Repeat inner =>
-    let original ← regular.copy_expression inner
-    let e ← regular.derivative inner codepoint
-    let e1 ← regular.repeat original
-    regular.sequence e e1
-partial_fixpoint
-
-/-- [rowl_kernel::regular::MatchResult]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.MatchResult where
-| Matched : Bool → regular.MatchResult
-| MalformedUtf8 : unicode.TextError → regular.MatchResult
-
-/-- [rowl_kernel::regular::match_from]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 110:0-118:1 -/
-def regular.match_from
-  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
-  (offset : Std.Usize) :
-  Result regular.MatchResult
-  := do
-  let d ← unicode.decode_next bytes offset
-  match d with
-  | unicode.Decoded.End =>
-    let b ← regular.nullable expression
-    ok (regular.MatchResult.Matched b)
-  | unicode.Decoded.Scalar codepoint next =>
-    let e ← regular.derivative expression codepoint
-    regular.match_from e bytes next
-  | unicode.Decoded.Error error => ok (regular.MatchResult.MalformedUtf8 error)
-partial_fixpoint
-
-/-- [rowl_kernel::regular::matches_utf8]:
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 123:0-125:1
-    Visibility: public -/
-def regular.matches_utf8
-  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
-  Result regular.MatchResult
-  := do
-  regular.match_from expression bytes 0#usize
 
 /-- [rowl_kernel::functional::recognize]:
     Source: 'crates/rowl-kernel/src/functional.rs', lines 275:0-277:1
@@ -22832,15 +23765,6 @@ def ntriples.expect
   | core.ops.control_flow.ControlFlow.Break residual =>
     core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
       Std.Usize (core.convert.FromSame ntriples.ReadError) residual
-
-/-- [rowl_kernel::unicode::xml_character]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 137:0-144:1
-    Visibility: public -/
-def unicode.xml_character (codepoint : Std.U32) : Result Bool := do
-  ok ((((((codepoint = 9#u32) || (codepoint = 10#u32)) || (codepoint = 13#u32))
-    || ((codepoint >= 32#u32) && (codepoint <= 55295#u32))) || ((codepoint >=
-    57344#u32) && (codepoint <= 65533#u32))) || ((codepoint >= 65536#u32) &&
-    (codepoint <= 1114111#u32)))
 
 /-- [rowl_kernel::functional_payload::error]:
     Source: 'crates/rowl-kernel/src/functional_payload.rs', lines 9:0-11:1 -/
@@ -28869,54 +29793,6 @@ def functional_prefixes.scan_prefixes
         functional_prefixes.PrefixExpected.Ontology token.start))
 partial_fixpoint
 
-/-- [rowl_kernel::unicode::Scalars]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 18:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.Scalars where
-| Empty : unicode.Scalars
-| Cons : Std.U32 → Std.Usize → unicode.Scalars → unicode.Scalars
-
-/-- [rowl_kernel::unicode::TextScan]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 27:0-30:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextScan where
-| Valid : unicode.Scalars → unicode.TextScan
-| Invalid : unicode.TextError → unicode.TextScan
-
-/-- [rowl_kernel::unicode::read_from]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 146:0-164:1 -/
-def unicode.read_from
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.TextScan
-  := do
-  let d ← unicode.decode_next bytes offset
-  match d with
-  | unicode.Decoded.End => ok (unicode.TextScan.Valid unicode.Scalars.Empty)
-  | unicode.Decoded.Scalar codepoint next =>
-    let b ← unicode.xml_character codepoint
-    if b
-    then
-      let ts ← unicode.read_from bytes next
-      match ts with
-      | unicode.TextScan.Valid tail =>
-        ok (unicode.TextScan.Valid (unicode.Scalars.Cons codepoint offset
-          tail))
-      | unicode.TextScan.Invalid _ => ok ts
-    else
-      ok (unicode.TextScan.Invalid (unicode.TextError.NonXmlCharacter offset
-        codepoint))
-  | unicode.Decoded.Error error => ok (unicode.TextScan.Invalid error)
-partial_fixpoint
-
-/-- [rowl_kernel::unicode::read_text]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 167:0-169:1
-    Visibility: public -/
-def unicode.read_text
-  (bytes : alloc.vec.Vec Std.U8) : Result unicode.TextScan := do
-  unicode.read_from bytes 0#usize
-
 /-- [rowl_kernel::functional_lexer::last_codepoint]:
     Source: 'crates/rowl-kernel/src/functional_lexer.rs', lines 35:0-48:1 -/
 def functional_lexer.last_codepoint
@@ -30823,229 +31699,6 @@ def keys.check_keys
   Result (Option model.AnnotatedAxiom)
   := do
   keys.axioms_from axioms 0#usize
-
-/-- [rowl_kernel::langtag::literal_from]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 66:0-78:1 -/
-def langtag.literal_from
-  (bytes : Slice Std.U8) (position : Std.Usize) :
-  Result regular.Expression
-  := do
-  let i := Slice.len bytes
-  if position = i
-  then ok regular.Expression.Epsilon
-  else
-    let i1 ← Slice.index_usize bytes position
-    let value ← lift (core.convert.num.FromU32U8.from i1)
-    let token ←
-      if value >= 97#u32
-      then
-        if value <= 122#u32
-        then
-          do
-          let e ← langtag.ch value
-          let i2 ← value - 32#u32
-          let e1 ← langtag.ch i2
-          langtag.alt e e1
-        else langtag.ch value
-      else langtag.ch value
-    let i2 ← position + 1#usize
-    let e ← langtag.literal_from bytes i2
-    langtag.cat token e
-partial_fixpoint
-
-/-- [rowl_kernel::langtag::literal]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 79:0-81:1 -/
-def langtag.literal (bytes : Slice Std.U8) : Result regular.Expression := do
-  langtag.literal_from bytes 0#usize
-
-/-- [rowl_kernel::langtag::grandfathered]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 82:0-92:1 -/
-def langtag.grandfathered : Result regular.Expression := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        101#u8, 110#u8, 45#u8, 103#u8, 98#u8, 45#u8, 111#u8, 101#u8, 100#u8
-        ]))
-  let e ← langtag.literal s
-  let s1 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 97#u8, 109#u8, 105#u8 ]))
-  let e1 ← langtag.literal s1
-  let s2 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 98#u8, 110#u8, 110#u8 ]))
-  let e2 ← langtag.literal s2
-  let s3 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        105#u8, 45#u8, 100#u8, 101#u8, 102#u8, 97#u8, 117#u8, 108#u8, 116#u8
-        ]))
-  let e3 ← langtag.literal s3
-  let s4 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        105#u8, 45#u8, 101#u8, 110#u8, 111#u8, 99#u8, 104#u8, 105#u8, 97#u8,
-        110#u8
-        ]))
-  let e4 ← langtag.literal s4
-  let s5 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 104#u8, 97#u8, 107#u8 ]))
-  let e5 ← langtag.literal s5
-  let s6 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        105#u8, 45#u8, 107#u8, 108#u8, 105#u8, 110#u8, 103#u8, 111#u8, 110#u8
-        ]))
-  let e6 ← langtag.literal s6
-  let s7 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 108#u8, 117#u8, 120#u8 ]))
-  let e7 ← langtag.literal s7
-  let s8 ←
-    lift (Array.to_slice
-      (Array.make 7#usize [
-        105#u8, 45#u8, 109#u8, 105#u8, 110#u8, 103#u8, 111#u8
-        ]))
-  let e8 ← langtag.literal s8
-  let s9 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        105#u8, 45#u8, 110#u8, 97#u8, 118#u8, 97#u8, 106#u8, 111#u8
-        ]))
-  let e9 ← langtag.literal s9
-  let s10 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 112#u8, 119#u8, 110#u8 ]))
-  let e10 ← langtag.literal s10
-  let s11 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 111#u8 ]))
-  let e11 ← langtag.literal s11
-  let s12 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 97#u8, 121#u8 ]))
-  let e12 ← langtag.literal s12
-  let s13 ←
-    lift (Array.to_slice
-      (Array.make 5#usize [ 105#u8, 45#u8, 116#u8, 115#u8, 117#u8 ]))
-  let e13 ← langtag.literal s13
-  let s14 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 102#u8, 114#u8
-        ]))
-  let e14 ← langtag.literal s14
-  let s15 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 98#u8, 101#u8, 45#u8, 110#u8, 108#u8
-        ]))
-  let e15 ← langtag.literal s15
-  let s16 ←
-    lift (Array.to_slice
-      (Array.make 9#usize [
-        115#u8, 103#u8, 110#u8, 45#u8, 99#u8, 104#u8, 45#u8, 100#u8, 101#u8
-        ]))
-  let e16 ← langtag.literal s16
-  let s17 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        97#u8, 114#u8, 116#u8, 45#u8, 108#u8, 111#u8, 106#u8, 98#u8, 97#u8,
-        110#u8
-        ]))
-  let e17 ← langtag.literal s17
-  let s18 ←
-    lift (Array.to_slice
-      (Array.make 11#usize [
-        99#u8, 101#u8, 108#u8, 45#u8, 103#u8, 97#u8, 117#u8, 108#u8, 105#u8,
-        115#u8, 104#u8
-        ]))
-  let e18 ← langtag.literal s18
-  let s19 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 98#u8, 111#u8, 107#u8 ]))
-  let e19 ← langtag.literal s19
-  let s20 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 110#u8, 111#u8, 45#u8, 110#u8, 121#u8, 110#u8 ]))
-  let e20 ← langtag.literal s20
-  let s21 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 103#u8, 117#u8, 111#u8, 121#u8, 117#u8
-        ]))
-  let e21 ← langtag.literal s21
-  let s22 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 104#u8, 97#u8, 107#u8, 107#u8, 97#u8
-        ]))
-  let e22 ← langtag.literal s22
-  let s23 ←
-    lift (Array.to_slice
-      (Array.make 6#usize [ 122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8 ]))
-  let e23 ← langtag.literal s23
-  let s24 ←
-    lift (Array.to_slice
-      (Array.make 10#usize [
-        122#u8, 104#u8, 45#u8, 109#u8, 105#u8, 110#u8, 45#u8, 110#u8, 97#u8,
-        110#u8
-        ]))
-  let e24 ← langtag.literal s24
-  let s25 ←
-    lift (Array.to_slice
-      (Array.make 8#usize [
-        122#u8, 104#u8, 45#u8, 120#u8, 105#u8, 97#u8, 110#u8, 103#u8
-        ]))
-  let e25 ← langtag.literal s25
-  let e26 ← langtag.alt e24 e25
-  let e27 ← langtag.alt e23 e26
-  let e28 ← langtag.alt e22 e27
-  let e29 ← langtag.alt e21 e28
-  let e30 ← langtag.alt e20 e29
-  let e31 ← langtag.alt e19 e30
-  let e32 ← langtag.alt e18 e31
-  let e33 ← langtag.alt e17 e32
-  let e34 ← langtag.alt e16 e33
-  let e35 ← langtag.alt e15 e34
-  let e36 ← langtag.alt e14 e35
-  let e37 ← langtag.alt e13 e36
-  let e38 ← langtag.alt e12 e37
-  let e39 ← langtag.alt e11 e38
-  let e40 ← langtag.alt e10 e39
-  let e41 ← langtag.alt e9 e40
-  let e42 ← langtag.alt e8 e41
-  let e43 ← langtag.alt e7 e42
-  let e44 ← langtag.alt e6 e43
-  let e45 ← langtag.alt e5 e44
-  let e46 ← langtag.alt e4 e45
-  let e47 ← langtag.alt e3 e46
-  let e48 ← langtag.alt e2 e47
-  let e49 ← langtag.alt e1 e48
-  langtag.alt e e49
-
-/-- [rowl_kernel::langtag::grammar]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 126:0-128:1
-    Visibility: public -/
-def langtag.grammar : Result regular.Expression := do
-  let e ← langtag.langtag
-  let e1 ← langtag.private_use
-  let e2 ← langtag.grandfathered
-  let e3 ← langtag.alt e1 e2
-  langtag.alt e e3
-
-/-- [rowl_kernel::langtag::well_formed]:
-    Source: 'crates/rowl-kernel/src/langtag.rs', lines 135:0-137:1
-    Visibility: public -/
-def langtag.well_formed (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let e ← langtag.grammar
-  let mr ← regular.matches_utf8 e bytes
-  match mr with
-  | regular.MatchResult.Matched b => if b
-                                     then ok true
-                                     else ok false
-  | regular.MatchResult.MalformedUtf8 _ => ok false
 
 /-- [rowl_kernel::model::invert]:
     Source: 'crates/rowl-kernel/src/model.rs', lines 84:0-89:1

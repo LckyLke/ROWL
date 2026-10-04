@@ -90,6 +90,8 @@ pub mod universal;
 
 pub mod shi_ontology;
 
+pub mod datatypes;
+
 pub mod source_reasoning;
 
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.

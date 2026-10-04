@@ -3884,3 +3884,42 @@ out satisfiable, in under a second.
 This block adds 36 public theorems and 9 independent definitions. Totals are
 1688 audited theorems, 915 definitions, 463 Rust regressions and 1881 ledger
 obligations.
+
+## M5: the values of five datatypes
+
+`Rowl.DatatypeMap` specifies the OWL 2 datatype map on five datatypes,
+independently of the kernel: `xsd:integer`, `xsd:decimal`, `xsd:string`,
+`rdf:PlainLiteral` and `xsd:boolean`. A datatype map is normative on them
+(Normative) when it supports them with the XML Schema 1.1 lexical spaces
+(integer and decimal numerals with an optional sign, IntegerForm and
+DecimalForm; strings of XML characters, XmlText; `text@tag` with an empty or a
+well-formed BCP 47 tag after the last `@`, PlainSplit and LanguageTag; `true`,
+`false`, `1` and `0`, TruthForm), their lexical-to-value mappings and their
+value spaces: numbers are the images of rationals, the integers and the decimal
+numbers among them, strings and strings with a lower-case tag the images of
+their bytes, and truth values the images of the Booleans, injectively, with
+numbers, plain literals and truth values pairwise different. Every other
+datatype and the facets stay open. A model map satisfies the specification
+(modelMap, modelNormative), so it is not contradictory; building it needed the
+fact that no well-formed language tag is empty (well_formed_nonempty), without
+which the untagged and tagged plain literal values would have to coincide.
+
+The actual kernel function `datatypes::literal_value` returns a value exactly
+for a literal of one of the five datatypes whose lexical form is in the lexical
+space (literal_value_correct, kind_value_correct). A number is kept canonical,
+as its sign, the digits of its integer part without leading zeros and the
+digits of its fraction without trailing zeros (number_value_correct,
+CanonicalNumber), so that two canonical numbers write the same rational exactly
+when they are equal (numberOf_injective): `1`, `+01` and `1.000` are one value.
+A plain literal splits at its last `@` (plain_split_unique) and lowers its tag;
+a string is its bytes. Under every normative map the literal is then in the
+lexical space with that value, distinct canonical values are distinct values
+(value_injective, same_value_correct), and the kernel's datatype membership is
+membership in the value space (in_kind_correct, normative_in_kind): integers are
+decimals, strings are plain literals, and nothing else overlaps. These values
+are what the reasoner needs to tell literals apart and to place them in data
+ranges; the reasoner itself does not use them yet.
+
+This block adds 66 public theorems and 41 independent definitions. Totals are
+1754 audited theorems, 956 definitions, 469 Rust regressions and 1947 ledger
+obligations.

@@ -141,3 +141,5 @@ import Rowl.ShiRoles
 import Rowl.ShiEquality
 import Rowl.ShiNominals
 import Rowl.ShiOntology
+import Rowl.DatatypeMap
+import Rowl.Datatypes

@@ -863,7 +863,16 @@ progress. Full OWL parsing and executable reasoning are still future work.
   its symmetry and transitivity, and assertions along it are taken as they are.
   This completes SROIQ: no number restriction may count along the universal
   role, as OWL 2 DL requires, and it is never included in another role.
-- 1688 audited public theorems and 915 audited semantic definitions. Consistency,
+- M5 datatype values: an independent specification of the OWL 2 datatype map on
+  `xsd:integer`, `xsd:decimal`, `xsd:string`, `rdf:PlainLiteral` and
+  `xsd:boolean` (Rowl.DatatypeMap.Normative), with their XML Schema lexical
+  spaces, lexical-to-value mappings and value spaces, and a model map that
+  satisfies it. The actual `datatypes::literal_value` returns a canonical value
+  exactly for a literal of these datatypes in its lexical space; under every
+  normative map that is the literal's value, equal values are equal kernel
+  values (`1`, `+01` and `1.000` are one), and datatype membership is exact.
+  Facets, the other datatypes and data reasoning remain pending.
+- 1754 audited public theorems and 956 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -876,7 +885,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 463 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 469 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -891,7 +900,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1881-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1947-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -946,7 +955,9 @@ queries compose with the reader and the mapping from the original bytes;
 canonical catalog/import construction remains pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. The concrete normative OWL map is unimplemented. Semantic
+external solver. Agreement with the OWL 2 map on five datatypes is specified
+(Rowl.DatatypeMap.Normative) and satisfiable; the complete normative OWL map,
+its other datatypes and facets are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity, vocabulary membership, canonical structure and DL restrictions.
 No ValidatedOntology or definitive OWL-query entry point exists yet.
