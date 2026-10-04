@@ -1756,7 +1756,10 @@
         "Rowl.ShiRoles.copy_roles_from_correct",
         "Rowl.ShiRoles.add_disjoint_members_correct",
         "Rowl.ShiRoles.constraints_from_correct",
-        "Rowl.ShiRoles.role_hierarchy_correct"
+        "Rowl.ShiRoles.role_hierarchy_correct",
+        "Rowl.ShiRoles.chainRelation_along",
+        "Rowl.ShiRoles.chain_roles_correct",
+        "Rowl.ShiRoles.chains_from_correct"
       ]
     },
     {
@@ -1773,6 +1776,7 @@
         "Rowl.ShiOntology.facts_proper_correct",
         "Rowl.ShiOntology.members_proper_correct",
         "Rowl.ShiOntology.pair_proper_correct",
+        "Rowl.ShiOntology.chain_proper_correct",
         "Rowl.ShiOntology.roles_proper_correct",
         "Rowl.ShiOntology.assertions_from_correct",
         "Rowl.ShiOntology.links_from_correct",
@@ -1784,6 +1788,7 @@
         "Rowl.ShiOntology.atLeast_lift",
         "Rowl.ShiOntology.owl_model_agrees",
         "Rowl.ShiOntology.constrained_correct",
+        "Rowl.ShiOntology.chained_correct",
         "Rowl.ShiOntology.tangled_correct",
         "Rowl.ShiOntology.prepare_correct",
         "Rowl.ShiOntology.prepared_supported",
@@ -2282,6 +2287,7 @@
         "Rowl.ChainOps.encode_correct",
         "Rowl.ChainOps.filler_concept_correct",
         "Rowl.ChainOps.nodup_unique",
+        "Rowl.ChainOps.nests_total",
         "Rowl.ChainOps.present_mono",
         "Rowl.ChainOps.defines_mono",
         "Rowl.ChainOps.unfold_correct",
@@ -3244,6 +3250,8 @@
     "Rowl.ChainModel.fillSem",
     "Rowl.ChainModel.withAtoms",
     "Rowl.ChainModel.closureModel",
-    "Rowl.Chains.Closes"
+    "Rowl.Chains.Closes",
+    "Rowl.ShiParts.ChainAxiom",
+    "Rowl.ShiRoles.ChainsHold"
   ]
 }

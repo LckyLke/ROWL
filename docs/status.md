@@ -830,23 +830,25 @@ progress. Full OWL parsing and executable reasoning are still future work.
   the model of a complete forest keeps every pair apart, and the pairs must be
   on simple roles. The ontology queries take both axioms and decide them with
   the forest.
-- Reasoner track, fifteenth stage (in progress): role chains. The first block
-  decides complex role inclusions `r1 ∘ … ∘ rn ⊑ r` for the completion forest
-  by an encoding in front of it: every complex role (one that the role of a
-  chain is included in) has an automaton of its chains, a universal
-  restriction on it becomes a fresh class for the automaton's initial state,
-  and every such class gets a definition that passes its filler along the
-  automaton's transitions. role_chains::satisfiable answers as
-  forest::satisfiable with the chains as further role axioms: its acceptances
-  come with a model of the hierarchy, the chains and the disjoint pairs, built
-  by closing the forest's model under the role axioms, and its rejections rule
-  out every such model, since each model of the chains is one of the encoding
-  once every fresh class holds where its automaton leads into its filler.
-  Number restrictions, self restrictions and disjoint pairs must be on roles
-  that no chain reaches, and a hierarchy whose automata need more than 2^20
-  fresh classes, which only an irregular one can, gets no answer. The ontology
-  queries do not take chain axioms yet.
-- 1642 audited public theorems and 904 audited semantic definitions. Consistency,
+- Reasoner track, fifteenth stage: role chains. Complex role inclusions
+  `r1 ∘ … ∘ rn ⊑ r` are decided by an encoding in front of the completion
+  forest: every complex role (one that the role of a chain is included in) has
+  an automaton of its chains, a universal restriction on it becomes a fresh
+  class for the automaton's initial state, and every such class gets a
+  definition that passes its filler along the automaton's transitions.
+  role_chains::satisfiable answers as forest::satisfiable with the chains as
+  further role axioms: its acceptances come with a model of the hierarchy, the
+  chains and the disjoint pairs, built by closing the forest's model under the
+  role axioms, and its rejections rule out every such model, since each model
+  of the chains is one of the encoding once every fresh class holds where its
+  automaton leads into its filler. The ontology queries read every
+  `SubObjectPropertyOf` with an `ObjectPropertyChain` as a role chain, proved
+  exact against its Direct Semantics, and route every closure with chains to
+  the forest, also from Functional Syntax source bytes. Number restrictions,
+  self restrictions and disjoint pairs must be on roles that no chain reaches,
+  as OWL 2 requires simple roles there, and a hierarchy whose automata would
+  nest themselves, which only an irregular one does, gets no answer.
+- 1648 audited public theorems and 906 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -854,12 +856,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   inverse functional, reflexive, irreflexive, asymmetric and disjoint object
   properties, class, object property and negative object property
   assertions, individual equalities and inequalities, and inclusions,
-  equivalences, inverses, symmetry and transitivity of object property
-  expressions (SROIQ without role chains and without the universal and empty
-  roles), also directly from Functional Syntax source bytes.
+  equivalences, inverses, symmetry, transitivity and chains of object property
+  expressions (SROIQ without the universal and empty roles), also directly from
+  Functional Syntax source bytes.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 450 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 456 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -874,7 +876,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1835-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1841-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

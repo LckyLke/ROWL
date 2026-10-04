@@ -33,7 +33,8 @@ universe u v
     functional, inverse functional, reflexive and irreflexive object property
     expressions, which the TBox concept states; the role axioms and the
     asymmetric and disjoint object properties, which the parts leave to the
-    role hierarchy; and assertions, which they leave to the facts and links. -/
+    role hierarchy, and property chains, which they leave to the role chains;
+    and assertions, which they leave to the facts and links. -/
 def SupportedAxiom : Axiom → Prop
   | .Declaration _ => True
   | .SubClassOf a b => Translatable a ∧ Translatable b
@@ -47,6 +48,7 @@ def SupportedAxiom : Axiom → Prop
   | .ReflexiveObjectProperty _ => True
   | .IrreflexiveObjectProperty _ => True
   | .SubObjectPropertyOf (.Single _) _ => True
+  | .SubObjectPropertyOf (.Chain _) _ => True
   | .EquivalentObjectProperties _ => True
   | .InverseObjectProperties _ _ => True
   | .SymmetricObjectProperty _ => True
@@ -82,6 +84,11 @@ def ConstraintAxiom : Axiom → Prop
   | .DisjointObjectProperties _ => True
   | _ => False
 
+/-- The inclusions of property chains, which become role chains. -/
+def ChainAxiom : Axiom → Prop
+  | .SubObjectPropertyOf (.Chain _) _ => True
+  | _ => False
+
 /-- A bound on the definitions an axiom adds: at most one per inclusion it
     becomes. -/
 def Inclusions : Axiom → Nat
@@ -101,10 +108,10 @@ def Equality : Axiom → Prop
   | _ => False
 
 /-- What an axiom requires of every element: nothing for an assertion, an
-    equality or inequality, a role axiom or an asymmetric or disjoint object
-    property, the axiom itself otherwise. -/
+    equality or inequality, a role axiom, an asymmetric or disjoint object
+    property or a property chain, the axiom itself otherwise. -/
 def ClassPart (I : Interpretation Object Value) (a : Axiom) : Prop :=
-  Assertion a ∨ Equality a ∨ RoleAxiom a ∨ ConstraintAxiom a ∨ Rowl.Owl.satisfies I a
+  Assertion a ∨ Equality a ∨ RoleAxiom a ∨ ConstraintAxiom a ∨ ChainAxiom a ∨ Rowl.Owl.satisfies I a
 
 /-- The parts hold: the TBox concept at every element, and every definition
     wherever its class holds. -/
@@ -1089,7 +1096,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
         rw [meaning Object Value I fixes]
         have insideAt := tCorrect.2 Object Value I fixes
         simp only [Polar] at insideAt
-        simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,Rowl.Owl.satisfies,insideAt,false_or]
+        simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,Rowl.Owl.satisfies,insideAt,false_or]
   | EquivalentClasses xs =>
     obtain ⟨r,run,support,total,spec⟩ := equivalent_correct.{u,v} xs parts
     refine ⟨r,by rw [shi_ontology.axiom_parts]; exact run,support,total,?_⟩
@@ -1098,7 +1105,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     refine ⟨count,?_⟩
     intro Object Value I fixes
     rw [meaning Object Value I fixes]
-    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,Rowl.Owl.satisfies,false_or]
+    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,Rowl.Owl.satisfies,false_or]
   | DisjointClasses xs =>
     obtain ⟨r,run,support,total,spec⟩ := disjoint_correct.{u,v} xs parts
     refine ⟨r,by rw [shi_ontology.axiom_parts]; exact run,support,total,?_⟩
@@ -1107,7 +1114,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     refine ⟨count,?_⟩
     intro Object Value I fixes
     rw [meaning Object Value I fixes]
-    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,Rowl.Owl.satisfies,false_or]
+    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,Rowl.Owl.satisfies,false_or]
   | DisjointUnion c xs =>
     obtain ⟨r,run,support,total,spec⟩ := disjoint_union_correct.{u,v} c xs parts
     refine ⟨r,by rw [shi_ontology.axiom_parts]; exact run,support,total,?_⟩
@@ -1116,25 +1123,27 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     refine ⟨count,?_⟩
     intro Object Value I fixes
     rw [meaning Object Value I fixes]
-    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,false_or]
+    simp only [ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,false_or]
   | SubObjectPropertyOf sub sup =>
     cases sub with
     | Single p =>
       exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
-        (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom])
-    | Chain _ => exact refused_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
+        (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom])
+    | Chain _ =>
+      exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
+        (fun _ _ _ => by simp [ClassPart,ChainAxiom])
   | EquivalentObjectProperties _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
-      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom])
+      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom])
   | InverseObjectProperties _ _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
-      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom])
+      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom])
   | SymmetricObjectProperty _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
-      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom])
+      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom])
   | TransitiveObjectProperty _ =>
     exact unchanged_parts _ _ (by rw [shi_ontology.axiom_parts]) (by simp [SupportedAxiom])
-      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom])
+      (fun _ _ _ => by simp [ClassPart,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom])
   | ObjectPropertyDomain p e =>
     obtain ⟨t,tRun,tCorrect⟩ := translate_total_correct.{u,v} e true
     cases t with
@@ -1153,7 +1162,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
       intro Object Value I fixes
       have insideAt := tCorrect.2 Object Value I fixes
       simp only [Polar] at insideAt
-      simp only [PartsHold,denote,relation_inv,insideAt,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,
+      simp only [PartsHold,denote,relation_inv,insideAt,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,
         Rowl.Owl.satisfies,false_or]
       constructor
       · rintro ⟨every,defs⟩
@@ -1178,7 +1187,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
       intro Object Value I fixes
       have insideAt := tCorrect.2 Object Value I fixes
       simp only [Polar] at insideAt
-      simp only [PartsHold,denote,insideAt,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,
+      simp only [PartsHold,denote,insideAt,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,
         Rowl.Owl.satisfies,false_or]
       constructor
       · rintro ⟨every,defs⟩
@@ -1193,7 +1202,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     cases same
     refine ⟨by simp,?_⟩
     intro Object Value I fixes
-    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,
       Rowl.Owl.satisfies,false_or,and_true]
     have functional : (∀ x, Rowl.Owl.AtMost (1#usize).val (fun y => objectRelation I p x y)) ↔
         ∀ x y z, objectRelation I p x y → objectRelation I p x z → y = z := by
@@ -1212,7 +1221,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     cases same
     refine ⟨by simp,?_⟩
     intro Object Value I fixes
-    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,
       Rowl.Owl.satisfies,false_or,and_true]
     have functional : (∀ z, Rowl.Owl.AtMost (1#usize).val (fun x => objectRelation I (inv p) z x)) ↔
         ∀ x y z, objectRelation I p x z → objectRelation I p y z → x = y := by
@@ -1235,7 +1244,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     cases same
     refine ⟨by simp,?_⟩
     intro Object Value I fixes
-    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,Rowl.Owl.satisfies,false_or]
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,Rowl.Owl.satisfies,false_or]
     constructor
     · rintro ⟨every,defs⟩
       exact ⟨⟨fun x => (every x).1,defs⟩,fun x => (every x).2⟩
@@ -1249,7 +1258,7 @@ theorem axiom_parts_correct (statement : Axiom) (parts : shi_ontology.Parts) :
     cases same
     refine ⟨by simp,?_⟩
     intro Object Value I fixes
-    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,Rowl.Owl.satisfies,false_or]
+    simp only [PartsHold,denote,ClassPart,Assertion,Equality,RoleAxiom,ConstraintAxiom,ChainAxiom,Rowl.Owl.satisfies,false_or]
     constructor
     · rintro ⟨every,defs⟩
       exact ⟨⟨fun x => (every x).1,defs⟩,fun x => (every x).2⟩

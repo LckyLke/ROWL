@@ -1261,6 +1261,9 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiRoles.add_disjoint_members_correct
 #print axioms Rowl.ShiRoles.constraints_from_correct
 #print axioms Rowl.ShiRoles.role_hierarchy_correct
+#print axioms Rowl.ShiRoles.chainRelation_along
+#print axioms Rowl.ShiRoles.chain_roles_correct
+#print axioms Rowl.ShiRoles.chains_from_correct
 #print axioms Rowl.ShiOntology.proper_correct
 #print axioms Rowl.ShiOntology.counts_correct
 #print axioms Rowl.ShiOntology.definitions_count_correct
@@ -1271,6 +1274,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.facts_proper_correct
 #print axioms Rowl.ShiOntology.members_proper_correct
 #print axioms Rowl.ShiOntology.pair_proper_correct
+#print axioms Rowl.ShiOntology.chain_proper_correct
 #print axioms Rowl.ShiOntology.roles_proper_correct
 #print axioms Rowl.ShiOntology.assertions_from_correct
 #print axioms Rowl.ShiOntology.links_from_correct
@@ -1282,6 +1286,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ShiOntology.atLeast_lift
 #print axioms Rowl.ShiOntology.owl_model_agrees
 #print axioms Rowl.ShiOntology.constrained_correct
+#print axioms Rowl.ShiOntology.chained_correct
 #print axioms Rowl.ShiOntology.tangled_correct
 #print axioms Rowl.ShiOntology.prepare_correct
 #print axioms Rowl.ShiOntology.prepared_supported
@@ -1714,6 +1719,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ChainOps.encode_correct
 #print axioms Rowl.ChainOps.filler_concept_correct
 #print axioms Rowl.ChainOps.nodup_unique
+#print axioms Rowl.ChainOps.nests_total
 #print axioms Rowl.ChainOps.present_mono
 #print axioms Rowl.ChainOps.defines_mono
 #print axioms Rowl.ChainOps.unfold_correct
@@ -2661,3 +2667,5 @@ import Rowl.ShiOntology
 #print axioms Rowl.ChainModel.withAtoms
 #print axioms Rowl.ChainModel.closureModel
 #print axioms Rowl.Chains.Closes
+#print axioms Rowl.ShiParts.ChainAxiom
+#print axioms Rowl.ShiRoles.ChainsHold

@@ -1,4 +1,5 @@
 import Rowl.ShiParts
+import Rowl.ChainSemantics
 
 /-!
 The role hierarchy of an axiom closure, proved against the independent Direct
@@ -20,7 +21,8 @@ open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv inverse_correct copy_role_identity same_role_correct)
 open Rowl.Hierarchy (Below Closed Respects Constrained inclusionList transitives below_refl respects_below
   below_correct is_transitive_correct closed_of_empty constrained_of_empty)
-open Rowl.ShiParts (RoleAxiom ConstraintAxiom)
+open Rowl.ShiParts (RoleAxiom ConstraintAxiom ChainAxiom)
+open Rowl.ChainSemantics (Along Chained)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
@@ -1038,5 +1040,121 @@ theorem role_hierarchy_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     rw [pairsSpec pairs rfl Object Value I]
     simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
     exact ⟨fun both => both.2,fun holds => ⟨constrained_of_empty I _ rfl,holds⟩⟩
+
+
+/-! ### Property chains -/
+
+/-- The interpretation satisfies every property chain of the axioms. -/
+def ChainsHold {Object : Type u} {Value : Type v} (I : Interpretation Object Value)
+    (items : List AnnotatedAxiom) : Prop :=
+  ∀ a ∈ items, ChainAxiom a.axiom → Rowl.Owl.satisfies I a.axiom
+
+/-- A chain of the Direct Semantics relates along its roles as `Along` does. -/
+theorem chainRelation_along {Object : Type u} {Value : Type v} (I : Interpretation Object Value) :
+    ∀ (w : List ObjectPropertyExpression) (x y : Object),
+      Rowl.Owl.chainRelation I w x y ↔ Along (objectRelation I) w x y
+  | [], _, _ => Iff.rfl
+  | r :: w, x, y => by
+    simp only [Rowl.Owl.chainRelation,Along]
+    exact exists_congr (fun z => and_congr_right (fun _ => chainRelation_along I w z y))
+
+/-- The roles of a property chain, in order. -/
+theorem chain_roles_correct (members : AtLeastTwo ObjectPropertyExpression) :
+    ∃ result, shi_ontology.chain_roles members = .ok result ∧ ∀ v, result = some v → v.val = members.elements := by
+  rw [shi_ontology.chain_roles]
+  obtain ⟨one,onePush,oneContents⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec (alloc.vec.Vec.new ObjectPropertyExpression) members.first (by simp; scalar_tac))
+  obtain ⟨two,twoPush,twoContents⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec one members.second (by rw [oneContents]; simp; scalar_tac))
+  obtain ⟨copied,copyRun,copySpec⟩ := copy_roles_from_correct members.rest 0#usize two
+  refine ⟨copied,by simp [copy_role_identity,onePush,twoPush,copyRun],?_⟩
+  intro v same
+  rw [copySpec v same,twoContents,oneContents]
+  simp [AtLeastTwo.elements]
+
+/-- The role chains of the property chains of `items[index..]`, appended to
+    `out`: an interpretation satisfies them exactly when it satisfies the
+    chains it started from and those property chains. -/
+theorem chains_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize)
+    (out : alloc.vec.Vec role_chains.Chain) :
+    ∃ result, shi_ontology.chains_from items index out = .ok result ∧ ∀ out', result = some out' →
+      ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+        (Chained I out'.val ↔ Chained I out.val ∧ ChainsHold I (items.val.drop index.val)) := by
+  rw [shi_ontology.chains_from]
+  by_cases more : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : items.val.drop index.val = items.val[index.val] :: items.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    -- After this axiom, the rest of the axioms follow by recursion.
+    have continuation : ∀ middle : alloc.vec.Vec role_chains.Chain,
+        (∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+          (Chained I middle.val ↔ Chained I out.val ∧ (ChainAxiom items.val[index.val].axiom →
+            Rowl.Owl.satisfies I items.val[index.val].axiom))) →
+        ∃ result, shi_ontology.chains_from items next middle = .ok result ∧
+          ∀ out', result = some out' → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+            (Chained I out'.val ↔ Chained I out.val ∧ ChainsHold I (items.val.drop index.val)) := by
+      intro middle middleSpec
+      obtain ⟨result,run,spec⟩ := chains_from_correct items next middle
+      refine ⟨result,run,?_⟩
+      intro out' same Object Value I
+      rw [spec out' same Object Value I,middleSpec Object Value I,nextIndex,split]
+      simp only [ChainsHold,List.forall_mem_cons]
+      tauto
+    have unchanged : ¬ ChainAxiom items.val[index.val].axiom →
+        ∃ result, shi_ontology.chains_from items next out = .ok result ∧
+          ∀ out', result = some out' → ∀ (Object : Type u) (Value : Type v) (I : Interpretation Object Value),
+            (Chained I out'.val ↔ Chained I out.val ∧ ChainsHold I (items.val.drop index.val)) := by
+      intro notChain
+      apply continuation out
+      intro Object Value I
+      simp [notChain]
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,lookup,
+      bind_ok,advance]
+    cases here : items.val[index.val].axiom with
+    | SubObjectPropertyOf sub sup =>
+      cases sub with
+      | Single p => simp only [bind_ok,advance]; exact unchanged (by simp [here,ChainAxiom])
+      | Chain members =>
+        obtain ⟨rolesResult,rolesRun,rolesSpec⟩ := chain_roles_correct members
+        cases rolesResult with
+        | none => exact ⟨none,by simp [rolesRun],by simp⟩
+        | some roles =>
+        by_cases room : out.val.length < Usize.max
+        · obtain ⟨pushed,push,contents⟩ := WP.spec_imp_exists
+            (alloc.vec.Vec.push_spec out (⟨roles,sup⟩ : role_chains.Chain) room)
+          obtain ⟨result,run,spec⟩ := continuation pushed (by
+            intro Object Value I
+            rw [here]
+            simp only [Chained,contents,List.mem_append,List.mem_singleton,ChainAxiom,Rowl.Owl.satisfies,
+              Rowl.Owl.subRelation,true_implies]
+            constructor
+            · intro all
+              refine ⟨fun ch member => all ch (.inl member),fun x y along => ?_⟩
+              have := all ⟨roles,sup⟩ (.inr rfl) x y
+              rw [rolesSpec roles rfl] at this
+              exact this ((chainRelation_along I _ x y).mp along)
+            · rintro ⟨old,holds⟩ ch (member | rfl)
+              · exact old ch member
+              · intro x y along
+                rw [rolesSpec roles rfl] at along
+                exact holds x y ((chainRelation_along I _ x y).mpr along))
+          refine ⟨result,?_,spec⟩
+          simp only [rolesRun,bind_ok,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,alloc.vec.Vec.length,
+            room,↓reduceIte,copy_role_identity,push,advance,run]
+        · refine ⟨none,?_,by simp⟩
+          simp only [rolesRun,bind_ok,alloc.vec.Vec.len_val,UScalar.lt_equiv,usize_max_val,alloc.vec.Vec.length,
+            room,↓reduceIte]
+    | _ => simp only [bind_ok,advance]; exact unchanged (by simp [here,ChainAxiom])
+  · have empty : items.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same Object Value I
+    cases same
+    simp [ChainsHold,empty]
+termination_by items.val.length - index.val
+decreasing_by all_goals omega
 
 end Rowl.ShiRoles

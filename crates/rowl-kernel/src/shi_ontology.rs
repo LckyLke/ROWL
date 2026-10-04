@@ -1,9 +1,9 @@
 //! Consistency, class satisfiability, subsumption and instance checking for an
 //! axiom closure with assertions: SHI decided by the completion graph tableau,
-//! and SHOIQ with self restrictions and reflexive, irreflexive, asymmetric and
-//! disjoint properties, with number restrictions, complements of self
-//! restrictions and disjoint pairs on simple roles and nominals of named
-//! individuals, by the completion forest.
+//! and SHOIQ with self restrictions, reflexive, irreflexive, asymmetric and
+//! disjoint properties and role chains, with number restrictions, complements
+//! of self restrictions and disjoint pairs on simple roles and nominals of
+//! named individuals, by the completion forest.
 //!
 //! Class expressions are translated into ALCIQO concepts with self restrictions
 //! (see `concepts`). Every
@@ -30,7 +30,9 @@
 //! stays closed as the tableaux require. `AsymmetricObjectProperty` and
 //! `DisjointObjectProperties` become its disjoint pairs: an asymmetric property
 //! is disjoint from its inverse, and the members of a disjointness axiom are
-//! pairwise disjoint.
+//! pairwise disjoint. `SubObjectPropertyOf` with an `ObjectPropertyChain`
+//! becomes a role chain, which the completion forest decides through
+//! `role_chains`.
 //!
 //! Every individual of an assertion, equality or inequality, and every
 //! individual of a nominal of the closure, gets a node after node 0, which
@@ -39,7 +41,8 @@
 //! concepts are facts at those nodes, and object property assertions are links.
 //! A question whose concepts have no number restriction, self restriction or
 //! nominal goes to the completion graph tableau, unless the closure has
-//! negative assertions next to role axioms or disjoint pairs. There, without role axioms, a negative object property
+//! negative assertions next to role axioms, disjoint pairs or role chains.
+//! There, without role axioms, a negative object property
 //! assertion contradicts the closure exactly when a link relates the same nodes
 //! along the same property, in either orientation, because the tableau's models
 //! relate named individuals only along links, and a `DifferentIndividuals`
@@ -64,8 +67,9 @@
 //! when a nominal is of an anonymous individual or, in a question, of an
 //! individual the closure does not have, when a number restriction, the
 //! complement of a self restriction or a disjoint pair is on a role that is not
-//! simple, when a list would exceed the `usize` range, or when the completion
-//! forest cannot go on.
+//! simple (one that a transitive role or the role of a chain is included in),
+//! when a list would exceed the `usize` range, or when the encoding of the
+//! chains or the completion forest cannot go on.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -73,20 +77,21 @@
     clippy::vec_init_then_push,
     clippy::len_zero,
     clippy::needless_return,
-    clippy::if_same_then_else
+    clippy::if_same_then_else,
+    clippy::single_match
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::alc_ontology::{
     builtin_class, has_negative, individuals_from, intern, position, role_proper,
 };
 use crate::completion::{satisfiable, Definition, Fact, Link};
 use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
-use crate::forest;
 use crate::hierarchy::{below, is_transitive, Disjoint, Inclusion, RoleHierarchy};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, Individual, NamedIndividual,
     ObjectPropertyExpression, SubObjectPropertyExpression,
 };
 use crate::nnf::copy_iri;
+use crate::role_chains::{self, Chain};
 
 /// What the class axioms require: the TBox concept, which holds at every
 /// element, and the definitions `A ⊑ C`, which hold wherever `A` does.
@@ -545,6 +550,7 @@ fn axiom_parts(axiom: &Axiom, parts: Parts) -> Option<Parts> {
             Some(conjoin(parts, Concept::NotSelf(copy_role(property))))
         }
         Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(_), _) => Some(parts),
+        Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Chain(_), _) => Some(parts),
         Axiom::EquivalentObjectProperties(_) => Some(parts),
         Axiom::InverseObjectProperties(_, _) => Some(parts),
         Axiom::SymmetricObjectProperty(_) => Some(parts),
@@ -931,6 +937,45 @@ pub fn role_hierarchy(items: &Vec<AnnotatedAxiom>) -> Option<RoleHierarchy> {
         None => None,
     }
 }
+/// The roles of a chain, in order; `None` when there is no room.
+fn chain_roles(
+    members: &AtLeastTwo<ObjectPropertyExpression>,
+) -> Option<Vec<ObjectPropertyExpression>> {
+    let mut roles = Vec::new();
+    roles.push(copy_role(&members.first));
+    roles.push(copy_role(&members.second));
+    copy_roles_from(&members.rest, 0, roles)
+}
+/// The chains of the axioms `SubObjectPropertyOf(ObjectPropertyChain(…) r)` of
+/// `items[index..]`, appended to `out`; `None` when there is no room.
+pub fn chains_from(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    mut out: Vec<Chain>,
+) -> Option<Vec<Chain>> {
+    if index < items.len() {
+        match &items[index].axiom {
+            Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Chain(members), sup) => {
+                let roles = match chain_roles(members) {
+                    Some(roles) => roles,
+                    None => return None,
+                };
+                if out.len() < usize::MAX {
+                    out.push(Chain {
+                        roles,
+                        sup: copy_role(sup),
+                    });
+                } else {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+        chains_from(items, index + 1, out)
+    } else {
+        Some(out)
+    }
+}
 /// Whether neither role of an inclusion is a built-in object property.
 fn pair_proper(sub: &ObjectPropertyExpression, sup: &ObjectPropertyExpression) -> bool {
     let lower = role_proper(sub);
@@ -952,6 +997,15 @@ fn members_proper(members: &AtLeastTwo<ObjectPropertyExpression>) -> bool {
     let second = role_proper(&members.second);
     first && second && rest_proper(&members.rest, 0)
 }
+/// Whether no role of a chain or its role is a built-in object property.
+fn chain_proper(
+    members: &AtLeastTwo<ObjectPropertyExpression>,
+    sup: &ObjectPropertyExpression,
+) -> bool {
+    let along = members_proper(members);
+    let upper = role_proper(sup);
+    along && upper
+}
 /// Whether no object property assertion or role axiom in `items[index..]` uses
 /// a built-in object property.
 fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
@@ -961,6 +1015,9 @@ fn roles_proper(items: &Vec<AnnotatedAxiom>, index: usize) -> bool {
             Axiom::NegativeObjectPropertyAssertion(property, _, _) => role_proper(property),
             Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(sub), sup) => {
                 pair_proper(sub, sup)
+            }
+            Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Chain(members), sup) => {
+                chain_proper(members, sup)
             }
             Axiom::EquivalentObjectProperties(members) => members_proper(members),
             Axiom::InverseObjectProperties(first, second) => pair_proper(first, second),
@@ -1529,16 +1586,21 @@ fn tangled(items: &Vec<AnnotatedAxiom>, roles: &RoleHierarchy) -> bool {
 fn constrained(roles: &RoleHierarchy) -> bool {
     roles.disjoint.len() != 0
 }
+/// Whether the closure has role chains, which only the completion forest
+/// decides.
+fn chained(chains: &Vec<Chain>) -> bool {
+    chains.len() != 0
+}
 /// An axiom closure read once for many queries: its individuals, the
 /// representative node of every node, what its class axioms require, the facts
 /// of its class assertions, the facts the completion forest also gets (the
 /// nominal of every individual at its node, the members of every inequality
 /// outside each other's nominals, and the source of every negative object
 /// property assertion related along its property only outside the target's
-/// nominal), its role hierarchy, the links of its object property assertions,
-/// whether a negative object property assertion denies one of them, whether
-/// every question goes to the completion forest, and whether two members of an
-/// inequality share a node.
+/// nominal), its role hierarchy and role chains, the links of its object
+/// property assertions, whether a negative object property assertion denies one
+/// of them, whether every question goes to the completion forest, and whether
+/// two members of an inequality share a node.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
     pub same: Vec<usize>,
@@ -1546,6 +1608,7 @@ pub struct Prepared {
     pub facts: Vec<Fact>,
     pub bound: Vec<Fact>,
     pub roles: RoleHierarchy,
+    pub chains: Vec<Chain>,
     pub links: Vec<Link>,
     pub denied: bool,
     pub forest: bool,
@@ -1588,6 +1651,10 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         Some(roles) => roles,
         None => return None,
     };
+    let chains = match chains_from(items, 0, Vec::new()) {
+        Some(chains) => chains,
+        None => return None,
+    };
     if !(proper(&parts.axioms)
         && definitions_proper(&parts.definitions, 0)
         && facts_proper(&facts, 0)
@@ -1619,7 +1686,8 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
     let forest = closure_counts(&parts, &facts)
         || closure_nominal(&parts, &facts)
         || tangled(items, &roles)
-        || constrained(&roles);
+        || constrained(&roles)
+        || chained(&chains);
     let clash = clash_from(items, &nodes, &same, 0);
     Some(Prepared {
         nodes,
@@ -1628,6 +1696,7 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         facts,
         bound,
         roles,
+        chains,
         links,
         denied,
         forest,
@@ -1645,8 +1714,9 @@ fn question_forest(prepared: &Prepared, extra: &Vec<Fact>) -> bool {
 /// sits at the node of its representative. An inequality two of whose members
 /// share a node rules out every model. A question that counts or has a
 /// nominal, or about a closure with negative assertions next to role axioms,
-/// goes to the completion forest with the facts it also gets; every other
-/// question to the completion graph tableau.
+/// disjoint pairs or role chains, goes to the completion forest, with the role
+/// chains in front of it, with the facts it also gets; every other question to
+/// the completion graph tableau.
 fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> {
     if !facts_proper(extra, 0) {
         return None;
@@ -1658,7 +1728,7 @@ fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> 
         return Some(false);
     }
     if question_forest(prepared, extra) {
-        return forest::satisfiable(
+        return role_chains::satisfiable(
             prepared.nodes.len() + 1,
             extra,
             &prepared.bound,
@@ -1666,6 +1736,7 @@ fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> 
             &prepared.parts.axioms,
             &prepared.parts.definitions,
             &prepared.roles,
+            &prepared.chains,
         );
     }
     if prepared.denied {

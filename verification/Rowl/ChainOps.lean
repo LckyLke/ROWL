@@ -1606,6 +1606,35 @@ abbrev Needs {Object : Type u} {Value : Type v} (J : Interpretation Object Value
     (F : role_chains.Filler) (t : role_chains.Transition) (y : Object) : Prop :=
   ∃ j : Usize, T[j.val]? = some ⟨c,t.target,F⟩ ∧ Requires J h chs T (fun j y => J.classes (nameOf j) y) c t.label j y
 
+/-- The check for nesting an automaton in itself terminates. -/
+theorem nests_total (atoms : alloc.vec.Vec role_chains.Atom) (role : ObjectPropertyExpression) (index fuel : Usize) :
+    ∃ b, role_chains.nests atoms role index fuel = .ok b := by
+  rw [role_chains.nests]
+  by_cases zero : fuel = 0#usize
+  · exact ⟨true,by simp [zero]⟩
+  · by_cases inside : index.val < atoms.val.length
+    · have lookup : atoms.index_usize index = .ok atoms.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+      by_cases same : atoms.val[index.val].role = role
+      · exact ⟨true,by simp [zero,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,same_role_correct,same]⟩
+      · cases filler : atoms.val[index.val].filler with
+        | Base b => exact ⟨false,by simp [zero,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,
+            same_role_correct,same,filler]⟩
+        | Atom next =>
+          have positive : fuel.val ≠ 0 := fun eq => zero (UScalar.eq_of_val_eq (by simpa using eq))
+          obtain ⟨less,lessRun,lessVal⟩ := WP.spec_imp_exists
+            (Usize.sub_spec (x := fuel) (y := 1#usize) (by simp; omega))
+          have lessIs : less.val = fuel.val - 1 := by simp at lessVal; omega
+          obtain ⟨b,run⟩ := nests_total atoms role next less
+          exact ⟨b,by simp [zero,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,same_role_correct,same,
+            filler,lessRun,run]⟩
+    · exact ⟨false,by simp [zero,alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]⟩
+termination_by fuel.val
+decreasing_by
+  have positive : fuel.val ≠ 0 := fun eq => zero (UScalar.eq_of_val_eq (by simpa using eq))
+  simp at lessVal
+  omega
+
 /-- The table has the atom of the target of a transition, and for a complex
     role the atom of its initial state with that atom as filler. -/
 def Present (h : hierarchy.RoleHierarchy) (chs : List role_chains.Chain) (T : List role_chains.Atom)
@@ -1707,9 +1736,27 @@ private theorem unfold_from_correct (h : hierarchy.RoleHierarchy) (chs : alloc.v
         exact run
       | Role along =>
         by_cases complex : Complex h chs.val along
-        · obtain ⟨o2,run2,_⟩ := atom_for_correct T1 along .Initial (.Atom target)
+        · obtain ⟨cycle,cycleRun⟩ := nests_total T1 along target (alloc.vec.Vec.len T1)
+          cases cycle with
+          | true =>
+            refine ⟨none,?_,by simp⟩
+            simp only [run1,bind_ok,label,complex_correct,complex,decide_true,↓reduceIte]
+            show (do
+              let b1 ← role_chains.nests T1 along target (alloc.vec.Vec.len T1)
+              if b1 then Result.ok none else _) = Result.ok none
+            simp only [cycleRun,bind_ok,↓reduceIte]
+          | false =>
+          obtain ⟨o2,run2,_⟩ := atom_for_correct T1 along .Initial (.Atom target)
           cases o2 with
-          | none => exact ⟨none,by simp [run1,label,complex_correct,complex,run2],by simp⟩
+          | none =>
+            refine ⟨none,?_,by simp⟩
+            simp only [run1,bind_ok,label,complex_correct,complex,decide_true,↓reduceIte]
+            show (do
+              let b1 ← role_chains.nests T1 along target (alloc.vec.Vec.len T1)
+              if b1 then Result.ok none else (do
+                let o1 ← role_chains.atom_for T1 along role_chains.State.Initial (role_chains.Filler.Atom target)
+                _)) = Result.ok none
+            simp only [cycleRun,bind_ok,Bool.false_eq_true,↓reduceIte,run2]
           | some pair =>
             obtain ⟨T2,nested⟩ := pair
             obtain ⟨ok2,p2,at_nested⟩ := atom_for_ok ok1 (show FillerOk B T1.val.length (.Atom target) from targetIn) run2
@@ -1731,6 +1778,10 @@ private theorem unfold_from_correct (h : hierarchy.RoleHierarchy) (chs : alloc.v
                 exact holds)
             refine ⟨o,?_,spec⟩
             simp only [run1,bind_ok,label,complex_correct,complex,decide_true,↓reduceIte]
+            show (do
+              let b1 ← role_chains.nests T1 along target (alloc.vec.Vec.len T1)
+              if b1 then Result.ok none else _) = Result.ok o
+            simp only [cycleRun,bind_ok,Bool.false_eq_true,↓reduceIte]
             show (do
               let o1 ← role_chains.atom_for T1 along role_chains.State.Initial (role_chains.Filler.Atom target)
               match o1 with

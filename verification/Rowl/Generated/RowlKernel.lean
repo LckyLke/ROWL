@@ -34020,8 +34020,37 @@ def role_chains.filler_concept
     let c ← role_chains.name index
     ok (concepts.Concept.Atom c)
 
+/-- [rowl_kernel::role_chains::nests]:
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 686:0-702:1 -/
+def role_chains.nests
+  (atoms : alloc.vec.Vec role_chains.Atom)
+  (role : model.ObjectPropertyExpression) (index : Std.Usize)
+  (fuel : Std.Usize) :
+  Result Bool
+  := do
+  if fuel = 0#usize
+  then ok true
+  else
+    let i := alloc.vec.Vec.len atoms
+    if index < i
+    then
+      let a ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          role_chains.Atom) atoms index
+      let b ← concepts.same_role a.role role
+      if b
+      then ok true
+      else
+        match a.filler with
+        | role_chains.Filler.Base _ => ok false
+        | role_chains.Filler.Atom next =>
+          let i1 ← fuel - 1#usize
+          role_chains.nests atoms role next i1
+    else ok false
+partial_fixpoint
+
 /-- [rowl_kernel::role_chains::unfold_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 684:0-737:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 705:0-761:1 -/
 def role_chains.unfold_from
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (transitions : alloc.vec.Vec role_chains.Transition)
@@ -34053,17 +34082,22 @@ def role_chains.unfold_from
         let b ← role_chains.complex roles chains along
         if b
         then
-          let o1 ←
-            role_chains.atom_for atoms1 along role_chains.State.Initial
-              (role_chains.Filler.Atom target)
-          match o1 with
-          | none => ok none
-          | some p1 =>
-            let (atoms2, nested) := p1
-            let c ← role_chains.name nested
-            let i1 ← index + 1#usize
-            role_chains.unfold_from roles chains transitions role filler i1
-              atoms2 (concepts.Concept.And acc (concepts.Concept.Atom c))
+          let i1 := alloc.vec.Vec.len atoms1
+          let b1 ← role_chains.nests atoms1 along target i1
+          if b1
+          then ok none
+          else
+            let o1 ←
+              role_chains.atom_for atoms1 along role_chains.State.Initial
+                (role_chains.Filler.Atom target)
+            match o1 with
+            | none => ok none
+            | some p1 =>
+              let (atoms2, nested) := p1
+              let c ← role_chains.name nested
+              let i2 ← index + 1#usize
+              role_chains.unfold_from roles chains transitions role filler i2
+                atoms2 (concepts.Concept.And acc (concepts.Concept.Atom c))
         else
           let ope ← concepts.copy_role along
           let c ← role_chains.name target
@@ -34080,7 +34114,7 @@ def role_chains.unfold_from
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::unfold]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 739:0-763:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 763:0-787:1 -/
 def role_chains.unfold
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (bases : alloc.vec.Vec concepts.Concept)
@@ -34110,7 +34144,7 @@ def role_chains.unfold
   else ok none
 
 /-- [rowl_kernel::role_chains::generate]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 766:0-795:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 790:0-819:1 -/
 def role_chains.generate
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (bases : alloc.vec.Vec concepts.Concept)
@@ -34145,7 +34179,7 @@ def role_chains.generate
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::reversed]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 843:0-858:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 867:0-882:1 -/
 def role_chains.reversed
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (count : Std.Usize)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -34174,7 +34208,7 @@ def role_chains.reversed
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::copied]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 827:0-840:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 851:0-864:1 -/
 def role_chains.copied
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -34200,7 +34234,7 @@ def role_chains.copied
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::copy_chains]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 798:0-825:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 822:0-849:1 -/
 def role_chains.copy_chains
   (chains : alloc.vec.Vec role_chains.Chain) (mirror : Bool)
   (index : Std.Usize) (out : alloc.vec.Vec role_chains.Chain) :
@@ -34236,7 +34270,7 @@ def role_chains.copy_chains
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::long_from]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 860:0-870:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 884:0-894:1 -/
 def role_chains.long_from
   (chains : alloc.vec.Vec role_chains.Chain) (index : Std.Usize) :
   Result Bool
@@ -34256,7 +34290,7 @@ def role_chains.long_from
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::pairs_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 872:0-885:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 896:0-909:1 -/
 def role_chains.pairs_fit
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (index : Std.Usize) :
@@ -34281,7 +34315,7 @@ def role_chains.pairs_fit
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::facts_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 887:0-897:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 911:0-921:1 -/
 def role_chains.facts_fit
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
@@ -34302,7 +34336,7 @@ def role_chains.facts_fit
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::definitions_fit]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 899:0-916:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 923:0-940:1 -/
 def role_chains.definitions_fit
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
@@ -34328,7 +34362,7 @@ def role_chains.definitions_fit
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::encode_facts]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 918:0-945:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 942:0-969:1 -/
 def role_chains.encode_facts
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
@@ -34360,7 +34394,7 @@ def role_chains.encode_facts
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::encode_definitions]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 948:0-984:1 -/
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 972:0-1008:1 -/
 def role_chains.encode_definitions
   (roles : hierarchy.RoleHierarchy) (chains : alloc.vec.Vec role_chains.Chain)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
@@ -34396,7 +34430,7 @@ def role_chains.encode_definitions
 partial_fixpoint
 
 /-- [rowl_kernel::role_chains::satisfiable]:
-    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 989:0-1052:1
+    Source: 'crates/rowl-kernel/src/role_chains.rs', lines 1013:0-1076:1
     Visibility: public -/
 def role_chains.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
@@ -35901,14 +35935,14 @@ def roles.check_simplicity
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
 /-- [rowl_kernel::shi_ontology::Parts]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 93:0-96:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 98:0-101:1
     Visibility: public -/
 structure shi_ontology.Parts where
   axioms : concepts.Concept
   definitions : alloc.vec.Vec completion.Definition
 
 /-- [rowl_kernel::shi_ontology::named_individual]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 100:0-105:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 105:0-110:1 -/
 def shi_ontology.named_individual
   (individual : model.Individual) : Result Bool := do
   match individual with
@@ -35916,7 +35950,7 @@ def shi_ontology.named_individual
   | model.Individual.Anonymous _ => ok false
 
 /-- [rowl_kernel::shi_ontology::proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 109:0-126:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 114:0-131:1 -/
 def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok true
@@ -35965,7 +35999,7 @@ def shi_ontology.proper (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 129:0-141:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 134:0-146:1 -/
 def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok false
@@ -35993,7 +36027,7 @@ def shi_ontology.counts (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 143:0-149:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 148:0-154:1 -/
 def shi_ontology.definitions_count
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -36014,7 +36048,7 @@ def shi_ontology.definitions_count
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_count]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 151:0-157:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 156:0-162:1 -/
 def shi_ontology.facts_count
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -36034,7 +36068,7 @@ def shi_ontology.facts_count
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::closure_counts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 159:0-161:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 164:0-166:1 -/
 def shi_ontology.closure_counts
   (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -36049,7 +36083,7 @@ def shi_ontology.closure_counts
     else shi_ontology.facts_count facts 0#usize
 
 /-- [rowl_kernel::shi_ontology::nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 163:0-175:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 168:0-180:1 -/
 def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
   match concept with
   | concepts.Concept.Top => ok false
@@ -36077,7 +36111,7 @@ def shi_ontology.nominal (concept : concepts.Concept) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 177:0-183:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 182:0-188:1 -/
 def shi_ontology.definitions_nominal
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -36098,7 +36132,7 @@ def shi_ontology.definitions_nominal
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 185:0-191:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 190:0-196:1 -/
 def shi_ontology.facts_nominal
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -36118,7 +36152,7 @@ def shi_ontology.facts_nominal
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::closure_nominal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 193:0-195:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 198:0-200:1 -/
 def shi_ontology.closure_nominal
   (parts : shi_ontology.Parts) (facts : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -36133,7 +36167,7 @@ def shi_ontology.closure_nominal
     else shi_ontology.facts_nominal facts 0#usize
 
 /-- [rowl_kernel::shi_ontology::known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 197:0-209:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 202:0-214:1 -/
 def shi_ontology.known
   (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
   Result Bool
@@ -36168,7 +36202,7 @@ def shi_ontology.known
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_known]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 212:0-218:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 217:0-223:1 -/
 def shi_ontology.facts_known
   (nodes : alloc.vec.Vec model.Individual)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
@@ -36189,7 +36223,7 @@ def shi_ontology.facts_known
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definitions_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 221:0-228:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 226:0-233:1 -/
 def shi_ontology.definitions_proper
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
   Result Bool
@@ -36213,7 +36247,7 @@ def shi_ontology.definitions_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::facts_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 230:0-236:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 235:0-241:1 -/
 def shi_ontology.facts_proper
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize) :
   Result Bool
@@ -36233,7 +36267,7 @@ def shi_ontology.facts_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::absorbable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 241:0-248:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 246:0-253:1 -/
 def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
   match sub with
   | model.ClassExpression.Class «class» =>
@@ -36261,7 +36295,7 @@ def shi_ontology.absorbable (sub : model.ClassExpression) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::fail_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 251:0-264:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 256:0-269:1 -/
 def shi_ontology.fail_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (joined : concepts.Concept) :
@@ -36283,7 +36317,7 @@ def shi_ontology.fail_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::absorb]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 268:0-292:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 273:0-297:1 -/
 def shi_ontology.absorb
   (sub : model.ClassExpression) (sup : concepts.Concept) :
   Result (Option completion.Definition)
@@ -36323,7 +36357,7 @@ def shi_ontology.absorb
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::include]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 295:0-320:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 300:0-325:1 -/
 def shi_ontology.include
   (sub : model.ClassExpression) (sup : concepts.Concept)
   (parts : shi_ontology.Parts) :
@@ -36360,7 +36394,7 @@ def shi_ontology.include
         })
 
 /-- [rowl_kernel::shi_ontology::include_both]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 322:0-336:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 327:0-341:1 -/
 def shi_ontology.include_both
   (left : model.ClassExpression) (right : model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -36380,7 +36414,7 @@ def shi_ontology.include_both
       | some backward => shi_ontology.include right backward parts1
 
 /-- [rowl_kernel::shi_ontology::equal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 338:0-352:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 343:0-357:1 -/
 def shi_ontology.equal_from
   (first : model.ClassExpression)
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -36403,7 +36437,7 @@ def shi_ontology.equal_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 354:0-359:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 359:0-364:1 -/
 def shi_ontology.equivalent
   (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -36416,7 +36450,7 @@ def shi_ontology.equivalent
     shi_ontology.equal_from members.first members.rest 0#usize parts1
 
 /-- [rowl_kernel::shi_ontology::apart_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 361:0-379:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 366:0-384:1 -/
 def shi_ontology.apart_from
   (member : model.ClassExpression)
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -36443,7 +36477,7 @@ def shi_ontology.apart_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::pairwise_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 381:0-390:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 386:0-395:1 -/
 def shi_ontology.pairwise_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (parts : shi_ontology.Parts) :
@@ -36464,7 +36498,7 @@ def shi_ontology.pairwise_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::disjoint]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 392:0-410:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 397:0-415:1 -/
 def shi_ontology.disjoint
   (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -36490,7 +36524,7 @@ def shi_ontology.disjoint
         | some parts3 => shi_ontology.pairwise_from members.rest 0#usize parts3
 
 /-- [rowl_kernel::shi_ontology::some_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 413:0-426:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 418:0-431:1 -/
 def shi_ontology.some_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (joined : concepts.Concept) :
@@ -36512,7 +36546,7 @@ def shi_ontology.some_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::within_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 428:0-446:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 433:0-451:1 -/
 def shi_ontology.within_from
   (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (whole : model.ClassExpression) (parts : shi_ontology.Parts) :
@@ -36538,7 +36572,7 @@ def shi_ontology.within_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::disjoint_union]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 449:0-498:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 454:0-503:1 -/
 def shi_ontology.disjoint_union
   («class» : model.Class) (members : model.AtLeastTwo model.ClassExpression)
   (parts : shi_ontology.Parts) :
@@ -36589,7 +36623,7 @@ def shi_ontology.disjoint_union
                   | some parts4 => shi_ontology.disjoint members parts4
 
 /-- [rowl_kernel::shi_ontology::conjoin]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 500:0-505:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 505:0-510:1 -/
 def shi_ontology.conjoin
   (parts : shi_ontology.Parts) (concept : concepts.Concept) :
   Result shi_ontology.Parts
@@ -36597,7 +36631,7 @@ def shi_ontology.conjoin
   ok { parts with axioms := (concepts.Concept.And parts.axioms concept) }
 
 /-- [rowl_kernel::shi_ontology::axiom_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 509:0-565:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 514:0-571:1 -/
 def shi_ontology.axiom_parts
   («axiom» : model.Axiom) (parts : shi_ontology.Parts) :
   Result (Option shi_ontology.Parts)
@@ -36617,7 +36651,7 @@ def shi_ontology.axiom_parts
   | model.Axiom.SubObjectPropertyOf sope _ =>
     match sope with
     | model.SubObjectPropertyExpression.Single _ => ok (some parts)
-    | model.SubObjectPropertyExpression.Chain _ => ok none
+    | model.SubObjectPropertyExpression.Chain _ => ok (some parts)
   | model.Axiom.EquivalentObjectProperties _ => ok (some parts)
   | model.Axiom.DisjointObjectProperties _ => ok (some parts)
   | model.Axiom.InverseObjectProperties _ _ => ok (some parts)
@@ -36681,7 +36715,7 @@ def shi_ontology.axiom_parts
   | model.Axiom.AnnotationPropertyRange _ _ => ok (some parts)
 
 /-- [rowl_kernel::shi_ontology::parts_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 567:0-576:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 573:0-582:1 -/
 def shi_ontology.parts_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (parts : shi_ontology.Parts) :
@@ -36703,7 +36737,7 @@ def shi_ontology.parts_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::class_parts]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 579:0-588:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 585:0-594:1
     Visibility: public -/
 def shi_ontology.class_parts
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -36716,7 +36750,7 @@ def shi_ontology.class_parts
     }
 
 /-- [rowl_kernel::shi_ontology::subs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 592:0-612:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 598:0-618:1 -/
 def shi_ontology.subs_from
   (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
   (sup : model.ObjectPropertyExpression)
@@ -36747,7 +36781,7 @@ def shi_ontology.subs_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::sups_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 615:0-635:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 621:0-641:1 -/
 def shi_ontology.sups_from
   (inclusions : alloc.vec.Vec hierarchy.Inclusion) (index : Std.Usize)
   (sub : model.ObjectPropertyExpression)
@@ -36778,7 +36812,7 @@ def shi_ontology.sups_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::row_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 638:0-659:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 644:0-665:1 -/
 def shi_ontology.row_from
   (sub : model.ObjectPropertyExpression)
   (above : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
@@ -36811,7 +36845,7 @@ def shi_ontology.row_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::pairs_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 661:0-675:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 667:0-681:1 -/
 def shi_ontology.pairs_from
   (lower : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (above : alloc.vec.Vec model.ObjectPropertyExpression)
@@ -36834,7 +36868,7 @@ def shi_ontology.pairs_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_one]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 679:0-697:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 685:0-703:1 -/
 def shi_ontology.add_one
   (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
   (sup : model.ObjectPropertyExpression) :
@@ -36857,7 +36891,7 @@ def shi_ontology.add_one
     | some upper => shi_ontology.pairs_from lower 0#usize upper roles
 
 /-- [rowl_kernel::shi_ontology::add_inclusion]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 700:0-712:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 706:0-718:1 -/
 def shi_ontology.add_inclusion
   (roles : hierarchy.RoleHierarchy) (sub : model.ObjectPropertyExpression)
   (sup : model.ObjectPropertyExpression) :
@@ -36872,7 +36906,7 @@ def shi_ontology.add_inclusion
     shi_ontology.add_one roles1 flipped_sub flipped_sup
 
 /-- [rowl_kernel::shi_ontology::add_equal]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 714:0-723:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 720:0-729:1 -/
 def shi_ontology.add_equal
   (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
   (right : model.ObjectPropertyExpression) :
@@ -36884,7 +36918,7 @@ def shi_ontology.add_equal
   | some roles1 => shi_ontology.add_inclusion roles1 right left
 
 /-- [rowl_kernel::shi_ontology::same_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 725:0-739:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 731:0-745:1 -/
 def shi_ontology.same_from
   (first : model.ObjectPropertyExpression)
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
@@ -36907,7 +36941,7 @@ def shi_ontology.same_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_equivalent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 741:0-749:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 747:0-755:1 -/
 def shi_ontology.add_equivalent
   (roles : hierarchy.RoleHierarchy)
   (members : model.AtLeastTwo model.ObjectPropertyExpression) :
@@ -36920,7 +36954,7 @@ def shi_ontology.add_equivalent
     shi_ontology.same_from members.first members.rest 0#usize roles1
 
 /-- [rowl_kernel::shi_ontology::add_transitive]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 751:0-764:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 757:0-770:1 -/
 def shi_ontology.add_transitive
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression) :
   Result (Option hierarchy.RoleHierarchy)
@@ -36941,7 +36975,7 @@ def shi_ontology.add_transitive
     else ok none
 
 /-- [rowl_kernel::shi_ontology::hierarchy_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 767:0-796:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 773:0-802:1 -/
 def shi_ontology.hierarchy_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (roles : hierarchy.RoleHierarchy) :
@@ -37013,7 +37047,7 @@ def shi_ontology.hierarchy_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_disjoint]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 799:0-813:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 805:0-819:1 -/
 def shi_ontology.add_disjoint
   (roles : hierarchy.RoleHierarchy) (left : model.ObjectPropertyExpression)
   (right : model.ObjectPropertyExpression) :
@@ -37031,7 +37065,7 @@ def shi_ontology.add_disjoint
   else ok none
 
 /-- [rowl_kernel::shi_ontology::apart_with]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 816:0-830:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 822:0-836:1 -/
 def shi_ontology.apart_with
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (first : Std.Usize)
   (index : Std.Usize) (roles : hierarchy.RoleHierarchy) :
@@ -37060,7 +37094,7 @@ def shi_ontology.apart_with
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::roles_apart]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 833:0-846:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 839:0-852:1 -/
 def shi_ontology.roles_apart
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (roles : hierarchy.RoleHierarchy) :
@@ -37078,7 +37112,7 @@ def shi_ontology.roles_apart
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::copy_roles_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 848:0-863:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 854:0-869:1 -/
 def shi_ontology.copy_roles_from
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -37102,7 +37136,7 @@ def shi_ontology.copy_roles_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_disjoint_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 865:0-876:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 871:0-882:1 -/
 def shi_ontology.add_disjoint_members
   (roles : hierarchy.RoleHierarchy)
   (members : model.AtLeastTwo model.ObjectPropertyExpression) :
@@ -37119,7 +37153,7 @@ def shi_ontology.add_disjoint_members
   | some values2 => shi_ontology.roles_apart values2 0#usize roles
 
 /-- [rowl_kernel::shi_ontology::constraints_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 880:0-901:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 886:0-907:1 -/
 def shi_ontology.constraints_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (roles : hierarchy.RoleHierarchy) :
@@ -37183,7 +37217,7 @@ def shi_ontology.constraints_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::role_hierarchy]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 904:0-933:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 910:0-939:1
     Visibility: public -/
 def shi_ontology.role_hierarchy
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -37210,8 +37244,167 @@ def shi_ontology.role_hierarchy
     | none => ok none
     | some roles1 => ok (some { roles1 with disjoint := roles.disjoint })
 
+/-- [rowl_kernel::shi_ontology::chain_roles]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 941:0-948:1 -/
+def shi_ontology.chain_roles
+  (members : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (Option (alloc.vec.Vec model.ObjectPropertyExpression))
+  := do
+  let ope ← concepts.copy_role members.first
+  let roles ←
+    alloc.vec.Vec.push (alloc.vec.Vec.new model.ObjectPropertyExpression) ope
+  let ope1 ← concepts.copy_role members.second
+  let roles1 ← alloc.vec.Vec.push roles ope1
+  shi_ontology.copy_roles_from members.rest 0#usize roles1
+
+/-- [rowl_kernel::shi_ontology::chains_from]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 951:0-978:1
+    Visibility: public -/
+def shi_ontology.chains_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (out : alloc.vec.Vec role_chains.Chain) :
+  Result (Option (alloc.vec.Vec role_chains.Chain))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    match aa.axiom with
+    | model.Axiom.Declaration _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubClassOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.EquivalentClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointClasses _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointUnion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubObjectPropertyOf sope sup =>
+      match sope with
+      | model.SubObjectPropertyExpression.Single _ =>
+        let i1 ← index + 1#usize
+        shi_ontology.chains_from items i1 out
+      | model.SubObjectPropertyExpression.Chain members =>
+        let o ← shi_ontology.chain_roles members
+        match o with
+        | none => ok none
+        | some roles =>
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let ope ← concepts.copy_role sup
+            let out1 ←
+              alloc.vec.Vec.push out ({ roles, sup := ope } :
+                role_chains.Chain)
+            let i2 ← index + 1#usize
+            shi_ontology.chains_from items i2 out1
+          else ok none
+    | model.Axiom.EquivalentObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointObjectProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.InverseObjectProperties _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.FunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.InverseFunctionalObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ReflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.IrreflexiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AsymmetricObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.TransitiveObjectProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubDataPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.EquivalentDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DisjointDataProperties _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.FunctionalDataProperty _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DatatypeDefinition _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.HasKey _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SameIndividual _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DifferentIndividuals _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ClassAssertion _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.DataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationAssertion _ _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.SubAnnotationPropertyOf _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationPropertyDomain _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+    | model.Axiom.AnnotationPropertyRange _ _ =>
+      let i1 ← index + 1#usize
+      shi_ontology.chains_from items i1 out
+  else ok (some out)
+partial_fixpoint
+
 /-- [rowl_kernel::shi_ontology::pair_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 935:0-939:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 980:0-984:1 -/
 def shi_ontology.pair_proper
   (sub : model.ObjectPropertyExpression) (sup : model.ObjectPropertyExpression)
   :
@@ -37224,7 +37417,7 @@ def shi_ontology.pair_proper
   else ok false
 
 /-- [rowl_kernel::shi_ontology::rest_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 941:0-948:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 986:0-993:1 -/
 def shi_ontology.rest_proper
   (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
   Result Bool
@@ -37244,7 +37437,7 @@ def shi_ontology.rest_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::members_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 950:0-954:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 995:0-999:1 -/
 def shi_ontology.members_proper
   (members : model.AtLeastTwo model.ObjectPropertyExpression) :
   Result Bool
@@ -37258,8 +37451,21 @@ def shi_ontology.members_proper
     else ok false
   else ok false
 
+/-- [rowl_kernel::shi_ontology::chain_proper]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1001:0-1008:1 -/
+def shi_ontology.chain_proper
+  (members : model.AtLeastTwo model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result Bool
+  := do
+  let along ← shi_ontology.members_proper members
+  let upper ← alc_ontology.role_proper sup
+  if along
+  then ok upper
+  else ok false
+
 /-- [rowl_kernel::shi_ontology::roles_proper]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 957:0-977:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1011:0-1034:1 -/
 def shi_ontology.roles_proper
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -37281,7 +37487,8 @@ def shi_ontology.roles_proper
         match sope with
         | model.SubObjectPropertyExpression.Single sub =>
           shi_ontology.pair_proper sub sup
-        | model.SubObjectPropertyExpression.Chain _ => ok true
+        | model.SubObjectPropertyExpression.Chain members =>
+          shi_ontology.chain_proper members sup
       | model.Axiom.EquivalentObjectProperties members =>
         shi_ontology.members_proper members
       | model.Axiom.DisjointObjectProperties members =>
@@ -37329,7 +37536,7 @@ def shi_ontology.roles_proper
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::intern_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 981:0-994:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1038:0-1051:1 -/
 def shi_ontology.intern_rest
   (nodes : alloc.vec.Vec model.Individual)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -37351,7 +37558,7 @@ def shi_ontology.intern_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::intern_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 996:0-1009:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1053:0-1066:1 -/
 def shi_ontology.intern_members
   (nodes : alloc.vec.Vec model.Individual)
   (members : model.AtLeastTwo model.Individual) :
@@ -37367,7 +37574,7 @@ def shi_ontology.intern_members
     | some nodes2 => shi_ontology.intern_rest nodes2 members.rest 0#usize
 
 /-- [rowl_kernel::shi_ontology::members_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1012:0-1030:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1069:0-1087:1 -/
 def shi_ontology.members_from
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (nodes : alloc.vec.Vec model.Individual) :
@@ -37429,7 +37636,7 @@ def shi_ontology.members_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::identity_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1032:0-1039:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1089:0-1096:1 -/
 def shi_ontology.identity_from
   (count : Std.Usize) (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -37443,7 +37650,7 @@ def shi_ontology.identity_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::relabel]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1042:0-1051:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1099:0-1108:1 -/
 def shi_ontology.relabel
   (same : alloc.vec.Vec Std.Usize) («from» : Std.Usize) (into : Std.Usize)
   (index : Std.Usize) :
@@ -37470,7 +37677,7 @@ def shi_ontology.relabel
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::unite]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1054:0-1066:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1111:0-1123:1 -/
 def shi_ontology.unite
   (same : alloc.vec.Vec Std.Usize) (left : Std.Usize) (right : Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -37494,7 +37701,7 @@ def shi_ontology.unite
   else ok same
 
 /-- [rowl_kernel::shi_ontology::unite_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1068:0-1082:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1125:0-1139:1 -/
 def shi_ontology.unite_rest
   (same : alloc.vec.Vec Std.Usize) (nodes : alloc.vec.Vec model.Individual)
   (first : Std.Usize) (rest : alloc.vec.Vec model.Individual)
@@ -37515,7 +37722,7 @@ def shi_ontology.unite_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::equalities_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1084:0-1104:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1141:0-1161:1 -/
 def shi_ontology.equalities_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -37578,7 +37785,7 @@ def shi_ontology.equalities_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::representative]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1106:0-1112:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1163:0-1169:1 -/
 def shi_ontology.representative
   (same : alloc.vec.Vec Std.Usize) (node : Std.Usize) : Result Std.Usize := do
   let i := alloc.vec.Vec.len same
@@ -37589,7 +37796,7 @@ def shi_ontology.representative
   else ok node
 
 /-- [rowl_kernel::shi_ontology::node_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1114:0-1116:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1171:0-1173:1 -/
 def shi_ontology.node_of
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (individual : model.Individual) :
@@ -37599,7 +37806,7 @@ def shi_ontology.node_of
   shi_ontology.representative same i
 
 /-- [rowl_kernel::shi_ontology::meets]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1118:0-1134:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1175:0-1191:1 -/
 def shi_ontology.meets
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) (rest : alloc.vec.Vec model.Individual)
@@ -37621,7 +37828,7 @@ def shi_ontology.meets
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::repeats]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1136:0-1152:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1193:0-1209:1 -/
 def shi_ontology.repeats
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -37643,7 +37850,7 @@ def shi_ontology.repeats
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::shares]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1154:0-1166:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1211:0-1223:1 -/
 def shi_ontology.shares
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (members : model.AtLeastTwo model.Individual) :
@@ -37664,7 +37871,7 @@ def shi_ontology.shares
       else shi_ontology.repeats nodes same members.rest 0#usize
 
 /-- [rowl_kernel::shi_ontology::clash_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1168:0-1188:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1225:0-1245:1 -/
 def shi_ontology.clash_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -37797,7 +38004,7 @@ def shi_ontology.clash_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::nominal_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1191:0-1209:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1248:0-1266:1 -/
 def shi_ontology.nominal_individuals
   (nodes : alloc.vec.Vec model.Individual) (concept : concepts.Concept) :
   Result (Option (alloc.vec.Vec model.Individual))
@@ -37832,7 +38039,7 @@ def shi_ontology.nominal_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::definition_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1212:0-1225:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1269:0-1282:1 -/
 def shi_ontology.definition_individuals
   (nodes : alloc.vec.Vec model.Individual)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize) :
@@ -37854,7 +38061,7 @@ def shi_ontology.definition_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::class_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1228:0-1233:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1285:0-1290:1 -/
 def shi_ontology.class_individuals
   (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
   :
@@ -37866,7 +38073,7 @@ def shi_ontology.class_individuals
   | some concept => shi_ontology.nominal_individuals nodes concept
 
 /-- [rowl_kernel::shi_ontology::assertion_individuals]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1236:0-1253:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1293:0-1310:1 -/
 def shi_ontology.assertion_individuals
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (nodes : alloc.vec.Vec model.Individual) :
@@ -37927,7 +38134,7 @@ def shi_ontology.assertion_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::add_fact]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1255:0-1262:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1312:0-1319:1 -/
 def shi_ontology.add_fact
   (facts : alloc.vec.Vec completion.Fact) (node : Std.Usize)
   (concept : concepts.Concept) :
@@ -37942,7 +38149,7 @@ def shi_ontology.add_fact
   else ok none
 
 /-- [rowl_kernel::shi_ontology::named_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1265:0-1280:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1322:0-1337:1 -/
 def shi_ontology.named_from
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (facts : alloc.vec.Vec completion.Fact) :
@@ -37966,7 +38173,7 @@ def shi_ontology.named_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_rest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1283:0-1300:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1340:0-1357:1 -/
 def shi_ontology.apart_rest
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (member : model.Individual) (rest : alloc.vec.Vec model.Individual)
@@ -37991,7 +38198,7 @@ def shi_ontology.apart_rest
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_within]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1303:0-1318:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1360:0-1375:1 -/
 def shi_ontology.apart_within
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (rest : alloc.vec.Vec model.Individual) (index : Std.Usize)
@@ -38013,7 +38220,7 @@ def shi_ontology.apart_within
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::apart_members]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1321:0-1345:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1378:0-1402:1 -/
 def shi_ontology.apart_members
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
   (members : model.AtLeastTwo model.Individual)
@@ -38041,7 +38248,7 @@ def shi_ontology.apart_members
         shi_ontology.apart_within nodes same members.rest 0#usize facts3
 
 /-- [rowl_kernel::shi_ontology::unequal_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1347:0-1366:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1404:0-1423:1 -/
 def shi_ontology.unequal_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -38103,7 +38310,7 @@ def shi_ontology.unequal_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::refused_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1370:0-1396:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1427:0-1453:1 -/
 def shi_ontology.refused_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -38170,7 +38377,7 @@ def shi_ontology.refused_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::assertions_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1400:0-1428:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1457:0-1485:1 -/
 def shi_ontology.assertions_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -38311,7 +38518,7 @@ def shi_ontology.assertions_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::links_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1431:0-1457:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1488:0-1514:1 -/
 def shi_ontology.links_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -38450,7 +38657,7 @@ def shi_ontology.links_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::link_is]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1459:0-1469:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1516:0-1526:1 -/
 def shi_ontology.link_is
   (link : completion.Link) (role : model.ObjectPropertyExpression)
   (source : Std.Usize) (target : Std.Usize) :
@@ -38463,7 +38670,7 @@ def shi_ontology.link_is
   else ok false
 
 /-- [rowl_kernel::shi_ontology::linked_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1473:0-1492:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1530:0-1549:1 -/
 def shi_ontology.linked_from
   (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
   (role : model.ObjectPropertyExpression)
@@ -38491,7 +38698,7 @@ def shi_ontology.linked_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::denied_from]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1495:0-1521:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1552:0-1578:1 -/
 def shi_ontology.denied_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (nodes : alloc.vec.Vec model.Individual) (same : alloc.vec.Vec Std.Usize)
@@ -38627,7 +38834,7 @@ def shi_ontology.denied_from
 partial_fixpoint
 
 /-- [rowl_kernel::shi_ontology::tangled]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1524:0-1526:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1581:0-1583:1 -/
 def shi_ontology.tangled
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (roles : hierarchy.RoleHierarchy) :
@@ -38646,14 +38853,21 @@ def shi_ontology.tangled
   else ok false
 
 /-- [rowl_kernel::shi_ontology::constrained]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1529:0-1531:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1586:0-1588:1 -/
 def shi_ontology.constrained
   (roles : hierarchy.RoleHierarchy) : Result Bool := do
   let i := alloc.vec.Vec.len roles.disjoint
   ok (i != 0#usize)
 
+/-- [rowl_kernel::shi_ontology::chained]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1591:0-1593:1 -/
+def shi_ontology.chained
+  (chains : alloc.vec.Vec role_chains.Chain) : Result Bool := do
+  let i := alloc.vec.Vec.len chains
+  ok (i != 0#usize)
+
 /-- [rowl_kernel::shi_ontology::Prepared]
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1542:0-1553:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1604:0-1616:1
     Visibility: public -/
 structure shi_ontology.Prepared where
   nodes : alloc.vec.Vec model.Individual
@@ -38662,13 +38876,14 @@ structure shi_ontology.Prepared where
   facts : alloc.vec.Vec completion.Fact
   bound : alloc.vec.Vec completion.Fact
   roles : hierarchy.RoleHierarchy
+  chains : alloc.vec.Vec role_chains.Chain
   links : alloc.vec.Vec completion.Link
   denied : Bool
   forest : Bool
   clash : Bool
 
 /-- [rowl_kernel::shi_ontology::prepare]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1556:0-1636:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1619:0-1705:1
     Visibility: public -/
 def shi_ontology.prepare
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -38719,90 +38934,103 @@ def shi_ontology.prepare
                 match o7 with
                 | none => ok none
                 | some roles =>
-                  let b ← shi_ontology.proper parts.axioms
-                  if b
-                  then
-                    let b1 ←
-                      shi_ontology.definitions_proper parts.definitions 0#usize
-                    if b1
+                  let o8 ←
+                    shi_ontology.chains_from items 0#usize (alloc.vec.Vec.new
+                      role_chains.Chain)
+                  match o8 with
+                  | none => ok none
+                  | some chains =>
+                    let b ← shi_ontology.proper parts.axioms
+                    if b
                     then
-                      let b2 ← shi_ontology.facts_proper facts 0#usize
-                      if b2
+                      let b1 ←
+                        shi_ontology.definitions_proper parts.definitions
+                          0#usize
+                      if b1
                       then
-                        let b3 ← shi_ontology.roles_proper items 0#usize
-                        if b3
+                        let b2 ← shi_ontology.facts_proper facts 0#usize
+                        if b2
                         then
-                          let o8 ←
-                            shi_ontology.links_from items nodes4 same 0#usize
-                              (alloc.vec.Vec.new completion.Link)
-                          match o8 with
-                          | none => ok none
-                          | some links =>
-                            match o6 with
+                          let b3 ← shi_ontology.roles_proper items 0#usize
+                          if b3
+                          then
+                            let o9 ←
+                              shi_ontology.links_from items nodes4 same 0#usize
+                                (alloc.vec.Vec.new completion.Link)
+                            match o9 with
                             | none => ok none
-                            | some bound =>
-                              let o9 ←
-                                shi_ontology.named_from nodes4 same 0#usize
-                                  bound
-                              match o9 with
+                            | some links =>
+                              match o6 with
                               | none => ok none
-                              | some bound1 =>
+                              | some bound =>
                                 let o10 ←
-                                  shi_ontology.unequal_from items nodes4 same
-                                    0#usize bound1
+                                  shi_ontology.named_from nodes4 same 0#usize
+                                    bound
                                 match o10 with
                                 | none => ok none
-                                | some bound2 =>
+                                | some bound1 =>
                                   let o11 ←
-                                    shi_ontology.refused_from items nodes4 same
-                                      0#usize bound2
+                                    shi_ontology.unequal_from items nodes4 same
+                                      0#usize bound1
                                   match o11 with
                                   | none => ok none
-                                  | some bound3 =>
-                                    let denied ←
-                                      shi_ontology.denied_from items nodes4
-                                        same links 0#usize
-                                    let b4 ←
-                                      shi_ontology.closure_counts parts facts
-                                    let forest ←
-                                      if b4
-                                      then ok true
-                                      else
-                                        do
-                                        let b5 ←
-                                          shi_ontology.closure_nominal parts
-                                            facts
-                                        if b5
+                                  | some bound2 =>
+                                    let o12 ←
+                                      shi_ontology.refused_from items nodes4
+                                        same 0#usize bound2
+                                    match o12 with
+                                    | none => ok none
+                                    | some bound3 =>
+                                      let denied ←
+                                        shi_ontology.denied_from items nodes4
+                                          same links 0#usize
+                                      let b4 ←
+                                        shi_ontology.closure_counts parts facts
+                                      let forest ←
+                                        if b4
                                         then ok true
                                         else
-                                          let b6 ←
-                                            shi_ontology.tangled items roles
-                                          if b6
+                                          do
+                                          let b5 ←
+                                            shi_ontology.closure_nominal parts
+                                              facts
+                                          if b5
                                           then ok true
-                                          else shi_ontology.constrained roles
-                                    let clash ←
-                                      shi_ontology.clash_from items nodes4 same
-                                        0#usize
-                                    ok (some
-                                      {
-                                        nodes := nodes4,
-                                        same,
-                                        parts,
-                                        facts,
-                                        bound := bound3,
-                                        roles,
-                                        links,
-                                        denied,
-                                        forest,
-                                        clash
-                                      })
+                                          else
+                                            let b6 ←
+                                              shi_ontology.tangled items roles
+                                            if b6
+                                            then ok true
+                                            else
+                                              let b7 ←
+                                                shi_ontology.constrained roles
+                                              if b7
+                                              then ok true
+                                              else shi_ontology.chained chains
+                                      let clash ←
+                                        shi_ontology.clash_from items nodes4
+                                          same 0#usize
+                                      ok (some
+                                        {
+                                          nodes := nodes4,
+                                          same,
+                                          parts,
+                                          facts,
+                                          bound := bound3,
+                                          roles,
+                                          chains,
+                                          links,
+                                          denied,
+                                          forest,
+                                          clash
+                                        })
+                          else ok none
                         else ok none
                       else ok none
                     else ok none
-                  else ok none
 
 /-- [rowl_kernel::shi_ontology::question_forest]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1639:0-1641:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1708:0-1710:1 -/
 def shi_ontology.question_forest
   (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
   Result Bool
@@ -38816,7 +39044,7 @@ def shi_ontology.question_forest
     else shi_ontology.facts_nominal extra 0#usize
 
 /-- [rowl_kernel::shi_ontology::prepared_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1650:0-1683:1 -/
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1720:0-1754:1 -/
 def shi_ontology.prepared_satisfiable
   (prepared : shi_ontology.Prepared) (extra : alloc.vec.Vec completion.Fact) :
   Result (Option Bool)
@@ -38835,8 +39063,9 @@ def shi_ontology.prepared_satisfiable
         then
           let i := alloc.vec.Vec.len prepared.nodes
           let i1 ← i + 1#usize
-          forest.satisfiable i1 extra prepared.bound prepared.links
+          role_chains.satisfiable i1 extra prepared.bound prepared.links
             prepared.parts.axioms prepared.parts.definitions prepared.roles
+            prepared.chains
         else
           if prepared.denied
           then ok (some false)
@@ -38849,7 +39078,7 @@ def shi_ontology.prepared_satisfiable
   else ok none
 
 /-- [rowl_kernel::shi_ontology::prepared_consistent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1685:0-1687:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1756:0-1758:1
     Visibility: public -/
 def shi_ontology.prepared_consistent
   (prepared : shi_ontology.Prepared) : Result (Option Bool) := do
@@ -38857,7 +39086,7 @@ def shi_ontology.prepared_consistent
     completion.Fact)
 
 /-- [rowl_kernel::shi_ontology::prepared_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1690:0-1698:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1761:0-1769:1
     Visibility: public -/
 def shi_ontology.prepared_class_satisfiable
   (prepared : shi_ontology.Prepared) («class» : model.ClassExpression) :
@@ -38873,7 +39102,7 @@ def shi_ontology.prepared_class_satisfiable
     shi_ontology.prepared_satisfiable prepared extra
 
 /-- [rowl_kernel::shi_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1701:0-1727:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1772:0-1798:1
     Visibility: public -/
 def shi_ontology.prepared_subsumed
   (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
@@ -38900,7 +39129,7 @@ def shi_ontology.prepared_subsumed
       | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::shi_ontology::prepared_instance_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1730:0-1751:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1801:0-1822:1
     Visibility: public -/
 def shi_ontology.prepared_instance_of
   (prepared : shi_ontology.Prepared) (individual : model.NamedIndividual)
@@ -38924,7 +39153,7 @@ def shi_ontology.prepared_instance_of
     | some satisfiable => ok (some (¬ satisfiable))
 
 /-- [rowl_kernel::shi_ontology::consistent]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1753:0-1758:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1824:0-1829:1
     Visibility: public -/
 def shi_ontology.consistent
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
@@ -38934,7 +39163,7 @@ def shi_ontology.consistent
   | some prepared => shi_ontology.prepared_consistent prepared
 
 /-- [rowl_kernel::shi_ontology::class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1760:0-1765:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1831:0-1836:1
     Visibility: public -/
 def shi_ontology.class_satisfiable
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -38947,7 +39176,7 @@ def shi_ontology.class_satisfiable
   | some prepared => shi_ontology.prepared_class_satisfiable prepared «class»
 
 /-- [rowl_kernel::shi_ontology::subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1768:0-1777:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1839:0-1848:1
     Visibility: public -/
 def shi_ontology.subsumed
   (items : alloc.vec.Vec model.AnnotatedAxiom) (sub : model.ClassExpression)
@@ -38960,7 +39189,7 @@ def shi_ontology.subsumed
   | some prepared => shi_ontology.prepared_subsumed prepared sub sup
 
 /-- [rowl_kernel::shi_ontology::instance_of]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1780:0-1789:1
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1851:0-1860:1
     Visibility: public -/
 def shi_ontology.instance_of
   (items : alloc.vec.Vec model.AnnotatedAxiom)

@@ -3775,3 +3775,35 @@ satisfiable.
 This block adds 111 public theorems and 30 independent definitions. Totals are
 1642 audited theorems, 904 definitions, 450 Rust regressions and 1835 ledger
 obligations.
+
+## Reasoner: role chains in the ontology queries
+
+The ontology queries now read every `SubObjectPropertyOf` with an
+`ObjectPropertyChain` (ChainAxiom), its roles in order under its role, as a role
+chain (shi_ontology::chains_from, shi_ontology::chain_roles): an interpretation
+satisfies the chains of a closure exactly when it satisfies those axioms
+(ChainsHold, chains_from_correct), since a chain of the Direct Semantics relates
+along its roles as `Along` does (chainRelation_along). The class parts leave
+the axioms to the chains, their roles must not be built in (RoleProper,
+shi_ontology::chain_proper), and every closure with chains goes to the
+completion forest (shi_ontology::chained), which `role_chains::satisfiable` now
+always calls, so a closure without chains is decided as before. The acceptances
+come with an OWL model that satisfies the chains (owl_model_chain_axiom), and
+every OWL model of the closure satisfies them, so the rejections stay exact
+(prepared_sound, prepared_complete); the answers also come from Functional
+Syntax source bytes.
+
+The encoding now refuses to nest an automaton into itself along the fillers of
+its atoms (role_chains::nests, nests_total), which only a hierarchy that is not
+regular calls for, such as `r ∘ r⁻ ⊑ r`; such a closure gets no answer at once
+instead of growing the table to its bound. This completes the stage: role
+chains are decided with proofs, and of SROIQ only the universal and empty roles
+(owl:topObjectProperty, owl:bottomObjectProperty) remain, besides datatypes
+for OWL 2 DL. The tests decide uncle chains between individuals, chains through
+class inclusions and their inverses, left recursive chains such as
+`locatedIn ∘ partOf ⊑ locatedIn`, and every one of 200 random classes over two
+chains, all with a model of at most three elements coming out satisfiable.
+
+This block adds 6 public theorems and 2 independent definitions. Totals are
+1648 audited theorems, 906 definitions, 456 Rust regressions and 1841 ledger
+obligations.

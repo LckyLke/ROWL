@@ -332,8 +332,8 @@ fn errors_and_unsupported_axioms_give_no_answer() {
         answer(source_consistent(&bytes, &limits(), &scope)),
         Some(false)
     );
-    // Object property axioms outside the supported role axioms are read but not answered.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(ObjectPropertyChain(:p :p) :p)\n)"
+    // Role axioms with built-in object properties are read but not answered.
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SubObjectPropertyOf(:p owl:topObjectProperty)\n)"
         .as_bytes()
         .to_vec();
     assert_eq!(answer(source_consistent(&bytes, &limits(), &scope)), None);
@@ -632,7 +632,7 @@ fn one_reading_answers_many_questions() {
         Err(DocumentError::UnsupportedAxiom { .. })
     ));
     // Axioms outside the supported fragment are read but not prepared.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(ObjectPropertyChain(:p :p) :p)\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(:p owl:topObjectProperty)\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(
@@ -643,4 +643,23 @@ fn one_reading_answers_many_questions() {
         source_prepared(&bytes, &limits(), &scope),
         Ok(None)
     ));
+}
+
+#[test]
+fn role_chains_are_answered_from_source_bytes() {
+    let scope = b"family".to_vec();
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(ObjectPropertyChain(:hasParent :hasBrother) :hasUncle)\n ObjectPropertyAssertion(:hasParent :ann :bob)\n ObjectPropertyAssertion(:hasBrother :bob :carl)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(ObjectPropertyChain(:hasParent :hasBrother) :hasUncle)\n ObjectPropertyAssertion(:hasParent :ann :bob)\n ObjectPropertyAssertion(:hasBrother :bob :carl)\n NegativeObjectPropertyAssertion(:hasUncle :ann :carl)\n)"
+        .as_bytes()
+        .to_vec();
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
 }

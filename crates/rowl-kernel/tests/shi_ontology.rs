@@ -276,12 +276,16 @@ fn negative_assertions_and_unsupported_inputs() {
     let mut with_roles = items;
     with_roles.push(axiom(Axiom::SymmetricObjectProperty(property(b"r"))));
     assert_eq!(consistent(&with_roles), Some(false));
-    // Property chains, built-in properties, other constructors and nominals of
-    // individuals the closure does not have get no answer.
-    let chain = vec![axiom(Axiom::SubObjectPropertyOf(
-        SubObjectPropertyExpression::Chain(two(property(b"r"), property(b"r"), Vec::new())),
-        property(b"r"),
-    ))];
+    // A functional property that a chain reaches, built-in properties, other
+    // constructors and nominals of individuals the closure does not have get
+    // no answer.
+    let chain = vec![
+        axiom(Axiom::SubObjectPropertyOf(
+            SubObjectPropertyExpression::Chain(two(property(b"r"), property(b"r"), Vec::new())),
+            property(b"r"),
+        )),
+        axiom(Axiom::FunctionalObjectProperty(property(b"r"))),
+    ];
     assert_eq!(consistent(&chain), None);
     let builtin = vec![axiom(Axiom::InverseObjectProperties(
         property(b"r"),
@@ -1608,4 +1612,304 @@ fn every_class_with_a_small_model_of_asymmetric_properties_is_satisfiable() {
         without > 10,
         "the sample must exercise unsatisfiable inputs"
     );
+}
+
+fn chain_of(roles: Vec<ObjectPropertyExpression>, sup: ObjectPropertyExpression) -> AnnotatedAxiom {
+    let mut rest = roles;
+    let first = rest.remove(0);
+    let second = rest.remove(0);
+    axiom(Axiom::SubObjectPropertyOf(
+        SubObjectPropertyExpression::Chain(two(first, second, rest)),
+        sup,
+    ))
+}
+fn just(a: &[u8]) -> ClassExpression {
+    ClassExpression::ObjectOneOf(NonEmpty {
+        first: named(a),
+        rest: Vec::new(),
+    })
+}
+fn uncle_chain() -> AnnotatedAxiom {
+    chain_of(
+        vec![property(b"hasParent"), property(b"hasBrother")],
+        property(b"hasUncle"),
+    )
+}
+
+#[test]
+fn role_chains_relate_individuals_along_their_roles() {
+    let family = || {
+        vec![
+            related(property(b"hasParent"), named(b"ann"), named(b"bob")),
+            related(property(b"hasBrother"), named(b"bob"), named(b"carl")),
+        ]
+    };
+    let mut items = family();
+    items.push(uncle_chain());
+    assert_eq!(
+        instance_of(
+            &items,
+            &individual(b"ann"),
+            &some(b"hasUncle", just(b"carl"))
+        ),
+        Some(true)
+    );
+    // Without the chain nothing relates ann to carl.
+    assert_eq!(
+        instance_of(
+            &family(),
+            &individual(b"ann"),
+            &some(b"hasUncle", just(b"carl"))
+        ),
+        Some(false)
+    );
+    // A negative assertion along the chain's role contradicts it.
+    items.push(axiom(Axiom::NegativeObjectPropertyAssertion(
+        property(b"hasUncle"),
+        named(b"ann"),
+        named(b"carl"),
+    )));
+    assert_eq!(consistent(&items), Some(false));
+}
+
+#[test]
+fn role_chains_reach_class_inclusions() {
+    let items = vec![
+        uncle_chain(),
+        sub(
+            class(b"A"),
+            some(b"hasParent", some(b"hasBrother", class(b"B"))),
+        ),
+    ];
+    assert_eq!(
+        subsumed(&items, &class(b"A"), &some(b"hasUncle", class(b"B"))),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(
+            &items,
+            &and(class(b"A"), all(b"hasUncle", not(class(b"B"))))
+        ),
+        Some(false)
+    );
+    // The inverse chain: an uncle's nephews are the children of his siblings.
+    assert_eq!(
+        subsumed(
+            &items,
+            &some_along(
+                inverse(b"hasBrother"),
+                some_along(inverse(b"hasParent"), class(b"A"))
+            ),
+            &some_along(inverse(b"hasUncle"), class(b"A")),
+        ),
+        Some(true)
+    );
+}
+
+#[test]
+fn recursive_role_chains_relate_long_paths() {
+    // locatedIn ∘ partOf ⊑ locatedIn: located in a room of a building.
+    let items = vec![
+        chain_of(
+            vec![property(b"locatedIn"), property(b"partOf")],
+            property(b"locatedIn"),
+        ),
+        related(property(b"locatedIn"), named(b"pump"), named(b"room")),
+        related(property(b"partOf"), named(b"room"), named(b"floor")),
+        related(property(b"partOf"), named(b"floor"), named(b"plant")),
+    ];
+    assert_eq!(
+        instance_of(
+            &items,
+            &individual(b"pump"),
+            &some(b"locatedIn", just(b"plant"))
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        instance_of(
+            &items,
+            &individual(b"room"),
+            &some(b"locatedIn", just(b"plant"))
+        ),
+        Some(false)
+    );
+    // A chain whose roles include the chain's role in the middle is not regular.
+    let tangled = vec![chain_of(
+        vec![property(b"p"), property(b"r"), property(b"q")],
+        property(b"r"),
+    )];
+    assert_eq!(class_satisfiable(&tangled, &all(b"r", class(b"B"))), None);
+}
+
+/// A finite interpretation of `A`, `B` and the properties `p`, `q`, `s` and
+/// `r`, where `r` relates the pairs that `p ∘ q ⊑ r` and `r ∘ s ⊑ r` derive.
+struct Chained {
+    size: usize,
+    a: Vec<bool>,
+    b: Vec<bool>,
+    relations: Vec<Vec<Vec<bool>>>,
+}
+const CHAIN_ROLES: [&[u8]; 4] = [b"p", b"q", b"s", b"r"];
+fn next_random(seed: &mut u64) -> u64 {
+    *seed = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    *seed >> 33
+}
+fn random_chained(seed: &mut u64) -> Chained {
+    let size = 1 + (next_random(seed) % 3) as usize;
+    let a = (0..size)
+        .map(|_| next_random(seed).is_multiple_of(2))
+        .collect();
+    let b = (0..size)
+        .map(|_| next_random(seed).is_multiple_of(2))
+        .collect();
+    let mut relations: Vec<Vec<Vec<bool>>> = (0..4)
+        .map(|_| {
+            (0..size)
+                .map(|_| {
+                    (0..size)
+                        .map(|_| next_random(seed).is_multiple_of(3))
+                        .collect()
+                })
+                .collect()
+        })
+        .collect();
+    loop {
+        let mut changed = false;
+        for x in 0..size {
+            for y in 0..size {
+                for z in 0..size {
+                    let pq = relations[0][x][y] && relations[1][y][z];
+                    let rs = relations[3][x][y] && relations[2][y][z];
+                    if (pq || rs) && !relations[3][x][z] {
+                        relations[3][x][z] = true;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    Chained {
+        size,
+        a,
+        b,
+        relations,
+    }
+}
+fn chained_edge(i: &Chained, role: &ObjectPropertyExpression, x: usize, y: usize) -> bool {
+    let (p, flipped) = match role {
+        ObjectPropertyExpression::Property(p) => (p, false),
+        ObjectPropertyExpression::Inverse(p) => (p, true),
+    };
+    let index = CHAIN_ROLES
+        .iter()
+        .position(|name| *name == p.iri.spelling.as_slice())
+        .expect("a known role");
+    if flipped {
+        i.relations[index][y][x]
+    } else {
+        i.relations[index][x][y]
+    }
+}
+fn chained_denotes(i: &Chained, e: &ClassExpression, x: usize) -> bool {
+    match e {
+        ClassExpression::Class(c) => match c.iri.spelling.as_slice() {
+            b"A" => i.a[x],
+            b"B" => i.b[x],
+            THING => true,
+            NOTHING => false,
+            _ => panic!("unknown test class"),
+        },
+        ClassExpression::ObjectIntersectionOf(xs) => {
+            chained_denotes(i, &xs.first, x) && chained_denotes(i, &xs.second, x)
+        }
+        ClassExpression::ObjectUnionOf(xs) => {
+            chained_denotes(i, &xs.first, x) || chained_denotes(i, &xs.second, x)
+        }
+        ClassExpression::ObjectComplementOf(e) => !chained_denotes(i, e, x),
+        ClassExpression::ObjectSomeValuesFrom(r, e) => {
+            (0..i.size).any(|y| chained_edge(i, r, x, y) && chained_denotes(i, e, y))
+        }
+        ClassExpression::ObjectAllValuesFrom(r, e) => {
+            (0..i.size).all(|y| !chained_edge(i, r, x, y) || chained_denotes(i, e, y))
+        }
+        _ => panic!("outside the test fragment"),
+    }
+}
+fn random_chained_expression(seed: &mut u64, depth: u32) -> ClassExpression {
+    let choice = next_random(seed) % if depth == 0 { 3 } else { 8 };
+    let role = |seed: &mut u64| {
+        let name = CHAIN_ROLES[(next_random(seed) % 5).min(3) as usize];
+        if next_random(seed).is_multiple_of(4) {
+            inverse(name)
+        } else {
+            property(name)
+        }
+    };
+    match choice {
+        0 => class(b"A"),
+        1 => class(b"B"),
+        2 => not(class(b"B")),
+        3 => and(
+            random_chained_expression(seed, depth - 1),
+            random_chained_expression(seed, depth - 1),
+        ),
+        4 => or(
+            random_chained_expression(seed, depth - 1),
+            random_chained_expression(seed, depth - 1),
+        ),
+        5 => not(random_chained_expression(seed, depth - 1)),
+        6 => {
+            let r = role(seed);
+            some_along(r, random_chained_expression(seed, depth - 1))
+        }
+        _ => {
+            let r = role(seed);
+            all_along(r, random_chained_expression(seed, depth - 1))
+        }
+    }
+}
+
+#[test]
+fn every_class_with_a_small_model_of_role_chains_is_satisfiable() {
+    let mut seed = 23;
+    let mut with_model = 0;
+    let mut without = 0;
+    for _ in 0..200 {
+        // The same inclusion twice: one for the closure, one to evaluate.
+        let mut copy = seed;
+        let lhs = random_chained_expression(&mut seed, 1);
+        let rhs = random_chained_expression(&mut seed, 2);
+        let lhs_copy = random_chained_expression(&mut copy, 1);
+        let rhs_copy = random_chained_expression(&mut copy, 2);
+        let query = random_chained_expression(&mut seed, 2);
+        let items = vec![
+            chain_of(vec![property(b"p"), property(b"q")], property(b"r")),
+            chain_of(vec![property(b"r"), property(b"s")], property(b"r")),
+            sub(lhs, rhs),
+        ];
+        let small_model = (0..300).any(|_| {
+            let i = random_chained(&mut seed);
+            (0..i.size)
+                .all(|x| !chained_denotes(&i, &lhs_copy, x) || chained_denotes(&i, &rhs_copy, x))
+                && (0..i.size).any(|x| chained_denotes(&i, &query, x))
+        });
+        let answer = class_satisfiable(&items, &query).expect("every sample is answered");
+        if small_model {
+            assert!(answer, "a model exists, so the class must be satisfiable");
+            with_model += 1;
+        } else if !answer {
+            without += 1;
+        }
+    }
+    assert!(
+        with_model > 30,
+        "the sample must exercise satisfiable inputs"
+    );
+    assert!(without > 5, "the sample must exercise unsatisfiable inputs");
 }

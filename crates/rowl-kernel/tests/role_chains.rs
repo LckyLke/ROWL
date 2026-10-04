@@ -509,3 +509,17 @@ fn every_concept_with_a_small_model_of_the_chains_is_satisfiable() {
         );
     });
 }
+
+#[test]
+fn irregular_hierarchies_get_no_answer() {
+    with_stack(|| {
+        // r ∘ r⁻ ⊑ r is not regular: its automaton would nest itself.
+        let chains = vec![chain(vec![named(b"r"), inverted(b"r")], named(b"r"))];
+        let c = and(some(named(b"r"), atom(b"B")), all(named(b"r"), no(b"B")));
+        assert_eq!(concept_sat(c, &none(), &chains), None);
+        // A regular hierarchy with the same roles is answered.
+        let chains = vec![chain(vec![named(b"r"), named(b"r")], named(b"r"))];
+        let c = and(some(named(b"r"), atom(b"B")), all(named(b"r"), no(b"B")));
+        assert_eq!(concept_sat(c, &none(), &chains), Some(false));
+    });
+}

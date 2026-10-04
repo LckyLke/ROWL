@@ -39,10 +39,10 @@
 //! there. An atom's class is a space followed by the eight bytes of its index,
 //! and no class of the problem may start with a space. `None` means that a
 //! chain has fewer than two roles, that a role that must be simple is complex,
-//! that a class of the problem starts with a space, that the encoding needs
-//! more than `LIMIT` atoms (which only a hierarchy that is not regular can
-//! need), that a structure would exceed the `usize` range, or that the forest
-//! gives no answer.
+//! that a class of the problem starts with a space, that an automaton would be
+//! nested in itself or the encoding needs more than `LIMIT` atoms (which only
+//! a hierarchy that is not regular calls for), that a structure would exceed
+//! the `usize` range, or that the forest gives no answer.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -679,6 +679,27 @@ fn filler_concept(bases: &Vec<Concept>, filler: &Filler) -> Concept {
         Filler::Atom(index) => Concept::Atom(name(*index)),
     }
 }
+/// Whether the atom at `index`, or an atom that its filler leads to within
+/// `fuel` steps, is of `role`: nesting the automaton of `role` there would
+/// repeat it without end, which only a hierarchy that is not regular calls
+/// for. Running out of steps counts as a repetition.
+fn nests(atoms: &Vec<Atom>, role: &ObjectPropertyExpression, index: usize, fuel: usize) -> bool {
+    if fuel == 0 {
+        return true;
+    }
+    if index < atoms.len() {
+        if same_role(&atoms[index].role, role) {
+            true
+        } else {
+            match &atoms[index].filler {
+                Filler::Atom(next) => nests(atoms, role, *next, fuel - 1),
+                Filler::Base(_) => false,
+            }
+        }
+    } else {
+        false
+    }
+}
 /// What the transitions of `transitions[index..]` from an atom of `role` with
 /// the filler require, conjoined onto `acc`, with the atoms they add.
 fn unfold_from(
@@ -702,6 +723,9 @@ fn unfold_from(
                     ),
                     Label::Role(along) => {
                         if complex(roles, chains, along) {
+                            if nests(&atoms, along, target, atoms.len()) {
+                                return None;
+                            }
                             match atom_for(atoms, along, &State::Initial, &Filler::Atom(target)) {
                                 Some((atoms, nested)) => (atoms, Concept::Atom(name(nested))),
                                 None => return None,
