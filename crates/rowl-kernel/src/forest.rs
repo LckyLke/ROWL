@@ -1945,10 +1945,64 @@ fn carried(mut graph: Forest, from: usize, into: usize, deps: &Vec<usize>) -> Op
         None => None,
     }
 }
+/// Whether an end of the edge is `node`.
+fn at_node(edge: &Edge, node: usize) -> bool {
+    if edge.from == node {
+        true
+    } else {
+        edge.to == node
+    }
+}
+/// The edge with an end at the named node `from` moved to `into`, then also
+/// depending on `deps`; any other edge as it is. `None` when there is no room.
+fn relink(edge: &Edge, from: usize, into: usize, deps: &Vec<usize>) -> Option<Edge> {
+    let source = if edge.from == from { into } else { edge.from };
+    let target = if edge.to == from { into } else { edge.to };
+    let depends = if at_node(edge, from) {
+        match join(&edge.deps, deps) {
+            Some(depends) => depends,
+            None => return None,
+        }
+    } else {
+        copy_label(&edge.deps, 0, Vec::new())
+    };
+    Some(Edge {
+        role: copy_role(&edge.role),
+        from: source,
+        to: target,
+        deps: depends,
+    })
+}
+/// `out` with the edges of `edges[index..]`, each relinked from the named node
+/// `from` to `into`; `None` when there is no room.
+fn relinked(
+    edges: &Vec<Edge>,
+    from: usize,
+    into: usize,
+    deps: &Vec<usize>,
+    index: usize,
+    mut out: Vec<Edge>,
+) -> Option<Vec<Edge>> {
+    if index < edges.len() {
+        let edge = match relink(&edges[index], from, into, deps) {
+            Some(edge) => edge,
+            None => return None,
+        };
+        if out.len() < usize::MAX {
+            out.push(edge);
+            relinked(edges, from, into, deps, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
 /// The forest where `from` hands its edges over to `into`: a merged tree node's
 /// edge from its parent goes onto the parent of its parent (`upward`), onto a
 /// sibling (`sideways`) or onto a named node (`linked`), and its added edges go
-/// to `into`; a merged named node passes its individuals on.
+/// to `into`; a merged named node passes its individuals and its added edges
+/// on.
 fn moved(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option<Forest> {
     if from < graph.nodes.len() && into < graph.nodes.len() {
         if graph.nodes[from].tree {
@@ -1970,8 +2024,13 @@ fn moved(graph: Forest, from: usize, into: usize, joined: &Vec<usize>) -> Option
             }
         } else {
             let same = renamed(&graph.same, from, into, 0, Vec::new());
+            let edges = match relinked(&graph.edges, from, into, joined, 0, Vec::new()) {
+                Some(edges) => edges,
+                None => return None,
+            };
             let mut graph = graph;
             graph.same = same;
+            graph.edges = edges;
             Some(graph)
         }
     } else {

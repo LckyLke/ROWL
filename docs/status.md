@@ -794,7 +794,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   child of it gets no answer; the other nominals of named individuals below
   anonymous elements, such as value restrictions reached through existential
   restrictions, are now decided by the forest and the ontology queries.
-- 1453 audited public theorems and 851 audited semantic definitions. Consistency,
+  Named nodes are no longer tied to individuals, and a merged named node
+  hands its added edges on to its target, which prepares the forest for new
+  named nodes.
+- 1466 audited public theorems and 854 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -822,7 +825,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 1646-obligation release ledger and separate checked constructor and built-in inventories.
+- A 1659-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

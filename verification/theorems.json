@@ -1883,6 +1883,9 @@
         "Rowl.ForestOps.linked_correct",
         "Rowl.ForestOps.carried_from_correct",
         "Rowl.ForestOps.carried_correct",
+        "Rowl.ForestOps.at_node_correct",
+        "Rowl.ForestOps.relink_correct",
+        "Rowl.ForestOps.relinked_correct",
         "Rowl.ForestOps.renamed_correct",
         "Rowl.ForestOps.inherit_correct",
         "Rowl.ForestOps.pruned_correct"
@@ -1892,6 +1895,7 @@
       "module": "Rowl.ForestInv",
       "namespace": "Rowl.ForestInv",
       "theorems": [
+        "Rowl.ForestInv.tree_not_named",
         "Rowl.ForestInv.labels_in",
         "Rowl.ForestInv.done_in",
         "Rowl.ForestInv.label_length",
@@ -1904,6 +1908,8 @@
         "Rowl.ForestInv.rep_in",
         "Rowl.ForestInv.linkEnds_mem",
         "Rowl.ForestInv.edgeEnds_mem",
+        "Rowl.ForestInv.rep_beyond",
+        "Rowl.ForestInv.end_in",
         "Rowl.ForestInv.rep_tree",
         "Rowl.ForestInv.edge_from",
         "Rowl.ForestInv.liveEdgeEnds_mem",
@@ -1921,6 +1927,8 @@
         "Rowl.ForestInv.grows_label",
         "Rowl.ForestInv.grows_done",
         "Rowl.ForestInv.grows_active",
+        "Rowl.ForestInv.grows_named",
+        "Rowl.ForestInv.grows_namedEnd",
         "Rowl.ForestInv.grows_treePath",
         "Rowl.ForestInv.grows_depth",
         "Rowl.ForestInv.grows_rep",
@@ -1934,6 +1942,7 @@
         "Rowl.ForestInv.depth_le_bound",
         "Rowl.ForestInv.base_pos",
         "Rowl.ForestInv.active_inside",
+        "Rowl.ForestInv.namedEnd_inside",
         "Rowl.ForestInv.weight_le_grows",
         "Rowl.ForestInv.weight_lt_grows",
         "Rowl.ForestInv.measure_le_grows",
@@ -1961,6 +1970,8 @@
         "Rowl.ForestSteps.created_deps",
         "Rowl.ForestSteps.created_done",
         "Rowl.ForestSteps.created_active",
+        "Rowl.ForestSteps.created_named",
+        "Rowl.ForestSteps.created_namedEnd",
         "Rowl.ForestSteps.created_treePath",
         "Rowl.ForestSteps.created_rep",
         "Rowl.ForestSteps.generator_meaning",
@@ -1981,6 +1992,8 @@
         "Rowl.ForestSteps.merged_deps",
         "Rowl.ForestSteps.merged_treePath",
         "Rowl.ForestSteps.merged_active",
+        "Rowl.ForestSteps.merged_named",
+        "Rowl.ForestSteps.merged_namedEnd",
         "Rowl.ForestSteps.merged_inv",
         "Rowl.ForestSteps.merged_fresh",
         "Rowl.ForestSteps.merged_measure",
@@ -2978,6 +2991,9 @@
     "Rowl.ForestSearch.liveEdges",
     "Rowl.ForestSearch.Repeated",
     "Rowl.ForestSearch.Unrepeated",
-    "Rowl.ForestOps.CarriedEdge"
+    "Rowl.ForestOps.CarriedEdge",
+    "Rowl.ForestOps.RelinkedEdge",
+    "Rowl.ForestInv.Named",
+    "Rowl.ForestInv.NamedEnd"
   ]
 }

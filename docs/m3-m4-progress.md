@@ -3523,3 +3523,22 @@ whose nominals reach anonymous elements below others, apart from that count.
 This block adds 18 public theorems and 5 independent definitions. Totals are
 1453 audited theorems, 851 definitions, 436 Rust regressions and 1646 ledger
 obligations.
+
+## Reasoner: named nodes beyond the individuals
+
+A step toward new named nodes in the completion forest. A named node is now any
+node that is no tree node (Named), not only the node of an individual: the
+invariant keeps a named node for every individual, every individual read
+through the merges as an active named node, and every end of an added edge an
+individual, read through the merges, or an active named node (NamedEnd). A
+merge of a named node into another one now also relinks the added edges at the
+merged node to its target, which then also depend on the merge
+(forest::relink, forest::relinked, relinked_correct, RelinkedEdge), so no added
+edge ends at an inactive named node; edges at individuals were already read
+through their representatives. The model of a complete forest starts its paths
+at every active named node. No rule creates further named nodes yet, so the
+answers are unchanged.
+
+This block adds 13 public theorems and 3 independent definitions. Totals are
+1466 audited theorems, 854 definitions, 436 Rust regressions and 1659 ledger
+obligations.

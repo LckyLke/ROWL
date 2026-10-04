@@ -1365,9 +1365,13 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestOps.linked_correct
 #print axioms Rowl.ForestOps.carried_from_correct
 #print axioms Rowl.ForestOps.carried_correct
+#print axioms Rowl.ForestOps.at_node_correct
+#print axioms Rowl.ForestOps.relink_correct
+#print axioms Rowl.ForestOps.relinked_correct
 #print axioms Rowl.ForestOps.renamed_correct
 #print axioms Rowl.ForestOps.inherit_correct
 #print axioms Rowl.ForestOps.pruned_correct
+#print axioms Rowl.ForestInv.tree_not_named
 #print axioms Rowl.ForestInv.labels_in
 #print axioms Rowl.ForestInv.done_in
 #print axioms Rowl.ForestInv.label_length
@@ -1380,6 +1384,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestInv.rep_in
 #print axioms Rowl.ForestInv.linkEnds_mem
 #print axioms Rowl.ForestInv.edgeEnds_mem
+#print axioms Rowl.ForestInv.rep_beyond
+#print axioms Rowl.ForestInv.end_in
 #print axioms Rowl.ForestInv.rep_tree
 #print axioms Rowl.ForestInv.edge_from
 #print axioms Rowl.ForestInv.liveEdgeEnds_mem
@@ -1397,6 +1403,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestInv.grows_label
 #print axioms Rowl.ForestInv.grows_done
 #print axioms Rowl.ForestInv.grows_active
+#print axioms Rowl.ForestInv.grows_named
+#print axioms Rowl.ForestInv.grows_namedEnd
 #print axioms Rowl.ForestInv.grows_treePath
 #print axioms Rowl.ForestInv.grows_depth
 #print axioms Rowl.ForestInv.grows_rep
@@ -1410,6 +1418,7 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestInv.depth_le_bound
 #print axioms Rowl.ForestInv.base_pos
 #print axioms Rowl.ForestInv.active_inside
+#print axioms Rowl.ForestInv.namedEnd_inside
 #print axioms Rowl.ForestInv.weight_le_grows
 #print axioms Rowl.ForestInv.weight_lt_grows
 #print axioms Rowl.ForestInv.measure_le_grows
@@ -1431,6 +1440,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSteps.created_deps
 #print axioms Rowl.ForestSteps.created_done
 #print axioms Rowl.ForestSteps.created_active
+#print axioms Rowl.ForestSteps.created_named
+#print axioms Rowl.ForestSteps.created_namedEnd
 #print axioms Rowl.ForestSteps.created_treePath
 #print axioms Rowl.ForestSteps.created_rep
 #print axioms Rowl.ForestSteps.generator_meaning
@@ -1451,6 +1462,8 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSteps.merged_deps
 #print axioms Rowl.ForestSteps.merged_treePath
 #print axioms Rowl.ForestSteps.merged_active
+#print axioms Rowl.ForestSteps.merged_named
+#print axioms Rowl.ForestSteps.merged_namedEnd
 #print axioms Rowl.ForestSteps.merged_inv
 #print axioms Rowl.ForestSteps.merged_fresh
 #print axioms Rowl.ForestSteps.merged_measure
@@ -2415,3 +2428,6 @@ import Rowl.ShiOntology
 #print axioms Rowl.ForestSearch.Repeated
 #print axioms Rowl.ForestSearch.Unrepeated
 #print axioms Rowl.ForestOps.CarriedEdge
+#print axioms Rowl.ForestOps.RelinkedEdge
+#print axioms Rowl.ForestInv.Named
+#print axioms Rowl.ForestInv.NamedEnd

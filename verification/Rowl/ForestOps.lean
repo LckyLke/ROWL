@@ -1340,6 +1340,90 @@ theorem carried_correct (F : forest.Forest) (source into : Usize) (deps : alloc.
     obtain ⟨origin,kept⟩ := spec edges rfl
     exact ⟨edges,rfl,kept,origin⟩
 
+theorem at_node_correct (edge : forest.Edge) (node : Usize) :
+    forest.at_node edge node = .ok (decide (edge.from = node ∨ edge.to = node)) := by
+  rw [forest.at_node]
+  by_cases first : edge.from = node <;> simp [first]
+
+/-- The edge `e0` with its ends at the named node `source` moved to `into`; an
+    edge with such an end then also depends on `joined`, any other stays. -/
+def RelinkedEdge (source into : Usize) (joined : List Usize) (e0 e : forest.Edge) : Prop :=
+  e.role = e0.role ∧ e.from = (if e0.from = source then into else e0.from) ∧
+    e.to = (if e0.to = source then into else e0.to) ∧
+    ((e0.from = source ∨ e0.to = source) → ∀ k, k ∈ e.deps.val ↔ k ∈ e0.deps.val ∨ k ∈ joined) ∧
+    (¬ (e0.from = source ∨ e0.to = source) → e.deps = e0.deps)
+
+theorem relink_correct (edge : forest.Edge) (source into : Usize) (deps : alloc.vec.Vec Usize) :
+    ∃ r, forest.relink edge source into deps = .ok r ∧ ∀ e, r = some e → RelinkedEdge source into deps.val edge e := by
+  rw [forest.relink]
+  have copied := copy_label_correct edge.deps 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)
+  by_cases hit : edge.from = source ∨ edge.to = source
+  · obtain ⟨joinResult,joinRun,joinSpec⟩ := join_correct edge.deps deps
+    cases joinResult with
+    | none =>
+      refine ⟨none,?_,by simp⟩
+      by_cases first : edge.from = source <;> by_cases second : edge.to = source <;>
+        simp_all [at_node_correct]
+    | some depends =>
+      refine ⟨some ⟨edge.role,if edge.from = source then into else edge.from,
+        if edge.to = source then into else edge.to,depends⟩,?_,?_⟩
+      · by_cases first : edge.from = source <;> by_cases second : edge.to = source <;>
+          simp_all [at_node_correct,copy_role_identity]
+      · intro e same
+        cases same
+        exact ⟨rfl,rfl,rfl,fun _ => joinSpec depends rfl,fun miss => absurd hit miss⟩
+  · have first : ¬ edge.from = source := fun same => hit (.inl same)
+    have second : ¬ edge.to = source := fun same => hit (.inr same)
+    refine ⟨some ⟨edge.role,edge.from,edge.to,edge.deps⟩,?_,?_⟩
+    · simp [first,second,at_node_correct,copied,copy_role_identity]
+    · intro e same
+      cases same
+      exact ⟨rfl,by simp [first],by simp [second],fun found => absurd found hit,fun _ => rfl⟩
+
+/-- Relinking the edges from the named node `source` to `into`: every new edge
+    is an old one relinked. -/
+theorem relinked_correct (edges : alloc.vec.Vec forest.Edge) (source into : Usize) (deps : alloc.vec.Vec Usize)
+    (index : Usize) (out : alloc.vec.Vec forest.Edge) :
+    ∃ r, forest.relinked edges source into deps index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ e ∈ out'.val, e ∈ out.val ∨ ∃ e0 ∈ edges.val, RelinkedEdge source into deps.val e0 e := by
+  rw [forest.relinked]
+  by_cases more : index.val < edges.val.length
+  · have lookup : edges.index_usize index = .ok edges.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have listed : edges.val[index.val] ∈ edges.val := List.getElem_mem more
+    obtain ⟨relinkResult,relinkRun,relinkSpec⟩ := relink_correct edges.val[index.val] source into deps
+    cases relinkResult with
+    | none =>
+      refine ⟨none,?_,by simp⟩
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,relinkRun]
+    | some edge =>
+      by_cases room : out.val.length < Usize.max
+      · obtain ⟨out1,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out edge room)
+        obtain ⟨r,run,spec⟩ := relinked_correct edges source into deps next out1
+        refine ⟨r,?_,?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,relinkRun,usize_max_val,room,advance,run]
+            at push ⊢
+          simp [push,run]
+        · intro out' same e member
+          rcases spec out' same e member with fromOut1 | old
+          · rw [contents] at fromOut1
+            rcases List.mem_append.mp fromOut1 with kept | new
+            · exact .inl kept
+            · rw [List.mem_singleton] at new
+              subst new
+              exact .inr ⟨_,listed,relinkSpec _ rfl⟩
+          · exact .inr old
+      · refine ⟨none,?_,by simp⟩
+        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,relinkRun,usize_max_val,room]
+  · refine ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro out' same
+    cases same
+    exact fun e member => .inl member
+termination_by edges.val.length - index.val
+decreasing_by all_goals scalar_tac
+
 theorem renamed_correct (same : alloc.vec.Vec Usize) (source into index : Usize) (out : alloc.vec.Vec Usize)
     (aligned : out.val.length = index.val) (inside : index.val ≤ same.val.length) :
     ∃ out', forest.renamed same source into index out = .ok out' ∧
