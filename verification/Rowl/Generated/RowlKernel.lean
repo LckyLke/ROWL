@@ -47997,6 +47997,4812 @@ def rdf.original_dataset
   (selection : rdf.DatasetSelection) : Result rdf.RawDataset := do
   ok selection.dataset
 
+/-- [rowl_kernel::rdf_mapping::Mapped]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 49:0-52:1
+    Visibility: public -/
+structure rdf_mapping.Mapped where
+  ontology : model.RawOntology
+  blanks : alloc.vec.Vec rdf.BlankNode
+
+/-- [rowl_kernel::rdf_mapping::State]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 55:0-58:1
+    Visibility: public -/
+structure rdf_mapping.State where
+  used : alloc.vec.Vec Bool
+  blanks : alloc.vec.Vec rdf.BlankNode
+
+/-- [rowl_kernel::rdf_mapping::Declared]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 61:0-64:1
+    Visibility: public -/
+structure rdf_mapping.Declared where
+  iri : alloc.vec.Vec Std.U8
+  kind : typing.EntityKind
+
+/-- [rowl_kernel::rdf_mapping::PropertyKind]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 67:0-71:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_mapping.PropertyKind where
+| Object : rdf_mapping.PropertyKind
+| Data : rdf_mapping.PropertyKind
+| Annotation : rdf_mapping.PropertyKind
+
+/-- [rowl_kernel::rdf_mapping::Read]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 74:0-78:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_mapping.Read where
+| Skip : rdf_mapping.State → rdf_mapping.Read
+| Found : model.Axiom → rdf_mapping.State → rdf_mapping.Read
+| Fail : rdf_mapping.Read
+
+/-- [rowl_kernel::rdf_mapping::equal_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 80:0-94:1 -/
+def rdf_mapping.equal_from
+  (left : alloc.vec.Vec Std.U8) (right : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := Slice.len right
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len left
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ← Slice.index_usize right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           rdf_mapping.equal_from left right i4
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::same]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 97:0-103:1 -/
+def rdf_mapping.same
+  (left : alloc.vec.Vec Std.U8) («name» : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len left
+  let i1 := Slice.len «name»
+  if i = i1
+  then rdf_mapping.equal_from left «name» 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::equal_vec_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 105:0-119:1 -/
+def rdf_mapping.equal_vec_from
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len right
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len left
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left
+          index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           rdf_mapping.equal_vec_from left right i4
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::same_vec]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 122:0-128:1 -/
+def rdf_mapping.same_vec
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then rdf_mapping.equal_vec_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::same_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 130:0-136:1 -/
+def rdf_mapping.same_blank
+  (left : rdf.BlankNode) (right : rdf.BlankNode) : Result Bool := do
+  let b ← rdf_mapping.same_vec left.scope right.scope
+  if b
+  then rdf_mapping.same_vec left.label right.label
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::same_literal]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 138:0-150:1 -/
+def rdf_mapping.same_literal
+  (left : rdf.RdfLiteral) (right : rdf.RdfLiteral) : Result Bool := do
+  let b ← rdf_mapping.same_vec left.lexical right.lexical
+  if b
+  then
+    match left.kind with
+    | rdf.LiteralKind.Datatype a =>
+      match right.kind with
+      | rdf.LiteralKind.Datatype b1 =>
+        rdf_mapping.same_vec a.spelling b1.spelling
+      | rdf.LiteralKind.Language _ => ok false
+    | rdf.LiteralKind.Language a =>
+      match right.kind with
+      | rdf.LiteralKind.Datatype _ => ok false
+      | rdf.LiteralKind.Language b1 => rdf_mapping.same_vec a b1
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::same_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 152:0-158:1 -/
+def rdf_mapping.same_subject
+  (left : rdf.Subject) (right : rdf.Subject) : Result Bool := do
+  match left with
+  | rdf.Subject.Iri a =>
+    match right with
+    | rdf.Subject.Iri b => rdf_mapping.same_vec a.spelling b.spelling
+    | rdf.Subject.Blank _ => ok false
+  | rdf.Subject.Blank a =>
+    match right with
+    | rdf.Subject.Iri _ => ok false
+    | rdf.Subject.Blank b => rdf_mapping.same_blank a b
+
+/-- [rowl_kernel::rdf_mapping::same_object]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 160:0-167:1 -/
+def rdf_mapping.same_object
+  (left : rdf.Object) (right : rdf.Object) : Result Bool := do
+  match left with
+  | rdf.Object.Iri a =>
+    match right with
+    | rdf.Object.Iri b => rdf_mapping.same_vec a.spelling b.spelling
+    | rdf.Object.Blank _ => ok false
+    | rdf.Object.Literal _ => ok false
+  | rdf.Object.Blank a =>
+    match right with
+    | rdf.Object.Iri _ => ok false
+    | rdf.Object.Blank b => rdf_mapping.same_blank a b
+    | rdf.Object.Literal _ => ok false
+  | rdf.Object.Literal a =>
+    match right with
+    | rdf.Object.Iri _ => ok false
+    | rdf.Object.Blank _ => ok false
+    | rdf.Object.Literal b => rdf_mapping.same_literal a b
+
+/-- [rowl_kernel::rdf_mapping::same_triple]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 170:0-180:1 -/
+def rdf_mapping.same_triple
+  (left : rdf.Triple) (right : rdf.Triple) : Result Bool := do
+  let b ← rdf_mapping.same_subject left.subject right.subject
+  if b
+  then
+    let b1 ←
+      rdf_mapping.same_vec left.predicate.spelling right.predicate.spelling
+    if b1
+    then rdf_mapping.same_object left.object right.object
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::copy_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 182:0-187:1 -/
+def rdf_mapping.copy_blank (node : rdf.BlankNode) : Result rdf.BlankNode := do
+  let v ← nnf.copy_bytes node.scope
+  let v1 ← nnf.copy_bytes node.label
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::rdf_mapping::iri_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 189:0-193:1 -/
+def rdf_mapping.iri_of
+  (spelling : alloc.vec.Vec Std.U8) : Result model.Iri := do
+  let v ← nnf.copy_bytes spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::rdf_mapping::subject_node]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 196:0-203:1 -/
+def rdf_mapping.subject_node (subject : rdf.Subject) : Result rdf.Object := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let v ← nnf.copy_bytes iri.spelling
+    ok (rdf.Object.Iri { spelling := v })
+  | rdf.Subject.Blank node =>
+    let bn ← rdf_mapping.copy_blank node
+    ok (rdf.Object.Blank bn)
+
+/-- [rowl_kernel::rdf_mapping::is_used]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 205:0-211:1 -/
+def rdf_mapping.is_used
+  (used : alloc.vec.Vec Bool) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len used
+  if index < i
+  then
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) used index
+  else ok true
+
+/-- [rowl_kernel::rdf_mapping::take]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 214:0-219:1 -/
+def rdf_mapping.take
+  (state : rdf_mapping.State) (index : Std.Usize) :
+  Result rdf_mapping.State
+  := do
+  let i := alloc.vec.Vec.len state.used
+  if index < i
+  then
+    let (_, index_mut_back) ←
+      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
+        state.used index
+    let v := index_mut_back true
+    ok { state with used := v }
+  else ok state
+
+/-- [rowl_kernel::rdf_mapping::record]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 222:0-225:1 -/
+def rdf_mapping.record
+  (state : rdf_mapping.State) (node : rdf.BlankNode) :
+  Result rdf_mapping.State
+  := do
+  let bn ← rdf_mapping.copy_blank node
+  let v ← alloc.vec.Vec.push state.blanks bn
+  ok { state with blanks := v }
+
+/-- [rowl_kernel::rdf_mapping::about]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 228:0-233:1 -/
+def rdf_mapping.about
+  (triple : rdf.Triple) (node : rdf.BlankNode) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank subject => rdf_mapping.same_blank subject node
+
+/-- [rowl_kernel::rdf_mapping::find]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 236:0-258:1 -/
+def rdf_mapping.find
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.find triples used node «name» i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then
+        let b2 ← rdf_mapping.same t.predicate.spelling «name»
+        if b2
+        then ok (some index)
+        else
+          let i1 ← index + 1#usize
+          rdf_mapping.find triples used node «name» i1
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.find triples used node «name» i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_is]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 261:0-266:1 -/
+def rdf_mapping.object_is
+  (object : rdf.Object) («name» : Slice Std.U8) : Result Bool := do
+  match object with
+  | rdf.Object.Iri iri => rdf_mapping.same iri.spelling «name»
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::find_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 269:0-298:1 -/
+def rdf_mapping.find_type
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.find_type triples used node «name» i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then
+        let s ←
+          lift (Array.to_slice
+            (Array.make 47#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+              115#u8, 35#u8, 116#u8, 121#u8, 112#u8, 101#u8
+              ]))
+        let b2 ← rdf_mapping.same t.predicate.spelling s
+        if b2
+        then
+          let b3 ← rdf_mapping.object_is t.object «name»
+          if b3
+          then ok (some index)
+          else
+            let i1 ← index + 1#usize
+            rdf_mapping.find_type triples used node «name» i1
+        else
+          let i1 ← index + 1#usize
+          rdf_mapping.find_type triples used node «name» i1
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.find_type triples used node «name» i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find_any]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 301:0-318:1 -/
+def rdf_mapping.find_any
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (node : rdf.BlankNode) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then let i1 ← index + 1#usize
+         rdf_mapping.find_any triples used node i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about t node
+      if b1
+      then ok (some index)
+      else let i1 ← index + 1#usize
+           rdf_mapping.find_any triples used node i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::same_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 337:0-347:1 -/
+def rdf_mapping.same_kind
+  (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
+  match left with
+  | typing.EntityKind.Class =>
+    match right with
+    | typing.EntityKind.Class => ok true
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.Datatype =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok true
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.ObjectProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok true
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.DataProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok true
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.AnnotationProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok true
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.NamedIndividual =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok true
+
+/-- [rowl_kernel::rdf_mapping::declared]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 321:0-335:1 -/
+def rdf_mapping.declared
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len kinds
+  if index < i
+  then
+    let d ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        rdf_mapping.Declared) kinds index
+    let b ← rdf_mapping.same_vec d.iri iri
+    if b
+    then
+      let b1 ← rdf_mapping.same_kind d.kind kind
+      if b1
+      then ok true
+      else let i1 ← index + 1#usize
+           rdf_mapping.declared kinds iri kind i1
+    else let i1 ← index + 1#usize
+         rdf_mapping.declared kinds iri kind i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::has_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 350:0-359:1 -/
+def rdf_mapping.has_kind
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let b ← rdf_mapping.declared kinds iri kind 0#usize
+  if b
+  then ok true
+  else
+    let o ← builtins.builtin_kind iri
+    match o with
+    | none => ok false
+    | some builtin => rdf_mapping.same_kind builtin kind
+
+/-- [rowl_kernel::rdf_mapping::property_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 363:0-386:1 -/
+def rdf_mapping.property_kind
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  let object ←
+    rdf_mapping.has_kind kinds iri typing.EntityKind.ObjectProperty
+  let data ← rdf_mapping.has_kind kinds iri typing.EntityKind.DataProperty
+  let annotation ←
+    rdf_mapping.has_kind kinds iri typing.EntityKind.AnnotationProperty
+  if object
+  then
+    if data
+    then ok none
+    else
+      if annotation
+      then ok none
+      else ok (some rdf_mapping.PropertyKind.Object)
+  else
+    if data
+    then
+      if annotation
+      then ok none
+      else ok (some rdf_mapping.PropertyKind.Data)
+    else
+      if annotation
+      then ok (some rdf_mapping.PropertyKind.Annotation)
+      else ok none
+
+/-- [rowl_kernel::rdf_mapping::node_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 390:0-396:1 -/
+def rdf_mapping.node_kind
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  match node with
+  | rdf.Object.Iri iri => rdf_mapping.property_kind kinds iri.spelling
+  | rdf.Object.Blank _ => ok (some rdf_mapping.PropertyKind.Object)
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::CARDINALITY_LIMIT]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 399:0-399:40 -/
+@[global_simps, irreducible]
+def rdf_mapping.CARDINALITY_LIMIT : Std.Usize := 10000#usize
+
+/-- [rowl_kernel::rdf_mapping::spelled]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 402:0-411:1 -/
+def rdf_mapping.spelled
+  («name» : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len «name»
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ← Slice.index_usize «name» index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    rdf_mapping.spelled «name» i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::has_at]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 413:0-423:1 -/
+def rdf_mapping.has_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = 64#u8
+    then ok true
+    else let i2 ← index + 1#usize
+         rdf_mapping.has_at bytes i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::append_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 425:0-434:1 -/
+def rdf_mapping.append_from
+  (out : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+            bytes index
+        alloc.vec.Vec.push out i2
+      else ok out
+    let i2 ← index + 1#usize
+    rdf_mapping.append_from out1 bytes i2
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::literal_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 439:0-481:1 -/
+def rdf_mapping.literal_of
+  (literal : rdf.RdfLiteral) : Result (Option model.Literal) := do
+  match literal.kind with
+  | rdf.LiteralKind.Datatype datatype =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 55#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 80#u8, 108#u8, 97#u8,
+          105#u8, 110#u8, 76#u8, 105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+          ]))
+    let b ← rdf_mapping.same datatype.spelling s
+    if b
+    then ok none
+    else
+      let v ← nnf.copy_bytes literal.lexical
+      let i ← rdf_mapping.iri_of datatype.spelling
+      ok (some { lexical := v, datatype := { iri := i } })
+  | rdf.LiteralKind.Language tag =>
+    let i := alloc.vec.Vec.len tag
+    if i = 0#usize
+    then ok none
+    else
+      let b ← rdf_mapping.has_at tag 0#usize
+      if b
+      then ok none
+      else
+        let i1 := alloc.vec.Vec.len literal.lexical
+        let i2 := alloc.vec.Vec.len tag
+        let i3 ← core.num.Usize.MAX - i2
+        if i1 < i3
+        then
+          let lexical ← nnf.copy_bytes literal.lexical
+          let lexical1 ← alloc.vec.Vec.push lexical 64#u8
+          let v ← rdf_mapping.append_from lexical1 tag 0#usize
+          let s ←
+            lift (Array.to_slice
+              (Array.make 55#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+                47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
+                115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
+                115#u8, 35#u8, 80#u8, 108#u8, 97#u8, 105#u8, 110#u8, 76#u8,
+                105#u8, 116#u8, 101#u8, 114#u8, 97#u8, 108#u8
+                ]))
+          let v1 ← rdf_mapping.spelled s 0#usize (alloc.vec.Vec.new Std.U8)
+          ok (some { lexical := v, datatype := { iri := { spelling := v1 } } })
+        else ok none
+
+/-- [rowl_kernel::rdf_mapping::node_literal]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 484:0-489:1 -/
+def rdf_mapping.node_literal
+  (node : rdf.Object) : Result (Option model.Literal) := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal literal => rdf_mapping.literal_of literal
+
+/-- [rowl_kernel::rdf_mapping::natural_up]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 491:0-497:1 -/
+def rdf_mapping.natural_up
+  (count : Std.Usize) (out : probes.Natural) : Result probes.Natural := do
+  if count = 0#usize
+  then ok out
+  else
+    let i ← count - 1#usize
+    rdf_mapping.natural_up i (probes.Natural.Succ out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::node_natural]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 501:0-531:1 -/
+def rdf_mapping.node_natural
+  (node : rdf.Object) : Result (Option probes.Natural) := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal literal =>
+    match literal.kind with
+    | rdf.LiteralKind.Datatype datatype =>
+      let s ←
+        lift (Array.to_slice
+          (Array.make 51#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 110#u8,
+            111#u8, 110#u8, 78#u8, 101#u8, 103#u8, 97#u8, 116#u8, 105#u8,
+            118#u8, 101#u8, 73#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8,
+            114#u8
+            ]))
+      let b ← rdf_mapping.same datatype.spelling s
+      if b
+      then
+        let i := alloc.vec.Vec.len literal.lexical
+        if i > 1#usize
+        then
+          let i1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+              literal.lexical 0#usize
+          if i1 = 48#u8
+          then ok none
+          else
+            let i2 := alloc.vec.Vec.len literal.lexical
+            let o ←
+              decimal.read_bounded literal.lexical 0#usize i2
+                rdf_mapping.CARDINALITY_LIMIT
+            match o with
+            | none => ok none
+            | some value =>
+              let n ← rdf_mapping.natural_up value probes.Natural.Zero
+              ok (some n)
+        else
+          let i1 := alloc.vec.Vec.len literal.lexical
+          let o ←
+            decimal.read_bounded literal.lexical 0#usize i1
+              rdf_mapping.CARDINALITY_LIMIT
+          match o with
+          | none => ok none
+          | some value =>
+            let n ← rdf_mapping.natural_up value probes.Natural.Zero
+            ok (some n)
+      else ok none
+    | rdf.LiteralKind.Language _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::node_true]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 534:0-551:1 -/
+def rdf_mapping.node_true (node : rdf.Object) : Result Bool := do
+  match node with
+  | rdf.Object.Iri _ => ok false
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal literal =>
+    match literal.kind with
+    | rdf.LiteralKind.Datatype datatype =>
+      let s ←
+        lift (Array.to_slice
+          (Array.make 40#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8,
+            111#u8, 111#u8, 108#u8, 101#u8, 97#u8, 110#u8
+            ]))
+      let b ← rdf_mapping.same datatype.spelling s
+      if b
+      then
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+        rdf_mapping.same literal.lexical s1
+      else ok false
+    | rdf.LiteralKind.Language _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::node_individual]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 554:0-565:1 -/
+def rdf_mapping.node_individual
+  (node : rdf.Object) : Result (Option model.Individual) := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.Individual.Named { iri := i }))
+  | rdf.Object.Blank node1 =>
+    let v ← nnf.copy_bytes node1.scope
+    let v1 ← nnf.copy_bytes node1.label
+    ok (some (model.Individual.Anonymous { scope := v, label := v1 }))
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::node_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 568:0-573:1 -/
+def rdf_mapping.node_iri (node : rdf.Object) : Result (Option model.Iri) := do
+  match node with
+  | rdf.Object.Iri iri => let i ← rdf_mapping.iri_of iri.spelling
+                          ok (some i)
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::property_expression]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 577:0-613:1 -/
+def rdf_mapping.property_expression
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.ObjectPropertyExpression.Property { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 39#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8, 114#u8,
+          115#u8, 101#u8, 79#u8, 102#u8
+          ]))
+    let o ← rdf_mapping.find triples state.used blank s 0#usize
+    match o with
+    | none => ok none
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      match t.object with
+      | rdf.Object.Iri iri =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← rdf_mapping.iri_of iri.spelling
+        ok (some (model.ObjectPropertyExpression.Inverse { iri := i }, state2))
+      | rdf.Object.Blank _ => ok none
+      | rdf.Object.Literal _ => ok none
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::cell]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 617:0-647:1 -/
+def rdf_mapping.cell
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) :
+  Result (Option (Std.Usize × Std.Usize × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 48#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+          115#u8, 116#u8
+          ]))
+    let o ← rdf_mapping.find triples state.used blank s 0#usize
+    match o with
+    | none => ok none
+    | some first =>
+      let state1 ← rdf_mapping.take state first
+      let s1 ←
+        lift (Array.to_slice
+          (Array.make 47#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
+            35#u8, 114#u8, 101#u8, 115#u8, 116#u8
+            ]))
+      let o1 ← rdf_mapping.find triples state1.used blank s1 0#usize
+      match o1 with
+      | none => ok none
+      | some rest =>
+        let state2 ← rdf_mapping.take state1 rest
+        let state3 ← rdf_mapping.record state2 blank
+        ok (some (first, rest, state3))
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::is_nil]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 650:0-652:1 -/
+def rdf_mapping.is_nil (node : rdf.Object) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 46#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
+        ]))
+  rdf_mapping.object_is node s
+
+/-- [rowl_kernel::rdf_mapping::cells]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 656:0-680:1 -/
+def rdf_mapping.cells
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec Std.Usize)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec Std.Usize) × rdf_mapping.State))
+  := do
+  let b ← rdf_mapping.is_nil node
+  if b
+  then ok (some (out, state))
+  else
+    if fuel > 0#usize
+    then
+      let o ← rdf_mapping.cell triples node state
+      match o with
+      | none => ok none
+      | some t =>
+        let (first, rest, state1) := t
+        let i := alloc.vec.Vec.len out
+        if i < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out first
+          let t1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples rest
+          let i1 ← fuel - 1#usize
+          rdf_mapping.cells triples t1.object state1 out1 i1
+        else ok none
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 683:0-689:1 -/
+def rdf_mapping.element
+  (triples : alloc.vec.Vec rdf.Triple) (first : Std.Usize) :
+  Result (Option rdf.Object)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if first < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples first
+    ok (some t.object)
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::facet_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1885:0-1915:1 -/
+def rdf_mapping.facet_element
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (state : rdf_mapping.State) :
+  Result (Option (model.FacetRestriction × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some o1 =>
+      match o1 with
+      | rdf.Object.Iri _ => ok none
+      | rdf.Object.Blank blank =>
+        let o2 ← rdf_mapping.find_any triples state.used blank 0#usize
+        match o2 with
+        | none => ok none
+        | some found =>
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples found
+          let o3 ← rdf_mapping.node_literal t.object
+          match o3 with
+          | none => ok none
+          | some value =>
+            let state1 ← rdf_mapping.take state found
+            let state2 ← rdf_mapping.record state1 blank
+            let i2 ← rdf_mapping.iri_of t.predicate.spelling
+            ok (some ({ facet := i2, value }, state2))
+      | rdf.Object.Literal _ => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::facet_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1918:0-1940:1 -/
+def rdf_mapping.facet_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.FacetRestriction) :
+  Result (Option ((alloc.vec.Vec model.FacetRestriction) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let o ← rdf_mapping.facet_element triples firsts index state
+    match o with
+    | none => ok none
+    | some p =>
+      let (member, state1) := p
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out member
+        let i2 ← index + 1#usize
+        rdf_mapping.facet_members triples firsts i2 state1 out1
+      else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::literal_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 872:0-896:1 -/
+def rdf_mapping.literal_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Literal) :
+  Result (Option (alloc.vec.Vec model.Literal))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_literal node
+      match o1 with
+      | none => ok none
+      | some member =>
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.literal_members triples firsts i3 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::literal_list1]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 899:0-924:1 -/
+def rdf_mapping.literal_list1
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.NonEmpty model.Literal) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 1#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_literal one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let o3 ←
+            rdf_mapping.literal_members triples firsts 1#usize
+              (alloc.vec.Vec.new model.Literal)
+          match o3 with
+          | none => ok none
+          | some rest => ok (some ({ first, rest }, state1))
+    else ok none
+
+mutual
+
+/-- [rowl_kernel::rdf_mapping::data_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1764:0-1800:1 -/
+def rdf_mapping.data_range
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.DataRange.Datatype { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    if fuel > 0#usize
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
+            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
+            121#u8, 112#u8, 101#u8
+            ]))
+      let o ← rdf_mapping.find_type triples state.used blank s 0#usize
+      match o with
+      | none => ok none
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← fuel - 1#usize
+        rdf_mapping.range_construct triples kinds blank state2 i
+    else ok none
+  | rdf.Object.Literal _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1803:0-1830:1 -/
+def rdf_mapping.range_members
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec model.DataRange)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.DataRange) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.data_range triples kinds node state fuel
+      match o1 with
+      | none => ok none
+      | some p =>
+        let (member, state1) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.range_members triples kinds firsts i3 state1 out1 fuel
+        else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1833:0-1849:1 -/
+def rdf_mapping.range_element
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node => rdf_mapping.data_range triples kinds node state fuel
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1852:0-1881:1 -/
+def rdf_mapping.range_list2
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.DataRange) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ←
+      rdf_mapping.range_element triples kinds firsts 0#usize state1 fuel
+    match o1 with
+    | none => ok none
+    | some p1 =>
+      let (first, state2) := p1
+      let o2 ←
+        rdf_mapping.range_element triples kinds firsts 1#usize state2 fuel
+      match o2 with
+      | none => ok none
+      | some p2 =>
+        let (second, state3) := p2
+        let o3 ←
+          rdf_mapping.range_members triples kinds firsts 2#usize state3
+            (alloc.vec.Vec.new model.DataRange) fuel
+        match o3 with
+        | none => ok none
+        | some p3 =>
+          let (rest, state4) := p3
+          ok (some ({ first, second, rest }, state4))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::range_construct]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1943:0-2056:1 -/
+def rdf_mapping.range_construct
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
+        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
+          102#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 97#u8, 116#u8, 97#u8,
+            116#u8, 121#u8, 112#u8, 101#u8, 67#u8, 111#u8, 109#u8, 112#u8,
+            108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8, 102#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
+              79#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        match o3 with
+        | none =>
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 40#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 68#u8,
+                97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
+                ]))
+          let o4 ← rdf_mapping.find triples state.used blank s4 0#usize
+          match o4 with
+          | none => ok none
+          | some index =>
+            let t ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                rdf.Triple) triples index
+            let o5 ← rdf_mapping.node_iri t.object
+            match o5 with
+            | none => ok none
+            | some base =>
+              let state1 ← rdf_mapping.take state index
+              let s5 ←
+                lift (Array.to_slice
+                  (Array.make 46#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    119#u8, 105#u8, 116#u8, 104#u8, 82#u8, 101#u8, 115#u8,
+                    116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8,
+                    110#u8, 115#u8
+                    ]))
+              let o6 ← rdf_mapping.find triples state1.used blank s5 0#usize
+              match o6 with
+              | none => ok none
+              | some list =>
+                let state2 ← rdf_mapping.take state1 list
+                let t1 ←
+                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                    rdf.Triple) triples list
+                let o7 ←
+                  rdf_mapping.cells triples t1.object state2 (alloc.vec.Vec.new
+                    Std.Usize) fuel
+                match o7 with
+                | none => ok none
+                | some p =>
+                  let (firsts, state3) := p
+                  let o8 ←
+                    rdf_mapping.facet_element triples firsts 0#usize state3
+                  match o8 with
+                  | none => ok none
+                  | some p1 =>
+                    let (first, state4) := p1
+                    let o9 ←
+                      rdf_mapping.facet_members triples firsts 1#usize state4
+                        (alloc.vec.Vec.new model.FacetRestriction)
+                    match o9 with
+                    | none => ok none
+                    | some p2 =>
+                      let (rest, state5) := p2
+                      ok (some (model.DataRange.Restriction { iri := base }
+                        { first, rest }, state5))
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let o4 ← rdf_mapping.literal_list1 triples t.object state1 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (members, state2) := p
+            ok (some (model.DataRange.OneOf members, state2))
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (inner, state2) := p
+          ok (some (model.DataRange.Complement inner, state2))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (members, state2) := p
+        ok (some (model.DataRange.Union members, state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.range_list2 triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (members, state2) := p
+      ok (some (model.DataRange.Intersection members, state2))
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::rdf_mapping::on_data_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1616:0-1636:1 -/
+def rdf_mapping.on_data_range
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.DataRange × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 41#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 68#u8, 97#u8, 116#u8, 97#u8, 82#u8,
+        97#u8, 110#u8, 103#u8, 101#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    rdf_mapping.data_range triples kinds t.object state1 fuel
+
+/-- [rowl_kernel::rdf_mapping::data_qualified]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1696:0-1760:1 -/
+def rdf_mapping.data_qualified
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (property : model.DataProperty) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
+        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 53#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
+          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
+            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
+            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
+            121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none => ok none
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          let o4 ← rdf_mapping.on_data_range triples kinds blank s3 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (range, state1) := p
+            ok (some (model.ClassExpression.DataExactCardinality n property
+              (some range), state1))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        let o3 ← rdf_mapping.on_data_range triples kinds blank s2 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (range, state1) := p
+          ok (some (model.ClassExpression.DataMaxCardinality n property (some
+            range), state1))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      let o2 ← rdf_mapping.on_data_range triples kinds blank s1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (range, state1) := p
+        ok (some (model.ClassExpression.DataMinCardinality n property (some
+          range), state1))
+
+/-- [rowl_kernel::rdf_mapping::data_cardinality]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1639:0-1693:1 -/
+def rdf_mapping.data_cardinality
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (property : model.DataProperty) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 44#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
+            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        rdf_mapping.data_qualified triples kinds blank property state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.DataExactCardinality n property none,
+            s3))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        ok (some (model.ClassExpression.DataMaxCardinality n property none,
+          s2))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      ok (some (model.ClassExpression.DataMinCardinality n property none, s1))
+
+/-- [rowl_kernel::rdf_mapping::data_restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1555:0-1613:1 -/
+def rdf_mapping.data_restriction
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (property : model.DataProperty) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
+        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 43#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
+          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 38#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
+            97#u8, 108#u8, 117#u8, 101#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        rdf_mapping.data_cardinality triples kinds blank property state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_literal t.object
+        match o3 with
+        | none => ok none
+        | some value =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.DataHasValue property value, s3))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (range, state2) := p
+        ok (some (model.ClassExpression.DataAllValuesFrom property range,
+          state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (range, state2) := p
+      ok (some (model.ClassExpression.DataSomeValuesFrom property range,
+        state2))
+
+/-- [rowl_kernel::rdf_mapping::individual_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 774:0-798:1 -/
+def rdf_mapping.individual_members
+  (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_individual node
+      match o1 with
+      | none => ok none
+      | some member =>
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.individual_members triples firsts i3 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::individual_list1]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 801:0-826:1 -/
+def rdf_mapping.individual_list1
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.NonEmpty model.Individual) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 1#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_individual one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let o3 ←
+            rdf_mapping.individual_members triples firsts 1#usize
+              (alloc.vec.Vec.new model.Individual)
+          match o3 with
+          | none => ok none
+          | some rest => ok (some ({ first, rest }, state1))
+    else ok none
+
+mutual
+
+/-- [rowl_kernel::rdf_mapping::class_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 692:0-719:1 -/
+def rdf_mapping.class_members
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec model.ClassExpression)
+  (fuel : Std.Usize) :
+  Result (Option ((alloc.vec.Vec model.ClassExpression) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.class_expression triples kinds node state fuel
+      match o1 with
+      | none => ok none
+      | some p =>
+        let (member, state1) := p
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ← alloc.vec.Vec.push out member
+          let i3 ← index + 1#usize
+          rdf_mapping.class_members triples kinds firsts i3 state1 out1 fuel
+        else ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 722:0-771:1 -/
+def rdf_mapping.class_list2
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.ClassExpression) ×
+    rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 2#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.class_expression triples kinds one state1 fuel
+        match o2 with
+        | none => ok none
+        | some p1 =>
+          let (first, state2) := p1
+          let i2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              Std.Usize) firsts 1#usize
+          let o3 ← rdf_mapping.element triples i2
+          match o3 with
+          | none => ok none
+          | some two =>
+            let o4 ←
+              rdf_mapping.class_expression triples kinds two state2 fuel
+            match o4 with
+            | none => ok none
+            | some p2 =>
+              let (second, state3) := p2
+              let o5 ←
+                rdf_mapping.class_members triples kinds firsts 2#usize state3
+                  (alloc.vec.Vec.new model.ClassExpression) fuel
+              match o5 with
+              | none => ok none
+              | some p3 =>
+                let (rest, state4) := p3
+                ok (some ({ first, second, rest }, state4))
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_expression]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1156:0-1205:1 -/
+def rdf_mapping.class_expression
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.ClassExpression.Class { iri := i }, state))
+  | rdf.Object.Blank blank =>
+    if fuel > 0#usize
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 82#u8, 101#u8, 115#u8,
+            116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8, 110#u8
+            ]))
+      let o ← rdf_mapping.find_type triples state.used blank s 0#usize
+      match o with
+      | none =>
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8,
+              115#u8, 115#u8
+              ]))
+        let o1 ← rdf_mapping.find_type triples state.used blank s1 0#usize
+        match o1 with
+        | none => ok none
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let state2 ← rdf_mapping.record state1 blank
+          let i ← fuel - 1#usize
+          rdf_mapping.class_construct triples kinds blank state2 i
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let state2 ← rdf_mapping.record state1 blank
+        let i ← fuel - 1#usize
+        rdf_mapping.restriction triples kinds blank state2 i
+    else ok none
+  | rdf.Object.Literal _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_construct]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1208:0-1285:1 -/
+def rdf_mapping.class_construct
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
+        99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
+          102#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 42#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 111#u8, 109#u8,
+            112#u8, 108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8,
+            102#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 35#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
+              79#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        match o3 with
+        | none => ok none
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let o4 ← rdf_mapping.individual_list1 triples t.object state1 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (members, state2) := p
+            ok (some (model.ClassExpression.ObjectOneOf members, state2))
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ←
+          rdf_mapping.class_expression triples kinds t.object state1 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (inner, state2) := p
+          ok (some (model.ClassExpression.ObjectComplementOf inner, state2))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (members, state2) := p
+        ok (some (model.ClassExpression.ObjectUnionOf members, state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (members, state2) := p
+      ok (some (model.ClassExpression.ObjectIntersectionOf members, state2))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1288:0-1323:1 -/
+def rdf_mapping.restriction
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
+        114#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_kind kinds t.object
+    match o1 with
+    | none => ok none
+    | some pk =>
+      match pk with
+      | rdf_mapping.PropertyKind.Object =>
+        let o2 ← rdf_mapping.property_expression triples t.object state1
+        match o2 with
+        | none => ok none
+        | some p =>
+          let (role, state2) := p
+          rdf_mapping.object_restriction triples kinds blank role state2 fuel
+      | rdf_mapping.PropertyKind.Data =>
+        let o2 ← rdf_mapping.node_iri t.object
+        match o2 with
+        | none => ok none
+        | some iri =>
+          rdf_mapping.data_restriction triples kinds blank { iri } state1 fuel
+      | rdf_mapping.PropertyKind.Annotation => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_restriction]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1326:0-1402:1 -/
+def rdf_mapping.object_restriction
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
+        117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 43#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
+          117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 38#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
+            97#u8, 108#u8, 117#u8, 101#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 37#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8,
+              83#u8, 101#u8, 108#u8, 102#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        match o3 with
+        | none =>
+          rdf_mapping.object_cardinality triples kinds blank role state fuel
+        | some index =>
+          let state1 ← rdf_mapping.take state index
+          let t ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples index
+          let b ← rdf_mapping.node_true t.object
+          if b
+          then ok (some (model.ClassExpression.ObjectHasSelf role, state1))
+          else ok none
+      | some index =>
+        let state1 ← rdf_mapping.take state index
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_individual t.object
+        match o3 with
+        | none => ok none
+        | some value =>
+          ok (some (model.ClassExpression.ObjectHasValue role value, state1))
+    | some index =>
+      let state1 ← rdf_mapping.take state index
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ←
+        rdf_mapping.class_expression triples kinds t.object state1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (filler, state2) := p
+        ok (some (model.ClassExpression.ObjectAllValuesFrom role filler,
+          state2))
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (filler, state2) := p
+      ok (some (model.ClassExpression.ObjectSomeValuesFrom role filler,
+        state2))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_cardinality]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1405:0-1459:1 -/
+def rdf_mapping.object_cardinality
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 44#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 44#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 41#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
+            105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none =>
+        rdf_mapping.object_qualified triples kinds blank role state fuel
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          ok (some (model.ClassExpression.ObjectExactCardinality n role none,
+            s3))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        ok (some (model.ClassExpression.ObjectMaxCardinality n role none, s2))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      ok (some (model.ClassExpression.ObjectMinCardinality n role none, s1))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::on_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1462:0-1482:1 -/
+def rdf_mapping.on_class
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 37#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 111#u8, 110#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none => ok none
+  | some index =>
+    let state1 ← rdf_mapping.take state index
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    rdf_mapping.class_expression triples kinds t.object state1 fuel
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::object_qualified]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1485:0-1552:1 -/
+def rdf_mapping.object_qualified
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
+  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
+  (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × rdf_mapping.State))
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 81#u8, 117#u8, 97#u8, 108#u8,
+        105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
+        105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+        ]))
+  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  match o with
+  | none =>
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 53#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 81#u8, 117#u8, 97#u8,
+          108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
+          100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    match o1 with
+    | none =>
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 50#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 113#u8, 117#u8, 97#u8,
+            108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8,
+            114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
+            121#u8
+            ]))
+      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      match o2 with
+      | none => ok none
+      | some index =>
+        let t ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            rdf.Triple) triples index
+        let o3 ← rdf_mapping.node_natural t.object
+        match o3 with
+        | none => ok none
+        | some n =>
+          let s3 ← rdf_mapping.take state index
+          let o4 ← rdf_mapping.on_class triples kinds blank s3 fuel
+          match o4 with
+          | none => ok none
+          | some p =>
+            let (filler, state1) := p
+            ok (some (model.ClassExpression.ObjectExactCardinality n role (some
+              filler), state1))
+    | some index =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let o2 ← rdf_mapping.node_natural t.object
+      match o2 with
+      | none => ok none
+      | some n =>
+        let s2 ← rdf_mapping.take state index
+        let o3 ← rdf_mapping.on_class triples kinds blank s2 fuel
+        match o3 with
+        | none => ok none
+        | some p =>
+          let (filler, state1) := p
+          ok (some (model.ClassExpression.ObjectMaxCardinality n role (some
+            filler), state1))
+  | some index =>
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o1 ← rdf_mapping.node_natural t.object
+    match o1 with
+    | none => ok none
+    | some n =>
+      let s1 ← rdf_mapping.take state index
+      let o2 ← rdf_mapping.on_class triples kinds blank s1 fuel
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (filler, state1) := p
+        ok (some (model.ClassExpression.ObjectMinCardinality n role (some
+          filler), state1))
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::rdf_mapping::individual_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 829:0-869:1 -/
+def rdf_mapping.individual_list2
+  (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.Individual) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let i := alloc.vec.Vec.len firsts
+    if i >= 2#usize
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          firsts 0#usize
+      let o1 ← rdf_mapping.element triples i1
+      match o1 with
+      | none => ok none
+      | some one =>
+        let o2 ← rdf_mapping.node_individual one
+        match o2 with
+        | none => ok none
+        | some first =>
+          let i2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              Std.Usize) firsts 1#usize
+          let o3 ← rdf_mapping.element triples i2
+          match o3 with
+          | none => ok none
+          | some two =>
+            let o4 ← rdf_mapping.node_individual two
+            match o4 with
+            | none => ok none
+            | some second =>
+              let o5 ←
+                rdf_mapping.individual_members triples firsts 2#usize
+                  (alloc.vec.Vec.new model.Individual)
+              match o5 with
+              | none => ok none
+              | some rest => ok (some ({ first, second, rest }, state1))
+    else ok none
+
+/-- [rowl_kernel::rdf_mapping::property_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 927:0-956:1 -/
+def rdf_mapping.property_members
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
+    rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let o2 ← rdf_mapping.property_expression triples node state
+          match o2 with
+          | none => ok none
+          | some p =>
+            let (member, state1) := p
+            let i2 := alloc.vec.Vec.len out
+            if i2 < core.num.Usize.MAX
+            then
+              let out1 ← alloc.vec.Vec.push out member
+              let i3 ← index + 1#usize
+              rdf_mapping.property_members triples kinds firsts i3 state1 out1
+            else ok none
+        | rdf_mapping.PropertyKind.Data => ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::property_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 959:0-977:1 -/
+def rdf_mapping.property_element
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          rdf_mapping.property_expression triples node state
+        | rdf_mapping.PropertyKind.Data => ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::property_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 980:0-1009:1 -/
+def rdf_mapping.property_list2
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.ObjectPropertyExpression) ×
+    rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ← rdf_mapping.property_element triples kinds firsts 0#usize state1
+    match o1 with
+    | none => ok none
+    | some p1 =>
+      let (first, state2) := p1
+      let o2 ←
+        rdf_mapping.property_element triples kinds firsts 1#usize state2
+      match o2 with
+      | none => ok none
+      | some p2 =>
+        let (second, state3) := p2
+        let o3 ←
+          rdf_mapping.property_members triples kinds firsts 2#usize state3
+            (alloc.vec.Vec.new model.ObjectPropertyExpression)
+        match o3 with
+        | none => ok none
+        | some p3 =>
+          let (rest, state4) := p3
+          ok (some ({ first, second, rest }, state4))
+
+/-- [rowl_kernel::rdf_mapping::data_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1012:0-1040:1 -/
+def rdf_mapping.data_members
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec model.DataProperty) :
+  Result (Option (alloc.vec.Vec model.DataProperty))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object => ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri =>
+            let i2 := alloc.vec.Vec.len out
+            if i2 < core.num.Usize.MAX
+            then
+              let out1 ←
+                alloc.vec.Vec.push out ({ iri } : model.DataProperty)
+              let i3 ← index + 1#usize
+              rdf_mapping.data_members triples kinds firsts i3 out1
+            else ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::data_element]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1043:0-1063:1 -/
+def rdf_mapping.data_element
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result (Option model.DataProperty)
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object => ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri => ok (some { iri })
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::data_list2]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1066:0-1093:1 -/
+def rdf_mapping.data_list2
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option ((model.AtLeastTwo model.DataProperty) × rdf_mapping.State))
+  := do
+  let o ←
+    rdf_mapping.cells triples node state (alloc.vec.Vec.new Std.Usize) fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (firsts, state1) := p
+    let o1 ← rdf_mapping.data_element triples kinds firsts 0#usize
+    match o1 with
+    | none => ok none
+    | some first =>
+      let o2 ← rdf_mapping.data_element triples kinds firsts 1#usize
+      match o2 with
+      | none => ok none
+      | some second =>
+        let o3 ←
+          rdf_mapping.data_members triples kinds firsts 2#usize
+            (alloc.vec.Vec.new model.DataProperty)
+        match o3 with
+        | none => ok none
+        | some rest => ok (some ({ first, second, rest }, state1))
+
+/-- [rowl_kernel::rdf_mapping::key_members]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1097:0-1152:1 -/
+def rdf_mapping.key_members
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (state : rdf_mapping.State)
+  (objects : alloc.vec.Vec model.ObjectPropertyExpression)
+  (datas : alloc.vec.Vec model.DataProperty) :
+  Result (Option ((alloc.vec.Vec model.ObjectPropertyExpression) ×
+    (alloc.vec.Vec model.DataProperty) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        firsts index
+    let o ← rdf_mapping.element triples i1
+    match o with
+    | none => ok none
+    | some node =>
+      let o1 ← rdf_mapping.node_kind kinds node
+      match o1 with
+      | none => ok none
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let i2 := alloc.vec.Vec.len datas
+          if i2 = 0#usize
+          then
+            let o2 ← rdf_mapping.property_expression triples node state
+            match o2 with
+            | none => ok none
+            | some p =>
+              let (member, state1) := p
+              let i3 := alloc.vec.Vec.len objects
+              if i3 < core.num.Usize.MAX
+              then
+                let objects1 ← alloc.vec.Vec.push objects member
+                let i4 ← index + 1#usize
+                rdf_mapping.key_members triples kinds firsts i4 state1 objects1
+                  datas
+              else ok none
+          else ok none
+        | rdf_mapping.PropertyKind.Data =>
+          let o2 ← rdf_mapping.node_iri node
+          match o2 with
+          | none => ok none
+          | some iri =>
+            let i2 := alloc.vec.Vec.len datas
+            if i2 < core.num.Usize.MAX
+            then
+              let datas1 ←
+                alloc.vec.Vec.push datas ({ iri } : model.DataProperty)
+              let i3 ← index + 1#usize
+              rdf_mapping.key_members triples kinds firsts i3 state objects
+                datas1
+            else ok none
+        | rdf_mapping.PropertyKind.Annotation => ok none
+  else ok (some (objects, datas, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::class_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2059:0-2077:1 -/
+def rdf_mapping.class_pair
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result (Option (model.ClassExpression × model.ClassExpression ×
+    rdf_mapping.State))
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
+  match o with
+  | none => ok none
+  | some p =>
+    let (left, state2) := p
+    let o1 ← rdf_mapping.class_expression triples kinds t.object state2 fuel
+    match o1 with
+    | none => ok none
+    | some p1 => let (right, state3) := p1
+                 ok (some (left, right, state3))
+
+/-- [rowl_kernel::rdf_mapping::two]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2079:0-2085:1 -/
+def rdf_mapping.two
+  {T : Type} (first : T) (second : T) : Result (model.AtLeastTwo T) := do
+  ok { first, second, rest := (alloc.vec.Vec.new T) }
+
+/-- [rowl_kernel::rdf_mapping::sub_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2087:0-2098:1 -/
+def rdf_mapping.sub_class
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.class_pair triples kinds index state fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some t =>
+    let (sub, sup, state1) := t
+    ok (rdf_mapping.Read.Found (model.Axiom.SubClassOf sub sup) state1)
+
+/-- [rowl_kernel::rdf_mapping::datatype_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2101:0-2106:1 -/
+def rdf_mapping.datatype_subject
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (subject : rdf.Subject) :
+  Result Bool
+  := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    rdf_mapping.has_kind kinds iri.spelling typing.EntityKind.Datatype
+  | rdf.Subject.Blank _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::equivalent_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2108:0-2142:1 -/
+def rdf_mapping.equivalent_class
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let b ← rdf_mapping.datatype_subject kinds t.subject
+  if b
+  then
+    let state1 ← rdf_mapping.take state index
+    match t.subject with
+    | rdf.Subject.Iri iri =>
+      let o ← rdf_mapping.data_range triples kinds t.object state1 fuel
+      match o with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (range, state2) := p
+        let i ← rdf_mapping.iri_of iri.spelling
+        ok (rdf_mapping.Read.Found (model.Axiom.DatatypeDefinition { iri := i }
+          range) state2)
+    | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
+  else
+    let o ← rdf_mapping.class_pair triples kinds index state fuel
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some t1 =>
+      let (left, right, state1) := t1
+      let alt ← rdf_mapping.two left right
+      ok (rdf_mapping.Read.Found (model.Axiom.EquivalentClasses alt) state1)
+
+/-- [rowl_kernel::rdf_mapping::disjoint_class]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2144:0-2155:1 -/
+def rdf_mapping.disjoint_class
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.class_pair triples kinds index state fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some t =>
+    let (left, right, state1) := t
+    let alt ← rdf_mapping.two left right
+    ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses alt) state1)
+
+/-- [rowl_kernel::rdf_mapping::disjoint_union]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2157:0-2182:1 -/
+def rdf_mapping.disjoint_union
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri iri =>
+    let state1 ← rdf_mapping.take state index
+    let o ← rdf_mapping.class_list2 triples kinds t.object state1 fuel
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some p =>
+      let (members, state2) := p
+      let i ← rdf_mapping.iri_of iri.spelling
+      ok (rdf_mapping.Read.Found (model.Axiom.DisjointUnion { iri := i }
+        members) state2)
+  | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::property_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2185:0-2198:1 -/
+def rdf_mapping.property_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (model.ObjectPropertyExpression ×
+    model.ObjectPropertyExpression × rdf_mapping.State))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.property_expression triples subject state
+  match o with
+  | none => ok none
+  | some p =>
+    let (left, state1) := p
+    let o1 ← rdf_mapping.property_expression triples t.object state1
+    match o1 with
+    | none => ok none
+    | some p1 => let (right, state2) := p1
+                 ok (some (left, right, state2))
+
+/-- [rowl_kernel::rdf_mapping::data_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2201:0-2210:1 -/
+def rdf_mapping.data_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
+  Result (Option (model.DataProperty × model.DataProperty))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_iri subject
+  match o with
+  | none => ok none
+  | some left =>
+    let o1 ← rdf_mapping.node_iri t.object
+    match o1 with
+    | none => ok none
+    | some right => ok (some ({ iri := left }, { iri := right }))
+
+/-- [rowl_kernel::rdf_mapping::subject_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2213:0-2219:1 -/
+def rdf_mapping.subject_kind
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  rdf_mapping.node_kind kinds o
+
+/-- [rowl_kernel::rdf_mapping::sub_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2221:0-2247:1 -/
+def rdf_mapping.sub_property
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (sub, sup, state2) := t
+        ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
+          (model.SubObjectPropertyExpression.Single sub) sup) state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (sub, sup) := p
+        ok (rdf_mapping.Read.Found (model.Axiom.SubDataPropertyOf sub sup)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (sub, sup) := p
+        ok (rdf_mapping.Read.Found (model.Axiom.SubAnnotationPropertyOf
+          { iri := sub.iri } { iri := sup.iri }) state1)
+
+/-- [rowl_kernel::rdf_mapping::property_chain]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2249:0-2270:1 -/
+def rdf_mapping.property_chain
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.property_expression triples subject state1
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (sup, state2) := p
+    let o1 ← rdf_mapping.property_list2 triples kinds t.object state2 fuel
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p1 =>
+      let (chain, state3) := p1
+      ok (rdf_mapping.Read.Found (model.Axiom.SubObjectPropertyOf
+        (model.SubObjectPropertyExpression.Chain chain) sup) state3)
+
+/-- [rowl_kernel::rdf_mapping::equivalent_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2272:0-2294:1 -/
+def rdf_mapping.equivalent_property
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (left, right, state2) := t
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentObjectProperties alt)
+          state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (left, right) := p
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.EquivalentDataProperties alt)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::disjoint_property]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2296:0-2318:1 -/
+def rdf_mapping.disjoint_property
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let o ← rdf_mapping.subject_kind triples kinds index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_pair triples index state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t =>
+        let (left, right, state2) := t
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties alt)
+          state2)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.data_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (left, right) := p
+        let alt ← rdf_mapping.two left right
+        ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties alt)
+          state1)
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::inverse_properties]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2320:0-2333:1 -/
+def rdf_mapping.inverse_properties
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri _ =>
+    let state1 ← rdf_mapping.take state index
+    let o ← rdf_mapping.property_pair triples index state1
+    match o with
+    | none => ok rdf_mapping.Read.Fail
+    | some t1 =>
+      let (left, right, state2) := t1
+      ok (rdf_mapping.Read.Found (model.Axiom.InverseObjectProperties left
+        right) state2)
+  | rdf.Subject.Blank _ => ok (rdf_mapping.Read.Skip state)
+
+/-- [rowl_kernel::rdf_mapping::domain_range]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2336:0-2405:1 -/
+def rdf_mapping.domain_range
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (range : Bool) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_kind kinds subject
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_expression triples subject state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (role, state2) := p
+        let o2 ←
+          rdf_mapping.class_expression triples kinds t.object state2 fuel
+        match o2 with
+        | none => ok rdf_mapping.Read.Fail
+        | some p1 =>
+          let (filler, state3) := p1
+          if range
+          then
+            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyRange role
+              filler) state3)
+          else
+            ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyDomain role
+              filler) state3)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.node_iri subject
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some iri =>
+        if range
+        then
+          let o2 ← rdf_mapping.data_range triples kinds t.object state1 fuel
+          match o2 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p =>
+            let (filler, state2) := p
+            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyRange 
+              { iri } filler) state2)
+        else
+          let o2 ←
+            rdf_mapping.class_expression triples kinds t.object state1 fuel
+          match o2 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p =>
+            let (filler, state2) := p
+            ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyDomain 
+              { iri } filler) state2)
+    | rdf_mapping.PropertyKind.Annotation =>
+      let o1 ← rdf_mapping.node_iri subject
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some iri =>
+        let o2 ← rdf_mapping.node_iri t.object
+        match o2 with
+        | none => ok rdf_mapping.Read.Fail
+        | some target =>
+          if range
+          then
+            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyRange
+              { iri } target) state1)
+          else
+            ok (rdf_mapping.Read.Found (model.Axiom.AnnotationPropertyDomain
+              { iri } target) state1)
+
+/-- [rowl_kernel::rdf_mapping::individual_pair]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2408:0-2416:1 -/
+def rdf_mapping.individual_pair
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
+  Result (Option (model.Individual × model.Individual))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  let o1 ← rdf_mapping.node_individual o
+  match o1 with
+  | none => ok none
+  | some left =>
+    let o2 ← rdf_mapping.node_individual t.object
+    match o2 with
+    | none => ok none
+    | some right => ok (some (left, right))
+
+/-- [rowl_kernel::rdf_mapping::same_individual]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2418:0-2425:1 -/
+def rdf_mapping.same_individual
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.individual_pair triples index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (left, right) := p
+    let alt ← rdf_mapping.two left right
+    let s ← rdf_mapping.take state index
+    ok (rdf_mapping.Read.Found (model.Axiom.SameIndividual alt) s)
+
+/-- [rowl_kernel::rdf_mapping::different_individuals]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2427:0-2435:1 -/
+def rdf_mapping.different_individuals
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.individual_pair triples index
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (left, right) := p
+    let alt ← rdf_mapping.two left right
+    let s ← rdf_mapping.take state index
+    ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals alt) s)
+
+/-- [rowl_kernel::rdf_mapping::has_key]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2437:0-2462:1 -/
+def rdf_mapping.has_key
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.class_expression triples kinds subject state1 fuel
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let («class», state2) := p
+    let o1 ←
+      rdf_mapping.cells triples t.object state2 (alloc.vec.Vec.new Std.Usize)
+        fuel
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p1 =>
+      let (firsts, state3) := p1
+      let o2 ←
+        rdf_mapping.key_members triples kinds firsts 0#usize state3
+          (alloc.vec.Vec.new model.ObjectPropertyExpression) (alloc.vec.Vec.new
+          model.DataProperty)
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some t1 =>
+        let (objects, datas, state4) := t1
+        ok (rdf_mapping.Read.Found (model.Axiom.HasKey «class» objects datas)
+          state4)
+
+/-- [rowl_kernel::rdf_mapping::characteristic]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2467:0-2511:1 -/
+def rdf_mapping.characteristic
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (kind : Std.U8) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let subject ← rdf_mapping.subject_node t.subject
+  let o ← rdf_mapping.node_kind kinds subject
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.property_expression triples subject state1
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (role, state2) := p
+        if kind = 0#u8
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalObjectProperty
+            role) state2)
+        else
+          if kind = 1#u8
+          then
+            ok (rdf_mapping.Read.Found
+              (model.Axiom.InverseFunctionalObjectProperty role) state2)
+          else
+            if kind = 2#u8
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.ReflexiveObjectProperty
+                role) state2)
+            else
+              if kind = 3#u8
+              then
+                ok (rdf_mapping.Read.Found
+                  (model.Axiom.IrreflexiveObjectProperty role) state2)
+              else
+                if kind = 4#u8
+                then
+                  ok (rdf_mapping.Read.Found
+                    (model.Axiom.SymmetricObjectProperty role) state2)
+                else
+                  if kind = 5#u8
+                  then
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.AsymmetricObjectProperty role) state2)
+                  else
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.TransitiveObjectProperty role) state2)
+    | rdf_mapping.PropertyKind.Data =>
+      if kind = 0#u8
+      then
+        let o1 ← rdf_mapping.node_iri subject
+        match o1 with
+        | none => ok rdf_mapping.Read.Fail
+        | some iri =>
+          ok (rdf_mapping.Read.Found (model.Axiom.FunctionalDataProperty
+            { iri }) state1)
+      else ok rdf_mapping.Read.Fail
+    | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::axiom_node]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2514:0-2523:1 -/
+def rdf_mapping.axiom_node
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result (Option (rdf.BlankNode × rdf_mapping.State))
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  match t.subject with
+  | rdf.Subject.Iri _ => ok none
+  | rdf.Subject.Blank blank =>
+    let state1 ← rdf_mapping.take state index
+    let state2 ← rdf_mapping.record state1 blank
+    let bn ← rdf_mapping.copy_blank blank
+    ok (some (bn, state2))
+
+/-- [rowl_kernel::rdf_mapping::all_disjoint_classes]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2525:0-2557:1 -/
+def rdf_mapping.all_disjoint_classes
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ← rdf_mapping.class_list2 triples kinds t.object state2 fuel
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p1 =>
+        let (members, state3) := p1
+        let i := alloc.vec.Vec.len members.rest
+        if i >= 1#usize
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses members)
+            state3)
+        else ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::first_member_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2560:0-2579:1 -/
+def rdf_mapping.first_member_kind
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (used : alloc.vec.Vec Bool)
+  (node : rdf.Object) :
+  Result (Option rdf_mapping.PropertyKind)
+  := do
+  match node with
+  | rdf.Object.Iri _ => ok none
+  | rdf.Object.Blank blank =>
+    let s ←
+      lift (Array.to_slice
+        (Array.make 48#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+          115#u8, 116#u8
+          ]))
+    let o ← rdf_mapping.find triples used blank s 0#usize
+    match o with
+    | none => ok none
+    | some first =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples first
+      rdf_mapping.node_kind kinds t.object
+  | rdf.Object.Literal _ => ok none
+
+/-- [rowl_kernel::rdf_mapping::all_disjoint_properties]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2581:0-2630:1 -/
+def rdf_mapping.all_disjoint_properties
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ←
+        rdf_mapping.first_member_kind triples kinds state2.used t.object
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some pk =>
+        match pk with
+        | rdf_mapping.PropertyKind.Object =>
+          let o3 ←
+            rdf_mapping.property_list2 triples kinds t.object state2 fuel
+          match o3 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p1 =>
+            let (members, state3) := p1
+            let i := alloc.vec.Vec.len members.rest
+            if i >= 1#usize
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.DisjointObjectProperties
+                members) state3)
+            else ok rdf_mapping.Read.Fail
+        | rdf_mapping.PropertyKind.Data =>
+          let o3 ← rdf_mapping.data_list2 triples kinds t.object state2 fuel
+          match o3 with
+          | none => ok rdf_mapping.Read.Fail
+          | some p1 =>
+            let (members, state3) := p1
+            let i := alloc.vec.Vec.len members.rest
+            if i >= 1#usize
+            then
+              ok (rdf_mapping.Read.Found (model.Axiom.DisjointDataProperties
+                members) state3)
+            else ok rdf_mapping.Read.Fail
+        | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::all_different]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2632:0-2658:1 -/
+def rdf_mapping.all_different
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
+          115#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some list =>
+      let state2 ← rdf_mapping.take state1 list
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples list
+      let o2 ← rdf_mapping.individual_list2 triples t.object state2 fuel
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p1 =>
+        let (members, state3) := p1
+        let i := alloc.vec.Vec.len members.rest
+        if i >= 1#usize
+        then
+          ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals members)
+            state3)
+        else ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::negative_assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2660:0-2749:1 -/
+def rdf_mapping.negative_assertion
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let o ← rdf_mapping.axiom_node triples index state
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some p =>
+    let (blank, state1) := p
+    let s ←
+      lift (Array.to_slice
+        (Array.make 46#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 115#u8, 111#u8, 117#u8, 114#u8, 99#u8, 101#u8,
+          73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8, 100#u8, 117#u8, 97#u8,
+          108#u8
+          ]))
+    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    match o1 with
+    | none => ok rdf_mapping.Read.Fail
+    | some source =>
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples source
+      let o2 ← rdf_mapping.node_individual t.object
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some subject =>
+        let state2 ← rdf_mapping.take state1 source
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 47#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 97#u8, 115#u8, 115#u8,
+              101#u8, 114#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8, 114#u8,
+              111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+              ]))
+        let o3 ← rdf_mapping.find triples state2.used blank s1 0#usize
+        match o3 with
+        | none => ok rdf_mapping.Read.Fail
+        | some property =>
+          let state3 ← rdf_mapping.take state2 property
+          let t1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              rdf.Triple) triples property
+          let o4 ← rdf_mapping.node_kind kinds t1.object
+          match o4 with
+          | none => ok rdf_mapping.Read.Fail
+          | some pk =>
+            match pk with
+            | rdf_mapping.PropertyKind.Object =>
+              let o5 ←
+                rdf_mapping.property_expression triples t1.object state3
+              match o5 with
+              | none => ok rdf_mapping.Read.Fail
+              | some p1 =>
+                let (role, state4) := p1
+                let s2 ←
+                  lift (Array.to_slice
+                    (Array.make 46#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
+                      116#u8, 73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8,
+                      100#u8, 117#u8, 97#u8, 108#u8
+                      ]))
+                let o6 ←
+                  rdf_mapping.find triples state4.used blank s2 0#usize
+                match o6 with
+                | none => ok rdf_mapping.Read.Fail
+                | some target =>
+                  let t2 ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      rdf.Triple) triples target
+                  let o7 ← rdf_mapping.node_individual t2.object
+                  match o7 with
+                  | none => ok rdf_mapping.Read.Fail
+                  | some object =>
+                    let s3 ← rdf_mapping.take state4 target
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.NegativeObjectPropertyAssertion role subject
+                      object) s3)
+            | rdf_mapping.PropertyKind.Data =>
+              let o5 ← rdf_mapping.node_iri t1.object
+              match o5 with
+              | none => ok rdf_mapping.Read.Fail
+              | some iri =>
+                let s2 ←
+                  lift (Array.to_slice
+                    (Array.make 41#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
+                      116#u8, 86#u8, 97#u8, 108#u8, 117#u8, 101#u8
+                      ]))
+                let o6 ←
+                  rdf_mapping.find triples state3.used blank s2 0#usize
+                match o6 with
+                | none => ok rdf_mapping.Read.Fail
+                | some target =>
+                  let t2 ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      rdf.Triple) triples target
+                  let o7 ← rdf_mapping.node_literal t2.object
+                  match o7 with
+                  | none => ok rdf_mapping.Read.Fail
+                  | some value =>
+                    let s3 ← rdf_mapping.take state3 target
+                    ok (rdf_mapping.Read.Found
+                      (model.Axiom.NegativeDataPropertyAssertion { iri }
+                      subject value) s3)
+            | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
+
+/-- [rowl_kernel::rdf_mapping::class_assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2751:0-2770:1 -/
+def rdf_mapping.class_assertion
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let state1 ← rdf_mapping.take state index
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.subject_node t.subject
+  let o1 ← rdf_mapping.node_individual o
+  match o1 with
+  | none => ok rdf_mapping.Read.Fail
+  | some individual =>
+    let o2 ← rdf_mapping.class_expression triples kinds t.object state1 fuel
+    match o2 with
+    | none => ok rdf_mapping.Read.Fail
+    | some p =>
+      let («class», state2) := p
+      ok (rdf_mapping.Read.Found (model.Axiom.ClassAssertion «class»
+        individual) state2)
+
+/-- [rowl_kernel::rdf_mapping::blank_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2773:0-2778:1 -/
+def rdf_mapping.blank_subject (triple : rdf.Triple) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri _ => ok false
+  | rdf.Subject.Blank _ => ok true
+
+/-- [rowl_kernel::vocabulary::prefix_from]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 22:0-32:1 -/
+def vocabulary.prefix_from
+  (key : alloc.vec.Vec Std.U8) («prefix» : Slice Std.U8) (index : Std.Usize)
+  :
+  Result Bool
+  := do
+  let i := Slice.len «prefix»
+  if index >= i
+  then ok true
+  else
+    let i1 := alloc.vec.Vec.len key
+    if index >= i1
+    then ok false
+    else
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+          index
+      let i3 ← Slice.index_usize «prefix» index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           vocabulary.prefix_from key «prefix» i4
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::vocabulary::reserved_iri]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 35:0-40:1
+    Visibility: public -/
+def vocabulary.reserved_iri (key : alloc.vec.Vec Std.U8) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 43#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8
+        ]))
+  let b ← vocabulary.prefix_from key s 0#usize
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8
+          ]))
+    let b1 ← vocabulary.prefix_from key s1 0#usize
+    if b1
+    then ok true
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 33#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8
+            ]))
+      let b2 ← vocabulary.prefix_from key s2 0#usize
+      if b2
+      then ok true
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 30#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8
+              ]))
+        vocabulary.prefix_from key s3 0#usize
+
+/-- [rowl_kernel::rdf_mapping::reserved_object]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2848:0-2863:1 -/
+def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let b ← vocabulary.reserved_iri iri.spelling
+    if b
+    then
+      let s ←
+        lift (Array.to_slice
+          (Array.make 35#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 84#u8, 104#u8, 105#u8,
+            110#u8, 103#u8
+            ]))
+      let b1 ← rdf_mapping.same iri.spelling s
+      if b1
+      then ok false
+      else
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 37#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 111#u8, 116#u8,
+              104#u8, 105#u8, 110#u8, 103#u8
+              ]))
+        let b2 ← rdf_mapping.same iri.spelling s1
+        ok (¬ b2)
+    else ok false
+  | rdf.Object.Blank _ => ok false
+  | rdf.Object.Literal _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::typing]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2781:0-2843:1 -/
+def rdf_mapping.typing
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let s ←
+    lift (Array.to_slice
+      (Array.make 41#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 82#u8, 101#u8, 115#u8, 116#u8, 114#u8, 105#u8, 99#u8,
+        116#u8, 105#u8, 111#u8, 110#u8
+        ]))
+  let b ← rdf_mapping.object_is t.object s
+  if b
+  then
+    let b1 ← rdf_mapping.blank_subject t
+    if b1
+    then ok (rdf_mapping.Read.Skip state)
+    else ok rdf_mapping.Read.Fail
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 35#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+          ]))
+    let b1 ← rdf_mapping.object_is t.object s1
+    if b1
+    then
+      let b2 ← rdf_mapping.blank_subject t
+      if b2
+      then ok (rdf_mapping.Read.Skip state)
+      else ok rdf_mapping.Read.Fail
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+            47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8,
+            101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
+            121#u8, 112#u8, 101#u8
+            ]))
+      let b2 ← rdf_mapping.object_is t.object s2
+      if b2
+      then
+        let b3 ← rdf_mapping.blank_subject t
+        if b3
+        then ok (rdf_mapping.Read.Skip state)
+        else ok rdf_mapping.Read.Fail
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 48#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 70#u8, 117#u8, 110#u8,
+              99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 97#u8, 108#u8, 80#u8,
+              114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+              ]))
+        let b3 ← rdf_mapping.object_is t.object s3
+        if b3
+        then rdf_mapping.characteristic triples kinds index state 0#u8
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 55#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 73#u8, 110#u8, 118#u8,
+                101#u8, 114#u8, 115#u8, 101#u8, 70#u8, 117#u8, 110#u8, 99#u8,
+                116#u8, 105#u8, 111#u8, 110#u8, 97#u8, 108#u8, 80#u8, 114#u8,
+                111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                ]))
+          let b4 ← rdf_mapping.object_is t.object s4
+          if b4
+          then rdf_mapping.characteristic triples kinds index state 1#u8
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 47#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 82#u8, 101#u8,
+                  102#u8, 108#u8, 101#u8, 120#u8, 105#u8, 118#u8, 101#u8,
+                  80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                  ]))
+            let b5 ← rdf_mapping.object_is t.object s5
+            if b5
+            then rdf_mapping.characteristic triples kinds index state 2#u8
+            else
+              let s6 ←
+                lift (Array.to_slice
+                  (Array.make 49#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    73#u8, 114#u8, 114#u8, 101#u8, 102#u8, 108#u8, 101#u8,
+                    120#u8, 105#u8, 118#u8, 101#u8, 80#u8, 114#u8, 111#u8,
+                    112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                    ]))
+              let b6 ← rdf_mapping.object_is t.object s6
+              if b6
+              then rdf_mapping.characteristic triples kinds index state 3#u8
+              else
+                let s7 ←
+                  lift (Array.to_slice
+                    (Array.make 47#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 83#u8, 121#u8, 109#u8, 109#u8, 101#u8,
+                      116#u8, 114#u8, 105#u8, 99#u8, 80#u8, 114#u8, 111#u8,
+                      112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                      ]))
+                let b7 ← rdf_mapping.object_is t.object s7
+                if b7
+                then rdf_mapping.characteristic triples kinds index state 4#u8
+                else
+                  let s8 ←
+                    lift (Array.to_slice
+                      (Array.make 48#usize [
+                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                        108#u8, 35#u8, 65#u8, 115#u8, 121#u8, 109#u8, 109#u8,
+                        101#u8, 116#u8, 114#u8, 105#u8, 99#u8, 80#u8, 114#u8,
+                        111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                        ]))
+                  let b8 ← rdf_mapping.object_is t.object s8
+                  if b8
+                  then
+                    rdf_mapping.characteristic triples kinds index state 5#u8
+                  else
+                    let s9 ←
+                      lift (Array.to_slice
+                        (Array.make 48#usize [
+                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                          108#u8, 35#u8, 84#u8, 114#u8, 97#u8, 110#u8, 115#u8,
+                          105#u8, 116#u8, 105#u8, 118#u8, 101#u8, 80#u8,
+                          114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                          121#u8
+                          ]))
+                    let b9 ← rdf_mapping.object_is t.object s9
+                    if b9
+                    then
+                      rdf_mapping.characteristic triples kinds index state 6#u8
+                    else
+                      let s10 ←
+                        lift (Array.to_slice
+                          (Array.make 48#usize [
+                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
+                            48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8,
+                            111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 108#u8,
+                            108#u8, 68#u8, 105#u8, 115#u8, 106#u8, 111#u8,
+                            105#u8, 110#u8, 116#u8, 67#u8, 108#u8, 97#u8,
+                            115#u8, 115#u8, 101#u8, 115#u8
+                            ]))
+                      let b10 ← rdf_mapping.object_is t.object s10
+                      if b10
+                      then
+                        rdf_mapping.all_disjoint_classes triples kinds index
+                          state fuel
+                      else
+                        let s11 ←
+                          lift (Array.to_slice
+                            (Array.make 51#usize [
+                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                              50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8,
+                              108#u8, 108#u8, 68#u8, 105#u8, 115#u8, 106#u8,
+                              111#u8, 105#u8, 110#u8, 116#u8, 80#u8, 114#u8,
+                              111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 105#u8,
+                              101#u8, 115#u8
+                              ]))
+                        let b11 ← rdf_mapping.object_is t.object s11
+                        if b11
+                        then
+                          rdf_mapping.all_disjoint_properties triples kinds
+                            index state fuel
+                        else
+                          let s12 ←
+                            lift (Array.to_slice
+                              (Array.make 42#usize [
+                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                65#u8, 108#u8, 108#u8, 68#u8, 105#u8, 102#u8,
+                                102#u8, 101#u8, 114#u8, 101#u8, 110#u8, 116#u8
+                                ]))
+                          let b12 ← rdf_mapping.object_is t.object s12
+                          if b12
+                          then
+                            rdf_mapping.all_different triples index state fuel
+                          else
+                            let s13 ←
+                              lift (Array.to_slice
+                                (Array.make 55#usize [
+                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                  78#u8, 101#u8, 103#u8, 97#u8, 116#u8, 105#u8,
+                                  118#u8, 101#u8, 80#u8, 114#u8, 111#u8,
+                                  112#u8, 101#u8, 114#u8, 116#u8, 121#u8,
+                                  65#u8, 115#u8, 115#u8, 101#u8, 114#u8,
+                                  116#u8, 105#u8, 111#u8, 110#u8
+                                  ]))
+                            let b13 ← rdf_mapping.object_is t.object s13
+                            if b13
+                            then
+                              rdf_mapping.negative_assertion triples kinds
+                                index state
+                            else
+                              let b14 ← rdf_mapping.reserved_object t.object
+                              if b14
+                              then ok rdf_mapping.Read.Fail
+                              else
+                                rdf_mapping.class_assertion triples kinds index
+                                  state fuel
+
+/-- [rowl_kernel::rdf_mapping::annotation_value]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2925:0-2937:1 -/
+def rdf_mapping.annotation_value
+  (node : rdf.Object) : Result (Option model.AnnotationValue) := do
+  match node with
+  | rdf.Object.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (some (model.AnnotationValue.Iri i))
+  | rdf.Object.Blank blank =>
+    let v ← nnf.copy_bytes blank.scope
+    let v1 ← nnf.copy_bytes blank.label
+    ok (some (model.AnnotationValue.Anonymous { scope := v, label := v1 }))
+  | rdf.Object.Literal literal =>
+    let o ← rdf_mapping.literal_of literal
+    match o with
+    | none => ok none
+    | some value => ok (some (model.AnnotationValue.Literal value))
+
+/-- [rowl_kernel::rdf_mapping::annotation_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2915:0-2923:1 -/
+def rdf_mapping.annotation_subject
+  (subject : rdf.Subject) : Result model.AnnotationSubject := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let i ← rdf_mapping.iri_of iri.spelling
+    ok (model.AnnotationSubject.Iri i)
+  | rdf.Subject.Blank blank =>
+    let v ← nnf.copy_bytes blank.scope
+    let v1 ← nnf.copy_bytes blank.label
+    ok (model.AnnotationSubject.Anonymous { scope := v, label := v1 })
+
+/-- [rowl_kernel::rdf_mapping::assertion]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2866:0-2913:1 -/
+def rdf_mapping.assertion
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) :
+  Result rdf_mapping.Read
+  := do
+  let triple ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let o ← rdf_mapping.property_kind kinds triple.predicate.spelling
+  match o with
+  | none => ok rdf_mapping.Read.Fail
+  | some pk =>
+    match pk with
+    | rdf_mapping.PropertyKind.Object =>
+      let o1 ← rdf_mapping.individual_pair triples index
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some p =>
+        let (subject, object) := p
+        let i ← rdf_mapping.iri_of triple.predicate.spelling
+        let s ← rdf_mapping.take state index
+        ok (rdf_mapping.Read.Found (model.Axiom.ObjectPropertyAssertion
+          (model.ObjectPropertyExpression.Property { iri := i }) subject
+          object) s)
+    | rdf_mapping.PropertyKind.Data =>
+      let o1 ← rdf_mapping.subject_node triple.subject
+      let o2 ← rdf_mapping.node_individual o1
+      match o2 with
+      | none => ok rdf_mapping.Read.Fail
+      | some subject =>
+        let o3 ← rdf_mapping.node_literal triple.object
+        match o3 with
+        | none => ok rdf_mapping.Read.Fail
+        | some value =>
+          let i ← rdf_mapping.iri_of triple.predicate.spelling
+          let s ← rdf_mapping.take state index
+          ok (rdf_mapping.Read.Found (model.Axiom.DataPropertyAssertion
+            { iri := i } subject value) s)
+    | rdf_mapping.PropertyKind.Annotation =>
+      let o1 ← rdf_mapping.annotation_value triple.object
+      match o1 with
+      | none => ok rdf_mapping.Read.Fail
+      | some value =>
+        let i ← rdf_mapping.iri_of triple.predicate.spelling
+        let «as» ← rdf_mapping.annotation_subject triple.subject
+        let s ← rdf_mapping.take state index
+        ok (rdf_mapping.Read.Found (model.Axiom.AnnotationAssertion
+          { iri := i } «as» value) s)
+
+/-- [rowl_kernel::rdf_mapping::structural]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2940:0-2951:1 -/
+def rdf_mapping.structural
+  («name» : alloc.vec.Vec Std.U8) : Result Bool := do
+  let b ← vocabulary.reserved_iri «name»
+  if b
+  then
+    let o ← builtins.builtin_kind «name»
+    match o with
+    | none => ok true
+    | some ek =>
+      match ek with
+      | typing.EntityKind.Class => ok true
+      | typing.EntityKind.Datatype => ok true
+      | typing.EntityKind.ObjectProperty => ok false
+      | typing.EntityKind.DataProperty => ok false
+      | typing.EntityKind.AnnotationProperty => ok false
+      | typing.EntityKind.NamedIndividual => ok true
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::read_axiom]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2954:0-2997:1 -/
+def rdf_mapping.read_axiom
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  Result rdf_mapping.Read
+  := do
+  let t ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+      triples index
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+        101#u8
+        ]))
+  let b ← rdf_mapping.same t.predicate.spelling s
+  if b
+  then rdf_mapping.typing triples kinds index state fuel
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 47#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8, 115#u8, 117#u8, 98#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8,
+          79#u8, 102#u8
+          ]))
+    let b1 ← rdf_mapping.same t.predicate.spelling s1
+    if b1
+    then rdf_mapping.sub_class triples kinds index state fuel
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 45#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 101#u8, 113#u8, 117#u8,
+            105#u8, 118#u8, 97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 67#u8,
+            108#u8, 97#u8, 115#u8, 115#u8
+            ]))
+      let b2 ← rdf_mapping.same t.predicate.spelling s2
+      if b2
+      then rdf_mapping.equivalent_class triples kinds index state fuel
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 42#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
+              106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
+              104#u8
+              ]))
+        let b3 ← rdf_mapping.same t.predicate.spelling s3
+        if b3
+        then rdf_mapping.disjoint_class triples kinds index state fuel
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 45#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 100#u8, 105#u8, 115#u8,
+                106#u8, 111#u8, 105#u8, 110#u8, 116#u8, 85#u8, 110#u8, 105#u8,
+                111#u8, 110#u8, 79#u8, 102#u8
+                ]))
+          let b4 ← rdf_mapping.same t.predicate.spelling s4
+          if b4
+          then rdf_mapping.disjoint_union triples kinds index state fuel
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 50#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8,
+                  49#u8, 47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
+                  104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 115#u8, 117#u8, 98#u8,
+                  80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                  121#u8, 79#u8, 102#u8
+                  ]))
+            let b5 ← rdf_mapping.same t.predicate.spelling s5
+            if b5
+            then rdf_mapping.sub_property triples kinds index state
+            else
+              let s6 ←
+                lift (Array.to_slice
+                  (Array.make 48#usize [
+                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                    119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                    111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8,
+                    47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                    112#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+                    121#u8, 67#u8, 104#u8, 97#u8, 105#u8, 110#u8, 65#u8,
+                    120#u8, 105#u8, 111#u8, 109#u8
+                    ]))
+              let b6 ← rdf_mapping.same t.predicate.spelling s6
+              if b6
+              then rdf_mapping.property_chain triples kinds index state fuel
+              else
+                let s7 ←
+                  lift (Array.to_slice
+                    (Array.make 48#usize [
+                      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                      119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                      111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                      50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                      108#u8, 35#u8, 101#u8, 113#u8, 117#u8, 105#u8, 118#u8,
+                      97#u8, 108#u8, 101#u8, 110#u8, 116#u8, 80#u8, 114#u8,
+                      111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                      ]))
+                let b7 ← rdf_mapping.same t.predicate.spelling s7
+                if b7
+                then rdf_mapping.equivalent_property triples kinds index state
+                else
+                  let s8 ←
+                    lift (Array.to_slice
+                      (Array.make 50#usize [
+                        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                        119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                        111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                        50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                        108#u8, 35#u8, 112#u8, 114#u8, 111#u8, 112#u8, 101#u8,
+                        114#u8, 116#u8, 121#u8, 68#u8, 105#u8, 115#u8, 106#u8,
+                        111#u8, 105#u8, 110#u8, 116#u8, 87#u8, 105#u8, 116#u8,
+                        104#u8
+                        ]))
+                  let b8 ← rdf_mapping.same t.predicate.spelling s8
+                  if b8
+                  then rdf_mapping.disjoint_property triples kinds index state
+                  else
+                    let s9 ←
+                      lift (Array.to_slice
+                        (Array.make 39#usize [
+                          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8,
+                          119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8,
+                          111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                          50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+                          108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8,
+                          114#u8, 115#u8, 101#u8, 79#u8, 102#u8
+                          ]))
+                    let b9 ← rdf_mapping.same t.predicate.spelling s9
+                    if b9
+                    then rdf_mapping.inverse_properties triples index state
+                    else
+                      let s10 ←
+                        lift (Array.to_slice
+                          (Array.make 43#usize [
+                            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                            47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                            51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8,
+                            48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8,
+                            114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 99#u8,
+                            104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8,
+                            111#u8, 109#u8, 97#u8, 105#u8, 110#u8
+                            ]))
+                      let b10 ← rdf_mapping.same t.predicate.spelling s10
+                      if b10
+                      then
+                        rdf_mapping.domain_range triples kinds index state
+                          false fuel
+                      else
+                        let s11 ←
+                          lift (Array.to_slice
+                            (Array.make 42#usize [
+                              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                              47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                              51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                              50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8,
+                              47#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+                              99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+                              114#u8, 97#u8, 110#u8, 103#u8, 101#u8
+                              ]))
+                        let b11 ← rdf_mapping.same t.predicate.spelling s11
+                        if b11
+                        then
+                          rdf_mapping.domain_range triples kinds index state
+                            true fuel
+                        else
+                          let s12 ←
+                            lift (Array.to_slice
+                              (Array.make 36#usize [
+                                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                115#u8, 97#u8, 109#u8, 101#u8, 65#u8, 115#u8
+                                ]))
+                          let b12 ← rdf_mapping.same t.predicate.spelling s12
+                          if b12
+                          then rdf_mapping.same_individual triples index state
+                          else
+                            let s13 ←
+                              lift (Array.to_slice
+                                (Array.make 43#usize [
+                                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8,
+                                  47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8,
+                                  51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+                                  50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8,
+                                  100#u8, 105#u8, 102#u8, 102#u8, 101#u8,
+                                  114#u8, 101#u8, 110#u8, 116#u8, 70#u8,
+                                  114#u8, 111#u8, 109#u8
+                                  ]))
+                            let b13 ←
+                              rdf_mapping.same t.predicate.spelling s13
+                            if b13
+                            then
+                              rdf_mapping.different_individuals triples index
+                                state
+                            else
+                              let s14 ←
+                                lift (Array.to_slice
+                                  (Array.make 36#usize [
+                                    104#u8, 116#u8, 116#u8, 112#u8, 58#u8,
+                                    47#u8, 47#u8, 119#u8, 119#u8, 119#u8,
+                                    46#u8, 119#u8, 51#u8, 46#u8, 111#u8,
+                                    114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8,
+                                    50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+                                    119#u8, 108#u8, 35#u8, 104#u8, 97#u8,
+                                    115#u8, 75#u8, 101#u8, 121#u8
+                                    ]))
+                              let b14 ←
+                                rdf_mapping.same t.predicate.spelling s14
+                              if b14
+                              then
+                                rdf_mapping.has_key triples kinds index state
+                                  fuel
+                              else
+                                let b15 ←
+                                  rdf_mapping.structural t.predicate.spelling
+                                if b15
+                                then ok (rdf_mapping.Read.Skip state)
+                                else
+                                  rdf_mapping.assertion triples kinds index
+                                    state
+
+/-- [rowl_kernel::rdf_mapping::axioms_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3001:0-3031:1 -/
+def rdf_mapping.axioms_from
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
+  (state : rdf_mapping.State) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used state.used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.axioms_from triples kinds i1 state out
+    else
+      let i1 := alloc.vec.Vec.len triples
+      let r ← rdf_mapping.read_axiom triples kinds index state i1
+      match r with
+      | rdf_mapping.Read.Skip state1 =>
+        let i2 ← index + 1#usize
+        rdf_mapping.axioms_from triples kinds i2 state1 out
+      | rdf_mapping.Read.Found «axiom» state1 =>
+        let i2 := alloc.vec.Vec.len out
+        if i2 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({ annotations := (alloc.vec.Vec.new model.Annotation), «axiom»
+               } : model.AnnotatedAxiom)
+          let i3 ← index + 1#usize
+          rdf_mapping.axioms_from triples kinds i3 state1 out1
+        else ok none
+      | rdf_mapping.Read.Fail => ok none
+  else ok (some (out, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::declaration_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3034:0-3050:1 -/
+def rdf_mapping.declaration_kind
+  (object : rdf.Object) : Result (Option typing.EntityKind) := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
+        ]))
+  let b ← rdf_mapping.object_is object s
+  if b
+  then ok (some typing.EntityKind.Class)
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 45#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
+          ]))
+    let b1 ← rdf_mapping.object_is object s1
+    if b1
+    then ok (some typing.EntityKind.Datatype)
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 44#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+            47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+            99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+            116#u8, 121#u8
+            ]))
+      let b2 ← rdf_mapping.object_is object s2
+      if b2
+      then ok (some typing.EntityKind.ObjectProperty)
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 46#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 68#u8, 97#u8, 116#u8,
+              97#u8, 116#u8, 121#u8, 112#u8, 101#u8, 80#u8, 114#u8, 111#u8,
+              112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+              ]))
+        let b3 ← rdf_mapping.object_is object s3
+        if b3
+        then ok (some typing.EntityKind.DataProperty)
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 48#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 65#u8, 110#u8, 110#u8,
+                111#u8, 116#u8, 97#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8,
+                114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+                ]))
+          let b4 ← rdf_mapping.object_is object s4
+          if b4
+          then ok (some typing.EntityKind.AnnotationProperty)
+          else
+            let s5 ←
+              lift (Array.to_slice
+                (Array.make 45#usize [
+                  104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                  119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                  103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8,
+                  55#u8, 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 78#u8, 97#u8,
+                  109#u8, 101#u8, 100#u8, 73#u8, 110#u8, 100#u8, 105#u8,
+                  118#u8, 105#u8, 100#u8, 117#u8, 97#u8, 108#u8
+                  ]))
+            let b5 ← rdf_mapping.object_is object s5
+            if b5
+            then ok (some typing.EntityKind.NamedIndividual)
+            else ok none
+
+/-- [rowl_kernel::rdf_mapping::entity_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3052:0-3062:1 -/
+def rdf_mapping.entity_of
+  (kind : typing.EntityKind) (spelling : alloc.vec.Vec Std.U8) :
+  Result model.Entity
+  := do
+  let iri ← rdf_mapping.iri_of spelling
+  match kind with
+  | typing.EntityKind.Class => ok (model.Entity.Class { iri })
+  | typing.EntityKind.Datatype => ok (model.Entity.Datatype { iri })
+  | typing.EntityKind.ObjectProperty =>
+    ok (model.Entity.ObjectProperty { iri })
+  | typing.EntityKind.DataProperty => ok (model.Entity.DataProperty { iri })
+  | typing.EntityKind.AnnotationProperty =>
+    ok (model.Entity.AnnotationProperty { iri })
+  | typing.EntityKind.NamedIndividual =>
+    ok (model.Entity.NamedIndividual { iri })
+
+/-- [rowl_kernel::rdf_mapping::copy_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3064:0-3073:1 -/
+def rdf_mapping.copy_kind
+  (kind : typing.EntityKind) : Result typing.EntityKind := do
+  match kind with
+  | typing.EntityKind.Class => ok typing.EntityKind.Class
+  | typing.EntityKind.Datatype => ok typing.EntityKind.Datatype
+  | typing.EntityKind.ObjectProperty => ok typing.EntityKind.ObjectProperty
+  | typing.EntityKind.DataProperty => ok typing.EntityKind.DataProperty
+  | typing.EntityKind.AnnotationProperty =>
+    ok typing.EntityKind.AnnotationProperty
+  | typing.EntityKind.NamedIndividual => ok typing.EntityKind.NamedIndividual
+
+/-- [rowl_kernel::rdf_mapping::declarations]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3076:0-3124:1 -/
+def rdf_mapping.declarations
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (state : rdf_mapping.State) (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared) :
+  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × (alloc.vec.Vec
+    rdf_mapping.Declared) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let triple ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let s ←
+      lift (Array.to_slice
+        (Array.make 47#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+          45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+          97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+          101#u8
+          ]))
+    let b ← rdf_mapping.same triple.predicate.spelling s
+    let declared ←
+      if b
+      then
+        match triple.subject with
+        | rdf.Subject.Iri iri =>
+          do
+          let o ← rdf_mapping.declaration_kind triple.object
+          match o with
+          | none => ok none
+          | some kind =>
+            let v ← nnf.copy_bytes iri.spelling
+            ok (some (v, kind))
+        | rdf.Subject.Blank _ => ok none
+      else ok none
+    match declared with
+    | none =>
+      let i1 ← index + 1#usize
+      rdf_mapping.declarations triples i1 state axioms kinds
+    | some p =>
+      let (spelling, kind) := p
+      let i1 := alloc.vec.Vec.len axioms
+      if i1 < core.num.Usize.MAX
+      then
+        let i2 := alloc.vec.Vec.len kinds
+        if i2 < core.num.Usize.MAX
+        then
+          let e ← rdf_mapping.entity_of kind spelling
+          let axioms1 ←
+            alloc.vec.Vec.push axioms
+              ({
+                 annotations := (alloc.vec.Vec.new model.Annotation),
+                 «axiom» := (model.Axiom.Declaration e)
+               } : model.AnnotatedAxiom)
+          let ek ← rdf_mapping.copy_kind kind
+          let kinds1 ←
+            alloc.vec.Vec.push kinds ({ iri := spelling, kind := ek } :
+              rdf_mapping.Declared)
+          let i3 ← index + 1#usize
+          let s1 ← rdf_mapping.take state index
+          rdf_mapping.declarations triples i3 s1 axioms1 kinds1
+        else ok none
+      else ok none
+  else ok (some (axioms, kinds, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::find_header]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3127:0-3152:1 -/
+def rdf_mapping.find_header
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then let i1 ← index + 1#usize
+         rdf_mapping.find_header triples used i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let s ←
+        lift (Array.to_slice
+          (Array.make 47#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
+            47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8,
+            121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
+            35#u8, 116#u8, 121#u8, 112#u8, 101#u8
+            ]))
+      let b1 ← rdf_mapping.same t.predicate.spelling s
+      if b1
+      then
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 38#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 79#u8, 110#u8, 116#u8,
+              111#u8, 108#u8, 111#u8, 103#u8, 121#u8
+              ]))
+        let b2 ← rdf_mapping.object_is t.object s1
+        if b2
+        then
+          match t.subject with
+          | rdf.Subject.Iri _ => ok (some index)
+          | rdf.Subject.Blank _ =>
+            let i1 ← index + 1#usize
+            rdf_mapping.find_header triples used i1
+        else let i1 ← index + 1#usize
+             rdf_mapping.find_header triples used i1
+      else let i1 ← index + 1#usize
+           rdf_mapping.find_header triples used i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::about_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3155:0-3160:1 -/
+def rdf_mapping.about_iri
+  (triple : rdf.Triple) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  match triple.subject with
+  | rdf.Subject.Iri iri => rdf_mapping.same_vec iri.spelling spelling
+  | rdf.Subject.Blank _ => ok false
+
+/-- [rowl_kernel::rdf_mapping::header_parts]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3164:0-3284:1 -/
+def rdf_mapping.header_parts
+  (triples : alloc.vec.Vec rdf.Triple)
+  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (ontology : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (state : rdf_mapping.State) (version : Option model.Iri)
+  (imports : alloc.vec.Vec model.Iri)
+  (annotations : alloc.vec.Vec model.Annotation) :
+  Result (Option ((Option model.Iri) × (alloc.vec.Vec model.Iri) ×
+    (alloc.vec.Vec model.Annotation) × rdf_mapping.State))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used state.used index
+    if b
+    then
+      let i1 ← index + 1#usize
+      rdf_mapping.header_parts triples kinds ontology i1 state version imports
+        annotations
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.about_iri t ontology
+      if b1
+      then
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 118#u8, 101#u8, 114#u8,
+              115#u8, 105#u8, 111#u8, 110#u8, 73#u8, 82#u8, 73#u8
+              ]))
+        let b2 ← rdf_mapping.same t.predicate.spelling s
+        if b2
+        then
+          match version with
+          | none =>
+            let o ← rdf_mapping.node_iri t.object
+            match o with
+            | none => ok none
+            | some _ =>
+              let i1 ← index + 1#usize
+              let s1 ← rdf_mapping.take state index
+              rdf_mapping.header_parts triples kinds ontology i1 s1 o imports
+                annotations
+          | some _ => ok none
+        else
+          let s1 ←
+            lift (Array.to_slice
+              (Array.make 37#usize [
+                104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+                119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+                103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+                47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 105#u8, 109#u8, 112#u8,
+                111#u8, 114#u8, 116#u8, 115#u8
+                ]))
+          let b3 ← rdf_mapping.same t.predicate.spelling s1
+          if b3
+          then
+            let o ← rdf_mapping.node_iri t.object
+            match o with
+            | none => ok none
+            | some iri =>
+              let i1 := alloc.vec.Vec.len imports
+              if i1 < core.num.Usize.MAX
+              then
+                let imports1 ← alloc.vec.Vec.push imports iri
+                let i2 ← index + 1#usize
+                let s2 ← rdf_mapping.take state index
+                rdf_mapping.header_parts triples kinds ontology i2 s2 version
+                  imports1 annotations
+              else ok none
+          else
+            let o ← rdf_mapping.property_kind kinds t.predicate.spelling
+            match o with
+            | none =>
+              let i1 ← index + 1#usize
+              rdf_mapping.header_parts triples kinds ontology i1 state version
+                imports annotations
+            | some pk =>
+              match pk with
+              | rdf_mapping.PropertyKind.Object =>
+                let i1 ← index + 1#usize
+                rdf_mapping.header_parts triples kinds ontology i1 state
+                  version imports annotations
+              | rdf_mapping.PropertyKind.Data =>
+                let i1 ← index + 1#usize
+                rdf_mapping.header_parts triples kinds ontology i1 state
+                  version imports annotations
+              | rdf_mapping.PropertyKind.Annotation =>
+                let o1 ← rdf_mapping.annotation_value t.object
+                match o1 with
+                | none => ok none
+                | some value =>
+                  let i1 := alloc.vec.Vec.len annotations
+                  if i1 < core.num.Usize.MAX
+                  then
+                    let i2 ← rdf_mapping.iri_of t.predicate.spelling
+                    let annotations1 ←
+                      alloc.vec.Vec.push annotations (model.Annotation.mk
+                        (alloc.vec.Vec.new model.Annotation) ({ iri := i2 } :
+                        model.AnnotationProperty) value)
+                    let i3 ← index + 1#usize
+                    let s2 ← rdf_mapping.take state index
+                    rdf_mapping.header_parts triples kinds ontology i3 s2
+                      version imports annotations1
+                  else ok none
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.header_parts triples kinds ontology i1 state version
+          imports annotations
+  else ok (some (version, imports, annotations, state))
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::repeats_used]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3287:0-3301:1 -/
+def rdf_mapping.repeats_used
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (triple : rdf.Triple) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.same_triple t triple
+      if b1
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.repeats_used triples used triple i1
+    else
+      let i1 ← index + 1#usize
+      rdf_mapping.repeats_used triples used triple i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::all_read]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3304:0-3316:1 -/
+def rdf_mapping.all_read
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let b ← rdf_mapping.is_used used index
+    if b
+    then let i1 ← index + 1#usize
+         rdf_mapping.all_read triples used i1
+    else
+      let t ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          triples index
+      let b1 ← rdf_mapping.repeats_used triples used t 0#usize
+      if b1
+      then let i1 ← index + 1#usize
+           rdf_mapping.all_read triples used i1
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::unused]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3318:0-3325:1 -/
+def rdf_mapping.unused
+  (count : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then let out1 ← alloc.vec.Vec.push out false
+       rdf_mapping.unused count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::map_graph]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3330:0-3390:1
+    Visibility: public -/
+def rdf_mapping.map_graph
+  (graph : rdf.RawGraph) : Result (Option rdf_mapping.Mapped) := do
+  let i := alloc.vec.Vec.len graph.triples
+  let v ← rdf_mapping.unused i (alloc.vec.Vec.new Bool)
+  let o ←
+    rdf_mapping.declarations graph.triples 0#usize
+      { used := v, blanks := (alloc.vec.Vec.new rdf.BlankNode) }
+      (alloc.vec.Vec.new model.AnnotatedAxiom) (alloc.vec.Vec.new
+      rdf_mapping.Declared)
+  match o with
+  | none => ok none
+  | some t =>
+    let (axioms, kinds, state) := t
+    let o1 ← rdf_mapping.find_header graph.triples state.used 0#usize
+    match o1 with
+    | none =>
+      let o2 ←
+        rdf_mapping.axioms_from graph.triples kinds 0#usize state axioms
+      match o2 with
+      | none => ok none
+      | some p =>
+        let (axioms1, state1) := p
+        let b ← rdf_mapping.all_read graph.triples state1.used 0#usize
+        if b
+        then
+          ok (some
+            {
+              ontology :=
+                {
+                  identity := model.OntologyIdentity.Anonymous,
+                  imports := (alloc.vec.Vec.new model.Iri),
+                  annotations := (alloc.vec.Vec.new model.Annotation),
+                  axioms := axioms1
+                },
+              blanks := state1.blanks
+            })
+        else ok none
+    | some header =>
+      let t1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+          graph.triples header
+      match t1.subject with
+      | rdf.Subject.Iri iri =>
+        let state1 ← rdf_mapping.take state header
+        let o2 ←
+          rdf_mapping.header_parts graph.triples kinds iri.spelling 0#usize
+            state1 none (alloc.vec.Vec.new model.Iri) (alloc.vec.Vec.new
+            model.Annotation)
+        match o2 with
+        | none => ok none
+        | some t2 =>
+          let (version, imports, annotations, state2) := t2
+          let i1 ← rdf_mapping.iri_of iri.spelling
+          let o3 ←
+            rdf_mapping.axioms_from graph.triples kinds 0#usize state2 axioms
+          match o3 with
+          | none => ok none
+          | some p =>
+            let (axioms1, state3) := p
+            let b ← rdf_mapping.all_read graph.triples state3.used 0#usize
+            if b
+            then
+              ok (some
+                {
+                  ontology :=
+                    {
+                      identity := (model.OntologyIdentity.Named i1 version),
+                      imports,
+                      annotations,
+                      axioms := axioms1
+                    },
+                  blanks := state3.blanks
+                })
+            else ok none
+      | rdf.Subject.Blank _ => ok none
+
 /-- [rowl_kernel::roles::Role]
     Source: 'crates/rowl-kernel/src/roles.rs', lines 15:0-18:1
     Visibility: public -/
@@ -50075,83 +54881,6 @@ inductive vocabulary.VocabularyResult where
   model.Iri →
   typing.EntityKind →
   vocabulary.VocabularyResult
-
-/-- [rowl_kernel::vocabulary::prefix_from]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 22:0-32:1 -/
-def vocabulary.prefix_from
-  (key : alloc.vec.Vec Std.U8) («prefix» : Slice Std.U8) (index : Std.Usize)
-  :
-  Result Bool
-  := do
-  let i := Slice.len «prefix»
-  if index >= i
-  then ok true
-  else
-    let i1 := alloc.vec.Vec.len key
-    if index >= i1
-    then ok false
-    else
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-          index
-      let i3 ← Slice.index_usize «prefix» index
-      if i2 = i3
-      then let i4 ← index + 1#usize
-           vocabulary.prefix_from key «prefix» i4
-      else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::vocabulary::reserved_iri]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 35:0-40:1
-    Visibility: public -/
-def vocabulary.reserved_iri (key : alloc.vec.Vec Std.U8) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 43#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8
-        ]))
-  let b ← vocabulary.prefix_from key s 0#usize
-  if b
-  then ok true
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
-          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
-          35#u8
-          ]))
-    let b1 ← vocabulary.prefix_from key s1 0#usize
-    if b1
-    then ok true
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 33#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8
-            ]))
-      let b2 ← vocabulary.prefix_from key s2 0#usize
-      if b2
-      then ok true
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 30#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8
-              ]))
-        vocabulary.prefix_from key s3 0#usize
 
 /-- [rowl_kernel::vocabulary::entity_iri_allowed]:
     Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 44:0-63:1

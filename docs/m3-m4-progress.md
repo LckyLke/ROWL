@@ -772,9 +772,9 @@ against the pinned N-Triples Recommendation and RDF 1.1 literal requirements;
 Lean proves the code matches those productions, not the English standard itself.
 
 The writer still needs grammar, totality, output-budget and parse-after-write
-blank-isomorphism proofs. Canonical blank scopes across imports, RDF-to-OWL
-mapping, the OWL 2012/RDF 1.1 literal bridge and the other required serializations
-remain separate M3 obligations. Full M3 and M4 completion claims are unchanged.
+blank-isomorphism proofs. Canonical blank scopes across imports, the completeness
+of the RDF-to-OWL mapping, the writing direction of the OWL 2012/RDF 1.1 literal
+bridge and the other required serializations remain separate M3 obligations. Full M3 and M4 completion claims are unchanged.
 
 
 ## M4: complete raw role facts
@@ -4311,3 +4311,47 @@ ontology the largest query graph has 67 nodes and classification takes 10 s.
 This block adds 7 public theorems and 2 definitions and removes
 `repeats_above_correct` and `blocked_correct`. Totals are 2312 audited
 theorems, 1097 definitions, 508 Rust regressions and 2505 ledger obligations.
+
+## M3: reading OWL ontologies from RDF graphs
+
+`rdf_mapping::map_graph` reads an OWL ontology from a raw RDF graph by the
+reverse of the OWL 2 mapping to RDF graphs (2012, §2.1-2.3, Tables 1-4). It
+first takes the declarations (`rdf:type` triples on IRIs with a declaration
+type), then the ontology header (the IRI typed `owl:Ontology`, its version IRI,
+its imports and its annotations by declared annotation properties), and then
+reads an axiom from each triple not yet read: the predicate selects the reader,
+which reads the class expressions, data ranges, property expressions and RDF
+lists the triple refers to and marks every triple it uses. A blank node of an
+expression must be typed `owl:Class`, `owl:Restriction` or `rdfs:Datatype`;
+triples about it wait until the axiom that refers to it reads them. The graph
+must declare every class, datatype and property it uses, as OWL 2 DL requires,
+and `owl:AllDisjointClasses`, `owl:AllDisjointProperties` and `owl:AllDifferent`
+need three members or more, since two-member forms use the binary vocabulary.
+The read fails when a triple is left unread, apart from exact repetitions of a
+read triple, so a blank node shared by two expressions is refused.
+
+`RdfMapping.lean` states the forward mapping independently of the Rust code, as
+relations from structural objects, a supply of fresh blank nodes in allocation
+order and a node to the triple patterns they produce (`TCE`, `TDR`, `TOPE`,
+`TAxiom`, `THeader`, `TOntology`). Triples compare through views (`Matches`):
+IRIs by spelling, blank nodes as they are, literals by lexical form and datatype
+IRI or language tag. A structural `rdf:PlainLiteral` maps to the RDF 1.1
+literal with the language tag after its last `@`, or to an `xsd:string` literal
+when that tag is empty (`LiteralNode`), and a cardinality to its canonical
+`xsd:nonNegativeInteger` spelling. Every reader is proved to use exactly the
+triples of the forward mapping of what it returns and to allocate the blank
+nodes of that mapping in order (`Grows`), the recursive readers by induction on
+their fuel (`data_range_right`, `class_expression_right`). `map_graph_correct`
+proves that whenever `map_graph` returns an ontology and its blank nodes, the
+axioms and the header carry no annotations of their own and the forward mapping
+of the ontology, allocating exactly those blank nodes, gives the input graph:
+every triple instantiates a pattern and every pattern is instantiated by a
+triple of the graph.
+
+Not proved: that the forward mapping of every such ontology is read back,
+annotated axioms and their reification, `owl:imports` closure, that the returned
+blank nodes are distinct, and RDF datasets. The reasoner does not yet read
+N-Triples through the mapping.
+
+This block adds 126 public theorems and 36 definitions. Totals are 2438 audited
+theorems, 1133 definitions, 511 Rust regressions and 2631 ledger obligations.

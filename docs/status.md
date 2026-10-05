@@ -973,7 +973,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Python layer are unverified glue that only converts text and adds no
   reasoning; the crate is the only one outside the kernel with `unsafe` code,
   confined to reading the caller's buffers and releasing handles.
-- 2312 audited public theorems and 1097 audited semantic definitions. Consistency,
+- Reading OWL from RDF graphs: `rdf_mapping::map_graph` reads an ontology from
+  a raw RDF graph by the reverse of the OWL 2 mapping to RDF graphs, for axioms
+  and headers without annotations of their own and graphs that declare every
+  class, datatype and property they use. `map_graph_correct` proves that
+  whenever it returns an ontology and its blank nodes, the forward mapping of
+  that ontology, stated independently in `RdfMapping.lean` and allocating
+  exactly those blank nodes, gives the input graph: every triple instantiates
+  one of its triple patterns and every pattern is instantiated by a triple.
+  That every such ontology is read back, annotated axioms, imports and distinct
+  blank nodes are not proved, and the reasoner does not read N-Triples through
+  the mapping yet.
+- 2438 audited public theorems and 1133 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -988,7 +999,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 508 Rust regression tests and 9 Python binding tests, plus a separately fetched
+- 511 Rust regression tests and 9 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1005,7 +1016,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2505-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2631-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1039,8 +1050,10 @@ The N-Triples token subpipeline now includes composed byte-to-blank-token
 correctness and complete acceptance, exact trivia/span-copy proofs and full
 quoted-token, IRIREF, language/literal/object/triple and bounded whole-document
 composition. Public reading is proved from bytes to exact raw graph occurrences
-under its stated term/count limits. The writer, canonical import scope assignment,
-RDF-to-OWL mapping and full byte-to-ontology pipeline remain unproved. Correspondence to W3C prose/tables is
+under its stated term/count limits. The RDF-to-OWL mapping is proved sound for
+axioms without annotations of their own; the writer, canonical import scope
+assignment, the completeness of that mapping and the full byte-to-ontology
+pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
 a reviewed specification choice, not a mechanical proof of English. See
 m2-semantics.md for the mapping.
 

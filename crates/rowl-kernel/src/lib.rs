@@ -126,6 +126,7 @@ pub mod names;
 pub mod ntriples;
 pub mod prefixes;
 pub mod rdf;
+pub mod rdf_mapping;
 pub mod regular;
 
 pub mod compiled;
