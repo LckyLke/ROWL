@@ -1,0 +1,22 @@
+[package]
+name = "rowl-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "C interface to the ROWL reasoner for the Python package in bindings/python"
+
+[lib]
+name = "rowl_python"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rowl = { path = "../rowl" }
+
+# Not the workspace lints: a C interface needs `unsafe` to read the caller's
+# buffers. Every unsafe operation is confined to this crate and documented.
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = "warn"

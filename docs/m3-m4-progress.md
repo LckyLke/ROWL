@@ -4263,3 +4263,24 @@ classify` takes 2.3 s instead of 13.4 s in a release build.
 This block adds 9 public theorems and removes `ask_spec`, `decide_spec` and
 `fill_rest_spec`. Totals are 2307 audited theorems, 1095 definitions, 506 Rust
 regressions and 2500 ledger obligations.
+
+## Python bindings
+
+The `rowl` Python package in `bindings/python` reads an OWL Functional Syntax
+document once and answers consistency, satisfiability, subsumption, instance
+and classification questions by IRI, with `True`, `False` (not entailed) or
+`None` (outside the supported fragment). It loads the C interface of the new
+`rowl-python` crate with `ctypes`, so it needs no third-party Python or Rust
+packages; `pip install --no-build-isolation ./bindings/python` builds the
+library with cargo and ships it inside the package. The crate wraps
+`rowl::reasoner::Reasoner` behind an opaque handle, takes text as UTF-8 bytes
+with a length, returns lists as JSON text and adds no reasoning. It is the only
+crate outside the kernel with `unsafe` code, confined to reading the caller's
+buffers and releasing handles and text, and it does not take the workspace's
+`unsafe_code = "forbid"` lint for that reason.
+
+Two Rust tests drive the C interface on the medication-safety example and on
+rejected documents and invalid arguments, and nine Python tests check the
+package, including that its classification agrees with the pairwise questions.
+Totals are 2307 audited theorems, 1095 definitions, 508 Rust regressions and
+2500 ledger obligations.

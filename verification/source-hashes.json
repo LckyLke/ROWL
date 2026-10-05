@@ -1,6 +1,6 @@
 {
-  "Cargo.lock": "518664904c0901ab63da9d5856490ab7aaa6b58a9f9b8d1ee59c71e8bb854535",
-  "Cargo.toml": "9c73d4dc30e40b0ba5d20e41e245e812897ed70eda8d2910b08db3311b12105b",
+  "Cargo.lock": "55a3c51f1fb56b5dc671fbbcce3604e150f0a7315f6fe5166c9163bbb425591f",
+  "Cargo.toml": "c38daa10d6b288d1f959b9b9d1b2daffaa634f2955da8abd2471704183d21d7b",
   "crates/rowl-kernel/Cargo.toml": "3b2f5e266fc7322031a3bae61966d9c0592d0f4c85768fb94c7e90a9c8f87461",
   "crates/rowl-kernel/src/abox.rs": "0cce4e9586106cd79f80fae03b1c8d15eeab0ff4bea28ab3780dd306af53b65b",
   "crates/rowl-kernel/src/alc_ontology.rs": "e8638f4bd957f7c2d96ec61144154ed1dc08bcef24b44932466345c106d29e66",

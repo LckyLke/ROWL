@@ -136,6 +136,27 @@ python3 scripts/verify.py           # re-translate the Rust code and re-check ev
 [`crates/rowl/examples`](crates/rowl/examples) has one runnable example per
 stage, from IRI checks to the `tbox`, `alc_ontology` and `shi_ontology` reasoners.
 
+## Python
+
+```sh
+pip install --no-build-isolation ./bindings/python   # builds the Rust library with cargo
+```
+
+```python
+import rowl
+
+with rowl.Reasoner.from_file("examples/medication-safety.ofn") as r:
+    med = "https://example.org/medication/"
+    r.instance_of(med + "alice", med + "AllergyAlert")      # True
+    r.subsumed(med + "Amoxicillin", med + "Penicillin")    # True
+    r.classify()                                            # every class with its superclasses
+```
+
+Answers are `True`, `False` (not entailed) or `None` (outside the supported
+fragment). The bindings pass text to the verified Rust functions through a
+small C interface and add no reasoning; see
+[`bindings/python`](bindings/python/README.md).
+
 ## Repository
 
 | Path | Contents |
@@ -143,6 +164,7 @@ stage, from IRI checks to the `tbox`, `alc_ontology` and `shi_ontology` reasoner
 | `crates/rowl-kernel` | The verified code, parser and reasoner, translated to Lean as one unit |
 | `verification/` | The generated Lean translation, the OWL 2 semantics, the proofs and the theorem registry |
 | `crates/rowl`, `crates/rowl-cli` | Examples and a thin command-line tool |
+| `crates/rowl-python`, `bindings/python` | The C interface and the Python package over it |
 | [`docs/status.md`](docs/status.md) | The precise proof boundary |
 | [`docs/architecture.md`](docs/architecture.md) | Design decisions, semantic pitfalls, milestones and release gates |
 | [`docs/m3-m4-progress.md`](docs/m3-m4-progress.md) | Each verified stage and its input contract |

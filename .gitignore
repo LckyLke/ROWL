@@ -3,3 +3,8 @@
 /verification/.lake/
 /verification/generated/*.llbc
 **/__pycache__/
+/bindings/python/build/
+/bindings/python/*.egg-info/
+/bindings/python/rowl/*.so
+/bindings/python/rowl/*.dylib
+/bindings/python/rowl/*.dll

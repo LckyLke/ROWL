@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/rowl-kernel", "crates/rowl-frontend", "crates/rowl", "crates/rowl-cli"]
+members = ["crates/rowl-kernel", "crates/rowl-frontend", "crates/rowl", "crates/rowl-cli", "crates/rowl-python"]
 resolver = "2"
 
 [workspace.package]

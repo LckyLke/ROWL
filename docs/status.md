@@ -962,6 +962,15 @@ progress. Full OWL parsing and executable reasoning are still future work.
   map and vocabulary. `Reasoner::classify` and the CLI's `classify` command use
   it; on a generated 437-class ontology it runs 871 satisfiability queries
   where pairwise classification would ask about 190 000 questions.
+- Python bindings: the `rowl` package in `bindings/python` reads a
+  Functional Syntax document once and answers consistency, satisfiability,
+  subsumption, instance and classification questions by IRI. It calls the
+  verified `Reasoner` through the C interface of the `rowl-python` crate with
+  `ctypes`, needs no third-party Python or Rust packages, and installs with
+  `pip install --no-build-isolation ./bindings/python`. The C interface and the
+  Python layer are unverified glue that only converts text and adds no
+  reasoning; the crate is the only one outside the kernel with `unsafe` code,
+  confined to reading the caller's buffers and releasing handles.
 - 2307 audited public theorems and 1095 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
@@ -977,7 +986,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 506 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 508 Rust regression tests and 9 Python binding tests, plus a separately fetched
+  68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
