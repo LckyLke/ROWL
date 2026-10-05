@@ -334,10 +334,117 @@ fn validate(grammar: Expression, bytes: &Vec<u8>) -> MatchResult {
         None => matches_utf8(grammar, bytes),
     }
 }
-/// Validate exact bytes against the `IRI` production and strict UTF-8.
+/// An ASCII letter.
+#[allow(clippy::manual_range_contains)] // RangeInclusive::contains lacks a model in the pinned extraction.
+fn ascii_letter(byte: u8) -> bool {
+    (65 <= byte && byte <= 90) || (97 <= byte && byte <= 122)
+}
+/// An ASCII digit.
+#[allow(clippy::manual_range_contains)]
+fn ascii_digit(byte: u8) -> bool {
+    48 <= byte && byte <= 57
+}
+/// An ASCII `iunreserved` character: a letter, a digit, `-`, `.`, `_` or `~`.
+fn plain(byte: u8) -> bool {
+    ascii_letter(byte) || ascii_digit(byte) || byte == 45 || byte == 46 || byte == 95 || byte == 126
+}
+/// A scheme character after the first: a letter, a digit, `+`, `-` or `.`.
+fn scheme_char(byte: u8) -> bool {
+    ascii_letter(byte) || ascii_digit(byte) || byte == 43 || byte == 45 || byte == 46
+}
+/// The end of the scheme characters from `index`.
+#[allow(clippy::ptr_arg)]
+fn scheme_end(bytes: &Vec<u8>, index: usize) -> usize {
+    if index < bytes.len() {
+        if scheme_char(bytes[index]) {
+            scheme_end(bytes, index + 1)
+        } else {
+            index
+        }
+    } else {
+        index
+    }
+}
+/// The end of the plain characters from `index`.
+#[allow(clippy::ptr_arg)]
+fn plain_end(bytes: &Vec<u8>, index: usize) -> usize {
+    if index < bytes.len() {
+        if plain(bytes[index]) {
+            plain_end(bytes, index + 1)
+        } else {
+            index
+        }
+    } else {
+        index
+    }
+}
+/// The end of the plain characters and slashes from `index`.
+#[allow(clippy::ptr_arg)]
+fn fragment_end(bytes: &Vec<u8>, index: usize) -> usize {
+    if index < bytes.len() {
+        if plain(bytes[index]) || bytes[index] == 47 {
+            fragment_end(bytes, index + 1)
+        } else {
+            index
+        }
+    } else {
+        index
+    }
+}
+/// Whether `bytes[index..]` is a sequence of segments, each a `/` and plain
+/// characters, followed by nothing or by `#` and plain characters and slashes.
+#[allow(clippy::ptr_arg)]
+fn plain_path(bytes: &Vec<u8>, index: usize) -> bool {
+    if index < bytes.len() {
+        if bytes[index] == 47 {
+            plain_path(bytes, plain_end(bytes, index + 1))
+        } else if bytes[index] == 35 {
+            fragment_end(bytes, index + 1) == bytes.len()
+        } else {
+            false
+        }
+    } else {
+        true
+    }
+}
+/// Whether `bytes` is an IRI of the common plain form
+/// `scheme://host/segment…#fragment`, whose host, segments and fragment have
+/// only ASCII letters, digits, `-`, `.`, `_` and `~` (and the fragment also
+/// `/`); such bytes are always an IRI, so the grammar need not be built.
+#[allow(clippy::ptr_arg, clippy::len_zero)] // Vec::is_empty lacks a model in the pinned extraction.
+fn plain_iri(bytes: &Vec<u8>) -> bool {
+    if 0 < bytes.len() {
+        if ascii_letter(bytes[0]) {
+            let colon = scheme_end(bytes, 1);
+            if colon < bytes.len() {
+                if bytes.len() - colon > 2 {
+                    if bytes[colon] == 58 && bytes[colon + 1] == 47 && bytes[colon + 2] == 47 {
+                        plain_path(bytes, plain_end(bytes, colon + 3))
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+/// Validate exact bytes against the `IRI` production and strict UTF-8; plain
+/// IRIs are accepted without building the grammar.
 #[allow(clippy::ptr_arg)]
 pub fn validate_iri(bytes: &Vec<u8>) -> MatchResult {
-    validate(iri(), bytes)
+    if plain_iri(bytes) {
+        MatchResult::Matched(true)
+    } else {
+        validate(iri(), bytes)
+    }
 }
 /// Validate exact bytes against `IRI-reference`; this does not resolve a base.
 #[allow(clippy::ptr_arg)]

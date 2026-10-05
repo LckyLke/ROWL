@@ -35166,6 +35166,196 @@ def names.validate_prefix
   let e ← names.prefix_grammar
   regular.matches_utf8 e bytes
 
+/-- [rowl_kernel::iri::ascii_digit]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1 -/
+def iri.ascii_digit (byte : Std.U8) : Result Bool := do
+  if 48#u8 <= byte
+  then ok (byte <= 57#u8)
+  else ok false
+
+/-- [rowl_kernel::iri::ascii_letter]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 339:0-341:1 -/
+def iri.ascii_letter (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::iri::plain]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 348:0-350:1 -/
+def iri.plain (byte : Std.U8) : Result Bool := do
+  let b ← iri.ascii_letter byte
+  if b
+  then ok true
+  else
+    let b1 ← iri.ascii_digit byte
+    if b1
+    then ok true
+    else
+      if byte = 45#u8
+      then ok true
+      else
+        if byte = 46#u8
+        then ok true
+        else if byte = 95#u8
+             then ok true
+             else ok (byte = 126#u8)
+
+/-- [rowl_kernel::iri::fragment_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 383:0-393:1 -/
+def iri.fragment_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.plain i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.fragment_end bytes i2
+    else
+      if i1 = 47#u8
+      then let i2 ← index + 1#usize
+           iri.fragment_end bytes i2
+      else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 370:0-380:1 -/
+def iri.plain_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.plain i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.plain_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_path]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 397:0-409:1 -/
+def iri.plain_path
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = 47#u8
+    then
+      let i2 ← index + 1#usize
+      let i3 ← iri.plain_end bytes i2
+      iri.plain_path bytes i3
+    else
+      if i1 = 35#u8
+      then
+        let i2 ← index + 1#usize
+        let i3 ← iri.fragment_end bytes i2
+        let i4 := alloc.vec.Vec.len bytes
+        ok (i3 = i4)
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::iri::scheme_char]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 352:0-354:1 -/
+def iri.scheme_char (byte : Std.U8) : Result Bool := do
+  let b ← iri.ascii_letter byte
+  if b
+  then ok true
+  else
+    let b1 ← iri.ascii_digit byte
+    if b1
+    then ok true
+    else
+      if byte = 43#u8
+      then ok true
+      else if byte = 45#u8
+           then ok true
+           else ok (byte = 46#u8)
+
+/-- [rowl_kernel::iri::scheme_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 357:0-367:1 -/
+def iri.scheme_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.scheme_char i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.scheme_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_iri]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 415:0-438:1 -/
+def iri.plain_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        0#usize
+    let b ← iri.ascii_letter i1
+    if b
+    then
+      let colon ← iri.scheme_end bytes 1#usize
+      let i2 := alloc.vec.Vec.len bytes
+      if colon < i2
+      then
+        let i3 := alloc.vec.Vec.len bytes
+        let i4 ← i3 - colon
+        if i4 > 2#usize
+        then
+          let i5 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+              bytes colon
+          if i5 = 58#u8
+          then
+            let i6 ← colon + 1#usize
+            let i7 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                Std.U8) bytes i6
+            if i7 = 47#u8
+            then
+              let i8 ← colon + 2#usize
+              let i9 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i8
+              if i9 = 47#u8
+              then
+                let i10 ← colon + 3#usize
+                let i11 ← iri.plain_end bytes i10
+                iri.plain_path bytes i11
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
 /-- [rowl_kernel::iri::validate]:
     Source: 'crates/rowl-kernel/src/iri.rs', lines 329:0-336:1 -/
 def iri.validate
@@ -35180,12 +35370,15 @@ def iri.validate
   | some result => ok result
 
 /-- [rowl_kernel::iri::validate_iri]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 339:0-341:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 442:0-448:1
     Visibility: public -/
 def iri.validate_iri
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let e ← iri.iri
-  iri.validate e bytes
+  let b ← iri.plain_iri bytes
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← iri.iri
+       iri.validate e bytes
 
 /-- [rowl_kernel::prefixes::expand_parts]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 166:0-191:1
@@ -45782,7 +45975,7 @@ def iri.iri_reference : Result regular.Expression := do
   iri.alt e e1
 
 /-- [rowl_kernel::iri::validate_reference]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 451:0-453:1
     Visibility: public -/
 def iri.validate_reference
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do

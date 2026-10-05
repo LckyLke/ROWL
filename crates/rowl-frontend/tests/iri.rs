@@ -148,3 +148,83 @@ fn malformed_utf8_is_distinct_from_well_encoded_grammar_rejection() {
         MatchResult::Matched(false)
     ));
 }
+
+/// A small deterministic generator, so failures reproduce.
+struct Seed(u64);
+impl Seed {
+    fn next(&mut self, bound: usize) -> usize {
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        ((self.0 >> 33) as usize) % bound
+    }
+}
+
+#[test]
+fn plain_iris_are_answered_exactly_as_by_the_grammar() {
+    use rowl_frontend::iri::iri;
+    use rowl_frontend::regular::matches_utf8;
+    let pieces: [&[u8]; 31] = [
+        b"a",
+        b"Z",
+        b"h",
+        b"t",
+        b"p",
+        b"s",
+        b"0",
+        b"9",
+        b":",
+        b"/",
+        b"//",
+        b"#",
+        b"?",
+        b".",
+        b"-",
+        b"_",
+        b"~",
+        b"+",
+        b"@",
+        b"%",
+        b"%2F",
+        b"[",
+        b"]",
+        b" ",
+        b"\\",
+        "é".as_bytes(),
+        b"\xff",
+        b"!",
+        b"=",
+        b"http://",
+        b"https://example.org/",
+    ];
+    let mut seed = Seed(7);
+    let mut plain = 0;
+    for _ in 0..5000 {
+        let mut bytes = Vec::new();
+        for _ in 0..seed.next(12) {
+            bytes.extend_from_slice(pieces[seed.next(pieces.len())]);
+        }
+        let fast = validate_iri(&bytes);
+        let grammar = matches_utf8(iri(), &bytes);
+        match (&fast, &grammar) {
+            (MatchResult::Matched(a), MatchResult::Matched(b)) => assert_eq!(a, b, "{bytes:?}"),
+            (MatchResult::MalformedUtf8(_), MatchResult::MalformedUtf8(_)) => {}
+            _ => panic!("different kinds of answer for {bytes:?}"),
+        }
+        if matches!(grammar, MatchResult::Matched(true)) && bytes.starts_with(b"h") {
+            plain += 1;
+        }
+    }
+    assert!(plain > 25, "the inputs must include many IRIs");
+    for input in [
+        "https://example.org/gen/C12345",
+        "http://www.w3.org/2002/07/owl#Thing",
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        "urn:x://a",
+        "x://",
+        "x://h#/a/b",
+    ] {
+        assert!(accepted(input, false), "IRI: {input}");
+    }
+}

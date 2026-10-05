@@ -47,7 +47,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   prefix expansion is separately proved below. Since the compiled-grammar stage
   the validators compile the grammar into a node table and match by partial
   derivatives over continuation stacks; that matcher is proved to return the
-  derivative matcher's result, so the statements above are unchanged.
+  derivative matcher's result, so the statements above are unchanged. IRIs of
+  the plain form `scheme://host/segment…#fragment` with ASCII letters, digits,
+  `-`, `.`, `_` and `~` are accepted by a byte scan without building the
+  grammar, proved to accept only well-encoded IRIs.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against
@@ -1024,7 +1027,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   EL ontologies are also classified by a proved saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 515 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 516 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use

@@ -4430,3 +4430,27 @@ about 80% of the time. A regression test compares the two classifications on
 
 This block adds 139 public theorems and 35 definitions. Totals are 2577 audited
 theorems, 1168 definitions, 515 Rust regressions and 2770 ledger obligations.
+
+## Performance: plain IRIs without the grammar
+
+After the saturation stage, reading took about 80% of the time on large EL
+ontologies, and `iri::validate_iri` took most of it: every call built the RFC
+3987 grammar, whose IPv6 alternatives make it large, compiled it into a node
+table and dropped both again, about 220 µs per IRI. N-Triples readers call it
+for every IRI and Functional Syntax prefix expansion for every abbreviated IRI.
+
+`validate_iri` now first scans the bytes for the plain form
+`scheme://host/segment…#fragment`, whose host, segments and fragment have only
+ASCII letters, digits, `-`, `.`, `_` and `~` (and the fragment also `/`), and
+accepts them without building the grammar; any other input goes to the compiled
+grammar as before. `Iri.lean` proves that such bytes are ASCII, hence decode to
+their own code points (`ascii_utf8`), and spell an IRI: the scheme, an
+authority that is a registered name, a path of segments and an optional
+fragment (`plain_iri_spec`). `validate_iri_total_correct` and
+`validate_iri_accepted_iff` keep their statements. A regression test compares
+the validator with the derivative matcher on random strings.
+
+A plain IRI is now validated in about 40 ns. Reading a generated 5000-class
+ontology in N-Triples takes 0.025 s instead of 10.8 s, and in Functional Syntax
+3.3 s instead of 8.2 s, where lexing is now the main cost. Totals are 516 Rust
+regressions; the audited theorems and definitions are unchanged.
