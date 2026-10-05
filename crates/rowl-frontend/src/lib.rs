@@ -13,6 +13,7 @@ pub use rowl_kernel::functional_annotations;
 pub use rowl_kernel::functional_assertions;
 pub use rowl_kernel::functional_class_axioms;
 pub use rowl_kernel::functional_classes;
+pub use rowl_kernel::functional_data_axioms;
 pub use rowl_kernel::functional_declarations;
 pub use rowl_kernel::functional_document;
 pub use rowl_kernel::functional_header;

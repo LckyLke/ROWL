@@ -335,8 +335,8 @@ pub fn read_object_property(
         }
     }
 }
-/// Read one data property: an IRI.
-fn read_data_property(
+/// Read one data property: an IRI resolved through the prefix table.
+pub fn read_data_property(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
     tokens: Tokens,

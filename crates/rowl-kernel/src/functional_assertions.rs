@@ -1,23 +1,26 @@
 //! Functional Syntax assertions about individuals, with their axiom annotations.
 //!
 //! Reads `SameIndividual`, `DifferentIndividuals`, `ClassAssertion`,
-//! `ObjectPropertyAssertion` and `NegativeObjectPropertyAssertion` at a
+//! `ObjectPropertyAssertion`, `NegativeObjectPropertyAssertion`,
+//! `DataPropertyAssertion` and `NegativeDataPropertyAssertion` at a
 //! caller-supplied axiom position, using the proved annotation,
-//! class-expression, object-property and individual readers. The data property
-//! assertions remain a separate stage.
+//! class-expression, object-property, data-property, individual and literal
+//! readers.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal, Token};
 use crate::functional_annotations::{
     read_annotations, AnnotationError, AnnotationLimits, SourceAnnotation,
 };
 use crate::functional_classes::{
-    read_class_expression, read_object_property, ClassError, ClassLimits, SourceClass,
-    SourceObjectProperty,
+    read_class_expression, read_data_property, read_object_property, ClassError, ClassLimits,
+    SourceClass, SourceObjectProperty,
 };
+use crate::functional_header::HeaderIri;
 use crate::functional_individuals::{
     read_individual, read_individual_list, IndividualError, SourceIndividual,
 };
 use crate::functional_lexer::Tokens;
+use crate::functional_literals::{read_literal, SourceLiteral, SourceLiteralError};
 use crate::prefixes::PrefixTable;
 
 /// An assertion body. Individual equalities and inequalities keep their
@@ -39,6 +42,16 @@ pub enum SourceAssertionBody {
         source: SourceIndividual,
         target: SourceIndividual,
     },
+    DataPropertyAssertion {
+        property: HeaderIri,
+        source: SourceIndividual,
+        target: SourceLiteral,
+    },
+    NegativeDataPropertyAssertion {
+        property: HeaderIri,
+        source: SourceIndividual,
+        target: SourceLiteral,
+    },
 }
 pub struct SourceAssertion {
     pub keyword: Token,
@@ -59,6 +72,7 @@ pub enum AssertionError {
     Annotation(AnnotationError),
     Class(ClassError),
     Individual(IndividualError),
+    Literal(SourceLiteralError),
 }
 #[derive(Clone, Copy)]
 enum AssertionForm {
@@ -67,6 +81,8 @@ enum AssertionForm {
     Class,
     Property,
     NegativeProperty,
+    DataProperty,
+    NegativeDataProperty,
 }
 fn assertion_form(terminal: Terminal) -> Option<AssertionForm> {
     match terminal {
@@ -76,6 +92,10 @@ fn assertion_form(terminal: Terminal) -> Option<AssertionForm> {
         Terminal::Keyword(Keyword::ObjectPropertyAssertion) => Some(AssertionForm::Property),
         Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion) => {
             Some(AssertionForm::NegativeProperty)
+        }
+        Terminal::Keyword(Keyword::DataPropertyAssertion) => Some(AssertionForm::DataProperty),
+        Terminal::Keyword(Keyword::NegativeDataPropertyAssertion) => {
+            Some(AssertionForm::NegativeDataProperty)
         }
         _ => None,
     }
@@ -182,6 +202,26 @@ fn read_edge(
         Err(error) => Err(error),
     }
 }
+/// A data property, its source individual and its target literal.
+fn read_data_edge(
+    table: &PrefixTable<'_>,
+    bytes: &Vec<u8>,
+    tokens: Tokens,
+    limits: &ClassLimits,
+) -> Result<((HeaderIri, SourceIndividual, SourceLiteral), Tokens), AssertionError> {
+    let (property, tokens) = match read_data_property(table, bytes, tokens, limits.iri) {
+        Ok(value) => value,
+        Err(error) => return Err(AssertionError::Class(error)),
+    };
+    let (source, tokens) = match read_member(table, bytes, tokens, limits.iri) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
+    };
+    match read_literal(table, bytes, tokens, limits.iri, limits.iri) {
+        Ok((target, remaining)) => Ok(((property, source, target), remaining)),
+        Err(error) => Err(AssertionError::Literal(error)),
+    }
+}
 fn read_body(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
@@ -238,16 +278,41 @@ fn read_body(
             )),
             Err(error) => Err(error),
         },
+        AssertionForm::DataProperty => match read_data_edge(table, bytes, tokens, limits) {
+            Ok(((property, source, target), remaining)) => Ok((
+                SourceAssertionBody::DataPropertyAssertion {
+                    property,
+                    source,
+                    target,
+                },
+                remaining,
+            )),
+            Err(error) => Err(error),
+        },
+        AssertionForm::NegativeDataProperty => match read_data_edge(table, bytes, tokens, limits) {
+            Ok(((property, source, target), remaining)) => Ok((
+                SourceAssertionBody::NegativeDataPropertyAssertion {
+                    property,
+                    source,
+                    target,
+                },
+                remaining,
+            )),
+            Err(error) => Err(error),
+        },
     }
 }
 /// Read exactly one assertion: `SameIndividual( {Annotation} Individual
 /// Individual {Individual} )`, `DifferentIndividuals` of the same shape,
 /// `ClassAssertion( {Annotation} ClassExpression Individual )`,
 /// `ObjectPropertyAssertion( {Annotation} ObjectPropertyExpression Individual
-/// Individual )` or the negative object property assertion of the same shape.
-/// Axiom annotations use the proved annotation reader with `annotations`; class
-/// expressions and object properties use the proved readers with `classes`,
-/// individuals its `iri` limit and individual lists its `count` limit. Errors
+/// Individual )`, the negative object property assertion of the same shape,
+/// `DataPropertyAssertion( {Annotation} DataProperty Individual Literal )` or
+/// the negative data property assertion of the same shape. Axiom annotations use
+/// the proved annotation reader with `annotations`; class expressions and object
+/// properties use the proved readers with `classes`, individuals, data
+/// properties and literals its `iri` limit and individual lists its `count`
+/// limit. Errors
 /// report the first failing step in source order with original offsets (EOF
 /// errors use the source length): the keyword, `(`, the annotations, the body in
 /// order (an individual list before its two-member minimum), then `)`. The

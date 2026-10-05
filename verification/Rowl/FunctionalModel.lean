@@ -20,6 +20,7 @@ open RowlRust.functional_assertions (SourceAssertionBody)
 open RowlRust.functional_individuals (SourceIndividual)
 open RowlRust.functional_classes (SourceClass SourceObjectProperty)
 open RowlRust.functional_ranges (SourceDataRange SourceFacet)
+open RowlRust.functional_data_axioms (SourceDataAxiomBody)
 open RowlRust.functional_class_axioms (SourceClassAxiomBody)
 open RowlRust.functional_property_axioms (SourcePropertyAxiomBody SourceSubProperty PropertyCharacteristic)
 open RowlRust.functional_declarations (SourceDeclaration SourceEntity SourceEntityKind)
@@ -286,6 +287,48 @@ inductive AssertionModel (scope : alloc.vec.Vec U8) : SourceAssertionBody → mo
       AssertionModel scope (.NegativeObjectPropertyAssertion property subject object)
         (.NegativeObjectPropertyAssertion (PropertyOf property) (IndividualOf scope subject)
           (IndividualOf scope object))
+  | dataAssertion {property : HeaderIri} {subject : SourceIndividual} {value : SourceLiteral} :
+      AssertionModel scope (.DataPropertyAssertion property subject value)
+        (.DataPropertyAssertion ⟨IriOf property⟩ (IndividualOf scope subject) (LiteralOf value))
+  | negativeDataAssertion {property : HeaderIri} {subject : SourceIndividual} {value : SourceLiteral} :
+      AssertionModel scope (.NegativeDataPropertyAssertion property subject value)
+        (.NegativeDataPropertyAssertion ⟨IriOf property⟩ (IndividualOf scope subject) (LiteralOf value))
+/-- A model data property list corresponds to a source list of at least two data
+    properties: their models, in source order. -/
+inductive DataMembersModel : List HeaderIri → model.AtLeastTwo model.DataProperty → Prop
+  | members {first second : HeaderIri} {rest : List HeaderIri} {target : model.AtLeastTwo model.DataProperty}
+      (firstIs : target.first = ⟨IriOf first⟩) (secondIs : target.second = ⟨IriOf second⟩)
+      (restIs : target.rest.val = rest.map (fun iri => ⟨IriOf iri⟩)) :
+      DataMembersModel (first :: second :: rest) target
+/-- A model data axiom, datatype definition or key corresponds to a source one of
+    the same form, with the models of its properties, class expressions and data
+    ranges in source order. -/
+inductive DataAxiomModel (scope : alloc.vec.Vec U8) : SourceDataAxiomBody → model.Axiom → Prop
+  | sub {sub sup : HeaderIri} :
+      DataAxiomModel scope (.SubDataPropertyOf sub sup) (.SubDataPropertyOf ⟨IriOf sub⟩ ⟨IriOf sup⟩)
+  | equivalent {members : alloc.vec.Vec HeaderIri} {target : model.AtLeastTwo model.DataProperty}
+      (inner : DataMembersModel members.val target) :
+      DataAxiomModel scope (.EquivalentDataProperties members) (.EquivalentDataProperties target)
+  | disjoint {members : alloc.vec.Vec HeaderIri} {target : model.AtLeastTwo model.DataProperty}
+      (inner : DataMembersModel members.val target) :
+      DataAxiomModel scope (.DisjointDataProperties members) (.DisjointDataProperties target)
+  | domain {property : HeaderIri} {domain : SourceClass} {target : model.ClassExpression}
+      (inner : ClassModel scope domain target) :
+      DataAxiomModel scope (.DataPropertyDomain property domain) (.DataPropertyDomain ⟨IriOf property⟩ target)
+  | range {property : HeaderIri} {range : SourceDataRange} {target : model.DataRange}
+      (inner : RangeModel range target) :
+      DataAxiomModel scope (.DataPropertyRange property range) (.DataPropertyRange ⟨IriOf property⟩ target)
+  | functional {property : HeaderIri} :
+      DataAxiomModel scope (.FunctionalDataProperty property) (.FunctionalDataProperty ⟨IriOf property⟩)
+  | definition {datatype : HeaderIri} {range : SourceDataRange} {target : model.DataRange}
+      (inner : RangeModel range target) :
+      DataAxiomModel scope (.DatatypeDefinition datatype range) (.DatatypeDefinition ⟨IriOf datatype⟩ target)
+  | key {expression : SourceClass} {objects : alloc.vec.Vec SourceObjectProperty} {data : alloc.vec.Vec HeaderIri}
+      {target : model.ClassExpression} {objectTargets : alloc.vec.Vec model.ObjectPropertyExpression}
+      {dataTargets : alloc.vec.Vec model.DataProperty}
+      (inner : ClassModel scope expression target) (objectsIs : objectTargets.val = objects.val.map PropertyOf)
+      (dataIs : dataTargets.val = data.val.map (fun iri => ⟨IriOf iri⟩)) :
+      DataAxiomModel scope (.HasKey expression objects data) (.HasKey target objectTargets dataTargets)
 /-- A model member list corresponds to a source list of at least two object
     property expressions: their models, in source order. -/
 inductive PropertyMembersModel : List SourceObjectProperty → model.AtLeastTwo model.ObjectPropertyExpression → Prop
@@ -346,6 +389,11 @@ inductive AxiomModel (scope : alloc.vec.Vec U8) : SourceAxiom → model.Annotate
       (inner : AnnotationsModel scope record.annotations.val annotations.val)
       (body : PropertyAxiomModel record.body target) :
       AxiomModel scope (.Property record) ⟨annotations,target⟩
+  | data {record : functional_data_axioms.SourceDataAxiom} {annotations : alloc.vec.Vec model.Annotation}
+      {target : model.Axiom}
+      (inner : AnnotationsModel scope record.annotations.val annotations.val)
+      (body : DataAxiomModel scope record.body target) :
+      AxiomModel scope (.Data record) ⟨annotations,target⟩
   | assertion {record : functional_assertions.SourceAssertion} {annotations : alloc.vec.Vec model.Annotation}
       {target : model.Axiom}
       (inner : AnnotationsModel scope record.annotations.val annotations.val)
@@ -423,10 +471,21 @@ def ShapedProperty : SourcePropertyAxiomBody → Prop
   | .EquivalentObjectProperties members => 2 ≤ members.val.length
   | .DisjointObjectProperties members => 2 ≤ members.val.length
   | _ => True
+/-- A data axiom whose property lists have at least two members and whose class
+    expressions and data ranges are shaped. -/
+def ShapedData : SourceDataAxiomBody → Prop
+  | .EquivalentDataProperties members => 2 ≤ members.val.length
+  | .DisjointDataProperties members => 2 ≤ members.val.length
+  | .DataPropertyDomain _ domain => Shaped domain
+  | .DataPropertyRange _ range => RangeShaped range
+  | .DatatypeDefinition _ range => RangeShaped range
+  | .HasKey expression _ _ => Shaped expression
+  | _ => True
 /-- A source axiom of the shape the document grammar accepts. -/
 def ShapedSource : SourceAxiom → Prop
   | .Class record => ShapedAxiom record.body
   | .Property record => ShapedProperty record.body
+  | .Data record => ShapedData record.body
   | .Assertion record => ShapedAssertion record.body
   | _ => True
 
@@ -1363,6 +1422,14 @@ theorem assertion_correct (source : SourceAssertionBody) (scope : alloc.vec.Vec 
     exact ⟨some (.NegativeObjectPropertyAssertion (PropertyOf role) (IndividualOf scope subject)
       (IndividualOf scope object)),by simp [property_correct,individual_correct],
       (by intro target same; cases same; exact .negativeAssertion),fun _ => rfl⟩
+  | DataPropertyAssertion property subject value =>
+    exact ⟨some (.DataPropertyAssertion ⟨IriOf property⟩ (IndividualOf scope subject) (LiteralOf value)),
+      by simp [data_property_correct,individual_correct,literal_correct],
+      (by intro target same; cases same; exact .dataAssertion),fun _ => rfl⟩
+  | NegativeDataPropertyAssertion property subject value =>
+    exact ⟨some (.NegativeDataPropertyAssertion ⟨IriOf property⟩ (IndividualOf scope subject) (LiteralOf value)),
+      by simp [data_property_correct,individual_correct,literal_correct],
+      (by intro target same; cases same; exact .negativeDataAssertion),fun _ => rfl⟩
 
 /-- The remaining members of a property list map one by one after the models
     already collected. -/
@@ -1498,6 +1565,187 @@ theorem property_axiom_correct (source : SourcePropertyAxiomBody) :
       by simp [property_correct,characteristic_axiom_correct],
       (by intro target same; cases same; exact .characteristic),fun _ => rfl⟩
 
+/-- The remaining data properties of a list map one by one after the models
+    already collected. -/
+theorem data_properties_from_correct (values : alloc.vec.Vec HeaderIri) (index : Usize)
+    (out : alloc.vec.Vec model.DataProperty) (start : Nat) (first : start ≤ index.val)
+    (collected : out.val = ((values.val.drop start).take (index.val-start)).map (fun iri => ⟨IriOf iri⟩))
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, data_properties_from values index out = .ok result ∧
+      result.val = (values.val.drop start).map (fun iri => ⟨IriOf iri⟩) := by
+  rw [data_properties_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-start := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (⟨IriOf values.val[index.val]⟩ : model.DataProperty) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop start).take (next.val-start) =
+        (values.val.drop start).take (index.val-start) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-start = (index.val-start)+1 by omega]
+      have bound : index.val-start < (values.val.drop start).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show start+(index.val-start) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := data_properties_from_correct values next appended start (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,data_property_correct,push,advance,finalRead],finalList⟩
+  · have full : (values.val.drop start).take (index.val-start) = values.val.drop start :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+/-- The object properties of a key map one by one after the models already
+    collected. -/
+theorem properties_from_start_correct (values : alloc.vec.Vec SourceObjectProperty) (index : Usize)
+    (out : alloc.vec.Vec model.ObjectPropertyExpression) (start : Nat) (first : start ≤ index.val)
+    (collected : out.val = ((values.val.drop start).take (index.val-start)).map PropertyOf)
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, properties_from values index out = .ok result ∧
+      result.val = (values.val.drop start).map PropertyOf := by
+  rw [properties_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-start := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (PropertyOf values.val[index.val]) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop start).take (next.val-start) =
+        (values.val.drop start).take (index.val-start) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-start = (index.val-start)+1 by omega]
+      have bound : index.val-start < (values.val.drop start).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show start+(index.val-start) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := properties_from_start_correct values next appended start (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,property_correct,push,advance,finalRead],finalList⟩
+  · have full : (values.val.drop start).take (index.val-start) = values.val.drop start :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+/-- A data property list maps exactly when it has two members, to the models of
+    its properties in order. -/
+theorem data_members_correct (values : alloc.vec.Vec HeaderIri) :
+    ∃ result, data_members values = .ok result ∧
+      (∀ target, result = some target → DataMembersModel values.val target) ∧
+      (2 ≤ values.val.length → result.isSome) := by
+  rw [data_members]
+  by_cases few : values.val.length < 2
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,Nat.lt_succ_iff.mp few],
+      (by intro target impossible; cases impossible),fun enough => absurd enough (by omega)⟩
+  · have enough : 2 ≤ values.val.length := by omega
+    have zero : 0 < values.val.length := by omega
+    have one : 1 < values.val.length := by omega
+    have first : values.index_usize 0#usize = .ok values.val[0] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+    have second : values.index_usize 1#usize = .ok values.val[1] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+    obtain ⟨rest,restRead,restList⟩ := data_properties_from_correct values 2#usize
+      (alloc.vec.Vec.new model.DataProperty) 2 (by simp) (by simp) (by simpa using enough)
+    refine ⟨some ⟨⟨IriOf values.val[0]⟩,⟨IriOf values.val[1]⟩,rest⟩,
+      by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,second,
+        data_property_correct,restRead],?_,fun _ => rfl⟩
+    intro target same
+    cases same
+    obtain ⟨a,b,r,shape⟩ : ∃ a b r, values.val = a :: b :: r := by
+      rcases hv : values.val with _ | ⟨a,_ | ⟨b,r⟩⟩
+      · rw [hv] at enough; simp at enough
+      · rw [hv] at enough; simp at enough
+      · exact ⟨a,b,r,rfl⟩
+    have firstIs : values.val[0] = a := by simp [shape]
+    have secondIs : values.val[1] = b := by simp [shape]
+    rw [firstIs,secondIs,shape]
+    exact .members rfl rfl (by rw [restList,shape]; simp)
+/-- Every data axiom maps, when it maps, to its corresponding model axiom; every
+    shaped data axiom maps. -/
+theorem data_axiom_correct (source : SourceDataAxiomBody) (scope : alloc.vec.Vec U8) :
+    ∃ result, data_axiom source scope = .ok result ∧
+      (∀ target, result = some target → DataAxiomModel scope source target) ∧ (ShapedData source → result.isSome) := by
+  rw [data_axiom.eq_def]
+  cases source with
+  | SubDataPropertyOf sub sup =>
+    exact ⟨some (.SubDataPropertyOf ⟨IriOf sub⟩ ⟨IriOf sup⟩),by simp [data_property_correct],
+      (by intro target same; cases same; exact .sub),fun _ => rfl⟩
+  | EquivalentDataProperties members =>
+    obtain ⟨result,read,correct,total⟩ := data_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.EquivalentDataProperties target),by simp [read],
+        (by intro target' same; cases same; exact .equivalent (correct target rfl)),fun _ => rfl⟩
+  | DisjointDataProperties members =>
+    obtain ⟨result,read,correct,total⟩ := data_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DisjointDataProperties target),by simp [read],
+        (by intro target' same; cases same; exact .disjoint (correct target rfl)),fun _ => rfl⟩
+  | DataPropertyDomain property domain =>
+    obtain ⟨result,read,correct,total⟩ := class_correct domain scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DataPropertyDomain ⟨IriOf property⟩ target),by simp [read,data_property_correct],
+        (by intro target' same; cases same; exact .domain (correct target rfl)),fun _ => rfl⟩
+  | DataPropertyRange property range =>
+    obtain ⟨result,read,correct,total⟩ := data_range_correct range
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DataPropertyRange ⟨IriOf property⟩ target),by simp [read,data_property_correct],
+        (by intro target' same; cases same; exact .range (correct target rfl)),fun _ => rfl⟩
+  | FunctionalDataProperty property =>
+    exact ⟨some (.FunctionalDataProperty ⟨IriOf property⟩),by simp [data_property_correct],
+      (by intro target same; cases same; exact .functional),fun _ => rfl⟩
+  | DatatypeDefinition datatype range =>
+    obtain ⟨result,read,correct,total⟩ := data_range_correct range
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DatatypeDefinition ⟨IriOf datatype⟩ target),by simp [read,iri_correct],
+        (by intro target' same; cases same; exact .definition (correct target rfl)),fun _ => rfl⟩
+  | HasKey expression objects data =>
+    obtain ⟨result,read,correct,total⟩ := class_correct expression scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some target =>
+      obtain ⟨objectTargets,objectsRead,objectsList⟩ := properties_from_start_correct objects 0#usize
+        (alloc.vec.Vec.new model.ObjectPropertyExpression) 0 (by simp) (by simp) (by simp)
+      obtain ⟨dataTargets,dataRead,dataList⟩ := data_properties_from_correct data 0#usize
+        (alloc.vec.Vec.new model.DataProperty) 0 (by simp) (by simp) (by simp)
+      have objectsIs : objectTargets.val = objects.val.map PropertyOf := by simpa using objectsList
+      have dataIs : dataTargets.val = data.val.map (fun iri => ⟨IriOf iri⟩) := by simpa using dataList
+      refine ⟨some (.HasKey target objectTargets dataTargets),by simp [read,objectsRead,dataRead],?_,fun _ => rfl⟩
+      intro target' same
+      cases same
+      exact .key (correct target rfl) objectsIs dataIs
+
 private theorem axiom_annotations (values : alloc.vec.Vec SourceAnnotation) (scope : alloc.vec.Vec U8) :
     ∃ targets, annotations_from values 0#usize (alloc.vec.Vec.new model.Annotation) scope = .ok targets ∧
       AnnotationsModel scope values.val targets.val :=
@@ -1538,6 +1786,16 @@ theorem axiom_correct (source : SourceAxiom) (scope : alloc.vec.Vec U8) :
       obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
       exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
         (by intro target same; cases same; exact .property annotationsModel (correct body rfl)),fun _ => rfl⟩
+  | Data record =>
+    obtain ⟨result,read,correct,total⟩ := data_axiom_correct record.body scope
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        fun shaped => absurd (total shaped) (by simp)⟩
+    | some body =>
+      obtain ⟨annotations,annotationsRead,annotationsModel⟩ := axiom_annotations record.annotations scope
+      exact ⟨some ⟨annotations,body⟩,by simp [read,annotationsRead],
+        (by intro target same; cases same; exact .data annotationsModel (correct body rfl)),fun _ => rfl⟩
   | Assertion record =>
     obtain ⟨result,read,correct,total⟩ := assertion_correct record.body scope
     cases result with
@@ -1948,6 +2206,8 @@ theorem assertion_body_run_shaped {count limit depth : Nat} {form : functional_a
     | ok classRun => exact class_run_shaped classRun rfl
   | propertyAssertion _ => cases same; exact trivial
   | negativeAssertion _ => cases same; exact trivial
+  | dataAssertion _ => cases same; exact trivial
+  | negativeDataAssertion _ => cases same; exact trivial
   | _ => cases same
 /-- Every assertion the assertion grammar accepts is shaped. -/
 theorem assertion_run_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
@@ -1995,18 +2255,64 @@ theorem property_axiom_run_shaped {annotationCount annotationIri annotationLexic
   cases run with
   | ready _ _ _ bodyRun _ => cases same; exact property_body_run_shaped bodyRun rfl
   | _ => cases same
+/-- Every data axiom body the data axiom grammar accepts is shaped. -/
+theorem data_body_run_shaped {count limit depth : Nat} {form : functional_data_axioms.AxiomForm}
+    {tokens rest : Tokens} {body : SourceDataAxiomBody}
+    {result : core.result.Result (SourceDataAxiomBody × Tokens) functional_data_axioms.DataAxiomError}
+    (run : Rowl.FunctionalDataAxioms.BodyRun rows source eof count limit depth form tokens result)
+    (same : result = .Ok (body,rest)) : ShapedData body := by
+  cases run with
+  | sub _ _ => cases same; exact trivial
+  | equivalent listRun =>
+    cases same
+    cases listRun with
+    | ok _ enough => exact enough
+  | disjoint listRun =>
+    cases same
+    cases listRun with
+    | ok _ enough => exact enough
+  | domain _ domainRun =>
+    cases same
+    cases domainRun with
+    | ok classRun => exact class_run_shaped classRun rfl
+  | range _ rangeRun =>
+    cases same
+    cases rangeRun with
+    | ok run => exact range_run_shaped run rfl
+  | functional _ => cases same; exact trivial
+  | definition _ rangeRun =>
+    cases same
+    cases rangeRun with
+    | ok run => exact range_run_shaped run rfl
+  | key classRun _ _ =>
+    cases same
+    cases classRun with
+    | ok run => exact class_run_shaped run rfl
+  | _ => cases same
+/-- Every data axiom the data axiom grammar accepts is shaped. -/
+theorem data_axiom_run_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+      classDepth : Nat} {tokens rest : Tokens} {record : functional_data_axioms.SourceDataAxiom}
+    {result : core.result.Result (functional_data_axioms.SourceDataAxiom × Tokens)
+      functional_data_axioms.DataAxiomError}
+    (run : Rowl.FunctionalDataAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+      annotationDepth classCount classIri classDepth tokens result) (same : result = .Ok (record,rest)) :
+    ShapedData record.body := by
+  cases run with
+  | ready _ _ _ bodyRun _ => cases same; exact data_body_run_shaped bodyRun rfl
+  | _ => cases same
 /-- Every axiom the document grammar reads is shaped. -/
 theorem axiom_step_shaped {annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-      classDepth : Nat} {family : AxiomFamily} {tokens rest : Tokens} {offset : Usize} {item : SourceAxiom}
+      classDepth : Nat} {family : AxiomFamily} {tokens rest : Tokens} {item : SourceAxiom}
     {result : core.result.Result (SourceAxiom × Tokens) DocumentError}
     (run : AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount
-      classIri classDepth family tokens offset result) (same : result = .Ok (item,rest)) :
+      classIri classDepth family tokens result) (same : result = .Ok (item,rest)) :
     ShapedSource item := by
   cases run with
   | declaration _ => cases same; exact trivial
   | annotation _ => cases same; exact trivial
   | «class» run => cases same; exact class_axiom_run_shaped run rfl
   | property run => cases same; exact property_axiom_run_shaped run rfl
+  | data run => cases same; exact data_axiom_run_shaped run rfl
   | assertion run => cases same; exact assertion_run_shaped run rfl
   | _ => cases same
 /-- Every axiom sequence the document grammar reads extends the shaped axioms

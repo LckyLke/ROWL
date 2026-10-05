@@ -3,9 +3,9 @@ use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{read_document, DocumentError, DocumentLimits};
 use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::{
-    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, Entity,
-    Individual, Iri, NamedIndividual, ObjectProperty, ObjectPropertyExpression, OntologyIdentity,
-    RawOntology,
+    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, DataRange,
+    Entity, Individual, Iri, NamedIndividual, ObjectProperty, ObjectPropertyExpression,
+    OntologyIdentity, RawOntology,
 };
 use rowl_kernel::shi_ontology::{prepared_consistent, prepared_instance_of};
 use rowl_kernel::source_reasoning::{
@@ -276,12 +276,12 @@ fn equalities_and_individual_classes_map_with_their_individuals() {
 fn errors_and_unsupported_axioms_give_no_answer() {
     let scope = b"s".to_vec();
     // A document error is the reader's first error.
-    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n HasKey(:A () ())\n)"
+    let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n HasKey(:A ())\n)"
         .as_bytes()
         .to_vec();
     assert!(matches!(
         source_consistent(&bytes, &limits(), &scope),
-        Err(DocumentError::UnsupportedAxiom { .. })
+        Err(DocumentError::DataAxiom(_))
     ));
     // Enumerations of named individuals are answered from the bytes, and
     // those of anonymous individuals get no answer.
@@ -620,16 +620,16 @@ fn one_reading_answers_many_questions() {
     }
     // A document error is the reader's first error, for reading and preparing alike.
     let bytes =
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n HasKey(:A () ())\n)"
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n HasKey(:A ())\n)"
             .as_bytes()
             .to_vec();
     assert!(matches!(
         source_ontology(&bytes, &limits(), &scope),
-        Err(DocumentError::UnsupportedAxiom { .. })
+        Err(DocumentError::DataAxiom(_))
     ));
     assert!(matches!(
         source_prepared(&bytes, &limits(), &scope),
-        Err(DocumentError::UnsupportedAxiom { .. })
+        Err(DocumentError::DataAxiom(_))
     ));
     // Axioms outside the supported fragment are read but not prepared.
     let bytes = "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubObjectPropertyOf(owl:topObjectProperty :p)\n)"
@@ -798,5 +798,74 @@ fn number_and_self_restrictions_are_answered_from_source_bytes() {
             &class("SelfMonitoring")
         )),
         Some(false)
+    );
+}
+
+#[test]
+fn data_axioms_and_assertions_map_into_the_model() {
+    let model = ontology(
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubDataPropertyOf(:dose :amount)\n EquivalentDataProperties(:dose :dosage)\n DisjointDataProperties(:dose :code)\n DataPropertyDomain(:dose :Prescription)\n DataPropertyRange(:dose DatatypeRestriction(xsd:integer xsd:minInclusive \"1\"^^xsd:integer))\n FunctionalDataProperty(:dose)\n DatatypeDefinition(:Code xsd:string)\n HasKey(:Patient (:hasDoctor) (:recordNumber))\n DataPropertyAssertion(:dose :rx1 \"5\"^^xsd:integer)\n NegativeDataPropertyAssertion(:code _:x \"A1\")\n ClassAssertion(DataSomeValuesFrom(:dose DataOneOf(\"5\"^^xsd:integer)) :rx1)\n)",
+        b"doc-2",
+    );
+    let forms: Vec<&str> = model
+        .axioms
+        .iter()
+        .map(|item| match &item.axiom {
+            Axiom::SubDataPropertyOf(..) => "sub",
+            Axiom::EquivalentDataProperties(..) => "equivalent",
+            Axiom::DisjointDataProperties(..) => "disjoint",
+            Axiom::DataPropertyDomain(..) => "domain",
+            Axiom::DataPropertyRange(_, DataRange::Restriction(datatype, facets)) => {
+                assert_eq!(
+                    datatype.iri.spelling,
+                    b"http://www.w3.org/2001/XMLSchema#integer"
+                );
+                assert_eq!(
+                    facets.first.facet.spelling,
+                    b"http://www.w3.org/2001/XMLSchema#minInclusive"
+                );
+                assert_eq!(facets.first.value.lexical, b"1");
+                "range"
+            }
+            Axiom::FunctionalDataProperty(..) => "functional",
+            Axiom::DatatypeDefinition(..) => "definition",
+            Axiom::HasKey(_, objects, data) => {
+                assert_eq!(objects.len(), 1);
+                assert_eq!(data.len(), 1);
+                "key"
+            }
+            Axiom::DataPropertyAssertion(property, Individual::Named(subject), value) => {
+                assert_eq!(property.iri.spelling, b"https://example.org/dose");
+                assert_eq!(subject.iri.spelling, b"https://example.org/rx1");
+                assert_eq!(value.lexical, b"5");
+                "assertion"
+            }
+            Axiom::NegativeDataPropertyAssertion(_, Individual::Anonymous(subject), value) => {
+                assert_eq!(subject.scope, b"doc-2");
+                assert_eq!(value.lexical, b"A1@");
+                "negative"
+            }
+            Axiom::ClassAssertion(
+                ClassExpression::DataSomeValuesFrom(_, DataRange::OneOf(_)),
+                _,
+            ) => "class",
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(
+        forms,
+        [
+            "sub",
+            "equivalent",
+            "disjoint",
+            "domain",
+            "range",
+            "functional",
+            "definition",
+            "key",
+            "assertion",
+            "negative",
+            "class"
+        ]
     );
 }

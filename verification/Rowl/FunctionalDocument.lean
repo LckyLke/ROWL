@@ -1,6 +1,7 @@
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalAssertions
 import Rowl.FunctionalPropertyAxioms
+import Rowl.FunctionalDataAxioms
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalDeclarations
 import Rowl.FunctionalHeader
@@ -36,9 +37,9 @@ set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
 /-- The 37 axiom keywords by family: declarations, the four annotation axioms,
-    the six class, domain and range axioms, the eleven object property axioms
-    and the five individual equality, inequality, class and object property
-    assertions read here, and the other logical axiom forms. -/
+    the six class, domain and range axioms, the eleven object property axioms,
+    the eight data property axioms, datatype definitions and keys, and the seven
+    individual equality, inequality, class and property assertions. -/
 def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .Declaration => some .Declaration
   | .Keyword .AnnotationAssertion => some .Annotation
@@ -62,21 +63,21 @@ def FamilyOf : Terminal → Option AxiomFamily
   | .Keyword .SymmetricObjectProperty => some .Property
   | .Keyword .AsymmetricObjectProperty => some .Property
   | .Keyword .TransitiveObjectProperty => some .Property
-  | .Keyword .SubDataPropertyOf => some .Unsupported
-  | .Keyword .EquivalentDataProperties => some .Unsupported
-  | .Keyword .DisjointDataProperties => some .Unsupported
-  | .Keyword .DataPropertyDomain => some .Unsupported
-  | .Keyword .DataPropertyRange => some .Unsupported
-  | .Keyword .FunctionalDataProperty => some .Unsupported
-  | .Keyword .DatatypeDefinition => some .Unsupported
-  | .Keyword .HasKey => some .Unsupported
+  | .Keyword .SubDataPropertyOf => some .Data
+  | .Keyword .EquivalentDataProperties => some .Data
+  | .Keyword .DisjointDataProperties => some .Data
+  | .Keyword .DataPropertyDomain => some .Data
+  | .Keyword .DataPropertyRange => some .Data
+  | .Keyword .FunctionalDataProperty => some .Data
+  | .Keyword .DatatypeDefinition => some .Data
+  | .Keyword .HasKey => some .Data
   | .Keyword .SameIndividual => some .Assertion
   | .Keyword .DifferentIndividuals => some .Assertion
   | .Keyword .ClassAssertion => some .Assertion
   | .Keyword .ObjectPropertyAssertion => some .Assertion
   | .Keyword .NegativeObjectPropertyAssertion => some .Assertion
-  | .Keyword .DataPropertyAssertion => some .Unsupported
-  | .Keyword .NegativeDataPropertyAssertion => some .Unsupported
+  | .Keyword .DataPropertyAssertion => some .Assertion
+  | .Keyword .NegativeDataPropertyAssertion => some .Assertion
   | _ => none
 
 theorem axiom_family_total_correct (terminal : Terminal) : axiom_family terminal = .ok (FamilyOf terminal) := by
@@ -174,71 +175,77 @@ theorem class_axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.V
     simp only [TokenCount] at *
     omega
 
-/-- One axiom of a supported family through its proved reader with the caller's
-    limits; the other logical axiom forms are reported at their keyword. -/
+/-- One axiom of a family through its proved reader with the caller's limits. -/
 inductive AxiomStep (rows : List prefixes.Declaration) (source : List U8) (eof : Usize)
     (annotationCount annotationIri annotationLexical annotationDepth classCount classIri classDepth : Nat) :
-    AxiomFamily → Tokens → Usize → core.result.Result (SourceAxiom × Tokens) DocumentError → Prop
-  | declarationError {tokens : Tokens} {offset : Usize} {error : DeclarationError}
+    AxiomFamily → Tokens → core.result.Result (SourceAxiom × Tokens) DocumentError → Prop
+  | declarationError {tokens : Tokens} {error : DeclarationError}
       (run : Rowl.FunctionalDeclarations.DeclarationRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth tokens (.Err error)) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Declaration tokens offset (.Err (.Declaration error))
-  | declaration {tokens rest : Tokens} {offset : Usize} {record : SourceDeclaration}
+        classDepth .Declaration tokens (.Err (.Declaration error))
+  | declaration {tokens rest : Tokens} {record : SourceDeclaration}
       (run : Rowl.FunctionalDeclarations.DeclarationRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Declaration tokens offset (.Ok (.Declaration record,rest))
-  | annotationError {tokens : Tokens} {offset : Usize} {error : AnnotationAxiomError}
+        classDepth .Declaration tokens (.Ok (.Declaration record,rest))
+  | annotationError {tokens : Tokens} {error : AnnotationAxiomError}
       (run : Rowl.FunctionalAnnotationAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth tokens (.Err error)) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Annotation tokens offset (.Err (.AnnotationAxiom error))
-  | annotation {tokens rest : Tokens} {offset : Usize} {record : SourceAnnotationAxiom}
+        classDepth .Annotation tokens (.Err (.AnnotationAxiom error))
+  | annotation {tokens rest : Tokens} {record : SourceAnnotationAxiom}
       (run : Rowl.FunctionalAnnotationAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Annotation tokens offset (.Ok (.Annotation record,rest))
-  | classError {tokens : Tokens} {offset : Usize} {error : ClassAxiomError}
+        classDepth .Annotation tokens (.Ok (.Annotation record,rest))
+  | classError {tokens : Tokens} {error : ClassAxiomError}
       (run : Rowl.FunctionalClassAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri classDepth tokens (.Err error)) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Class tokens offset (.Err (.ClassAxiom error))
-  | «class» {tokens rest : Tokens} {offset : Usize} {record : SourceClassAxiom}
+        classDepth .Class tokens (.Err (.ClassAxiom error))
+  | «class» {tokens rest : Tokens} {record : SourceClassAxiom}
       (run : Rowl.FunctionalClassAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Class tokens offset (.Ok (.Class record,rest))
-  | propertyError {tokens : Tokens} {offset : Usize} {error : PropertyAxiomError}
+        classDepth .Class tokens (.Ok (.Class record,rest))
+  | propertyError {tokens : Tokens} {error : PropertyAxiomError}
       (run : Rowl.FunctionalPropertyAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri tokens (.Err error)) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Property tokens offset (.Err (.PropertyAxiom error))
-  | property {tokens rest : Tokens} {offset : Usize} {record : SourcePropertyAxiom}
+        classDepth .Property tokens (.Err (.PropertyAxiom error))
+  | property {tokens rest : Tokens} {record : SourcePropertyAxiom}
       (run : Rowl.FunctionalPropertyAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Property tokens offset (.Ok (.Property record,rest))
-  | assertionError {tokens : Tokens} {offset : Usize} {error : AssertionError}
+        classDepth .Property tokens (.Ok (.Property record,rest))
+  | dataError {tokens : Tokens} {error : functional_data_axioms.DataAxiomError}
+      (run : Rowl.FunctionalDataAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri classDepth tokens (.Err error)) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Data tokens (.Err (.DataAxiom error))
+  | data {tokens rest : Tokens} {record : functional_data_axioms.SourceDataAxiom}
+      (run : Rowl.FunctionalDataAxioms.AxiomRun rows source eof annotationCount annotationIri annotationLexical
+        annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
+      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
+        classDepth .Data tokens (.Ok (.Data record,rest))
+  | assertionError {tokens : Tokens} {error : AssertionError}
       (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri classDepth tokens (.Err error)) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Assertion tokens offset (.Err (.Assertion error))
-  | assertion {tokens rest : Tokens} {offset : Usize} {record : SourceAssertion}
+        classDepth .Assertion tokens (.Err (.Assertion error))
+  | assertion {tokens rest : Tokens} {record : SourceAssertion}
       (run : Rowl.FunctionalAssertions.AxiomRun rows source eof annotationCount annotationIri annotationLexical
         annotationDepth classCount classIri classDepth tokens (.Ok (record,rest))) :
       AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Assertion tokens offset (.Ok (.Assertion record,rest))
-  | unsupported {tokens : Tokens} {offset : Usize} :
-      AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
-        classDepth .Unsupported tokens offset (.Err (.UnsupportedAxiom offset))
+        classDepth .Assertion tokens (.Ok (.Assertion record,rest))
 
 theorem read_axiom_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (family : AxiomFamily)
-    (tokens : Tokens) (offset : Usize) (limits : DocumentLimits) :
-    ∃ result, read_axiom table bytes family tokens offset limits = .ok result ∧
+    (tokens : Tokens) (limits : DocumentLimits) :
+    ∃ result, read_axiom table bytes family tokens limits = .ok result ∧
       AxiomStep table.declarations.val bytes.val bytes.len limits.annotations.count.val limits.annotations.iri.val
         limits.annotations.lexical.val limits.annotations.depth.val limits.classes.count.val limits.classes.iri.val
-        limits.classes.depth.val family tokens offset result := by
+        limits.classes.depth.val family tokens result := by
   rw [read_axiom.eq_def]
   cases family with
   | Declaration =>
@@ -274,6 +281,14 @@ theorem read_axiom_total_correct (table : prefixes.PrefixTable) (bytes : alloc.v
     | Ok pair =>
       obtain ⟨record,rest⟩ := pair
       exact ⟨.Ok (.Property record,rest),by simp [executed],.property correct⟩
+  | Data =>
+    obtain ⟨result,executed,correct⟩ :=
+      Rowl.FunctionalDataAxioms.read_data_axiom_total_correct table bytes tokens limits.annotations limits.classes
+    cases result with
+    | Err error => exact ⟨.Err (.DataAxiom error),by simp [executed],.dataError correct⟩
+    | Ok pair =>
+      obtain ⟨record,rest⟩ := pair
+      exact ⟨.Ok (.Data record,rest),by simp [executed],.data correct⟩
   | Assertion =>
     obtain ⟨result,executed,correct⟩ :=
       Rowl.FunctionalAssertions.read_assertion_total_correct table bytes tokens limits.annotations limits.classes
@@ -282,17 +297,16 @@ theorem read_axiom_total_correct (table : prefixes.PrefixTable) (bytes : alloc.v
     | Ok pair =>
       obtain ⟨record,rest⟩ := pair
       exact ⟨.Ok (.Assertion record,rest),by simp [executed],.assertion correct⟩
-  | Unsupported => exact ⟨.Err (.UnsupportedAxiom offset),rfl,.unsupported⟩
 theorem read_axiom_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (family : AxiomFamily)
-    (tokens : Tokens) (offset : Usize) (limits : DocumentLimits)
+    (tokens : Tokens) (limits : DocumentLimits)
     (result : core.result.Result (SourceAxiom × Tokens) DocumentError) :
-    read_axiom table bytes family tokens offset limits = .ok result ↔
+    read_axiom table bytes family tokens limits = .ok result ↔
       AxiomStep table.declarations.val bytes.val bytes.len limits.annotations.count.val limits.annotations.iri.val
         limits.annotations.lexical.val limits.annotations.depth.val limits.classes.count.val limits.classes.iri.val
-        limits.classes.depth.val family tokens offset result := by
+        limits.classes.depth.val family tokens result := by
   constructor
   · intro output
-    obtain ⟨actual,executed,correct⟩ := read_axiom_total_correct table bytes family tokens offset limits
+    obtain ⟨actual,executed,correct⟩ := read_axiom_total_correct table bytes family tokens limits
     have same := Result.ok_injective (executed.symm.trans output)
     simpa [same] using correct
   · intro source
@@ -320,19 +334,24 @@ theorem read_axiom_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.
     | property run =>
       simp [(Rowl.FunctionalPropertyAxioms.read_property_axiom_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
+    | dataError run =>
+      simp [(Rowl.FunctionalDataAxioms.read_data_axiom_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
+    | data run =>
+      simp [(Rowl.FunctionalDataAxioms.read_data_axiom_result_iff table bytes tokens limits.annotations
+        limits.classes _).mpr run]
     | assertionError run =>
       simp [(Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
     | assertion run =>
       simp [(Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
         limits.classes _).mpr run]
-    | unsupported => rfl
 /-- A successful axiom step consumes at least one token. -/
 theorem axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (family : AxiomFamily)
-    (tokens rest : Tokens) (offset : Usize) (limits : DocumentLimits) (item : SourceAxiom)
-    (accepted : read_axiom table bytes family tokens offset limits = .ok (.Ok (item,rest))) :
+    (tokens rest : Tokens) (limits : DocumentLimits) (item : SourceAxiom)
+    (accepted : read_axiom table bytes family tokens limits = .ok (.Ok (item,rest))) :
     TokenCount rest < TokenCount tokens := by
-  have step := (read_axiom_result_iff table bytes family tokens offset limits _).mp accepted
+  have step := (read_axiom_result_iff table bytes family tokens limits _).mp accepted
   generalize outputEq : core.result.Result.Ok (item,rest) = output at step
   cases step with
   | declaration run =>
@@ -356,13 +375,19 @@ theorem axiom_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
     have := Rowl.FunctionalPropertyAxioms.property_axiom_progress table bytes tokens _ limits.annotations
       limits.classes _ read
     omega
+  | data run =>
+    injection outputEq with same; injection same with _ restSame; subst restSame
+    have read := (Rowl.FunctionalDataAxioms.read_data_axiom_result_iff table bytes tokens limits.annotations
+      limits.classes _).mpr run
+    have := Rowl.FunctionalDataAxioms.data_axiom_progress table bytes tokens _ limits.annotations limits.classes _ read
+    omega
   | assertion run =>
     injection outputEq with same; injection same with _ restSame; subst restSame
     have read := (Rowl.FunctionalAssertions.read_assertion_result_iff table bytes tokens limits.annotations
       limits.classes _).mpr run
     have := Rowl.FunctionalAssertions.assertion_progress table bytes tokens _ limits.annotations limits.classes _ read
     omega
-  | declarationError | annotationError | classError | propertyError | assertionError | unsupported => cases outputEq
+  | declarationError | annotationError | classError | propertyError | dataError | assertionError => cases outputEq
 
 /-- Independent axiom loop: it stops before `)`; any other token must start an
     axiom of one of the 37 forms, after the axiom count is checked, and is read
@@ -391,7 +416,7 @@ inductive AxiomsRun (rows : List prefixes.Declaration) (source : List U8) (eof :
       (notClose : token.terminal ≠ .Close) (familyOf : FamilyOf token.terminal = some family)
       (room : prior.length < axiomCount)
       (step : AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount
-        classIri classDepth family (.Cons token tail) token.start (.Err error)) :
+        classIri classDepth family (.Cons token tail) (.Err error)) :
       AxiomsRun rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
         classDepth axiomCount prior (.Cons token tail) (.Err error)
   | step {prior : List SourceAxiom} {token : Token} {tail rest : Tokens} {family : AxiomFamily} {item : SourceAxiom}
@@ -399,7 +424,7 @@ inductive AxiomsRun (rows : List prefixes.Declaration) (source : List U8) (eof :
       (notClose : token.terminal ≠ .Close) (familyOf : FamilyOf token.terminal = some family)
       (room : prior.length < axiomCount)
       (stepRun : AxiomStep rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount
-        classIri classDepth family (.Cons token tail) token.start (.Ok (item,rest)))
+        classIri classDepth family (.Cons token tail) (.Ok (item,rest)))
       (later : AxiomsRun rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount
         classIri classDepth axiomCount (prior++[item]) rest result) :
       AxiomsRun rows source eof annotationCount annotationIri annotationLexical annotationDepth classCount classIri
@@ -429,14 +454,14 @@ theorem read_axioms_total_correct (table : prefixes.PrefixTable) (bytes : alloc.
             .limit close familyOf full⟩
         · have room : axioms.val.length < limits.axioms.val := by omega
           obtain ⟨step,stepRead,stepCorrect⟩ := read_axiom_total_correct table bytes family (.Cons token tail)
-            token.start limits
+            limits
           cases step with
           | Err error =>
             exact ⟨.Err error,by simp [alloc.vec.Vec.len_val,UScalar.le_equiv,full,stepRead],
               .stepError close familyOf room stepCorrect⟩
           | Ok pair =>
             obtain ⟨item,rest⟩ := pair
-            have progress := axiom_progress table bytes family (.Cons token tail) rest token.start limits item stepRead
+            have progress := axiom_progress table bytes family (.Cons token tail) rest limits item stepRead
             obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec axioms item (by scalar_tac))
             obtain ⟨result,executed,correct⟩ := read_axioms_total_correct table bytes rest appended limits
             exact ⟨result,by simp [alloc.vec.Vec.len_val,UScalar.le_equiv,full,stepRead,push,executed],
@@ -475,14 +500,14 @@ theorem axioms_execution (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U
     intro axioms same
     rw [read_axioms.eq_def]
     simp [closes_total_correct,notClose,axiom_family_total_correct,familyOf,alloc.vec.Vec.len_val,UScalar.le_equiv,
-      same,Nat.not_le.mpr room,(read_axiom_result_iff table bytes _ _ _ limits _).mpr step]
+      same,Nat.not_le.mpr room,(read_axiom_result_iff table bytes _ _ limits _).mpr step]
   | step notClose familyOf room stepRun later ih =>
     intro axioms same
     obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec axioms _ (by rw [same]; scalar_tac))
     have laterRead := ih appended (by rw [contents,same])
     rw [read_axioms.eq_def]
     simp [closes_total_correct,notClose,axiom_family_total_correct,familyOf,alloc.vec.Vec.len_val,UScalar.le_equiv,
-      same,Nat.not_le.mpr room,(read_axiom_result_iff table bytes _ _ _ limits _).mpr stepRun,push,
+      same,Nat.not_le.mpr room,(read_axiom_result_iff table bytes _ _ limits _).mpr stepRun,push,
       laterRead]
 /-- Every exact axiom sequence and first error is equivalent to its independent derivation. -/
 theorem read_axioms_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)

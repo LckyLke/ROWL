@@ -3,11 +3,11 @@ import Rowl.FunctionalAnnotations
 
 /-!
 Functional Syntax individual equalities and inequalities, class assertions and
-positive and negative object property assertions, proved total and exact
-against an independent grammar that composes the proved annotation,
-class-expression, object-property and individual grammars. Every result and
-first error has its independent derivation, and every derivation is the actual
-result.
+positive and negative object and data property assertions, proved total and
+exact against an independent grammar that composes the proved annotation,
+class-expression, object-property, data-property, individual and literal
+grammars. Every result and first error has its independent derivation, and
+every derivation is the actual result.
 -/
 namespace Rowl.FunctionalAssertions
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
@@ -17,19 +17,23 @@ open RowlRust.functional_annotations (AnnotationLimits SourceAnnotations)
 open RowlRust.functional_individuals (IndividualError SourceIndividual)
 open RowlRust.functional_lexer RowlRust.functional
 open Rowl.FunctionalLexer (TokenCount)
-open Rowl.FunctionalClasses (ClassRun PropertyRun)
+open RowlRust.functional_header (HeaderIri)
+open RowlRust.functional_literals (SourceLiteral SourceLiteralError)
+open Rowl.FunctionalClasses (ClassRun PropertyRun DataPropertyRun)
 open Rowl.FunctionalIndividuals (IndividualRun ListRun)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
-/-- The five assertion keywords this stage reads. -/
+/-- The seven assertion keywords. -/
 def FormOf : Terminal → Option AssertionForm
   | .Keyword .SameIndividual => some .Same
   | .Keyword .DifferentIndividuals => some .Different
   | .Keyword .ClassAssertion => some .Class
   | .Keyword .ObjectPropertyAssertion => some .Property
   | .Keyword .NegativeObjectPropertyAssertion => some .NegativeProperty
+  | .Keyword .DataPropertyAssertion => some .DataProperty
+  | .Keyword .NegativeDataPropertyAssertion => some .NegativeDataProperty
   | _ => none
 /-- Independent first-terminal class required at each assertion position. -/
 def Expected : AssertionExpected → Terminal → Prop
@@ -212,6 +216,28 @@ inductive EdgeRun (rows : List prefixes.Declaration) (source : List U8) (eof : U
       (sourceRun : MemberStep rows source eof limit rest (.Ok (subject,after)))
       (targetRun : MemberStep rows source eof limit after (.Ok (object,remaining))) :
       EdgeRun rows source eof limit tokens (.Ok ((property,subject,object),remaining))
+/-- A data property followed by its source individual and its target literal. -/
+inductive DataEdgeRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (limit : Nat) :
+    Tokens → core.result.Result ((HeaderIri × SourceIndividual × SourceLiteral) × Tokens) AssertionError → Prop
+  | propertyError {tokens : Tokens} {error : ClassError}
+      (property : DataPropertyRun rows source eof limit tokens (.Err error)) :
+      DataEdgeRun rows source eof limit tokens (.Err (.Class error))
+  | sourceError {tokens rest : Tokens} {property : HeaderIri} {error : AssertionError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (failure : MemberStep rows source eof limit rest (.Err error)) :
+      DataEdgeRun rows source eof limit tokens (.Err error)
+  | targetError {tokens rest after : Tokens} {property : HeaderIri} {subject : SourceIndividual}
+      {error : SourceLiteralError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (sourceRun : MemberStep rows source eof limit rest (.Ok (subject,after)))
+      (failure : Rowl.FunctionalLiterals.Run rows source eof limit limit after (.Err error)) :
+      DataEdgeRun rows source eof limit tokens (.Err (.Literal error))
+  | ok {tokens rest after remaining : Tokens} {property : HeaderIri} {subject : SourceIndividual}
+      {value : SourceLiteral}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (sourceRun : MemberStep rows source eof limit rest (.Ok (subject,after)))
+      (targetRun : Rowl.FunctionalLiterals.Run rows source eof limit limit after (.Ok (value,remaining))) :
+      DataEdgeRun rows source eof limit tokens (.Ok ((property,subject,value),remaining))
 /-- Independent assertion bodies after the axiom annotations, in source order:
     an individual list of at least two members, a class expression and an
     individual, or an object property expression and two individuals. -/
@@ -254,6 +280,22 @@ inductive BodyRun (rows : List prefixes.Declaration) (source : List U8) (eof : U
       (edge : EdgeRun rows source eof limit tokens (.Ok ((property,subject,object),remaining))) :
       BodyRun rows source eof count limit depth .NegativeProperty tokens
         (.Ok (.NegativeObjectPropertyAssertion property subject object,remaining))
+  | dataError {tokens : Tokens} {error : AssertionError}
+      (edge : DataEdgeRun rows source eof limit tokens (.Err error)) :
+      BodyRun rows source eof count limit depth .DataProperty tokens (.Err error)
+  | dataAssertion {tokens remaining : Tokens} {property : HeaderIri} {subject : SourceIndividual}
+      {value : SourceLiteral}
+      (edge : DataEdgeRun rows source eof limit tokens (.Ok ((property,subject,value),remaining))) :
+      BodyRun rows source eof count limit depth .DataProperty tokens
+        (.Ok (.DataPropertyAssertion property subject value,remaining))
+  | negativeDataError {tokens : Tokens} {error : AssertionError}
+      (edge : DataEdgeRun rows source eof limit tokens (.Err error)) :
+      BodyRun rows source eof count limit depth .NegativeDataProperty tokens (.Err error)
+  | negativeDataAssertion {tokens remaining : Tokens} {property : HeaderIri} {subject : SourceIndividual}
+      {value : SourceLiteral}
+      (edge : DataEdgeRun rows source eof limit tokens (.Ok ((property,subject,value),remaining))) :
+      BodyRun rows source eof count limit depth .NegativeDataProperty tokens
+        (.Ok (.NegativeDataPropertyAssertion property subject value,remaining))
 
 theorem read_class_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
     (limits : ClassLimits) :
@@ -356,6 +398,59 @@ theorem read_edge_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.V
         (read_member_result_iff table bytes _ limits.iri _).mpr sourceRun,
         (read_member_result_iff table bytes _ limits.iri _).mpr targetRun]
 
+theorem read_data_edge_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limits : ClassLimits) :
+    ∃ result, read_data_edge table bytes tokens limits = .ok result ∧
+      DataEdgeRun table.declarations.val bytes.val bytes.len limits.iri.val tokens result := by
+  rw [read_data_edge]
+  obtain ⟨property,propertyRead,propertyCorrect⟩ :=
+    Rowl.FunctionalClasses.read_data_property_total_correct table bytes tokens limits.iri
+  cases property with
+  | Err error => exact ⟨.Err (.Class error),by simp [propertyRead],.propertyError propertyCorrect⟩
+  | Ok pair =>
+    obtain ⟨property,rest⟩ := pair
+    obtain ⟨subject,subjectRead,subjectCorrect⟩ := read_member_total_correct table bytes rest limits.iri
+    cases subject with
+    | Err error => exact ⟨.Err error,by simp [propertyRead,subjectRead],.sourceError propertyCorrect subjectCorrect⟩
+    | Ok pair =>
+      obtain ⟨subject,after⟩ := pair
+      obtain ⟨value,valueRead,valueCorrect⟩ :=
+        Rowl.FunctionalLiterals.read_literal_total_correct table bytes after limits.iri limits.iri
+      cases value with
+      | Err error =>
+        exact ⟨.Err (.Literal error),by simp [propertyRead,subjectRead,valueRead],
+          .targetError propertyCorrect subjectCorrect valueCorrect⟩
+      | Ok pair =>
+        obtain ⟨value,remaining⟩ := pair
+        exact ⟨.Ok ((property,subject,value),remaining),by simp [propertyRead,subjectRead,valueRead],
+          .ok propertyCorrect subjectCorrect valueCorrect⟩
+theorem read_data_edge_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (tokens : Tokens)
+    (limits : ClassLimits)
+    (result : core.result.Result ((HeaderIri × SourceIndividual × SourceLiteral) × Tokens) AssertionError) :
+    read_data_edge table bytes tokens limits = .ok result ↔
+      DataEdgeRun table.declarations.val bytes.val bytes.len limits.iri.val tokens result := by
+  constructor
+  · intro output
+    obtain ⟨actual,executed,correct⟩ := read_data_edge_total_correct table bytes tokens limits
+    have same := Result.ok_injective (executed.symm.trans output)
+    simpa [same] using correct
+  · intro source
+    rw [read_data_edge]
+    cases source with
+    | propertyError property =>
+      simp [(Rowl.FunctionalClasses.read_data_property_result_iff table bytes tokens limits.iri _).mpr property]
+    | sourceError propertyRun failure =>
+      simp [(Rowl.FunctionalClasses.read_data_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
+        (read_member_result_iff table bytes _ limits.iri _).mpr failure]
+    | targetError propertyRun sourceRun failure =>
+      simp [(Rowl.FunctionalClasses.read_data_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
+        (read_member_result_iff table bytes _ limits.iri _).mpr sourceRun,
+        (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ limits.iri limits.iri _).mpr failure]
+    | ok propertyRun sourceRun targetRun =>
+      simp [(Rowl.FunctionalClasses.read_data_property_result_iff table bytes tokens limits.iri _).mpr propertyRun,
+        (read_member_result_iff table bytes _ limits.iri _).mpr sourceRun,
+        (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ limits.iri limits.iri _).mpr targetRun]
+
 /-- The actual body reader terminates and follows the independent grammar. -/
 theorem read_body_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (form : AssertionForm)
     (tokens : Tokens) (limits : ClassLimits) :
@@ -408,6 +503,22 @@ theorem read_body_total_correct (table : prefixes.PrefixTable) (bytes : alloc.ve
       obtain ⟨⟨property,subject,object⟩,remaining⟩ := pair
       exact ⟨.Ok (.NegativeObjectPropertyAssertion property subject object,remaining),by simp [edgeRead],
         .negativeAssertion edgeCorrect⟩
+  | DataProperty =>
+    obtain ⟨edge,edgeRead,edgeCorrect⟩ := read_data_edge_total_correct table bytes tokens limits
+    cases edge with
+    | Err error => exact ⟨.Err error,by simp [edgeRead],.dataError edgeCorrect⟩
+    | Ok pair =>
+      obtain ⟨⟨property,subject,value⟩,remaining⟩ := pair
+      exact ⟨.Ok (.DataPropertyAssertion property subject value,remaining),by simp [edgeRead],
+        .dataAssertion edgeCorrect⟩
+  | NegativeDataProperty =>
+    obtain ⟨edge,edgeRead,edgeCorrect⟩ := read_data_edge_total_correct table bytes tokens limits
+    cases edge with
+    | Err error => exact ⟨.Err error,by simp [edgeRead],.negativeDataError edgeCorrect⟩
+    | Ok pair =>
+      obtain ⟨⟨property,subject,value⟩,remaining⟩ := pair
+      exact ⟨.Ok (.NegativeDataPropertyAssertion property subject value,remaining),by simp [edgeRead],
+        .negativeDataAssertion edgeCorrect⟩
 /-- Every exact body and first error is equivalent to its independent derivation. -/
 theorem read_body_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8) (form : AssertionForm)
     (tokens : Tokens) (limits : ClassLimits)
@@ -438,8 +549,12 @@ theorem read_body_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.V
     | propertyAssertion edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
     | negativeError edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
     | negativeAssertion edge => simp [(read_edge_result_iff table bytes _ limits _).mpr edge]
+    | dataError edge => simp [(read_data_edge_result_iff table bytes _ limits _).mpr edge]
+    | dataAssertion edge => simp [(read_data_edge_result_iff table bytes _ limits _).mpr edge]
+    | negativeDataError edge => simp [(read_data_edge_result_iff table bytes _ limits _).mpr edge]
+    | negativeDataAssertion edge => simp [(read_data_edge_result_iff table bytes _ limits _).mpr edge]
 
-/-- Independent assertion grammar in source order: one of the five keywords,
+/-- Independent assertion grammar in source order: one of the seven keywords,
     `(`, the maximal axiom-annotation sequence (the independent annotation
     grammar with the caller's annotation limits), the body with the caller's
     class limits, then `)`. -/
@@ -617,6 +732,20 @@ theorem assertion_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec
       have three := member_progress targetRun
       omega
     | propertyError | sourceError | targetError => cases outputEq
+  have dataEdgeStep : ∀ {start after : Tokens} {value : HeaderIri × SourceIndividual × SourceLiteral},
+      DataEdgeRun table.declarations.val bytes.val bytes.len classes.iri.val start (.Ok (value,after)) →
+        TokenCount after ≤ TokenCount start := by
+    intro start after value step
+    generalize outputEq : core.result.Result.Ok (value,after) = output at step
+    cases step with
+    | ok propertyRun sourceRun targetRun =>
+      injection outputEq with same; injection same with _ restSame; subst restSame
+      have one := Rowl.FunctionalClasses.data_property_progress propertyRun
+      have two := member_progress sourceRun
+      have read := (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ classes.iri classes.iri _).mpr targetRun
+      have three := (Rowl.FunctionalLiterals.literal_token_progress table bytes _ classes.iri classes.iri _ _ read).2
+      omega
+    | propertyError | sourceError | targetError => cases outputEq
   have bodyStep : ∀ {form : AssertionForm} {start after : Tokens} {body : SourceAssertionBody},
       BodyRun table.declarations.val bytes.val bytes.len classes.count.val classes.iri.val classes.depth.val form start
         (.Ok (body,after)) → TokenCount after ≤ TokenCount start := by
@@ -640,7 +769,14 @@ theorem assertion_progress (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec
     | negativeAssertion edge =>
       injection outputEq with same; injection same with _ restSame; subst restSame
       exact edgeStep edge
-    | sameError | differentError | classError | individualError | propertyError | negativeError => cases outputEq
+    | dataAssertion edge =>
+      injection outputEq with same; injection same with _ restSame; subst restSame
+      exact dataEdgeStep edge
+    | negativeDataAssertion edge =>
+      injection outputEq with same; injection same with _ restSame; subst restSame
+      exact dataEdgeStep edge
+    | sameError | differentError | classError | individualError | propertyError | negativeError | dataError
+      | negativeDataError => cases outputEq
   generalize outputEq : core.result.Result.Ok (record,rest) = output at run
   cases run with
   | keywordError | openError | annotationError | bodyError | closeError => cases outputEq

@@ -457,7 +457,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   offsets. Totality and exact result/error equivalence to an independent grammar
   are proved; success gives a body matching the keyword, the independent annotation
   section and at least five consumed tokens. With declarations, this covers every
-  non-logical axiom; the other logical axioms remain pending.
+  non-logical axiom.
 - M3 Functional Syntax class expressions and class axioms. The actual readers
   take one class expression of the reasoner's fragment (named classes,
   intersections, unions, complements, enumerations of individuals with
@@ -481,18 +481,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   failing step in source order with original offsets. The recursive reader is
   proved total by well-founded recursion on the token count, and both readers
   have exact result/error equivalence to an independent grammar. Source
-  composition uses the namespace rows parsed from the same bytes. The other
-  logical axioms remain pending.
+  composition uses the namespace rows parsed from the same bytes.
 - M3 Functional Syntax assertions. The actual reader takes one `SameIndividual`,
-  `DifferentIndividuals`, `ClassAssertion`, `ObjectPropertyAssertion` or
-  `NegativeObjectPropertyAssertion` with its axiom annotations at a
-  caller-supplied position. Class and object property expressions reuse the
-  proved readers; an individual is an IRI resolved through the checked prefix
-  table or a node ID with its exact label, and an equality or inequality lists
-  at least two. Errors report the first failing step in source order with
+  `DifferentIndividuals`, `ClassAssertion`, `ObjectPropertyAssertion`,
+  `NegativeObjectPropertyAssertion`, `DataPropertyAssertion` or
+  `NegativeDataPropertyAssertion` with its axiom annotations at a
+  caller-supplied position. Class and object property expressions and literals
+  reuse the proved readers; an individual is an IRI resolved through the checked
+  prefix table or a node ID with its exact label, and an equality or inequality
+  lists at least two. Errors report the first failing step in source order with
   original offsets. Totality and exact result/error equivalence to an
   independent grammar are proved, and every accepted assertion consumes at least
-  two tokens. The data property assertions remain pending.
+  two tokens.
 - M3 Functional Syntax object property axioms. The actual reader takes one of the
   eleven object property axioms with its axiom annotations at a caller-supplied
   position: `SubObjectPropertyOf` (whose sub-property may be an
@@ -502,20 +502,27 @@ progress. Full OWL parsing and executable reasoning are still future work.
   reuse the proved reader, member lists and chains need at least two members, and
   errors report the first failing step in source order with original offsets.
   Totality and exact result/error equivalence to an independent grammar are
-  proved, and every accepted axiom consumes at least two tokens. Data property
-  axioms remain pending.
+  proved, and every accepted axiom consumes at least two tokens.
+- M3 Functional Syntax data property axioms, datatype definitions and keys. The
+  actual reader takes one `SubDataPropertyOf`, `EquivalentDataProperties`,
+  `DisjointDataProperties` (at least two data properties), `DataPropertyDomain`,
+  `DataPropertyRange`, `FunctionalDataProperty`, `DatatypeDefinition` or `HasKey`
+  (a class expression and two parenthesized lists of object and data properties)
+  with its axiom annotations at a caller-supplied position, reusing the proved
+  class-expression, object-property and data-range readers. Errors report the
+  first failing step in source order with original offsets; totality, exact
+  result/error equivalence to an independent grammar and progress are proved.
 - M3 Functional Syntax documents. The actual reader takes the original bytes of a
   whole document. It reads the prefix declarations with the proved prefix-header
   reader and checks them with the normative table checker. It then reads the
   ontology identity and imports, the ontology annotations, every axiom up to the
   closing parenthesis, and the end of the source. The axiom loop dispatches on
   all 37 axiom keywords to the proved declaration, annotation-axiom, class-axiom,
-  object-property-axiom and assertion readers, reports the other logical axioms as
-  unsupported at their
-  keyword, and has an axiom count limit. Errors report the first failing stage
+  object-property-axiom, data-axiom and assertion readers, so every axiom form is
+  read, and has an axiom count limit. Errors report the first failing stage
   with original offsets. The loop is proved total by token count from each
   reader's minimum consumption, with exact result/error equivalence to an
-  independent grammar. Canonical imports and the other axiom forms remain pending.
+  independent grammar. Canonical imports remain pending.
 - M3 the raw OWL model of read documents. The actual kernel mapping turns a read
   document into the raw OWL ontology: the identity, import targets, ontology
   annotations and axioms with their annotations, in source order. IRIs and
@@ -525,8 +532,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   enumerations, value restrictions, `SameIndividual` and `DifferentIndividuals`
   their individuals in source order, number restrictions their numbers as
   unary naturals and their fillers, data restrictions their data properties,
-  literals and data ranges, and object property axioms their
-  properties, chains and member lists. Every mapping is proved total, and every
+  literals and data ranges, object property axioms their properties, chains and
+  member lists, and data property axioms, datatype definitions, keys and data
+  assertions their data properties, class expressions, data ranges, literals
+  and individuals. Every mapping is proved total, and every
   result corresponds to its source records under an independent structural
   correspondence. The mapping declines only a member list, property chain or
   individual list with fewer than two members or an enumeration without
@@ -906,7 +915,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. The Functional Syntax reader does not
   read data axioms yet.
-- 2142 audited public theorems and 1056 audited semantic definitions. Consistency,
+- 2182 audited public theorems and 1073 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -920,7 +929,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 491 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 494 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -935,7 +944,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2335-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2375-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -982,9 +991,9 @@ connect that exact source table to IRI value/error contracts. The following
 ontology/version identity and maximal leading imports also have source-derived
 value/error composition proofs. Ontology annotations, including nested ones,
 now have source-derived value/error composition proofs as well, and so do single
-entity declarations, annotation axioms, object class expressions (with self and
-number restrictions) and class, domain and range axioms, and whole documents of those axioms with their closing syntax
-and end of source. The other logical axioms are reported as unsupported. Read
+entity declarations, annotation axioms, all class expressions and data ranges,
+all logical axioms and whole documents with their closing syntax and end of
+source. Read
 documents map into the raw model with a proved exact correspondence, and the ALC
 queries compose with the reader and the mapping from the original bytes;
 canonical catalog/import construction remains pending.

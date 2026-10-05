@@ -1,5 +1,6 @@
 use rowl_frontend::functional_annotations::AnnotationLimits;
 use rowl_frontend::functional_classes::ClassLimits;
+use rowl_frontend::functional_data_axioms::{DataAxiomError, DataAxiomExpected};
 use rowl_frontend::functional_document::{
     read_document, DocumentError, DocumentExpected, DocumentLimits, SourceAxiom, SourceDocument,
     TableError,
@@ -42,6 +43,7 @@ fn families(document: &SourceDocument) -> Vec<&'static str> {
             SourceAxiom::Annotation(_) => "annotation",
             SourceAxiom::Class(_) => "class",
             SourceAxiom::Property(_) => "property",
+            SourceAxiom::Data(_) => "data",
             SourceAxiom::Assertion(_) => "assertion",
         })
         .collect()
@@ -115,16 +117,17 @@ fn axioms_keep_their_family_and_order() {
 
 #[test]
 fn errors_report_the_first_failing_stage() {
-    // An axiom form this stage does not read yet.
+    // A data axiom error keeps the data axiom stage.
     let (bytes, result) = read(
-        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n HasKey(:A () ())\n)",
+        "Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n SubClassOf(:A :B)\n SameIndividual(:a :b)\n FunctionalDataProperty()\n)",
         10,
     );
     match result {
-        Err(DocumentError::UnsupportedAxiom { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "HasKey"))
-        }
-        _ => panic!("the other logical axioms are reported as unsupported"),
+        Err(DocumentError::DataAxiom(DataAxiomError::Expected {
+            expected: DataAxiomExpected::Iri,
+            offset: at,
+        })) => assert_eq!(at, offset(&bytes, "()") + 1),
+        _ => panic!("data axioms report their first failing step"),
     }
     // A missing closing parenthesis.
     let (bytes, result) = read(

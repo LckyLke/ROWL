@@ -4054,3 +4054,31 @@ stage, and datatype restrictions are read but not yet reasoned about.
 
 This block adds 39 public theorems and 18 definitions. Totals are 2142 audited
 theorems, 1056 definitions, 491 Rust regressions and 2335 ledger obligations.
+
+## M3: data property axioms, keys and data assertions in Functional Syntax
+
+A new reader (`functional_data_axioms`) reads `SubDataPropertyOf`,
+`EquivalentDataProperties` and `DisjointDataProperties` with at least two data
+properties, `DataPropertyDomain` with a class expression, `DataPropertyRange`
+with a data range, `FunctionalDataProperty`, `DatatypeDefinition` with a
+datatype and a data range, and `HasKey` with a class expression and two
+parenthesized, possibly empty lists of object and data properties, each with its
+axiom annotations. Data properties and datatypes are IRIs (`IriRun`), property
+lists share the count limit (`IrisRun`, `ObjectsRun`, `ListRun`), and class
+expressions and data ranges use the proved readers (`ClassStep`, `RangeStep`).
+The independent grammar (`BodyRun`, `AxiomRun`) is proved equivalent to the
+reader in both directions, with the first error in source order and progress
+(`data_axiom_progress`).
+
+The assertion reader adds `DataPropertyAssertion` and
+`NegativeDataPropertyAssertion` with a data property, an individual and a
+literal (`DataEdgeRun`). The document reader dispatches the eight data axiom
+keywords to the new reader and the data assertions to the assertion reader, so
+all 37 axiom forms are read and no axiom is reported as unsupported any more
+(`AxiomStep` loses its offset). The model mapping turns the data axioms and
+assertions into the model's (`DataAxiomModel`, `DataMembersModel`,
+`data_axiom_correct`), and every accepted data axiom is shaped (`ShapedData`), so
+every read document maps.
+
+This block adds 40 public theorems and 17 definitions. Totals are 2182 audited
+theorems, 1073 definitions, 494 Rust regressions and 2375 ledger obligations.

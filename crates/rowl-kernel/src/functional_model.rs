@@ -11,6 +11,7 @@ use crate::functional_annotations::{SourceAnnotation, SourceAnnotationValue};
 use crate::functional_assertions::SourceAssertionBody;
 use crate::functional_class_axioms::SourceClassAxiomBody;
 use crate::functional_classes::{Bound, SourceClass, SourceObjectProperty};
+use crate::functional_data_axioms::SourceDataAxiomBody;
 use crate::functional_declarations::{SourceEntity, SourceEntityKind};
 use crate::functional_document::{SourceAxiom, SourceDocument};
 use crate::functional_header::{HeaderIri, ImportReference, SourceOntologyIdentity};
@@ -585,6 +586,82 @@ fn sub_property(source: &SourceSubProperty) -> Option<SubObjectPropertyExpressio
         },
     }
 }
+/// The model of the data properties `values[index..]` after `out`.
+fn data_properties_from(
+    values: &Vec<HeaderIri>,
+    index: usize,
+    mut out: Vec<DataProperty>,
+) -> Vec<DataProperty> {
+    if index < values.len() && out.len() < values.len() {
+        out.push(data_property(&values[index]));
+        data_properties_from(values, index + 1, out)
+    } else {
+        out
+    }
+}
+/// A member list of at least two data properties.
+fn data_members(values: &Vec<HeaderIri>) -> Option<AtLeastTwo<DataProperty>> {
+    if values.len() < 2 {
+        return None;
+    }
+    Some(AtLeastTwo {
+        first: data_property(&values[0]),
+        second: data_property(&values[1]),
+        rest: data_properties_from(values, 2, Vec::new()),
+    })
+}
+fn data_axiom(source: &SourceDataAxiomBody, scope: &Vec<u8>) -> Option<Axiom> {
+    match source {
+        SourceDataAxiomBody::SubDataPropertyOf { sub, sup } => Some(Axiom::SubDataPropertyOf(
+            data_property(sub),
+            data_property(sup),
+        )),
+        SourceDataAxiomBody::EquivalentDataProperties(members) => match data_members(members) {
+            Some(members) => Some(Axiom::EquivalentDataProperties(members)),
+            None => None,
+        },
+        SourceDataAxiomBody::DisjointDataProperties(members) => match data_members(members) {
+            Some(members) => Some(Axiom::DisjointDataProperties(members)),
+            None => None,
+        },
+        SourceDataAxiomBody::DataPropertyDomain {
+            property: name,
+            domain,
+        } => match class(domain, scope) {
+            Some(domain) => Some(Axiom::DataPropertyDomain(data_property(name), domain)),
+            None => None,
+        },
+        SourceDataAxiomBody::DataPropertyRange {
+            property: name,
+            range,
+        } => match data_range(range) {
+            Some(range) => Some(Axiom::DataPropertyRange(data_property(name), range)),
+            None => None,
+        },
+        SourceDataAxiomBody::FunctionalDataProperty(name) => {
+            Some(Axiom::FunctionalDataProperty(data_property(name)))
+        }
+        SourceDataAxiomBody::DatatypeDefinition { datatype, range } => match data_range(range) {
+            Some(range) => Some(Axiom::DatatypeDefinition(
+                Datatype { iri: iri(datatype) },
+                range,
+            )),
+            None => None,
+        },
+        SourceDataAxiomBody::HasKey {
+            class: expression,
+            objects,
+            data,
+        } => match class(expression, scope) {
+            Some(expression) => Some(Axiom::HasKey(
+                expression,
+                properties_from(objects, 0, Vec::new()),
+                data_properties_from(data, 0, Vec::new()),
+            )),
+            None => None,
+        },
+    }
+}
 fn characteristic_axiom(
     characteristic: PropertyCharacteristic,
     value: ObjectPropertyExpression,
@@ -663,6 +740,24 @@ fn assertion(source: &SourceAssertionBody, scope: &Vec<u8>) -> Option<Axiom> {
             individual(source, scope),
             individual(target, scope),
         )),
+        SourceAssertionBody::DataPropertyAssertion {
+            property: name,
+            source,
+            target,
+        } => Some(Axiom::DataPropertyAssertion(
+            data_property(name),
+            individual(source, scope),
+            literal(target),
+        )),
+        SourceAssertionBody::NegativeDataPropertyAssertion {
+            property: name,
+            source,
+            target,
+        } => Some(Axiom::NegativeDataPropertyAssertion(
+            data_property(name),
+            individual(source, scope),
+            literal(target),
+        )),
     }
 }
 fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
@@ -683,6 +778,13 @@ fn axiom(source: &SourceAxiom, scope: &Vec<u8>) -> Option<AnnotatedAxiom> {
             None => None,
         },
         SourceAxiom::Property(record) => match property_axiom(&record.body) {
+            Some(axiom) => Some(AnnotatedAxiom {
+                annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
+                axiom,
+            }),
+            None => None,
+        },
+        SourceAxiom::Data(record) => match data_axiom(&record.body, scope) {
             Some(axiom) => Some(AnnotatedAxiom {
                 annotations: annotations_from(&record.annotations, 0, Vec::new(), scope),
                 axiom,

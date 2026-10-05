@@ -126,6 +126,26 @@ fn shape(assertion: &SourceAssertion) -> String {
             individual(source),
             individual(target)
         ),
+        SourceAssertionBody::DataPropertyAssertion {
+            property: role,
+            source,
+            target,
+        } => format!(
+            "{}({},{})",
+            name(&role.value),
+            individual(source),
+            String::from_utf8(target.lexical.clone()).expect("UTF-8")
+        ),
+        SourceAssertionBody::NegativeDataPropertyAssertion {
+            property: role,
+            source,
+            target,
+        } => format!(
+            "not {}({},{})",
+            name(&role.value),
+            individual(source),
+            String::from_utf8(target.lexical.clone()).expect("UTF-8")
+        ),
     }
 }
 
@@ -153,6 +173,14 @@ fn every_assertion_form_reads_its_individuals_in_order() {
         (
             "DifferentIndividuals(:pump1 _:spare :pump2))",
             "different(pump1,_:spare,pump2)",
+        ),
+        (
+            "DataPropertyAssertion(:pressure :pump1 \"12\"^^<http://www.w3.org/2001/XMLSchema#integer>))",
+            "pressure(pump1,12)",
+        ),
+        (
+            "NegativeDataPropertyAssertion(:label _:m \"spare\"@en))",
+            "not label(_:m,spare@en)",
         ),
     ];
     for (body, expected) in cases {

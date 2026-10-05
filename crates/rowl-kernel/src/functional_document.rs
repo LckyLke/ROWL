@@ -3,9 +3,8 @@
 //! source.
 //!
 //! The axiom loop dispatches on the axiom keyword to the proved declaration,
-//! annotation-axiom, class-axiom, object-property-axiom and assertion readers.
-//! The other logical axiom forms are reported as unsupported at their keyword;
-//! later stages read them.
+//! annotation-axiom, class-axiom, object-property-axiom, data-axiom and
+//! assertion readers, which together read all 37 axiom forms.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::functional::{Keyword, Terminal};
 use crate::functional_annotation_axioms::{
@@ -17,6 +16,7 @@ use crate::functional_annotations::{
 use crate::functional_assertions::{read_assertion, AssertionError, SourceAssertion};
 use crate::functional_class_axioms::{read_class_axiom, ClassAxiomError, SourceClassAxiom};
 use crate::functional_classes::ClassLimits;
+use crate::functional_data_axioms::{read_data_axiom, DataAxiomError, SourceDataAxiom};
 use crate::functional_declarations::{read_declaration, DeclarationError, SourceDeclaration};
 use crate::functional_header::{
     read_header_tail, HeaderError, ImportReference, SourceOntologyIdentity,
@@ -28,12 +28,13 @@ use crate::functional_property_axioms::{
 };
 use crate::prefixes::{check, Check, Declaration, PrefixTable};
 
-/// One axiom of the forms this stage reads.
+/// One axiom.
 pub enum SourceAxiom {
     Declaration(SourceDeclaration),
     Annotation(SourceAnnotationAxiom),
     Class(SourceClassAxiom),
     Property(SourcePropertyAxiom),
+    Data(SourceDataAxiom),
     Assertion(SourceAssertion),
 }
 /// Everything after `Ontology(`: the identity, the imports, the ontology
@@ -88,11 +89,8 @@ pub enum DocumentError {
     AnnotationAxiom(AnnotationAxiomError),
     ClassAxiom(ClassAxiomError),
     PropertyAxiom(PropertyAxiomError),
+    DataAxiom(DataAxiomError),
     Assertion(AssertionError),
-    /// An axiom form that this stage does not read yet.
-    UnsupportedAxiom {
-        offset: usize,
-    },
     AxiomLimit {
         offset: usize,
     },
@@ -107,8 +105,8 @@ enum AxiomFamily {
     Annotation,
     Class,
     Property,
+    Data,
     Assertion,
-    Unsupported,
 }
 fn axiom_family(terminal: Terminal) -> Option<AxiomFamily> {
     match terminal {
@@ -134,34 +132,33 @@ fn axiom_family(terminal: Terminal) -> Option<AxiomFamily> {
         Terminal::Keyword(Keyword::SymmetricObjectProperty) => Some(AxiomFamily::Property),
         Terminal::Keyword(Keyword::AsymmetricObjectProperty) => Some(AxiomFamily::Property),
         Terminal::Keyword(Keyword::TransitiveObjectProperty) => Some(AxiomFamily::Property),
-        Terminal::Keyword(Keyword::SubDataPropertyOf) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::EquivalentDataProperties) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::DisjointDataProperties) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::DataPropertyDomain) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::DataPropertyRange) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::FunctionalDataProperty) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::DatatypeDefinition) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::HasKey) => Some(AxiomFamily::Unsupported),
+        Terminal::Keyword(Keyword::SubDataPropertyOf) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::EquivalentDataProperties) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::DisjointDataProperties) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::DataPropertyDomain) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::DataPropertyRange) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::FunctionalDataProperty) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::DatatypeDefinition) => Some(AxiomFamily::Data),
+        Terminal::Keyword(Keyword::HasKey) => Some(AxiomFamily::Data),
         Terminal::Keyword(Keyword::SameIndividual) => Some(AxiomFamily::Assertion),
         Terminal::Keyword(Keyword::DifferentIndividuals) => Some(AxiomFamily::Assertion),
         Terminal::Keyword(Keyword::ClassAssertion) => Some(AxiomFamily::Assertion),
         Terminal::Keyword(Keyword::ObjectPropertyAssertion) => Some(AxiomFamily::Assertion),
         Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion) => Some(AxiomFamily::Assertion),
-        Terminal::Keyword(Keyword::DataPropertyAssertion) => Some(AxiomFamily::Unsupported),
-        Terminal::Keyword(Keyword::NegativeDataPropertyAssertion) => Some(AxiomFamily::Unsupported),
+        Terminal::Keyword(Keyword::DataPropertyAssertion) => Some(AxiomFamily::Assertion),
+        Terminal::Keyword(Keyword::NegativeDataPropertyAssertion) => Some(AxiomFamily::Assertion),
         _ => None,
     }
 }
 fn closes(terminal: Terminal) -> bool {
     matches!(terminal, Terminal::Close)
 }
-/// Read one axiom of a supported family, starting at its keyword.
+/// Read one axiom of a family, starting at its keyword.
 fn read_axiom(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
     family: AxiomFamily,
     tokens: Tokens,
-    offset: usize,
     limits: &DocumentLimits,
 ) -> Result<(SourceAxiom, Tokens), DocumentError> {
     match family {
@@ -189,13 +186,18 @@ fn read_axiom(
                 Err(error) => Err(DocumentError::PropertyAxiom(error)),
             }
         }
+        AxiomFamily::Data => {
+            match read_data_axiom(table, bytes, tokens, &limits.annotations, &limits.classes) {
+                Ok((axiom, rest)) => Ok((SourceAxiom::Data(axiom), rest)),
+                Err(error) => Err(DocumentError::DataAxiom(error)),
+            }
+        }
         AxiomFamily::Assertion => {
             match read_assertion(table, bytes, tokens, &limits.annotations, &limits.classes) {
                 Ok((axiom, rest)) => Ok((SourceAxiom::Assertion(axiom), rest)),
                 Err(error) => Err(DocumentError::Assertion(error)),
             }
         }
-        AxiomFamily::Unsupported => Err(DocumentError::UnsupportedAxiom { offset }),
     }
 }
 /// Read every axiom up to the closing parenthesis, which is left in place.
@@ -231,14 +233,8 @@ fn read_axioms(
     if axioms.len() >= limits.axioms {
         return Err(DocumentError::AxiomLimit { offset });
     }
-    let (axiom, rest) = match read_axiom(
-        table,
-        bytes,
-        family,
-        Tokens::Cons { token, next },
-        offset,
-        limits,
-    ) {
+    let (axiom, rest) = match read_axiom(table, bytes, family, Tokens::Cons { token, next }, limits)
+    {
         Ok(value) => value,
         Err(error) => return Err(error),
     };
