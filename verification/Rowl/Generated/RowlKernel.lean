@@ -54217,6 +54217,2524 @@ def roles.check_simplicity
     roles.check_required facts.simple_required non_simple
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
+/-- [rowl_kernel::saturation::BUCKETS]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 48:0-48:28 -/
+@[global_simps, irreducible] def saturation.BUCKETS : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::saturation::Concept]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 52:0-58:1
+    Visibility: public -/
+@[discriminant isize]
+inductive saturation.Concept where
+| Top : saturation.Concept
+| Bottom : saturation.Concept
+| Atom : model.Class → saturation.Concept
+| And : Std.Usize → Std.Usize → saturation.Concept
+| Exists : Std.Usize → Std.Usize → saturation.Concept
+
+/-- [rowl_kernel::saturation::Table]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 61:0-65:1
+    Visibility: public -/
+structure saturation.Table where
+  concepts : alloc.vec.Vec saturation.Concept
+  buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+  roles : alloc.vec.Vec model.ObjectProperty
+
+/-- [rowl_kernel::saturation::Rule]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 68:0-75:1
+    Visibility: public -/
+@[discriminant isize]
+inductive saturation.Rule where
+| Sub : Std.Usize → Std.Usize → saturation.Rule
+| Role : Std.Usize → Std.Usize → saturation.Rule
+| Chain : Std.Usize → Std.Usize → Std.Usize → saturation.Rule
+
+/-- [rowl_kernel::saturation::Rules]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 78:0-95:1
+    Visibility: public -/
+structure saturation.Rules where
+  top : Std.Usize
+  bottom : Std.Usize
+  told : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+  conjunctions : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+  existentials : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+  supers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+  firsts : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+  seconds : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+
+/-- [rowl_kernel::saturation::Fact]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 98:0-104:1
+    Visibility: public -/
+@[discriminant isize]
+inductive saturation.Fact where
+| Sub : Std.Usize → Std.Usize → saturation.Fact
+| Link : Std.Usize → Std.Usize → Std.Usize → saturation.Fact
+
+/-- [rowl_kernel::saturation::State]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 107:0-114:1
+    Visibility: public -/
+structure saturation.State where
+  subsumers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+  active : alloc.vec.Vec Bool
+  out : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+  into : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))
+  queue : alloc.vec.Vec saturation.Fact
+  next : Std.Usize
+
+/-- [rowl_kernel::saturation::is_thing]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 116:0-118:1 -/
+def saturation.is_thing («class» : model.Class) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 35#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 84#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  alc_ontology.same_pattern «class».iri.spelling s
+
+/-- [rowl_kernel::saturation::is_nothing]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 119:0-124:1 -/
+def saturation.is_nothing («class» : model.Class) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 37#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 78#u8, 111#u8, 116#u8, 104#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  alc_ontology.same_pattern «class».iri.spelling s
+
+/-- [rowl_kernel::saturation::builtin_role]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 125:0-137:1 -/
+def saturation.builtin_role (role : model.ObjectProperty) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  let b ← alc_ontology.same_pattern role.iri.spelling s
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 50#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8,
+          79#u8, 98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8,
+          112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+          ]))
+    alc_ontology.same_pattern role.iri.spelling s1
+
+/-- [rowl_kernel::saturation::copy_class]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 139:0-143:1 -/
+def saturation.copy_class («class» : model.Class) : Result model.Class := do
+  let i ← nnf.copy_iri «class».iri
+  ok { iri := i }
+
+/-- [rowl_kernel::saturation::copy_role]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 144:0-148:1 -/
+def saturation.copy_role
+  (role : model.ObjectProperty) : Result model.ObjectProperty := do
+  let i ← nnf.copy_iri role.iri
+  ok { iri := i }
+
+/-- [rowl_kernel::saturation::mix]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 151:0-153:1 -/
+def saturation.mix
+  (hash : Std.Usize) (value : Std.Usize) : Result Std.Usize := do
+  let i ← hash % saturation.BUCKETS
+  let i1 ← i * 31#usize
+  let i2 ← value % saturation.BUCKETS
+  let i3 ← i1 + i2
+  i3 % saturation.BUCKETS
+
+/-- [rowl_kernel::saturation::hash_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 154:0-160:1 -/
+def saturation.hash_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i3 ← lift (UScalar.cast .Usize i2)
+    let i4 ← saturation.mix hash i3
+    saturation.hash_from bytes i1 i4
+  else ok hash
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::hash_concept]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 161:0-169:1 -/
+def saturation.hash_concept
+  (concept : saturation.Concept) : Result Std.Usize := do
+  match concept with
+  | saturation.Concept.Top => ok 1#usize
+  | saturation.Concept.Bottom => ok 2#usize
+  | saturation.Concept.Atom «class» =>
+    saturation.hash_from «class».iri.spelling 0#usize 7#usize
+  | saturation.Concept.And left right =>
+    let i ← saturation.mix 3#usize left
+    saturation.mix i right
+  | saturation.Concept.Exists role filler =>
+    let i ← saturation.mix 5#usize role
+    saturation.mix i filler
+
+/-- [rowl_kernel::saturation::same_concept]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 171:0-206:1 -/
+def saturation.same_concept
+  (left : saturation.Concept) (right : saturation.Concept) : Result Bool := do
+  match left with
+  | saturation.Concept.Top =>
+    match right with
+    | saturation.Concept.Top => ok true
+    | saturation.Concept.Bottom => ok false
+    | saturation.Concept.Atom _ => ok false
+    | saturation.Concept.And _ _ => ok false
+    | saturation.Concept.Exists _ _ => ok false
+  | saturation.Concept.Bottom =>
+    match right with
+    | saturation.Concept.Top => ok false
+    | saturation.Concept.Bottom => ok true
+    | saturation.Concept.Atom _ => ok false
+    | saturation.Concept.And _ _ => ok false
+    | saturation.Concept.Exists _ _ => ok false
+  | saturation.Concept.Atom a =>
+    match right with
+    | saturation.Concept.Top => ok false
+    | saturation.Concept.Bottom => ok false
+    | saturation.Concept.Atom b =>
+      symbols.same_spelling a.iri.spelling b.iri.spelling
+    | saturation.Concept.And _ _ => ok false
+    | saturation.Concept.Exists _ _ => ok false
+  | saturation.Concept.And a b =>
+    match right with
+    | saturation.Concept.Top => ok false
+    | saturation.Concept.Bottom => ok false
+    | saturation.Concept.Atom _ => ok false
+    | saturation.Concept.And c d => if a = c
+                                    then ok (b = d)
+                                    else ok false
+    | saturation.Concept.Exists _ _ => ok false
+  | saturation.Concept.Exists r f =>
+    match right with
+    | saturation.Concept.Top => ok false
+    | saturation.Concept.Bottom => ok false
+    | saturation.Concept.Atom _ => ok false
+    | saturation.Concept.And _ _ => ok false
+    | saturation.Concept.Exists s g => if r = s
+                                       then ok (f = g)
+                                       else ok false
+
+/-- [rowl_kernel::saturation::find_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 209:0-226:1 -/
+def saturation.find_from
+  (concepts : alloc.vec.Vec saturation.Concept)
+  (bucket : alloc.vec.Vec Std.Usize) (concept : saturation.Concept)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if index < i
+  then
+    let id ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket index
+    let i1 := alloc.vec.Vec.len concepts
+    if id < i1
+    then
+      let c ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          saturation.Concept) concepts id
+      let b ← saturation.same_concept c concept
+      if b
+      then ok (some id)
+      else
+        let i2 ← index + 1#usize
+        saturation.find_from concepts bucket concept i2
+    else
+      let i2 ← index + 1#usize
+      saturation.find_from concepts bucket concept i2
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::empty_buckets]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 228:0-235:1 -/
+def saturation.empty_buckets
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < saturation.BUCKETS
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new Std.Usize)
+    saturation.empty_buckets out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::empty_table]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 238:0-244:1
+    Visibility: public -/
+def saturation.empty_table : Result saturation.Table := do
+  let v ←
+    saturation.empty_buckets (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+  ok
+    {
+      concepts := (alloc.vec.Vec.new saturation.Concept),
+      buckets := v,
+      roles := (alloc.vec.Vec.new model.ObjectProperty)
+    }
+
+/-- [rowl_kernel::saturation::intern]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 247:0-270:1
+    Visibility: public -/
+def saturation.intern
+  (table : saturation.Table) (concept : saturation.Concept) :
+  Result (Option (saturation.Table × Std.Usize))
+  := do
+  let hash ← saturation.hash_concept concept
+  let i := alloc.vec.Vec.len table.buckets
+  if hash < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) table.buckets hash
+    let o ← saturation.find_from table.concepts v concept 0#usize
+    match o with
+    | none =>
+      let id := alloc.vec.Vec.len table.concepts
+      if id < core.num.Usize.MAX
+      then
+        let i1 := alloc.vec.Vec.len v
+        if i1 < core.num.Usize.MAX
+        then
+          let v1 ← alloc.vec.Vec.push table.concepts concept
+          let (v2, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) table.buckets hash
+          let v3 ← alloc.vec.Vec.push v2 id
+          let v4 := index_mut_back v3
+          ok (some ({ table with concepts := v1, buckets := v4 }, id))
+        else ok none
+      else ok none
+    | some id => ok (some (table, id))
+  else ok none
+
+/-- [rowl_kernel::saturation::role_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 272:0-282:1 -/
+def saturation.role_from
+  (roles : alloc.vec.Vec model.ObjectProperty) (role : model.ObjectProperty)
+  (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let op ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectProperty) roles index
+    let b ← symbols.same_spelling op.iri.spelling role.iri.spelling
+    if b
+    then ok (some index)
+    else let i1 ← index + 1#usize
+         saturation.role_from roles role i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::intern_role]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 285:0-298:1 -/
+def saturation.intern_role
+  (table : saturation.Table) (role : model.ObjectProperty) :
+  Result (Option (saturation.Table × Std.Usize))
+  := do
+  let o ← saturation.role_from table.roles role 0#usize
+  match o with
+  | none =>
+    let id := alloc.vec.Vec.len table.roles
+    if id < core.num.Usize.MAX
+    then
+      let op ← saturation.copy_role role
+      let v ← alloc.vec.Vec.push table.roles op
+      ok (some ({ table with roles := v }, id))
+    else ok none
+  | some id => ok (some (table, id))
+
+/-- [rowl_kernel::saturation::named_role]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 301:0-312:1 -/
+def saturation.named_role
+  (role : model.ObjectPropertyExpression) :
+  Result (Option model.ObjectProperty)
+  := do
+  match role with
+  | model.ObjectPropertyExpression.Property property =>
+    let b ← saturation.builtin_role property
+    if b
+    then ok none
+    else ok (some property)
+  | model.ObjectPropertyExpression.Inverse _ => ok none
+
+mutual
+
+/-- [rowl_kernel::saturation::concept_of]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 315:0-365:1
+    Visibility: public -/
+def saturation.concept_of
+  (table : saturation.Table) (expression : model.ClassExpression) :
+  Result (Option (saturation.Table × Std.Usize))
+  := do
+  match expression with
+  | model.ClassExpression.Class «class» =>
+    let b ← saturation.is_thing «class»
+    if b
+    then saturation.intern table saturation.Concept.Top
+    else
+      let b1 ← saturation.is_nothing «class»
+      if b1
+      then saturation.intern table saturation.Concept.Bottom
+      else
+        let c ← saturation.copy_class «class»
+        saturation.intern table (saturation.Concept.Atom c)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let o ← saturation.conjunction_of table members.rest 0#usize
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, last) := pair
+      let o1 ← saturation.concept_of table1 members.second
+      match o1 with
+      | none => ok none
+      | some pair1 =>
+        let (table2, second) := pair1
+        let o2 ← saturation.concept_of table2 members.first
+        match o2 with
+        | none => ok none
+        | some pair2 =>
+          let (table3, first) := pair2
+          match last with
+          | none =>
+            saturation.intern table3 (saturation.Concept.And first second)
+          | some rest =>
+            let o3 ←
+              saturation.intern table3 (saturation.Concept.And second rest)
+            match o3 with
+            | none => ok none
+            | some pair3 =>
+              let (table4, tail) := pair3
+              saturation.intern table4 (saturation.Concept.And first tail)
+  | model.ClassExpression.ObjectUnionOf _ => ok none
+  | model.ClassExpression.ObjectComplementOf _ => ok none
+  | model.ClassExpression.ObjectOneOf _ => ok none
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let o ← saturation.named_role role
+    match o with
+    | none => ok none
+    | some property =>
+      let o1 ← saturation.concept_of table filler
+      match o1 with
+      | none => ok none
+      | some pair =>
+        let (table1, inner) := pair
+        let o2 ← saturation.intern_role table1 property
+        match o2 with
+        | none => ok none
+        | some pair1 =>
+          let (table2, r) := pair1
+          saturation.intern table2 (saturation.Concept.Exists r inner)
+  | model.ClassExpression.ObjectAllValuesFrom _ _ => ok none
+  | model.ClassExpression.ObjectHasValue _ _ => ok none
+  | model.ClassExpression.ObjectHasSelf _ => ok none
+  | model.ClassExpression.ObjectMinCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.ObjectExactCardinality _ _ _ => ok none
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok none
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok none
+  | model.ClassExpression.DataHasValue _ _ => ok none
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok none
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok none
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::conjunction_of]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 369:0-393:1 -/
+def saturation.conjunction_of
+  (table : saturation.Table) (members : alloc.vec.Vec model.ClassExpression)
+  (index : Std.Usize) :
+  Result (Option (saturation.Table × (Option Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let o ← saturation.conjunction_of table members i1
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, rest) := pair
+      let ce ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ClassExpression) members index
+      let o1 ← saturation.concept_of table1 ce
+      match o1 with
+      | none => ok none
+      | some pair1 =>
+        let (table2, head) := pair1
+        match rest with
+        | none => ok (some (table2, some head))
+        | some rest1 =>
+          let o2 ←
+            saturation.intern table2 (saturation.Concept.And head rest1)
+          match o2 with
+          | none => ok none
+          | some p => let (table3, both) := p
+                      ok (some (table3, some both))
+  else ok (some (table, none))
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::saturation::push_rule]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 395:0-402:1 -/
+def saturation.push_rule
+  (rules : alloc.vec.Vec saturation.Rule) (rule : saturation.Rule) :
+  Result (Option (alloc.vec.Vec saturation.Rule))
+  := do
+  let i := alloc.vec.Vec.len rules
+  if i < core.num.Usize.MAX
+  then let rules1 ← alloc.vec.Vec.push rules rule
+       ok (some rules1)
+  else ok none
+
+/-- [rowl_kernel::saturation::concepts_of]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 405:0-425:1 -/
+def saturation.concepts_of
+  (table : saturation.Table) (members : alloc.vec.Vec model.ClassExpression)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (saturation.Table × (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) members index
+    let o ← saturation.concept_of table ce
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, id) := pair
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out id
+        let i2 ← index + 1#usize
+        saturation.concepts_of table1 members i2 out1
+      else ok none
+  else ok (some (table, out))
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::members_of]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 428:0-446:1 -/
+def saturation.members_of
+  (table : saturation.Table) (first : model.ClassExpression)
+  (second : model.ClassExpression) (rest : alloc.vec.Vec model.ClassExpression)
+  :
+  Result (Option (saturation.Table × (alloc.vec.Vec Std.Usize)))
+  := do
+  let o ← saturation.concept_of table first
+  match o with
+  | none => ok none
+  | some pair =>
+    let (table1, a) := pair
+    let o1 ← saturation.concept_of table1 second
+    match o1 with
+    | none => ok none
+    | some pair1 =>
+      let (table2, b) := pair1
+      let out ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) a
+      let out1 ← alloc.vec.Vec.push out b
+      saturation.concepts_of table2 rest 0#usize out1
+
+/-- [rowl_kernel::saturation::equivalences]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 450:0-469:1 -/
+def saturation.equivalences
+  (rules : alloc.vec.Vec saturation.Rule) (members : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec saturation.Rule))
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let next ← index + 1#usize
+    let i1 := alloc.vec.Vec.len members
+    if next < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          members index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          members next
+      let o ← saturation.push_rule rules (saturation.Rule.Sub i2 i3)
+      match o with
+      | none => ok none
+      | some rules1 =>
+        let o1 ← saturation.push_rule rules1 (saturation.Rule.Sub i3 i2)
+        match o1 with
+        | none => ok none
+        | some rules2 => saturation.equivalences rules2 members next
+    else ok (some rules)
+  else ok (some rules)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::disjoint_pairs]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 473:0-503:1 -/
+def saturation.disjoint_pairs
+  (table : saturation.Table) (rules : alloc.vec.Vec saturation.Rule)
+  (members : alloc.vec.Vec Std.Usize) (bottom : Std.Usize) (index : Std.Usize)
+  (other : Std.Usize) :
+  Result (Option (saturation.Table × (alloc.vec.Vec saturation.Rule)))
+  := do
+  let i := alloc.vec.Vec.len members
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len members
+    if other < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          members index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          members other
+      let o ← saturation.intern table (saturation.Concept.And i2 i3)
+      match o with
+      | none => ok none
+      | some pair =>
+        let (table1, both) := pair
+        let o1 ← saturation.push_rule rules (saturation.Rule.Sub both bottom)
+        match o1 with
+        | none => ok none
+        | some rules1 =>
+          let i4 ← other + 1#usize
+          saturation.disjoint_pairs table1 rules1 members bottom index i4
+    else
+      let next ← index + 1#usize
+      if next < core.num.Usize.MAX
+      then
+        let i2 ← next + 1#usize
+        saturation.disjoint_pairs table rules members bottom next i2
+      else ok (some (table, rules))
+  else ok (some (table, rules))
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::translate_axiom]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 506:0-672:1 -/
+def saturation.translate_axiom
+  (table : saturation.Table) (rules : alloc.vec.Vec saturation.Rule)
+  («axiom» : model.Axiom) (top : Std.Usize) (bottom : Std.Usize) :
+  Result (Option (saturation.Table × (alloc.vec.Vec saturation.Rule)))
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some (table, rules))
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← saturation.concept_of table sub
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, a) := pair
+      let o1 ← saturation.concept_of table1 sup
+      match o1 with
+      | none => ok none
+      | some pair1 =>
+        let (table2, b) := pair1
+        let o2 ← saturation.push_rule rules (saturation.Rule.Sub a b)
+        match o2 with
+        | none => ok none
+        | some rules1 => ok (some (table2, rules1))
+  | model.Axiom.EquivalentClasses members =>
+    let o ←
+      saturation.members_of table members.first members.second members.rest
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, ids) := pair
+      let o1 ← saturation.equivalences rules ids 0#usize
+      match o1 with
+      | none => ok none
+      | some rules1 => ok (some (table1, rules1))
+  | model.Axiom.DisjointClasses members =>
+    let o ←
+      saturation.members_of table members.first members.second members.rest
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, ids) := pair
+      saturation.disjoint_pairs table1 rules ids bottom 0#usize 1#usize
+  | model.Axiom.DisjointUnion _ _ => ok none
+  | model.Axiom.SubObjectPropertyOf sub sup =>
+    let o ← saturation.named_role sup
+    match o with
+    | none => ok none
+    | some property =>
+      let o1 ← saturation.intern_role table property
+      match o1 with
+      | none => ok none
+      | some pair =>
+        let (table1, s) := pair
+        match sub with
+        | model.SubObjectPropertyExpression.Single role =>
+          let o2 ← saturation.named_role role
+          match o2 with
+          | none => ok none
+          | some inner =>
+            let o3 ← saturation.intern_role table1 inner
+            match o3 with
+            | none => ok none
+            | some pair1 =>
+              let (table2, r) := pair1
+              let o4 ← saturation.push_rule rules (saturation.Rule.Role r s)
+              match o4 with
+              | none => ok none
+              | some rules1 => ok (some (table2, rules1))
+        | model.SubObjectPropertyExpression.Chain chain =>
+          let i := alloc.vec.Vec.len chain.rest
+          if i = 0#usize
+          then
+            let o2 ← saturation.named_role chain.first
+            match o2 with
+            | none => ok none
+            | some first =>
+              let o3 ← saturation.named_role chain.second
+              match o3 with
+              | none => ok none
+              | some second =>
+                let o4 ← saturation.intern_role table1 first
+                match o4 with
+                | none => ok none
+                | some pair1 =>
+                  let (table2, r1) := pair1
+                  let o5 ← saturation.intern_role table2 second
+                  match o5 with
+                  | none => ok none
+                  | some pair2 =>
+                    let (table3, r2) := pair2
+                    let o6 ←
+                      saturation.push_rule rules (saturation.Rule.Chain r1 r2
+                        s)
+                    match o6 with
+                    | none => ok none
+                    | some rules1 => ok (some (table3, rules1))
+          else ok none
+  | model.Axiom.EquivalentObjectProperties members =>
+    let i := alloc.vec.Vec.len members.rest
+    if i = 0#usize
+    then
+      let o ← saturation.named_role members.first
+      match o with
+      | none => ok none
+      | some first =>
+        let o1 ← saturation.named_role members.second
+        match o1 with
+        | none => ok none
+        | some second =>
+          let o2 ← saturation.intern_role table first
+          match o2 with
+          | none => ok none
+          | some pair =>
+            let (table1, r) := pair
+            let o3 ← saturation.intern_role table1 second
+            match o3 with
+            | none => ok none
+            | some pair1 =>
+              let (table2, s) := pair1
+              let o4 ← saturation.push_rule rules (saturation.Rule.Role r s)
+              match o4 with
+              | none => ok none
+              | some rules1 =>
+                let o5 ←
+                  saturation.push_rule rules1 (saturation.Rule.Role s r)
+                match o5 with
+                | none => ok none
+                | some rules2 => ok (some (table2, rules2))
+    else ok none
+  | model.Axiom.DisjointObjectProperties _ => ok none
+  | model.Axiom.InverseObjectProperties _ _ => ok none
+  | model.Axiom.ObjectPropertyDomain role «class» =>
+    let o ← saturation.named_role role
+    match o with
+    | none => ok none
+    | some property =>
+      let o1 ← saturation.intern_role table property
+      match o1 with
+      | none => ok none
+      | some pair =>
+        let (table1, r) := pair
+        let o2 ← saturation.intern table1 (saturation.Concept.Exists r top)
+        match o2 with
+        | none => ok none
+        | some pair1 =>
+          let (table2, some1) := pair1
+          let o3 ← saturation.concept_of table2 «class»
+          match o3 with
+          | none => ok none
+          | some pair2 =>
+            let (table3, d) := pair2
+            let o4 ← saturation.push_rule rules (saturation.Rule.Sub some1 d)
+            match o4 with
+            | none => ok none
+            | some rules1 => ok (some (table3, rules1))
+  | model.Axiom.ObjectPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalObjectProperty _ => ok none
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok none
+  | model.Axiom.ReflexiveObjectProperty _ => ok none
+  | model.Axiom.IrreflexiveObjectProperty _ => ok none
+  | model.Axiom.SymmetricObjectProperty _ => ok none
+  | model.Axiom.AsymmetricObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty role =>
+    let o ← saturation.named_role role
+    match o with
+    | none => ok none
+    | some property =>
+      let o1 ← saturation.intern_role table property
+      match o1 with
+      | none => ok none
+      | some pair =>
+        let (table1, r) := pair
+        let o2 ← saturation.push_rule rules (saturation.Rule.Chain r r r)
+        match o2 with
+        | none => ok none
+        | some rules1 => ok (some (table1, rules1))
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual _ => ok none
+  | model.Axiom.DifferentIndividuals _ => ok none
+  | model.Axiom.ClassAssertion _ _ => ok none
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some (table, rules))
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some (table, rules))
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some (table, rules))
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some (table, rules))
+
+/-- [rowl_kernel::saturation::translate]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 676:0-693:1 -/
+def saturation.translate
+  (table : saturation.Table) (rules : alloc.vec.Vec saturation.Rule)
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (top : Std.Usize)
+  (bottom : Std.Usize) (index : Std.Usize) :
+  Result (Option (saturation.Table × (alloc.vec.Vec saturation.Rule)))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← saturation.translate_axiom table rules aa.axiom top bottom
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, rules1) := pair
+      let i1 ← index + 1#usize
+      saturation.translate table1 rules1 items top bottom i1
+  else ok (some (table, rules))
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::empty_lists]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 695:0-702:1 -/
+def saturation.empty_lists
+  (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new Std.Usize)
+    saturation.empty_lists count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::empty_pairs]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 703:0-710:1 -/
+def saturation.empty_pairs
+  (count : Std.Usize)
+  (out : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))) :
+  Result (alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then
+    let out1 ←
+      alloc.vec.Vec.push out (alloc.vec.Vec.new (Std.Usize × Std.Usize))
+    saturation.empty_pairs count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::falses]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 711:0-718:1 -/
+def saturation.falses
+  (count : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then let out1 ← alloc.vec.Vec.push out false
+       saturation.falses count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::push_pair]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 720:0-735:1 -/
+def saturation.push_pair
+  (list : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize)))
+  («at» : Std.Usize) (pair : (Std.Usize × Std.Usize)) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))))
+  := do
+  let i := alloc.vec.Vec.len list
+  if «at» < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) list «at»
+    let i1 := alloc.vec.Vec.len v
+    if i1 < core.num.Usize.MAX
+    then
+      let (v1, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) list «at»
+      let v2 ← alloc.vec.Vec.push v1 pair
+      let list1 := index_mut_back v2
+      ok (some list1)
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::saturation::push_item]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 736:0-747:1 -/
+def saturation.push_item
+  (list : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) («at» : Std.Usize)
+  (item : Std.Usize) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len list
+  if «at» < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) list «at»
+    let i1 := alloc.vec.Vec.len v
+    if i1 < core.num.Usize.MAX
+    then
+      let (v1, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) list «at»
+      let v2 ← alloc.vec.Vec.push v1 item
+      let list1 := index_mut_back v2
+      ok (some list1)
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::saturation::register]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 751:0-801:1 -/
+def saturation.register
+  (concepts : alloc.vec.Vec saturation.Concept)
+  (conjunctions : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize)))
+  (existentials : alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize)))
+  (seen : alloc.vec.Vec Bool) (c : Std.Usize) :
+  Result (Option ((alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))) ×
+    (alloc.vec.Vec (alloc.vec.Vec (Std.Usize × Std.Usize))) × (alloc.vec.Vec
+    Bool)))
+  := do
+  let i := alloc.vec.Vec.len concepts
+  if c < i
+  then
+    let i1 := alloc.vec.Vec.len seen
+    if c < i1
+    then
+      let b ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) seen c
+      if b
+      then ok (some (conjunctions, existentials, seen))
+      else
+        let (_, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
+            seen c
+        let c1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            saturation.Concept) concepts c
+        match c1 with
+        | saturation.Concept.Top =>
+          let seen1 := index_mut_back true
+          ok (some (conjunctions, existentials, seen1))
+        | saturation.Concept.Bottom =>
+          let seen1 := index_mut_back true
+          ok (some (conjunctions, existentials, seen1))
+        | saturation.Concept.Atom _ =>
+          let seen1 := index_mut_back true
+          ok (some (conjunctions, existentials, seen1))
+        | saturation.Concept.And a b1 =>
+          let o ← saturation.push_pair conjunctions a (b1, c)
+          match o with
+          | none => ok none
+          | some list =>
+            let o1 ← saturation.push_pair list b1 (a, c)
+            match o1 with
+            | none => ok none
+            | some list1 =>
+              let seen1 := index_mut_back true
+              let o2 ←
+                saturation.register concepts list1 existentials seen1 a
+              match o2 with
+              | none => ok none
+              | some found =>
+                let (conjunctions1, existentials1, seen2) := found
+                saturation.register concepts conjunctions1 existentials1 seen2
+                  b1
+        | saturation.Concept.Exists r f =>
+          let o ← saturation.push_pair existentials f (r, c)
+          match o with
+          | none => ok none
+          | some list =>
+            let seen1 := index_mut_back true
+            saturation.register concepts conjunctions list seen1 f
+    else ok none
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::index_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 804:0-892:1 -/
+def saturation.index_from
+  (concepts : alloc.vec.Vec saturation.Concept)
+  (list : alloc.vec.Vec saturation.Rule) (index : Std.Usize)
+  (rules : saturation.Rules) (seen : alloc.vec.Vec Bool) :
+  Result (Option saturation.Rules)
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let r ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        saturation.Rule) list index
+    match r with
+    | saturation.Rule.Sub a b =>
+      let o ← saturation.push_item rules.told a b
+      match o with
+      | none => ok none
+      | some told =>
+        let o1 ←
+          saturation.register concepts rules.conjunctions rules.existentials
+            seen a
+        match o1 with
+        | none => ok none
+        | some found =>
+          let (conjunctions, existentials, seen1) := found
+          let i1 ← index + 1#usize
+          saturation.index_from concepts list i1
+            { rules with told, conjunctions, existentials } seen1
+    | saturation.Rule.Role r1 s =>
+      let o ← saturation.push_item rules.supers r1 s
+      match o with
+      | none => ok none
+      | some supers =>
+        let i1 ← index + 1#usize
+        saturation.index_from concepts list i1 { rules with supers } seen
+    | saturation.Rule.Chain r1 r2 s =>
+      let o ← saturation.push_pair rules.firsts r1 (r2, s)
+      match o with
+      | none => ok none
+      | some firsts =>
+        let o1 ← saturation.push_pair rules.seconds r2 (r1, s)
+        match o1 with
+        | none => ok none
+        | some seconds =>
+          let i1 ← index + 1#usize
+          saturation.index_from concepts list i1 { rules with firsts, seconds }
+            seen
+  else ok (some rules)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::has_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 894:0-904:1 -/
+def saturation.has_from
+  (list : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    if i1 = item
+    then ok true
+    else let i2 ← index + 1#usize
+         saturation.has_from list item i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::has]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 905:0-907:1 -/
+def saturation.has
+  (list : alloc.vec.Vec Std.Usize) (item : Std.Usize) : Result Bool := do
+  saturation.has_from list item 0#usize
+
+/-- [rowl_kernel::saturation::has_pair_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 908:0-920:1 -/
+def saturation.has_pair_from
+  (list : alloc.vec.Vec (Std.Usize × Std.Usize)) (first : Std.Usize)
+  (second : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let (a, b) ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize ×
+        Std.Usize)) list index
+    if a = first
+    then
+      if b = second
+      then ok true
+      else
+        let i1 ← index + 1#usize
+        saturation.has_pair_from list first second i1
+    else
+      let i1 ← index + 1#usize
+      saturation.has_pair_from list first second i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::has_pair]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 921:0-923:1 -/
+def saturation.has_pair
+  (list : alloc.vec.Vec (Std.Usize × Std.Usize)) (first : Std.Usize)
+  (second : Std.Usize) :
+  Result Bool
+  := do
+  saturation.has_pair_from list first second 0#usize
+
+/-- [rowl_kernel::saturation::push_fact]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 925:0-932:1 -/
+def saturation.push_fact
+  (queue : alloc.vec.Vec saturation.Fact) (fact : saturation.Fact) :
+  Result (Option (alloc.vec.Vec saturation.Fact))
+  := do
+  let i := alloc.vec.Vec.len queue
+  if i < core.num.Usize.MAX
+  then let queue1 ← alloc.vec.Vec.push queue fact
+       ok (some queue1)
+  else ok none
+
+/-- [rowl_kernel::saturation::add_sub]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 935:0-960:1 -/
+def saturation.add_sub
+  (state : saturation.State) (x : Std.Usize) (c : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len state.subsumers
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subsumers x
+    let b ← saturation.has v c
+    if b
+    then ok (some state)
+    else
+      let o ← saturation.push_item state.subsumers x c
+      match o with
+      | none => ok none
+      | some subsumers =>
+        let o1 ← saturation.push_fact state.queue (saturation.Fact.Sub x c)
+        match o1 with
+        | none => ok none
+        | some queue => ok (some { state with subsumers, queue })
+  else ok none
+
+/-- [rowl_kernel::saturation::add_link]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 962:0-991:1 -/
+def saturation.add_link
+  (state : saturation.State) (x : Std.Usize) (r : Std.Usize) (y : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len state.out
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) state.out x
+    let b ← saturation.has_pair v r y
+    if b
+    then ok (some state)
+    else
+      let o ← saturation.push_pair state.out x (r, y)
+      match o with
+      | none => ok none
+      | some out =>
+        let o1 ← saturation.push_pair state.into y (r, x)
+        match o1 with
+        | none => ok none
+        | some into =>
+          let o2 ←
+            saturation.push_fact state.queue (saturation.Fact.Link x r y)
+          match o2 with
+          | none => ok none
+          | some queue => ok (some { state with out, into, queue })
+  else ok none
+
+/-- [rowl_kernel::saturation::activate]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 993:0-1008:1 -/
+def saturation.activate
+  (state : saturation.State) (x : Std.Usize) (top : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len state.active
+  if x < i
+  then
+    let b ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
+        state.active x
+    if b
+    then ok (some state)
+    else
+      let (_, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
+          state.active x
+      let v := index_mut_back true
+      let o ← saturation.add_sub { state with active := v } x x
+      match o with
+      | none => ok none
+      | some state1 => saturation.add_sub state1 x top
+  else ok none
+
+/-- [rowl_kernel::saturation::into_length]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1010:0-1016:1 -/
+def saturation.into_length
+  (state : saturation.State) (x : Std.Usize) : Result (Option Std.Usize) := do
+  let i := alloc.vec.Vec.len state.into
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) state.into x
+    let i1 := alloc.vec.Vec.len v
+    ok (some i1)
+  else ok none
+
+/-- [rowl_kernel::saturation::out_length]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1017:0-1023:1 -/
+def saturation.out_length
+  (state : saturation.State) (x : Std.Usize) : Result (Option Std.Usize) := do
+  let i := alloc.vec.Vec.len state.out
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) state.out x
+    let i1 := alloc.vec.Vec.len v
+    ok (some i1)
+  else ok none
+
+/-- [rowl_kernel::saturation::subsumers_length]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1024:0-1030:1 -/
+def saturation.subsumers_length
+  (state : saturation.State) (x : Std.Usize) : Result (Option Std.Usize) := do
+  let i := alloc.vec.Vec.len state.subsumers
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subsumers x
+    let i1 := alloc.vec.Vec.len v
+    ok (some i1)
+  else ok none
+
+/-- [rowl_kernel::saturation::bottom_back]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1033:0-1051:1 -/
+def saturation.bottom_back
+  (state : saturation.State) (x : Std.Usize) (c : Std.Usize)
+  (index : Std.Usize) («end» : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len state.into
+    if x < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) state.into x
+      let i1 := alloc.vec.Vec.len v
+      if index < i1
+      then
+        let (_, w) ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+            × Std.Usize)) v index
+        let o ← saturation.add_sub state w c
+        match o with
+        | none => ok none
+        | some state1 =>
+          let i2 ← index + 1#usize
+          saturation.bottom_back state1 x c i2 «end»
+      else ok (some state)
+    else ok none
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::told_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1053:0-1066:1 -/
+def saturation.told_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (c : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.told
+  if c < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) rules.told c
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) v
+          index
+      let o ← saturation.add_sub state x i2
+      match o with
+      | none => ok none
+      | some state1 =>
+        let i3 ← index + 1#usize
+        saturation.told_from rules state1 x c i3
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::conjunctions_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1068:0-1096:1 -/
+def saturation.conjunctions_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (c : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.conjunctions
+  if c < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) rules.conjunctions c
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let i2 := alloc.vec.Vec.len state.subsumers
+      if x < i2
+      then
+        let (other, both) ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+            × Std.Usize)) v index
+        let v1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) state.subsumers x
+        let b ← saturation.has v1 other
+        if b
+        then
+          let o ← saturation.add_sub state x both
+          match o with
+          | none => ok none
+          | some state1 =>
+            let i3 ← index + 1#usize
+            saturation.conjunctions_from rules state1 x c i3
+        else
+          let i3 ← index + 1#usize
+          saturation.conjunctions_from rules state x c i3
+      else ok none
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::existentials_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1098:0-1123:1 -/
+def saturation.existentials_from
+  (rules : saturation.Rules) (state : saturation.State) (w : Std.Usize)
+  (c : Std.Usize) (r : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.existentials
+  if c < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) rules.existentials c
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let (s, e) ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+          × Std.Usize)) v index
+      if s = r
+      then
+        let o ← saturation.add_sub state w e
+        match o with
+        | none => ok none
+        | some state1 =>
+          let i2 ← index + 1#usize
+          saturation.existentials_from rules state1 w c r i2
+      else
+        let i2 ← index + 1#usize
+        saturation.existentials_from rules state w c r i2
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::existentials_back]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1126:0-1151:1 -/
+def saturation.existentials_back
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (c : Std.Usize) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len state.into
+    if x < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) state.into x
+      let i1 := alloc.vec.Vec.len v
+      if index < i1
+      then
+        let (r, w) ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+            × Std.Usize)) v index
+        let o ← saturation.existentials_from rules state w c r 0#usize
+        match o with
+        | none => ok none
+        | some state1 =>
+          let i2 ← index + 1#usize
+          saturation.existentials_back rules state1 x c i2 «end»
+      else ok (some state)
+    else ok none
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::process_sub]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1154:0-1205:1 -/
+def saturation.process_sub
+  (rules : saturation.Rules) (concepts : alloc.vec.Vec saturation.Concept)
+  (state : saturation.State) (x : Std.Usize) (c : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len concepts
+  if c < i
+  then
+    let c1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        saturation.Concept) concepts c
+    match c1 with
+    | saturation.Concept.Top =>
+      let o ← saturation.told_from rules state x c 0#usize
+      match o with
+      | none => ok none
+      | some state1 =>
+        let o1 ← saturation.conjunctions_from rules state1 x c 0#usize
+        match o1 with
+        | none => ok none
+        | some state2 =>
+          let o2 ← saturation.into_length state2 x
+          match o2 with
+          | none => ok none
+          | some «end» =>
+            saturation.existentials_back rules state2 x c 0#usize «end»
+    | saturation.Concept.Bottom =>
+      let o ← saturation.into_length state x
+      match o with
+      | none => ok none
+      | some «end» =>
+        let o1 ← saturation.bottom_back state x c 0#usize «end»
+        match o1 with
+        | none => ok none
+        | some state1 =>
+          let o2 ← saturation.told_from rules state1 x c 0#usize
+          match o2 with
+          | none => ok none
+          | some state2 =>
+            let o3 ← saturation.conjunctions_from rules state2 x c 0#usize
+            match o3 with
+            | none => ok none
+            | some state3 =>
+              let o4 ← saturation.into_length state3 x
+              match o4 with
+              | none => ok none
+              | some end1 =>
+                saturation.existentials_back rules state3 x c 0#usize end1
+    | saturation.Concept.Atom _ =>
+      let o ← saturation.told_from rules state x c 0#usize
+      match o with
+      | none => ok none
+      | some state1 =>
+        let o1 ← saturation.conjunctions_from rules state1 x c 0#usize
+        match o1 with
+        | none => ok none
+        | some state2 =>
+          let o2 ← saturation.into_length state2 x
+          match o2 with
+          | none => ok none
+          | some «end» =>
+            saturation.existentials_back rules state2 x c 0#usize «end»
+    | saturation.Concept.And a b =>
+      let o ← saturation.add_sub state x a
+      match o with
+      | none => ok none
+      | some state1 =>
+        let o1 ← saturation.add_sub state1 x b
+        match o1 with
+        | none => ok none
+        | some state2 =>
+          let o2 ← saturation.told_from rules state2 x c 0#usize
+          match o2 with
+          | none => ok none
+          | some state3 =>
+            let o3 ← saturation.conjunctions_from rules state3 x c 0#usize
+            match o3 with
+            | none => ok none
+            | some state4 =>
+              let o4 ← saturation.into_length state4 x
+              match o4 with
+              | none => ok none
+              | some «end» =>
+                saturation.existentials_back rules state4 x c 0#usize «end»
+    | saturation.Concept.Exists r y =>
+      let o ← saturation.add_link state x r y
+      match o with
+      | none => ok none
+      | some state1 =>
+        let o1 ← saturation.told_from rules state1 x c 0#usize
+        match o1 with
+        | none => ok none
+        | some state2 =>
+          let o2 ← saturation.conjunctions_from rules state2 x c 0#usize
+          match o2 with
+          | none => ok none
+          | some state3 =>
+            let o3 ← saturation.into_length state3 x
+            match o3 with
+            | none => ok none
+            | some «end» =>
+              saturation.existentials_back rules state3 x c 0#usize «end»
+  else ok none
+
+/-- [rowl_kernel::saturation::targets_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1209:0-1243:1 -/
+def saturation.targets_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len state.subsumers
+    if y < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) state.subsumers y
+      let i1 := alloc.vec.Vec.len v
+      if index < i1
+      then
+        let c ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            v index
+        if c = rules.bottom
+        then
+          let o ← saturation.add_sub state x c
+          match o with
+          | none => ok none
+          | some state1 =>
+            let o1 ← saturation.existentials_from rules state1 x c r 0#usize
+            match o1 with
+            | none => ok none
+            | some state2 =>
+              let i2 ← index + 1#usize
+              saturation.targets_from rules state2 x r y i2 «end»
+        else
+          let o ← saturation.existentials_from rules state x c r 0#usize
+          match o with
+          | none => ok none
+          | some state1 =>
+            let i2 ← index + 1#usize
+            saturation.targets_from rules state1 x r y i2 «end»
+      else ok (some state)
+    else ok none
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::supers_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1245:0-1265:1 -/
+def saturation.supers_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.supers
+  if r < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) rules.supers r
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) v
+          index
+      let o ← saturation.add_link state x i2 y
+      match o with
+      | none => ok none
+      | some state1 =>
+        let i3 ← index + 1#usize
+        saturation.supers_from rules state1 x r y i3
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::chain_out]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1267:0-1297:1 -/
+def saturation.chain_out
+  (state : saturation.State) (x : Std.Usize) (y : Std.Usize)
+  (second : Std.Usize) (result : Std.Usize) (index : Std.Usize)
+  («end» : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len state.out
+    if y < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) state.out y
+      let i1 := alloc.vec.Vec.len v
+      if index < i1
+      then
+        let (role, z) ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+            × Std.Usize)) v index
+        if role = second
+        then
+          let o ← saturation.add_link state x result z
+          match o with
+          | none => ok none
+          | some state1 =>
+            let i2 ← index + 1#usize
+            saturation.chain_out state1 x y second result i2 «end»
+        else
+          let i2 ← index + 1#usize
+          saturation.chain_out state x y second result i2 «end»
+      else ok (some state)
+    else ok none
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::firsts_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1299:0-1324:1 -/
+def saturation.firsts_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.firsts
+  if r < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) rules.firsts r
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let (second, result) ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+          × Std.Usize)) v index
+      let o ← saturation.out_length state y
+      match o with
+      | none => ok none
+      | some «end» =>
+        let o1 ← saturation.chain_out state x y second result 0#usize «end»
+        match o1 with
+        | none => ok none
+        | some state1 =>
+          let i2 ← index + 1#usize
+          saturation.firsts_from rules state1 x r y i2
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::chain_in]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1326:0-1356:1 -/
+def saturation.chain_in
+  (state : saturation.State) (x : Std.Usize) (y : Std.Usize)
+  (first : Std.Usize) (result : Std.Usize) (index : Std.Usize)
+  («end» : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len state.into
+    if x < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) state.into x
+      let i1 := alloc.vec.Vec.len v
+      if index < i1
+      then
+        let (role, w) ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+            × Std.Usize)) v index
+        if role = first
+        then
+          let o ← saturation.add_link state w result y
+          match o with
+          | none => ok none
+          | some state1 =>
+            let i2 ← index + 1#usize
+            saturation.chain_in state1 x y first result i2 «end»
+        else
+          let i2 ← index + 1#usize
+          saturation.chain_in state x y first result i2 «end»
+      else ok (some state)
+    else ok none
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::seconds_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1358:0-1383:1 -/
+def saturation.seconds_from
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len rules.seconds
+  if r < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) rules.seconds r
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let (first, result) ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+          × Std.Usize)) v index
+      let o ← saturation.into_length state x
+      match o with
+      | none => ok none
+      | some «end» =>
+        let o1 ← saturation.chain_in state x y first result 0#usize «end»
+        match o1 with
+        | none => ok none
+        | some state1 =>
+          let i2 ← index + 1#usize
+          saturation.seconds_from rules state1 x r y i2
+    else ok (some state)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::process_link]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1386:0-1408:1 -/
+def saturation.process_link
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let o ← saturation.activate state y rules.top
+  match o with
+  | none => ok none
+  | some state1 =>
+    let o1 ← saturation.subsumers_length state1 y
+    match o1 with
+    | none => ok none
+    | some «end» =>
+      let o2 ← saturation.targets_from rules state1 x r y 0#usize «end»
+      match o2 with
+      | none => ok none
+      | some state2 =>
+        let o3 ← saturation.supers_from rules state2 x r y 0#usize
+        match o3 with
+        | none => ok none
+        | some state3 =>
+          let o4 ← saturation.firsts_from rules state3 x r y 0#usize
+          match o4 with
+          | none => ok none
+          | some state4 => saturation.seconds_from rules state4 x r y 0#usize
+
+/-- [rowl_kernel::saturation::saturate]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1411:0-1443:1 -/
+def saturation.saturate
+  (rules : saturation.Rules) (concepts : alloc.vec.Vec saturation.Concept)
+  (state : saturation.State) (fuel : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len state.queue
+  if state.next < i
+  then
+    if fuel = 0#usize
+    then ok none
+    else
+      let f ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          saturation.Fact) state.queue state.next
+      let fact ←
+        match f with
+        | saturation.Fact.Sub _ _ => ok f
+        | saturation.Fact.Link _ _ _ => ok f
+      let i1 ← state.next + 1#usize
+      match fact with
+      | saturation.Fact.Sub x c =>
+        let o ←
+          saturation.process_sub rules concepts { state with next := i1 } x c
+        match o with
+        | none => ok none
+        | some state1 =>
+          let i2 ← fuel - 1#usize
+          saturation.saturate rules concepts state1 i2
+      | saturation.Fact.Link x r y =>
+        let o ← saturation.process_link rules { state with next := i1 } x r y
+        match o with
+        | none => ok none
+        | some state1 =>
+          let i2 ← fuel - 1#usize
+          saturation.saturate rules concepts state1 i2
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::told_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1445:0-1455:1 -/
+def saturation.told_closed
+  (told : alloc.vec.Vec Std.Usize) (list : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len told
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        told index
+    let b ← saturation.has list i1
+    if b
+    then let i2 ← index + 1#usize
+         saturation.told_closed told list i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::conjunctions_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1456:0-1475:1 -/
+def saturation.conjunctions_closed
+  (conjunctions : alloc.vec.Vec (Std.Usize × Std.Usize))
+  (list : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len conjunctions
+  if index < i
+  then
+    let (other, both) ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize ×
+        Std.Usize)) conjunctions index
+    let b ← saturation.has list other
+    if b
+    then
+      let b1 ← saturation.has list both
+      if b1
+      then
+        let i1 ← index + 1#usize
+        saturation.conjunctions_closed conjunctions list i1
+      else ok false
+    else
+      let i1 ← index + 1#usize
+      saturation.conjunctions_closed conjunctions list i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::parts_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1478:0-1499:1 -/
+def saturation.parts_closed
+  (concepts : alloc.vec.Vec saturation.Concept) (c : Std.Usize)
+  (list : alloc.vec.Vec Std.Usize)
+  (links : alloc.vec.Vec (Std.Usize × Std.Usize)) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len concepts
+  if c < i
+  then
+    let c1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        saturation.Concept) concepts c
+    match c1 with
+    | saturation.Concept.Top => ok true
+    | saturation.Concept.Bottom => ok true
+    | saturation.Concept.Atom _ => ok true
+    | saturation.Concept.And a b =>
+      let b1 ← saturation.has list a
+      if b1
+      then saturation.has list b
+      else ok false
+    | saturation.Concept.Exists r y => saturation.has_pair links r y
+  else ok false
+
+/-- [rowl_kernel::saturation::subsumers_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1502:0-1526:1 -/
+def saturation.subsumers_closed
+  (rules : saturation.Rules) (concepts : alloc.vec.Vec saturation.Concept)
+  (list : alloc.vec.Vec Std.Usize)
+  (links : alloc.vec.Vec (Std.Usize × Std.Usize)) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let i1 := alloc.vec.Vec.len rules.told
+    if c < i1
+    then
+      let i2 := alloc.vec.Vec.len rules.conjunctions
+      if c < i2
+      then
+        let b ← saturation.parts_closed concepts c list links
+        if b
+        then
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) rules.told c
+          let b1 ← saturation.told_closed v list 0#usize
+          if b1
+          then
+            let v1 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                (alloc.vec.Vec (Std.Usize × Std.Usize))) rules.conjunctions c
+            let b2 ← saturation.conjunctions_closed v1 list 0#usize
+            if b2
+            then
+              let i3 ← index + 1#usize
+              saturation.subsumers_closed rules concepts list links i3
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::existentials_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1527:0-1547:1 -/
+def saturation.existentials_closed
+  (existentials : alloc.vec.Vec (Std.Usize × Std.Usize))
+  (list : alloc.vec.Vec Std.Usize) (r : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len existentials
+  if index < i
+  then
+    let (s, e) ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize ×
+        Std.Usize)) existentials index
+    if s = r
+    then
+      let b ← saturation.has list e
+      if b
+      then
+        let i1 ← index + 1#usize
+        saturation.existentials_closed existentials list r i1
+      else ok false
+    else
+      let i1 ← index + 1#usize
+      saturation.existentials_closed existentials list r i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::targets_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1551:0-1569:1 -/
+def saturation.targets_closed
+  (rules : saturation.Rules) (list : alloc.vec.Vec Std.Usize)
+  (target : alloc.vec.Vec Std.Usize) (r : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len target
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        target index
+    let i1 := alloc.vec.Vec.len rules.existentials
+    if c < i1
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec (Std.Usize × Std.Usize))) rules.existentials c
+      let b ← saturation.existentials_closed v list r 0#usize
+      if b
+      then
+        let i2 ← index + 1#usize
+        saturation.targets_closed rules list target r i2
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::supers_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1570:0-1580:1 -/
+def saturation.supers_closed
+  (supers : alloc.vec.Vec Std.Usize)
+  (links : alloc.vec.Vec (Std.Usize × Std.Usize)) (y : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len supers
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        supers index
+    let b ← saturation.has_pair links i1 y
+    if b
+    then let i2 ← index + 1#usize
+         saturation.supers_closed supers links y i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::chain_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1581:0-1602:1 -/
+def saturation.chain_closed
+  (links : alloc.vec.Vec (Std.Usize × Std.Usize))
+  (onward : alloc.vec.Vec (Std.Usize × Std.Usize)) (second : Std.Usize)
+  (result : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len onward
+  if index < i
+  then
+    let (role, z) ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize ×
+        Std.Usize)) onward index
+    if role = second
+    then
+      let b ← saturation.has_pair links result z
+      if b
+      then
+        let i1 ← index + 1#usize
+        saturation.chain_closed links onward second result i1
+      else ok false
+    else
+      let i1 ← index + 1#usize
+      saturation.chain_closed links onward second result i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::firsts_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1603:0-1619:1 -/
+def saturation.firsts_closed
+  (firsts : alloc.vec.Vec (Std.Usize × Std.Usize))
+  (links : alloc.vec.Vec (Std.Usize × Std.Usize))
+  (onward : alloc.vec.Vec (Std.Usize × Std.Usize)) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len firsts
+  if index < i
+  then
+    let (second, result) ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize ×
+        Std.Usize)) firsts index
+    let b ← saturation.chain_closed links onward second result 0#usize
+    if b
+    then
+      let i1 ← index + 1#usize
+      saturation.firsts_closed firsts links onward i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::back_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1622:0-1628:1 -/
+def saturation.back_closed
+  (list : alloc.vec.Vec Std.Usize) (target : alloc.vec.Vec Std.Usize)
+  (bottom : Std.Usize) :
+  Result Bool
+  := do
+  let b ← saturation.has target bottom
+  if b
+  then saturation.has list bottom
+  else ok true
+
+/-- [rowl_kernel::saturation::link_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1631:0-1672:1 -/
+def saturation.link_closed
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (r : Std.Usize) (y : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len state.subsumers
+  if x < i
+  then
+    let i1 := alloc.vec.Vec.len state.out
+    if x < i1
+    then
+      let i2 := alloc.vec.Vec.len state.subsumers
+      if y < i2
+      then
+        let i3 := alloc.vec.Vec.len state.active
+        if y < i3
+        then
+          let i4 := alloc.vec.Vec.len state.out
+          if y < i4
+          then
+            let i5 := alloc.vec.Vec.len rules.supers
+            if r < i5
+            then
+              let i6 := alloc.vec.Vec.len rules.firsts
+              if r < i6
+              then
+                let b ←
+                  alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                    Bool) state.active y
+                if b
+                then
+                  let v ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      (alloc.vec.Vec Std.Usize)) state.subsumers x
+                  let v1 ←
+                    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                      (alloc.vec.Vec Std.Usize)) state.subsumers y
+                  let b1 ← saturation.back_closed v v1 rules.bottom
+                  if b1
+                  then
+                    let b2 ← saturation.targets_closed rules v v1 r 0#usize
+                    if b2
+                    then
+                      let v2 ←
+                        alloc.vec.Vec.index
+                          (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+                          Std.Usize)) rules.supers r
+                      let v3 ←
+                        alloc.vec.Vec.index
+                          (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+                          (Std.Usize × Std.Usize))) state.out x
+                      let b3 ← saturation.supers_closed v2 v3 y 0#usize
+                      if b3
+                      then
+                        let v4 ←
+                          alloc.vec.Vec.index
+                            (core.slice.index.SliceIndexUsizeSlice
+                            (alloc.vec.Vec (Std.Usize × Std.Usize)))
+                            rules.firsts r
+                        let v5 ←
+                          alloc.vec.Vec.index
+                            (core.slice.index.SliceIndexUsizeSlice
+                            (alloc.vec.Vec (Std.Usize × Std.Usize))) 
+                            state.out y
+                        saturation.firsts_closed v4 v3 v5 0#usize
+                      else ok false
+                    else ok false
+                  else ok false
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::saturation::links_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1674:0-1689:1 -/
+def saturation.links_closed
+  (rules : saturation.Rules) (state : saturation.State) (x : Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len state.out
+  if x < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        (Std.Usize × Std.Usize))) state.out x
+    let i1 := alloc.vec.Vec.len v
+    if index < i1
+    then
+      let (r, y) ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (Std.Usize
+          × Std.Usize)) v index
+      let b ← saturation.link_closed rules state x r y
+      if b
+      then let i2 ← index + 1#usize
+           saturation.links_closed rules state x i2
+      else ok false
+    else ok true
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::start_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1692:0-1702:1 -/
+def saturation.start_closed
+  (active : Bool) (list : alloc.vec.Vec Std.Usize) (x : Std.Usize)
+  (top : Std.Usize) :
+  Result Bool
+  := do
+  if active
+  then
+    let b ← saturation.has list x
+    if b
+    then saturation.has list top
+    else ok false
+  else let i := alloc.vec.Vec.len list
+       ok (i = 0#usize)
+
+/-- [rowl_kernel::saturation::contexts_closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1704:0-1721:1 -/
+def saturation.contexts_closed
+  (rules : saturation.Rules) (concepts : alloc.vec.Vec saturation.Concept)
+  (state : saturation.State) (x : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len state.subsumers
+  if x < i
+  then
+    let i1 := alloc.vec.Vec.len state.active
+    if x < i1
+    then
+      let i2 := alloc.vec.Vec.len state.out
+      if x < i2
+      then
+        let b ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool)
+            state.active x
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) state.subsumers x
+        let b1 ← saturation.start_closed b v x rules.top
+        if b1
+        then
+          let v1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec (Std.Usize × Std.Usize))) state.out x
+          let b2 ← saturation.subsumers_closed rules concepts v v1 0#usize
+          if b2
+          then
+            let b3 ← saturation.links_closed rules state x 0#usize
+            if b3
+            then
+              let i3 ← x + 1#usize
+              saturation.contexts_closed rules concepts state i3
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::closed]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1724:0-1738:1
+    Visibility: public -/
+def saturation.closed
+  (rules : saturation.Rules) (concepts : alloc.vec.Vec saturation.Concept)
+  (state : saturation.State) :
+  Result Bool
+  := do
+  let count := alloc.vec.Vec.len concepts
+  let i := alloc.vec.Vec.len state.subsumers
+  if i = count
+  then
+    let i1 := alloc.vec.Vec.len state.active
+    if i1 = count
+    then
+      let i2 := alloc.vec.Vec.len state.out
+      if i2 = count
+      then
+        if rules.top < count
+        then
+          if rules.bottom < count
+          then saturation.contexts_closed rules concepts state 0#usize
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::saturation::class_concepts]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1741:0-1762:1 -/
+def saturation.class_concepts
+  (table : saturation.Table) (classes : alloc.vec.Vec model.Class)
+  (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (saturation.Table × (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Class)
+        classes index
+    let c1 ← saturation.copy_class c
+    let o ← saturation.concept_of table (model.ClassExpression.Class c1)
+    match o with
+    | none => ok none
+    | some pair =>
+      let (table1, id) := pair
+      let i1 := alloc.vec.Vec.len out
+      if i1 < core.num.Usize.MAX
+      then
+        let out1 ← alloc.vec.Vec.push out id
+        let i2 ← index + 1#usize
+        saturation.class_concepts table1 classes i2 out1
+      else ok none
+  else ok (some (table, out))
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::activate_all]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1764:0-1773:1 -/
+def saturation.activate_all
+  (state : saturation.State) (ids : alloc.vec.Vec Std.Usize) (top : Std.Usize)
+  (index : Std.Usize) :
+  Result (Option saturation.State)
+  := do
+  let i := alloc.vec.Vec.len ids
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) ids
+        index
+    let o ← saturation.activate state i1 top
+    match o with
+    | none => ok none
+    | some state1 =>
+      let i2 ← index + 1#usize
+      saturation.activate_all state1 ids top i2
+  else ok (some state)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::saturated]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1777:0-1838:1
+    Visibility: public -/
+def saturation.saturated
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (classes : alloc.vec.Vec model.Class) :
+  Result (Option (saturation.Table × saturation.Rules × saturation.State ×
+    (alloc.vec.Vec Std.Usize)))
+  := do
+  let t ← saturation.empty_table
+  let o ← saturation.intern t saturation.Concept.Top
+  match o with
+  | none => ok none
+  | some pair =>
+    let (table, top) := pair
+    let o1 ← saturation.intern table saturation.Concept.Bottom
+    match o1 with
+    | none => ok none
+    | some pair1 =>
+      let (table1, bottom) := pair1
+      let o2 ←
+        saturation.translate table1 (alloc.vec.Vec.new saturation.Rule) items
+          top bottom 0#usize
+      match o2 with
+      | none => ok none
+      | some pair2 =>
+        let (table2, list) := pair2
+        let o3 ←
+          saturation.class_concepts table2 classes 0#usize (alloc.vec.Vec.new
+            Std.Usize)
+        match o3 with
+        | none => ok none
+        | some pair3 =>
+          let (table3, ids) := pair3
+          let count := alloc.vec.Vec.len table3.concepts
+          let roles := alloc.vec.Vec.len table3.roles
+          let v ←
+            saturation.empty_lists count (alloc.vec.Vec.new (alloc.vec.Vec
+              Std.Usize))
+          let v1 ←
+            saturation.empty_pairs count (alloc.vec.Vec.new (alloc.vec.Vec
+              (Std.Usize × Std.Usize)))
+          let v2 ←
+            saturation.empty_lists roles (alloc.vec.Vec.new (alloc.vec.Vec
+              Std.Usize))
+          let v3 ←
+            saturation.empty_pairs roles (alloc.vec.Vec.new (alloc.vec.Vec
+              (Std.Usize × Std.Usize)))
+          let v4 ← saturation.falses count (alloc.vec.Vec.new Bool)
+          let o4 ←
+            saturation.index_from table3.concepts list 0#usize
+              {
+                top,
+                bottom,
+                told := v,
+                conjunctions := v1,
+                existentials := v1,
+                supers := v2,
+                firsts := v3,
+                seconds := v3
+              } v4
+          match o4 with
+          | none => ok none
+          | some rules =>
+            let o5 ←
+              saturation.activate
+                {
+                  subsumers := v,
+                  active := v4,
+                  out := v1,
+                  into := v1,
+                  queue := (alloc.vec.Vec.new saturation.Fact),
+                  next := 0#usize
+                } top top
+            match o5 with
+            | none => ok none
+            | some state =>
+              let o6 ← saturation.activate_all state ids top 0#usize
+              match o6 with
+              | none => ok none
+              | some state1 =>
+                let o7 ←
+                  saturation.saturate rules table3.concepts state1
+                    core.num.Usize.MAX
+                match o7 with
+                | none => ok none
+                | some state2 =>
+                  let b ← saturation.closed rules table3.concepts state2
+                  if b
+                  then ok (some (table3, rules, state2, ids))
+                  else ok none
+
+/-- [rowl_kernel::saturation::row_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1842:0-1859:1 -/
+def saturation.row_from
+  (list : alloc.vec.Vec Std.Usize) (empty : Bool)
+  (ids : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Bool) :
+  Result (Option (alloc.vec.Vec Bool))
+  := do
+  let i := alloc.vec.Vec.len ids
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      if empty
+      then
+        let out1 ← alloc.vec.Vec.push out true
+        let i2 ← index + 1#usize
+        saturation.row_from list true ids i2 out1
+      else
+        let i2 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+            ids index
+        let b ← saturation.has list i2
+        let out1 ← alloc.vec.Vec.push out b
+        let i3 ← index + 1#usize
+        saturation.row_from list false ids i3 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::answers_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1861:0-1910:1 -/
+def saturation.answers_from
+  (state : saturation.State) (bottom : Std.Usize) (inconsistent : Bool)
+  (ids : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (satisfiable : alloc.vec.Vec Bool)
+  (subsumed : alloc.vec.Vec (alloc.vec.Vec Bool)) :
+  Result (Option classification.Classification)
+  := do
+  let i := alloc.vec.Vec.len ids
+  if index < i
+  then
+    let id ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) ids
+        index
+    let i1 := alloc.vec.Vec.len state.subsumers
+    if id < i1
+    then
+      let empty ←
+        if inconsistent
+        then ok true
+        else
+          do
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) state.subsumers id
+          saturation.has v bottom
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) state.subsumers id
+      let o ←
+        saturation.row_from v empty ids 0#usize (alloc.vec.Vec.new Bool)
+      match o with
+      | none => ok none
+      | some row =>
+        let i2 := alloc.vec.Vec.len satisfiable
+        if i2 < core.num.Usize.MAX
+        then
+          let i3 := alloc.vec.Vec.len subsumed
+          if i3 < core.num.Usize.MAX
+          then
+            let satisfiable1 ← alloc.vec.Vec.push satisfiable (¬ empty)
+            let subsumed1 ← alloc.vec.Vec.push subsumed row
+            let i4 ← index + 1#usize
+            saturation.answers_from state bottom inconsistent ids i4
+              satisfiable1 subsumed1
+          else ok none
+        else ok none
+    else ok none
+  else ok (some { satisfiable, subsumed })
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::classify]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1915:0-1934:1
+    Visibility: public -/
+def saturation.classify
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (classes : alloc.vec.Vec model.Class) :
+  Result (Option classification.Classification)
+  := do
+  let o ← saturation.saturated items classes
+  match o with
+  | none => ok none
+  | some found =>
+    let (_, rules, state, ids) := found
+    let i := alloc.vec.Vec.len state.subsumers
+    if rules.top < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) state.subsumers rules.top
+      let inconsistent ← saturation.has v rules.bottom
+      saturation.answers_from state rules.bottom inconsistent ids 0#usize
+        (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec Bool))
+    else ok none
+
 /-- [rowl_kernel::shi_ontology::consistent]:
     Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1908:0-1913:1
     Visibility: public -/

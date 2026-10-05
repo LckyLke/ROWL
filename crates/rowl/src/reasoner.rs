@@ -21,6 +21,7 @@ use rowl_kernel::model::{
 };
 use rowl_kernel::ntriples::{read, ReadError, ReadResult};
 use rowl_kernel::rdf_mapping::map_graph;
+use rowl_kernel::saturation;
 use rowl_kernel::source_reasoning::source_ontology;
 use std::collections::BTreeSet;
 
@@ -265,10 +266,11 @@ impl Reasoner {
             .collect()
     }
     /// For each named class, its named superclasses (itself excluded) and
-    /// whether it is satisfiable; `None` if some question has no answer. The
-    /// verified classification settles the questions that told subclass axioms
-    /// and earlier answers already decide and asks the prepared queries only for
-    /// the rest; an unsatisfiable class lists no superclasses.
+    /// whether it is satisfiable; `None` if some question has no answer. An EL
+    /// ontology is classified by the verified saturation in one pass; otherwise
+    /// the verified classification settles the questions that told subclass
+    /// axioms and earlier answers already decide and asks the prepared queries
+    /// only for the rest. An unsatisfiable class lists no superclasses.
     pub fn classify(&self) -> Option<Vec<Classified>> {
         let names = self.classes();
         let classes: Vec<Class> = names
@@ -279,7 +281,13 @@ impl Reasoner {
                 },
             })
             .collect();
-        let result = on_kernel_stack(|| classify(&self.prepared, &self.ontology.axioms, &classes))?;
+        let result =
+            on_kernel_stack(
+                || match saturation::classify(&self.ontology.axioms, &classes) {
+                    Some(result) => Some(result),
+                    None => classify(&self.prepared, &self.ontology.axioms, &classes),
+                },
+            )?;
         let mut out = Vec::new();
         for (index, class) in names.iter().enumerate() {
             let satisfiable = *result.satisfiable.get(index)?;

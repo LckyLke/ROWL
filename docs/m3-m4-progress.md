@@ -4374,3 +4374,59 @@ their input, so a generated 5000-class ontology overflowed the default stack
 in either syntax. `Reasoner` now runs every kernel call on a thread with a
 1 GiB stack, committed only as it is used; the answers are unchanged. Totals are
 513 Rust regressions and 11 Python binding tests.
+
+## Reasoner: classifying EL ontologies by saturation
+
+The tableau classification asks satisfiability questions, so on large EL
+ontologies, the common case for terminologies, it spends most of its time
+building completion graphs for subsumptions that follow from a few told
+axioms. `saturation::classify` classifies an ontology whose logical axioms are
+EL by saturation instead. Every class expression of the axioms is interned
+into a table of concepts, hashed into buckets, whose parts come before them:
+the top and bottom concepts, atoms, binary conjunctions and existential
+restrictions on named object properties. The axioms become rules over the
+table: concept inclusions (from subclass axioms, consecutive members of
+equivalence axioms both ways, conjunctions of two members of a disjointness
+axiom below the bottom concept and existential restrictions of a domain),
+role inclusions (from subproperty axioms and two-member equivalences) and
+chains of two roles (from chains and transitivity). The left-hand sides are
+registered in indexes, together with their parts, so that a concept that
+completes a conjunction or an existential restriction finds it.
+
+Saturation starts from a context for `owl:Thing` and for every listed class and
+derives subsumers `x ⊑ c` and links `x r y` (every instance of `x` has an
+`r`-successor in `y`) from a queue: the parts of a conjunction, the link of an
+existential restriction, told subsumers, conjunctions whose other part is
+present, existential restrictions back along the links into a context,
+`owl:Nothing` back along links, the inclusions and chains of a link's role,
+and a new context for the target of a link. A final pass checks that the
+result is closed under every rule. A class is unsatisfiable when `owl:Nothing`
+is among its subsumers or among those of `owl:Thing`, and otherwise subsumed
+exactly by the classes among its subsumers.
+
+`Saturation.lean` proves the translation exact: for every interpretation that
+fixes `owl:Thing` and `owl:Nothing`, the axioms hold exactly when the rules do,
+the meaning of a concept being stable as the table grows (`translate_spec`,
+`concept_of_spec`). The indexes hold exactly the rules (`index_from_spec`,
+`register_spec`). Every subsumer, link and queued fact the saturation derives
+holds in every model of the rules (`saturate_spec`). An accepting final check
+(`closed_spec`) gives the closure conditions, from which the active contexts
+without `owl:Nothing` form a canonical model: a context is in the atoms among
+its subsumers and linked along the roles of its links. Every context satisfies
+its subsumers (`positive`), every registered concept, and every class concept,
+that holds at a context is one of its subsumers (`negative`), so the canonical
+model satisfies every rule (`canonical_models`) and, lifted with the built-in
+names, every axiom. `classify_correct` proves that whenever classification
+answers, each answer is the Direct Semantics answer under every vocabulary and
+datatype map: a derived subsumer holds in every model, and a missing one has
+the canonical model as a counter-model.
+
+`Reasoner::classify` uses the saturation whenever it answers and the tableau
+classification otherwise. On generated EL ontologies classification takes
+1.9 s instead of 19.5 s for 1000 classes with the same answers, 9.8 s for 5000
+classes and 47 s for 20 000 classes, where reading the document now takes
+about 80% of the time. A regression test compares the two classifications on
+400 random EL ontologies with unsatisfiable classes, chains and transitivity.
+
+This block adds 139 public theorems and 35 definitions. Totals are 2577 audited
+theorems, 1168 definitions, 515 Rust regressions and 2770 ledger obligations.

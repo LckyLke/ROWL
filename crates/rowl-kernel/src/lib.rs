@@ -132,5 +132,6 @@ pub mod regular;
 pub mod compiled;
 
 pub mod classification;
+pub mod saturation;
 pub mod snapshot;
 pub mod unicode;
