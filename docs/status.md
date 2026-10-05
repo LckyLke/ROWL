@@ -746,6 +746,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   never declines a document the reader accepts; source_prepared prepares its
   axioms, proved to give a prepared closure of the bytes' raw OWL ontology. The
   medication-safety example reads its document once for all five questions.
+  Since the prepared-base stage, preparing also interns the facts, the TBox
+  concept and the definitions into a closed concept table once
+  (`completion::base`, described by `BaseFor`); a query that goes to the
+  completion graph tableau copies that table, interns only its own facts and
+  closes the copy again (`completion::satisfiable_from`), with exactly the
+  guarantees of `satisfiable` on the base's inputs. On a generated 400-class
+  ontology the per-query table setup fell from 3.7 ms to 0.2 ms.
 - Reasoner track, eleventh stage: number restrictions. The
   concepts and the concept table now have cardinality restrictions:
   concepts::translate covers ALCIQ (minimum, maximum and exact cardinalities,

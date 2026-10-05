@@ -301,6 +301,11 @@ private theorem position_from_correct (entries : alloc.vec.Vec concept_table.Ent
 termination_by entries.val.length - index.val
 decreasing_by omega
 
+/-- Copying an entry is exact. -/
+theorem copy_entry_identity (e : concept_table.Entry) : concept_table.copy_entry e = .ok e := by
+  cases e <;> simp [concept_table.copy_entry, copy_iri_identity, Rowl.Concepts.copy_role_identity,
+    Rowl.Concepts.copy_individual_identity]
+
 /-- Adding an entry keeps the table or appends the entry, and the result is an
     index of the entry. -/
 theorem add_correct (entries : alloc.vec.Vec concept_table.Entry) (entry : concept_table.Entry) :

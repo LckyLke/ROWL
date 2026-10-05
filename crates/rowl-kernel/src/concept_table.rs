@@ -97,6 +97,31 @@ fn position_from(entries: &Vec<Entry>, entry: &Entry, index: usize) -> usize {
         entries.len()
     }
 }
+/// A copy of an entry.
+pub(crate) fn copy_entry(entry: &Entry) -> Entry {
+    match entry {
+        Entry::Top => Entry::Top,
+        Entry::Bottom => Entry::Bottom,
+        Entry::Atom(class) => Entry::Atom(Class {
+            iri: copy_iri(&class.iri),
+        }),
+        Entry::NotAtom(class) => Entry::NotAtom(Class {
+            iri: copy_iri(&class.iri),
+        }),
+        Entry::One(individual) => Entry::One(copy_individual(individual)),
+        Entry::NotOne(individual) => Entry::NotOne(copy_individual(individual)),
+        Entry::HasSelf(role) => Entry::HasSelf(copy_role(role)),
+        Entry::NotSelf(role) => Entry::NotSelf(copy_role(role)),
+        Entry::And(left, right) => Entry::And(*left, *right),
+        Entry::Or(left, right) => Entry::Or(*left, *right),
+        Entry::Exists(role, filler) => Entry::Exists(copy_role(role), *filler),
+        Entry::Forall(role, filler) => Entry::Forall(copy_role(role), *filler),
+        Entry::AtLeast(n, role, filler) => Entry::AtLeast(*n, copy_role(role), *filler),
+        Entry::AtMost(n, role, filler, other) => {
+            Entry::AtMost(*n, copy_role(role), *filler, *other)
+        }
+    }
+}
 /// The table with `entry` at the end and its index; `None` when there is no
 /// room.
 fn push_new(mut entries: Vec<Entry>, entry: Entry) -> Option<(Vec<Entry>, usize)> {

@@ -4148,3 +4148,25 @@ generated 400-class document now takes 1.1 s instead of 5.0 s.
 
 This block adds 47 public theorems and 8 definitions. Totals are 2242 audited
 theorems, 1081 definitions, 501 Rust regressions and 2435 ledger obligations.
+
+## Performance: a concept table prepared once per ontology
+
+Every query of the completion graph tableau interned the whole TBox, the facts
+and the definitions into a fresh concept table, with a linear lookup per entry,
+so the setup of one query grew quadratically with the ontology: 3.7 ms on a
+generated 400-class ontology. `completion::base` now interns them and closes
+the table once; `shi_ontology::prepare` stores the result in the prepared
+closure. `completion::satisfiable_from` copies the base's table, interns only
+the query's facts, closes the copy again and runs the tableau.
+`Completion.lean` proves the copies exact (`copy_entries_correct`,
+`copy_requirements_correct`, `copy_unfoldings_correct`), describes a base by
+`BaseFor` (`base_correct`) and proves `satisfiable_from` correct with exactly
+the conclusions of `satisfiable_correct` on the base's facts, TBox concept and
+definitions (`satisfiable_from_correct`). `ShiOntology.lean` routes the
+tableau's answer through `TableauRun`, which uses the base when preparation
+produced one, so every prepared query keeps its theorem. The per-query setup
+on the 400-class ontology is now 0.2 ms; the tableau run itself, which rescans
+every unfolding at every node, is now the main cost.
+
+This block adds 6 public theorems and 2 definitions. Totals are 2248 audited
+theorems, 1083 definitions, 502 Rust regressions and 2441 ledger obligations.

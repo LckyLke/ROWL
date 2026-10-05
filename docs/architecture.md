@@ -1102,3 +1102,10 @@ left, and branching by copying the graph. The design keeps the proofs modular:
   `PreparedData` states what was computed. The prepared queries are proved
   from that statement alone, and the plain queries are the composition of
   `prepare` and the prepared query, so their theorems follow directly.
+  Preparation now also builds the completion graph tableau's concept table
+  once: `completion::base` interns the facts, the TBox concept and the
+  definitions and closes the table, and `BaseFor` records what that table
+  means. `satisfiable_from` copies the table exactly, interns the query's facts
+  and closes the copy, so the proof of `satisfiable` carries over with the
+  query interned last instead of first; the order only changes which rule the
+  tableau applies first, never an answer.

@@ -1606,6 +1606,7 @@
         "Rowl.ConceptTable.meaning_append",
         "Rowl.ConceptTable.wellFormed_append",
         "Rowl.ConceptTable.same_entry_correct",
+        "Rowl.ConceptTable.copy_entry_identity",
         "Rowl.ConceptTable.add_correct",
         "Rowl.ConceptTable.add_wellFormed",
         "Rowl.ConceptTable.complements_append",
@@ -1739,7 +1740,12 @@
         "Rowl.Completion.intern_facts_correct",
         "Rowl.Completion.intern_definitions_correct",
         "Rowl.Completion.named_nodes_correct",
-        "Rowl.Completion.satisfiable_correct"
+        "Rowl.Completion.satisfiable_correct",
+        "Rowl.Completion.copy_entries_correct",
+        "Rowl.Completion.copy_requirements_correct",
+        "Rowl.Completion.copy_unfoldings_correct",
+        "Rowl.Completion.base_correct",
+        "Rowl.Completion.satisfiable_from_correct"
       ]
     },
     {
@@ -4104,6 +4110,8 @@
     "Rowl.Compiled.stateLang",
     "Rowl.Compiled.After",
     "Rowl.Compiled.Grows",
-    "Rowl.Compiled.partOf"
+    "Rowl.Compiled.partOf",
+    "Rowl.Completion.BaseFor",
+    "Rowl.ShiOntology.TableauRun"
   ]
 }

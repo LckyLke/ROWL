@@ -1154,6 +1154,7 @@ import Rowl.DataOntology
 #print axioms Rowl.ConceptTable.meaning_append
 #print axioms Rowl.ConceptTable.wellFormed_append
 #print axioms Rowl.ConceptTable.same_entry_correct
+#print axioms Rowl.ConceptTable.copy_entry_identity
 #print axioms Rowl.ConceptTable.add_correct
 #print axioms Rowl.ConceptTable.add_wellFormed
 #print axioms Rowl.ConceptTable.complements_append
@@ -1270,6 +1271,11 @@ import Rowl.DataOntology
 #print axioms Rowl.Completion.intern_definitions_correct
 #print axioms Rowl.Completion.named_nodes_correct
 #print axioms Rowl.Completion.satisfiable_correct
+#print axioms Rowl.Completion.copy_entries_correct
+#print axioms Rowl.Completion.copy_requirements_correct
+#print axioms Rowl.Completion.copy_unfoldings_correct
+#print axioms Rowl.Completion.base_correct
+#print axioms Rowl.Completion.satisfiable_from_correct
 #print axioms Rowl.ShiParts.copy_iri_class
 #print axioms Rowl.ShiParts.absorbable_total
 #print axioms Rowl.ShiParts.fail_from_correct
@@ -3452,3 +3458,5 @@ import Rowl.DataOntology
 #print axioms Rowl.Compiled.After
 #print axioms Rowl.Compiled.Grows
 #print axioms Rowl.Compiled.partOf
+#print axioms Rowl.Completion.BaseFor
+#print axioms Rowl.ShiOntology.TableauRun

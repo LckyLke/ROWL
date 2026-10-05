@@ -2506,4 +2506,335 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
       rw [blankNode y n at_y] at isTree
       cases isTree
 
+/-! ### A base prepared once for many queries -/
+
+theorem copy_entries_correct (entries : alloc.vec.Vec concept_table.Entry) (index : Usize)
+    (out : alloc.vec.Vec concept_table.Entry)
+    (copied : out.val = entries.val.take index.val) (inside : index.val ≤ entries.val.length) :
+    completion.copy_entries entries index out = .ok entries := by
+  rw [completion.copy_entries]
+  by_cases more : index.val < entries.val.length
+  · have lookup : entries.index_usize index = .ok entries.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := entries.property; scalar_tac
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out entries.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_entries_correct entries next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,Rowl.ConceptTable.copy_entry_identity,push,advance,rest]
+  · have full : index.val = entries.val.length := by omega
+    have same : out = entries := by
+      apply (alloc.vec.Vec.eq_iff out entries).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by entries.val.length - index.val
+decreasing_by omega
+
+theorem copy_requirements_correct (requirements : alloc.vec.Vec completion.Requirement) (index : Usize)
+    (out : alloc.vec.Vec completion.Requirement)
+    (copied : out.val = requirements.val.take index.val) (inside : index.val ≤ requirements.val.length) :
+    completion.copy_requirements requirements index out = .ok requirements := by
+  rw [completion.copy_requirements]
+  by_cases more : index.val < requirements.val.length
+  · have lookup : requirements.index_usize index = .ok requirements.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := requirements.property; scalar_tac
+    have same : (⟨requirements.val[index.val].node,requirements.val[index.val].concept⟩ : completion.Requirement) =
+        requirements.val[index.val] := rfl
+    obtain ⟨appended,push,contents⟩ :=
+      WP.spec_imp_exists (alloc.vec.Vec.push_spec out requirements.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_requirements_correct requirements next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,same,push,advance,rest]
+  · have full : index.val = requirements.val.length := by omega
+    have same : out = requirements := by
+      apply (alloc.vec.Vec.eq_iff out requirements).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by requirements.val.length - index.val
+decreasing_by omega
+
+theorem copy_unfoldings_correct (unfoldings : alloc.vec.Vec completion.Unfolding) (index : Usize)
+    (out : alloc.vec.Vec completion.Unfolding)
+    (copied : out.val = unfoldings.val.take index.val) (inside : index.val ≤ unfoldings.val.length) :
+    completion.copy_unfoldings unfoldings index out = .ok unfoldings := by
+  rw [completion.copy_unfoldings]
+  by_cases more : index.val < unfoldings.val.length
+  · have lookup : unfoldings.index_usize index = .ok unfoldings.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := unfoldings.property; scalar_tac
+    have same : (⟨⟨unfoldings.val[index.val].class.iri⟩,unfoldings.val[index.val].concept⟩ : completion.Unfolding) =
+        unfoldings.val[index.val] := rfl
+    obtain ⟨appended,push,contents⟩ :=
+      WP.spec_imp_exists (alloc.vec.Vec.push_spec out unfoldings.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_unfoldings_correct unfoldings next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,Rowl.Nnf.copy_iri_identity,same,push,advance,rest]
+  · have full : index.val = unfoldings.val.length := by omega
+    have same : out = unfoldings := by
+      apply (alloc.vec.Vec.eq_iff out unfoldings).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by unfoldings.val.length - index.val
+decreasing_by omega
+
+/-- A base interns exactly the facts, the TBox concept and the definitions: a
+    well-formed table, the index of the TBox concept, requirements that
+    correspond to the facts and unfoldings of the definitions. -/
+def BaseFor (facts : List completion.Fact) (axioms : concepts.Concept)
+    (definitions : List completion.Definition) (b : completion.Base) : Prop :=
+  WellFormed b.entries.val ∧ b.axioms.val < b.entries.val.length ∧ meaning b.entries.val b.axioms.val = axioms ∧
+    Corresponds facts b.entries.val b.requirements.val ∧ Unfolds definitions b.entries.val b.unfoldings.val
+
+theorem base_correct (facts : alloc.vec.Vec completion.Fact) (axioms : concepts.Concept)
+    (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) :
+    ∃ r, completion.base facts axioms definitions h = .ok r ∧
+      ∀ b, r = some b → BaseFor facts.val axioms definitions.val b := by
+  have emptyTable : WellFormed (alloc.vec.Vec.new concept_table.Entry).val := by
+    intro i e at_i
+    simp at at_i
+  obtain ⟨r0,run0,spec0⟩ := Rowl.ConceptTable.intern_correct axioms (alloc.vec.Vec.new concept_table.Entry) emptyTable
+  cases r0 with
+  | none => exact ⟨none,by rw [completion.base]; simp [run0],by simp⟩
+  | some pair0 =>
+  obtain ⟨t0,ax⟩ := pair0
+  obtain ⟨wf0,_,axIn,axMeaning,_⟩ := spec0 t0 ax rfl
+  obtain ⟨r1,run1,spec1⟩ := intern_facts_correct facts 0#usize t0 (alloc.vec.Vec.new completion.Requirement) []
+    wf0 (by simp) (by simp [Corresponds])
+  cases r1 with
+  | none => exact ⟨none,by rw [completion.base]; simp [run0,run1],by simp⟩
+  | some pair1 =>
+  obtain ⟨t1,requirements⟩ := pair1
+  obtain ⟨wf1,⟨more1,grows1⟩,corresponds1,_⟩ := spec1 t1 requirements rfl
+  obtain ⟨r2,run2,spec2⟩ := intern_definitions_correct definitions 0#usize t1
+    (alloc.vec.Vec.new completion.Unfolding) wf1 (by simp) (by simp [Unfolds])
+  cases r2 with
+  | none => exact ⟨none,by rw [completion.base]; simp [run0,run1,run2],by simp⟩
+  | some pair2 =>
+  obtain ⟨t2,unfoldings⟩ := pair2
+  obtain ⟨wf2,⟨more2,grows2⟩,unfolds2,_⟩ := spec2 t2 unfoldings rfl
+  obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h t2 wf2
+  cases r3 with
+  | none => exact ⟨none,by rw [completion.base]; simp [run0,run1,run2,run3],by simp⟩
+  | some t3 =>
+  obtain ⟨wf3,⟨more3,grows3,_⟩,_⟩ := spec3 t3 rfl
+  refine ⟨some ⟨t3,requirements,unfoldings,ax⟩,?_,?_⟩
+  · rw [completion.base]
+    simp only [run0,run1,run2,run3,bind_ok,uncurry_apply_pair]
+  · intro b same
+    cases same
+    have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
+    have inside2 : ax.val < t2.val.length := by rw [grows2]; simp; omega
+    refine ⟨wf3,by rw [grows3]; simp; omega,?_,?_,?_⟩
+    · show meaning t3.val ax.val = axioms
+      rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf2 _ inside2,grows2,
+        Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,
+        axMeaning]
+    · show Corresponds facts.val t3.val requirements.val
+      rw [grows3,grows2]
+      exact corresponds_append _ _ _ (by rw [← grows2]; exact wf2) _
+        (corresponds_append _ _ _ wf1 _ (by simpa using corresponds1))
+    · show Unfolds definitions.val t3.val unfoldings.val
+      rw [grows3]
+      exact unfolds_append _ _ _ wf2 _ unfolds2
+
+private theorem corresponds_swap (facts query : List completion.Fact) (entries : List concept_table.Entry)
+    (requirements : List completion.Requirement) (corresponds : Corresponds (facts ++ query) entries requirements) :
+    Corresponds (query ++ facts) entries requirements := by
+  obtain ⟨forward,backward⟩ := corresponds
+  refine ⟨?_,?_⟩
+  · intro q member
+    obtain ⟨inside,f,listed,node,means⟩ := forward q member
+    exact ⟨inside,f,by simp only [List.mem_append] at listed ⊢; exact listed.symm,node,means⟩
+  · intro f listed
+    exact backward f (by simp only [List.mem_append] at listed ⊢; exact listed.symm)
+
+/-- A query on a base gets exactly the answers of `satisfiable` on the base's
+    facts, TBox concept and definitions. -/
+theorem satisfiable_from_correct (b : completion.Base) (facts : List completion.Fact) (axioms : concepts.Concept)
+    (definitions : List completion.Definition) (based : BaseFor facts axioms definitions b)
+    (count : Usize) (query : alloc.vec.Vec completion.Fact)
+    (links : alloc.vec.Vec completion.Link) (h : hierarchy.RoleHierarchy) (closed : Closed h)
+    (positive : 0 < count.val) (factsIn : ∀ f ∈ query.val ++ facts, f.node.val < count.val)
+    (linksIn : ∀ l ∈ links.val, l.from.val < count.val ∧ l.to.val < count.val) :
+    ∃ r, completion.satisfiable_from b count query links h = .ok r ∧
+      (r = some true → ∃ (Object : Type) (I : Interpretation Object Unit) (π : Nat → Object),
+        Respects I h ∧ (∀ y, denote I axioms y) ∧
+        (∀ d ∈ definitions, ∀ y, I.classes d.class y → denote I d.concept y) ∧
+        (∀ f ∈ query.val ++ facts, denote I f.concept (π f.node.val)) ∧
+        (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) ∧
+        (h.inclusions.val = [] → h.transitive.val = [] → ∀ r a b, a < count.val → b < count.val →
+          objectRelation I r (π a) (π b) → ∃ l ∈ links.val,
+            (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) ∧
+        (∀ a b, a < count.val → b < count.val → π a = π b → a = b)) ∧
+      (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
+        Respects I h ∧ (∀ y, denote I axioms y) ∧
+        (∀ d ∈ definitions, ∀ y, I.classes d.class y → denote I d.concept y) ∧
+        (∀ f ∈ query.val ++ facts, denote I f.concept (π f.node.val)) ∧
+        (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
+  obtain ⟨wf0,axIn,axMeaning,corresponds0,unfolds0⟩ := based
+  have entriesCopy := copy_entries_correct b.entries 0#usize (alloc.vec.Vec.new concept_table.Entry)
+    (by simp) (by simp)
+  have requirementsCopy := copy_requirements_correct b.requirements 0#usize
+    (alloc.vec.Vec.new completion.Requirement) (by simp) (by simp)
+  obtain ⟨r1,run1,spec1⟩ := intern_facts_correct query 0#usize b.entries b.requirements facts wf0 (by simp)
+    (by simpa using corresponds0)
+  cases r1 with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [completion.satisfiable_from]
+    simp only [entriesCopy,requirementsCopy,run1,bind_ok]
+  | some pair1 =>
+  obtain ⟨t1,requirements⟩ := pair1
+  obtain ⟨wf1,⟨more1,grows1⟩,corresponds1,_⟩ := spec1 t1 requirements rfl
+  obtain ⟨r3,run3,spec3⟩ := Rowl.ConceptTable.close_correct h t1 wf1
+  cases r3 with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [completion.satisfiable_from]
+    simp only [entriesCopy,requirementsCopy,run1,run3,bind_ok,uncurry_apply_pair]
+  | some t3 =>
+  obtain ⟨wf3,⟨more3,grows3,_⟩,closedTable⟩ := spec3 t3 rfl
+  obtain ⟨nodes0,run4,length0,blanks⟩ := named_nodes_correct count (alloc.vec.Vec.new completion.Node) (by simp)
+    (by simp)
+  let P : completion.Problem := { entries := t3, links, requirements, unfoldings := b.unfoldings, axioms := b.axioms }
+  have axMeaning3 : meaning t3.val b.axioms.val = axioms := by
+    have inside1 : b.axioms.val < t1.val.length := by rw [grows1]; simp; omega
+    rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,
+      Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,axMeaning]
+  have corresponds3 : Corresponds (query.val ++ facts) t3.val requirements.val := by
+    rw [grows3]
+    exact corresponds_swap _ _ _ _ (corresponds_append _ _ _ wf1 _ corresponds1)
+  have unfolds3 : Unfolds definitions t3.val b.unfoldings.val := by
+    rw [grows3,grows1,List.append_assoc]
+    exact unfolds_append _ _ _ wf0 _ unfolds0
+  have blankLabel : ∀ y, labelOf nodes0.val y = [] := by
+    intro y
+    unfold labelOf
+    cases at_y : nodes0.val[y]? with
+    | none => rfl
+    | some n =>
+      have := blanks n (List.mem_of_getElem? at_y)
+      subst this
+      rfl
+  have blankNode : ∀ (y : Nat) (n : completion.Node), nodes0.val[y]? = some n → n = blank :=
+    fun y n at_y => blanks n (List.mem_of_getElem? at_y)
+  have inv0 : Inv P h count.val nodes0.val := by
+    refine ⟨⟨wf3,closedTable closed.1,closed,?_,by rw [length0],?_,linksIn,?_,?_,?_⟩,?_,?_,?_⟩
+    · intro y n at_y
+      rw [blankNode y n at_y]
+      simp only [blank,true_iff]
+      rw [← length0]
+      exact (List.getElem?_eq_some_iff.mp at_y).1
+    · intro y n at_y isTree
+      rw [blankNode y n at_y] at isTree
+      cases isTree
+    · intro q member
+      obtain ⟨_,f,listed,node,_⟩ := corresponds3.1 q member
+      rw [node]
+      exact factsIn f listed
+    · intro y i member
+      rw [blankLabel y] at member
+      cases member
+    · intro y i member
+      rw [blankLabel y] at member
+      cases member
+    · intro y
+      rw [blankLabel y]
+      exact List.nodup_nil
+    · intro y yIn
+      have path : treePath nodes0.val y = [] := by
+        obtain ⟨n,at_y⟩ : ∃ n, nodes0.val[y]? = some n := ⟨_,List.getElem?_eq_getElem yIn⟩
+        exact treePath_named _ y n at_y (by rw [blankNode y n at_y]; rfl)
+      simp [depth,path]
+    · intro y n at_y isTree
+      rw [blankNode y n at_y] at isTree
+      cases isTree
+  have fresh0 : FreshNodes nodes0.val (0#usize).val := by
+    intro y k member
+    unfold nodeDeps at member
+    cases at_y : nodes0.val[y]? with
+    | none => rw [at_y] at member; cases member
+    | some n =>
+      rw [at_y,blankNode y n at_y] at member
+      simp [blank] at member
+  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 0#usize rfl inv0 fresh0
+  have run' : completion.run ⟨t3,links,requirements,b.unfoldings,b.axioms⟩ h nodes0 0#usize = .ok r := run
+  have linksCopy := copy_links_correct links 0#usize (alloc.vec.Vec.new completion.Link) (by simp) (by simp)
+  have unfoldingsCopy := copy_unfoldings_correct b.unfoldings 0#usize (alloc.vec.Vec.new completion.Unfolding)
+    (by simp) (by simp)
+  have code : ∀ x, completion.run ⟨t3,links,requirements,b.unfoldings,b.axioms⟩ h nodes0 0#usize = .ok x →
+      completion.satisfiable_from b count query links h =
+        match x with
+        | some completion.Outcome.Accepted => ok (some true)
+        | some (completion.Outcome.Rejected _) => ok (some false)
+        | none => ok none := by
+    intro x ran
+    rw [completion.satisfiable_from]
+    simp only [entriesCopy,requirementsCopy,run1,run3,run4,bind_ok,uncurry_apply_pair,linksCopy,unfoldingsCopy]
+    rw [ran]
+    rcases x with _ | _ | _ <;> simp
+  cases r with
+  | none =>
+    refine ⟨none,?_,by simp,by simp⟩
+    rw [code _ run']
+  | some outcome =>
+  cases outcome with
+  | Accepted =>
+    refine ⟨some true,by rw [code _ run'],?_,by simp⟩
+    intro _
+    obtain ⟨Object,I,π,respects,axiomsHold,unfoldingsHold,requirementsHold,linksHold,_,exact,apart⟩ := sound rfl
+    refine ⟨Object,I,π,respects,?_,?_,?_,linksHold,exact,apart⟩
+    · intro y
+      have := axiomsHold y
+      rwa [axMeaning3] at this
+    · intro d member y classes
+      obtain ⟨w,wMember,same,means⟩ := unfolds3.2 d member
+      have := unfoldingsHold w wMember y (by rw [same]; exact classes)
+      rwa [means] at this
+    · intro f member
+      obtain ⟨q,qMember,node,means⟩ := corresponds3.2 f member
+      have := requirementsHold q qMember
+      rwa [means,node] at this
+  | Rejected D =>
+    refine ⟨some false,by rw [code _ run'],by simp,?_⟩
+    intro _
+    rintro ⟨Object,Value,I,π,respects,axiomsHold,definitionsHold,factsHold,linksHold⟩
+    apply (complete D rfl).2
+    refine ⟨Object,Value,I,π,respects,?_,?_,?_,linksHold,?_,?_,by simp⟩
+    · intro y
+      show denote I (meaning t3.val b.axioms.val) y
+      rw [axMeaning3]
+      exact axiomsHold y
+    · intro w member y classes
+      obtain ⟨_,d,listed,same,means⟩ := unfolds3.1 w member
+      show denote I (meaning t3.val w.concept.val) y
+      rw [means]
+      exact definitionsHold d listed y (by rw [← same]; exact classes)
+    · intro q member
+      obtain ⟨_,f,listed,node,means⟩ := corresponds3.1 q member
+      show denote I (meaning t3.val q.concept.val) (π q.node.val)
+      rw [means,node]
+      exact factsHold f listed
+    · intro y _ i member
+      rw [blankLabel y] at member
+      cases member
+    · intro y n _ at_y isTree
+      rw [blankNode y n at_y] at isTree
+      cases isTree
+
 end Rowl.Completion

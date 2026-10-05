@@ -46,7 +46,7 @@
     clippy::vec_init_then_push
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::assertion_equality::same_individual_value;
-use crate::concept_table::{close, intern, universal_from, universal_is, Entry};
+use crate::concept_table::{close, copy_entry, intern, universal_from, universal_is, Entry};
 use crate::concepts::{copy_role, inverse, same_role, Concept};
 use crate::hierarchy::{below, RoleHierarchy};
 use crate::model::{Class, ObjectPropertyExpression};
@@ -94,6 +94,15 @@ pub struct Unfolding {
 pub struct Problem {
     pub entries: Vec<Entry>,
     pub links: Vec<Link>,
+    pub requirements: Vec<Requirement>,
+    pub unfoldings: Vec<Unfolding>,
+    pub axioms: usize,
+}
+/// The part of a problem that does not depend on the query: the closed table
+/// with the TBox concept, the facts and the definitions, the requirements of
+/// the facts, the unfoldings and the index of the TBox concept.
+pub struct Base {
+    pub entries: Vec<Entry>,
     pub requirements: Vec<Requirement>,
     pub unfoldings: Vec<Unfolding>,
     pub axioms: usize,
@@ -1347,6 +1356,122 @@ pub fn satisfiable(
         requirements,
         unfoldings,
         axioms,
+    };
+    match run(&problem, roles, nodes, 0) {
+        Some(Outcome::Accepted) => Some(true),
+        Some(Outcome::Rejected(_)) => Some(false),
+        None => None,
+    }
+}
+/// A copy of `entries[index..]` after `out`.
+pub(crate) fn copy_entries(entries: &Vec<Entry>, index: usize, mut out: Vec<Entry>) -> Vec<Entry> {
+    if index < entries.len() {
+        if out.len() < usize::MAX {
+            out.push(copy_entry(&entries[index]));
+        }
+        copy_entries(entries, index + 1, out)
+    } else {
+        out
+    }
+}
+/// A copy of `requirements[index..]` after `out`.
+fn copy_requirements(
+    requirements: &Vec<Requirement>,
+    index: usize,
+    mut out: Vec<Requirement>,
+) -> Vec<Requirement> {
+    if index < requirements.len() {
+        if out.len() < usize::MAX {
+            out.push(Requirement {
+                node: requirements[index].node,
+                concept: requirements[index].concept,
+            });
+        }
+        copy_requirements(requirements, index + 1, out)
+    } else {
+        out
+    }
+}
+/// A copy of `unfoldings[index..]` after `out`.
+fn copy_unfoldings(
+    unfoldings: &Vec<Unfolding>,
+    index: usize,
+    mut out: Vec<Unfolding>,
+) -> Vec<Unfolding> {
+    if index < unfoldings.len() {
+        if out.len() < usize::MAX {
+            out.push(Unfolding {
+                class: Class {
+                    iri: copy_iri(&unfoldings[index].class.iri),
+                },
+                concept: unfoldings[index].concept,
+            });
+        }
+        copy_unfoldings(unfoldings, index + 1, out)
+    } else {
+        out
+    }
+}
+/// Intern the TBox concept, the facts and the definitions and close the table,
+/// once for every query; `None` when a structure would exceed the `usize` range.
+pub fn base(
+    facts: &Vec<Fact>,
+    axioms: &Concept,
+    definitions: &Vec<Definition>,
+    roles: &RoleHierarchy,
+) -> Option<Base> {
+    let (entries, axioms) = match intern(Vec::new(), axioms) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let (entries, requirements) = match intern_facts(entries, facts, 0, Vec::new()) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let (entries, unfoldings) = match intern_definitions(entries, definitions, 0, Vec::new()) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let entries = match close(entries, roles) {
+        Some(entries) => entries,
+        None => return None,
+    };
+    Some(Base {
+        entries,
+        requirements,
+        unfoldings,
+        axioms,
+    })
+}
+/// `satisfiable` for the facts, TBox concept and definitions of a base: the
+/// query is interned into a copy of the base's table, which is closed again.
+pub fn satisfiable_from(
+    base: &Base,
+    count: usize,
+    query: &Vec<Fact>,
+    links: &Vec<Link>,
+    roles: &RoleHierarchy,
+) -> Option<bool> {
+    let entries = copy_entries(&base.entries, 0, Vec::new());
+    let requirements = copy_requirements(&base.requirements, 0, Vec::new());
+    let (entries, requirements) = match intern_facts(entries, query, 0, requirements) {
+        Some(pair) => pair,
+        None => return None,
+    };
+    let entries = match close(entries, roles) {
+        Some(entries) => entries,
+        None => return None,
+    };
+    let nodes = match named_nodes(count, Vec::new()) {
+        Some(nodes) => nodes,
+        None => return None,
+    };
+    let problem = Problem {
+        entries,
+        links: copy_links(links, 0, Vec::new()),
+        requirements,
+        unfoldings: copy_unfoldings(&base.unfoldings, 0, Vec::new()),
+        axioms: base.axioms,
     };
     match run(&problem, roles, nodes, 0) {
         Some(Outcome::Accepted) => Some(true),

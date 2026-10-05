@@ -93,7 +93,7 @@
     clippy::single_match
 )] // Indexed operations, explicit branches and pushes without macros for the pinned extraction subset.
 use crate::alc_ontology::{builtin_class, has_negative, individuals_from, intern, position};
-use crate::completion::{satisfiable, Definition, Fact, Link};
+use crate::completion::{base, satisfiable, satisfiable_from, Base, Definition, Fact, Link};
 use crate::concepts::{copy_individual, copy_role, inverse, same_role, translate, Concept};
 use crate::hierarchy::{below, is_transitive, Disjoint, Inclusion, RoleHierarchy};
 use crate::model::{
@@ -1649,8 +1649,9 @@ fn chained(chains: &Vec<Chain>) -> bool {
 /// nominal), its role hierarchy and role chains, the links of its object
 /// property assertions, whether a negative object property assertion denies one
 /// of them, whether every question goes to the completion forest, whether its
-/// concepts use the universal role, and whether two members of an inequality
-/// share a node.
+/// concepts use the universal role, whether two members of an inequality share
+/// a node, and the facts, TBox concept and definitions already interned for the
+/// completion graph tableau.
 pub struct Prepared {
     pub nodes: Vec<Individual>,
     pub same: Vec<usize>,
@@ -1664,6 +1665,9 @@ pub struct Prepared {
     pub forest: bool,
     pub universal: bool,
     pub clash: bool,
+    /// The facts, the TBox concept and the definitions interned once for the
+    /// completion graph tableau; `None` when that would exceed the `usize` range.
+    pub base: Option<Base>,
 }
 /// Read an axiom closure for queries; `None` when it is outside the supported
 /// fragment or a list would exceed the `usize` range.
@@ -1744,6 +1748,7 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         || chained(&chains);
     let universal = closure_universal(&parts, &bound);
     let clash = clash_from(items, &nodes, &same, 0);
+    let base = base(&facts, &parts.axioms, &parts.definitions, &roles);
     Some(Prepared {
         nodes,
         same,
@@ -1757,6 +1762,7 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
         forest,
         universal,
         clash,
+        base,
     })
 }
 /// Whether the question goes to the completion forest: the prepared closure
@@ -1811,15 +1817,24 @@ fn prepared_satisfiable(prepared: &Prepared, extra: &Vec<Fact>) -> Option<bool> 
     if prepared.denied {
         return Some(false);
     }
-    satisfiable(
-        prepared.nodes.len() + 1,
-        extra,
-        &prepared.facts,
-        &prepared.links,
-        &prepared.parts.axioms,
-        &prepared.parts.definitions,
-        &prepared.roles,
-    )
+    match &prepared.base {
+        Some(base) => satisfiable_from(
+            base,
+            prepared.nodes.len() + 1,
+            extra,
+            &prepared.links,
+            &prepared.roles,
+        ),
+        None => satisfiable(
+            prepared.nodes.len() + 1,
+            extra,
+            &prepared.facts,
+            &prepared.links,
+            &prepared.parts.axioms,
+            &prepared.parts.definitions,
+            &prepared.roles,
+        ),
+    }
 }
 /// Whether the prepared closure has a model at all.
 pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {

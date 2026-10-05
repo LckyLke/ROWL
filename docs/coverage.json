@@ -13417,6 +13417,17 @@
       "implementation_scope": "Actual cardinality restrictions in the concept table: concept_table::Entry has at-least restrictions and at-most restrictions that also record the index of the complement of their filler, which the tableau needs to decide the filler at each neighbour. concept_table::intern interns the filler's complement with concepts::negate; interning is proved to terminate by recursion on the size of the concept, which a complement does not increase (negate_size), to keep the table well formed and appended to, to rebuild every concept exactly, and to keep every maximum restriction recording the complement of its filler (Complements), which appending to a well-formed table preserves (complements_append). Nominal entries {a} and \u00ac{a} of individuals, compared structurally, are interned and rebuilt exactly like named classes and their complements."
     },
     {
+      "id": "m6.ConceptTable.copy_entry_identity",
+      "requirement": "Verified concept table for the completion graph tableau: copy_entry_identity",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Class_Expressions",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::concept_table::copy_entry",
+      "theorem": "Rowl.ConceptTable.copy_entry_identity",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "Exact copies of concept table entries: copy_entry returns its entry unchanged, so a prepared table can be copied for every query."
+    },
+    {
       "id": "m6.CompletionSearch.contains_correct",
       "requirement": "Verified rule search of the completion graph tableau: contains_correct",
       "owner": "rowl-kernel",
@@ -14592,6 +14603,61 @@
       "theorem": "Rowl.Completion.copy_links_correct",
       "regression": "crates/rowl-kernel/tests/completion.rs",
       "implementation_scope": "Actual completion graph tableau for SHI with named individuals (completion::satisfiable), with dependency-directed backjumping, proved total, sound and complete. run terminates on every graph of the right shape: each rule application adds a literal to a label or creates a tree node for an unwitnessed existential restriction, and both decrease a measure that weights every node by the room left below it, which equality blocking bounds through a pigeonhole argument on labels along a tree path. Every node records the branch points its label depends on: a rule adds to a node with the points of the node and its neighbours (rule_deps), a new tree node starts with its parent's points, and a clash reports the points of its node and of the clashing entry. Disjunctions branch on copies of the graph under a fresh branch point; when the left disjunct fails with a clash set without that point, the right disjunct is skipped, otherwise it is tried with the points the failure depended on. A rejection with clash set D is proved to rule out every model, in any universes, that satisfies the label of every node whose points lie in D (FullModel). Clashes are detected on insertion; definitions A \u2291 C are unfolded lazily. satisfiable interns the facts, the TBox concept and the definitions, closes the table under the restrictions of transitive roles and runs the tableau from one blank named node per individual. An acceptance is proved to come with a model (in Type) of the role hierarchy in which the TBox concept and every definition hold everywhere and every fact and link holds at its named nodes, with named nodes related only along links when there are no role axioms and different named nodes as different elements; a rejection is proved to rule out every such model in any universes. A nominal, a self restriction or a cardinality restriction that reaches a label gives no answer, and otherwise None reports only a usize capacity limit."
+    },
+    {
+      "id": "m6.Completion.copy_entries_correct",
+      "requirement": "Verified completion graph tableau: copy_entries_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::satisfiable_from",
+      "theorem": "Rowl.Completion.copy_entries_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "A base prepared once for many queries: completion::base interns the facts, the TBox concept and the definitions and closes the table once, and is proved to give a well-formed table whose TBox index, requirements and unfoldings mean exactly those inputs (BaseFor). completion::satisfiable_from interns a query into an exact copy of the base's table, closes it again and runs the tableau; it is proved to give exactly the guarantees of satisfiable on the base's facts, TBox concept and definitions, so an accepting answer yields a model and a rejection excludes every model in any universes. The prepared SHI queries of shi_ontology use the base whenever it fits."
+    },
+    {
+      "id": "m6.Completion.copy_requirements_correct",
+      "requirement": "Verified completion graph tableau: copy_requirements_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::satisfiable_from",
+      "theorem": "Rowl.Completion.copy_requirements_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "A base prepared once for many queries: completion::base interns the facts, the TBox concept and the definitions and closes the table once, and is proved to give a well-formed table whose TBox index, requirements and unfoldings mean exactly those inputs (BaseFor). completion::satisfiable_from interns a query into an exact copy of the base's table, closes it again and runs the tableau; it is proved to give exactly the guarantees of satisfiable on the base's facts, TBox concept and definitions, so an accepting answer yields a model and a rejection excludes every model in any universes. The prepared SHI queries of shi_ontology use the base whenever it fits."
+    },
+    {
+      "id": "m6.Completion.copy_unfoldings_correct",
+      "requirement": "Verified completion graph tableau: copy_unfoldings_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::satisfiable_from",
+      "theorem": "Rowl.Completion.copy_unfoldings_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "A base prepared once for many queries: completion::base interns the facts, the TBox concept and the definitions and closes the table once, and is proved to give a well-formed table whose TBox index, requirements and unfoldings mean exactly those inputs (BaseFor). completion::satisfiable_from interns a query into an exact copy of the base's table, closes it again and runs the tableau; it is proved to give exactly the guarantees of satisfiable on the base's facts, TBox concept and definitions, so an accepting answer yields a model and a rejection excludes every model in any universes. The prepared SHI queries of shi_ontology use the base whenever it fits."
+    },
+    {
+      "id": "m6.Completion.base_correct",
+      "requirement": "Verified completion graph tableau: base_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::base",
+      "theorem": "Rowl.Completion.base_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "A base prepared once for many queries: completion::base interns the facts, the TBox concept and the definitions and closes the table once, and is proved to give a well-formed table whose TBox index, requirements and unfoldings mean exactly those inputs (BaseFor). completion::satisfiable_from interns a query into an exact copy of the base's table, closes it again and runs the tableau; it is proved to give exactly the guarantees of satisfiable on the base's facts, TBox concept and definitions, so an accepting answer yields a model and a rejection excludes every model in any universes. The prepared SHI queries of shi_ontology use the base whenever it fits."
+    },
+    {
+      "id": "m6.Completion.satisfiable_from_correct",
+      "requirement": "Verified completion graph tableau: satisfiable_from_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::completion::satisfiable_from",
+      "theorem": "Rowl.Completion.satisfiable_from_correct",
+      "regression": "crates/rowl-kernel/tests/completion.rs::queries_on_a_prepared_base_answer_like_fresh_tables",
+      "implementation_scope": "A base prepared once for many queries: completion::base interns the facts, the TBox concept and the definitions and closes the table once, and is proved to give a well-formed table whose TBox index, requirements and unfoldings mean exactly those inputs (BaseFor). completion::satisfiable_from interns a query into an exact copy of the base's table, closes it again and runs the tableau; it is proved to give exactly the guarantees of satisfiable on the base's facts, TBox concept and definitions, so an accepting answer yields a model and a rejection excludes every model in any universes. The prepared SHI queries of shi_ontology use the base whenever it fits."
     },
     {
       "id": "m6.ShiParts.copy_iri_class",

@@ -1283,6 +1283,7 @@ structure PreparedData (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
   universal : p.universal = true ↔ UsesTop p.parts.axioms ∨ (∃ d ∈ p.parts.definitions.val, UsesTop d.concept) ∨
     ∃ q ∈ p.bound.val, UsesTop q.concept
   clash : p.clash = true ↔ ∃ item ∈ items.val, Clashes p.same.val p.nodes.val item.axiom
+  base : ∀ b, p.base = some b → Rowl.Completion.BaseFor p.facts.val p.parts.axioms p.parts.definitions.val b
 
 /-- The check for disjoint pairs, which only the completion forest decides, is
     exact. -/
@@ -1466,8 +1467,9 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
   have denial := denied_from_correct items nodes same links 0#usize
   have clashing := clash_from_correct items nodes same 0#usize
   rw [zero,List.drop_zero] at denial clashing
+  obtain ⟨baseResult,baseRun,baseSpec⟩ := Rowl.Completion.base_correct facts parts.axioms parts.definitions h
   simp only [linksRun,run9,run10,run11,bind_ok,denial,tangled_correct,constrained_correct,chained_correct,
-    closure_counts_correct,closure_nominal_correct,closure_universal_correct,clashing]
+    closure_counts_correct,closure_nominal_correct,closure_universal_correct,clashing,baseRun]
   refine ⟨some ⟨nodes,same,parts,facts,bound,h,chs,links,
     decide (∃ item ∈ items.val, Denies same.val nodes.val links.val item.axiom),
     decide ((Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
@@ -1477,7 +1479,7 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
       h.disjoint.val ≠ [] ∨ chs.val ≠ []),
     decide (UsesTop parts.axioms ∨ (∃ d ∈ parts.definitions.val, UsesTop d.concept) ∨
       ∃ q ∈ bound.val, UsesTop q.concept),
-    decide (∃ item ∈ items.val, Clashes same.val nodes.val item.axiom)⟩,?_,?_⟩
+    decide (∃ item ∈ items.val, Clashes same.val nodes.val item.axiom),baseResult⟩,?_,?_⟩
   · by_cases counting : Counts parts.axioms ∨ (∃ d ∈ parts.definitions.val, Counts d.concept) ∨
         ∃ q ∈ facts.val, Counts q.concept
     · simp [counting]
@@ -1536,7 +1538,7 @@ theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     boundRefused := covered11,
     roles := roleRun, chains := chainsRun, links := linksRun, axiomsProper := c1, definitionsProper := c2,
     factsProper := c3, rolesProper := c4, denied := by simp, forest := decide_eq_true_iff,
-    universal := decide_eq_true_iff, clash := by simp }
+    universal := decide_eq_true_iff, clash := by simp, base := baseSpec }
 
 /-- A prepared closure has supported axioms only. -/
 theorem prepared_supported {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
@@ -1618,6 +1620,45 @@ private theorem prepared_count {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_o
   · rw [concept]; trivial
   · rw [concept]; trivial
 
+/-- The completion graph tableau's run for a prepared closure: on its base
+    when it has one, else from scratch. -/
+def TableauRun (p : shi_ontology.Prepared) (count : Usize) (extra : alloc.vec.Vec completion.Fact) :
+    Result (Option Bool) :=
+  match p.base with
+  | some b => completion.satisfiable_from b count extra p.links p.roles
+  | none => completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles
+
+/-- The tableau's run for a prepared closure answers as the completion graph
+    tableau does on the closure's facts, TBox concept and definitions. -/
+private theorem tableau_correct {items : alloc.vec.Vec AnnotatedAxiom} {p : shi_ontology.Prepared}
+    (data : PreparedData items p) (count : Usize) (extra : alloc.vec.Vec completion.Fact)
+    (closed : Closed p.roles) (positive : 0 < count.val)
+    (factsIn : ∀ f ∈ extra.val ++ p.facts.val, f.node.val < count.val)
+    (linksIn : ∀ l ∈ p.links.val, l.from.val < count.val ∧ l.to.val < count.val) :
+    ∃ r, TableauRun p count extra = .ok r ∧
+      (r = some true → ∃ (Object : Type) (I : Interpretation Object Unit) (π : Nat → Object),
+        Respects I p.roles ∧ (∀ y, denote I p.parts.axioms y) ∧
+        (∀ d ∈ p.parts.definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
+        (∀ f ∈ extra.val ++ p.facts.val, denote I f.concept (π f.node.val)) ∧
+        (∀ l ∈ p.links.val, objectRelation I l.role (π l.from.val) (π l.to.val)) ∧
+        (p.roles.inclusions.val = [] → p.roles.transitive.val = [] → ∀ r a b, a < count.val → b < count.val →
+          objectRelation I r (π a) (π b) → ∃ l ∈ p.links.val,
+            (l.from.val = a ∧ l.to.val = b ∧ l.role = r) ∨ (l.to.val = a ∧ l.from.val = b ∧ inv l.role = r)) ∧
+        (∀ a b, a < count.val → b < count.val → π a = π b → a = b)) ∧
+      (r = some false → ¬ ∃ (Object : Type u) (Value : Type v) (I : Interpretation Object Value) (π : Nat → Object),
+        Respects I p.roles ∧ (∀ y, denote I p.parts.axioms y) ∧
+        (∀ d ∈ p.parts.definitions.val, ∀ y, I.classes d.class y → denote I d.concept y) ∧
+        (∀ f ∈ extra.val ++ p.facts.val, denote I f.concept (π f.node.val)) ∧
+        (∀ l ∈ p.links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
+  unfold TableauRun
+  cases baseIs : p.base with
+  | none =>
+    exact Rowl.Completion.satisfiable_correct.{u,v} count extra p.facts p.links p.parts.axioms
+      p.parts.definitions p.roles closed positive factsIn linksIn
+  | some b =>
+    exact Rowl.Completion.satisfiable_from_correct.{u,v} b p.facts.val p.parts.axioms p.parts.definitions.val
+      (data.base b baseIs) count extra p.links p.roles closed positive factsIn linksIn
+
 /-- The check of a prepared closure with extra facts terminates and answers only
     on proper extra facts whose nominals are of individuals with nodes; an
     answer is `false` for an inequality with two members at one node, the
@@ -1644,8 +1685,7 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
             p.forest = false ∧ (∀ q ∈ extra.val, ¬ Counts q.concept) ∧
             (∀ q ∈ extra.val, ¬ Nominal q.concept) ∧
             ((p.denied = true ∧ b = false) ∨ (p.denied = false ∧
-              completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions p.roles =
-                .ok (some b))))) := by
+              TableauRun p count extra = .ok (some b))))) := by
   have zero : (0#usize).val = 0 := rfl
   have room := data.room
   obtain ⟨factsIn,boundIn,linksIn⟩ := prepared_in data
@@ -1748,10 +1788,19 @@ private theorem prepared_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : shi
       exact ⟨proper,known,count,countIs,.inr (.inr (.inr ⟨rfl,notUniversal,plainExtra,notForest,noCounts,
         noNominal,.inl ⟨rfl,rfl⟩⟩))⟩
     | false =>
-      obtain ⟨answer,answerRun,_,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
-        p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
-      refine ⟨answer,by simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',question_forest_correct,
-        toForest,deniedIs,countRun,answerRun],?_⟩
+      obtain ⟨answer,answerRun,_,_⟩ := tableau_correct.{0,0} data count extra closed (by omega) factsIn' linksIn'
+      refine ⟨answer,?_,?_⟩
+      · cases baseIs : p.base with
+        | none =>
+          have direct : completion.satisfiable count extra p.facts p.links p.parts.axioms p.parts.definitions
+              p.roles = .ok answer := by simpa [TableauRun,baseIs] using answerRun
+          simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',question_forest_correct,
+            toForest,deniedIs,countRun,baseIs,direct]
+        | some base =>
+          have direct : completion.satisfiable_from base count extra p.links p.roles = .ok answer := by
+            simpa [TableauRun,baseIs] using answerRun
+          simp [properCheck,knownCheck,clashIs,notUniversal,universalCheck',question_forest_correct,
+            toForest,deniedIs,countRun,baseIs,direct]
       intro b same
       exact ⟨proper,known,count,countIs,.inr (.inr (.inr ⟨rfl,notUniversal,plainExtra,notForest,noCounts,
         noNominal,.inr ⟨rfl,by rw [answerRun,same]⟩⟩))⟩
@@ -1949,8 +1998,8 @@ theorem prepared_sound (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontology.
         · exact boundPlain f old
       exact (Rowl.Universal.plain_meaning J _ plainFact _).mpr (boundHold f member)
     · cases impossible
-    · obtain ⟨tableau,tableauRun',sound,_⟩ := Rowl.Completion.satisfiable_correct.{0,0} count extra p.facts p.links
-        p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
+    · obtain ⟨tableau,tableauRun',sound,_⟩ := tableau_correct.{0,0} data count extra closed (by omega) factsIn'
+        linksIn'
       rw [tableauRun] at tableauRun'
       cases Result.ok_injective tableauRun'
       obtain ⟨Obj,J,π,respects,tbox,defs,factsHold,linksHold,exactLinks,injective⟩ := sound rfl
@@ -2331,8 +2380,8 @@ theorem prepared_complete (items : alloc.vec.Vec AnnotatedAxiom) (p : shi_ontolo
     | _ =>
       rw [statement] at denies
       simp [Denies] at denies
-  · obtain ⟨tableau,tableauRun',_,complete⟩ := Rowl.Completion.satisfiable_correct.{u,v} count extra p.facts
-      p.links p.parts.axioms p.parts.definitions p.roles closed (by omega) factsIn' linksIn'
+  · obtain ⟨tableau,tableauRun',_,complete⟩ := tableau_correct.{u,v} data count extra closed (by omega) factsIn'
+      linksIn'
     rw [tableauRun] at tableauRun'
     cases Result.ok_injective tableauRun'
     cases answer with

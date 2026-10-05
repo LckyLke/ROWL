@@ -1,4 +1,4 @@
-use rowl_kernel::completion::{satisfiable, Definition, Fact, Link};
+use rowl_kernel::completion::{base, satisfiable, satisfiable_from, Definition, Fact, Link};
 use rowl_kernel::concepts::Concept;
 use rowl_kernel::hierarchy::{Inclusion, RoleHierarchy};
 use rowl_kernel::model::*;
@@ -428,4 +428,42 @@ fn cardinality_restrictions_are_not_answered() {
     let tbox = Concept::AtLeast(2, named(b"r"), Box::new(Concept::Top));
     // A clash found before the restriction is added still answers.
     assert_eq!(concept_sat(c, &tbox, &none()), Some(false));
+}
+
+#[test]
+fn queries_on_a_prepared_base_answer_like_fresh_tables() {
+    let mut seed = 71;
+    let mut answered = 0;
+    for _ in 0..300 {
+        let query = random_alci(&mut seed, 3);
+        let tbox = random_alci(&mut seed, 1);
+        let fact = random_alci(&mut seed, 1);
+        let definition = Definition {
+            class: class(b"B"),
+            concept: random_alci(&mut seed, 2),
+        };
+        let facts = vec![Fact {
+            node: 1,
+            concept: fact,
+        }];
+        let definitions = vec![definition];
+        let links = vec![Link {
+            role: named(b"r"),
+            from: 0,
+            to: 1,
+        }];
+        let queries = vec![Fact {
+            node: 0,
+            concept: query,
+        }];
+        let roles = none();
+        let fresh = satisfiable(2, &queries, &facts, &links, &tbox, &definitions, &roles);
+        let prepared = base(&facts, &tbox, &definitions, &roles).expect("a small base fits");
+        let reused = satisfiable_from(&prepared, 2, &queries, &links, &roles);
+        assert_eq!(fresh, reused);
+        if fresh.is_some() {
+            answered += 1;
+        }
+    }
+    assert!(answered > 200, "the sample must be answered");
 }
