@@ -2,10 +2,12 @@
 //! document once and ask questions about it by IRI.
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
-//! the mapping into the raw OWL model and the prepared queries of
-//! `data_ontology`. `None` means the question or the document is outside the
-//! reasoner's supported fragment, or a limit was reached. This module only
-//! collects names and loops over questions; it adds no reasoning of its own.
+//! the mapping into the raw OWL model, the prepared queries of `data_ontology`
+//! and the classification of `classification`. `None` means the question or
+//! the document is outside the reasoner's supported fragment, or a limit was
+//! reached. This module only collects names and lays out answers; it adds no
+//! reasoning of its own.
+use rowl_kernel::classification::classify;
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
     prepared_subsumed, Prepared,
@@ -217,24 +219,35 @@ impl Reasoner {
             .collect()
     }
     /// For each named class, its named superclasses (itself excluded) and
-    /// whether it is satisfiable; `None` if some question has no answer.
+    /// whether it is satisfiable; `None` if some question has no answer. The
+    /// verified classification settles the questions that told subclass axioms
+    /// and earlier answers already decide and asks the prepared queries only for
+    /// the rest; an unsatisfiable class lists no superclasses.
     pub fn classify(&self) -> Option<Vec<Classified>> {
-        let classes = self.classes();
-        let expressions: Vec<ClassExpression> =
-            classes.iter().map(|iri| class_expression(iri)).collect();
+        let names = self.classes();
+        let classes: Vec<Class> = names
+            .iter()
+            .map(|iri| Class {
+                iri: Iri {
+                    spelling: iri.as_bytes().to_vec(),
+                },
+            })
+            .collect();
+        let result = classify(&self.prepared, &self.ontology.axioms, &classes)?;
         let mut out = Vec::new();
-        for (index, sub) in expressions.iter().enumerate() {
-            let satisfiable = self.satisfiable(sub)?;
+        for (index, class) in names.iter().enumerate() {
+            let satisfiable = *result.satisfiable.get(index)?;
+            let row = result.subsumed.get(index)?;
             let mut supers = Vec::new();
             if satisfiable {
-                for (other, sup) in expressions.iter().enumerate() {
-                    if other != index && self.subsumed(sub, sup)? {
-                        supers.push(classes[other].clone());
+                for (other, sup) in names.iter().enumerate() {
+                    if other != index && *row.get(other)? {
+                        supers.push(sup.clone());
                     }
                 }
             }
             out.push(Classified {
-                class: classes[index].clone(),
+                class: class.clone(),
                 satisfiable,
                 superclasses: supers,
             });

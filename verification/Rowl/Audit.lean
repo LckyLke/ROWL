@@ -128,6 +128,7 @@ import Rowl.DataStructure
 import Rowl.DataComplete
 import Rowl.DataSound
 import Rowl.DataOntology
+import Rowl.Classification
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -2380,6 +2381,56 @@ import Rowl.DataOntology
 #print axioms Rowl.Compiled.longest_valid_eq
 #print axioms Rowl.Compiled.table_spec
 #print axioms Rowl.Compiled.compile_fresh
+#print axioms Rowl.Classification.told_subsumed
+#print axioms Rowl.Classification.subsumed_refl
+#print axioms Rowl.Classification.subsumed_trans
+#print axioms Rowl.Classification.unsatisfiable_subsumed
+#print axioms Rowl.Classification.not_subsumed_unsatisfiable
+#print axioms Rowl.Classification.position_spec
+#print axioms Rowl.Classification.tell_spec
+#print axioms Rowl.Classification.tell_named_spec
+#print axioms Rowl.Classification.tell_members_spec
+#print axioms Rowl.Classification.tell_expression_spec
+#print axioms Rowl.Classification.tell_list_spec
+#print axioms Rowl.Classification.tell_all_spec
+#print axioms Rowl.Classification.tell_member_spec
+#print axioms Rowl.Classification.tell_equivalent_rest_spec
+#print axioms Rowl.Classification.tell_equivalent_spec
+#print axioms Rowl.Classification.tell_under_spec
+#print axioms Rowl.Classification.tell_union_rest_spec
+#print axioms Rowl.Classification.tell_union_spec
+#print axioms Rowl.Classification.tell_axiom_spec
+#print axioms Rowl.Classification.told_from_spec
+#print axioms Rowl.Classification.empty_rows_spec
+#print axioms Rowl.Classification.told_spec
+#print axioms Rowl.Classification.filled_spec
+#print axioms Rowl.Classification.zeros_spec
+#print axioms Rowl.Classification.unclassified_spec
+#print axioms Rowl.Classification.unknown_rows_spec
+#print axioms Rowl.Classification.deepest_spec
+#print axioms Rowl.Classification.deepen_spec
+#print axioms Rowl.Classification.depths_spec
+#print axioms Rowl.Classification.at_level_spec
+#print axioms Rowl.Classification.levels_spec
+#print axioms Rowl.Classification.listed_spec
+#print axioms Rowl.Classification.refused_spec
+#print axioms Rowl.Classification.inherited_spec
+#print axioms Rowl.Classification.unsatisfiable_spec
+#print axioms Rowl.Classification.told_parent_spec
+#print axioms Rowl.Classification.refuted_spec
+#print axioms Rowl.Classification.inherits_spec
+#print axioms Rowl.Classification.ask_spec
+#print axioms Rowl.Classification.decide_spec
+#print axioms Rowl.Classification.unknown_at_spec
+#print axioms Rowl.Classification.fill_spec
+#print axioms Rowl.Classification.fill_rest_spec
+#print axioms Rowl.Classification.row_of_spec
+#print axioms Rowl.Classification.classify_rest_spec
+#print axioms Rowl.Classification.classify_from_spec
+#print axioms Rowl.Classification.satisfiable_from_spec
+#print axioms Rowl.Classification.answers_spec
+#print axioms Rowl.Classification.all_answers_spec
+#print axioms Rowl.Classification.classify_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -3465,3 +3516,13 @@ import Rowl.DataOntology
 #print axioms Rowl.ShiOntology.TableauRun
 #print axioms Rowl.CompletionSearch.TriggersFor
 #print axioms Rowl.CompletionSearch.TriggersOk
+#print axioms Rowl.Classification.Names
+#print axioms Rowl.Classification.Told
+#print axioms Rowl.Classification.Right
+#print axioms Rowl.Classification.SatisfiableRight
+#print axioms Rowl.Classification.ParentsOk
+#print axioms Rowl.Classification.RowRight
+#print axioms Rowl.Classification.Complete
+#print axioms Rowl.Classification.RowsRight
+#print axioms Rowl.Classification.Context
+#print axioms Rowl.Classification.Classified

@@ -4193,3 +4193,41 @@ query from 23 ms to 2.3 ms.
 This block adds 4 public theorems and 2 definitions and removes
 `has_atom_correct`. Totals are 2251 audited theorems, 1085 definitions, 502
 Rust regressions and 2444 ledger obligations.
+
+## Reasoner: verified classification
+
+Classifying the named classes asked one subsumption question per ordered pair
+of classes, about 190 000 tableau runs for a generated 437-class ontology. The
+new kernel module `classification` answers the satisfiability of every listed
+class and the subsumption of every pair from far fewer runs. `told` reads the
+told parents of every class from the subclass axioms whose left side is the
+class and whose right side names a class or an intersection with named
+members, from the equivalences that list the class next to such expressions
+and from the disjoint unions that list it. The classes are ordered by their
+depth in this told hierarchy, and each class's row is filled along that order:
+the class itself and its told parents are above it, a class without instances
+is above no satisfiable class, a class with a told parent that the row already
+refuses is not above it, a class above an already classified told parent is
+above it, and only the remaining pairs go to the prepared subsumption query. A
+class without instances is below every class. A final pass over all classes
+makes the rows complete whatever the order, so the order only decides how many
+questions are saved.
+
+`Classification.lean` defines what one axiom tells about two named classes
+(`Told`) and proves every told pair subsumed in every model of the closure
+(`told_subsumed`), proves the told parents listed by `told` right
+(`told_spec`, with `ParentsOk`), proves each answer of a row right from the
+prepared queries' theorems, the meaning of subsumption (reflexivity,
+transitivity, classes without instances) and earlier right rows (`decide_spec`,
+with `Right`, `RowRight` and `Context`), and proves the loops complete. Its
+main theorem, `classify_correct`, states that whenever `classify` answers, it
+lists for every listed class exactly whether it is satisfiable and for every
+pair exactly whether the first is subsumed by the second, under every normative
+datatype map and vocabulary. `Reasoner::classify` and the CLI's `classify`
+command now use it, and a new regression compares its answers with the
+pairwise queries on random ontologies and on the examples. On the 437-class
+ontology it asks 11 450 questions and classifies in about 27 s in a release
+build.
+
+This block adds 50 public theorems and 10 definitions. Totals are 2301 audited
+theorems, 1095 definitions, 506 Rust regressions and 2494 ledger obligations.

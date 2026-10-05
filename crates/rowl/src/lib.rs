@@ -49,6 +49,7 @@ pub mod experimental {
     pub use rowl_kernel::batch;
     pub use rowl_kernel::builtins;
     pub use rowl_kernel::class_equality;
+    pub use rowl_kernel::classification;
     pub use rowl_kernel::collection;
     pub use rowl_kernel::data_ontology;
     pub use rowl_kernel::datatype_definitions;

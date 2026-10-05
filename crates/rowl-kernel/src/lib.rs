@@ -129,5 +129,7 @@ pub mod rdf;
 pub mod regular;
 
 pub mod compiled;
+
+pub mod classification;
 pub mod snapshot;
 pub mod unicode;

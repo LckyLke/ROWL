@@ -154,3 +154,4 @@ import Rowl.DataStructure
 import Rowl.DataComplete
 import Rowl.DataSound
 import Rowl.DataOntology
+import Rowl.Classification

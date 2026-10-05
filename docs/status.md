@@ -939,8 +939,26 @@ progress. Full OWL parsing and executable reasoning are still future work.
   individual the closure does not name. Since the source reasoning stage these
   answers also come straight from Functional Syntax bytes, which the reader
   reads with all their data axioms, data restrictions and data assertions.
-- 2182 audited public theorems and 1073 audited semantic definitions. Consistency,
-  class satisfiability, subsumption and instance checking are decided, with
+- Classification of named classes: `classification::classify` answers, for a
+  prepared closure and a list of named classes, whether each class is
+  satisfiable and, for every pair, whether the first is subsumed by the second.
+  It reads the told parents of every class from the subclass, equivalence and
+  disjoint-union axioms that name it (`told`), orders the classes by their
+  depth in that told hierarchy and fills each class's row along that order: a
+  class is below itself, every class without instances is above no
+  satisfiable class, a told parent is above, a class with a told parent the row
+  already refuses is not above, a class above a classified told parent is
+  above, and only the remaining pairs go to the prepared subsumption query. A
+  class without instances is below every class. Every told pair is proved
+  subsumed in every model (`told_subsumed`), and `classify_correct` proves
+  that whenever classification answers, each listed answer is exactly the
+  Direct Semantics answer under every normative datatype map and vocabulary.
+  `Reasoner::classify` and the CLI's `classify` command use it; on a
+  generated 437-class ontology it asks 11 450 questions instead of about
+  190 000.
+- 2301 audited public theorems and 1095 audited semantic definitions. Consistency,
+  class satisfiability, subsumption, instance checking and the classification
+  of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
   roles, nominals of named individuals and self restrictions, functional,
@@ -953,7 +971,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 502 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 506 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
@@ -970,7 +988,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2375-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2494-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
