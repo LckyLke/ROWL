@@ -4082,3 +4082,17 @@ every read document maps.
 
 This block adds 40 public theorems and 17 definitions. Totals are 2182 audited
 theorems, 1073 definitions, 494 Rust regressions and 2375 ledger obligations.
+
+## M6: answers about data from Functional Syntax bytes
+
+The source queries (`source_reasoning`) now run the data queries of
+`data_ontology` instead of the SROIQ queries alone, so a Functional Syntax
+document with data property axioms, data restrictions and data property
+assertions is answered from its original bytes in one extracted unit, and
+`source_prepared` prepares a document once for the prepared data queries. A
+closure without data properties, literal values and datatypes still goes to the
+SROIQ queries unchanged. The source theorems (`source_consistent_correct` and
+the others) now state each answer under every datatype map that is the OWL 2 map
+on the five datatypes (`Normative`), in the universes of the data queries, and
+`source_prepared_correct` describes a prepared closure by `DataPrepared`; the
+completeness and soundness corollaries hold in the same universes.

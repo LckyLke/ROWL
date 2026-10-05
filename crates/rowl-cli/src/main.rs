@@ -1,5 +1,65 @@
 use rowl::experimental::ntriples;
 use rowl::experimental::{decide, Atom, Decision, Formula};
+use rowl::reasoner::{default_limits, named, LoadError, Reasoner};
+
+fn answer(value: Option<bool>) -> &'static str {
+    match value {
+        Some(true) => "yes",
+        Some(false) => "no",
+        None => "unknown (outside the supported fragment)",
+    }
+}
+
+fn load(path: &str) -> Result<Reasoner, String> {
+    let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+    match Reasoner::from_functional(&source, &default_limits()) {
+        Ok(reasoner) => Ok(reasoner),
+        Err(LoadError::Document(_)) => Err(format!(
+            "{path}: not a Functional Syntax document the verified reader accepts"
+        )),
+        Err(LoadError::Unsupported) => Err(format!(
+            "{path}: the axioms are outside the reasoner's supported fragment"
+        )),
+    }
+}
+
+fn reasoning_command(command: &str, path: &str, extra: &[String]) -> Result<(), String> {
+    let reasoner = load(path)?;
+    match (command, extra) {
+        ("check", []) => {
+            println!("consistent: {}", answer(reasoner.consistent()));
+        }
+        ("classify", []) => {
+            if reasoner.consistent() != Some(true) {
+                println!("consistent: {}", answer(reasoner.consistent()));
+                return Ok(());
+            }
+            match reasoner.classify() {
+                Some(classes) => {
+                    for class in classes {
+                        if class.satisfiable {
+                            println!("{} ⊑ {}", class.class, class.superclasses.join(", "));
+                        } else {
+                            println!("{} is unsatisfiable", class.class);
+                        }
+                    }
+                }
+                None => println!("classification: unknown (outside the supported fragment)"),
+            }
+        }
+        ("instances", [class]) => {
+            let expression = named(class);
+            for individual in reasoner.individuals() {
+                if reasoner.instance_of(&individual, &expression) == Some(true) {
+                    println!("{individual}");
+                }
+            }
+        }
+        _ => return Err("unknown command".into()),
+    }
+    eprintln!("Answers come from the verified reader and queries, proved against the OWL 2 Direct Semantics.");
+    Ok(())
+}
 
 fn nt_command(path: &str, export: bool) -> Result<(), String> {
     let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
@@ -95,6 +155,14 @@ fn main() -> std::process::ExitCode {
                 Decision::Unsatisfiable => println!("No counterexample exists."),
             }
         }
+        [command, path, extra @ ..]
+            if command == "check" || command == "classify" || command == "instances" =>
+        {
+            if let Err(error) = reasoning_command(command, path, extra) {
+                eprintln!("{error}");
+                return std::process::ExitCode::FAILURE;
+            }
+        }
         [command, path] if command == "check-nt" || command == "export-nt" => {
             if let Err(error) = nt_command(path, command == "export-nt") {
                 eprintln!("{error}");
@@ -102,7 +170,7 @@ fn main() -> std::process::ExitCode {
             }
         }
         _ => {
-            eprintln!("Usage: rowl <status|demo|check-nt FILE|export-nt FILE>");
+            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|check-nt FILE|export-nt FILE>");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;
         }

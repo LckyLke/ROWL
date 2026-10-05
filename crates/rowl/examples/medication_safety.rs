@@ -9,11 +9,11 @@
 //! penicillin. The document is read and prepared once, and every question is
 //! asked of the prepared records. An illustration of allergy checking, not
 //! clinical guidance.
+use rowl::experimental::data_ontology::{prepared_consistent, prepared_instance_of};
 use rowl::experimental::functional_annotations::AnnotationLimits;
 use rowl::experimental::functional_classes::ClassLimits;
 use rowl::experimental::functional_document::DocumentLimits;
 use rowl::experimental::model::*;
-use rowl::experimental::shi_ontology::{prepared_consistent, prepared_instance_of};
 use rowl::experimental::source_reasoning::source_prepared;
 
 const EX: &str = "https://example.org/medication/";

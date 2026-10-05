@@ -1,13 +1,13 @@
+use rowl_kernel::data_ontology::{prepared_consistent, prepared_instance_of};
 use rowl_kernel::functional_annotations::AnnotationLimits;
 use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{read_document, DocumentError, DocumentLimits};
 use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::{
-    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, DataRange,
-    Entity, Individual, Iri, NamedIndividual, ObjectProperty, ObjectPropertyExpression,
-    OntologyIdentity, RawOntology,
+    AnnotationSubject, AnnotationValue, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty,
+    DataRange, Datatype, Entity, Individual, Iri, Literal, NamedIndividual, ObjectProperty,
+    ObjectPropertyExpression, OntologyIdentity, RawOntology,
 };
-use rowl_kernel::shi_ontology::{prepared_consistent, prepared_instance_of};
 use rowl_kernel::source_reasoning::{
     source_class_satisfiable, source_consistent, source_instance_of, source_ontology,
     source_prepared, source_subsumed,
@@ -868,4 +868,98 @@ fn data_axioms_and_assertions_map_into_the_model() {
             "class"
         ]
     );
+}
+
+#[test]
+fn data_properties_and_literals_are_answered_from_source_bytes() {
+    let scope = b"doses".to_vec();
+    let class = |local: &str| {
+        ClassExpression::Class(Class {
+            iri: iri(&format!("https://example.org/{local}")),
+        })
+    };
+    let individual = |local: &str| NamedIndividual {
+        iri: iri(&format!("https://example.org/{local}")),
+    };
+    let document = |axioms: &str| {
+        format!("Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\n{axioms})")
+            .into_bytes()
+    };
+    // One dose each: two different values contradict, two spellings of one
+    // value do not.
+    let bytes = document(
+        " FunctionalDataProperty(:dose)\n DataPropertyAssertion(:dose :rx1 \"5\"^^xsd:integer)\n DataPropertyAssertion(:dose :rx1 \"6\"^^xsd:integer)\n",
+    );
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
+    let bytes = document(
+        " FunctionalDataProperty(:dose)\n DataPropertyAssertion(:dose :rx1 \"5\"^^xsd:integer)\n DataPropertyAssertion(:dose :rx1 \"05\"^^xsd:decimal)\n",
+    );
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(true)
+    );
+    // A string is no integer.
+    let bytes = document(
+        " DataPropertyRange(:dose xsd:integer)\n DataPropertyAssertion(:dose :rx1 \"five\")\n",
+    );
+    assert_eq!(
+        answer(source_consistent(&bytes, &limits(), &scope)),
+        Some(false)
+    );
+    // A value restriction follows from an assertion.
+    let bytes = document(
+        " EquivalentClasses(:Reviewed DataHasValue(:status \"reviewed\"))\n DataPropertyAssertion(:status :rx1 \"reviewed\")\n",
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("rx1"),
+            &class("Reviewed")
+        )),
+        Some(true)
+    );
+    assert_eq!(
+        answer(source_instance_of(
+            &bytes,
+            &limits(),
+            &scope,
+            &individual("rx2"),
+            &class("Reviewed")
+        )),
+        Some(false)
+    );
+    // Everything with an integer dose is dosed.
+    let bytes = document(" SubClassOf(DataSomeValuesFrom(:dose xsd:integer) :Dosed)\n");
+    let three = ClassExpression::DataHasValue(
+        DataProperty {
+            iri: iri("https://example.org/dose"),
+        },
+        Literal {
+            lexical: b"3".to_vec(),
+            datatype: Datatype {
+                iri: iri("http://www.w3.org/2001/XMLSchema#integer"),
+            },
+        },
+    );
+    assert_eq!(
+        answer(source_subsumed(
+            &bytes,
+            &limits(),
+            &scope,
+            &three,
+            &class("Dosed")
+        )),
+        Some(true)
+    );
+    // Prepared once, the document answers data questions too.
+    let prepared = match source_prepared(&bytes, &limits(), &scope) {
+        Ok(Some(prepared)) => prepared,
+        _ => panic!("the document is prepared"),
+    };
+    assert_eq!(prepared_consistent(&prepared), Some(true));
 }

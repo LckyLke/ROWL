@@ -74,7 +74,7 @@
   "crates/rowl-kernel/src/roles.rs": "0720a746757978c6f579bcada0487ef8863add9bbe71eb119d9b9b342ef1fa43",
   "crates/rowl-kernel/src/shi_ontology.rs": "f8fad0b9c3aee97779a36933c763ee1a4a33895a75aedad5a2c33d3cc943a793",
   "crates/rowl-kernel/src/snapshot.rs": "60fbe018c23661ebd6425e0f99ba3a158bcb9ec796df2766595df10616b2deb9",
-  "crates/rowl-kernel/src/source_reasoning.rs": "d3ca966dbc14ae71846abbf485e3041a0ca1123473977fa358b232c7dc399e2f",
+  "crates/rowl-kernel/src/source_reasoning.rs": "45351b27099f38ecde7bef5df08e3be7645226c05d86d54e8fbc6dc007eb549a",
   "crates/rowl-kernel/src/symbols.rs": "24196f75efe035eb7222773b592321c17b420e6efe9679413741e742d70c5826",
   "crates/rowl-kernel/src/tableau.rs": "04e0ec3c4add13b40481663750d65016b436ae9ba29eb736c8fc1b06dfd1a9d3",
   "crates/rowl-kernel/src/tbox.rs": "4705666f05da9874f9b8703339eea25aa81f1a822915d8205d6f94534afdc6c1",
@@ -84,7 +84,7 @@
   "crates/rowl-kernel/src/universal.rs": "1ec04f741840eb46c94f5a8d4d85f14ad96ef1b36d9102aa96a1ebf13efcc0bc",
   "crates/rowl-kernel/src/vocabulary.rs": "f7550767304a4f0d3059b4bf72b4ff9592b1532dcc2b255567ada1cfb9850a28",
   "docs/builtin-vocabulary.json": "46296366ebf1076837e647b30ebe9c4c1ab35e579d38d6493b9e7ba3c15e27eb",
-  "docs/coverage.json": "4caad032cb48427ad706dfe91094d0343a603a5c68a886ae9b09ece25ddf3b2c",
+  "docs/coverage.json": "2d54fa1abd2bb413255943fdc29d72dbc4a723a8393027ff304e6e8e7da5d826",
   "docs/functional-terminals.json": "3c86f4fc125c7d0d140b734a4cce8504c3a4bbd6e64b814990a37be139c95e34",
   "docs/model-inventory.json": "fbe6d707107e3c63c60832db0975b6e021a54ae0d0e7bb39040413f594215b41",
   "rust-toolchain.toml": "887f9be066a15585a2c583578e84b0fcb541126d81546276bad3d2ff00d61167",
@@ -209,7 +209,7 @@
   "verification/Rowl/ShiParts.lean": "de12db12f9b775286e44e1e4e3905d273f7c4892ca8db2fb179cd3654839b199",
   "verification/Rowl/ShiRoles.lean": "476aa2e00d3601396b32526e2ccef0c83500c3909ff2c4c41e801337f4c3a81d",
   "verification/Rowl/Snapshot.lean": "1277774dad125be75256ceb1108439929c19986ed3a0e04d277b5482244cc9f7",
-  "verification/Rowl/SourceReasoning.lean": "d0c4e4d62d39ce423c1b3ab8f66950e6487d9041e4d1f2ba8162b90acaf9d043",
+  "verification/Rowl/SourceReasoning.lean": "0f51d6caa4643af42b93cdc8cae216e92c58483cf164d264d79429b257bd5da8",
   "verification/Rowl/SourceSpans.lean": "12057388301aa2cb5a32fdde63b2ef09ef6187076be379f8775ed3709dae03c1",
   "verification/Rowl/StructuralCongruence.lean": "0e3e08c217b45111fbe99c3b15b5b6f38dc36e681e019d2a77ce9587d041601a",
   "verification/Rowl/Symbols.lean": "b1419b9b2d23f1337d5fe0c39edc946669a7ac3f5400e5249e4770f68b259613",
@@ -221,5 +221,5 @@
   "verification/Rowl/Universal.lean": "21f1835dcb4ed28e826d537893eb992ead932cd5612058d427628530c748b76f",
   "verification/Rowl/Vocabulary.lean": "205464ad12dc6606a9013a9b4e694ae4709fbe9aa97fc5713efef4149d9ad439",
   "verification/theorems.json": "ce19e32dae450cc5ed77bd98042583ed929871fabb74865dd8ec7ed3419a8162",
-  "verification/toolchain.json": "872ff41f72b4edcab5fbce0ea8e8a29af3159d62d426ff9d12dacc515ab0caba"
+  "verification/toolchain.json": "58f126a79eb5035b886190ba1016ba97539b3563159f863556ead8ad234c64ab"
 }

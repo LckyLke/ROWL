@@ -1,17 +1,19 @@
 //! Answers for Functional Syntax source bytes: the verified document reader,
-//! the mapping into the raw OWL model, and the verified SHOIQ queries on the
-//! completion graph tableau and the completion forest.
+//! the mapping into the raw OWL model, and the verified queries of
+//! `data_ontology`, which decide SROIQ with data properties, data restrictions
+//! and literals of the five datatypes through the completion graph tableau and
+//! the completion forest.
 //!
 //! A document error is returned as `Err`. Every document the reader accepts
 //! maps into the model, so `Ok(None)` means the document's axioms or the query
 //! are outside the reasoner's supported fragment.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
+use crate::data_ontology::{
+    class_satisfiable, consistent, instance_of, prepare, subsumed, Prepared,
+};
 use crate::functional_document::{read_document, DocumentError, DocumentLimits};
 use crate::functional_model::document_ontology;
 use crate::model::{ClassExpression, NamedIndividual, RawOntology};
-use crate::shi_ontology::{
-    class_satisfiable, consistent, instance_of, prepare, subsumed, Prepared,
-};
 
 /// The raw OWL ontology of the document's bytes, read once to answer many
 /// questions.

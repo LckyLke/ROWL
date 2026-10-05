@@ -610,14 +610,14 @@ progress. Full OWL parsing and executable reasoning are still future work.
   bytes, its namespace table passes the normative checker, the independent
   document grammar derives the rest, and its model corresponds to those records.
   The result is the kernel's query on that model's axioms (since the ninth
-  stage the SHI queries on the completion graph tableau). No answer therefore
-  means the axioms or the query are outside the supported fragment or a `usize`
-  limit was reached. An answer is
+  stage the SHI queries on the completion graph tableau, now the data queries
+  of `data_ontology`). No answer therefore means the axioms or the query are
+  outside the supported fragment or a `usize` limit was reached. An answer is
   proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf of the
-  read axioms for any valid vocabulary, complete in every universe, and a
-  positive subsumption or instance answer holds in every model. The other axiom
-  forms, imports, the remaining SROIQ constructors, datatypes and performance
-  remain pending.
+  read axioms for any valid vocabulary under every datatype map that is the OWL
+  2 map on the five datatypes, and a positive subsumption or instance answer
+  holds in every such model. Imports, datatype restrictions, datatype
+  definitions, keys, the other datatypes and performance remain pending.
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
   procedure abox_satisfiable decides whether some interpretation in which the
   TBox concept holds at every element has an element for every node that
@@ -913,8 +913,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   restrictions, datatype definitions, keys, the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
-  individual the closure does not name. The Functional Syntax reader does not
-  read data axioms yet.
+  individual the closure does not name. Since the source reasoning stage these
+  answers also come straight from Functional Syntax bytes, which the reader
+  reads with all their data axioms, data restrictions and data assertions.
 - 2182 audited public theorems and 1073 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -929,7 +930,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 494 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 495 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality

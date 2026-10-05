@@ -1,5 +1,7 @@
 //! ROWL research prototype; no full OWL 2 DL entry point exists yet.
 
+pub mod reasoner;
+
 /// Internal experiments. Not a stable OWL reasoning API.
 pub mod experimental {
     pub use rowl_frontend::encoding;
@@ -9,6 +11,7 @@ pub mod experimental {
     pub use rowl_frontend::functional_assertions;
     pub use rowl_frontend::functional_class_axioms;
     pub use rowl_frontend::functional_classes;
+    pub use rowl_frontend::functional_data_axioms;
     pub use rowl_frontend::functional_declarations;
     pub use rowl_frontend::functional_document;
     pub use rowl_frontend::functional_header;
@@ -20,6 +23,7 @@ pub mod experimental {
     pub use rowl_frontend::functional_payload;
     pub use rowl_frontend::functional_prefixes;
     pub use rowl_frontend::functional_property_axioms;
+    pub use rowl_frontend::functional_ranges;
     pub use rowl_frontend::imports;
     pub use rowl_frontend::iri;
     pub use rowl_frontend::langtag;
@@ -46,10 +50,12 @@ pub mod experimental {
     pub use rowl_kernel::builtins;
     pub use rowl_kernel::class_equality;
     pub use rowl_kernel::collection;
+    pub use rowl_kernel::data_ontology;
     pub use rowl_kernel::datatype_definitions;
     pub use rowl_kernel::datatype_order;
     pub use rowl_kernel::datatype_positions;
     pub use rowl_kernel::datatype_restrictions;
+    pub use rowl_kernel::datatypes;
     pub use rowl_kernel::decimal;
     pub use rowl_kernel::indexing;
     pub use rowl_kernel::keys;

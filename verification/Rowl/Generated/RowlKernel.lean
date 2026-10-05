@@ -46480,7 +46480,7 @@ def snapshot.resolve_texts
     ok (snapshot.TextResolution.DuplicateDocument key)
 
 /-- [rowl_kernel::source_reasoning::source_ontology]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 18:0-28:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 20:0-30:1
     Visibility: public -/
 def source_reasoning.source_ontology
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -46496,12 +46496,12 @@ def source_reasoning.source_ontology
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_prepared]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 31:0-41:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 33:0-43:1
     Visibility: public -/
 def source_reasoning.source_prepared
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
   (scope : alloc.vec.Vec Std.U8) :
-  Result (core.result.Result (Option shi_ontology.Prepared)
+  Result (core.result.Result (Option data_ontology.Prepared)
     functional_document.DocumentError)
   := do
   let r ← source_reasoning.source_ontology bytes limits scope
@@ -46510,12 +46510,12 @@ def source_reasoning.source_prepared
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← shi_ontology.prepare ontology.axioms
+      let o1 ← data_ontology.prepare ontology.axioms
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_consistent]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 44:0-57:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 46:0-59:1
     Visibility: public -/
 def source_reasoning.source_consistent
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -46529,12 +46529,12 @@ def source_reasoning.source_consistent
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← shi_ontology.consistent ontology.axioms
+      let o1 ← data_ontology.consistent ontology.axioms
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_class_satisfiable]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 59:0-73:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 61:0-75:1
     Visibility: public -/
 def source_reasoning.source_class_satisfiable
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -46548,12 +46548,12 @@ def source_reasoning.source_class_satisfiable
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← shi_ontology.class_satisfiable ontology.axioms «class»
+      let o1 ← data_ontology.class_satisfiable ontology.axioms «class»
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_subsumed]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 76:0-91:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 78:0-93:1
     Visibility: public -/
 def source_reasoning.source_subsumed
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -46568,12 +46568,12 @@ def source_reasoning.source_subsumed
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← shi_ontology.subsumed ontology.axioms sub sup
+      let o1 ← data_ontology.subsumed ontology.axioms sub sup
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
 /-- [rowl_kernel::source_reasoning::source_instance_of]:
-    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 94:0-109:1
+    Source: 'crates/rowl-kernel/src/source_reasoning.rs', lines 96:0-111:1
     Visibility: public -/
 def source_reasoning.source_instance_of
   (bytes : alloc.vec.Vec Std.U8) (limits : functional_document.DocumentLimits)
@@ -46588,7 +46588,7 @@ def source_reasoning.source_instance_of
     match o with
     | none => ok (core.result.Result.Ok none)
     | some ontology =>
-      let o1 ← shi_ontology.instance_of ontology.axioms individual «class»
+      let o1 ← data_ontology.instance_of ontology.axioms individual «class»
       ok (core.result.Result.Ok o1)
   | core.result.Result.Err error => ok (core.result.Result.Err error)
 
