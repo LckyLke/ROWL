@@ -9707,21 +9707,21 @@ def builtins.builtin_kind
   | some _ => ok o
 
 /-- [rowl_kernel::classification::Classification]
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 34:0-37:1
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 41:0-44:1
     Visibility: public -/
 structure classification.Classification where
   satisfiable : alloc.vec.Vec Bool
   subsumed : alloc.vec.Vec (alloc.vec.Vec Bool)
 
 /-- [rowl_kernel::classification::named]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 39:0-43:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 46:0-50:1 -/
 def classification.named
   («class» : model.Class) : Result model.ClassExpression := do
   let i ← nnf.copy_iri «class».iri
   ok (model.ClassExpression.Class { iri := i })
 
 /-- [rowl_kernel::classification::position]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 47:0-57:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 54:0-64:1 -/
 def classification.position
   (classes : alloc.vec.Vec model.Class) («class» : model.Class)
   (index : Std.Usize) :
@@ -9743,7 +9743,7 @@ def classification.position
 partial_fixpoint
 
 /-- [rowl_kernel::classification::tell]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 61:0-75:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 68:0-82:1 -/
 def classification.tell
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (parent : model.Class) (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
@@ -9773,7 +9773,7 @@ def classification.tell
   else ok parents
 
 /-- [rowl_kernel::classification::tell_named]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 78:0-88:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 85:0-95:1 -/
 def classification.tell_named
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (member : model.ClassExpression)
@@ -9802,7 +9802,7 @@ def classification.tell_named
   | model.ClassExpression.DataExactCardinality _ _ _ => ok parents
 
 /-- [rowl_kernel::classification::tell_members]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 92:0-105:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 99:0-112:1 -/
 def classification.tell_members
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (members : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -9822,7 +9822,7 @@ def classification.tell_members
 partial_fixpoint
 
 /-- [rowl_kernel::classification::tell_expression]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 109:0-124:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 116:0-131:1 -/
 def classification.tell_expression
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (expression : model.ClassExpression)
@@ -9856,7 +9856,7 @@ def classification.tell_expression
   | model.ClassExpression.DataExactCardinality _ _ _ => ok parents
 
 /-- [rowl_kernel::classification::tell_list]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 128:0-141:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 135:0-148:1 -/
 def classification.tell_list
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (members : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -9876,7 +9876,7 @@ def classification.tell_list
 partial_fixpoint
 
 /-- [rowl_kernel::classification::tell_all]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 145:0-154:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 152:0-161:1 -/
 def classification.tell_all
   (classes : alloc.vec.Vec model.Class) (child : model.Class)
   (members : model.AtLeastTwo model.ClassExpression)
@@ -9890,7 +9890,7 @@ def classification.tell_all
   classification.tell_list classes child members.rest 0#usize parents2
 
 /-- [rowl_kernel::classification::tell_member]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 158:0-168:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 165:0-175:1 -/
 def classification.tell_member
   (classes : alloc.vec.Vec model.Class) (member : model.ClassExpression)
   (members : model.AtLeastTwo model.ClassExpression)
@@ -9919,7 +9919,7 @@ def classification.tell_member
   | model.ClassExpression.DataExactCardinality _ _ _ => ok parents
 
 /-- [rowl_kernel::classification::tell_equivalent_rest]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 172:0-184:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 179:0-191:1 -/
 def classification.tell_equivalent_rest
   (classes : alloc.vec.Vec model.Class)
   (members : model.AtLeastTwo model.ClassExpression) (index : Std.Usize)
@@ -9939,7 +9939,7 @@ def classification.tell_equivalent_rest
 partial_fixpoint
 
 /-- [rowl_kernel::classification::tell_equivalent]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 187:0-195:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 194:0-202:1 -/
 def classification.tell_equivalent
   (classes : alloc.vec.Vec model.Class)
   (members : model.AtLeastTwo model.ClassExpression)
@@ -9953,7 +9953,7 @@ def classification.tell_equivalent
   classification.tell_equivalent_rest classes members 0#usize parents2
 
 /-- [rowl_kernel::classification::tell_under]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 199:0-209:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 206:0-216:1 -/
 def classification.tell_under
   (classes : alloc.vec.Vec model.Class) (union : model.Class)
   (member : model.ClassExpression)
@@ -9982,7 +9982,7 @@ def classification.tell_under
   | model.ClassExpression.DataExactCardinality _ _ _ => ok parents
 
 /-- [rowl_kernel::classification::tell_union_rest]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 213:0-226:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 220:0-233:1 -/
 def classification.tell_union_rest
   (classes : alloc.vec.Vec model.Class) (union : model.Class)
   (members : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
@@ -10002,7 +10002,7 @@ def classification.tell_union_rest
 partial_fixpoint
 
 /-- [rowl_kernel::classification::tell_union]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 230:0-239:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 237:0-246:1 -/
 def classification.tell_union
   (classes : alloc.vec.Vec model.Class) (union : model.Class)
   (members : model.AtLeastTwo model.ClassExpression)
@@ -10016,7 +10016,7 @@ def classification.tell_union
   classification.tell_union_rest classes union members.rest 0#usize parents2
 
 /-- [rowl_kernel::classification::tell_axiom]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 242:0-252:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 249:0-259:1 -/
 def classification.tell_axiom
   (classes : alloc.vec.Vec model.Class) («axiom» : model.Axiom)
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
@@ -10084,7 +10084,7 @@ def classification.tell_axiom
   | model.Axiom.AnnotationPropertyRange _ _ => ok parents
 
 /-- [rowl_kernel::classification::told_from]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 255:0-267:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 262:0-274:1 -/
 def classification.told_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (classes : alloc.vec.Vec model.Class) (index : Std.Usize)
@@ -10104,7 +10104,7 @@ def classification.told_from
 partial_fixpoint
 
 /-- [rowl_kernel::classification::empty_rows]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 270:0-277:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 277:0-284:1 -/
 def classification.empty_rows
   (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
   Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
@@ -10118,7 +10118,7 @@ def classification.empty_rows
 partial_fixpoint
 
 /-- [rowl_kernel::classification::told]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 280:0-282:1
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 287:0-289:1
     Visibility: public -/
 def classification.told
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -22688,7 +22688,7 @@ def data_ontology.prepared_class_satisfiable
     else ok none
 
 /-- [rowl_kernel::classification::satisfiable_from]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 285:0-306:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 292:0-313:1 -/
 def classification.satisfiable_from
   (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
   (index : Std.Usize) (out : alloc.vec.Vec Bool) :
@@ -22716,7 +22716,7 @@ def classification.satisfiable_from
 partial_fixpoint
 
 /-- [rowl_kernel::classification::deepest]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 310:0-328:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 317:0-335:1 -/
 def classification.deepest
   (depth : alloc.vec.Vec Std.Usize) (listed : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (best : Std.Usize) (cap : Std.Usize) :
@@ -22748,7 +22748,7 @@ def classification.deepest
 partial_fixpoint
 
 /-- [rowl_kernel::classification::deepen]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 332:0-345:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 339:0-352:1 -/
 def classification.deepen
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
   (depth : alloc.vec.Vec Std.Usize) (cap : Std.Usize) (index : Std.Usize) :
@@ -22778,7 +22778,7 @@ def classification.deepen
 partial_fixpoint
 
 /-- [rowl_kernel::classification::depths]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 348:0-355:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 355:0-362:1 -/
 def classification.depths
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
   (depth : alloc.vec.Vec Std.Usize) (cap : Std.Usize) (rounds : Std.Usize) :
@@ -22793,7 +22793,7 @@ def classification.depths
 partial_fixpoint
 
 /-- [rowl_kernel::classification::at_level]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 358:0-367:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 365:0-374:1 -/
 def classification.at_level
   (depth : alloc.vec.Vec Std.Usize) (level : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -22819,7 +22819,7 @@ def classification.at_level
 partial_fixpoint
 
 /-- [rowl_kernel::classification::levels]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 370:0-377:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 377:0-384:1 -/
 def classification.levels
   (depth : alloc.vec.Vec Std.Usize) (level : Std.Usize) (cap : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -22837,7 +22837,7 @@ def classification.levels
 partial_fixpoint
 
 /-- [rowl_kernel::classification::filled]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 380:0-387:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 387:0-394:1 -/
 def classification.filled
   (count : Std.Usize) (value : Std.U8) (out : alloc.vec.Vec Std.U8) :
   Result (alloc.vec.Vec Std.U8)
@@ -22851,7 +22851,7 @@ def classification.filled
 partial_fixpoint
 
 /-- [rowl_kernel::classification::zeros]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 390:0-397:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 397:0-404:1 -/
 def classification.zeros
   (count : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
   Result (alloc.vec.Vec Std.Usize)
@@ -22865,7 +22865,7 @@ def classification.zeros
 partial_fixpoint
 
 /-- [rowl_kernel::classification::unclassified]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 400:0-407:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 407:0-414:1 -/
 def classification.unclassified
   (count : Std.Usize) (out : alloc.vec.Vec Bool) :
   Result (alloc.vec.Vec Bool)
@@ -22879,11 +22879,11 @@ def classification.unclassified
 partial_fixpoint
 
 /-- [rowl_kernel::classification::UNKNOWN]
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 419:0-419:22 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 426:0-426:22 -/
 @[global_simps, irreducible] def classification.UNKNOWN : Std.U8 := 0#u8
 
 /-- [rowl_kernel::classification::unknown_rows]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 410:0-417:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 417:0-424:1 -/
 def classification.unknown_rows
   (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec Std.U8)) :
   Result (alloc.vec.Vec (alloc.vec.Vec Std.U8))
@@ -22900,15 +22900,15 @@ def classification.unknown_rows
 partial_fixpoint
 
 /-- [rowl_kernel::classification::NO]
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 420:0-420:17 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 427:0-427:17 -/
 @[global_simps, irreducible] def classification.NO : Std.U8 := 1#u8
 
 /-- [rowl_kernel::classification::YES]
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 421:0-421:18 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 428:0-428:18 -/
 @[global_simps, irreducible] def classification.YES : Std.U8 := 2#u8
 
 /-- [rowl_kernel::classification::listed]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 424:0-434:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 431:0-441:1 -/
 def classification.listed
   (list : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
   Result Bool
@@ -22927,7 +22927,7 @@ def classification.listed
 partial_fixpoint
 
 /-- [rowl_kernel::classification::refused]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 437:0-448:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 444:0-455:1 -/
 def classification.refused
   (row : alloc.vec.Vec Std.U8) (parents : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) :
@@ -22955,7 +22955,7 @@ def classification.refused
 partial_fixpoint
 
 /-- [rowl_kernel::classification::inherited]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 451:0-473:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 458:0-480:1 -/
 def classification.inherited
   (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
   (parents : alloc.vec.Vec Std.Usize) (b : Std.Usize) (index : Std.Usize) :
@@ -23008,7 +23008,7 @@ def classification.inherited
 partial_fixpoint
 
 /-- [rowl_kernel::classification::unsatisfiable]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 476:0-482:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 483:0-489:1 -/
 def classification.unsatisfiable
   (satisfiable : alloc.vec.Vec Bool) (b : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len satisfiable
@@ -23021,7 +23021,7 @@ def classification.unsatisfiable
   else ok false
 
 /-- [rowl_kernel::classification::told_parent]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 485:0-491:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 492:0-498:1 -/
 def classification.told_parent
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (a : Std.Usize)
   (b : Std.Usize) :
@@ -23037,7 +23037,7 @@ def classification.told_parent
   else ok false
 
 /-- [rowl_kernel::classification::refuted]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 494:0-500:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 501:0-507:1 -/
 def classification.refuted
   (row : alloc.vec.Vec Std.U8)
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (b : Std.Usize) :
@@ -23053,7 +23053,7 @@ def classification.refuted
   else ok false
 
 /-- [rowl_kernel::classification::inherits]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 503:0-515:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 510:0-522:1 -/
 def classification.inherits
   (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (a : Std.Usize)
@@ -23069,128 +23069,37 @@ def classification.inherits
     classification.inherited rows done1 v b 0#usize
   else ok false
 
-/-- [rowl_kernel::shi_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1856:0-1882:1
-    Visibility: public -/
-def shi_ontology.prepared_subsumed
-  (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
-  (sup : model.ClassExpression) :
-  Result (Option Bool)
-  := do
-  let o ← concepts.translate sub true
-  match o with
-  | none => ok none
-  | some inside =>
-    let o1 ← concepts.translate sup false
-    match o1 with
-    | none => ok none
-    | some outside =>
-      let extra ←
-        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
-          ({ node := 0#usize, concept := inside } : completion.Fact)
-      let extra1 ←
-        alloc.vec.Vec.push extra ({ node := 0#usize, concept := outside } :
-          completion.Fact)
-      let o2 ← shi_ontology.prepared_satisfiable prepared extra1
-      match o2 with
-      | none => ok none
-      | some satisfiable => ok (some (¬ satisfiable))
-
-/-- [rowl_kernel::data_ontology::prepared_subsumed]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2307:0-2326:1
-    Visibility: public -/
-def data_ontology.prepared_subsumed
-  (prepared : data_ontology.Prepared) (sub : model.ClassExpression)
-  (sup : model.ClassExpression) :
-  Result (Option Bool)
-  := do
-  match prepared with
-  | data_ontology.Prepared.Plain prepared1 =>
-    shi_ontology.prepared_subsumed prepared1 sub sup
-  | data_ontology.Prepared.Encoded context nodes prepared1 =>
-    let b ← data_ontology.class_known nodes sub
-    if b
-    then
-      let b1 ← data_ontology.class_known nodes sup
-      if b1
-      then
-        let o ← data_ontology.encode_class context sub
-        let o1 ← data_ontology.encode_class context sup
-        match o with
-        | none => ok none
-        | some sub1 =>
-          match o1 with
-          | none => ok none
-          | some sup1 =>
-            let ce ← data_ontology.object_class
-            let ce1 ← data_ontology.and sub1 ce
-            shi_ontology.prepared_subsumed prepared1 ce1 sup1
-      else ok none
-    else ok none
-
-/-- [rowl_kernel::classification::ask]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 518:0-528:1 -/
-def classification.ask
-  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
-  (a : Std.Usize) (b : Std.Usize) :
-  Result (Option Std.U8)
-  := do
-  let i := alloc.vec.Vec.len classes
-  if a < i
-  then
-    let i1 := alloc.vec.Vec.len classes
-    if b < i1
-    then
-      let c ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Class)
-          classes a
-      let ce ← classification.named c
-      let c1 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Class)
-          classes b
-      let ce1 ← classification.named c1
-      let o ← data_ontology.prepared_subsumed prepared ce ce1
-      match o with
-      | none => ok none
-      | some b1 =>
-        if b1
-        then ok (some classification.YES)
-        else ok (some classification.NO)
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::classification::decide]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 531:0-555:1 -/
-def classification.decide
-  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
+/-- [rowl_kernel::classification::settle]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 527:0-549:1 -/
+def classification.settle
   (satisfiable : alloc.vec.Vec Bool)
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
   (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
   (row : alloc.vec.Vec Std.U8) (a : Std.Usize) (b : Std.Usize) :
-  Result (Option Std.U8)
+  Result Std.U8
   := do
   if a = b
-  then ok (some classification.YES)
+  then ok classification.YES
   else
     let b1 ← classification.unsatisfiable satisfiable b
     if b1
-    then ok (some classification.NO)
+    then ok classification.NO
     else
       let b2 ← classification.told_parent parents a b
       if b2
-      then ok (some classification.YES)
+      then ok classification.YES
       else
         let b3 ← classification.refuted row parents b
         if b3
-        then ok (some classification.NO)
+        then ok classification.NO
         else
           let b4 ← classification.inherits rows done1 parents a b
           if b4
-          then ok (some classification.YES)
-          else classification.ask prepared classes a b
+          then ok classification.YES
+          else ok classification.UNKNOWN
 
 /-- [rowl_kernel::classification::unknown_at]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 558:0-564:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 552:0-558:1 -/
 def classification.unknown_at
   (row : alloc.vec.Vec Std.U8) (b : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len row
@@ -23202,15 +23111,14 @@ def classification.unknown_at
   else ok false
 
 /-- [rowl_kernel::classification::fill]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 567:0-627:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 561:0-581:1 -/
 def classification.fill
-  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
   (satisfiable : alloc.vec.Vec Bool)
   (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
   (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
   (order : alloc.vec.Vec Std.Usize) (a : Std.Usize) (index : Std.Usize)
   (row : alloc.vec.Vec Std.U8) :
-  Result (Option (alloc.vec.Vec Std.U8))
+  Result (alloc.vec.Vec Std.U8)
   := do
   let i := alloc.vec.Vec.len order
   if index < i
@@ -23219,67 +23127,274 @@ def classification.fill
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
         order index
     let b1 ← classification.unknown_at row b
-    if b1
-    then
-      let o ←
-        classification.decide prepared classes satisfiable parents rows done1
-          row a b
-      match o with
-      | none => ok none
-      | some answer =>
+    let row1 ←
+      if b1
+      then
+        do
+        let answer ←
+          classification.settle satisfiable parents rows done1 row a b
         let (_, index_mut_back) ←
           alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
             Std.U8) row b
-        let i1 ← index + 1#usize
-        let row1 := index_mut_back answer
-        classification.fill prepared classes satisfiable parents rows done1
-          order a i1 row1
-    else
-      let i1 ← index + 1#usize
-      classification.fill prepared classes satisfiable parents rows done1 order
-        a i1 row
-  else ok (some row)
+        ok (index_mut_back answer)
+      else ok row
+    let i1 ← index + 1#usize
+    classification.fill satisfiable parents rows done1 order a i1 row1
+  else ok row
 partial_fixpoint
 
-/-- [rowl_kernel::classification::fill_rest]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 630:0-686:1 -/
-def classification.fill_rest
-  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
-  (satisfiable : alloc.vec.Vec Bool)
-  (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
-  (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
-  (a : Std.Usize) (b : Std.Usize) (row : alloc.vec.Vec Std.U8) :
-  Result (Option (alloc.vec.Vec Std.U8))
+/-- [rowl_kernel::classification::accepted]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 584:0-599:1 -/
+def classification.accepted
+  (row : alloc.vec.Vec Std.U8) (parents : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len parents
+  if index < i
+  then
+    let parent ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        parents index
+    let i1 := alloc.vec.Vec.len row
+    if parent < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) row
+          parent
+      if i2 = classification.YES
+      then let i3 ← index + 1#usize
+           classification.accepted row parents i3
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::classification::pick]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 603:0-615:1 -/
+def classification.pick
+  (row : alloc.vec.Vec Std.U8)
+  (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (all : Bool)
+  (b : Std.Usize) :
+  Result Bool
+  := do
+  let b1 ← classification.unknown_at row b
+  if b1
+  then
+    if all
+    then ok true
+    else
+      let i := alloc.vec.Vec.len parents
+      if b < i
+      then
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) parents b
+        classification.accepted row v 0#usize
+      else ok true
+  else ok false
+
+/-- [rowl_kernel::classification::candidates]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 618:0-633:1 -/
+def classification.candidates
+  (row : alloc.vec.Vec Std.U8)
+  (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (all : Bool)
+  (b : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
   := do
   let i := alloc.vec.Vec.len row
   if b < i
   then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) row b
-    if i1 = classification.UNKNOWN
+    let b1 ← classification.pick row parents all b
+    let out1 ← if b1
+                 then alloc.vec.Vec.push out b
+                 else ok out
+    let i1 ← b + 1#usize
+    classification.candidates row parents all i1 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::classification::complements]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 636:0-660:1 -/
+def classification.complements
+  (classes : alloc.vec.Vec model.Class) (group : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) (stop : Std.Usize)
+  (out : alloc.vec.Vec model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.ClassExpression))
+  := do
+  if index < stop
+  then
+    let i := alloc.vec.Vec.len group
+    if index < i
     then
+      let b ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          group index
+      let i1 := alloc.vec.Vec.len classes
+      if b < i1
+      then
+        let c ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            model.Class) classes b
+        let ce ← classification.named c
+        let out1 ←
+          alloc.vec.Vec.push out (model.ClassExpression.ObjectComplementOf ce)
+        let i2 ← index + 1#usize
+        classification.complements classes group i2 stop out1
+      else ok none
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::classification::escapes]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 664:0-698:1 -/
+def classification.escapes
+  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
+  (group : alloc.vec.Vec Std.Usize) (a : Std.Usize) (start : Std.Usize)
+  (stop : Std.Usize) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len classes
+  if a < i
+  then
+    let i1 := alloc.vec.Vec.len group
+    if start < i1
+    then
+      let first ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          group start
+      let i2 := alloc.vec.Vec.len classes
+      if first < i2
+      then
+        let i3 ← start + 1#usize
+        let o ←
+          classification.complements classes group i3 stop (alloc.vec.Vec.new
+            model.ClassExpression)
+        match o with
+        | none => ok none
+        | some rest =>
+          let c ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.Class) classes a
+          let ce ← classification.named c
+          let c1 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              model.Class) classes first
+          let ce1 ← classification.named c1
+          data_ontology.prepared_class_satisfiable prepared
+            (model.ClassExpression.ObjectIntersectionOf
+            {
+              first := ce,
+              second := (model.ClassExpression.ObjectComplementOf ce1),
+              rest
+            })
+      else ok none
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::classification::mark]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 701:0-715:1 -/
+def classification.mark
+  (group : alloc.vec.Vec Std.Usize) (index : Std.Usize) (stop : Std.Usize)
+  (code : Std.U8) (row : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if index < stop
+  then
+    let i := alloc.vec.Vec.len group
+    if index < i
+    then
+      let b ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          group index
+      let i1 := alloc.vec.Vec.len row
+      let row1 ←
+        if b < i1
+        then
+          do
+          let (_, index_mut_back) ←
+            alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+              Std.U8) row b
+          ok (index_mut_back code)
+        else ok row
+      let i2 ← index + 1#usize
+      classification.mark group i2 stop code row1
+    else ok row
+  else ok row
+partial_fixpoint
+
+/-- [rowl_kernel::classification::split]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 720:0-748:1 -/
+def classification.split
+  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
+  (group : alloc.vec.Vec Std.Usize) (a : Std.Usize) (start : Std.Usize)
+  (stop : Std.Usize) (row : alloc.vec.Vec Std.U8) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  if start < stop
+  then
+    let o ← classification.escapes prepared classes group a start stop
+    match o with
+    | none => ok none
+    | some b =>
+      if b
+      then
+        let v ← classification.mark group start stop classification.NO row
+        ok (some v)
+      else
+        let i ← stop - start
+        if i = 1#usize
+        then
+          let v ← classification.mark group start stop classification.YES row
+          ok (some v)
+        else
+          let i1 ← i / 2#usize
+          let middle ← start + i1
+          let o1 ←
+            classification.split prepared classes group a start middle row
+          match o1 with
+          | none => ok none
+          | some row1 =>
+            classification.split prepared classes group a middle stop row1
+  else ok (some row)
+partial_fixpoint
+
+/-- [rowl_kernel::classification::rounds]:
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 753:0-790:1 -/
+def classification.rounds
+  (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
+  (satisfiable : alloc.vec.Vec Bool)
+  (parents : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (done1 : alloc.vec.Vec Bool)
+  (order : alloc.vec.Vec Std.Usize) (a : Std.Usize) (count : Std.Usize)
+  (row : alloc.vec.Vec Std.U8) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  if count > 0#usize
+  then
+    let settled ←
+      classification.fill satisfiable parents rows done1 order a 0#usize row
+    let group ←
+      classification.candidates settled parents false 0#usize
+        (alloc.vec.Vec.new Std.Usize)
+    let i := alloc.vec.Vec.len group
+    if i > 0#usize
+    then
+      let i1 := alloc.vec.Vec.len group
       let o ←
-        classification.decide prepared classes satisfiable parents rows done1
-          row a b
+        classification.split prepared classes group a 0#usize i1 settled
       match o with
       | none => ok none
-      | some answer =>
-        let (_, index_mut_back) ←
-          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
-            Std.U8) row b
-        let i2 ← b + 1#usize
-        let row1 := index_mut_back answer
-        classification.fill_rest prepared classes satisfiable parents rows
-          done1 a i2 row1
-    else
-      let i2 ← b + 1#usize
-      classification.fill_rest prepared classes satisfiable parents rows done1
-        a i2 row
+      | some tested =>
+        let i2 ← count - 1#usize
+        classification.rounds prepared classes satisfiable parents rows done1
+          order a i2 tested
+    else ok (some settled)
   else ok (some row)
 partial_fixpoint
 
 /-- [rowl_kernel::classification::row_of]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 690:0-729:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 794:0-827:1 -/
 def classification.row_of
   (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
   (satisfiable : alloc.vec.Vec Bool)
@@ -23297,17 +23412,24 @@ def classification.row_of
     if b
     then
       let i1 := alloc.vec.Vec.len classes
+      let i2 := alloc.vec.Vec.len classes
       let v ←
-        classification.filled i1 classification.UNKNOWN (alloc.vec.Vec.new
+        classification.filled i2 classification.UNKNOWN (alloc.vec.Vec.new
           Std.U8)
       let o ←
-        classification.fill prepared classes satisfiable parents rows done1
-          order a 0#usize v
+        classification.rounds prepared classes satisfiable parents rows done1
+          order a i1 v
       match o with
       | none => ok none
       | some row =>
-        classification.fill_rest prepared classes satisfiable parents rows
-          done1 a 0#usize row
+        let settled ←
+          classification.fill satisfiable parents rows done1 order a 0#usize
+            row
+        let group ←
+          classification.candidates settled parents true 0#usize
+            (alloc.vec.Vec.new Std.Usize)
+        let i3 := alloc.vec.Vec.len group
+        classification.split prepared classes group a 0#usize i3 settled
     else
       let i1 := alloc.vec.Vec.len classes
       let v ←
@@ -23320,7 +23442,7 @@ def classification.row_of
     ok (some v)
 
 /-- [rowl_kernel::classification::classify_rest]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 799:0-852:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 897:0-950:1 -/
 def classification.classify_rest
   (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
   (satisfiable : alloc.vec.Vec Bool)
@@ -23366,7 +23488,7 @@ def classification.classify_rest
 partial_fixpoint
 
 /-- [rowl_kernel::classification::classify_from]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 733:0-796:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 831:0-894:1 -/
 def classification.classify_from
   (prepared : data_ontology.Prepared) (classes : alloc.vec.Vec model.Class)
   (satisfiable : alloc.vec.Vec Bool)
@@ -23427,7 +23549,7 @@ def classification.classify_from
 partial_fixpoint
 
 /-- [rowl_kernel::classification::answers]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 855:0-864:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 953:0-962:1 -/
 def classification.answers
   (row : alloc.vec.Vec Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Bool) :
   Result (alloc.vec.Vec Bool)
@@ -23451,7 +23573,7 @@ def classification.answers
 partial_fixpoint
 
 /-- [rowl_kernel::classification::all_answers]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 867:0-876:1 -/
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 965:0-974:1 -/
 def classification.all_answers
   (rows : alloc.vec.Vec (alloc.vec.Vec Std.U8)) (index : Std.Usize)
   (out : alloc.vec.Vec (alloc.vec.Vec Bool)) :
@@ -23477,7 +23599,7 @@ def classification.all_answers
 partial_fixpoint
 
 /-- [rowl_kernel::classification::classify]:
-    Source: 'crates/rowl-kernel/src/classification.rs', lines 879:0-909:1
+    Source: 'crates/rowl-kernel/src/classification.rs', lines 977:0-1007:1
     Visibility: public -/
 def classification.classify
   (prepared : data_ontology.Prepared)
@@ -29889,6 +30011,65 @@ def data_ontology.prepared_consistent
     shi_ontology.prepared_consistent prepared1
   | data_ontology.Prepared.Encoded _ _ prepared1 =>
     shi_ontology.prepared_consistent prepared1
+
+/-- [rowl_kernel::shi_ontology::prepared_subsumed]:
+    Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1856:0-1882:1
+    Visibility: public -/
+def shi_ontology.prepared_subsumed
+  (prepared : shi_ontology.Prepared) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  let o ← concepts.translate sub true
+  match o with
+  | none => ok none
+  | some inside =>
+    let o1 ← concepts.translate sup false
+    match o1 with
+    | none => ok none
+    | some outside =>
+      let extra ←
+        alloc.vec.Vec.push (alloc.vec.Vec.new completion.Fact)
+          ({ node := 0#usize, concept := inside } : completion.Fact)
+      let extra1 ←
+        alloc.vec.Vec.push extra ({ node := 0#usize, concept := outside } :
+          completion.Fact)
+      let o2 ← shi_ontology.prepared_satisfiable prepared extra1
+      match o2 with
+      | none => ok none
+      | some satisfiable => ok (some (¬ satisfiable))
+
+/-- [rowl_kernel::data_ontology::prepared_subsumed]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2307:0-2326:1
+    Visibility: public -/
+def data_ontology.prepared_subsumed
+  (prepared : data_ontology.Prepared) (sub : model.ClassExpression)
+  (sup : model.ClassExpression) :
+  Result (Option Bool)
+  := do
+  match prepared with
+  | data_ontology.Prepared.Plain prepared1 =>
+    shi_ontology.prepared_subsumed prepared1 sub sup
+  | data_ontology.Prepared.Encoded context nodes prepared1 =>
+    let b ← data_ontology.class_known nodes sub
+    if b
+    then
+      let b1 ← data_ontology.class_known nodes sup
+      if b1
+      then
+        let o ← data_ontology.encode_class context sub
+        let o1 ← data_ontology.encode_class context sup
+        match o with
+        | none => ok none
+        | some sub1 =>
+          match o1 with
+          | none => ok none
+          | some sup1 =>
+            let ce ← data_ontology.object_class
+            let ce1 ← data_ontology.and sub1 ce
+            shi_ontology.prepared_subsumed prepared1 ce1 sup1
+      else ok none
+    else ok none
 
 /-- [rowl_kernel::shi_ontology::prepared_instance_of]:
     Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1885:0-1906:1

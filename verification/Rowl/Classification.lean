@@ -6,9 +6,11 @@ single subclass, equivalence or disjoint-union axiom of the closure says about
 two named classes, and every told pair is subsumed in every model. The
 classification's answers are proved to be exactly subsumption and
 satisfiability under every normative datatype map and vocabulary: each answer
-is a proved prepared query's answer or follows from earlier answers by the
-meaning of subsumption (reflexivity, transitivity, classes without instances,
-and told pairs).
+follows from earlier answers by the meaning of subsumption (reflexivity,
+transitivity, classes without instances, and told pairs) or from a proved
+prepared satisfiability query that tests a group of classes at once, where an
+instance outside every class of the group refutes them all and no instance
+outside a single class proves it a subsumer.
 -/
 namespace Rowl.Classification
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -802,61 +804,6 @@ theorem inherits_spec (rows : alloc.vec.Vec (alloc.vec.Vec U8)) (done : alloc.ve
     exact ⟨_, List.getElem?_eq_getElem inside, spec yes⟩
   · exact ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside], by simp⟩
 
-theorem ask_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
-    (data : Rowl.DataOntology.DataPrepared items prepared) (classes : alloc.vec.Vec Class) (a b : Usize) :
-    ∃ r, classification.ask prepared classes a b = .ok r ∧ ∀ code, r = some code → (code.val = 1 ∨ code.val = 2) ∧
-      ∀ ca cb, classes.val[a.val]? = some ca → classes.val[b.val]? = some cb → Right.{u,v,w} items.val ca cb code := by
-  rw [classification.ask]
-  by_cases aIn : a.val < classes.val.length
-  · by_cases bIn : b.val < classes.val.length
-    · have lookupA : classes.index_usize a = .ok classes.val[a.val] := by
-        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem aIn]
-      have lookupB : classes.index_usize b = .ok classes.val[b.val] := by
-        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem bIn]
-      have namedA : classification.named classes.val[a.val] = .ok (.Class classes.val[a.val]) := by
-        simp [classification.named, Rowl.Nnf.copy_iri_identity]
-      have namedB : classification.named classes.val[b.val] = .ok (.Class classes.val[b.val]) := by
-        simp [classification.named, Rowl.Nnf.copy_iri_identity]
-      obtain ⟨result, run, facts⟩ := Rowl.DataOntology.prepared_subsumed_correct.{u,v,w} items prepared data
-        (.Class classes.val[a.val]) (.Class classes.val[b.val])
-      cases result with
-      | none =>
-        exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, bIn, lookupA, lookupB, namedA, namedB,
-          run], by simp⟩
-      | some answer =>
-        cases answer with
-        | true =>
-          refine ⟨some classification.YES, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, bIn, lookupA,
-            lookupB, namedA, namedB, run], ?_⟩
-          intro code same
-          cases same
-          refine ⟨by rw [yes_val]; omega, ?_⟩
-          intro ca cb at_a at_b
-          rw [List.getElem?_eq_getElem aIn] at at_a
-          rw [List.getElem?_eq_getElem bIn] at at_b
-          cases Option.some.inj at_a
-          cases Option.some.inj at_b
-          refine ⟨fun _ _ D normative V vocabulary => (facts _ rfl D normative V vocabulary).mp rfl, ?_⟩
-          intro one
-          rw [yes_val] at one
-          omega
-        | false =>
-          refine ⟨some classification.NO, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, bIn, lookupA,
-            lookupB, namedA, namedB, run], ?_⟩
-          intro code same
-          cases same
-          refine ⟨by rw [no_val]; omega, ?_⟩
-          intro ca cb at_a at_b
-          rw [List.getElem?_eq_getElem aIn] at at_a
-          rw [List.getElem?_eq_getElem bIn] at at_b
-          cases Option.some.inj at_a
-          cases Option.some.inj at_b
-          refine ⟨fun two => by rw [no_val] at two; omega, ?_⟩
-          intro _ _ D normative V vocabulary sub
-          exact Bool.false_ne_true ((facts _ rfl D normative V vocabulary).mpr sub)
-    · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, bIn], by simp⟩
-  · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn], by simp⟩
-
 /-- The context every answer is drawn from: right satisfiability answers,
     right told parents and right rows. -/
 structure Context (items : List AnnotatedAxiom) (classes : List Class) (satisfiable : List Bool)
@@ -865,40 +812,30 @@ structure Context (items : List AnnotatedAxiom) (classes : List Class) (satisfia
   parents : ParentsOk items classes parents
   rows : RowsRight.{u,v,w} items classes rows done
 
-theorem decide_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
-    (data : Rowl.DataOntology.DataPrepared items prepared)
-    (classes : alloc.vec.Vec Class) (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
+theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.Vec Class)
+    (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
     (rows : alloc.vec.Vec (alloc.vec.Vec U8)) (done : alloc.vec.Vec Bool) (row : alloc.vec.Vec U8) (a b : Usize)
     (context : Context.{u,v,w} items.val classes.val satisfiable.val parents.val rows.val done.val)
     (rowRight : RowRight.{u,v,w} items.val classes.val a.val row.val)
     (aSat : satisfiable.val[a.val]? = some true) :
-    ∃ r, classification.decide prepared classes satisfiable parents rows done row a b = .ok r ∧
-      ∀ code, r = some code → (code.val = 1 ∨ code.val = 2) ∧ ∀ ca cb, classes.val[a.val]? = some ca →
-        classes.val[b.val]? = some cb → Right.{u,v,w} items.val ca cb code := by
+    ∃ code, classification.settle satisfiable parents rows done row a b = .ok code ∧ code.val ≤ 2 ∧
+      ∀ ca cb, classes.val[a.val]? = some ca → classes.val[b.val]? = some cb → Right.{u,v,w} items.val ca cb code := by
   obtain ⟨satRight, parentsOk, rowsRight⟩ := context
   obtain ⟨_, _, ca0, at_a0, rowSpec⟩ := rowRight
   have satA : ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
       ClassSatisfiable.{u, max w v, w} D V items.val (.Class ca0) :=
     fun D normative V vocabulary => (satRight.2 a.val ca0 true at_a0 aSat D normative V vocabulary).mp rfl
-  have yesCode : classification.YES.val = 1 ∨ classification.YES.val = 2 := by rw [yes_val]; omega
-  have noCode : classification.NO.val = 1 ∨ classification.NO.val = 2 := by rw [no_val]; omega
-  rw [classification.decide]
+  rw [classification.settle]
   by_cases same : a = b
   · subst same
-    refine ⟨some classification.YES, by simp, ?_⟩
-    intro code h
-    cases h
-    refine ⟨yesCode, ?_⟩
+    refine ⟨classification.YES, by simp, by simp [yes_val], ?_⟩
     intro ca cb at_a at_b
     rw [at_a] at at_b
     cases Option.some.inj at_b
     exact ⟨fun _ _ D _ V _ => subsumed_refl D V items.val _, fun one => by rw [yes_val] at one; omega⟩
   · rw [unsatisfiable_spec]
     by_cases unsatB : satisfiable.val[b.val]? = some false
-    · refine ⟨some classification.NO, by simp [same, unsatB], ?_⟩
-      intro code h
-      cases h
-      refine ⟨noCode, ?_⟩
+    · refine ⟨classification.NO, by simp [same, unsatB], by simp [no_val], ?_⟩
       intro ca cb at_a at_b
       rw [at_a0] at at_a
       cases Option.some.inj at_a
@@ -909,10 +846,7 @@ theorem decide_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
     · obtain ⟨t, tRun, tSpec⟩ := told_parent_spec parents a b
       cases t with
       | true =>
-        refine ⟨some classification.YES, by simp [same, unsatB, tRun], ?_⟩
-        intro code h
-        cases h
-        refine ⟨yesCode, ?_⟩
+        refine ⟨classification.YES, by simp [same, unsatB, tRun], by simp [yes_val], ?_⟩
         intro ca cb at_a at_b
         obtain ⟨prow, at_prow, member⟩ := tSpec rfl
         obtain ⟨child, parent, at_child, at_parent, told⟩ := parentsOk.2 a.val prow at_prow b member
@@ -925,10 +859,7 @@ theorem decide_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
         obtain ⟨f, fRun, fSpec⟩ := refuted_spec row parents b
         cases f with
         | true =>
-          refine ⟨some classification.NO, by simp [same, unsatB, tRun, fRun], ?_⟩
-          intro code h
-          cases h
-          refine ⟨noCode, ?_⟩
+          refine ⟨classification.NO, by simp [same, unsatB, tRun, fRun], by simp [no_val], ?_⟩
           intro ca cb at_a at_b
           rw [at_a0] at at_a
           cases Option.some.inj at_a
@@ -945,10 +876,7 @@ theorem decide_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
           obtain ⟨i, iRun, iSpec⟩ := inherits_spec rows done parents a b
           cases i with
           | true =>
-            refine ⟨some classification.YES, by simp [same, unsatB, tRun, fRun, iRun], ?_⟩
-            intro code h
-            cases h
-            refine ⟨yesCode, ?_⟩
+            refine ⟨classification.YES, by simp [same, unsatB, tRun, fRun, iRun], by simp [yes_val], ?_⟩
             intro ca cb at_a at_b
             obtain ⟨arow, at_arow, q, member, qrow, at_qrow, at_qb⟩ := iSpec rfl
             obtain ⟨child, parent, at_child, at_parent, told⟩ := parentsOk.2 a.val arow at_arow q member
@@ -962,8 +890,9 @@ theorem decide_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
                 (told_subsumed D V items.val told) (inheritedRight.1 yes_val D normative V vocabulary),
               fun one => by rw [yes_val] at one; omega⟩
           | false =>
-            obtain ⟨r, rRun, rSpec⟩ := ask_spec.{u,v,w} items prepared data classes a b
-            exact ⟨r, by simp [same, unsatB, tRun, fRun, iRun, rRun], rSpec⟩
+            refine ⟨classification.UNKNOWN, by simp [same, unsatB, tRun, fRun, iRun], by simp [unknown_val], ?_⟩
+            intro ca cb _ _
+            exact ⟨fun two => by rw [unknown_val] at two; omega, fun one => by rw [unknown_val] at one; omega⟩
 
 theorem unknown_at_spec (row : alloc.vec.Vec U8) (b : Usize) :
     classification.unknown_at row b = .ok (decide (row.val[b.val]? = some classification.UNKNOWN)) := by
@@ -1007,15 +936,14 @@ private theorem row_right_set (items : List AnnotatedAxiom) (classes : List Clas
   · rw [List.getElem?_set_ne (Ne.symm same)] at at_b'
     exact spec b' code' cb at_b' at_cb
 
-theorem fill_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
-    (data : Rowl.DataOntology.DataPrepared items prepared)
-    (classes : alloc.vec.Vec Class) (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
+theorem fill_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.Vec Class)
+    (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
     (rows : alloc.vec.Vec (alloc.vec.Vec U8)) (done : alloc.vec.Vec Bool) (order : alloc.vec.Vec Usize) (a : Usize)
     (context : Context.{u,v,w} items.val classes.val satisfiable.val parents.val rows.val done.val)
     (aSat : satisfiable.val[a.val]? = some true) (index : Usize) (row : alloc.vec.Vec U8)
     (rowRight : RowRight.{u,v,w} items.val classes.val a.val row.val) :
-    ∃ r, classification.fill prepared classes satisfiable parents rows done order a index row = .ok r ∧
-      ∀ row', r = some row' → RowRight.{u,v,w} items.val classes.val a.val row'.val := by
+    ∃ r, classification.fill satisfiable parents rows done order a index row = .ok r ∧
+      RowRight.{u,v,w} items.val classes.val a.val r.val := by
   rw [classification.fill]
   by_cases more : index.val < order.val.length
   · have lookup : order.index_usize index = .ok order.val[index.val] := by
@@ -1024,93 +952,510 @@ theorem fill_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontolo
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
     by_cases unknown : row.val[order.val[index.val].val]? = some classification.UNKNOWN
-    · obtain ⟨d, dRun, dSpec⟩ := decide_spec.{u,v,w} items prepared data classes satisfiable parents rows done row a
-        order.val[index.val] context rowRight aSat
-      cases d with
-      | none =>
-        exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, unknown_at_spec, unknown, dRun], by simp⟩
-      | some answer =>
-        have inside : order.val[index.val].val < row.val.length := (List.getElem?_eq_some_iff.mp unknown).1
-        obtain ⟨codes, answerRight⟩ := dSpec answer rfl
-        obtain ⟨r, run, spec⟩ := fill_spec items prepared data classes satisfiable parents rows done order a context
-          aSat next (row.set order.val[index.val] answer)
-          (row_right_set items.val classes.val a.val row order.val[index.val] answer rowRight (by omega) answerRight)
-        refine ⟨r, ?_, spec⟩
-        simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, unknown_at_spec, unknown, dRun, alloc.vec.Vec.index_mut_usize,
-          alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside, advance, run]
-    · obtain ⟨r, run, spec⟩ := fill_spec items prepared data classes satisfiable parents rows done order a context
-        aSat next row rowRight
-      exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, unknown_at_spec, unknown, advance, run], spec⟩
-  · exact ⟨some row, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], by intro row' same; cases same; exact rowRight⟩
+    · obtain ⟨answer, answerRun, small, answerRight⟩ := settle_spec.{u,v,w} items classes satisfiable parents rows done
+        row a order.val[index.val] context rowRight aSat
+      have inside : order.val[index.val].val < row.val.length := (List.getElem?_eq_some_iff.mp unknown).1
+      obtain ⟨r, run, spec⟩ := fill_spec items classes satisfiable parents rows done order a context aSat next
+        (row.set order.val[index.val] answer)
+        (row_right_set items.val classes.val a.val row order.val[index.val] answer rowRight small answerRight)
+      refine ⟨r, ?_, spec⟩
+      simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, unknown_at_spec, unknown, answerRun,
+        alloc.vec.Vec.index_mut_usize, alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside, advance, run]
+    · obtain ⟨r, run, spec⟩ := fill_spec items classes satisfiable parents rows done order a context aSat next row
+        rowRight
+      exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, unknown_at_spec, unknown, advance,
+        run], spec⟩
+  · exact ⟨row, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], rowRight⟩
 termination_by order.val.length - index.val
 decreasing_by all_goals omega
 
-theorem fill_rest_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
-    (data : Rowl.DataOntology.DataPrepared items prepared)
-    (classes : alloc.vec.Vec Class) (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
-    (rows : alloc.vec.Vec (alloc.vec.Vec U8)) (done : alloc.vec.Vec Bool) (a : Usize)
-    (context : Context.{u,v,w} items.val classes.val satisfiable.val parents.val rows.val done.val)
-    (aSat : satisfiable.val[a.val]? = some true) (b : Usize) (row : alloc.vec.Vec U8)
-    (rowRight : RowRight.{u,v,w} items.val classes.val a.val row.val)
-    (before : ∀ k code, k < b.val → row.val[k]? = some code → code.val = 1 ∨ code.val = 2) :
-    ∃ r, classification.fill_rest prepared classes satisfiable parents rows done a b row = .ok r ∧
-      ∀ row', r = some row' → RowRight.{u,v,w} items.val classes.val a.val row'.val ∧ Complete row'.val := by
-  rw [classification.fill_rest]
+theorem accepted_spec (row : alloc.vec.Vec U8) (parents : alloc.vec.Vec Usize) (index : Usize) :
+    ∃ r, classification.accepted row parents index = .ok r := by
+  rw [classification.accepted]
+  by_cases more : index.val < parents.val.length
+  · have lookup : parents.index_usize index = .ok parents.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    by_cases inside : parents.val[index.val].val < row.val.length
+    · have lookupR : row.index_usize parents.val[index.val] = .ok row.val[parents.val[index.val].val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+      by_cases yes : row.val[parents.val[index.val].val] = classification.YES
+      · obtain ⟨r, run⟩ := accepted_spec row parents next
+        exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside, lookupR, yes, advance, run]⟩
+      · exact ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside, lookupR, yes]⟩
+    · exact ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside]⟩
+  · exact ⟨true, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more]⟩
+termination_by parents.val.length - index.val
+decreasing_by omega
+
+theorem pick_spec (row : alloc.vec.Vec U8) (parents : alloc.vec.Vec (alloc.vec.Vec Usize)) (all : Bool) (b : Usize) :
+    ∃ r, classification.pick row parents all b = .ok r ∧
+      (all = true → r = decide (row.val[b.val]? = some classification.UNKNOWN)) := by
+  rw [classification.pick, unknown_at_spec]
+  by_cases unknown : row.val[b.val]? = some classification.UNKNOWN
+  · cases all with
+    | true => exact ⟨true, by simp [unknown], by simp [unknown]⟩
+    | false =>
+      by_cases inside : b.val < parents.val.length
+      · have lookup : parents.index_usize b = .ok parents.val[b.val] := by
+          simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+        obtain ⟨r, run⟩ := accepted_spec row parents.val[b.val] 0#usize
+        exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, unknown, inside, lookup, run], by simp⟩
+      · exact ⟨true, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, unknown, inside], by simp⟩
+  · exact ⟨false, by simp [unknown], by simp [unknown]⟩
+
+/-- The candidates from `b` on: every earlier candidate stays, and with `all`
+    every class from `b` on that the row has no answer for is one. -/
+theorem candidates_spec (row : alloc.vec.Vec U8) (parents : alloc.vec.Vec (alloc.vec.Vec Usize)) (all : Bool)
+    (b : Usize) (out : alloc.vec.Vec Usize) (short : out.val.length ≤ b.val) :
+    ∃ r, classification.candidates row parents all b out = .ok r ∧ (∀ x ∈ out.val, x ∈ r.val) ∧
+      (all = true → ∀ (k : Nat), b.val ≤ k → row.val[k]? = some classification.UNKNOWN →
+        ∃ x ∈ r.val, x.val = k) := by
+  rw [classification.candidates]
   by_cases more : b.val < row.val.length
-  · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+  · obtain ⟨picked, pickRun, pickSpec⟩ := pick_spec row parents all b
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := b) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = b.val + 1 := by simpa using nextValue
-    have lookupRow : row.index_usize b = .ok row.val[b.val] := by
-      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
-    by_cases unknown : row.val[b.val] = classification.UNKNOWN
-    · obtain ⟨d, dRun, dSpec⟩ := decide_spec.{u,v,w} items prepared data classes satisfiable parents rows done row a b
-        context rowRight aSat
-      cases d with
-      | none =>
-        exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookupRow, unknown, dRun], by simp⟩
-      | some answer =>
-        obtain ⟨nonzero, answerRight⟩ := dSpec answer rfl
-        obtain ⟨r, run, spec⟩ := fill_rest_spec items prepared data classes satisfiable parents rows done a context
-          aSat next (row.set b answer)
-          (row_right_set items.val classes.val a.val row b answer rowRight (by omega) answerRight)
-          (by
-            intro k code low at_k
-            rw [alloc.vec.Vec.set_val_eq] at at_k
-            by_cases same : k = b.val
-            · subst same
-              rw [List.getElem?_set_self more] at at_k
-              cases Option.some.inj at_k
-              exact nonzero
-            · rw [List.getElem?_set_ne (Ne.symm same)] at at_k
-              exact before k code (by omega) at_k)
-        refine ⟨r, ?_, spec⟩
-        simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookupRow, unknown, dRun, alloc.vec.Vec.index_mut_usize,
-          alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more, advance, run]
-    · obtain ⟨r, run, spec⟩ := fill_rest_spec items prepared data classes satisfiable parents rows done a context
-        aSat next row rowRight
-        (by
-          intro k code low at_k
-          by_cases same : k = b.val
+    cases picked with
+    | true =>
+      have room : out.val.length < Usize.max := by have := row.property; omega
+      obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out b room)
+      obtain ⟨r, run, keeps, finds⟩ := candidates_spec row parents all next pushed
+        (by rw [contents, nextIndex]; simp; omega)
+      refine ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, pickRun, push, advance, run], ?_, ?_⟩
+      · intro x member
+        exact keeps x (by rw [contents]; exact List.mem_append_left _ member)
+      · intro isAll k low unknown
+        by_cases same : k = b.val
+        · exact ⟨b, keeps b (by rw [contents]; simp), same.symm⟩
+        · exact finds isAll k (by omega) unknown
+    | false =>
+      obtain ⟨r, run, keeps, finds⟩ := candidates_spec row parents all next out (by omega)
+      refine ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, pickRun, advance, run], keeps, ?_⟩
+      intro isAll k low unknown
+      by_cases same : k = b.val
+      · subst same
+        have := pickSpec isAll
+        simp [unknown] at this
+      · exact finds isAll k (by omega) unknown
+  · refine ⟨out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], fun x member => member, ?_⟩
+    intro _ k low unknown
+    have := (List.getElem?_eq_some_iff.mp unknown).1
+    omega
+termination_by row.val.length - b.val
+decreasing_by all_goals omega
+
+/-! ### Group tests -/
+
+/-- An instance of `a` outside `first` and outside every class whose complement
+    is listed in `rest` refutes each of these subsumptions. -/
+private theorem escape_refutes {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary)
+    (items : List AnnotatedAxiom) (ca cfirst : Class) (rest : alloc.vec.Vec ClassExpression)
+    (sat : ClassSatisfiable.{u, max w v, w} D V items
+      (.ObjectIntersectionOf { first := .Class ca, second := .ObjectComplementOf (.Class cfirst), rest := rest }))
+    (cb : Class) (listed : cb = cfirst ∨ ClassExpression.ObjectComplementOf (.Class cb) ∈ rest.val) :
+    ¬ Subsumed.{u, max w v, w} D V items (.Class ca) (.Class cb) := by
+  obtain ⟨Object, Value, embed, I, model, x, inside⟩ := sat
+  intro sub
+  rw [classDenote] at inside
+  obtain ⟨inA, notFirst, inRest⟩ := inside
+  have inB := sub Object Value embed I model x inA
+  rcases listed with same | member
+  · subst same
+    rw [classDenote] at notFirst
+    exact notFirst inB
+  · have outB := inRest _ member
+    rw [classDenote] at outB
+    exact outB inB
+
+/-- Without an instance of `a` outside `b`, `a` is subsumed by `b`. -/
+private theorem no_escape_subsumes {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary)
+    (items : List AnnotatedAxiom) (ca cb : Class) (rest : alloc.vec.Vec ClassExpression) (empty : rest.val = [])
+    (unsat : ¬ ClassSatisfiable.{u, max w v, w} D V items
+      (.ObjectIntersectionOf { first := .Class ca, second := .ObjectComplementOf (.Class cb), rest := rest })) :
+    Subsumed.{u, max w v, w} D V items (.Class ca) (.Class cb) := by
+  intro Object Value embed I model x inA
+  by_contra outB
+  apply unsat
+  refine ⟨Object, Value, embed, I, model, x, ?_⟩
+  rw [classDenote]
+  refine ⟨inA, ?_, ?_⟩
+  · rw [classDenote]
+    exact outB
+  · intro e member
+    rw [empty] at member
+    cases member
+
+/-- The complements of the classes `group[index..stop]` after `out`: exactly
+    `out` and one complement for each of these classes. -/
+theorem complements_spec (classes : alloc.vec.Vec Class) (group : alloc.vec.Vec Usize) (index stop : Usize)
+    (out : alloc.vec.Vec ClassExpression) (short : out.val.length ≤ index.val) :
+    ∃ r, classification.complements classes group index stop out = .ok r ∧ ∀ rest, r = some rest →
+      (∀ e ∈ rest.val, e ∈ out.val ∨ ∃ (k : Nat) (b : Usize) (cb : Class), index.val ≤ k ∧ k < stop.val ∧
+        group.val[k]? = some b ∧ classes.val[b.val]? = some cb ∧ e = .ObjectComplementOf (.Class cb)) ∧
+      (∀ (k : Nat), index.val ≤ k → k < stop.val → ∃ (b : Usize) (cb : Class), group.val[k]? = some b ∧
+        classes.val[b.val]? = some cb ∧ ClassExpression.ObjectComplementOf (.Class cb) ∈ rest.val) ∧
+      (∀ e ∈ out.val, e ∈ rest.val) := by
+  rw [classification.complements]
+  by_cases more : index.val < stop.val
+  · by_cases inGroup : index.val < group.val.length
+    · have lookup : group.index_usize index = .ok group.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inGroup]
+      by_cases inClasses : group.val[index.val].val < classes.val.length
+      · have lookupC : classes.index_usize group.val[index.val] = .ok classes.val[group.val[index.val].val] := by
+          simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inClasses]
+        have namedC : classification.named classes.val[group.val[index.val].val] =
+            .ok (.Class classes.val[group.val[index.val].val]) := by
+          simp [classification.named, Rowl.Nnf.copy_iri_identity]
+        have room : out.val.length < Usize.max := by have := group.property; omega
+        obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out
+          (.ObjectComplementOf (.Class classes.val[group.val[index.val].val])) room)
+        obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+        have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+        obtain ⟨r, run, spec⟩ := complements_spec classes group next stop pushed
+          (by rw [contents, nextIndex]; simp; omega)
+        refine ⟨r, by simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup, lookup, inClasses, lookupC,
+          namedC, push, advance, run], ?_⟩
+        intro rest same
+        obtain ⟨sound, complete, keeps⟩ := spec rest same
+        refine ⟨?_, ?_, ?_⟩
+        · intro e member
+          rcases sound e member with old | ⟨k, b, cb, low, high, at_k, at_b, isE⟩
+          · rw [contents] at old
+            rcases List.mem_append.mp old with old | new
+            · exact .inl old
+            · simp only [List.mem_singleton] at new
+              exact .inr ⟨index.val, group.val[index.val], _, le_refl _, more, List.getElem?_eq_getElem inGroup,
+                List.getElem?_eq_getElem inClasses, new⟩
+          · exact .inr ⟨k, b, cb, by omega, high, at_k, at_b, isE⟩
+        · intro k low high
+          by_cases same : k = index.val
           · subst same
-            have small := rowRight.2.1 b.val code at_k
-            rw [List.getElem?_eq_getElem more] at at_k
-            have isCode := Option.some.inj at_k
-            have nonzero : code.val ≠ 0 := by
-              intro zero
-              apply unknown
-              rw [isCode]
-              exact UScalar.eq_of_val_eq (by rw [zero, unknown_val])
-            omega
-          · exact before k code (by omega) at_k)
-      exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookupRow, unknown, advance, run], spec⟩
-  · refine ⟨some row, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], ?_⟩
+            exact ⟨group.val[index.val], _, List.getElem?_eq_getElem inGroup, List.getElem?_eq_getElem inClasses,
+              keeps _ (by rw [contents]; simp)⟩
+          · exact complete k (by omega) high
+        · intro e member
+          exact keeps e (by rw [contents]; exact List.mem_append_left _ member)
+      · exact ⟨none, by simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup, lookup, inClasses],
+          fun _ same => by cases same⟩
+    · exact ⟨none, by simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup], fun _ same => by cases same⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, more], ?_⟩
+    intro rest same
+    cases same
+    exact ⟨fun e member => .inl member, fun k low high => by omega, fun e member => member⟩
+termination_by stop.val - index.val
+decreasing_by omega
+
+/-- The group test: `true` refutes that `a` is subsumed by any class of
+    `group[start..stop]`, and `false` for a single class proves it subsumes `a`. -/
+theorem escapes_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
+    (data : Rowl.DataOntology.DataPrepared items prepared) (classes : alloc.vec.Vec Class)
+    (group : alloc.vec.Vec Usize) (a start stop : Usize) :
+    ∃ r, classification.escapes prepared classes group a start stop = .ok r ∧ ∀ answer, r = some answer →
+      ∀ ca, classes.val[a.val]? = some ca →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        (answer = true → ∀ (k : Nat) (b : Usize) (cb : Class), start.val ≤ k → k < stop.val →
+          group.val[k]? = some b → classes.val[b.val]? = some cb →
+          ¬ Subsumed.{u, max w v, w} D V items.val (.Class ca) (.Class cb)) ∧
+        (answer = false → stop.val = start.val + 1 → ∀ (b : Usize) (cb : Class), group.val[start.val]? = some b →
+          classes.val[b.val]? = some cb → Subsumed.{u, max w v, w} D V items.val (.Class ca) (.Class cb)) := by
+  rw [classification.escapes]
+  by_cases aIn : a.val < classes.val.length
+  · by_cases startIn : start.val < group.val.length
+    · have lookupS : group.index_usize start = .ok group.val[start.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem startIn]
+      by_cases firstIn : group.val[start.val].val < classes.val.length
+      · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := start) (y := 1#usize) (by scalar_tac))
+        have nextIndex : next.val = start.val + 1 := by simpa using nextValue
+        obtain ⟨o, oRun, oSpec⟩ := complements_spec classes group next stop (alloc.vec.Vec.new ClassExpression)
+          (by simp)
+        cases o with
+        | none =>
+          exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, startIn, lookupS, firstIn, advance,
+            oRun], fun _ same => by cases same⟩
+        | some rest =>
+          obtain ⟨sound, complete, _⟩ := oSpec rest rfl
+          have lookupA : classes.index_usize a = .ok classes.val[a.val] := by
+            simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem aIn]
+          have lookupF : classes.index_usize group.val[start.val] = .ok classes.val[group.val[start.val].val] := by
+            simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem firstIn]
+          have namedA : classification.named classes.val[a.val] = .ok (.Class classes.val[a.val]) := by
+            simp [classification.named, Rowl.Nnf.copy_iri_identity]
+          have namedF : classification.named classes.val[group.val[start.val].val] =
+              .ok (.Class classes.val[group.val[start.val].val]) := by
+            simp [classification.named, Rowl.Nnf.copy_iri_identity]
+          obtain ⟨result, run, facts⟩ := Rowl.DataOntology.prepared_class_satisfiable_correct.{u,v,w} items prepared
+            data (.ObjectIntersectionOf ⟨.Class classes.val[a.val],
+              .ObjectComplementOf (.Class classes.val[group.val[start.val].val]), rest⟩)
+          refine ⟨result, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, startIn, lookupS, firstIn, advance,
+            oRun, lookupA, lookupF, namedA, namedF, run], ?_⟩
+          intro answer same ca at_a Native D normative V vocabulary
+          rw [List.getElem?_eq_getElem aIn] at at_a
+          cases Option.some.inj at_a
+          have meaning := facts answer same D normative V vocabulary
+          refine ⟨?_, ?_⟩
+          · intro yes k b cb low high at_k at_b
+            apply escape_refutes D V items.val _ _ rest (meaning.mp yes) cb
+            by_cases first : k = start.val
+            · subst first
+              rw [List.getElem?_eq_getElem startIn] at at_k
+              cases Option.some.inj at_k
+              rw [List.getElem?_eq_getElem firstIn] at at_b
+              exact .inl (Option.some.inj at_b).symm
+            · obtain ⟨b', cb', at_k', at_b', member⟩ := complete k (by omega) high
+              rw [at_k] at at_k'
+              cases Option.some.inj at_k'
+              rw [at_b] at at_b'
+              cases Option.some.inj at_b'
+              exact .inr member
+          · intro no single b cb at_s at_b
+            rw [List.getElem?_eq_getElem startIn] at at_s
+            cases Option.some.inj at_s
+            rw [List.getElem?_eq_getElem firstIn] at at_b
+            cases Option.some.inj at_b
+            have empty : rest.val = [] := by
+              apply List.eq_nil_iff_forall_not_mem.mpr
+              intro e member
+              rcases sound e member with old | ⟨k, _, _, low, high, _⟩
+              · simp at old
+              · omega
+            exact no_escape_subsumes D V items.val _ _ rest empty (fun sat => by
+              have yes := meaning.mpr sat
+              rw [no] at yes
+              exact Bool.false_ne_true yes)
+      · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, startIn, lookupS, firstIn],
+          fun _ same => by cases same⟩
+    · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, startIn], fun _ same => by cases same⟩
+  · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn], fun _ same => by cases same⟩
+
+/-- Marking `group[index..stop]` with a right code keeps the row right, writes
+    the code at every listed class and changes nothing else. -/
+theorem mark_spec (items : List AnnotatedAxiom) (classes : List Class) (a : Nat) (group : alloc.vec.Vec Usize)
+    (index stop : Usize) (code : U8) (row : alloc.vec.Vec U8) (rowRight : RowRight.{u,v,w} items classes a row.val)
+    (small : code.val = 1 ∨ code.val = 2)
+    (answer : ∀ (k : Nat) (b : Usize) (ca cb : Class), index.val ≤ k → k < stop.val → group.val[k]? = some b →
+      classes[a]? = some ca → classes[b.val]? = some cb → Right.{u,v,w} items ca cb code) :
+    ∃ r, classification.mark group index stop code row = .ok r ∧ r.val.length = row.val.length ∧
+      RowRight.{u,v,w} items classes a r.val ∧
+      (∀ (j : Nat) (c : U8), r.val[j]? = some c → c = code ∨ row.val[j]? = some c) ∧
+      (∀ (k : Nat) (b : Usize), index.val ≤ k → k < stop.val → group.val[k]? = some b → b.val < row.val.length →
+        r.val[b.val]? = some code) := by
+  rw [classification.mark]
+  by_cases more : index.val < stop.val
+  · by_cases inGroup : index.val < group.val.length
+    · have lookup : group.index_usize index = .ok group.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inGroup]
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      have later : ∀ (k : Nat) (b : Usize) (ca cb : Class), next.val ≤ k → k < stop.val → group.val[k]? = some b →
+          classes[a]? = some ca → classes[b.val]? = some cb → Right.{u,v,w} items ca cb code :=
+        fun k b ca cb low high => answer k b ca cb (by omega) high
+      by_cases inRow : group.val[index.val].val < row.val.length
+      · have here : ∀ ca cb, classes[a]? = some ca → classes[group.val[index.val].val]? = some cb →
+            Right.{u,v,w} items ca cb code :=
+          fun ca cb at_a at_b => answer index.val _ ca cb (le_refl _) more (List.getElem?_eq_getElem inGroup) at_a at_b
+        obtain ⟨r, run, length, right, keeps, marks⟩ := mark_spec items classes a group next stop code
+          (row.set group.val[index.val] code)
+          (row_right_set items classes a row group.val[index.val] code rowRight (by omega) here) small later
+        refine ⟨r, ?_, by rw [length]; simp, right, ?_, ?_⟩
+        · simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup, lookup, inRow,
+            alloc.vec.Vec.index_mut_usize, alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inRow, advance, run]
+        · intro j c at_j
+          rcases keeps j c at_j with isCode | before
+          · exact .inl isCode
+          · rw [alloc.vec.Vec.set_val_eq] at before
+            by_cases same : j = group.val[index.val].val
+            · subst same
+              rw [List.getElem?_set_self inRow] at before
+              exact .inl (Option.some.inj before).symm
+            · rw [List.getElem?_set_ne (Ne.symm same)] at before
+              exact .inr before
+        · intro k b low high at_k inside
+          by_cases same : k = index.val
+          · subst same
+            rw [List.getElem?_eq_getElem inGroup] at at_k
+            cases Option.some.inj at_k
+            have rIn : group.val[index.val].val < r.val.length := by rw [length]; simpa using inRow
+            obtain ⟨c, at_c⟩ : ∃ c, r.val[group.val[index.val].val]? = some c := ⟨_, List.getElem?_eq_getElem rIn⟩
+            rcases keeps _ c at_c with isCode | before
+            · rw [at_c, isCode]
+            · rw [alloc.vec.Vec.set_val_eq, List.getElem?_set_self inRow] at before
+              rw [at_c]
+              exact before.symm
+          · exact marks k b (by omega) high at_k (by simpa using inside)
+      · obtain ⟨r, run, length, right, keeps, marks⟩ := mark_spec items classes a group next stop code row rowRight
+          small later
+        refine ⟨r, ?_, length, right, keeps, ?_⟩
+        · simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup, lookup, inRow, advance, run]
+        · intro k b low high at_k inside
+          by_cases same : k = index.val
+          · subst same
+            rw [List.getElem?_eq_getElem inGroup] at at_k
+            cases Option.some.inj at_k
+            exact absurd inside inRow
+          · exact marks k b (by omega) high at_k inside
+    · refine ⟨row, by simp [UScalar.lt_equiv, more, alloc.vec.Vec.len_val, inGroup], rfl, rowRight,
+        fun j c at_j => .inr at_j, ?_⟩
+      intro k b low high at_k _
+      have := (List.getElem?_eq_some_iff.mp at_k).1
+      omega
+  · refine ⟨row, by simp [UScalar.lt_equiv, more], rfl, rowRight, fun j c at_j => .inr at_j, ?_⟩
+    intro k b low high
+    omega
+termination_by stop.val - index.val
+decreasing_by all_goals omega
+
+/-- Splitting answers every class of `group[start..stop]` inside the row with
+    `yes` or `no`, keeps the row right and changes other answers only to `yes`
+    or `no`. -/
+theorem split_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
+    (data : Rowl.DataOntology.DataPrepared items prepared) (classes : alloc.vec.Vec Class)
+    (group : alloc.vec.Vec Usize) (a start stop : Usize) (row : alloc.vec.Vec U8)
+    (rowRight : RowRight.{u,v,w} items.val classes.val a.val row.val) :
+    ∃ r, classification.split prepared classes group a start stop row = .ok r ∧ ∀ row', r = some row' →
+      row'.val.length = row.val.length ∧ RowRight.{u,v,w} items.val classes.val a.val row'.val ∧
+      (∀ (j : Nat) (c : U8), row'.val[j]? = some c → (c.val = 1 ∨ c.val = 2) ∨ row.val[j]? = some c) ∧
+      (∀ (k : Nat) (b : Usize), start.val ≤ k → k < stop.val → group.val[k]? = some b → b.val < row.val.length →
+        ∃ c, row'.val[b.val]? = some c ∧ (c.val = 1 ∨ c.val = 2)) := by
+  rw [classification.split]
+  by_cases more : start.val < stop.val
+  · obtain ⟨o, oRun, oSpec⟩ := escapes_spec.{u,v,w} items prepared data classes group a start stop
+    cases o with
+    | none => exact ⟨none, by simp [UScalar.lt_equiv, more, oRun], fun _ same => by cases same⟩
+    | some answer =>
+      have meaning := oSpec answer rfl
+      cases answer with
+      | true =>
+        obtain ⟨r, run, length, right, keeps, marks⟩ := mark_spec.{u,v,w} items.val classes.val a.val group start stop
+          classification.NO row rowRight (by simp [no_val])
+          (fun k b ca cb low high at_k at_a at_b =>
+            ⟨fun two => by rw [no_val] at two; omega,
+             fun _ _ D normative V vocabulary =>
+              (meaning ca at_a D normative V vocabulary).1 rfl k b cb low high at_k at_b⟩)
+        refine ⟨some r, by simp [UScalar.lt_equiv, more, oRun, run], ?_⟩
+        intro row' same
+        cases same
+        refine ⟨length, right, ?_, ?_⟩
+        · intro j c at_j
+          rcases keeps j c at_j with isNo | before
+          · exact .inl (.inl (by rw [isNo, no_val]))
+          · exact .inr before
+        · intro k b low high at_k inside
+          exact ⟨_, marks k b low high at_k inside, .inl no_val⟩
+      | false =>
+        obtain ⟨width, widthRun, widthValue⟩ := WP.spec_imp_exists
+          (Usize.sub_spec (x := stop) (y := start) (by scalar_tac))
+        have widthIs : width.val = stop.val - start.val := by
+          have := widthValue
+          omega
+        by_cases single : width.val = 1
+        · have singleU : width = 1#usize := UScalar.eq_of_val_eq (by simp [single])
+          obtain ⟨r, run, length, right, keeps, marks⟩ := mark_spec.{u,v,w} items.val classes.val a.val group start
+            stop classification.YES row rowRight (by simp [yes_val])
+            (fun k b ca cb low high at_k at_a at_b => by
+              have kIs : k = start.val := by omega
+              subst kIs
+              exact ⟨fun _ _ D normative V vocabulary =>
+                  (meaning ca at_a D normative V vocabulary).2 rfl (by omega) b cb at_k at_b,
+                fun one => by rw [yes_val] at one; omega⟩)
+          refine ⟨some r, by simp [UScalar.lt_equiv, more, oRun, widthRun, singleU, run], ?_⟩
+          intro row' same
+          cases same
+          refine ⟨length, right, ?_, ?_⟩
+          · intro j c at_j
+            rcases keeps j c at_j with isYes | before
+            · exact .inl (.inr (by rw [isYes, yes_val]))
+            · exact .inr before
+          · intro k b low high at_k inside
+            exact ⟨_, marks k b low high at_k inside, .inr yes_val⟩
+        · have notSingle : ¬ width = 1#usize := fun h => single (by rw [h]; rfl)
+          obtain ⟨half, halfRun, halfIs⟩ := UScalar.div_spec width (y := 2#usize) (by simp)
+          obtain ⟨middle, middleRun, middleValue⟩ := WP.spec_imp_exists
+            (Usize.add_spec (x := start) (y := half) (by scalar_tac))
+          have middleIs : middle.val = start.val + width.val / 2 := by
+            have : middle.val = start.val + half.val := by simpa using middleValue
+            rw [this, halfIs]
+            rfl
+          obtain ⟨o1, run1, spec1⟩ := split_spec items prepared data classes group a start middle row rowRight
+          cases o1 with
+          | none =>
+            exact ⟨none, by simp [UScalar.lt_equiv, more, oRun, widthRun, notSingle, halfRun, middleRun, run1],
+              fun _ same => by cases same⟩
+          | some row1 =>
+            obtain ⟨length1, right1, keeps1, marks1⟩ := spec1 row1 rfl
+            obtain ⟨o2, run2, spec2⟩ := split_spec items prepared data classes group a middle stop row1 right1
+            refine ⟨o2, by simp [UScalar.lt_equiv, more, oRun, widthRun, notSingle, halfRun, middleRun, run1, run2], ?_⟩
+            intro row' same
+            obtain ⟨length2, right2, keeps2, marks2⟩ := spec2 row' same
+            refine ⟨by rw [length2, length1], right2, ?_, ?_⟩
+            · intro j c at_j
+              rcases keeps2 j c at_j with answered | before
+              · exact .inl answered
+              · exact keeps1 j c before
+            · intro k b low high at_k inside
+              by_cases firstHalf : k < middle.val
+              · obtain ⟨c1, at_c1, answered1⟩ := marks1 k b low firstHalf at_k inside
+                have inside' : b.val < row'.val.length := by rw [length2, length1]; exact inside
+                obtain ⟨c, at_c⟩ : ∃ c, row'.val[b.val]? = some c := ⟨_, List.getElem?_eq_getElem inside'⟩
+                refine ⟨c, at_c, ?_⟩
+                rcases keeps2 _ c at_c with answered | before
+                · exact answered
+                · rw [at_c1] at before
+                  cases Option.some.inj before
+                  exact answered1
+              · exact marks2 k b (by omega) high at_k (by rw [length1]; exact inside)
+  · refine ⟨some row, by simp [UScalar.lt_equiv, more], ?_⟩
     intro row' same
     cases same
-    refine ⟨rowRight, ?_⟩
-    intro k code at_k
-    exact before k code (by have := (List.getElem?_eq_some_iff.mp at_k).1; omega) at_k
-termination_by row.val.length - b.val
-decreasing_by all_goals first | omega | (simp; omega)
+    exact ⟨rfl, rowRight, fun j c at_j => .inr at_j, fun k b low high => by omega⟩
+termination_by stop.val - start.val
+decreasing_by all_goals omega
+
+/-- The rounds keep the row right. -/
+theorem rounds_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
+    (data : Rowl.DataOntology.DataPrepared items prepared)
+    (classes : alloc.vec.Vec Class) (satisfiable : alloc.vec.Vec Bool) (parents : alloc.vec.Vec (alloc.vec.Vec Usize))
+    (rows : alloc.vec.Vec (alloc.vec.Vec U8)) (done : alloc.vec.Vec Bool) (order : alloc.vec.Vec Usize) (a : Usize)
+    (context : Context.{u,v,w} items.val classes.val satisfiable.val parents.val rows.val done.val)
+    (aSat : satisfiable.val[a.val]? = some true) (count : Usize) (row : alloc.vec.Vec U8)
+    (rowRight : RowRight.{u,v,w} items.val classes.val a.val row.val) :
+    ∃ r, classification.rounds prepared classes satisfiable parents rows done order a count row = .ok r ∧
+      ∀ row', r = some row' → RowRight.{u,v,w} items.val classes.val a.val row'.val := by
+  rw [classification.rounds]
+  by_cases positive : 0 < count.val
+  · have positiveU : count > 0#usize := by scalar_tac
+    obtain ⟨settled, settledRun, settledRight⟩ := fill_spec.{u,v,w} items classes satisfiable parents rows done order
+      a context aSat 0#usize row rowRight
+    obtain ⟨group, groupRun, _, _⟩ := candidates_spec settled parents false 0#usize (alloc.vec.Vec.new Usize)
+      (by simp)
+    by_cases nonempty : 0 < group.val.length
+    · obtain ⟨o, oRun, oSpec⟩ := split_spec.{u,v,w} items prepared data classes group a 0#usize
+        (alloc.vec.Vec.len group) settled settledRight
+      cases o with
+      | none =>
+        exact ⟨none, by simp [positiveU, settledRun, groupRun, alloc.vec.Vec.len_val, UScalar.lt_equiv, nonempty,
+          oRun], fun _ same => by cases same⟩
+      | some tested =>
+        obtain ⟨_, testedRight, _, _⟩ := oSpec tested rfl
+        obtain ⟨fewer, back, fewerValue⟩ := WP.spec_imp_exists
+          (Usize.sub_spec (x := count) (y := 1#usize) (by scalar_tac))
+        have fewerIs : fewer.val = count.val - 1 := by simp at fewerValue; omega
+        obtain ⟨r, run, spec⟩ := rounds_spec items prepared data classes satisfiable parents rows done order a context
+          aSat fewer tested testedRight
+        exact ⟨r, by simp [positiveU, settledRun, groupRun, alloc.vec.Vec.len_val, UScalar.lt_equiv, nonempty, oRun,
+          back, run], spec⟩
+    · exact ⟨some settled, by simp [positiveU, settledRun, groupRun, alloc.vec.Vec.len_val, UScalar.lt_equiv,
+        nonempty], fun row' same => by cases same; exact settledRight⟩
+  · have notPositive : ¬ count > 0#usize := by scalar_tac
+    exact ⟨some row, by simp [notPositive], fun row' same => by cases same; exact rowRight⟩
+termination_by count.val
+decreasing_by omega
 
 theorem row_of_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontology.Prepared)
     (data : Rowl.DataOntology.DataPrepared items prepared)
@@ -1141,15 +1486,41 @@ theorem row_of_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
       have isUnknown := blankAll code (List.mem_of_getElem? at_b)
       subst isUnknown
       exact ⟨fun two => by rw [unknown_val] at two; omega, fun one => by rw [unknown_val] at one; omega⟩
-    obtain ⟨f, fRun, fSpec⟩ := fill_spec.{u,v,w} items prepared data classes satisfiable parents rows done order a
-      context aSat 0#usize blank blankRight
-    cases f with
+    obtain ⟨o, oRun, oSpec⟩ := rounds_spec.{u,v,w} items prepared data classes satisfiable parents rows done order a
+      context aSat (alloc.vec.Vec.len classes) blank blankRight
+    cases o with
     | none =>
-      exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, satIn, lookup, value, blankRun, fRun], by simp⟩
-    | some filledRow =>
-      obtain ⟨r, run, spec⟩ := fill_rest_spec.{u,v,w} items prepared data classes satisfiable parents rows done a
-        context aSat 0#usize filledRow (fSpec filledRow rfl) (by intro k code low; simp at low)
-      exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, satIn, lookup, value, blankRun, fRun, run], spec⟩
+      exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, satIn, lookup, value, blankRun, oRun],
+        fun _ same => by cases same⟩
+    | some row =>
+      have rowRight := oSpec row rfl
+      obtain ⟨settled, settledRun, settledRight⟩ := fill_spec.{u,v,w} items classes satisfiable parents rows done order
+        a context aSat 0#usize row rowRight
+      obtain ⟨group, groupRun, _, covers⟩ := candidates_spec settled parents true 0#usize (alloc.vec.Vec.new Usize)
+        (by simp)
+      obtain ⟨final, finalRun, finalSpec⟩ := split_spec.{u,v,w} items prepared data classes group a 0#usize
+        (alloc.vec.Vec.len group) settled settledRight
+      refine ⟨final, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, satIn, lookup, value, blankRun, oRun,
+        settledRun, groupRun, finalRun], ?_⟩
+      intro row' same
+      obtain ⟨_, right, keeps, marks⟩ := finalSpec row' same
+      refine ⟨right, ?_⟩
+      intro j c at_j
+      rcases keeps j c at_j with answered | before
+      · exact answered
+      · have codes := settledRight.2.1 j c before
+        by_cases zero : c.val = 0
+        · have isUnknown : c = classification.UNKNOWN := UScalar.eq_of_val_eq (by rw [zero, unknown_val])
+          rw [isUnknown] at before
+          obtain ⟨x, member, xIs⟩ := covers rfl j (by simp) before
+          obtain ⟨k, at_k⟩ := List.mem_iff_getElem?.mp member
+          have kIn : k < group.val.length := (List.getElem?_eq_some_iff.mp at_k).1
+          have jIn : j < settled.val.length := (List.getElem?_eq_some_iff.mp before).1
+          obtain ⟨c', at_c', answered⟩ := marks k x (by simp) (by simpa using kIn) at_k (by rw [xIs]; exact jIn)
+          rw [xIs, at_j] at at_c'
+          cases Option.some.inj at_c'
+          exact answered
+        · omega
   | false =>
     have aUnsat : satisfiable.val[a.val]? = some false := by rw [List.getElem?_eq_getElem satIn, value]
     obtain ⟨full, fullRun, fullLength, fullAll⟩ := filled_spec (alloc.vec.Vec.len classes)

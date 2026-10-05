@@ -947,16 +947,22 @@ progress. Full OWL parsing and executable reasoning are still future work.
   depth in that told hierarchy and fills each class's row along that order: a
   class is below itself, every class without instances is above no
   satisfiable class, a told parent is above, a class with a told parent the row
-  already refuses is not above, a class above a classified told parent is
-  above, and only the remaining pairs go to the prepared subsumption query. A
-  class without instances is below every class. Every told pair is proved
-  subsumed in every model (`told_subsumed`), and `classify_correct` proves
-  that whenever classification answers, each listed answer is exactly the
-  Direct Semantics answer under every normative datatype map and vocabulary.
-  `Reasoner::classify` and the CLI's `classify` command use it; on a
-  generated 437-class ontology it asks 11 450 questions instead of about
-  190 000.
-- 2301 audited public theorems and 1095 audited semantic definitions. Consistency,
+  already refuses is not above, and a class above a classified told parent is
+  above. The pairs left open are tested in groups: one prepared satisfiability
+  query asks whether the class has an instance outside every class of a group,
+  which refutes the whole group when it has; otherwise the group is halved,
+  and a single class the class cannot escape is a subsumer. Each round tests
+  the open classes whose told parents all subsume the class, so their told
+  children are refuted without a query, and a final test takes whatever is
+  still open. A class without instances is below every class. Every told pair
+  is proved subsumed in every model (`told_subsumed`), the group tests are
+  proved to refute or confirm exactly (`escapes_spec`, `split_spec`), and
+  `classify_correct` proves that whenever classification answers, each listed
+  answer is exactly the Direct Semantics answer under every normative datatype
+  map and vocabulary. `Reasoner::classify` and the CLI's `classify` command use
+  it; on a generated 437-class ontology it runs 871 satisfiability queries
+  where pairwise classification would ask about 190 000 questions.
+- 2307 audited public theorems and 1095 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -988,7 +994,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2494-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2500-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

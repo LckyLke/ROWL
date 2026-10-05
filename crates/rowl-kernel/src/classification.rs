@@ -11,8 +11,14 @@
 //! subsumed by a class whose told parent it is known not to be subsumed by; and
 //! it is subsumed by every class that one of its classified told parents is
 //! subsumed by. Classes are classified roughly parents first, so most pairs
-//! need no query. `None` means that a query was not answered or a list would
-//! exceed the `usize` range.
+//! need no query. The pairs left open are tested in groups: one satisfiability
+//! query asks whether the class has an instance outside every class of a
+//! group, which, when it has, refutes the whole group at once; otherwise the
+//! group is halved, and a single class the class cannot escape subsumes it.
+//! Each round tests the open classes whose told parents all subsume the class,
+//! so their told children are refuted without a query, and a final test takes
+//! whatever is still open. `None` means that a query was not answered or a
+//! list would exceed the `usize` range.
 #![allow(
     clippy::ptr_arg,
     clippy::collapsible_if,
@@ -21,10 +27,11 @@
     clippy::vec_init_then_push,
     clippy::question_mark,
     clippy::manual_map,
-    clippy::collapsible_match
+    clippy::collapsible_match,
+    clippy::len_zero
 )] // Indexed operations, explicit branches and pushes for the pinned extraction subset.
 
-use crate::data_ontology::{prepared_class_satisfiable, prepared_subsumed, Prepared};
+use crate::data_ontology::{prepared_class_satisfiable, Prepared};
 use crate::model::{AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression};
 use crate::nnf::copy_iri;
 use crate::symbols::same_spelling;
@@ -514,23 +521,10 @@ fn inherits(
     }
 }
 
-/// The prepared query's answer for `a ⊑ b`.
-fn ask(prepared: &Prepared, classes: &Vec<Class>, a: usize, b: usize) -> Option<u8> {
-    if a < classes.len() && b < classes.len() {
-        match prepared_subsumed(prepared, &named(&classes[a]), &named(&classes[b])) {
-            Some(true) => Some(YES),
-            Some(false) => Some(NO),
-            None => None,
-        }
-    } else {
-        None
-    }
-}
-
-/// The answer for `a ⊑ b`, for a class `a` with instances.
-fn decide(
-    prepared: &Prepared,
-    classes: &Vec<Class>,
+/// The answer for `a ⊑ b` that the told parents, the classes without
+/// instances and the classified rows settle, for a class `a` with instances;
+/// `UNKNOWN` when they do not.
+fn settle(
     satisfiable: &Vec<bool>,
     parents: &Vec<Vec<usize>>,
     rows: &Vec<Vec<u8>>,
@@ -538,19 +532,19 @@ fn decide(
     row: &Vec<u8>,
     a: usize,
     b: usize,
-) -> Option<u8> {
+) -> u8 {
     if a == b {
-        Some(YES)
+        YES
     } else if unsatisfiable(satisfiable, b) {
-        Some(NO)
+        NO
     } else if told_parent(parents, a, b) {
-        Some(YES)
+        YES
     } else if refuted(row, parents, b) {
-        Some(NO)
+        NO
     } else if inherits(rows, done, parents, a, b) {
-        Some(YES)
+        YES
     } else {
-        ask(prepared, classes, a, b)
+        UNKNOWN
     }
 }
 
@@ -563,10 +557,8 @@ fn unknown_at(row: &Vec<u8>, b: usize) -> bool {
     }
 }
 
-/// The row of `a`, with the answers for `order[index..]` filled in.
+/// The row of `a`, with the settled answers for `order[index..]` filled in.
 fn fill(
-    prepared: &Prepared,
-    classes: &Vec<Class>,
     satisfiable: &Vec<bool>,
     parents: &Vec<Vec<usize>>,
     rows: &Vec<Vec<u8>>,
@@ -575,110 +567,222 @@ fn fill(
     a: usize,
     index: usize,
     mut row: Vec<u8>,
-) -> Option<Vec<u8>> {
+) -> Vec<u8> {
     if index < order.len() {
         let b = order[index];
         if unknown_at(&row, b) {
-            match decide(
-                prepared,
-                classes,
-                satisfiable,
-                parents,
-                rows,
-                done,
-                &row,
-                a,
-                b,
-            ) {
-                Some(answer) => {
-                    row[b] = answer;
-                    fill(
-                        prepared,
-                        classes,
-                        satisfiable,
-                        parents,
-                        rows,
-                        done,
-                        order,
-                        a,
-                        index + 1,
-                        row,
-                    )
-                }
-                None => None,
+            let answer = settle(satisfiable, parents, rows, done, &row, a, b);
+            row[b] = answer;
+        }
+        fill(satisfiable, parents, rows, done, order, a, index + 1, row)
+    } else {
+        row
+    }
+}
+
+/// Whether the row answers `yes` for every told parent in `parents[index..]`.
+fn accepted(row: &Vec<u8>, parents: &Vec<usize>, index: usize) -> bool {
+    if index < parents.len() {
+        let parent = parents[index];
+        if parent < row.len() {
+            if row[parent] == YES {
+                accepted(row, parents, index + 1)
+            } else {
+                false
             }
         } else {
-            fill(
-                prepared,
-                classes,
-                satisfiable,
-                parents,
-                rows,
-                done,
-                order,
-                a,
-                index + 1,
-                row,
-            )
+            false
+        }
+    } else {
+        true
+    }
+}
+
+/// Whether the row leaves `b` open: every open class when `all`, else the
+/// open classes whose told parents the row answers `yes` for.
+fn pick(row: &Vec<u8>, parents: &Vec<Vec<usize>>, all: bool, b: usize) -> bool {
+    if unknown_at(row, b) {
+        if all {
+            true
+        } else if b < parents.len() {
+            accepted(row, &parents[b], 0)
+        } else {
+            true
+        }
+    } else {
+        false
+    }
+}
+
+/// `out` followed by the classes from `b` on that `pick` chooses.
+fn candidates(
+    row: &Vec<u8>,
+    parents: &Vec<Vec<usize>>,
+    all: bool,
+    b: usize,
+    mut out: Vec<usize>,
+) -> Vec<usize> {
+    if b < row.len() {
+        if pick(row, parents, all, b) {
+            out.push(b);
+        }
+        candidates(row, parents, all, b + 1, out)
+    } else {
+        out
+    }
+}
+
+/// `out` followed by the complements of the classes `group[index..stop]`.
+fn complements(
+    classes: &Vec<Class>,
+    group: &Vec<usize>,
+    index: usize,
+    stop: usize,
+    mut out: Vec<ClassExpression>,
+) -> Option<Vec<ClassExpression>> {
+    if index < stop {
+        if index < group.len() {
+            let b = group[index];
+            if b < classes.len() {
+                out.push(ClassExpression::ObjectComplementOf(Box::new(named(
+                    &classes[b],
+                ))));
+                complements(classes, group, index + 1, stop, out)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+
+/// Whether some model has an instance of `a` outside every class of
+/// `group[start..stop]`, by the prepared query.
+fn escapes(
+    prepared: &Prepared,
+    classes: &Vec<Class>,
+    group: &Vec<usize>,
+    a: usize,
+    start: usize,
+    stop: usize,
+) -> Option<bool> {
+    if a < classes.len() {
+        if start < group.len() {
+            let first = group[start];
+            if first < classes.len() {
+                match complements(classes, group, start + 1, stop, Vec::new()) {
+                    Some(rest) => prepared_class_satisfiable(
+                        prepared,
+                        &ClassExpression::ObjectIntersectionOf(Box::new(AtLeastTwo {
+                            first: named(&classes[a]),
+                            second: ClassExpression::ObjectComplementOf(Box::new(named(
+                                &classes[first],
+                            ))),
+                            rest,
+                        })),
+                    ),
+                    None => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+/// The row with `code` for every class of `group[index..stop]`.
+fn mark(group: &Vec<usize>, index: usize, stop: usize, code: u8, mut row: Vec<u8>) -> Vec<u8> {
+    if index < stop {
+        if index < group.len() {
+            let b = group[index];
+            if b < row.len() {
+                row[b] = code;
+            }
+            mark(group, index + 1, stop, code, row)
+        } else {
+            row
+        }
+    } else {
+        row
+    }
+}
+
+/// The row of `a` with every class of `group[start..stop]` answered: all `no`
+/// when `a` has an instance outside all of them, else by halves, where a
+/// single class that `a` cannot escape is `yes`.
+fn split(
+    prepared: &Prepared,
+    classes: &Vec<Class>,
+    group: &Vec<usize>,
+    a: usize,
+    start: usize,
+    stop: usize,
+    row: Vec<u8>,
+) -> Option<Vec<u8>> {
+    if start < stop {
+        match escapes(prepared, classes, group, a, start, stop) {
+            Some(true) => Some(mark(group, start, stop, NO, row)),
+            Some(false) => {
+                if stop - start == 1 {
+                    Some(mark(group, start, stop, YES, row))
+                } else {
+                    let middle = start + (stop - start) / 2;
+                    match split(prepared, classes, group, a, start, middle, row) {
+                        Some(row) => split(prepared, classes, group, a, middle, stop, row),
+                        None => None,
+                    }
+                }
+            }
+            None => None,
         }
     } else {
         Some(row)
     }
 }
 
-/// The row of `a`, with the answers for the classes from `b` on filled in.
-fn fill_rest(
+/// The row of `a` after at most `count` rounds that settle what the row and
+/// the classified rows decide and then test the open classes whose told
+/// parents are all above `a`.
+fn rounds(
     prepared: &Prepared,
     classes: &Vec<Class>,
     satisfiable: &Vec<bool>,
     parents: &Vec<Vec<usize>>,
     rows: &Vec<Vec<u8>>,
     done: &Vec<bool>,
+    order: &Vec<usize>,
     a: usize,
-    b: usize,
-    mut row: Vec<u8>,
+    count: usize,
+    row: Vec<u8>,
 ) -> Option<Vec<u8>> {
-    if b < row.len() {
-        if row[b] == UNKNOWN {
-            match decide(
-                prepared,
-                classes,
-                satisfiable,
-                parents,
-                rows,
-                done,
-                &row,
-                a,
-                b,
-            ) {
-                Some(answer) => {
-                    row[b] = answer;
-                    fill_rest(
-                        prepared,
-                        classes,
-                        satisfiable,
-                        parents,
-                        rows,
-                        done,
-                        a,
-                        b + 1,
-                        row,
-                    )
-                }
+    if count > 0 {
+        let settled = fill(satisfiable, parents, rows, done, order, a, 0, row);
+        let group = candidates(&settled, parents, false, 0, Vec::new());
+        if group.len() > 0 {
+            match split(prepared, classes, &group, a, 0, group.len(), settled) {
+                Some(tested) => rounds(
+                    prepared,
+                    classes,
+                    satisfiable,
+                    parents,
+                    rows,
+                    done,
+                    order,
+                    a,
+                    count - 1,
+                    tested,
+                ),
                 None => None,
             }
         } else {
-            fill_rest(
-                prepared,
-                classes,
-                satisfiable,
-                parents,
-                rows,
-                done,
-                a,
-                b + 1,
-                row,
-            )
+            Some(settled)
         }
     } else {
         Some(row)
@@ -686,7 +790,7 @@ fn fill_rest(
 }
 
 /// The row of `a`: every answer `yes` for a class without instances, else the
-/// answers along the order and then for every class.
+/// answers of the rounds and a final test of every class still open.
 fn row_of(
     prepared: &Prepared,
     classes: &Vec<Class>,
@@ -698,7 +802,7 @@ fn row_of(
     a: usize,
 ) -> Option<Vec<u8>> {
     if a < satisfiable.len() && satisfiable[a] {
-        match fill(
+        match rounds(
             prepared,
             classes,
             satisfiable,
@@ -707,20 +811,14 @@ fn row_of(
             done,
             order,
             a,
-            0,
+            classes.len(),
             filled(classes.len(), UNKNOWN, Vec::new()),
         ) {
-            Some(row) => fill_rest(
-                prepared,
-                classes,
-                satisfiable,
-                parents,
-                rows,
-                done,
-                a,
-                0,
-                row,
-            ),
+            Some(row) => {
+                let settled = fill(satisfiable, parents, rows, done, order, a, 0, row);
+                let group = candidates(&settled, parents, true, 0, Vec::new());
+                split(prepared, classes, &group, a, 0, group.len(), settled)
+            }
             None => None,
         }
     } else {

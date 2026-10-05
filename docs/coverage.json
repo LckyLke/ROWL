@@ -26812,7 +26812,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.told_subsumed",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.subsumed_refl",
@@ -26823,7 +26823,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.subsumed_refl",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.subsumed_trans",
@@ -26834,7 +26834,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.subsumed_trans",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.unsatisfiable_subsumed",
@@ -26845,7 +26845,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.unsatisfiable_subsumed",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.not_subsumed_unsatisfiable",
@@ -26856,7 +26856,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.not_subsumed_unsatisfiable",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.position_spec",
@@ -26867,7 +26867,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.position_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_spec",
@@ -26878,7 +26878,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_named_spec",
@@ -26889,7 +26889,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_named_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_members_spec",
@@ -26900,7 +26900,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_members_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_expression_spec",
@@ -26911,7 +26911,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_expression_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_list_spec",
@@ -26922,7 +26922,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_list_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_all_spec",
@@ -26933,7 +26933,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_all_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_member_spec",
@@ -26944,7 +26944,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_member_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_equivalent_rest_spec",
@@ -26955,7 +26955,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_equivalent_rest_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_equivalent_spec",
@@ -26966,7 +26966,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_equivalent_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_under_spec",
@@ -26977,7 +26977,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_under_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_union_rest_spec",
@@ -26988,7 +26988,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_union_rest_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_union_spec",
@@ -26999,7 +26999,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_union_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.tell_axiom_spec",
@@ -27010,7 +27010,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.tell_axiom_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.told_from_spec",
@@ -27021,7 +27021,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.told_from_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.empty_rows_spec",
@@ -27032,7 +27032,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.empty_rows_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.told_spec",
@@ -27043,7 +27043,7 @@
       "rust_symbol": "rowl_kernel::classification::told",
       "theorem": "Rowl.Classification.told_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.filled_spec",
@@ -27054,7 +27054,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.filled_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.zeros_spec",
@@ -27065,7 +27065,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.zeros_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.unclassified_spec",
@@ -27076,7 +27076,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.unclassified_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.unknown_rows_spec",
@@ -27087,7 +27087,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.unknown_rows_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.deepest_spec",
@@ -27098,7 +27098,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.deepest_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.deepen_spec",
@@ -27109,7 +27109,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.deepen_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.depths_spec",
@@ -27120,7 +27120,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.depths_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.at_level_spec",
@@ -27131,7 +27131,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.at_level_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.levels_spec",
@@ -27142,7 +27142,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.levels_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.listed_spec",
@@ -27153,7 +27153,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.listed_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.refused_spec",
@@ -27164,7 +27164,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.refused_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.inherited_spec",
@@ -27175,7 +27175,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.inherited_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.unsatisfiable_spec",
@@ -27186,7 +27186,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.unsatisfiable_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.told_parent_spec",
@@ -27197,7 +27197,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.told_parent_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.refuted_spec",
@@ -27208,7 +27208,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.refuted_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.inherits_spec",
@@ -27219,29 +27219,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.inherits_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
-    },
-    {
-      "id": "m6.Classification.ask_spec",
-      "requirement": "Verified classification: ask_spec",
-      "owner": "rowl-kernel",
-      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
-      "status": "verified",
-      "rust_symbol": "rowl_kernel::classification::classify",
-      "theorem": "Rowl.Classification.ask_spec",
-      "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
-    },
-    {
-      "id": "m6.Classification.decide_spec",
-      "requirement": "Verified classification: decide_spec",
-      "owner": "rowl-kernel",
-      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
-      "status": "verified",
-      "rust_symbol": "rowl_kernel::classification::classify",
-      "theorem": "Rowl.Classification.decide_spec",
-      "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.unknown_at_spec",
@@ -27252,7 +27230,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.unknown_at_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.fill_spec",
@@ -27263,18 +27241,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.fill_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
-    },
-    {
-      "id": "m6.Classification.fill_rest_spec",
-      "requirement": "Verified classification: fill_rest_spec",
-      "owner": "rowl-kernel",
-      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
-      "status": "verified",
-      "rust_symbol": "rowl_kernel::classification::classify",
-      "theorem": "Rowl.Classification.fill_rest_spec",
-      "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.row_of_spec",
@@ -27285,7 +27252,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.row_of_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.classify_rest_spec",
@@ -27296,7 +27263,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.classify_rest_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.classify_from_spec",
@@ -27307,7 +27274,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.classify_from_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.satisfiable_from_spec",
@@ -27318,7 +27285,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.satisfiable_from_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.answers_spec",
@@ -27329,7 +27296,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.answers_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.all_answers_spec",
@@ -27340,7 +27307,7 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.all_answers_spec",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     },
     {
       "id": "m6.Classification.classify_correct",
@@ -27351,7 +27318,106 @@
       "rust_symbol": "rowl_kernel::classification::classify",
       "theorem": "Rowl.Classification.classify_correct",
       "regression": "crates/rowl-kernel/tests/classification.rs",
-      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses, and asked only otherwise; classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.settle_spec",
+      "requirement": "Verified classification: settle_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.settle_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.accepted_spec",
+      "requirement": "Verified classification: accepted_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.accepted_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.pick_spec",
+      "requirement": "Verified classification: pick_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.pick_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.candidates_spec",
+      "requirement": "Verified classification: candidates_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.candidates_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.complements_spec",
+      "requirement": "Verified classification: complements_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.complements_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.escapes_spec",
+      "requirement": "Verified classification: escapes_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.escapes_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.mark_spec",
+      "requirement": "Verified classification: mark_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.mark_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.split_spec",
+      "requirement": "Verified classification: split_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.split_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
+    },
+    {
+      "id": "m6.Classification.rounds_spec",
+      "requirement": "Verified classification: rounds_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/#Inference_Problems",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::classification::classify",
+      "theorem": "Rowl.Classification.rounds_spec",
+      "regression": "crates/rowl-kernel/tests/classification.rs",
+      "implementation_scope": "Classification of named classes (classification::classify): satisfiability of every listed class and subsumption of every pair, answered from the prepared data queries, the told subclass, equivalence and disjoint-union parents (told, proved to hold in every model: told_subsumed) and earlier answers, inherited from the classified told parents or refuted through a parent the row already refuses; the pairs left open are tested in groups by one satisfiability query of the class and the complements of the group, which refutes the whole group when satisfiable and is halved otherwise, a single class it cannot escape being a subsumer (escapes_spec, split_spec); classify_correct proves every listed answer the Direct Semantics answer under every normative datatype map."
     }
   ]
 }

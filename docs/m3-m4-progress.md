@@ -4231,3 +4231,35 @@ build.
 
 This block adds 50 public theorems and 10 definitions. Totals are 2301 audited
 theorems, 1095 definitions, 506 Rust regressions and 2494 ledger obligations.
+
+## Performance: group tests for classification
+
+The verified classification still asked one subsumption question for every pair
+that the told hierarchy and earlier answers left open: 11 450 questions for the
+437-class ontology, almost all of them refuted. The open pairs are now tested in
+groups. `escapes` asks one prepared satisfiability query: whether the class has
+an instance outside every class of a group, built as the intersection of the
+class with the complements of the group (`complements`). When it has, every
+class of the group is refuted at once; otherwise `split` halves the group, and a
+single class that the class cannot escape subsumes it. `rounds` repeats a cheap
+pass (`fill` with `settle`, which applies only the rules that need no query) and
+a group test of the open classes whose told parents all subsume the class
+(`candidates`), so the told children of every refuted class are refuted by the
+next pass without a query; a final test takes every class still open, which
+keeps each row complete.
+
+`Classification.lean` proves the group test exact in both directions: an
+instance outside the group refutes each of its classes (`escape_refutes`), and
+no instance of a class outside a single class makes it a subsumer
+(`no_escape_subsumes`); `escapes_spec` lifts both to the prepared query's
+theorem. `mark_spec` and `split_spec` prove that splitting answers every class
+of the group with `yes` or `no`, keeps the row right and changes no other answer
+except to `yes` or `no`; `candidates_spec` proves that the final group holds
+every class still open, so `row_of_spec`, and with it `classify_correct`, keep
+their statements. On the 437-class ontology classification runs 871
+satisfiability queries instead of 11 450 subsumption queries, and `rowl
+classify` takes 2.3 s instead of 13.4 s in a release build.
+
+This block adds 9 public theorems and removes `ask_spec`, `decide_spec` and
+`fill_rest_spec`. Totals are 2307 audited theorems, 1095 definitions, 506 Rust
+regressions and 2500 ledger obligations.
