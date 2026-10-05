@@ -834,15 +834,21 @@ least one token, and a member sequence never returns more tokens than it was
 given. The converse, that every derivation is the actual result, uses the same
 measure.
 
-The reader covers the object class expressions: named classes, intersections,
-unions, complements, enumerations, existential, universal, value and self
-restrictions, and number restrictions with or without a filler, over object
-property expressions that include `ObjectInverseOf`. The six data restrictions
-are reported as `Unsupported` at their keyword rather than as a syntax error, so
-a later stage can extend the reader without changing earlier diagnostics.
-`ClassLimits.depth` bounds connective nesting, because each level uses the
-physical stack. `count` bounds each member list and the number of each number
-restriction.
+The reader covers all eighteen class-expression forms: named classes,
+intersections, unions, complements, enumerations, existential, universal, value
+and self restrictions, and number restrictions with or without a filler, over
+object property expressions that include `ObjectInverseOf`, and the six data
+restrictions over one data property. Every OWL 2 data range is unary, so a
+second data property in `DataSomeValuesFrom( p q DR )` is read as the data range
+and the real range is reported where `)` is expected. Data ranges have their own
+reader (`functional_ranges`): three mutually recursive functions for a data
+range, a connective body and a member sequence, with literal and facet
+sequences, mirrored by an independent grammar of the same shape; it is not
+mutually recursive with class expressions, since no data range contains one.
+`ClassLimits.depth` bounds connective nesting, data ranges included, because
+each level uses the physical stack. `count` bounds each member list, literal
+list and facet list and the number of each number restriction, and `iri` also
+bounds the lexical forms and datatype IRIs of literals.
 
 The six class axioms compose the annotation reader, the class reader and the
 object property reader. Their member lists reuse the member sequence followed by

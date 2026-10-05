@@ -4022,3 +4022,35 @@ still reported as unsupported.
 
 This block adds 9 public theorems and 4 definitions. Totals are 2103 audited
 theorems, 1038 definitions, 485 Rust regressions and 2296 ledger obligations.
+
+## M3: data ranges and data restrictions in Functional Syntax
+
+A new reader (`functional_ranges`) reads one data range at a caller-supplied
+position: a datatype IRI, `DataIntersectionOf` and `DataUnionOf` with at least
+two members, `DataComplementOf`, `DataOneOf` with at least one literal, and
+`DatatypeRestriction` with a datatype IRI and at least one pair of a facet IRI
+and a literal. `read_optional_range` reads the optional data range of a data
+number restriction. Literals use the proved literal reader. The independent
+grammar (`RangeRun`, `BodyRun`, `MembersRun`, with `LiteralsRun`, `FacetsRun`
+and `OptionalRun`) is proved equivalent to the actual reader in both directions,
+with the first error in source order and progress on success.
+
+The class-expression reader now reads the six data restrictions, so all
+eighteen class-expression forms are read: `DataSomeValuesFrom` and
+`DataAllValuesFrom` with one data property and a data range, `DataHasValue` with
+one data property and a literal, and `DataMinCardinality`,
+`DataMaxCardinality` and `DataExactCardinality` with a number (the bounded
+reading of the previous stage), one data property and an optional data range
+(`DataPropertyRun` and the new connective derivations). The model mapping turns
+data ranges into the model's data ranges with exact IRIs and literals and the
+facets in order (`RangeModel`, `FacetOf`, `data_range_correct`) and data
+restrictions into the model's data restrictions (`DataCardinalityOf`); every
+accepted data range is shaped (`RangeShaped`, `range_run_shaped`), so every read
+document still maps.
+
+The ontology queries take data restrictions over the five datatypes since the
+data encoding stage; documents with data property axioms are read by the next
+stage, and datatype restrictions are read but not yet reasoned about.
+
+This block adds 39 public theorems and 18 definitions. Totals are 2142 audited
+theorems, 1056 definitions, 491 Rust regressions and 2335 ledger obligations.

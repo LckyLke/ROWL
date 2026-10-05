@@ -9,6 +9,7 @@ use rowl_frontend::functional_individuals::{IndividualError, SourceIndividual};
 use rowl_frontend::functional_iris::SourceIriError;
 use rowl_frontend::functional_lexer::Tokens;
 use rowl_frontend::functional_prefixes::read_prefix_header;
+use rowl_frontend::functional_ranges::{RangeError, RangeExpected, SourceDataRange};
 use rowl_frontend::prefixes::{check, Check};
 
 const EX: &str = "https://example.org/maintenance/";
@@ -139,6 +140,58 @@ fn text(class: &SourceClass) -> String {
                 None => format!("{bound}({value},{})", property_text(property)),
             }
         }
+        SourceClass::DataSomeValuesFrom {
+            property, range, ..
+        } => format!("dsome({},{})", name(&property.value), range_text(range)),
+        SourceClass::DataAllValuesFrom {
+            property, range, ..
+        } => format!("dall({},{})", name(&property.value), range_text(range)),
+        SourceClass::DataHasValue {
+            property, value, ..
+        } => format!(
+            "dvalue({},{})",
+            name(&property.value),
+            String::from_utf8(value.lexical.clone()).expect("UTF-8")
+        ),
+        SourceClass::DataCardinality {
+            bound,
+            value,
+            property,
+            range,
+            ..
+        } => {
+            let bound = match bound {
+                Bound::Min => "dmin",
+                Bound::Max => "dmax",
+                Bound::Exact => "dexact",
+            };
+            match range {
+                Some(range) => format!(
+                    "{bound}({value},{},{})",
+                    name(&property.value),
+                    range_text(range)
+                ),
+                None => format!("{bound}({value},{})", name(&property.value)),
+            }
+        }
+    }
+}
+fn range_text(range: &SourceDataRange) -> String {
+    match range {
+        SourceDataRange::Datatype(iri) => name(&iri.value),
+        SourceDataRange::IntersectionOf { members, .. } => format!(
+            "dand({})",
+            members.iter().map(range_text).collect::<Vec<_>>().join(",")
+        ),
+        SourceDataRange::UnionOf { members, .. } => format!(
+            "dor({})",
+            members.iter().map(range_text).collect::<Vec<_>>().join(",")
+        ),
+        SourceDataRange::ComplementOf { operand, .. } => format!("dnot({})", range_text(operand)),
+        SourceDataRange::OneOf { members, .. } => format!("done[{}]", members.len()),
+        SourceDataRange::Restriction {
+            datatype, facets, ..
+        } => format!("facets({},{})", name(&datatype.value), facets.len()),
     }
 }
 fn expected(result: Result<(SourceClass, Tokens), ClassError>) -> (&'static str, usize) {
@@ -349,6 +402,71 @@ fn numbers_are_checked_against_the_count_limit_before_the_property() {
 }
 
 #[test]
+fn data_restrictions_read_one_property_and_their_ranges() {
+    let (bytes, result) = read(
+        "ObjectIntersectionOf(DataSomeValuesFrom(:dose <http://www.w3.org/2001/XMLSchema#integer>) DataAllValuesFrom(:code DataOneOf(\"a\" \"b\")) DataHasValue(:dose \"5\"^^<http://www.w3.org/2001/XMLSchema#integer>) DataMinCardinality(2 :dose) DataExactCardinality(01 :dose DatatypeRestriction(:Dose :minimum \"1\")))",
+        &limits(5, 10),
+    );
+    let (class, _) = result.unwrap_or_else(|_| panic!("fixture must be accepted"));
+    assert_eq!(
+        text(&class),
+        "and(dsome(dose,http://www.w3.org/2001/XMLSchema#integer),dall(code,done[2]),dvalue(dose,5),dmin(2,dose),dexact(1,dose,facets(Dose,1)))"
+    );
+    match &class {
+        SourceClass::IntersectionOf { members, .. } => match &members[2] {
+            SourceClass::DataHasValue { keyword, value, .. } => {
+                assert!(matches!(
+                    keyword.terminal,
+                    Terminal::Keyword(Keyword::DataHasValue)
+                ));
+                assert_eq!(
+                    value.datatype,
+                    b"http://www.w3.org/2001/XMLSchema#integer".to_vec()
+                );
+                assert_eq!(value.quoted.start, offset(&bytes, "\"5\"", 0));
+            }
+            _ => panic!("the third member is a data value restriction"),
+        },
+        _ => panic!("the outer expression is an intersection"),
+    }
+    // Every OWL 2 data range is unary, so a second data property is read as
+    // the data range and the real range is where `)` is expected.
+    let (bytes, result) = read("DataSomeValuesFrom(:d :e :Range)", &limits(5, 10));
+    assert_eq!(expected(result), ("close", offset(&bytes, ":Range", 0)));
+    let (bytes, result) = read(
+        "DataSomeValuesFrom(ObjectInverseOf(:p) :Range)",
+        &limits(5, 10),
+    );
+    assert_eq!(
+        expected(result),
+        ("iri", offset(&bytes, "ObjectInverseOf", 0))
+    );
+    let (_, result) = read("DataHasValue(:d :e)", &limits(5, 10));
+    assert!(matches!(result, Err(ClassError::Literal(_))));
+    let (bytes, result) = read("DataMaxCardinality(11 :d)", &limits(5, 10));
+    match result {
+        Err(ClassError::CountLimit { offset: at }) => assert_eq!(at, offset(&bytes, "11", 0)),
+        _ => panic!("data numbers share the count limit"),
+    }
+    // Data ranges nest within the same depth.
+    let (bytes, result) = read(
+        "DataSomeValuesFrom(:d DataComplementOf(:Range))",
+        &limits(1, 10),
+    );
+    match result {
+        Err(ClassError::Range(RangeError::DepthLimit { offset: at })) => {
+            assert_eq!(at, offset(&bytes, "DataComplementOf", 0))
+        }
+        _ => panic!("data ranges are one level deeper"),
+    }
+    let (_, result) = read(
+        "DataSomeValuesFrom(:d DataComplementOf(:Range))",
+        &limits(2, 10),
+    );
+    assert!(result.is_ok());
+}
+
+#[test]
 fn errors_follow_source_order() {
     let (bytes, result) = read("ObjectIntersectionOf(:A)", &limits(5, 10));
     assert_eq!(expected(result), ("class", offset(&bytes, ")", 1)));
@@ -373,12 +491,13 @@ fn errors_follow_source_order() {
     assert_eq!(expected(result), ("close", offset(&bytes, ":A", 0)));
     let (bytes, result) = read("ObjectComplementOf(:A :B)", &limits(5, 10));
     assert_eq!(expected(result), ("close", offset(&bytes, ":B", 0)));
-    let (bytes, result) = read("ObjectUnionOf(:A DataHasValue(:d \"1\"))", &limits(5, 10));
+    let (bytes, result) = read("ObjectUnionOf(:A DataSomeValuesFrom(:d))", &limits(5, 10));
     match result {
-        Err(ClassError::Unsupported { offset: at }) => {
-            assert_eq!(at, offset(&bytes, "DataHasValue", 0))
-        }
-        _ => panic!("the data restrictions are not read yet"),
+        Err(ClassError::Range(RangeError::Expected {
+            expected: RangeExpected::Range,
+            offset: at,
+        })) => assert_eq!(at, offset(&bytes, ")", 1)),
+        _ => panic!("a data restriction needs its data range"),
     }
     let (bytes, result) = read("ObjectUnionOf(:A undeclared:B)", &limits(5, 10));
     match result {

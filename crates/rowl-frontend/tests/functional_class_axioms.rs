@@ -94,6 +94,18 @@ fn class(class: &SourceClass) -> String {
             ),
             None => format!("count({value},{})", self::property(property)),
         },
+        SourceClass::DataSomeValuesFrom { property, .. } => {
+            format!("dsome({})", name(&property.value))
+        }
+        SourceClass::DataAllValuesFrom { property, .. } => {
+            format!("dall({})", name(&property.value))
+        }
+        SourceClass::DataHasValue { property, .. } => {
+            format!("dvalue({})", name(&property.value))
+        }
+        SourceClass::DataCardinality {
+            value, property, ..
+        } => format!("dcount({value},{})", name(&property.value)),
     }
 }
 fn list(members: &[SourceClass]) -> String {
@@ -243,11 +255,11 @@ fn errors_follow_source_order() {
         }
         _ => panic!("the union class IRI resolves through the prefix table"),
     }
-    let (bytes, result) = read("SubClassOf(:A DataHasValue(:d \"1\"))");
+    let (bytes, result) = read("SubClassOf(:A DataHasValue(:d))");
     match result {
-        Err(ClassAxiomError::Class(ClassError::Unsupported { offset: at })) => {
-            assert_eq!(at, offset(&bytes, "DataHasValue", 0))
+        Err(ClassAxiomError::Class(ClassError::Literal(_))) => {
+            assert!(bytes.len() > offset(&bytes, "DataHasValue", 0))
         }
-        _ => panic!("the data restrictions are not read yet"),
+        _ => panic!("a data value restriction needs its literal"),
     }
 }

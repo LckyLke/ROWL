@@ -76,6 +76,7 @@ import Rowl.FunctionalDeclarationSource
 import Rowl.FunctionalAnnotationAxioms
 import Rowl.FunctionalAnnotationAxiomSource
 import Rowl.FunctionalIndividuals
+import Rowl.FunctionalRanges
 import Rowl.FunctionalClasses
 import Rowl.FunctionalClassAxioms
 import Rowl.FunctionalClassSource
@@ -888,6 +889,9 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalClasses.read_object_property_total_correct
 #print axioms Rowl.FunctionalClasses.read_object_property_result_iff
 #print axioms Rowl.FunctionalClasses.property_progress
+#print axioms Rowl.FunctionalClasses.read_data_property_total_correct
+#print axioms Rowl.FunctionalClasses.read_data_property_result_iff
+#print axioms Rowl.FunctionalClasses.data_property_progress
 #print axioms Rowl.FunctionalClasses.read_class_total_correct
 #print axioms Rowl.FunctionalClasses.read_connective_total_correct
 #print axioms Rowl.FunctionalClasses.read_members_total_correct
@@ -951,6 +955,13 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalModel.individuals_from_correct
 #print axioms Rowl.FunctionalModel.enumeration_correct
 #print axioms Rowl.FunctionalModel.individual_members_correct
+#print axioms Rowl.FunctionalModel.literals_from_correct
+#print axioms Rowl.FunctionalModel.facets_from_correct
+#print axioms Rowl.FunctionalModel.data_range_correct
+#print axioms Rowl.FunctionalModel.range_rest_from_correct
+#print axioms Rowl.FunctionalModel.range_members_correct
+#print axioms Rowl.FunctionalModel.data_property_correct
+#print axioms Rowl.FunctionalModel.data_cardinality_correct
 #print axioms Rowl.FunctionalModel.natural_correct
 #print axioms Rowl.FunctionalModel.natural_of_value
 #print axioms Rowl.FunctionalModel.cardinality_correct
@@ -968,6 +979,10 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalModel.axioms_from_correct
 #print axioms Rowl.FunctionalModel.imports_from_correct
 #print axioms Rowl.FunctionalModel.document_ontology_correct
+#print axioms Rowl.FunctionalModel.range_run_shaped
+#print axioms Rowl.FunctionalModel.range_body_run_shaped
+#print axioms Rowl.FunctionalModel.range_members_run_shaped
+#print axioms Rowl.FunctionalModel.optional_run_shaped
 #print axioms Rowl.FunctionalModel.class_run_shaped
 #print axioms Rowl.FunctionalModel.connective_run_shaped
 #print axioms Rowl.FunctionalModel.members_run_shaped
@@ -2228,6 +2243,31 @@ import Rowl.DataOntology
 #print axioms Rowl.DataOntology.class_satisfiable_correct
 #print axioms Rowl.DataOntology.subsumed_correct
 #print axioms Rowl.DataOntology.instance_of_correct
+#print axioms Rowl.FunctionalRanges.range_form_total_correct
+#print axioms Rowl.FunctionalRanges.closes_total_correct
+#print axioms Rowl.FunctionalRanges.offset_of_total_correct
+#print axioms Rowl.FunctionalRanges.expected_terminal_total_correct
+#print axioms Rowl.FunctionalRanges.take_expected_total_correct
+#print axioms Rowl.FunctionalRanges.take_expected_result_iff
+#print axioms Rowl.FunctionalRanges.take_progress
+#print axioms Rowl.FunctionalRanges.resolve_total_correct
+#print axioms Rowl.FunctionalRanges.resolve_result_iff
+#print axioms Rowl.FunctionalRanges.read_literals_total_correct
+#print axioms Rowl.FunctionalRanges.literals_execution
+#print axioms Rowl.FunctionalRanges.read_facets_total_correct
+#print axioms Rowl.FunctionalRanges.facets_execution
+#print axioms Rowl.FunctionalRanges.read_range_total_correct
+#print axioms Rowl.FunctionalRanges.read_body_total_correct
+#print axioms Rowl.FunctionalRanges.read_members_total_correct
+#print axioms Rowl.FunctionalRanges.range_execution
+#print axioms Rowl.FunctionalRanges.body_execution
+#print axioms Rowl.FunctionalRanges.members_execution
+#print axioms Rowl.FunctionalRanges.read_range_result_iff
+#print axioms Rowl.FunctionalRanges.read_data_range_result_iff
+#print axioms Rowl.FunctionalRanges.read_data_range_total_correct
+#print axioms Rowl.FunctionalRanges.range_progress
+#print axioms Rowl.FunctionalRanges.read_optional_range_total_correct
+#print axioms Rowl.FunctionalRanges.read_optional_range_result_iff
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -3266,3 +3306,21 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalClasses.FillerRun
 #print axioms Rowl.FunctionalModel.NaturalOf
 #print axioms Rowl.FunctionalModel.CardinalityOf
+#print axioms Rowl.FunctionalRanges.FormOf
+#print axioms Rowl.FunctionalRanges.Expected
+#print axioms Rowl.FunctionalRanges.Position
+#print axioms Rowl.FunctionalRanges.TakeRun
+#print axioms Rowl.FunctionalRanges.ResolveRun
+#print axioms Rowl.FunctionalRanges.LiteralsRun
+#print axioms Rowl.FunctionalRanges.FacetsRun
+#print axioms Rowl.FunctionalRanges.RangeRun
+#print axioms Rowl.FunctionalRanges.BodyRun
+#print axioms Rowl.FunctionalRanges.MembersRun
+#print axioms Rowl.FunctionalRanges.OptionalRun
+#print axioms Rowl.FunctionalClasses.DataPropertyRun
+#print axioms Rowl.FunctionalModel.DataCardinalityOf
+#print axioms Rowl.FunctionalModel.FacetOf
+#print axioms Rowl.FunctionalModel.RangeModel
+#print axioms Rowl.FunctionalModel.RangeMembersModel
+#print axioms Rowl.FunctionalModel.RangeRestModel
+#print axioms Rowl.FunctionalModel.RangeShaped

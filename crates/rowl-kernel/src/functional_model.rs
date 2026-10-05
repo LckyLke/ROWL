@@ -19,11 +19,13 @@ use crate::functional_literals::SourceLiteral;
 use crate::functional_property_axioms::{
     PropertyCharacteristic, SourcePropertyAxiomBody, SourceSubProperty,
 };
+use crate::functional_ranges::{SourceDataRange, SourceFacet};
 use crate::model::{
     AnnotatedAxiom, Annotation, AnnotationProperty, AnnotationSubject, AnnotationValue,
-    AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, Datatype, Entity,
-    Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty, ObjectPropertyExpression,
-    OntologyIdentity, RawOntology, SubObjectPropertyExpression,
+    AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange,
+    Datatype, Entity, FacetRestriction, Individual, Iri, Literal, NamedIndividual, NonEmpty,
+    ObjectProperty, ObjectPropertyExpression, OntologyIdentity, RawOntology,
+    SubObjectPropertyExpression,
 };
 use crate::probes::Natural;
 
@@ -145,6 +147,132 @@ fn individual_members(
         rest: individuals_from(values, 2, Vec::new(), scope),
     })
 }
+/// The model of `values[index..]` after `out`.
+fn literals_from(values: &Vec<SourceLiteral>, index: usize, mut out: Vec<Literal>) -> Vec<Literal> {
+    if index < values.len() && out.len() < values.len() {
+        out.push(literal(&values[index]));
+        literals_from(values, index + 1, out)
+    } else {
+        out
+    }
+}
+/// The model of `values[index..]` after `out`.
+fn facets_from(
+    values: &Vec<SourceFacet>,
+    index: usize,
+    mut out: Vec<FacetRestriction>,
+) -> Vec<FacetRestriction> {
+    if index < values.len() && out.len() < values.len() {
+        out.push(FacetRestriction {
+            facet: iri(&values[index].facet),
+            value: literal(&values[index].value),
+        });
+        facets_from(values, index + 1, out)
+    } else {
+        out
+    }
+}
+/// A data range of the model; `None` for a member list with fewer than two
+/// members or an enumeration or restriction without members.
+#[allow(clippy::len_zero)] // Vec::is_empty lacks a model in the pinned extraction.
+fn data_range(source: &SourceDataRange) -> Option<DataRange> {
+    match source {
+        SourceDataRange::Datatype(name) => Some(DataRange::Datatype(Datatype { iri: iri(name) })),
+        SourceDataRange::IntersectionOf { members, .. } => match range_members(members) {
+            Some(members) => Some(DataRange::Intersection(Box::new(members))),
+            None => None,
+        },
+        SourceDataRange::UnionOf { members, .. } => match range_members(members) {
+            Some(members) => Some(DataRange::Union(Box::new(members))),
+            None => None,
+        },
+        SourceDataRange::ComplementOf { operand, .. } => match data_range(operand) {
+            Some(operand) => Some(DataRange::Complement(Box::new(operand))),
+            None => None,
+        },
+        SourceDataRange::OneOf { members, .. } => {
+            if members.len() < 1 {
+                return None;
+            }
+            Some(DataRange::OneOf(NonEmpty {
+                first: literal(&members[0]),
+                rest: literals_from(members, 1, Vec::new()),
+            }))
+        }
+        SourceDataRange::Restriction {
+            datatype, facets, ..
+        } => {
+            if facets.len() < 1 {
+                return None;
+            }
+            Some(DataRange::Restriction(
+                Datatype { iri: iri(datatype) },
+                NonEmpty {
+                    first: FacetRestriction {
+                        facet: iri(&facets[0].facet),
+                        value: literal(&facets[0].value),
+                    },
+                    rest: facets_from(facets, 1, Vec::new()),
+                },
+            ))
+        }
+    }
+}
+/// The model of the data ranges `values[index..]` after `out`.
+fn range_rest_from(
+    values: &Vec<SourceDataRange>,
+    index: usize,
+    mut out: Vec<DataRange>,
+) -> Option<Vec<DataRange>> {
+    if index < values.len() {
+        match data_range(&values[index]) {
+            Some(value) => {
+                out.push(value);
+                range_rest_from(values, index + 1, out)
+            }
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+fn range_members(values: &Vec<SourceDataRange>) -> Option<AtLeastTwo<DataRange>> {
+    if values.len() < 2 {
+        return None;
+    }
+    let first = match data_range(&values[0]) {
+        Some(first) => first,
+        None => return None,
+    };
+    let second = match data_range(&values[1]) {
+        Some(second) => second,
+        None => return None,
+    };
+    match range_rest_from(values, 2, Vec::new()) {
+        Some(rest) => Some(AtLeastTwo {
+            first,
+            second,
+            rest,
+        }),
+        None => None,
+    }
+}
+fn data_property(source: &HeaderIri) -> DataProperty {
+    DataProperty { iri: iri(source) }
+}
+/// The data number restriction of a bound.
+fn data_cardinality(
+    bound: Bound,
+    value: Natural,
+    property: DataProperty,
+    range: Option<DataRange>,
+) -> ClassExpression {
+    match bound {
+        Bound::Min => ClassExpression::DataMinCardinality(value, property, range),
+        Bound::Max => ClassExpression::DataMaxCardinality(value, property, range),
+        Bound::Exact => ClassExpression::DataExactCardinality(value, property, range),
+    }
+}
 /// The number `value`.
 fn natural(value: usize) -> Natural {
     if value == 0 {
@@ -234,6 +362,53 @@ fn class(source: &SourceClass, scope: &Vec<u8>) -> Option<ClassExpression> {
                 *bound,
                 natural(*value),
                 self::property(property),
+                None,
+            )),
+        },
+        SourceClass::DataSomeValuesFrom {
+            property, range, ..
+        } => match data_range(range) {
+            Some(range) => Some(ClassExpression::DataSomeValuesFrom(
+                data_property(property),
+                range,
+            )),
+            None => None,
+        },
+        SourceClass::DataAllValuesFrom {
+            property, range, ..
+        } => match data_range(range) {
+            Some(range) => Some(ClassExpression::DataAllValuesFrom(
+                data_property(property),
+                range,
+            )),
+            None => None,
+        },
+        SourceClass::DataHasValue {
+            property, value, ..
+        } => Some(ClassExpression::DataHasValue(
+            data_property(property),
+            literal(value),
+        )),
+        SourceClass::DataCardinality {
+            bound,
+            value,
+            property,
+            range,
+            ..
+        } => match range {
+            Some(range) => match data_range(range) {
+                Some(range) => Some(data_cardinality(
+                    *bound,
+                    natural(*value),
+                    data_property(property),
+                    Some(range),
+                )),
+                None => None,
+            },
+            None => Some(data_cardinality(
+                *bound,
+                natural(*value),
+                data_property(property),
                 None,
             )),
         },

@@ -19,6 +19,7 @@ open RowlRust.functional_annotation_axioms (SourceAnnotationAxiomBody SourceAnno
 open RowlRust.functional_assertions (SourceAssertionBody)
 open RowlRust.functional_individuals (SourceIndividual)
 open RowlRust.functional_classes (SourceClass SourceObjectProperty)
+open RowlRust.functional_ranges (SourceDataRange SourceFacet)
 open RowlRust.functional_class_axioms (SourceClassAxiomBody)
 open RowlRust.functional_property_axioms (SourcePropertyAxiomBody SourceSubProperty PropertyCharacteristic)
 open RowlRust.functional_declarations (SourceDeclaration SourceEntity SourceEntityKind)
@@ -71,6 +72,71 @@ def CardinalityOf : functional_classes.Bound → probes.Natural → model.Object
   | .Min, value, property, filler => .ObjectMinCardinality value property filler
   | .Max, value, property, filler => .ObjectMaxCardinality value property filler
   | .Exact, value, property, filler => .ObjectExactCardinality value property filler
+/-- The model data number restriction of a bound. -/
+def DataCardinalityOf : functional_classes.Bound → probes.Natural → model.DataProperty →
+    Option model.DataRange → model.ClassExpression
+  | .Min, value, property, range => .DataMinCardinality value property range
+  | .Max, value, property, range => .DataMaxCardinality value property range
+  | .Exact, value, property, range => .DataExactCardinality value property range
+/-- The model facet restriction of a source facet: its exact facet IRI and literal. -/
+def FacetOf (facet : SourceFacet) : model.FacetRestriction := ⟨IriOf facet.facet,LiteralOf facet.value⟩
+
+mutual
+/-- A model data range corresponds to a source data range with the same
+    constructor, exact IRIs and literals, and corresponding operands in source
+    order. -/
+inductive RangeModel : SourceDataRange → model.DataRange → Prop
+  | datatype {iri : HeaderIri} : RangeModel (.Datatype iri) (.Datatype ⟨IriOf iri⟩)
+  | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceDataRange}
+      {target : model.AtLeastTwo model.DataRange} (inner : RangeMembersModel members.val target) :
+      RangeModel (.IntersectionOf keyword members) (.Intersection target)
+  | union {keyword : functional.Token} {members : alloc.vec.Vec SourceDataRange}
+      {target : model.AtLeastTwo model.DataRange} (inner : RangeMembersModel members.val target) :
+      RangeModel (.UnionOf keyword members) (.Union target)
+  | complement {keyword : functional.Token} {operand : SourceDataRange} {target : model.DataRange}
+      (inner : RangeModel operand target) :
+      RangeModel (.ComplementOf keyword operand) (.Complement target)
+  | oneOf {keyword : functional.Token} {members : alloc.vec.Vec SourceLiteral} {target : model.NonEmpty model.Literal}
+      (inner : target.first :: target.rest.val = members.val.map LiteralOf) :
+      RangeModel (.OneOf keyword members) (.OneOf target)
+  | restriction {keyword : functional.Token} {datatype : HeaderIri} {facets : alloc.vec.Vec SourceFacet}
+      {target : model.NonEmpty model.FacetRestriction}
+      (inner : target.first :: target.rest.val = facets.val.map FacetOf) :
+      RangeModel (.Restriction keyword datatype facets) (.Restriction ⟨IriOf datatype⟩ target)
+/-- A member list of at least two data ranges corresponds to the model's first,
+    second and remaining members, in order. -/
+inductive RangeMembersModel : List SourceDataRange → model.AtLeastTwo model.DataRange → Prop
+  | mk {first second : SourceDataRange} {rest : List SourceDataRange} {firstTarget secondTarget : model.DataRange}
+      {restTargets : alloc.vec.Vec model.DataRange}
+      (one : RangeModel first firstTarget) (two : RangeModel second secondTarget)
+      (others : RangeRestModel rest restTargets.val) :
+      RangeMembersModel (first :: second :: rest) ⟨firstTarget,secondTarget,restTargets⟩
+/-- Remaining data ranges correspond element by element, in order. -/
+inductive RangeRestModel : List SourceDataRange → List model.DataRange → Prop
+  | nil : RangeRestModel [] []
+  | cons {source : SourceDataRange} {sources : List SourceDataRange} {target : model.DataRange}
+      {targets : List model.DataRange}
+      (head : RangeModel source target) (tail : RangeRestModel sources targets) :
+      RangeRestModel (source :: sources) (target :: targets)
+end
+
+/-- Every intersection and union in a data range has at least two members and
+    every enumeration and restriction at least one: the shape the data range
+    grammar accepts and model lists need. -/
+inductive RangeShaped : SourceDataRange → Prop
+  | datatype {iri : HeaderIri} : RangeShaped (.Datatype iri)
+  | intersection {keyword : functional.Token} {members : alloc.vec.Vec SourceDataRange}
+      (enough : 2 ≤ members.val.length) (each : ∀ member ∈ members.val, RangeShaped member) :
+      RangeShaped (.IntersectionOf keyword members)
+  | union {keyword : functional.Token} {members : alloc.vec.Vec SourceDataRange}
+      (enough : 2 ≤ members.val.length) (each : ∀ member ∈ members.val, RangeShaped member) :
+      RangeShaped (.UnionOf keyword members)
+  | complement {keyword : functional.Token} {operand : SourceDataRange} (inner : RangeShaped operand) :
+      RangeShaped (.ComplementOf keyword operand)
+  | oneOf {keyword : functional.Token} {members : alloc.vec.Vec SourceLiteral} (enough : 1 ≤ members.val.length) :
+      RangeShaped (.OneOf keyword members)
+  | restriction {keyword : functional.Token} {datatype : HeaderIri} {facets : alloc.vec.Vec SourceFacet}
+      (enough : 1 ≤ facets.val.length) : RangeShaped (.Restriction keyword datatype facets)
 def EntityOf (entity : SourceEntity) : model.Entity :=
   match entity.kind with
   | .Class => .Class ⟨IriOf entity.iri⟩
@@ -146,6 +212,23 @@ inductive ClassModel (scope : alloc.vec.Vec U8) : SourceClass → model.ClassExp
       (inner : ClassModel scope filler target) :
       ClassModel scope (.Cardinality keyword bound number value property (some filler))
         (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) (some target))
+  | dataSome {keyword : functional.Token} {property : HeaderIri} {range : SourceDataRange}
+      {target : model.DataRange} (inner : RangeModel range target) :
+      ClassModel scope (.DataSomeValuesFrom keyword property range) (.DataSomeValuesFrom ⟨IriOf property⟩ target)
+  | dataAll {keyword : functional.Token} {property : HeaderIri} {range : SourceDataRange}
+      {target : model.DataRange} (inner : RangeModel range target) :
+      ClassModel scope (.DataAllValuesFrom keyword property range) (.DataAllValuesFrom ⟨IriOf property⟩ target)
+  | dataValue {keyword : functional.Token} {property : HeaderIri} {value : SourceLiteral} :
+      ClassModel scope (.DataHasValue keyword property value) (.DataHasValue ⟨IriOf property⟩ (LiteralOf value))
+  | dataCardinality {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : HeaderIri} :
+      ClassModel scope (.DataCardinality keyword bound number value property none)
+        (DataCardinalityOf bound (NaturalOf value.val) ⟨IriOf property⟩ none)
+  | dataQualified {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : HeaderIri} {range : SourceDataRange} {target : model.DataRange}
+      (inner : RangeModel range target) :
+      ClassModel scope (.DataCardinality keyword bound number value property (some range))
+        (DataCardinalityOf bound (NaturalOf value.val) ⟨IriOf property⟩ (some target))
 /-- A member list of at least two expressions corresponds to the model's first,
     second and remaining members, in order. -/
 inductive MembersModel (scope : alloc.vec.Vec U8) : List SourceClass → model.AtLeastTwo model.ClassExpression → Prop
@@ -303,6 +386,17 @@ inductive Shaped : SourceClass → Prop
   | qualified {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
       {property : SourceObjectProperty} {filler : SourceClass} (inner : Shaped filler) :
       Shaped (.Cardinality keyword bound number value property (some filler))
+  | dataSome {keyword : functional.Token} {property : HeaderIri} {range : SourceDataRange}
+      (inner : RangeShaped range) : Shaped (.DataSomeValuesFrom keyword property range)
+  | dataAll {keyword : functional.Token} {property : HeaderIri} {range : SourceDataRange}
+      (inner : RangeShaped range) : Shaped (.DataAllValuesFrom keyword property range)
+  | dataValue {keyword : functional.Token} {property : HeaderIri} {value : SourceLiteral} :
+      Shaped (.DataHasValue keyword property value)
+  | dataCardinality {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : HeaderIri} : Shaped (.DataCardinality keyword bound number value property none)
+  | dataQualified {keyword number : functional.Token} {bound : functional_classes.Bound} {value : Usize}
+      {property : HeaderIri} {range : SourceDataRange} (inner : RangeShaped range) :
+      Shaped (.DataCardinality keyword bound number value property (some range))
 /-- A class axiom whose member lists have at least two members and whose class
     expressions are shaped. -/
 def ShapedAxiom : SourceClassAxiomBody → Prop
@@ -598,6 +692,299 @@ theorem individual_members_correct (values : alloc.vec.Vec SourceIndividual) (sc
     rw [restList]
     simp [shape]
 
+/-- The remaining literals of an enumeration map one by one after the models
+    already collected. -/
+theorem literals_from_correct (values : alloc.vec.Vec SourceLiteral) (index : Usize)
+    (out : alloc.vec.Vec model.Literal) (start : Nat) (first : start ≤ index.val)
+    (collected : out.val = ((values.val.drop start).take (index.val-start)).map LiteralOf)
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, literals_from values index out = .ok result ∧
+      result.val = (values.val.drop start).map LiteralOf := by
+  rw [literals_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-start := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (LiteralOf values.val[index.val]) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop start).take (next.val-start) =
+        (values.val.drop start).take (index.val-start) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-start = (index.val-start)+1 by omega]
+      have bound : index.val-start < (values.val.drop start).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show start+(index.val-start) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := literals_from_correct values next appended start (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,literal_correct,push,advance,finalRead],finalList⟩
+  · have full : (values.val.drop start).take (index.val-start) = values.val.drop start :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+/-- The remaining facets of a restriction map one by one after the models
+    already collected. -/
+theorem facets_from_correct (values : alloc.vec.Vec SourceFacet) (index : Usize)
+    (out : alloc.vec.Vec model.FacetRestriction) (start : Nat) (first : start ≤ index.val)
+    (collected : out.val = ((values.val.drop start).take (index.val-start)).map FacetOf)
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, facets_from values index out = .ok result ∧
+      result.val = (values.val.drop start).map FacetOf := by
+  rw [facets_from]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have length : out.val.length = index.val-start := by
+      rw [collected]; simp; omega
+    have room : out.val.length < values.val.length := by omega
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (FacetOf values.val[index.val]) (by scalar_tac))
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have step : (values.val.drop start).take (next.val-start) =
+        (values.val.drop start).take (index.val-start) ++ [values.val[index.val]] := by
+      rw [nextIndex,show index.val+1-start = (index.val-start)+1 by omega]
+      have bound : index.val-start < (values.val.drop start).length := by simp; omega
+      rw [List.take_succ_eq_append_getElem bound]
+      simp [List.getElem_drop,show start+(index.val-start) = index.val by omega]
+    obtain ⟨final,finalRead,finalList⟩ := facets_from_correct values next appended start (by omega)
+      (by rw [step,contents,collected]; simp) (by omega)
+    have pushed : alloc.vec.Vec.push out
+        (⟨IriOf values.val[index.val].facet,LiteralOf values.val[index.val].value⟩ : model.FacetRestriction) =
+          .ok appended := push
+    exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,room,↓reduceIte,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,iri_correct,literal_correct,pushed,advance,finalRead],finalList⟩
+  · have full : (values.val.drop start).take (index.val-start) = values.val.drop start :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],collected⟩
+termination_by values.val.length-index.val
+decreasing_by omega
+
+private theorem range_rest_snoc {source : SourceDataRange} {target : model.DataRange}
+    (last : RangeModel source target) :
+    ∀ {sources : List SourceDataRange} {targets : List model.DataRange},
+      RangeRestModel sources targets → RangeRestModel (sources++[source]) (targets++[target])
+  | [], _, relation => by cases relation; exact .cons last .nil
+  | _ :: _, _, relation => by
+    cases relation with
+    | cons head tail => exact .cons head (range_rest_snoc last tail)
+private theorem range_rest_length :
+    ∀ {sources : List SourceDataRange} {targets : List model.DataRange},
+      RangeRestModel sources targets → targets.length = sources.length
+  | [], _, relation => by cases relation; rfl
+  | _ :: _, _, relation => by
+    cases relation with
+    | cons head tail => simp [range_rest_length tail]
+
+mutual
+/-- Every source data range maps, when it maps, to its corresponding model data
+    range; every shaped data range maps. -/
+theorem data_range_correct (source : SourceDataRange) :
+    ∃ result, functional_model.data_range source = .ok result ∧
+      (∀ target, result = some target → RangeModel source target) ∧ (RangeShaped source → result.isSome) := by
+  rw [functional_model.data_range.eq_def]
+  cases source with
+  | Datatype named =>
+    exact ⟨some (.Datatype ⟨IriOf named⟩),by simp [iri_correct],(by intro target same; cases same; exact .datatype),
+      fun _ => rfl⟩
+  | IntersectionOf keyword members =>
+    obtain ⟨result,read,correct,total⟩ := range_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | intersection enough each => exact absurd (total enough each) (by simp)⟩
+    | some target =>
+      exact ⟨some (.Intersection target),by simp [read],
+        (by intro target' same; cases same; exact .intersection (correct target rfl)),fun _ => rfl⟩
+  | UnionOf keyword members =>
+    obtain ⟨result,read,correct,total⟩ := range_members_correct members
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | union enough each => exact absurd (total enough each) (by simp)⟩
+    | some target =>
+      exact ⟨some (.Union target),by simp [read],
+        (by intro target' same; cases same; exact .union (correct target rfl)),fun _ => rfl⟩
+  | ComplementOf keyword operand =>
+    obtain ⟨result,read,correct,total⟩ := data_range_correct operand
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | complement inner => exact absurd (total inner) (by simp)⟩
+    | some target =>
+      exact ⟨some (.Complement target),by simp [read],
+        (by intro target' same; cases same; exact .complement (correct target rfl)),fun _ => rfl⟩
+  | OneOf keyword members =>
+    by_cases few : members.val.length < 1
+    · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | oneOf enough => omega⟩
+    · have zero : 0 < members.val.length := by omega
+      have first : members.index_usize 0#usize = .ok members.val[0] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+      obtain ⟨rest,restRead,restList⟩ := literals_from_correct members 1#usize
+        (alloc.vec.Vec.new model.Literal) 1 (by simp) (by simp) (by simp; omega)
+      refine ⟨some (.OneOf ⟨LiteralOf members.val[0],rest⟩),by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,
+        first,literal_correct,restRead],?_,fun _ => rfl⟩
+      intro target same
+      cases same
+      apply RangeModel.oneOf
+      obtain ⟨a,r,shape⟩ : ∃ a r, members.val = a :: r := by
+        rcases hv : members.val with _ | ⟨a,r⟩
+        · rw [hv] at zero; simp at zero
+        · exact ⟨a,r,rfl⟩
+      rw [restList]
+      simp [shape]
+  | Restriction keyword datatype facets =>
+    by_cases few : facets.val.length < 1
+    · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | restriction enough => omega⟩
+    · have zero : 0 < facets.val.length := by omega
+      have first : facets.index_usize 0#usize = .ok facets.val[0] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+      obtain ⟨rest,restRead,restList⟩ := facets_from_correct facets 1#usize
+        (alloc.vec.Vec.new model.FacetRestriction) 1 (by simp) (by simp) (by simp; omega)
+      refine ⟨some (.Restriction ⟨IriOf datatype⟩ ⟨FacetOf facets.val[0],rest⟩),
+        by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,first,iri_correct,literal_correct,restRead,FacetOf],
+        ?_,fun _ => rfl⟩
+      intro target same
+      cases same
+      apply RangeModel.restriction
+      obtain ⟨a,r,shape⟩ : ∃ a r, facets.val = a :: r := by
+        rcases hv : facets.val with _ | ⟨a,r⟩
+        · rw [hv] at zero; simp at zero
+        · exact ⟨a,r,rfl⟩
+      rw [restList]
+      simp [shape]
+termination_by (sizeOf source,0)
+decreasing_by
+  all_goals
+    simp_wf
+    try rw [Prod.lex_def]
+    try simp +arith
+    try omega
+/-- Remaining data ranges map element by element, extending the models already
+    collected; they all map when every member is shaped. -/
+theorem range_rest_from_correct (values : alloc.vec.Vec SourceDataRange) (index : Usize)
+    (out : alloc.vec.Vec model.DataRange) (start : 2 ≤ index.val)
+    (collected : RangeRestModel ((values.val.drop 2).take (index.val-2)) out.val)
+    (inside : index.val ≤ values.val.length) :
+    ∃ result, range_rest_from values index out = .ok result ∧
+      (∀ targets, result = some targets → RangeRestModel (values.val.drop 2) targets.val) ∧
+      ((∀ member ∈ values.val, RangeShaped member) → result.isSome) := by
+  rw [range_rest_from.eq_def]
+  by_cases more : index.val < values.val.length
+  · have lookup : values.index_usize index = .ok values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have member : values.val[index.val] ∈ values.val := List.getElem_mem more
+    have smaller := vec_mem_size values member
+    obtain ⟨result,read,correct,total⟩ := data_range_correct values.val[index.val]
+    cases result with
+    | none =>
+      exact ⟨none,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,
+        alloc.vec.Vec.index_slice_index,lookup,bind_ok,read],(by intro targets impossible; cases impossible),
+        fun all => absurd (total (all _ member)) (by simp)⟩
+    | some target =>
+      have length := range_rest_length collected
+      obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists
+        (alloc.vec.Vec.push_spec out target (by simp at length; scalar_tac))
+      obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val+1 := by simpa using nextValue
+      have step : (values.val.drop 2).take (next.val-2) = (values.val.drop 2).take (index.val-2) ++ [values.val[index.val]] := by
+        rw [nextIndex,show index.val+1-2 = (index.val-2)+1 by omega]
+        have bound : index.val-2 < (values.val.drop 2).length := by simp; omega
+        rw [List.take_succ_eq_append_getElem bound]
+        simp [List.getElem_drop,show 2+(index.val-2) = index.val by omega]
+      obtain ⟨final,finalRead,finalCorrect,finalTotal⟩ := range_rest_from_correct values next appended (by omega)
+        (by rw [step,contents]; exact range_rest_snoc (correct target rfl) collected) (by omega)
+      exact ⟨final,by simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,
+        alloc.vec.Vec.index_slice_index,lookup,bind_ok,read,push,advance,finalRead],finalCorrect,finalTotal⟩
+  · have full : (values.val.drop 2).take (index.val-2) = values.val.drop 2 :=
+      List.take_of_length_le (by simp; omega)
+    rw [full] at collected
+    exact ⟨some out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],
+      (by intro targets same; cases same; exact collected),fun _ => rfl⟩
+termination_by (sizeOf values,values.val.length-index.val+1)
+decreasing_by
+  all_goals
+    simp_wf
+    try rw [Prod.lex_def]
+    try simp +arith
+    try omega
+/-- A data range member list maps exactly when it has two members that map and
+    remaining members that map; the result corresponds to the list, and a list
+    of at least two shaped members maps. -/
+theorem range_members_correct (values : alloc.vec.Vec SourceDataRange) :
+    ∃ result, range_members values = .ok result ∧
+      (∀ target, result = some target → RangeMembersModel values.val target) ∧
+      (2 ≤ values.val.length → (∀ member ∈ values.val, RangeShaped member) → result.isSome) := by
+  rw [range_members.eq_def]
+  by_cases few : values.val.length < 2
+  · exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,few,Nat.lt_succ_iff.mp few],
+      (by intro target impossible; cases impossible),fun enough _ => absurd enough (by omega)⟩
+  · have enough : 2 ≤ values.val.length := by omega
+    have zero : 0 < values.val.length := by omega
+    have one : 1 < values.val.length := by omega
+    have first : values.index_usize 0#usize = .ok values.val[0] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem zero]
+    have second : values.index_usize 1#usize = .ok values.val[1] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem one]
+    have firstSmaller := vec_mem_size values (List.getElem_mem zero)
+    have secondSmaller := vec_mem_size values (List.getElem_mem one)
+    obtain ⟨firstResult,firstRead,firstCorrect,firstTotal⟩ := data_range_correct values.val[0]
+    cases firstResult with
+    | none =>
+      exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,
+        firstRead],(by intro target impossible; cases impossible),
+        fun _ all => absurd (firstTotal (all _ (List.getElem_mem zero))) (by simp)⟩
+    | some firstTarget =>
+      obtain ⟨secondResult,secondRead,secondCorrect,secondTotal⟩ := data_range_correct values.val[1]
+      cases secondResult with
+      | none =>
+        exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,
+          first,firstRead,second,secondRead],(by intro target impossible; cases impossible),
+          fun _ all => absurd (secondTotal (all _ (List.getElem_mem one))) (by simp)⟩
+      | some secondTarget =>
+        obtain ⟨restResult,restRead,restCorrect,restTotal⟩ := range_rest_from_correct values 2#usize
+          (alloc.vec.Vec.new model.DataRange) (by simp) (by simpa using .nil) (by simpa using enough)
+        cases restResult with
+        | none =>
+          exact ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,Nat.not_lt.mpr enough,Nat.not_le.mpr enough,
+            first,firstRead,second,secondRead,restRead],(by intro target impossible; cases impossible),
+            fun _ all => absurd (restTotal all) (by simp)⟩
+        | some rest =>
+          refine ⟨some ⟨firstTarget,secondTarget,rest⟩,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,
+            Nat.not_lt.mpr enough,Nat.not_le.mpr enough,first,firstRead,second,secondRead,restRead],?_,
+            fun _ _ => rfl⟩
+          intro target same
+          cases same
+          rw [two_shape enough]
+          exact .mk (firstCorrect firstTarget rfl) (secondCorrect secondTarget rfl) (restCorrect rest rfl)
+termination_by (sizeOf values,values.val.length+2)
+decreasing_by
+  all_goals
+    simp_wf
+    try rw [Prod.lex_def]
+    try simp +arith
+    try omega
+end
+theorem data_property_correct (source : HeaderIri) :
+    functional_model.data_property source = .ok ⟨IriOf source⟩ := by
+  simp [functional_model.data_property,iri_correct]
+theorem data_cardinality_correct (bound : functional_classes.Bound) (value : probes.Natural)
+    (property : model.DataProperty) (range : Option model.DataRange) :
+    functional_model.data_cardinality bound value property range =
+      .ok (DataCardinalityOf bound value property range) := by
+  cases bound <;> rfl
+
 /-- A machine integer maps to its unary natural number. -/
 theorem natural_correct (value : Usize) : functional_model.natural value = .ok (NaturalOf value.val) := by
   rw [functional_model.natural]
@@ -713,6 +1100,43 @@ theorem class_correct (source : SourceClass) (scope : alloc.vec.Vec U8) :
         exact ⟨some (CardinalityOf bound (NaturalOf value.val) (PropertyOf property) (some target)),
           by simp [read,natural_correct,property_correct,cardinality_correct],
           (by intro target' same; cases same; exact .qualified (correct target rfl)),fun _ => rfl⟩
+  | DataSomeValuesFrom keyword property range =>
+    obtain ⟨result,read,correct,total⟩ := data_range_correct range
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | dataSome inner => exact absurd (total inner) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DataSomeValuesFrom ⟨IriOf property⟩ target),by simp [read,data_property_correct],
+        (by intro target' same; cases same; exact .dataSome (correct target rfl)),fun _ => rfl⟩
+  | DataAllValuesFrom keyword property range =>
+    obtain ⟨result,read,correct,total⟩ := data_range_correct range
+    cases result with
+    | none =>
+      exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+        by intro shaped; cases shaped with | dataAll inner => exact absurd (total inner) (by simp)⟩
+    | some target =>
+      exact ⟨some (.DataAllValuesFrom ⟨IriOf property⟩ target),by simp [read,data_property_correct],
+        (by intro target' same; cases same; exact .dataAll (correct target rfl)),fun _ => rfl⟩
+  | DataHasValue keyword property value =>
+    exact ⟨some (.DataHasValue ⟨IriOf property⟩ (LiteralOf value)),
+      by simp [data_property_correct,literal_correct],(by intro target same; cases same; exact .dataValue),fun _ => rfl⟩
+  | DataCardinality keyword bound number value property range =>
+    cases range with
+    | none =>
+      exact ⟨some (DataCardinalityOf bound (NaturalOf value.val) ⟨IriOf property⟩ none),
+        by simp [natural_correct,data_property_correct,data_cardinality_correct],
+        (by intro target same; cases same; exact .dataCardinality),fun _ => rfl⟩
+    | some range =>
+      obtain ⟨result,read,correct,total⟩ := data_range_correct range
+      cases result with
+      | none =>
+        exact ⟨none,by simp [read],(by intro target impossible; cases impossible),
+          by intro shaped; cases shaped with | dataQualified inner => exact absurd (total inner) (by simp)⟩
+      | some target =>
+        exact ⟨some (DataCardinalityOf bound (NaturalOf value.val) ⟨IriOf property⟩ (some target)),
+          by simp [read,natural_correct,data_property_correct,data_cardinality_correct],
+          (by intro target' same; cases same; exact .dataQualified (correct target rfl)),fun _ => rfl⟩
 termination_by (sizeOf source,0)
 decreasing_by
   all_goals
@@ -1232,6 +1656,100 @@ open RowlRust.functional_document (AxiomFamily)
 open Rowl.FunctionalDocument (AxiomStep AxiomsRun TailRun)
 variable {rows : List prefixes.Declaration} {source : List U8} {eof : Usize}
 
+mutual
+/-- Every data range the independent data range grammar accepts is shaped. -/
+theorem range_run_shaped {count limit : Nat} :
+    ∀ {depth : Nat} {tokens : Tokens}
+      {result : core.result.Result (SourceDataRange × Tokens) functional_ranges.RangeError},
+      Rowl.FunctionalRanges.RangeRun rows source eof count limit depth tokens result →
+      ∀ {value : SourceDataRange} {rest : Tokens}, result = .Ok (value,rest) → RangeShaped value
+  | _, _, _, .empty, _, _, same => by cases same
+  | _, _, _, .datatypeError _ _, _, _, same => by cases same
+  | _, _, _, .datatype _ _, _, _, same => by cases same; exact .datatype
+  | _, _, _, .depthLimit _, _, _, same => by cases same
+  | _, _, _, .openError _ _, _, _, same => by cases same
+  | _, _, _, .connective _ _ body, _, _, same => range_body_run_shaped body same
+/-- Every data range body the independent grammar accepts is shaped. -/
+theorem range_body_run_shaped {count limit : Nat} :
+    ∀ {depth : Nat} {keyword : functional.Token} {form : functional_ranges.RangeForm} {tokens : Tokens}
+      {result : core.result.Result (SourceDataRange × Tokens) functional_ranges.RangeError},
+      Rowl.FunctionalRanges.BodyRun rows source eof count limit depth keyword form tokens result →
+      ∀ {value : SourceDataRange} {rest : Tokens}, result = .Ok (value,rest) → RangeShaped value
+  | _, _, _, _, _, .membersError _, _, _, same => by cases same
+  | _, _, _, _, _, .tooFew _ _, _, _, same => by cases same
+  | _, _, _, _, _, .junctionCloseError _ _ _, _, _, same => by cases same
+  | _, _, .Junction conjunctive, _, _, .junction members enough _, _, _, same => by
+    cases same
+    have each := range_members_run_shaped members (by simp) rfl
+    cases conjunctive
+    · exact .union enough each
+    · exact .intersection enough each
+  | _, _, _, _, _, .operandError _, _, _, same => by cases same
+  | _, _, _, _, _, .complementCloseError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .complement operandRun _, _, _, same => by
+    cases same
+    exact .complement (range_run_shaped operandRun rfl)
+  | _, _, _, _, _, .literalsError _, _, _, same => by cases same
+  | _, _, _, _, _, .noLiteral _ _, _, _, same => by cases same
+  | _, _, _, _, _, .oneOfCloseError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .oneOf _ enough _, _, _, same => by cases same; exact .oneOf enough
+  | _, _, _, _, _, .datatypeTokenError _, _, _, same => by cases same
+  | _, _, _, _, _, .restrictionDatatypeError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .facetsError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .noFacet _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .restrictionCloseError _ _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .restriction _ _ _ enough _, _, _, same => by cases same; exact .restriction enough
+/-- Every data range member sequence the independent grammar accepts extends
+    the shaped members before it with shaped members. -/
+theorem range_members_run_shaped {count limit : Nat} :
+    ∀ {depth : Nat} {prior : List SourceDataRange} {tokens : Tokens}
+      {result : core.result.Result (alloc.vec.Vec SourceDataRange × Tokens) functional_ranges.RangeError},
+      Rowl.FunctionalRanges.MembersRun rows source eof count limit depth prior tokens result →
+      (∀ member ∈ prior, RangeShaped member) →
+      ∀ {records : alloc.vec.Vec SourceDataRange} {rest : Tokens}, result = .Ok (records,rest) →
+        ∀ member ∈ records.val, RangeShaped member
+  | _, _, _, _, .empty contents, earlier, _, _, same => by
+    cases same
+    rw [contents]
+    exact earlier
+  | _, _, _, _, .stop _ contents, earlier, _, _, same => by
+    cases same
+    rw [contents]
+    exact earlier
+  | _, _, _, _, .countLimit _ _, _, _, _, same => by cases same
+  | _, _, _, _, .memberError _ _ _, _, _, _, same => by cases same
+  | _, _, _, _, .member _ _ memberRun later, earlier, _, _, same =>
+    range_members_run_shaped later (by
+      intro member inside
+      rcases List.mem_append.mp inside with old | new
+      · exact earlier member old
+      · rw [List.mem_singleton.mp new]
+        exact range_run_shaped memberRun rfl) same
+end
+/-- Every optional data range the independent grammar accepts is shaped. -/
+theorem optional_run_shaped {count limit depth : Nat} {tokens : Tokens}
+    {result : core.result.Result (Option SourceDataRange × Tokens) functional_ranges.RangeError}
+    (run : Rowl.FunctionalRanges.OptionalRun rows source eof count limit depth tokens result)
+    {range : Option SourceDataRange} {rest : Tokens} (same : result = .Ok (range,rest)) :
+    ∀ value, range = some value → RangeShaped value := by
+  cases run with
+  | empty => cases same; intro value isSome; cases isSome
+  | stop _ => cases same; intro value isSome; cases isSome
+  | rangeError _ _ => cases same
+  | range _ rangeRun =>
+    cases same
+    intro value isSome
+    cases isSome
+    exact range_run_shaped rangeRun rfl
+/-- A data number restriction is shaped when its data range, if any, is. -/
+private theorem shaped_data_cardinality {keyword number : functional.Token} {bound : functional_classes.Bound}
+    {value : Usize} {property : HeaderIri} {range : Option SourceDataRange}
+    (inner : ∀ r, range = some r → RangeShaped r) :
+    Shaped (.DataCardinality keyword bound number value property range) := by
+  cases range with
+  | none => exact .dataCardinality
+  | some r => exact .dataQualified (inner r rfl)
+
 /-- A number restriction is shaped when its filler, if any, is. -/
 private theorem shaped_cardinality {keyword number : functional.Token} {bound : functional_classes.Bound}
     {value : Usize} {property : SourceObjectProperty} {filler : Option SourceClass}
@@ -1249,7 +1767,6 @@ theorem class_run_shaped {count limit : Nat} :
   | _, _, _, .empty, _, _, same => by cases same
   | _, _, _, .namedError _ _, _, _, same => by cases same
   | _, _, _, .named _ _, _, _, same => by cases same; exact .named
-  | _, _, _, .unsupported _, _, _, same => by cases same
   | _, _, _, .depthLimit _, _, _, same => by cases same
   | _, _, _, .openError _ _, _, _, same => by cases same
   | _, _, _, .connective _ _ body, _, _, same => connective_run_shaped body same
@@ -1303,6 +1820,27 @@ theorem connective_run_shaped {count limit : Nat} :
   | _, _, _, _, _, .cardinality _ _ _ fillerRun _, _, _, same => by
     cases same
     exact shaped_cardinality (filler_run_shaped fillerRun rfl)
+  | _, _, _, _, _, .dataPropertyError _, _, _, same => by cases same
+  | _, _, _, _, _, .rangeError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataCloseError _ _ _, _, _, same => by cases same
+  | _, _, .DataRestriction existential, _, _, .dataRestriction _ rangeRun _, _, _, same => by
+    cases same
+    have inner := range_run_shaped rangeRun rfl
+    cases existential
+    · exact .dataAll inner
+    · exact .dataSome inner
+  | _, _, _, _, _, .dataValuePropertyError _, _, _, same => by cases same
+  | _, _, _, _, _, .literalError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataValueCloseError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataHasValue _ _ _, _, _, same => by cases same; exact .dataValue
+  | _, _, _, _, _, .dataNumberError _, _, _, same => by cases same
+  | _, _, _, _, _, .dataCountError _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataCountPropertyError _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .optionalRangeError _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataCountCloseError _ _ _ _ _, _, _, same => by cases same
+  | _, _, _, _, _, .dataCardinality _ _ _ rangeRun _, _, _, same => by
+    cases same
+    exact shaped_data_cardinality (optional_run_shaped rangeRun rfl)
 /-- Every member sequence the independent class grammar accepts extends the
     shaped members before it with shaped members. -/
 theorem members_run_shaped {count limit : Nat} :

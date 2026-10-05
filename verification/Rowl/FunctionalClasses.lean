@@ -1,6 +1,7 @@
 import Rowl.Decimal
 import Rowl.FunctionalHeaderIdentity
 import Rowl.FunctionalIndividuals
+import Rowl.FunctionalRanges
 
 /-!
 Functional Syntax class expressions of the reasoner's fragment, proved total
@@ -8,8 +9,9 @@ and exact against an independent recursive grammar: named classes,
 intersections, unions, complements, enumerations of individuals, existential
 and universal restrictions, individual value restrictions, self restrictions,
 number restrictions with or without a filler, whose number is an integer token
-of ASCII digits with a value of at most the count limit, and object property
-expressions, with individuals read by the independent individual grammar. Every
+of ASCII digits with a value of at most the count limit, object property
+expressions, and the data restrictions over one data property, with
+individuals, literals and data ranges read by their independent grammars. Every
 result and first error has its independent derivation, and every derivation is
 the actual result.
 -/
@@ -26,8 +28,8 @@ attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
-/-- The class-expression keywords: the supported connectives, the six data
-    restrictions read by a later stage, and every other terminal. -/
+/-- The class-expression keywords: the seventeen connectives and every other
+    terminal. -/
 def KeywordOf : Terminal → ClassKeyword
   | .Keyword .ObjectIntersectionOf => .Connective (.Junction true)
   | .Keyword .ObjectUnionOf => .Connective (.Junction false)
@@ -40,12 +42,12 @@ def KeywordOf : Terminal → ClassKeyword
   | .Keyword .ObjectMinCardinality => .Connective (.Cardinality .Min)
   | .Keyword .ObjectMaxCardinality => .Connective (.Cardinality .Max)
   | .Keyword .ObjectExactCardinality => .Connective (.Cardinality .Exact)
-  | .Keyword .DataSomeValuesFrom => .Unsupported
-  | .Keyword .DataAllValuesFrom => .Unsupported
-  | .Keyword .DataHasValue => .Unsupported
-  | .Keyword .DataMinCardinality => .Unsupported
-  | .Keyword .DataMaxCardinality => .Unsupported
-  | .Keyword .DataExactCardinality => .Unsupported
+  | .Keyword .DataSomeValuesFrom => .Connective (.DataRestriction true)
+  | .Keyword .DataAllValuesFrom => .Connective (.DataRestriction false)
+  | .Keyword .DataHasValue => .Connective .DataValue
+  | .Keyword .DataMinCardinality => .Connective (.DataCardinality .Min)
+  | .Keyword .DataMaxCardinality => .Connective (.DataCardinality .Max)
+  | .Keyword .DataExactCardinality => .Connective (.DataCardinality .Exact)
   | _ => .Other
 /-- Independent first-terminal class required at each position. -/
 def Expected : ClassExpected → Terminal → Prop
@@ -337,11 +339,62 @@ theorem property_progress {rows : List prefixes.Declaration} {source : List U8} 
     try simp only [TokenCount] at *
     omega
 
+/-- A data property: an IRI resolved through the checked prefix rows. -/
+inductive DataPropertyRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (limit : Nat) :
+    Tokens → core.result.Result (HeaderIri × Tokens) ClassError → Prop
+  | empty : DataPropertyRun rows source eof limit .Empty (.Err (.Expected .Iri eof))
+  | error {token : Token} {tail : Tokens} {error : ClassError}
+      (resolved : ResolveRun rows source limit .Iri token (.Err error)) :
+      DataPropertyRun rows source eof limit (.Cons token tail) (.Err error)
+  | property {token : Token} {tail : Tokens} {iri : HeaderIri}
+      (resolved : ResolveRun rows source limit .Iri token (.Ok iri)) :
+      DataPropertyRun rows source eof limit (.Cons token tail) (.Ok (iri,tail))
+
+/-- Data property reading is total and follows the independent grammar. -/
+theorem read_data_property_total_correct (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
+    (tokens : Tokens) (limit : Usize) :
+    ∃ result, read_data_property table bytes tokens limit = .ok result ∧
+      DataPropertyRun table.declarations.val bytes.val bytes.len limit.val tokens result := by
+  cases tokens with
+  | Empty => exact ⟨.Err (.Expected .Iri bytes.len),by rw [read_data_property],.empty⟩
+  | Cons token tail =>
+    rw [read_data_property]
+    obtain ⟨resolved,resolveRead,resolveCorrect⟩ := resolve_total_correct table bytes token .Iri limit
+    cases resolved with
+    | Err error => exact ⟨.Err error,by simp [resolveRead],.error resolveCorrect⟩
+    | Ok iri => exact ⟨.Ok (iri,tail),by simp [resolveRead],.property resolveCorrect⟩
+/-- Every data property and first error is its independent derivation. -/
+theorem read_data_property_result_iff (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8)
+    (tokens : Tokens) (limit : Usize) (result : core.result.Result (HeaderIri × Tokens) ClassError) :
+    read_data_property table bytes tokens limit = .ok result ↔
+      DataPropertyRun table.declarations.val bytes.val bytes.len limit.val tokens result := by
+  constructor
+  · intro output
+    obtain ⟨actual,executed,correct⟩ := read_data_property_total_correct table bytes tokens limit
+    have same := Result.ok_injective (executed.symm.trans output)
+    simpa [same] using correct
+  · intro source
+    cases source with
+    | empty => rw [read_data_property]
+    | error resolved =>
+      rw [read_data_property]
+      simp [(resolve_result_iff table bytes _ .Iri limit _).mpr resolved]
+    | property resolved =>
+      rw [read_data_property]
+      simp [(resolve_result_iff table bytes _ .Iri limit _).mpr resolved]
+/-- An accepted data property consumes its token. -/
+theorem data_property_progress {rows : List prefixes.Declaration} {source : List U8} {eof : Usize} {limit : Nat}
+    {tokens rest : Tokens} {property : HeaderIri}
+    (accepted : DataPropertyRun rows source eof limit tokens (.Ok (property,rest))) :
+    TokenCount tokens = 1+TokenCount rest := by
+  cases accepted
+  rfl
+
 mutual
 /-- Independent class-expression grammar in source order. A named class is an
     IRI token resolved through the checked prefix rows. At a connective keyword
     the remaining nesting allowance is checked, then `(`, then the connective's
-    body one level deeper; unsupported forms are reported at their keyword. -/
+    body one level deeper. -/
 inductive ClassRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (count limit : Nat) :
     Nat → Tokens → core.result.Result (SourceClass × Tokens) ClassError → Prop
   | empty {depth : Nat} : ClassRun rows source eof count limit depth .Empty (.Err (.Expected .Class eof))
@@ -351,9 +404,6 @@ inductive ClassRun (rows : List prefixes.Declaration) (source : List U8) (eof : 
   | named {depth : Nat} {token : Token} {tail : Tokens} {iri : HeaderIri}
       (other : KeywordOf token.terminal = .Other) (resolved : ResolveRun rows source limit .Class token (.Ok iri)) :
       ClassRun rows source eof count limit depth (.Cons token tail) (.Ok (.Named iri,tail))
-  | unsupported {depth : Nat} {token : Token} {tail : Tokens}
-      (keyword : KeywordOf token.terminal = .Unsupported) :
-      ClassRun rows source eof count limit depth (.Cons token tail) (.Err (.Unsupported token.start))
   | depthLimit {token : Token} {tail : Tokens} {form : ClassForm}
       (keyword : KeywordOf token.terminal = .Connective form) :
       ClassRun rows source eof count limit 0 (.Cons token tail) (.Err (.DepthLimit token.start))
@@ -374,7 +424,9 @@ inductive ClassRun (rows : List prefixes.Declaration) (source : List U8) (eof : 
     individual and `)`. Self restrictions read an object property expression and
     `)`; number restrictions read the number, an integer token whose bounded
     reading is its value, then an object property expression, the optional
-    filler and `)`. -/
+    filler and `)`. Data restrictions read one data property, then a data range,
+    a literal or a number before the property and an optional data range, and
+    `)`; data ranges nest within the remaining allowance. -/
 inductive ConnectiveRun (rows : List prefixes.Declaration) (source : List U8) (eof : Usize) (count limit : Nat) :
     Nat → Token → ClassForm → Tokens → core.result.Result (SourceClass × Tokens) ClassError → Prop
   | membersError {depth : Nat} {keyword : Token} {conjunctive : Bool} {tokens : Tokens} {error : ClassError}
@@ -517,6 +569,89 @@ inductive ConnectiveRun (rows : List prefixes.Declaration) (source : List U8) (e
       (closing : TakeRun eof .Close last (.Ok (close,remaining))) :
       ConnectiveRun rows source eof count limit depth keyword (.Cardinality bound) tokens
         (.Ok (.Cardinality keyword bound number value property filler,remaining))
+  | dataPropertyError {depth : Nat} {keyword : Token} {existential : Bool} {tokens : Tokens} {error : ClassError}
+      (property : DataPropertyRun rows source eof limit tokens (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataRestriction existential) tokens (.Err error)
+  | rangeError {depth : Nat} {keyword : Token} {existential : Bool} {tokens rest : Tokens} {property : HeaderIri}
+      {error : functional_ranges.RangeError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (range : Rowl.FunctionalRanges.RangeRun rows source eof count limit depth rest (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataRestriction existential) tokens
+        (.Err (.Range error))
+  | dataCloseError {depth : Nat} {keyword : Token} {existential : Bool} {tokens rest after : Tokens}
+      {property : HeaderIri} {range : functional_ranges.SourceDataRange} {error : ClassError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (rangeRun : Rowl.FunctionalRanges.RangeRun rows source eof count limit depth rest (.Ok (range,after)))
+      (failure : TakeRun eof .Close after (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataRestriction existential) tokens (.Err error)
+  | dataRestriction {depth : Nat} {keyword close : Token} {existential : Bool} {tokens rest after remaining : Tokens}
+      {property : HeaderIri} {range : functional_ranges.SourceDataRange}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (rangeRun : Rowl.FunctionalRanges.RangeRun rows source eof count limit depth rest (.Ok (range,after)))
+      (closing : TakeRun eof .Close after (.Ok (close,remaining))) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataRestriction existential) tokens
+        (.Ok (if existential then .DataSomeValuesFrom keyword property range
+          else .DataAllValuesFrom keyword property range,remaining))
+  | dataValuePropertyError {depth : Nat} {keyword : Token} {tokens : Tokens} {error : ClassError}
+      (property : DataPropertyRun rows source eof limit tokens (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .DataValue tokens (.Err error)
+  | literalError {depth : Nat} {keyword : Token} {tokens rest : Tokens} {property : HeaderIri}
+      {error : functional_literals.SourceLiteralError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (literal : Rowl.FunctionalLiterals.Run rows source eof limit limit rest (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .DataValue tokens (.Err (.Literal error))
+  | dataValueCloseError {depth : Nat} {keyword : Token} {tokens rest after : Tokens} {property : HeaderIri}
+      {value : functional_literals.SourceLiteral} {error : ClassError}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (literalRun : Rowl.FunctionalLiterals.Run rows source eof limit limit rest (.Ok (value,after)))
+      (failure : TakeRun eof .Close after (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword .DataValue tokens (.Err error)
+  | dataHasValue {depth : Nat} {keyword close : Token} {tokens rest after remaining : Tokens} {property : HeaderIri}
+      {value : functional_literals.SourceLiteral}
+      (propertyRun : DataPropertyRun rows source eof limit tokens (.Ok (property,rest)))
+      (literalRun : Rowl.FunctionalLiterals.Run rows source eof limit limit rest (.Ok (value,after)))
+      (closing : TakeRun eof .Close after (.Ok (close,remaining))) :
+      ConnectiveRun rows source eof count limit depth keyword .DataValue tokens
+        (.Ok (.DataHasValue keyword property value,remaining))
+  | dataNumberError {depth : Nat} {keyword : Token} {bound : Bound} {tokens : Tokens} {error : ClassError}
+      (failure : TakeRun eof .Number tokens (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens (.Err error)
+  | dataCountError {depth : Nat} {keyword number : Token} {bound : Bound} {tokens rest : Tokens}
+      (taken : TakeRun eof .Number tokens (.Ok (number,rest)))
+      (excess : ∀ value, ¬ Rowl.Decimal.Bounded source number.start.val number.end.val count value) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens
+        (.Err (.CountLimit number.start))
+  | dataCountPropertyError {depth : Nat} {keyword number : Token} {bound : Bound} {tokens rest : Tokens}
+      {value : Usize} {error : ClassError}
+      (taken : TakeRun eof .Number tokens (.Ok (number,rest)))
+      (counted : Rowl.Decimal.Bounded source number.start.val number.end.val count value.val)
+      (property : DataPropertyRun rows source eof limit rest (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens (.Err error)
+  | optionalRangeError {depth : Nat} {keyword number : Token} {bound : Bound} {tokens rest after : Tokens}
+      {value : Usize} {property : HeaderIri} {error : functional_ranges.RangeError}
+      (taken : TakeRun eof .Number tokens (.Ok (number,rest)))
+      (counted : Rowl.Decimal.Bounded source number.start.val number.end.val count value.val)
+      (propertyRun : DataPropertyRun rows source eof limit rest (.Ok (property,after)))
+      (range : Rowl.FunctionalRanges.OptionalRun rows source eof count limit depth after (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens (.Err (.Range error))
+  | dataCountCloseError {depth : Nat} {keyword number : Token} {bound : Bound} {tokens rest after last : Tokens}
+      {value : Usize} {property : HeaderIri} {range : Option functional_ranges.SourceDataRange} {error : ClassError}
+      (taken : TakeRun eof .Number tokens (.Ok (number,rest)))
+      (counted : Rowl.Decimal.Bounded source number.start.val number.end.val count value.val)
+      (propertyRun : DataPropertyRun rows source eof limit rest (.Ok (property,after)))
+      (rangeRun : Rowl.FunctionalRanges.OptionalRun rows source eof count limit depth after (.Ok (range,last)))
+      (failure : TakeRun eof .Close last (.Err error)) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens (.Err error)
+  | dataCardinality {depth : Nat} {keyword number close : Token} {bound : Bound}
+      {tokens rest after last remaining : Tokens} {value : Usize} {property : HeaderIri}
+      {range : Option functional_ranges.SourceDataRange}
+      (taken : TakeRun eof .Number tokens (.Ok (number,rest)))
+      (counted : Rowl.Decimal.Bounded source number.start.val number.end.val count value.val)
+      (propertyRun : DataPropertyRun rows source eof limit rest (.Ok (property,after)))
+      (rangeRun : Rowl.FunctionalRanges.OptionalRun rows source eof count limit depth after (.Ok (range,last)))
+      (closing : TakeRun eof .Close last (.Ok (close,remaining))) :
+      ConnectiveRun rows source eof count limit depth keyword (.DataCardinality bound) tokens
+        (.Ok (.DataCardinality keyword bound number value property range,remaining))
 /-- Independent maximal member sequence: it stops before `)` or at the end;
     otherwise the member count is checked, then one class expression is read and
     appended in source order. -/
@@ -583,8 +718,6 @@ theorem read_class_total_correct (table : prefixes.PrefixTable) (bytes : alloc.v
         intro value rest same
         cases same
         simp [TokenCount]
-    | Unsupported =>
-      exact ⟨.Err (.Unsupported token.start),rfl,.unsupported keyword,by intro value rest impossible; cases impossible⟩
     | Connective form =>
       by_cases zero : depth.val = 0
       · refine ⟨.Err (.DepthLimit token.start),by simp [UScalar.eq_equiv,zero],?_,
@@ -858,6 +991,125 @@ theorem read_connective_total_correct (table : prefixes.PrefixTable) (bytes : al
               cases same
               try simp only [TokenCount] at *
               omega
+  | DataRestriction existential =>
+    obtain ⟨property,propertyRead,propertyCorrect⟩ := read_data_property_total_correct table bytes tokens limits.iri
+    cases property with
+    | Err error =>
+      exact ⟨.Err error,by simp [propertyRead],.dataPropertyError propertyCorrect,
+        by intro value rest impossible; cases impossible⟩
+    | Ok pair =>
+      obtain ⟨property,rest⟩ := pair
+      have propertyStep := data_property_progress propertyCorrect
+      obtain ⟨range,rangeRead,rangeCorrect,rangeProgress⟩ :=
+        Rowl.FunctionalRanges.read_data_range_total_correct table bytes rest depth limits.count limits.iri
+      cases range with
+      | Err error =>
+        exact ⟨.Err (.Range error),by simp [propertyRead,rangeRead],.rangeError propertyCorrect rangeCorrect,
+          by intro value rest impossible; cases impossible⟩
+      | Ok pair =>
+        obtain ⟨range,after⟩ := pair
+        have rangeStep := rangeProgress range after rfl
+        obtain ⟨closed,closeRead,closeCorrect⟩ := take_expected_total_correct after .Close bytes.len
+        cases closed with
+        | Err error =>
+          exact ⟨.Err error,by simp [propertyRead,rangeRead,closeRead],
+            .dataCloseError propertyCorrect rangeCorrect closeCorrect,by intro value rest impossible; cases impossible⟩
+        | Ok pair =>
+          obtain ⟨close,remaining⟩ := pair
+          refine ⟨.Ok (if existential then .DataSomeValuesFrom keyword property range
+              else .DataAllValuesFrom keyword property range,remaining),?_,
+            .dataRestriction propertyCorrect rangeCorrect closeCorrect,?_⟩
+          · cases existential <;> simp [propertyRead,rangeRead,closeRead]
+          · intro value rest' same
+            have two := take_progress closeCorrect
+            cases same
+            try simp only [TokenCount] at *
+            omega
+  | DataValue =>
+    obtain ⟨property,propertyRead,propertyCorrect⟩ := read_data_property_total_correct table bytes tokens limits.iri
+    cases property with
+    | Err error =>
+      exact ⟨.Err error,by simp [propertyRead],.dataValuePropertyError propertyCorrect,
+        by intro value rest impossible; cases impossible⟩
+    | Ok pair =>
+      obtain ⟨property,rest⟩ := pair
+      have propertyStep := data_property_progress propertyCorrect
+      obtain ⟨literal,literalRead,literalCorrect⟩ :=
+        Rowl.FunctionalLiterals.read_literal_total_correct table bytes rest limits.iri limits.iri
+      cases literal with
+      | Err error =>
+        exact ⟨.Err (.Literal error),by simp [propertyRead,literalRead],.literalError propertyCorrect literalCorrect,
+          by intro value rest impossible; cases impossible⟩
+      | Ok pair =>
+        obtain ⟨value,after⟩ := pair
+        have literalStep := (Rowl.FunctionalLiterals.literal_token_progress table bytes _ limits.iri limits.iri
+          value after literalRead).2
+        obtain ⟨closed,closeRead,closeCorrect⟩ := take_expected_total_correct after .Close bytes.len
+        cases closed with
+        | Err error =>
+          exact ⟨.Err error,by simp [propertyRead,literalRead,closeRead],
+            .dataValueCloseError propertyCorrect literalCorrect closeCorrect,
+            by intro value rest impossible; cases impossible⟩
+        | Ok pair =>
+          obtain ⟨close,remaining⟩ := pair
+          refine ⟨.Ok (.DataHasValue keyword property value,remaining),by simp [propertyRead,literalRead,closeRead],
+            .dataHasValue propertyCorrect literalCorrect closeCorrect,?_⟩
+          intro value' rest' same
+          have two := take_progress closeCorrect
+          cases same
+          try simp only [TokenCount] at *
+          omega
+  | DataCardinality bound =>
+    obtain ⟨taken,takenRead,takenCorrect⟩ := take_expected_total_correct tokens .Number bytes.len
+    cases taken with
+    | Err error =>
+      exact ⟨.Err error,by simp [takenRead],.dataNumberError takenCorrect,by intro value rest impossible; cases impossible⟩
+    | Ok pair =>
+      obtain ⟨number,rest⟩ := pair
+      have numberStep := take_progress takenCorrect
+      obtain ⟨counted,countRead,countCorrect⟩ :=
+        Rowl.Decimal.read_bounded_total_correct bytes number.start number.end limits.count
+      cases counted with
+      | none =>
+        have excess := (Rowl.Decimal.read_bounded_none_iff bytes number.start number.end limits.count).mp countRead
+        exact ⟨.Err (.CountLimit number.start),by simp [takenRead,countRead],.dataCountError takenCorrect excess,
+          by intro value rest impossible; cases impossible⟩
+      | some value =>
+        have bounded := (countCorrect value).mp rfl
+        obtain ⟨property,propertyRead,propertyCorrect⟩ := read_data_property_total_correct table bytes rest limits.iri
+        cases property with
+        | Err error =>
+          exact ⟨.Err error,by simp [takenRead,countRead,propertyRead],
+            .dataCountPropertyError takenCorrect bounded propertyCorrect,by intro value rest impossible; cases impossible⟩
+        | Ok pair =>
+          obtain ⟨property,after⟩ := pair
+          have propertyStep := data_property_progress propertyCorrect
+          obtain ⟨range,rangeRead,rangeCorrect,rangeProgress⟩ :=
+            Rowl.FunctionalRanges.read_optional_range_total_correct table bytes after depth limits.count limits.iri
+          cases range with
+          | Err error =>
+            exact ⟨.Err (.Range error),by simp [takenRead,countRead,propertyRead,rangeRead],
+              .optionalRangeError takenCorrect bounded propertyCorrect rangeCorrect,
+              by intro value rest impossible; cases impossible⟩
+          | Ok pair =>
+            obtain ⟨range,last⟩ := pair
+            have rangeStep := rangeProgress range last rfl
+            obtain ⟨closed,closeRead,closeCorrect⟩ := take_expected_total_correct last .Close bytes.len
+            cases closed with
+            | Err error =>
+              exact ⟨.Err error,by simp [takenRead,countRead,propertyRead,rangeRead,closeRead],
+                .dataCountCloseError takenCorrect bounded propertyCorrect rangeCorrect closeCorrect,
+                by intro value rest impossible; cases impossible⟩
+            | Ok pair =>
+              obtain ⟨close,remaining⟩ := pair
+              refine ⟨.Ok (.DataCardinality keyword bound number value property range,remaining),
+                by simp [takenRead,countRead,propertyRead,rangeRead,closeRead],
+                .dataCardinality takenCorrect bounded propertyCorrect rangeCorrect closeCorrect,?_⟩
+              intro value' rest' same
+              have closed := take_progress closeCorrect
+              cases same
+              try simp only [TokenCount] at *
+              omega
 termination_by (TokenCount tokens,2)
 decreasing_by
   all_goals
@@ -974,9 +1226,6 @@ theorem class_execution (table : prefixes.PrefixTable) (bytes : alloc.vec.Vec U8
   | named other resolved =>
     rw [read_class.eq_def]
     simp [class_keyword_total_correct,other,(resolve_result_iff table bytes _ .Class limits.iri _).mpr resolved]
-  | unsupported keyword =>
-    rw [read_class.eq_def]
-    simp [class_keyword_total_correct,keyword]
   | depthLimit keyword =>
     rw [read_class.eq_def]
     simp [class_keyword_total_correct,keyword,UScalar.eq_equiv,same]
@@ -1145,6 +1394,79 @@ theorem connective_execution (table : prefixes.PrefixTable) (bytes : alloc.vec.V
     simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
       (Rowl.Decimal.read_bounded_some_iff bytes _ _ limits.count _).mpr counted,
       (read_object_property_result_iff table bytes _ limits.iri _).mpr propertyRun,fillerRead,
+      (take_expected_result_iff _ .Close bytes.len _).mpr closing]
+  | dataPropertyError property =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr property]
+  | rangeError propertyRun range =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalRanges.read_data_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+        (by rw [same]; exact range)]
+  | dataCloseError propertyRun rangeRun failure =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalRanges.read_data_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+        (by rw [same]; exact rangeRun),
+      (take_expected_result_iff _ .Close bytes.len _).mpr failure]
+  | dataRestriction propertyRun rangeRun closing =>
+    rw [read_connective.eq_def]
+    cases ‹Bool› <;>
+      simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+        (Rowl.FunctionalRanges.read_data_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+          (by rw [same]; exact rangeRun),
+        (take_expected_result_iff _ .Close bytes.len _).mpr closing]
+  | dataValuePropertyError property =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr property]
+  | literalError propertyRun literal =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ limits.iri limits.iri _).mpr literal]
+  | dataValueCloseError propertyRun literalRun failure =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ limits.iri limits.iri _).mpr literalRun,
+      (take_expected_result_iff _ .Close bytes.len _).mpr failure]
+  | dataHasValue propertyRun literalRun closing =>
+    rw [read_connective.eq_def]
+    simp [(read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalLiterals.read_literal_result_iff table bytes _ limits.iri limits.iri _).mpr literalRun,
+      (take_expected_result_iff _ .Close bytes.len _).mpr closing]
+  | dataNumberError failure =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr failure]
+  | dataCountError taken excess =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
+      (Rowl.Decimal.read_bounded_none_iff bytes _ _ limits.count).mpr excess]
+  | dataCountPropertyError taken counted property =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
+      (Rowl.Decimal.read_bounded_some_iff bytes _ _ limits.count _).mpr counted,
+      (read_data_property_result_iff table bytes _ limits.iri _).mpr property]
+  | optionalRangeError taken counted propertyRun range =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
+      (Rowl.Decimal.read_bounded_some_iff bytes _ _ limits.count _).mpr counted,
+      (read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalRanges.read_optional_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+        (by rw [same]; exact range)]
+  | dataCountCloseError taken counted propertyRun rangeRun failure =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
+      (Rowl.Decimal.read_bounded_some_iff bytes _ _ limits.count _).mpr counted,
+      (read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalRanges.read_optional_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+        (by rw [same]; exact rangeRun),
+      (take_expected_result_iff _ .Close bytes.len _).mpr failure]
+  | dataCardinality taken counted propertyRun rangeRun closing =>
+    rw [read_connective.eq_def]
+    simp [(take_expected_result_iff _ .Number bytes.len _).mpr taken,
+      (Rowl.Decimal.read_bounded_some_iff bytes _ _ limits.count _).mpr counted,
+      (read_data_property_result_iff table bytes _ limits.iri _).mpr propertyRun,
+      (Rowl.FunctionalRanges.read_optional_range_result_iff table bytes _ depth limits.count limits.iri _).mpr
+        (by rw [same]; exact rangeRun),
       (take_expected_result_iff _ .Close bytes.len _).mpr closing]
 termination_by (TokenCount tokens,2)
 decreasing_by

@@ -222,10 +222,10 @@ fn errors_report_the_first_failing_step() {
         _ => panic!("only individuals belong in the list"),
     }
     // A class expression error keeps the class stage.
-    let (_, result) = read("ClassAssertion(DataHasValue(:d \"1\") :pump1))");
+    let (_, result) = read("ClassAssertion(ObjectUnionOf(:A) :pump1))");
     assert!(matches!(
         result,
-        Err(AssertionError::Class(ClassError::Unsupported { .. }))
+        Err(AssertionError::Class(ClassError::Expected { .. }))
     ));
     // Content after the target individual.
     let (bytes, result) = read("ObjectPropertyAssertion(:hasPart :pump1 :motor1 :extra))");

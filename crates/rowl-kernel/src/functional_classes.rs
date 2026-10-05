@@ -1,15 +1,17 @@
 //! Functional Syntax class expressions of the reasoner's fragment.
 //!
-//! Reads named classes, `ObjectIntersectionOf`, `ObjectUnionOf`,
-//! `ObjectComplementOf`, `ObjectOneOf`, `ObjectSomeValuesFrom`,
-//! `ObjectAllValuesFrom`, `ObjectHasValue`, `ObjectHasSelf` and
+//! Reads all eighteen forms: named classes, `ObjectIntersectionOf`,
+//! `ObjectUnionOf`, `ObjectComplementOf`, `ObjectOneOf`, `ObjectSomeValuesFrom`,
+//! `ObjectAllValuesFrom`, `ObjectHasValue`, `ObjectHasSelf`,
 //! `ObjectMinCardinality`, `ObjectMaxCardinality` and `ObjectExactCardinality`
 //! with or without a filler, with object property expressions `IRI` or
 //! `ObjectInverseOf( IRI )` and individuals read by the proved individual
-//! reader. The six data restrictions are reported as unsupported at their
-//! keyword; a later stage reads them. Records keep the original keyword, number
-//! and IRI tokens, the values of the numbers and the IRIs resolved through the
-//! checked prefix table.
+//! reader, and `DataSomeValuesFrom`, `DataAllValuesFrom`, `DataHasValue`,
+//! `DataMinCardinality`, `DataMaxCardinality` and `DataExactCardinality` with
+//! one data property, since every OWL 2 data range is unary, data ranges read by
+//! the proved data range reader and literals by the proved literal reader.
+//! Records keep the original keyword, number and IRI tokens, the values of the
+//! numbers and the IRIs resolved through the checked prefix table.
 #![allow(clippy::ptr_arg, clippy::question_mark)]
 use crate::decimal::read_bounded;
 use crate::functional::{Keyword, Terminal, Token};
@@ -19,6 +21,8 @@ use crate::functional_individuals::{
 };
 use crate::functional_iris::{resolve_span, SourceIriError};
 use crate::functional_lexer::Tokens;
+use crate::functional_literals::{read_literal, SourceLiteral, SourceLiteralError};
+use crate::functional_ranges::{read_data_range, read_optional_range, RangeError, SourceDataRange};
 use crate::prefixes::PrefixTable;
 
 /// An object property expression: a property IRI or its inverse.
@@ -82,11 +86,36 @@ pub enum SourceClass {
         property: SourceObjectProperty,
         filler: Option<Box<SourceClass>>,
     },
+    DataSomeValuesFrom {
+        keyword: Token,
+        property: HeaderIri,
+        range: SourceDataRange,
+    },
+    DataAllValuesFrom {
+        keyword: Token,
+        property: HeaderIri,
+        range: SourceDataRange,
+    },
+    DataHasValue {
+        keyword: Token,
+        property: HeaderIri,
+        value: SourceLiteral,
+    },
+    DataCardinality {
+        keyword: Token,
+        bound: Bound,
+        number: Token,
+        value: usize,
+        property: HeaderIri,
+        range: Option<SourceDataRange>,
+    },
 }
-/// `depth` bounds connective nesting: 0 permits only named classes, because
-/// each level uses the physical stack. `count` bounds the members of each
-/// intersection, union and enumeration and the value of each number
-/// restriction. `iri` bounds every final IRI and node ID.
+/// `depth` bounds connective nesting, data ranges included: 0 permits only
+/// named classes, because each level uses the physical stack. `count` bounds the
+/// members of each intersection, union and enumeration, the facets of each
+/// datatype restriction and the value of each number restriction. `iri` bounds
+/// every final IRI and node ID and every literal's lexical form and datatype
+/// IRI.
 pub struct ClassLimits {
     pub depth: usize,
     pub count: usize,
@@ -109,10 +138,8 @@ pub enum ClassError {
     },
     Iri(SourceIriError),
     Individual(IndividualError),
-    /// A class-expression form that this stage does not read yet.
-    Unsupported {
-        offset: usize,
-    },
+    Range(RangeError),
+    Literal(SourceLiteralError),
     DepthLimit {
         offset: usize,
     },
@@ -121,10 +148,10 @@ pub enum ClassError {
         offset: usize,
     },
 }
-/// A supported connective: an intersection (`true`) or union (`false`), a
-/// complement, an existential (`true`) or universal (`false`) restriction, an
-/// enumeration of individuals, a restriction to one individual value, a self
-/// restriction or a number restriction.
+/// A connective: an intersection (`true`) or union (`false`), a complement, an
+/// existential (`true`) or universal (`false`) restriction, an enumeration of
+/// individuals, a restriction to one individual value, a self restriction, a
+/// number restriction, or their data forms.
 #[derive(Clone, Copy)]
 enum ClassForm {
     Junction(bool),
@@ -134,10 +161,12 @@ enum ClassForm {
     HasValue,
     SelfRestriction,
     Cardinality(Bound),
+    DataRestriction(bool),
+    DataValue,
+    DataCardinality(Bound),
 }
 enum ClassKeyword {
     Connective(ClassForm),
-    Unsupported,
     Other,
 }
 fn class_keyword(terminal: Terminal) -> ClassKeyword {
@@ -171,12 +200,22 @@ fn class_keyword(terminal: Terminal) -> ClassKeyword {
         Terminal::Keyword(Keyword::ObjectExactCardinality) => {
             ClassKeyword::Connective(ClassForm::Cardinality(Bound::Exact))
         }
-        Terminal::Keyword(Keyword::DataSomeValuesFrom) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::DataAllValuesFrom) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::DataHasValue) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::DataMinCardinality) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::DataMaxCardinality) => ClassKeyword::Unsupported,
-        Terminal::Keyword(Keyword::DataExactCardinality) => ClassKeyword::Unsupported,
+        Terminal::Keyword(Keyword::DataSomeValuesFrom) => {
+            ClassKeyword::Connective(ClassForm::DataRestriction(true))
+        }
+        Terminal::Keyword(Keyword::DataAllValuesFrom) => {
+            ClassKeyword::Connective(ClassForm::DataRestriction(false))
+        }
+        Terminal::Keyword(Keyword::DataHasValue) => ClassKeyword::Connective(ClassForm::DataValue),
+        Terminal::Keyword(Keyword::DataMinCardinality) => {
+            ClassKeyword::Connective(ClassForm::DataCardinality(Bound::Min))
+        }
+        Terminal::Keyword(Keyword::DataMaxCardinality) => {
+            ClassKeyword::Connective(ClassForm::DataCardinality(Bound::Max))
+        }
+        Terminal::Keyword(Keyword::DataExactCardinality) => {
+            ClassKeyword::Connective(ClassForm::DataCardinality(Bound::Exact))
+        }
         _ => ClassKeyword::Other,
     }
 }
@@ -296,6 +335,26 @@ pub fn read_object_property(
         }
     }
 }
+/// Read one data property: an IRI.
+fn read_data_property(
+    table: &PrefixTable<'_>,
+    bytes: &Vec<u8>,
+    tokens: Tokens,
+    limit: usize,
+) -> Result<(HeaderIri, Tokens), ClassError> {
+    match tokens {
+        Tokens::Empty => Err(ClassError::Expected {
+            expected: ClassExpected::Iri,
+            offset: bytes.len(),
+        }),
+        Tokens::Cons { token, next } => {
+            match resolve(table, bytes, token, ClassExpected::Iri, limit) {
+                Ok(property) => Ok((property, *next)),
+                Err(error) => Err(error),
+            }
+        }
+    }
+}
 fn read_class(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,
@@ -315,9 +374,6 @@ fn read_class(
                     Err(error) => Err(error),
                 }
             }
-            ClassKeyword::Unsupported => Err(ClassError::Unsupported {
-                offset: token.start,
-            }),
             ClassKeyword::Connective(form) => {
                 if depth == 0 {
                     return Err(ClassError::DepthLimit {
@@ -498,6 +554,100 @@ fn read_connective(
                 remaining,
             ))
         }
+        ClassForm::DataRestriction(existential) => {
+            let (property, tokens) = match read_data_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (range, tokens) =
+                match read_data_range(table, bytes, tokens, depth, limits.count, limits.iri) {
+                    Ok(value) => value,
+                    Err(error) => return Err(ClassError::Range(error)),
+                };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            if existential {
+                Ok((
+                    SourceClass::DataSomeValuesFrom {
+                        keyword,
+                        property,
+                        range,
+                    },
+                    remaining,
+                ))
+            } else {
+                Ok((
+                    SourceClass::DataAllValuesFrom {
+                        keyword,
+                        property,
+                        range,
+                    },
+                    remaining,
+                ))
+            }
+        }
+        ClassForm::DataValue => {
+            let (property, tokens) = match read_data_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (value, tokens) = match read_literal(table, bytes, tokens, limits.iri, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(ClassError::Literal(error)),
+            };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((
+                SourceClass::DataHasValue {
+                    keyword,
+                    property,
+                    value,
+                },
+                remaining,
+            ))
+        }
+        ClassForm::DataCardinality(bound) => {
+            let (number, tokens) = match take_expected(tokens, ClassExpected::Number, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let value = match read_bounded(bytes, number.start, number.end, limits.count) {
+                Some(value) => value,
+                None => {
+                    return Err(ClassError::CountLimit {
+                        offset: number.start,
+                    })
+                }
+            };
+            let (property, tokens) = match read_data_property(table, bytes, tokens, limits.iri) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let (range, tokens) =
+                match read_optional_range(table, bytes, tokens, depth, limits.count, limits.iri) {
+                    Ok(value) => value,
+                    Err(error) => return Err(ClassError::Range(error)),
+                };
+            let (_, remaining) = match take_expected(tokens, ClassExpected::Close, bytes.len()) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            Ok((
+                SourceClass::DataCardinality {
+                    keyword,
+                    bound,
+                    number,
+                    value,
+                    property,
+                    range,
+                },
+                remaining,
+            ))
+        }
     }
 }
 /// The optional filler of a number restriction: none before `)` or at the end,
@@ -562,8 +712,9 @@ pub(crate) fn read_members(
 /// whose ASCII digits have a value of at most the count limit, before its
 /// property and its filler), then the two-member minimum of an intersection or
 /// union or the one-member minimum of an enumeration, then `)`. The unchanged
-/// suffix after the expression is returned. The data restrictions are reported
-/// as unsupported.
+/// suffix after the expression is returned. A data restriction reads one data
+/// property, its data range, literal or number and optional data range with the
+/// proved readers, nesting data ranges within the same depth.
 pub fn read_class_expression(
     table: &PrefixTable<'_>,
     bytes: &Vec<u8>,

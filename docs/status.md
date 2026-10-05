@@ -470,8 +470,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   a caller-supplied position. Individuals and individual lists have their own
   proved reader. The number of a number restriction is read by a proved bounded
   decimal reader: its value is at most the count limit, and a larger number is
-  rejected at its token without forming its value. The six data restrictions are
-  reported as unsupported.
+  rejected at its token without forming its value. The six data restrictions
+  (`DataSomeValuesFrom`, `DataAllValuesFrom`, `DataHasValue` and the data number
+  restrictions) take one data property, since every OWL 2 data range is unary,
+  with literals read by the proved literal reader and data ranges by the proved
+  data range reader: datatypes, `DataIntersectionOf`, `DataUnionOf`,
+  `DataComplementOf`, `DataOneOf` and `DatatypeRestriction` with its facets. All
+  eighteen class-expression forms are read.
   Nesting depth, member counts and numbers have explicit limits. Errors report the first
   failing step in source order with original offsets. The recursive reader is
   proved total by well-founded recursion on the token count, and both readers
@@ -519,7 +524,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   class expression or property and their named or anonymous individuals,
   enumerations, value restrictions, `SameIndividual` and `DifferentIndividuals`
   their individuals in source order, number restrictions their numbers as
-  unary naturals and their fillers, and object property axioms their
+  unary naturals and their fillers, data restrictions their data properties,
+  literals and data ranges, and object property axioms their
   properties, chains and member lists. Every mapping is proved total, and every
   result corresponds to its source records under an independent structural
   correspondence. The mapping declines only a member list, property chain or
@@ -900,7 +906,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. The Functional Syntax reader does not
   read data axioms yet.
-- 2103 audited public theorems and 1038 audited semantic definitions. Consistency,
+- 2142 audited public theorems and 1056 audited semantic definitions. Consistency,
   class satisfiability, subsumption and instance checking are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
   ALCIQO class, domain and range axioms with number restrictions on simple
@@ -914,7 +920,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 485 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 491 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption, clash detection on insertion, equality
@@ -929,7 +935,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2296-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2335-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
