@@ -1,10 +1,11 @@
 """Python bindings for ROWL, an OWL 2 reasoner with proved answers.
 
-A :class:`Reasoner` reads an OWL Functional Syntax document once and answers
-any number of questions about it by IRI. Every answer comes from the verified
-Rust pipeline (the document reader, the mapping into the OWL model and the
-prepared queries), which is proved against the OWL 2 Direct Semantics; this
-package only passes text across the C interface of the ``rowl-python`` crate.
+A :class:`Reasoner` reads an OWL Functional Syntax or N-Triples document once
+and answers any number of questions about it by IRI. Every answer comes from the
+verified Rust pipeline (the document reader, the mapping into the OWL model —
+for N-Triples the reverse OWL RDF mapping — and the prepared queries), which is
+proved against the OWL 2 Direct Semantics; this package only passes text across
+the C interface of the ``rowl-python`` crate.
 
 An answer is ``True`` or ``False``, or ``None`` when the question is outside
 the supported fragment or a limit was reached. ``False`` means *not entailed*,
@@ -35,7 +36,8 @@ class RowlError(Exception):
 
 
 class DocumentRejected(RowlError):
-    """The verified reader rejected the document."""
+    """The verified reader rejected the document, or its RDF graph is not the
+    mapping of an OWL ontology that the verified reverse mapping reads."""
 
 
 class UnsupportedOntology(RowlError):
@@ -93,6 +95,8 @@ _lib.rowl_version.argtypes = []
 _lib.rowl_version.restype = ctypes.c_char_p
 _lib.rowl_reasoner_from_functional.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
 _lib.rowl_reasoner_from_functional.restype = _handle
+_lib.rowl_reasoner_from_ntriples.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
+_lib.rowl_reasoner_from_ntriples.restype = _handle
 _lib.rowl_reasoner_free.argtypes = [_handle]
 _lib.rowl_reasoner_free.restype = None
 _lib.rowl_consistent.argtypes = [_handle]
@@ -109,7 +113,7 @@ for _name in ("rowl_classes", "rowl_individuals", "rowl_classify"):
 _lib.rowl_string_free.argtypes = [ctypes.c_void_p]
 _lib.rowl_string_free.restype = None
 
-_LOADED, _REJECTED, _UNSUPPORTED = 0, 1, 2
+_LOADED, _REJECTED, _UNSUPPORTED, _UNMAPPED = 0, 1, 2, 4
 
 
 def library_version() -> str:
@@ -134,7 +138,11 @@ def _utf8(text: str) -> bytes:
 
 
 class Reasoner:
-    """An OWL Functional Syntax document read and prepared once.
+    """An OWL Functional Syntax or N-Triples document read and prepared once.
+
+    ``syntax`` is ``"functional"`` (the default) or ``"ntriples"``; an
+    N-Triples graph is read as the OWL ontology it encodes by the verified
+    reverse RDF mapping.
 
     >>> r = Reasoner.from_file("examples/medication-safety.ofn")  # doctest: +SKIP
     >>> r.subsumed("https://example.org/medication/Amoxicillin",
@@ -142,22 +150,36 @@ class Reasoner:
     True
     """
 
-    def __init__(self, source: Union[str, bytes]):
+    def __init__(self, source: Union[str, bytes], syntax: str = "functional"):
         data = source.encode("utf-8") if isinstance(source, str) else bytes(source)
         status = ctypes.c_int32(-1)
-        handle = _lib.rowl_reasoner_from_functional(data, len(data), ctypes.byref(status))
+        if syntax == "functional":
+            handle = _lib.rowl_reasoner_from_functional(data, len(data), ctypes.byref(status))
+            rejected = "not a Functional Syntax document the verified reader accepts"
+        elif syntax == "ntriples":
+            handle = _lib.rowl_reasoner_from_ntriples(data, len(data), ctypes.byref(status))
+            rejected = "not an N-Triples document the verified reader accepts"
+        else:
+            raise ValueError("syntax must be 'functional' or 'ntriples'")
         if not handle:
             if status.value == _REJECTED:
-                raise DocumentRejected("not a Functional Syntax document the verified reader accepts")
+                raise DocumentRejected(rejected)
+            if status.value == _UNMAPPED:
+                raise DocumentRejected(
+                    "the graph is not the RDF mapping of an OWL ontology the verified mapping reads")
             if status.value == _UNSUPPORTED:
                 raise UnsupportedOntology("the axioms are outside the reasoner's supported fragment")
             raise RowlError("the document could not be loaded")
         self._handle = handle
 
     @classmethod
-    def from_file(cls, path: Union[str, os.PathLike]) -> "Reasoner":
-        """Read a Functional Syntax document from a file."""
-        return cls(Path(path).read_bytes())
+    def from_file(cls, path: Union[str, os.PathLike], syntax: Optional[str] = None) -> "Reasoner":
+        """Read a document from a file: N-Triples for a ``.nt`` file and
+        Functional Syntax otherwise, unless ``syntax`` says which."""
+        path = Path(path)
+        if syntax is None:
+            syntax = "ntriples" if path.suffix == ".nt" else "functional"
+        return cls(path.read_bytes(), syntax)
 
     def close(self) -> None:
         """Release the prepared document; further questions raise ``ValueError``."""

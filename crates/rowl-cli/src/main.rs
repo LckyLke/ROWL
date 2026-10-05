@@ -10,12 +10,25 @@ fn answer(value: Option<bool>) -> &'static str {
     }
 }
 
+/// Read a document: N-Triples for a `.nt` file, Functional Syntax otherwise.
 fn load(path: &str) -> Result<Reasoner, String> {
     let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
-    match Reasoner::from_functional(&source, &default_limits()) {
+    let loaded = if path.ends_with(".nt") {
+        Reasoner::from_ntriples(&source)
+    } else {
+        Reasoner::from_functional(&source, &default_limits())
+    };
+    match loaded {
         Ok(reasoner) => Ok(reasoner),
         Err(LoadError::Document(_)) => Err(format!(
             "{path}: not a Functional Syntax document the verified reader accepts"
+        )),
+        Err(LoadError::Triples(error)) => Err(format!(
+            "{path}: N-Triples parse error at byte {}",
+            error.offset
+        )),
+        Err(LoadError::Graph) => Err(format!(
+            "{path}: the graph is not the RDF mapping of an OWL ontology the verified mapping reads"
         )),
         Err(LoadError::Unsupported) => Err(format!(
             "{path}: the axioms are outside the reasoner's supported fragment"
@@ -89,7 +102,7 @@ fn nt_command(path: &str, export: bool) -> Result<(), String> {
             graph.triples.len()
         );
     }
-    eprintln!("The bounded reader is source-linked and proved; export proofs, canonical import scopes and OWL mapping remain pending.");
+    eprintln!("The bounded reader is source-linked and proved; check, classify and instances read the OWL ontology of a .nt file through the verified RDF mapping. Export proofs and canonical import scopes remain pending.");
     Ok(())
 }
 
@@ -102,7 +115,8 @@ fn main() -> std::process::ExitCode {
             println!("Complete RFC 3987 IRI and IRI-reference lexical validation from bytes is also proved; base resolution remains pending.");
             println!("Public bounded N-Triples reading now has composed byte-to-graph totality and complete-acceptance proofs, exact term values, ordered occurrences and first diagnostics.");
             println!("The top-data-property occurrence restriction is checked over the supplied complete axiom closure, with exact first-violation and acceptance proofs.");
-            println!("N-Triples reading and experimental export are available; writer laws, canonical import scopes and OWL mapping remain pending.");
+            println!("N-Triples reading and experimental export are available; writer laws and canonical import scopes remain pending.");
+            println!("The OWL ontology of an N-Triples graph is read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns for axioms without annotations; check, classify and instances accept .nt files.");
             println!("Complete raw role-fact collection is proved: oriented nodes, hierarchy edges, composite seeds, nested simple-role requirements and ordered chains. Non-simple classification and the whole-closure simple-role restriction checker are proved total and complete; full property-hierarchy regularity is also proved, returning a concrete permitted order or an unavoidable conflict.");
             println!("Anonymous positional checking includes recursive annotations on prohibited axiom types. The raw-closure forest checker is proved exact, with scoped byte identities, self-loop and undirected-cycle diagnostics. Distinct annotated-assertion multiplicity and the component-wide named-boundary rule are proved exact, using recursive unordered annotation equivalence. The composed check_anonymous library operation decides all anonymous-individual restrictions and preserves diagnostic priority; byte-derived scopes and other DL validity remain pending.");
             println!("All six raw data-range constructors have total exact structural comparisons with recursive unordered associations. Datatype definitions have proved availability/uniqueness and exact dependency-order checking. The full custom-datatype positional traversal is proved, including literal and restriction-base positions, nested classes/ranges, all axiom forms and recursive annotations. check_structural_datatypes composes definition rules and positions with exact acceptance, original failures and checked priority. Supplied ontology annotations are included; imported ontology annotations require the same complete definition closure. Concrete lexical/facet/value validation remains pending.");
@@ -171,6 +185,7 @@ fn main() -> std::process::ExitCode {
         }
         _ => {
             eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|check-nt FILE|export-nt FILE>");
+            eprintln!("check, classify and instances read N-Triples for a .nt FILE and Functional Syntax otherwise.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;
         }

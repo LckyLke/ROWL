@@ -28,6 +28,9 @@ pub const ROWL_REJECTED: i32 = 1;
 pub const ROWL_UNSUPPORTED: i32 = 2;
 /// The document pointer was null.
 pub const ROWL_INVALID: i32 = 3;
+/// The N-Triples graph is not the RDF mapping of an OWL ontology that the
+/// verified reverse mapping reads.
+pub const ROWL_UNMAPPED: i32 = 4;
 
 const INVALID_ARGUMENT: i32 = -2;
 
@@ -69,7 +72,7 @@ unsafe fn text<'a>(data: *const u8, len: usize) -> Option<&'a str> {
 ///
 /// # Safety
 /// `reasoner` must be null or a live handle from
-/// [`rowl_reasoner_from_functional`].
+/// [`rowl_reasoner_from_functional`] or [`rowl_reasoner_from_ntriples`].
 unsafe fn handle<'a>(reasoner: *const RowlReasoner) -> Option<&'a Reasoner> {
     if reasoner.is_null() {
         None
@@ -135,6 +138,18 @@ fn json_classification(classified: &[Classified]) -> String {
     out
 }
 
+/// The status code and handle of a load.
+fn loaded(result: Result<Reasoner, LoadError>) -> (i32, *mut RowlReasoner) {
+    match result {
+        Ok(inner) => (ROWL_LOADED, Box::into_raw(Box::new(RowlReasoner { inner }))),
+        Err(LoadError::Document(_)) | Err(LoadError::Triples(_)) => {
+            (ROWL_REJECTED, ptr::null_mut())
+        }
+        Err(LoadError::Graph) => (ROWL_UNMAPPED, ptr::null_mut()),
+        Err(LoadError::Unsupported) => (ROWL_UNSUPPORTED, ptr::null_mut()),
+    }
+}
+
 /// The library's version as NUL-terminated text owned by the library.
 #[no_mangle]
 pub extern "C" fn rowl_version() -> *const c_char {
@@ -158,11 +173,32 @@ pub unsafe extern "C" fn rowl_reasoner_from_functional(
     // SAFETY: forwarded from the caller.
     let (code, reasoner) = match unsafe { bytes(data, len) } {
         None => (ROWL_INVALID, ptr::null_mut()),
-        Some(source) => match Reasoner::from_functional(source, &default_limits()) {
-            Ok(inner) => (ROWL_LOADED, Box::into_raw(Box::new(RowlReasoner { inner }))),
-            Err(LoadError::Document(_)) => (ROWL_REJECTED, ptr::null_mut()),
-            Err(LoadError::Unsupported) => (ROWL_UNSUPPORTED, ptr::null_mut()),
-        },
+        Some(source) => loaded(Reasoner::from_functional(source, &default_limits())),
+    };
+    if !status.is_null() {
+        // SAFETY: the caller guarantees that a non-null `status` is writable.
+        unsafe { *status = code };
+    }
+    reasoner
+}
+
+/// Read an N-Triples document and the OWL ontology its graph encodes, and
+/// prepare it. Returns a handle for the other functions, or null with `status`
+/// set to [`ROWL_REJECTED`], [`ROWL_UNMAPPED`], [`ROWL_UNSUPPORTED`] or
+/// [`ROWL_INVALID`].
+///
+/// # Safety
+/// As for [`rowl_reasoner_from_functional`].
+#[no_mangle]
+pub unsafe extern "C" fn rowl_reasoner_from_ntriples(
+    data: *const u8,
+    len: usize,
+    status: *mut i32,
+) -> *mut RowlReasoner {
+    // SAFETY: forwarded from the caller.
+    let (code, reasoner) = match unsafe { bytes(data, len) } {
+        None => (ROWL_INVALID, ptr::null_mut()),
+        Some(source) => loaded(Reasoner::from_ntriples(source)),
     };
     if !status.is_null() {
         // SAFETY: the caller guarantees that a non-null `status` is writable.

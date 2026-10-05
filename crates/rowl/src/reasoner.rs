@@ -1,10 +1,11 @@
 //! A convenience interface over the verified pipeline: read a Functional Syntax
-//! document once and ask questions about it by IRI.
+//! or N-Triples document once and ask questions about it by IRI.
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
-//! the mapping into the raw OWL model, the prepared queries of `data_ontology`
-//! and the classification of `classification`. `None` means the question or
-//! the document is outside the reasoner's supported fragment, or a limit was
+//! the mapping into the raw OWL model (for N-Triples, the reverse OWL RDF
+//! mapping of `rdf_mapping`), the prepared queries of `data_ontology` and the
+//! classification of `classification`. `None` means the question or the
+//! document is outside the reasoner's supported fragment, or a limit was
 //! reached. This module only collects names and lays out answers; it adds no
 //! reasoning of its own.
 use rowl_kernel::classification::classify;
@@ -18,8 +19,30 @@ use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
 use rowl_kernel::model::{
     Axiom, Class, ClassExpression, Entity, Individual, Iri, NamedIndividual, RawOntology,
 };
+use rowl_kernel::ntriples::{read, ReadError, ReadResult};
+use rowl_kernel::rdf_mapping::map_graph;
 use rowl_kernel::source_reasoning::source_ontology;
 use std::collections::BTreeSet;
+
+/// The stack the verified kernel runs on. Its readers, mapping and queries
+/// recurse over the length of their input, so a large document needs far more
+/// than a thread's default stack; the memory is only committed as it is used.
+const KERNEL_STACK: usize = 1 << 30;
+
+/// Run `work` on a thread with [`KERNEL_STACK`] bytes of stack and return its
+/// result, resuming a panic of `work` on the calling thread.
+fn on_kernel_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .stack_size(KERNEL_STACK)
+            .spawn_scoped(scope, work)
+            .expect("a thread with the kernel's stack");
+        match handle.join() {
+            Ok(value) => value,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    })
+}
 
 /// Generous limits for documents of everyday size.
 pub fn default_limits() -> DocumentLimits {
@@ -46,8 +69,14 @@ pub fn default_limits() -> DocumentLimits {
 
 /// Why a document could not be loaded.
 pub enum LoadError {
-    /// The verified reader rejected the document.
+    /// The verified Functional Syntax reader rejected the document.
     Document(DocumentError),
+    /// The verified N-Triples reader rejected the document.
+    Triples(ReadError),
+    /// The graph is not the RDF mapping of an ontology that the verified
+    /// reverse mapping reads: an undeclared entity, an incomplete expression,
+    /// an annotated axiom or a triple left over.
+    Graph,
     /// The document maps into the model, but its axioms are outside the
     /// fragment the queries prepare.
     Unsupported,
@@ -127,12 +156,32 @@ fn axiom_classes(axiom: &Axiom, out: &mut BTreeSet<Vec<u8>>) {
 impl Reasoner {
     /// Read a Functional Syntax document from its bytes and prepare it once.
     pub fn from_functional(bytes: &[u8], limits: &DocumentLimits) -> Result<Reasoner, LoadError> {
-        let scope = b"document".to_vec();
-        let ontology = match source_ontology(&bytes.to_vec(), limits, &scope) {
-            Ok(Some(ontology)) => ontology,
-            Ok(None) => return Err(LoadError::Unsupported),
-            Err(error) => return Err(LoadError::Document(error)),
-        };
+        on_kernel_stack(|| {
+            let scope = b"document".to_vec();
+            let ontology = match source_ontology(&bytes.to_vec(), limits, &scope) {
+                Ok(Some(ontology)) => ontology,
+                Ok(None) => return Err(LoadError::Unsupported),
+                Err(error) => return Err(LoadError::Document(error)),
+            };
+            Reasoner::prepared(ontology)
+        })
+    }
+    /// Read an N-Triples document from its bytes, read the OWL ontology its
+    /// graph encodes by the verified reverse RDF mapping and prepare it once.
+    pub fn from_ntriples(bytes: &[u8]) -> Result<Reasoner, LoadError> {
+        on_kernel_stack(|| {
+            let scope = b"document".to_vec();
+            let graph = match read(&bytes.to_vec(), &scope) {
+                ReadResult::Graph(graph) => graph,
+                ReadResult::Error(error) => return Err(LoadError::Triples(error)),
+            };
+            match map_graph(&graph) {
+                Some(mapped) => Reasoner::prepared(mapped.ontology),
+                None => Err(LoadError::Graph),
+            }
+        })
+    }
+    fn prepared(ontology: RawOntology) -> Result<Reasoner, LoadError> {
         match prepare(&ontology.axioms) {
             Some(prepared) => Ok(Reasoner { ontology, prepared }),
             None => Err(LoadError::Unsupported),
@@ -144,27 +193,24 @@ impl Reasoner {
     }
     /// Whether the axioms have a model.
     pub fn consistent(&self) -> Option<bool> {
-        prepared_consistent(&self.prepared)
+        on_kernel_stack(|| prepared_consistent(&self.prepared))
     }
     /// Whether some model of the axioms has an instance of `class`.
     pub fn satisfiable(&self, class: &ClassExpression) -> Option<bool> {
-        prepared_class_satisfiable(&self.prepared, class)
+        on_kernel_stack(|| prepared_class_satisfiable(&self.prepared, class))
     }
     /// Whether every instance of `sub` is an instance of `sup` in every model.
     pub fn subsumed(&self, sub: &ClassExpression, sup: &ClassExpression) -> Option<bool> {
-        prepared_subsumed(&self.prepared, sub, sup)
+        on_kernel_stack(|| prepared_subsumed(&self.prepared, sub, sup))
     }
     /// Whether the named individual is an instance of `class` in every model.
     pub fn instance_of(&self, individual: &str, class: &ClassExpression) -> Option<bool> {
-        prepared_instance_of(
-            &self.prepared,
-            &NamedIndividual {
-                iri: Iri {
-                    spelling: individual.as_bytes().to_vec(),
-                },
+        let individual = NamedIndividual {
+            iri: Iri {
+                spelling: individual.as_bytes().to_vec(),
             },
-            class,
-        )
+        };
+        on_kernel_stack(|| prepared_instance_of(&self.prepared, &individual, class))
     }
     /// The named classes the document declares or uses, without `owl:Thing` and
     /// `owl:Nothing`, sorted by IRI.
@@ -233,7 +279,7 @@ impl Reasoner {
                 },
             })
             .collect();
-        let result = classify(&self.prepared, &self.ontology.axioms, &classes)?;
+        let result = on_kernel_stack(|| classify(&self.prepared, &self.ontology.axioms, &classes))?;
         let mut out = Vec::new();
         for (index, class) in names.iter().enumerate() {
             let satisfiable = *result.satisfiable.get(index)?;

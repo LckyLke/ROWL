@@ -2,8 +2,9 @@
 
 Python bindings for ROWL, an OWL 2 reasoner written in Rust whose reader,
 mapping and queries are proved in Lean against the OWL 2 Direct Semantics.
-A `Reasoner` reads an OWL Functional Syntax document once and answers any
-number of questions about it by IRI.
+A `Reasoner` reads an OWL Functional Syntax or N-Triples document once and
+answers any number of questions about it by IRI. An N-Triples graph is read as
+the OWL ontology it encodes by the verified reverse OWL RDF mapping.
 
 ```python
 import rowl
@@ -18,12 +19,16 @@ with rowl.Reasoner.from_file("examples/medication-safety.ofn") as r:
         print(entry.iri, entry.satisfiable, entry.superclasses)
 ```
 
+`Reasoner.from_file` reads N-Triples for a `.nt` file and Functional Syntax
+otherwise; `Reasoner(text, syntax="ntriples")` reads N-Triples text.
+
 Every answer is `True`, `False` or `None`. `None` means the question is
 outside the supported fragment (see the repository's `docs/status.md`) or a
 limit was reached. `False` means *not entailed by the axioms*, not *proved
 false*. Loading raises `rowl.DocumentRejected` when the verified reader
-rejects the document and `rowl.UnsupportedOntology` when its axioms are
-outside the supported fragment.
+rejects the document or its RDF graph is not the mapping of an OWL ontology
+the verified reverse mapping reads, and `rowl.UnsupportedOntology` when its
+axioms are outside the supported fragment.
 
 | Method | Question |
 | --- | --- |

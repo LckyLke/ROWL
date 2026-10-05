@@ -1,4 +1,4 @@
-use rowl::reasoner::{default_limits, named, Reasoner};
+use rowl::reasoner::{default_limits, named, LoadError, Reasoner};
 
 const EXAMPLES: [&[u8]; 4] = [
     include_bytes!("../../../examples/medication-safety.ofn"),
@@ -52,4 +52,53 @@ fn medication_classification_finds_the_drug_families() {
         .contains(&"https://example.org/medication/Penicillin".to_string()));
     assert!(supers("https://example.org/medication/Azithromycin")
         .contains(&"https://example.org/medication/Macrolide".to_string()));
+}
+
+#[test]
+fn ntriples_and_functional_syntax_give_the_same_answers() {
+    let Ok(functional) = Reasoner::from_functional(
+        include_bytes!("../../../examples/medication-safety.ofn"),
+        &default_limits(),
+    ) else {
+        panic!("the Functional Syntax example must load");
+    };
+    let Ok(triples) =
+        Reasoner::from_ntriples(include_bytes!("../../../examples/medication-safety.nt"))
+    else {
+        panic!("the N-Triples example must load");
+    };
+    let classes = functional.classes();
+    assert_eq!(triples.classes(), classes);
+    assert_eq!(triples.individuals(), functional.individuals());
+    assert_eq!(triples.consistent(), Some(true));
+    let left = functional.classify().expect("the example must classify");
+    let right = triples.classify().expect("the example must classify");
+    assert_eq!(left.len(), right.len());
+    for (a, b) in left.iter().zip(&right) {
+        assert_eq!(a.class, b.class);
+        assert_eq!(a.satisfiable, b.satisfiable);
+        assert_eq!(a.superclasses, b.superclasses);
+    }
+    for individual in functional.individuals() {
+        for class in &classes {
+            assert_eq!(
+                triples.instance_of(&individual, &named(class)),
+                functional.instance_of(&individual, &named(class))
+            );
+        }
+    }
+}
+
+#[test]
+fn ntriples_loading_reports_why_it_fails() {
+    assert!(matches!(
+        Reasoner::from_ntriples(b"<a> <b> ."),
+        Err(LoadError::Triples(_))
+    ));
+    // The property is never declared, so the graph encodes no OWL ontology.
+    let undeclared = b"<https://example.org/a> <https://example.org/p> <https://example.org/b> .\n";
+    assert!(matches!(
+        Reasoner::from_ntriples(undeclared),
+        Err(LoadError::Graph)
+    ));
 }

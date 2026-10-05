@@ -5,6 +5,7 @@ import rowl
 
 ROOT = Path(__file__).resolve().parents[3]
 MEDICATION = ROOT / "examples" / "medication-safety.ofn"
+MEDICATION_NT = ROOT / "examples" / "medication-safety.nt"
 IRI = "https://example.org/medication/"
 
 
@@ -48,6 +49,28 @@ class MedicationSafety(unittest.TestCase):
                 if other != entry.iri:
                     self.assertIs(self.reasoner.subsumed(entry.iri, other), other in entry.superclasses)
         self.assertEqual(self.reasoner.superclasses(IRI + "Azithromycin"), [IRI + "Macrolide"])
+
+
+class NTriples(unittest.TestCase):
+    def test_same_answers_as_functional_syntax(self):
+        with rowl.Reasoner.from_file(MEDICATION) as functional, \
+                rowl.Reasoner.from_file(MEDICATION_NT) as triples:
+            self.assertEqual(triples.classes(), functional.classes())
+            self.assertEqual(triples.individuals(), functional.individuals())
+            self.assertEqual(triples.classify(), functional.classify())
+            alert = IRI + "AllergyAlert"
+            for person in ["alice", "bob", "carol"]:
+                self.assertIs(triples.instance_of(IRI + person, alert),
+                              functional.instance_of(IRI + person, alert))
+
+    def test_rejected_and_unmapped_graphs(self):
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner("<a> <b> .", syntax="ntriples")
+        undeclared = "<https://example.org/a> <https://example.org/p> <https://example.org/b> .\n"
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner(undeclared, syntax="ntriples")
+        with self.assertRaises(ValueError):
+            rowl.Reasoner("", syntax="turtle")
 
 
 class Errors(unittest.TestCase):

@@ -965,7 +965,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   it; on a generated 437-class ontology it runs 871 satisfiability queries
   where pairwise classification would ask about 190 000 questions.
 - Python bindings: the `rowl` package in `bindings/python` reads a
-  Functional Syntax document once and answers consistency, satisfiability,
+  Functional Syntax or N-Triples document once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
   verified `Reasoner` through the C interface of the `rowl-python` crate with
   `ctypes`, needs no third-party Python or Rust packages, and installs with
@@ -982,8 +982,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   exactly those blank nodes, gives the input graph: every triple instantiates
   one of its triple patterns and every pattern is instantiated by a triple.
   That every such ontology is read back, annotated axioms, imports and distinct
-  blank nodes are not proved, and the reasoner does not read N-Triples through
-  the mapping yet.
+  blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
+  `classify` and `instances` commands for `.nt` files and the Python package
+  read N-Triples documents through the verified reader and this mapping.
 - 2438 audited public theorems and 1133 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
@@ -999,7 +1000,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 511 Rust regression tests and 9 Python binding tests, plus a separately fetched
+- 513 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use

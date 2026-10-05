@@ -4350,8 +4350,27 @@ triple of the graph.
 
 Not proved: that the forward mapping of every such ontology is read back,
 annotated axioms and their reification, `owl:imports` closure, that the returned
-blank nodes are distinct, and RDF datasets. The reasoner does not yet read
-N-Triples through the mapping.
+blank nodes are distinct, and RDF datasets.
 
 This block adds 126 public theorems and 36 definitions. Totals are 2438 audited
 theorems, 1133 definitions, 511 Rust regressions and 2631 ledger obligations.
+
+## Reading ontologies from N-Triples
+
+`Reasoner::from_ntriples` reads an N-Triples document with the verified reader,
+reads the OWL ontology its graph encodes with `rdf_mapping::map_graph` and
+prepares the queries once, as `from_functional` does for Functional Syntax; a
+graph the mapping does not read is reported apart from a syntax error. The
+CLI's `check`, `classify` and `instances` commands read `.nt` files this way,
+the C interface has `rowl_reasoner_from_ntriples`, and the Python
+`Reasoner.from_file` reads N-Triples for a `.nt` file. The medication example
+in N-Triples gives the same classes, individuals, classification and instance
+answers as its Functional Syntax version. The layer adds no reasoning: the
+answers are those of the verified queries for the ontology the mapping returns,
+and `map_graph_correct` relates that ontology to the graph.
+
+The verified readers, the mapping and the queries recurse over the length of
+their input, so a generated 5000-class ontology overflowed the default stack
+in either syntax. `Reasoner` now runs every kernel call on a thread with a
+1 GiB stack, committed only as it is used; the answers are unchanged. Totals are
+513 Rust regressions and 11 Python binding tests.
