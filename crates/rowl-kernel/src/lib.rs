@@ -127,5 +127,7 @@ pub mod ntriples;
 pub mod prefixes;
 pub mod rdf;
 pub mod regular;
+
+pub mod compiled;
 pub mod snapshot;
 pub mod unicode;

@@ -56,6 +56,7 @@ import Rowl.Names
 import Rowl.Prefixes
 
 import Rowl.Longest
+import Rowl.Compiled
 
 import Rowl.Functional
 

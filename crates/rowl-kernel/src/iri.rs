@@ -4,6 +4,7 @@
 //! production does not). Identity remains exact bytes; no percent decoding,
 //! case folding, host interpretation or scheme-specific policy is performed.
 
+use crate::compiled::{compile, matches, table};
 use crate::regular::{copy_expression, matches_utf8, Expression, MatchResult};
 
 fn range(lower: u32, upper: u32) -> Expression {
@@ -322,13 +323,24 @@ pub fn iri_reference() -> Expression {
     alt(iri(), relative_ref())
 }
 
+/// Match exact bytes against a grammar compiled into a node table; the
+/// derivative matcher answers when the table or a state has no room.
+#[allow(clippy::ptr_arg)]
+fn validate(grammar: Expression, bytes: &Vec<u8>) -> MatchResult {
+    let mut nodes = table();
+    let root = compile(&mut nodes, &grammar);
+    match matches(&nodes, root, bytes) {
+        Some(result) => result,
+        None => matches_utf8(grammar, bytes),
+    }
+}
 /// Validate exact bytes against the `IRI` production and strict UTF-8.
 #[allow(clippy::ptr_arg)]
 pub fn validate_iri(bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(iri(), bytes)
+    validate(iri(), bytes)
 }
 /// Validate exact bytes against `IRI-reference`; this does not resolve a base.
 #[allow(clippy::ptr_arg)]
 pub fn validate_reference(bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(iri_reference(), bytes)
+    validate(iri_reference(), bytes)
 }

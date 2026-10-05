@@ -44,7 +44,20 @@ progress. Full OWL parsing and executable reasoning are still future work.
   private characters. The actual compiled grammar is proved equivalent to the
   independent ABNF language; bounded repetition is proved exact. IRI includes
   fragments. Base resolution and ontology integration remain pending; Functional Syntax
-  prefix expansion is separately proved below.
+  prefix expansion is separately proved below. Since the compiled-grammar stage
+  the validators compile the grammar into a node table and match by partial
+  derivatives over continuation stacks; that matcher is proved to return the
+  derivative matcher's result, so the statements above are unchanged.
+- M3 compiled regular grammars. `compiled::compile` turns an expression into a
+  table of nodes whose parts come before them, and the matcher keeps a state of
+  continuation stacks of node indices, so it never copies the grammar. Against
+  an independent reading of the table, compiling gives the root the
+  expression's language and keeps every empty-word flag right; every matching
+  step replaces the state's language by the words that remain after the
+  consumed code point. `matches` therefore returns exactly `matches_utf8`'s
+  result, malformed UTF-8 included, and on a valid suffix `longest_valid`
+  returns exactly `longest_prefix`'s result. A table or state beyond the
+  `usize` range is reported, and the callers then use the derivative matcher.
 - M3 canonical fixed-size UTF-8 encoding: total for every u32, None exactly
   for non-scalars, unique canonical RFC byte grammar, complete encoded-unit
   acceptance, inverse and composition with

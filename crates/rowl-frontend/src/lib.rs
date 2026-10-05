@@ -6,6 +6,7 @@
 //! symbols and explicitly supplied import metadata. This is not yet a complete
 //! OWL document parser.
 
+pub use rowl_kernel::compiled;
 pub use rowl_kernel::encoding;
 pub use rowl_kernel::functional;
 pub use rowl_kernel::functional_annotation_axioms;

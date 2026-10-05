@@ -44,6 +44,7 @@ import Rowl.AxiomSet
 import Rowl.Names
 import Rowl.Prefixes
 import Rowl.Longest
+import Rowl.Compiled
 import Rowl.Functional
 import Rowl.FunctionalSelection
 import Rowl.FunctionalPayload
@@ -2323,6 +2324,53 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalFast.extend_from_eq
 #print axioms Rowl.FunctionalFast.next_terminal_from_eq
 #print axioms Rowl.FunctionalFast.next_terminal_fast_eq
+#print axioms Rowl.Compiled.lang_eq
+#print axioms Rowl.Compiled.lang_none
+#print axioms Rowl.Compiled.lang_some
+#print axioms Rowl.Compiled.lang_append
+#print axioms Rowl.Compiled.stackLang_nil
+#print axioms Rowl.Compiled.stackLang_push
+#print axioms Rowl.Compiled.stackLang_single
+#print axioms Rowl.Compiled.stateLang_nil
+#print axioms Rowl.Compiled.stateLang_push
+#print axioms Rowl.Compiled.stateLang_cons
+#print axioms Rowl.Compiled.mem_stateLang
+#print axioms Rowl.Compiled.nil_stackLang
+#print axioms Rowl.Compiled.after_zero
+#print axioms Rowl.Compiled.after_one
+#print axioms Rowl.Compiled.after_add
+#print axioms Rowl.Compiled.after_mul
+#print axioms Rowl.Compiled.after_star
+#print axioms Rowl.Compiled.after_interval
+#print axioms Rowl.Compiled.grows_refl
+#print axioms Rowl.Compiled.grows_trans
+#print axioms Rowl.Compiled.grows_lang
+#print axioms Rowl.Compiled.grows_length
+#print axioms Rowl.Compiled.grows_open
+#print axioms Rowl.Compiled.accepts_empty_spec
+#print axioms Rowl.Compiled.nullable_of_spec
+#print axioms Rowl.Compiled.add_spec
+#print axioms Rowl.Compiled.compile_spec
+#print axioms Rowl.Compiled.copy_from_spec
+#print axioms Rowl.Compiled.copy_all
+#print axioms Rowl.Compiled.above_spec
+#print axioms Rowl.Compiled.same_from_spec
+#print axioms Rowl.Compiled.same_spec
+#print axioms Rowl.Compiled.listed_spec
+#print axioms Rowl.Compiled.insert_spec
+#print axioms Rowl.Compiled.derive_spec
+#print axioms Rowl.Compiled.derive_stack_spec
+#print axioms Rowl.Compiled.step_spec
+#print axioms Rowl.Compiled.empty_from_spec
+#print axioms Rowl.Compiled.accepting_spec
+#print axioms Rowl.Compiled.start_spec
+#print axioms Rowl.Compiled.match_from_eq
+#print axioms Rowl.Compiled.matches_eq
+#print axioms Rowl.Compiled.scan_dead
+#print axioms Rowl.Compiled.scan_from_eq
+#print axioms Rowl.Compiled.longest_valid_eq
+#print axioms Rowl.Compiled.table_spec
+#print axioms Rowl.Compiled.compile_fresh
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -3396,3 +3444,11 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalModel.DataMembersModel
 #print axioms Rowl.FunctionalModel.DataAxiomModel
 #print axioms Rowl.FunctionalModel.ShapedData
+#print axioms Rowl.Compiled.kindLang
+#print axioms Rowl.Compiled.lang
+#print axioms Rowl.Compiled.Flagged
+#print axioms Rowl.Compiled.stackLang
+#print axioms Rowl.Compiled.stateLang
+#print axioms Rowl.Compiled.After
+#print axioms Rowl.Compiled.Grows
+#print axioms Rowl.Compiled.partOf

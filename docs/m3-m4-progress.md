@@ -4122,3 +4122,29 @@ code point by code point.
 
 This block adds 13 public theorems. Totals are 2195 audited theorems, 1073
 definitions, 497 Rust regressions and 2388 ledger obligations.
+
+## Performance: compiled grammars for IRI validation
+
+Validating an IRI derived the RFC 3987 grammar code point by code point, and
+each derivative step copied whatever followed a nullable part, which for this
+grammar is most of it: about 2 ms per IRI. The new kernel module `compiled`
+compiles an expression into a node table whose parts precede their nodes and
+matches by partial derivatives over continuation stacks of node indices, with
+equal stacks merged, so no part of the grammar is copied while matching.
+
+`Compiled.lean` gives the table an independent reading (`lang`, with
+`stackLang` and `stateLang` for stacks and states) and proves that compiling
+keeps every empty-word flag right and gives the root the expression's language
+(`compile_spec`), that each step replaces the state's language by its left
+quotient by the code point (`derive_spec`, `derive_stack_spec`, `step_spec`),
+and, by running in lockstep with the derivative matcher, that `matches` returns
+exactly `matches_utf8`'s result (`matches_eq`) and `longest_valid` exactly
+`longest_prefix`'s result on a suffix with a UTF-8 decoding
+(`longest_valid_eq`). `iri::validate_iri` and `validate_reference` now match
+through a compiled table and fall back to the derivative matcher only when a
+vector would exceed the `usize` range; `Iri.lean` proves them equal to the
+derivative matcher, so every IRI theorem keeps its statement. Reading a
+generated 400-class document now takes 1.1 s instead of 5.0 s.
+
+This block adds 47 public theorems and 8 definitions. Totals are 2242 audited
+theorems, 1081 definitions, 501 Rust regressions and 2435 ledger obligations.

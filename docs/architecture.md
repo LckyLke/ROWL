@@ -441,6 +441,39 @@ Source text XML-character validation is a separate existing operation; this
 primitive intentionally recognizes arbitrary supplied regular alphabets.
 
 
+### Compiled grammars and continuation stacks
+
+Derivatives of large grammars copy whatever follows a nullable part, so a
+derivative step of the RFC 3987 IRI grammar copies most of the grammar.
+`compiled::compile` instead adds an expression's nodes to a table in which a
+node's parts come before it, with each node's empty-word flag computed from its
+parts. A stack lists node indices still to match, the next one last; the state
+is a list of distinct stacks. Consuming a code point replaces each stack by the
+stacks that remain after it (`derive`, `derive_stack`, `step`): an interval
+that admits the code point leaves the stack below it, an alternative derives
+both parts, a sequence derives its first part with the second pushed below and,
+when the first accepts the empty word, the second part, and a repetition
+derives its body with itself pushed below. No subexpression is copied, and the
+work per code point depends only on the nodes that can begin the rest of the
+text.
+
+`Compiled.lean` reads a table independently: `lang nodes i` is node `i`'s
+language, a part that does not come before its node or an index outside the
+table reading as the empty language; a stack stands for the concatenation of
+its nodes' languages and a state for the union of its stacks. Compiling is
+proved to give the root the expression's language and keep every flag right
+(`compile_spec`), and every step to replace the state's language by its left
+quotient by the code point (`step_spec`). Run in lockstep with the derivative
+matcher, the compiled matcher returns exactly `matches_utf8`'s result
+(`matches_eq`), and on a suffix with a UTF-8 decoding the early-stopping
+greatest-prefix scan returns exactly `longest_prefix`'s result
+(`longest_valid_eq`). Vectors that would exceed the `usize` range make these
+functions return `None`; `iri::validate_iri` and `validate_reference` then
+answer with the derivative matcher, so their theorems are unchanged. On a
+400-class benchmark document, reading went from 5.0 s to 1.1 s; building the
+IRI grammar for every validation is now the larger part of the remaining cost.
+
+
 ### Complete Functional Syntax terminals and selection
 
 `functional` compiles all 84 terminal classes in the normative 2012 grammar:

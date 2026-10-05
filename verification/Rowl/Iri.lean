@@ -1,4 +1,4 @@
-import Rowl.Regular
+import Rowl.Compiled
 
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
 open scoped Computability
@@ -511,30 +511,41 @@ private theorem converted (grammar : Language Nat) (expression : Expression)
     MatchCorrect expression bytes 0 result ↔ ValidationCorrect grammar bytes result := by
   cases result <;> simp [MatchCorrect, ValidationCorrect, same]
 
+/-- Matching with the compiled table returns the derivative matcher's result. -/
+private theorem validate_eq (grammar : Expression) (bytes : alloc.vec.Vec U8) :
+    iri.validate grammar bytes = matches_utf8 grammar bytes := by
+  obtain ⟨t, root, t', made, compiledRun, flagged, rooted⟩ := Rowl.Compiled.compile_fresh grammar
+  obtain ⟨r, run, spec⟩ := Rowl.Compiled.matches_eq t' root bytes grammar flagged rooted
+  cases r with
+  | none => simp [iri.validate, made, compiledRun, run]
+  | some m => simp [iri.validate, made, compiledRun, run, spec m rfl]
+
 /-- The real byte entry point terminates with exact grammar acceptance or failure. -/
 theorem validate_iri_total_correct (bytes : alloc.vec.Vec U8) :
     ∃ result, iri.validate_iri bytes = .ok result ∧ ValidationCorrect IriLanguage bytes.val result := by
   obtain ⟨expression, he, sem⟩ := iri_grammar_total_correct
   obtain ⟨result, hr, hc⟩ := matches_utf8_total_correct expression bytes
-  exact ⟨result, by simp [iri.validate_iri, he, hr], (converted _ _ _ _ sem).mp hc⟩
+  exact ⟨result, by rw [iri.validate_iri, he, bind_ok, validate_eq, hr], (converted _ _ _ _ sem).mp hc⟩
 
 theorem validate_reference_total_correct (bytes : alloc.vec.Vec U8) :
     ∃ result, iri.validate_reference bytes = .ok result ∧ ValidationCorrect ReferenceLanguage bytes.val result := by
   obtain ⟨expression, he, sem⟩ := reference_grammar_total_correct
   obtain ⟨result, hr, hc⟩ := matches_utf8_total_correct expression bytes
-  exact ⟨result, by simp [iri.validate_reference, he, hr], (converted _ _ _ _ sem).mp hc⟩
+  exact ⟨result, by rw [iri.validate_reference, he, bind_ok, validate_eq, hr], (converted _ _ _ _ sem).mp hc⟩
 
 /-- All and only well-encoded RFC 3987 IRIs are accepted; fragments are allowed. -/
 theorem validate_iri_accepted_iff (bytes : alloc.vec.Vec U8) :
     iri.validate_iri bytes = .ok (.Matched true) ↔
       ∃ word, Utf8From bytes.val 0 word ∧ word ∈ IriLanguage := by
   obtain ⟨expression, he, sem⟩ := iri_grammar_total_correct
-  simpa [iri.validate_iri, he, sem] using matches_utf8_accepted_iff expression bytes
+  rw [iri.validate_iri, he, bind_ok, validate_eq]
+  simpa [sem] using matches_utf8_accepted_iff expression bytes
 
 theorem validate_reference_accepted_iff (bytes : alloc.vec.Vec U8) :
     iri.validate_reference bytes = .ok (.Matched true) ↔
       ∃ word, Utf8From bytes.val 0 word ∧ word ∈ ReferenceLanguage := by
   obtain ⟨expression, he, sem⟩ := reference_grammar_total_correct
-  simpa [iri.validate_reference, he, sem] using matches_utf8_accepted_iff expression bytes
+  rw [iri.validate_reference, he, bind_ok, validate_eq]
+  simpa [sem] using matches_utf8_accepted_iff expression bytes
 
 end Rowl.Iri

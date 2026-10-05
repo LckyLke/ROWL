@@ -10384,6 +10384,708 @@ def collection.axiom_closure_entities
       collection.EntityUses.Empty
   ok { declarations, uses }
 
+/-- [rowl_kernel::compiled::Kind]
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 19:0-26:1
+    Visibility: public -/
+@[discriminant isize]
+inductive compiled.Kind where
+| Empty : compiled.Kind
+| Epsilon : compiled.Kind
+| Interval : Std.U32 → Std.U32 → compiled.Kind
+| Alternative : Std.Usize → Std.Usize → compiled.Kind
+| Sequence : Std.Usize → Std.Usize → compiled.Kind
+| Repeat : Std.Usize → compiled.Kind
+
+/-- [rowl_kernel::compiled::Node]
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 29:0-32:1
+    Visibility: public -/
+structure compiled.Node where
+  kind : compiled.Kind
+  nullable : Bool
+
+/-- [rowl_kernel::compiled::Table]
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 35:0-38:1
+    Visibility: public -/
+structure compiled.Table where
+  nodes : alloc.vec.Vec compiled.Node
+  full : Bool
+
+/-- [rowl_kernel::compiled::table]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 41:0-46:1
+    Visibility: public -/
+def compiled.table : Result compiled.Table := do
+  ok { nodes := (alloc.vec.Vec.new compiled.Node), full := false }
+
+/-- [rowl_kernel::compiled::accepts_empty]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 49:0-55:1 -/
+def compiled.accepts_empty
+  (nodes : alloc.vec.Vec compiled.Node) (part : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len nodes
+  if part < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice compiled.Node)
+        nodes part
+    ok n.nullable
+  else ok false
+
+/-- [rowl_kernel::compiled::nullable_of]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 59:0-78:1 -/
+def compiled.nullable_of
+  (nodes : alloc.vec.Vec compiled.Node) (kind : compiled.Kind) :
+  Result Bool
+  := do
+  match kind with
+  | compiled.Kind.Empty => ok false
+  | compiled.Kind.Epsilon => ok true
+  | compiled.Kind.Interval _ _ => ok false
+  | compiled.Kind.Alternative left right =>
+    let b ← compiled.accepts_empty nodes left
+    if b
+    then ok true
+    else compiled.accepts_empty nodes right
+  | compiled.Kind.Sequence left right =>
+    let b ← compiled.accepts_empty nodes left
+    if b
+    then compiled.accepts_empty nodes right
+    else ok false
+  | compiled.Kind.Repeat _ => ok true
+
+/-- [rowl_kernel::compiled::add]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 82:0-92:1
+    Visibility: public -/
+def compiled.add
+  (table : compiled.Table) (kind : compiled.Kind) :
+  Result (Std.Usize × compiled.Table)
+  := do
+  let position := alloc.vec.Vec.len table.nodes
+  if position < core.num.Usize.MAX
+  then
+    let nullable ← compiled.nullable_of table.nodes kind
+    let v ←
+      alloc.vec.Vec.push table.nodes ({ kind, nullable } : compiled.Node)
+    ok (position, { table with nodes := v })
+  else ok (position, { table with full := true })
+
+/-- [rowl_kernel::regular::Expression]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.Expression where
+| Empty : regular.Expression
+| Epsilon : regular.Expression
+| Interval : Std.U32 → Std.U32 → regular.Expression
+| Alternative :
+  regular.Expression →
+  regular.Expression →
+  regular.Expression
+| Sequence : regular.Expression → regular.Expression → regular.Expression
+| Repeat : regular.Expression → regular.Expression
+
+/-- [rowl_kernel::compiled::compile]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 95:0-121:1
+    Visibility: public -/
+def compiled.compile
+  (table : compiled.Table) (expression : regular.Expression) :
+  Result (Std.Usize × compiled.Table)
+  := do
+  match expression with
+  | regular.Expression.Empty => compiled.add table compiled.Kind.Empty
+  | regular.Expression.Epsilon => compiled.add table compiled.Kind.Epsilon
+  | regular.Expression.Interval lower upper =>
+    compiled.add table (compiled.Kind.Interval lower upper)
+  | regular.Expression.Alternative left right =>
+    let (first, table1) ← compiled.compile table left
+    let (second, table2) ← compiled.compile table1 right
+    compiled.add table2 (compiled.Kind.Alternative first second)
+  | regular.Expression.Sequence left right =>
+    let (first, table1) ← compiled.compile table left
+    let (second, table2) ← compiled.compile table1 right
+    compiled.add table2 (compiled.Kind.Sequence first second)
+  | regular.Expression.Repeat inner =>
+    let (body, table1) ← compiled.compile table inner
+    compiled.add table1 (compiled.Kind.Repeat body)
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::copy_from]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 124:0-133:1 -/
+def compiled.copy_from
+  (stack : alloc.vec.Vec Std.Usize) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len stack
+    if index < i
+    then
+      let i1 := alloc.vec.Vec.len out
+      let out1 ←
+        if i1 < core.num.Usize.MAX
+        then
+          do
+          let i2 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              Std.Usize) stack index
+          alloc.vec.Vec.push out i2
+        else ok out
+      let i2 ← index + 1#usize
+      compiled.copy_from stack i2 «end» out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::above]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 136:0-144:1 -/
+def compiled.above
+  (base : alloc.vec.Vec Std.Usize) (top : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len base
+  let stack ← compiled.copy_from base 0#usize i (alloc.vec.Vec.new Std.Usize)
+  let i1 := alloc.vec.Vec.len stack
+  if i1 < core.num.Usize.MAX
+  then let stack1 ← alloc.vec.Vec.push stack top
+       ok (some stack1)
+  else ok none
+
+/-- [rowl_kernel::compiled::same_from]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 147:0-157:1 -/
+def compiled.same_from
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len right
+    if index < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          left index
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          right index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           compiled.same_from left right i4
+      else ok false
+    else ok true
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::same]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 159:0-165:1 -/
+def compiled.same
+  (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then compiled.same_from left right 0#usize
+  else ok false
+
+/-- [rowl_kernel::compiled::listed]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 168:0-178:1 -/
+def compiled.listed
+  (states : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (stack : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len states
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) states index
+    let b ← compiled.same v stack
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         compiled.listed states stack i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::insert]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 182:0-191:1 -/
+def compiled.insert
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (stack : alloc.vec.Vec Std.Usize) :
+  Result (Bool × (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let b ← compiled.listed out stack 0#usize
+  if b
+  then ok (true, out)
+  else
+    let i := alloc.vec.Vec.len out
+    if i < core.num.Usize.MAX
+    then
+      let i1 := alloc.vec.Vec.len stack
+      let v ←
+        compiled.copy_from stack 0#usize i1 (alloc.vec.Vec.new Std.Usize)
+      let out1 ← alloc.vec.Vec.push out v
+      ok (true, out1)
+    else ok (false, out)
+
+/-- [rowl_kernel::compiled::derive]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 195:0-267:1 -/
+def compiled.derive
+  (nodes : alloc.vec.Vec compiled.Node) (index : Std.Usize)
+  (base : alloc.vec.Vec Std.Usize) (codepoint : Std.U32)
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Bool × (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if index < i
+  then
+    let n ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice compiled.Node)
+        nodes index
+    match n.kind with
+    | compiled.Kind.Empty => ok (true, out)
+    | compiled.Kind.Epsilon => ok (true, out)
+    | compiled.Kind.Interval lower upper =>
+      if lower <= codepoint
+      then
+        if codepoint <= upper
+        then compiled.insert out base
+        else ok (true, out)
+      else ok (true, out)
+    | compiled.Kind.Alternative left right =>
+      let (out1, done1) ←
+        if left < index
+        then
+          do
+          let (done2, out2) ← compiled.derive nodes left base codepoint out
+          ok (out2, done2)
+        else ok (out, true)
+      if done1
+      then
+        if right < index
+        then compiled.derive nodes right base codepoint out1
+        else ok (true, out1)
+      else ok (false, out1)
+    | compiled.Kind.Sequence left right =>
+      if left < index
+      then
+        if right < index
+        then
+          let o ← compiled.above base right
+          match o with
+          | none => ok (false, out)
+          | some stack =>
+            let (b, out1) ← compiled.derive nodes left stack codepoint out
+            if b
+            then
+              let n1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  compiled.Node) nodes left
+              if n1.nullable
+              then compiled.derive nodes right base codepoint out1
+              else ok (true, out1)
+            else ok (false, out1)
+        else ok (true, out)
+      else ok (true, out)
+    | compiled.Kind.Repeat inner =>
+      if inner < index
+      then
+        let o ← compiled.above base index
+        match o with
+        | none => ok (false, out)
+        | some stack => compiled.derive nodes inner stack codepoint out
+      else ok (true, out)
+  else ok (true, out)
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::derive_stack]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 271:0-293:1 -/
+def compiled.derive_stack
+  (nodes : alloc.vec.Vec compiled.Node) (stack : alloc.vec.Vec Std.Usize)
+  (length : Std.Usize) (codepoint : Std.U32)
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Bool × (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  if 0#usize < length
+  then
+    let i := alloc.vec.Vec.len stack
+    if length <= i
+    then
+      let i1 ← length - 1#usize
+      let top ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          stack i1
+      let base ←
+        compiled.copy_from stack 0#usize i1 (alloc.vec.Vec.new Std.Usize)
+      let (b, out1) ← compiled.derive nodes top base codepoint out
+      if b
+      then
+        let b1 ← compiled.accepts_empty nodes top
+        if b1
+        then compiled.derive_stack nodes stack i1 codepoint out1
+        else ok (true, out1)
+      else ok (false, out1)
+    else ok (true, out)
+  else ok (true, out)
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::step]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 297:0-313:1 -/
+def compiled.step
+  (nodes : alloc.vec.Vec compiled.Node)
+  (state : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize)
+  (codepoint : Std.U32) (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Bool × (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len state
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state index
+    let i1 := alloc.vec.Vec.len v
+    let (b, out1) ← compiled.derive_stack nodes v i1 codepoint out
+    if b
+    then let i2 ← index + 1#usize
+         compiled.step nodes state i2 codepoint out1
+    else ok (false, out1)
+  else ok (true, out)
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::empty_from]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 316:0-326:1 -/
+def compiled.empty_from
+  (nodes : alloc.vec.Vec compiled.Node) (stack : alloc.vec.Vec Std.Usize)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len stack
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        stack index
+    let b ← compiled.accepts_empty nodes i1
+    if b
+    then let i2 ← index + 1#usize
+         compiled.empty_from nodes stack i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::accepting]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 329:0-339:1 -/
+def compiled.accepting
+  (nodes : alloc.vec.Vec compiled.Node)
+  (state : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len state
+  if index < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state index
+    let b ← compiled.empty_from nodes v 0#usize
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         compiled.accepting nodes state i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::start]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 342:0-348:1 -/
+def compiled.start
+  (root : Std.Usize) : Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize)) := do
+  let stack ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.Usize) root
+  alloc.vec.Vec.push (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize)) stack
+
+/-- [rowl_kernel::unicode::continuation]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
+def unicode.continuation (byte : Std.U8) : Result Bool := do
+  ok ((byte >= 128#u8) && (byte <= 191#u8))
+
+/-- [rowl_kernel::unicode::four]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
+def unicode.four
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let b ← unicode.continuation second
+  let b1 ← unicode.continuation third
+  let b2 ← unicode.continuation fourth
+  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
+    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
+    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 240#u32
+    let i2 ← i1 * 262144#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 4096#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i8 * 64#u32
+    let i10 ← i6 + i9
+    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
+    let i12 ← i11 - 128#u32
+    let i13 ← i10 + i12
+    ok (some i13)
+  else ok none
+
+/-- [rowl_kernel::unicode::three]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
+def unicode.three
+  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
+  Result (Option Std.U32)
+  := do
+  let tail ← unicode.continuation second
+  let b ← unicode.continuation third
+  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
+    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
+    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
+    (first <= 239#u8)) && tail)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 224#u32
+    let i2 ← i1 * 4096#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i4 * 64#u32
+    let i6 ← i2 + i5
+    let i7 ← lift (core.convert.num.FromU32U8.from third)
+    let i8 ← i7 - 128#u32
+    let i9 ← i6 + i8
+    ok (some i9)
+  else ok none
+
+/-- [rowl_kernel::unicode::two]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
+def unicode.two
+  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
+  let b ← unicode.continuation second
+  if ((first >= 194#u8) && (first <= 223#u8)) && b
+  then
+    let i ← lift (core.convert.num.FromU32U8.from first)
+    let i1 ← i - 192#u32
+    let i2 ← i1 * 64#u32
+    let i3 ← lift (core.convert.num.FromU32U8.from second)
+    let i4 ← i3 - 128#u32
+    let i5 ← i2 + i4
+    ok (some i5)
+  else ok none
+
+/-- [rowl_kernel::unicode::TextError]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.TextError where
+| InvalidPosition : Std.Usize → unicode.TextError
+| InvalidUtf8 : Std.Usize → unicode.TextError
+| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
+
+/-- [rowl_kernel::unicode::Decoded]
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
+    Visibility: public -/
+@[discriminant isize]
+inductive unicode.Decoded where
+| End : unicode.Decoded
+| Scalar : Std.U32 → Std.Usize → unicode.Decoded
+| Error : unicode.TextError → unicode.Decoded
+
+/-- [rowl_kernel::unicode::decode_next]:
+    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
+    Visibility: public -/
+def unicode.decode_next
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result unicode.Decoded
+  := do
+  let length := alloc.vec.Vec.len bytes
+  if offset > length
+  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
+  else
+    if offset = length
+    then ok unicode.Decoded.End
+    else
+      let first ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes offset
+      if first < 128#u8
+      then
+        let i ← lift (core.convert.num.FromU32U8.from first)
+        let i1 ← offset + 1#usize
+        ok (unicode.Decoded.Scalar i i1)
+      else
+        let remaining ← length - offset
+        if first < 224#u8
+        then
+          if remaining >= 2#usize
+          then
+            let i ← offset + 1#usize
+            let i1 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                Std.U8) bytes i
+            let o ← unicode.two first i1
+            match o with
+            | none =>
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+            | some codepoint =>
+              let i2 ← offset + 2#usize
+              ok (unicode.Decoded.Scalar codepoint i2)
+          else
+            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+        else
+          if first < 240#u8
+          then
+            if remaining >= 3#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let o ← unicode.three first i1 i3
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i4 ← offset + 3#usize
+                ok (unicode.Decoded.Scalar codepoint i4)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+          else
+            if remaining >= 4#usize
+            then
+              let i ← offset + 1#usize
+              let i1 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i
+              let i2 ← offset + 2#usize
+              let i3 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i2
+              let i4 ← offset + 3#usize
+              let i5 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i4
+              let o ← unicode.four first i1 i3 i5
+              match o with
+              | none =>
+                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
+                  offset))
+              | some codepoint =>
+                let i6 ← offset + 4#usize
+                ok (unicode.Decoded.Scalar codepoint i6)
+            else
+              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
+
+/-- [rowl_kernel::regular::MatchResult]
+    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
+    Visibility: public -/
+@[discriminant isize]
+inductive regular.MatchResult where
+| Matched : Bool → regular.MatchResult
+| MalformedUtf8 : unicode.TextError → regular.MatchResult
+
+/-- [rowl_kernel::compiled::match_from]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 350:0-368:1 -/
+def compiled.match_from
+  (nodes : alloc.vec.Vec compiled.Node)
+  (state : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
+  Result (Option regular.MatchResult)
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End =>
+    let b ← compiled.accepting nodes state 0#usize
+    ok (some (regular.MatchResult.Matched b))
+  | unicode.Decoded.Scalar codepoint next =>
+    let (b, out) ←
+      compiled.step nodes state 0#usize codepoint (alloc.vec.Vec.new
+        (alloc.vec.Vec Std.Usize))
+    if b
+    then compiled.match_from nodes out bytes next
+    else ok none
+  | unicode.Decoded.Error error =>
+    ok (some (regular.MatchResult.MalformedUtf8 error))
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::matches]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 372:0-378:1
+    Visibility: public -/
+def compiled.matches
+  (table : compiled.Table) (root : Std.Usize) (bytes : alloc.vec.Vec Std.U8) :
+  Result (Option regular.MatchResult)
+  := do
+  if table.full
+  then ok none
+  else
+    let v ← compiled.start root
+    compiled.match_from table.nodes v bytes 0#usize
+
+/-- [rowl_kernel::longest::PrefixResult]
+    Source: 'crates/rowl-kernel/src/longest.rs', lines 9:0-12:1
+    Visibility: public -/
+@[discriminant isize]
+inductive longest.PrefixResult where
+| Matched : Option Std.Usize → longest.PrefixResult
+| MalformedUtf8 : unicode.TextError → longest.PrefixResult
+
+/-- [rowl_kernel::compiled::scan_from]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 381:0-408:1 -/
+def compiled.scan_from
+  (nodes : alloc.vec.Vec compiled.Node)
+  (state : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) (last : Option Std.Usize)
+  :
+  Result (Option longest.PrefixResult)
+  := do
+  let i := alloc.vec.Vec.len state
+  if i = 0#usize
+  then ok (some (longest.PrefixResult.Matched last))
+  else
+    let b ← compiled.accepting nodes state 0#usize
+    let latest ← if b
+                   then ok (some offset)
+                   else ok last
+    let d ← unicode.decode_next bytes offset
+    match d with
+    | unicode.Decoded.End => ok (some (longest.PrefixResult.Matched latest))
+    | unicode.Decoded.Scalar codepoint next =>
+      let (b1, out) ←
+        compiled.step nodes state 0#usize codepoint (alloc.vec.Vec.new
+          (alloc.vec.Vec Std.Usize))
+      if b1
+      then compiled.scan_from nodes out bytes next latest
+      else ok none
+    | unicode.Decoded.Error error =>
+      ok (some (longest.PrefixResult.MalformedUtf8 error))
+partial_fixpoint
+
+/-- [rowl_kernel::compiled::longest_valid]:
+    Source: 'crates/rowl-kernel/src/compiled.rs', lines 413:0-424:1
+    Visibility: public -/
+def compiled.longest_valid
+  (table : compiled.Table) (root : Std.Usize) (bytes : alloc.vec.Vec Std.U8)
+  (offset : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  if table.full
+  then ok none
+  else
+    let v ← compiled.start root
+    compiled.scan_from table.nodes v bytes offset none
+
 /-- [rowl_kernel::completion::Node]
     Source: 'crates/rowl-kernel/src/completion.rs', lines 58:0-65:1
     Visibility: public -/
@@ -14088,206 +14790,6 @@ def datatypes.truth_value
         then ok (some (datatypes.DataValue.Truth false))
         else ok none
 
-/-- [rowl_kernel::unicode::continuation]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 34:0-36:1 -/
-def unicode.continuation (byte : Std.U8) : Result Bool := do
-  ok ((byte >= 128#u8) && (byte <= 191#u8))
-
-/-- [rowl_kernel::unicode::four]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 66:0-80:1 -/
-def unicode.four
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) (fourth : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let b ← unicode.continuation second
-  let b1 ← unicode.continuation third
-  let b2 ← unicode.continuation fourth
-  if ((((((first = 240#u8) && (second >= 144#u8)) && (second <= 191#u8)) ||
-    (((first >= 241#u8) && (first <= 243#u8)) && b)) || (((first = 244#u8) &&
-    (second >= 128#u8)) && (second <= 143#u8))) && b1) && b2
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 240#u32
-    let i2 ← i1 * 262144#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 4096#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i8 * 64#u32
-    let i10 ← i6 + i9
-    let i11 ← lift (core.convert.num.FromU32U8.from fourth)
-    let i12 ← i11 - 128#u32
-    let i13 ← i10 + i12
-    ok (some i13)
-  else ok none
-
-/-- [rowl_kernel::unicode::three]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 48:0-63:1 -/
-def unicode.three
-  (first : Std.U8) (second : Std.U8) (third : Std.U8) :
-  Result (Option Std.U32)
-  := do
-  let tail ← unicode.continuation second
-  let b ← unicode.continuation third
-  if ((((((first = 224#u8) && (second >= 160#u8)) && (second <= 191#u8)) ||
-    (((first >= 225#u8) && (first <= 236#u8)) && tail)) || (((first = 237#u8)
-    && (second >= 128#u8)) && (second <= 159#u8))) || (((first >= 238#u8) &&
-    (first <= 239#u8)) && tail)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 224#u32
-    let i2 ← i1 * 4096#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i4 * 64#u32
-    let i6 ← i2 + i5
-    let i7 ← lift (core.convert.num.FromU32U8.from third)
-    let i8 ← i7 - 128#u32
-    let i9 ← i6 + i8
-    ok (some i9)
-  else ok none
-
-/-- [rowl_kernel::unicode::two]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 39:0-45:1 -/
-def unicode.two
-  (first : Std.U8) (second : Std.U8) : Result (Option Std.U32) := do
-  let b ← unicode.continuation second
-  if ((first >= 194#u8) && (first <= 223#u8)) && b
-  then
-    let i ← lift (core.convert.num.FromU32U8.from first)
-    let i1 ← i - 192#u32
-    let i2 ← i1 * 64#u32
-    let i3 ← lift (core.convert.num.FromU32U8.from second)
-    let i4 ← i3 - 128#u32
-    let i5 ← i2 + i4
-    ok (some i5)
-  else ok none
-
-/-- [rowl_kernel::unicode::TextError]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 6:0-10:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.TextError where
-| InvalidPosition : Std.Usize → unicode.TextError
-| InvalidUtf8 : Std.Usize → unicode.TextError
-| NonXmlCharacter : Std.Usize → Std.U32 → unicode.TextError
-
-/-- [rowl_kernel::unicode::Decoded]
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 12:0-16:1
-    Visibility: public -/
-@[discriminant isize]
-inductive unicode.Decoded where
-| End : unicode.Decoded
-| Scalar : Std.U32 → Std.Usize → unicode.Decoded
-| Error : unicode.TextError → unicode.Decoded
-
-/-- [rowl_kernel::unicode::decode_next]:
-    Source: 'crates/rowl-kernel/src/unicode.rs', lines 85:0-133:1
-    Visibility: public -/
-def unicode.decode_next
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) :
-  Result unicode.Decoded
-  := do
-  let length := alloc.vec.Vec.len bytes
-  if offset > length
-  then ok (unicode.Decoded.Error (unicode.TextError.InvalidPosition offset))
-  else
-    if offset = length
-    then ok unicode.Decoded.End
-    else
-      let first ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes offset
-      if first < 128#u8
-      then
-        let i ← lift (core.convert.num.FromU32U8.from first)
-        let i1 ← offset + 1#usize
-        ok (unicode.Decoded.Scalar i i1)
-      else
-        let remaining ← length - offset
-        if first < 224#u8
-        then
-          if remaining >= 2#usize
-          then
-            let i ← offset + 1#usize
-            let i1 ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                Std.U8) bytes i
-            let o ← unicode.two first i1
-            match o with
-            | none =>
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-            | some codepoint =>
-              let i2 ← offset + 2#usize
-              ok (unicode.Decoded.Scalar codepoint i2)
-          else
-            ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-        else
-          if first < 240#u8
-          then
-            if remaining >= 3#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let o ← unicode.three first i1 i3
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i4 ← offset + 3#usize
-                ok (unicode.Decoded.Scalar codepoint i4)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-          else
-            if remaining >= 4#usize
-            then
-              let i ← offset + 1#usize
-              let i1 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i
-              let i2 ← offset + 2#usize
-              let i3 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i2
-              let i4 ← offset + 3#usize
-              let i5 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i4
-              let o ← unicode.four first i1 i3 i5
-              match o with
-              | none =>
-                ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8
-                  offset))
-              | some codepoint =>
-                let i6 ← offset + 4#usize
-                ok (unicode.Decoded.Scalar codepoint i6)
-            else
-              ok (unicode.Decoded.Error (unicode.TextError.InvalidUtf8 offset))
-
-/-- [rowl_kernel::regular::Expression]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 10:0-17:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.Expression where
-| Empty : regular.Expression
-| Epsilon : regular.Expression
-| Interval : Std.U32 → Std.U32 → regular.Expression
-| Alternative :
-  regular.Expression →
-  regular.Expression →
-  regular.Expression
-| Sequence : regular.Expression → regular.Expression → regular.Expression
-| Repeat : regular.Expression → regular.Expression
-
 /-- [rowl_kernel::regular::repeat]:
     Source: 'crates/rowl-kernel/src/regular.rs', lines 71:0-76:1
     Visibility: public -/
@@ -14528,14 +15030,6 @@ def regular.derivative
     let e1 ← regular.repeat original
     regular.sequence e e1
 partial_fixpoint
-
-/-- [rowl_kernel::regular::MatchResult]
-    Source: 'crates/rowl-kernel/src/regular.rs', lines 19:0-22:1
-    Visibility: public -/
-@[discriminant isize]
-inductive regular.MatchResult where
-| Matched : Bool → regular.MatchResult
-| MalformedUtf8 : unicode.TextError → regular.MatchResult
 
 /-- [rowl_kernel::regular::match_from]:
     Source: 'crates/rowl-kernel/src/regular.rs', lines 110:0-118:1 -/
@@ -30312,7 +30806,7 @@ def langtag.normal_grammar : Result regular.Expression := do
   langtag.langtag
 
 /-- [rowl_kernel::iri::alt]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 15:0-17:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 16:0-18:1 -/
 def iri.alt
   (a : regular.Expression) (b : regular.Expression) :
   Result regular.Expression
@@ -30320,13 +30814,13 @@ def iri.alt
   ok (regular.Expression.Alternative a b)
 
 /-- [rowl_kernel::iri::range]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 9:0-11:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 10:0-12:1 -/
 def iri.range
   (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
   ok (regular.Expression.Interval lower upper)
 
 /-- [rowl_kernel::iri::ucschar]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 83:0-133:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 84:0-134:1 -/
 def iri.ucschar : Result regular.Expression := do
   let e ← iri.range 160#u32 55295#u32
   let e1 ← iri.range 63744#u32 64975#u32
@@ -30363,24 +30857,24 @@ def iri.ucschar : Result regular.Expression := do
   iri.alt e e31
 
 /-- [rowl_kernel::iri::digit]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 47:0-49:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 48:0-50:1 -/
 def iri.digit : Result regular.Expression := do
   iri.range 48#u32 57#u32
 
 /-- [rowl_kernel::iri::alpha]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 44:0-46:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 45:0-47:1 -/
 def iri.alpha : Result regular.Expression := do
   let e ← iri.range 65#u32 90#u32
   let e1 ← iri.range 97#u32 122#u32
   iri.alt e e1
 
 /-- [rowl_kernel::iri::chr]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 12:0-14:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 13:0-15:1 -/
 def iri.chr (cp : Std.U32) : Result regular.Expression := do
   iri.range cp cp
 
 /-- [rowl_kernel::iri::unreserved]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 53:0-58:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 54:0-59:1 -/
 def iri.unreserved : Result regular.Expression := do
   let e ← iri.alpha
   let e1 ← iri.digit
@@ -30395,14 +30889,14 @@ def iri.unreserved : Result regular.Expression := do
   iri.alt e e9
 
 /-- [rowl_kernel::iri::iunreserved]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 140:0-142:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 141:0-143:1 -/
 def iri.iunreserved : Result regular.Expression := do
   let e ← iri.unreserved
   let e1 ← iri.ucschar
   iri.alt e e1
 
 /-- [rowl_kernel::iri::hex]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 50:0-52:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 51:0-53:1 -/
 def iri.hex : Result regular.Expression := do
   let e ← iri.digit
   let e1 ← iri.range 65#u32 70#u32
@@ -30411,7 +30905,7 @@ def iri.hex : Result regular.Expression := do
   iri.alt e e3
 
 /-- [rowl_kernel::iri::cat]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 18:0-20:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 19:0-21:1 -/
 def iri.cat
   (a : regular.Expression) (b : regular.Expression) :
   Result regular.Expression
@@ -30419,7 +30913,7 @@ def iri.cat
   ok (regular.Expression.Sequence a b)
 
 /-- [rowl_kernel::iri::exact]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 30:0-36:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 31:0-37:1 -/
 def iri.exact
   (a : regular.Expression) (count : Std.U8) : Result regular.Expression := do
   if count = 0#u8
@@ -30432,7 +30926,7 @@ def iri.exact
 partial_fixpoint
 
 /-- [rowl_kernel::iri::pct_encoded]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 80:0-82:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 81:0-83:1 -/
 def iri.pct_encoded : Result regular.Expression := do
   let e ← iri.chr 37#u32
   let e1 ← iri.hex
@@ -30440,7 +30934,7 @@ def iri.pct_encoded : Result regular.Expression := do
   iri.cat e e2
 
 /-- [rowl_kernel::iri::sub_delims]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 59:0-79:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 60:0-80:1 -/
 def iri.sub_delims : Result regular.Expression := do
   let e ← iri.chr 33#u32
   let e1 ← iri.chr 36#u32
@@ -30465,7 +30959,7 @@ def iri.sub_delims : Result regular.Expression := do
   iri.alt e e19
 
 /-- [rowl_kernel::iri::ipchar]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 143:0-148:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 144:0-149:1 -/
 def iri.ipchar : Result regular.Expression := do
   let e ← iri.iunreserved
   let e1 ← iri.pct_encoded
@@ -30478,12 +30972,12 @@ def iri.ipchar : Result regular.Expression := do
   iri.alt e e7
 
 /-- [rowl_kernel::iri::star]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 24:0-26:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 25:0-27:1 -/
 def iri.star (a : regular.Expression) : Result regular.Expression := do
   ok (regular.Expression.Repeat a)
 
 /-- [rowl_kernel::iri::fragment]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 176:0-178:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 177:0-179:1 -/
 def iri.fragment : Result regular.Expression := do
   let e ← iri.ipchar
   let e1 ← iri.chr 47#u32
@@ -30493,7 +30987,7 @@ def iri.fragment : Result regular.Expression := do
   iri.star e4
 
 /-- [rowl_kernel::iri::iprivate]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 134:0-139:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 135:0-140:1 -/
 def iri.iprivate : Result regular.Expression := do
   let e ← iri.range 57344#u32 63743#u32
   let e1 ← iri.range 983040#u32 1048573#u32
@@ -30502,7 +30996,7 @@ def iri.iprivate : Result regular.Expression := do
   iri.alt e e3
 
 /-- [rowl_kernel::iri::query]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 173:0-175:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 174:0-176:1 -/
 def iri.query : Result regular.Expression := do
   let e ← iri.ipchar
   let e1 ← iri.iprivate
@@ -30514,12 +31008,12 @@ def iri.query : Result regular.Expression := do
   iri.star e6
 
 /-- [rowl_kernel::iri::opt]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 21:0-23:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 22:0-24:1 -/
 def iri.opt (a : regular.Expression) : Result regular.Expression := do
   iri.alt regular.Expression.Epsilon a
 
 /-- [rowl_kernel::iri::suffix]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 308:0-310:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 309:0-311:1 -/
 def iri.suffix : Result regular.Expression := do
   let e ← iri.chr 63#u32
   let e1 ← iri.query
@@ -30532,20 +31026,20 @@ def iri.suffix : Result regular.Expression := do
   iri.cat e3 e7
 
 /-- [rowl_kernel::iri::double_slash]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 293:0-295:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 294:0-296:1 -/
 def iri.double_slash : Result regular.Expression := do
   let e ← iri.chr 47#u32
   iri.cat e e
 
 /-- [rowl_kernel::iri::plus]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 27:0-29:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 28:0-30:1 -/
 def iri.plus (a : regular.Expression) : Result regular.Expression := do
   let e ← regular.copy_expression a
   let e1 ← iri.star a
   iri.cat e e1
 
 /-- [rowl_kernel::iri::ipv_future]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 269:0-277:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 270:0-278:1 -/
 def iri.ipv_future : Result regular.Expression := do
   let e ← iri.chr 118#u32
   let e1 ← iri.chr 86#u32
@@ -30564,7 +31058,7 @@ def iri.ipv_future : Result regular.Expression := do
   iri.cat e2 e13
 
 /-- [rowl_kernel::iri::up_to]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 37:0-43:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 38:0-44:1 -/
 def iri.up_to
   (a : regular.Expression) (count : Std.U8) : Result regular.Expression := do
   if count = 0#u8
@@ -30578,21 +31072,21 @@ def iri.up_to
 partial_fixpoint
 
 /-- [rowl_kernel::iri::h16]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 215:0-217:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 216:0-218:1 -/
 def iri.h16 : Result regular.Expression := do
   let e ← iri.hex
   let e1 ← iri.up_to e 3#u8
   iri.cat e e1
 
 /-- [rowl_kernel::iri::h16_colon]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 224:0-226:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 225:0-227:1 -/
 def iri.h16_colon : Result regular.Expression := do
   let e ← iri.h16
   let e1 ← iri.chr 58#u32
   iri.cat e e1
 
 /-- [rowl_kernel::iri::compressed_prefix]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 227:0-229:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 228:0-230:1 -/
 def iri.compressed_prefix
   (max_colons : Std.U8) : Result regular.Expression := do
   let e ← iri.h16_colon
@@ -30602,13 +31096,13 @@ def iri.compressed_prefix
   iri.opt e3
 
 /-- [rowl_kernel::iri::colon_pair]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 221:0-223:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 222:0-224:1 -/
 def iri.colon_pair : Result regular.Expression := do
   let e ← iri.chr 58#u32
   iri.cat e e
 
 /-- [rowl_kernel::iri::dec_octet]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 197:0-211:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 198:0-212:1 -/
 def iri.dec_octet : Result regular.Expression := do
   let e ← iri.digit
   let e1 ← iri.range 49#u32 57#u32
@@ -30630,7 +31124,7 @@ def iri.dec_octet : Result regular.Expression := do
   iri.alt e e16
 
 /-- [rowl_kernel::iri::ipv4]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 212:0-214:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 213:0-215:1 -/
 def iri.ipv4 : Result regular.Expression := do
   let e ← iri.dec_octet
   let e1 ← iri.chr 46#u32
@@ -30639,7 +31133,7 @@ def iri.ipv4 : Result regular.Expression := do
   iri.cat e3 e
 
 /-- [rowl_kernel::iri::ls32]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 218:0-220:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 219:0-221:1 -/
 def iri.ls32 : Result regular.Expression := do
   let e ← iri.h16
   let e1 ← iri.chr 58#u32
@@ -30649,7 +31143,7 @@ def iri.ls32 : Result regular.Expression := do
   iri.alt e3 e4
 
 /-- [rowl_kernel::iri::ipv6]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 230:0-268:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 231:0-269:1 -/
 def iri.ipv6 : Result regular.Expression := do
   let e ← iri.h16_colon
   let e1 ← iri.exact e 6#u8
@@ -30697,7 +31191,7 @@ def iri.ipv6 : Result regular.Expression := do
   iri.alt e3 e42
 
 /-- [rowl_kernel::iri::ip_literal]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 278:0-280:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 279:0-281:1 -/
 def iri.ip_literal : Result regular.Expression := do
   let e ← iri.chr 91#u32
   let e1 ← iri.ipv6
@@ -30708,7 +31202,7 @@ def iri.ip_literal : Result regular.Expression := do
   iri.cat e e5
 
 /-- [rowl_kernel::iri::reg_name]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 194:0-196:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 195:0-197:1 -/
 def iri.reg_name : Result regular.Expression := do
   let e ← iri.iunreserved
   let e1 ← iri.pct_encoded
@@ -30718,7 +31212,7 @@ def iri.reg_name : Result regular.Expression := do
   iri.star e4
 
 /-- [rowl_kernel::iri::host]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 281:0-283:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 282:0-284:1 -/
 def iri.host : Result regular.Expression := do
   let e ← iri.ip_literal
   let e1 ← iri.ipv4
@@ -30727,7 +31221,7 @@ def iri.host : Result regular.Expression := do
   iri.alt e e3
 
 /-- [rowl_kernel::iri::userinfo]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 188:0-193:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 189:0-194:1 -/
 def iri.userinfo : Result regular.Expression := do
   let e ← iri.iunreserved
   let e1 ← iri.pct_encoded
@@ -30739,7 +31233,7 @@ def iri.userinfo : Result regular.Expression := do
   iri.star e6
 
 /-- [rowl_kernel::iri::authority]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 284:0-289:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 285:0-290:1 -/
 def iri.authority : Result regular.Expression := do
   let e ← iri.userinfo
   let e1 ← iri.chr 64#u32
@@ -30755,13 +31249,13 @@ def iri.authority : Result regular.Expression := do
   iri.cat e3 e10
 
 /-- [rowl_kernel::iri::segment]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 149:0-151:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 150:0-152:1 -/
 def iri.segment : Result regular.Expression := do
   let e ← iri.ipchar
   iri.star e
 
 /-- [rowl_kernel::iri::path_tail]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 161:0-163:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 162:0-164:1 -/
 def iri.path_tail : Result regular.Expression := do
   let e ← iri.chr 47#u32
   let e1 ← iri.segment
@@ -30769,7 +31263,7 @@ def iri.path_tail : Result regular.Expression := do
   iri.star e2
 
 /-- [rowl_kernel::iri::authority_path]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 290:0-292:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 291:0-293:1 -/
 def iri.authority_path : Result regular.Expression := do
   let e ← iri.double_slash
   let e1 ← iri.authority
@@ -30778,20 +31272,20 @@ def iri.authority_path : Result regular.Expression := do
   iri.cat e e3
 
 /-- [rowl_kernel::iri::segment_nz]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 152:0-154:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 153:0-155:1 -/
 def iri.segment_nz : Result regular.Expression := do
   let e ← iri.ipchar
   iri.plus e
 
 /-- [rowl_kernel::iri::path_rootless]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 167:0-169:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 168:0-170:1 -/
 def iri.path_rootless : Result regular.Expression := do
   let e ← iri.segment_nz
   let e1 ← iri.path_tail
   iri.cat e e1
 
 /-- [rowl_kernel::iri::path_absolute]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 164:0-166:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 165:0-167:1 -/
 def iri.path_absolute : Result regular.Expression := do
   let e ← iri.chr 47#u32
   let e1 ← iri.segment_nz
@@ -30801,7 +31295,7 @@ def iri.path_absolute : Result regular.Expression := do
   iri.cat e e4
 
 /-- [rowl_kernel::iri::hier_part]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 296:0-301:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 297:0-302:1 -/
 def iri.hier_part : Result regular.Expression := do
   let e ← iri.authority_path
   let e1 ← iri.path_absolute
@@ -30811,7 +31305,7 @@ def iri.hier_part : Result regular.Expression := do
   iri.alt e e4
 
 /-- [rowl_kernel::iri::scheme]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 179:0-187:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 180:0-188:1 -/
 def iri.scheme : Result regular.Expression := do
   let e ← iri.alpha
   let e1 ← iri.digit
@@ -30826,7 +31320,7 @@ def iri.scheme : Result regular.Expression := do
   iri.cat e e9
 
 /-- [rowl_kernel::iri::iri]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 313:0-315:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 314:0-316:1
     Visibility: public -/
 def iri.iri : Result regular.Expression := do
   let e ← iri.scheme
@@ -30877,14 +31371,6 @@ def functional.recognize
   := do
   let e ← functional.grammar terminal
   regular.matches_utf8 e bytes
-
-/-- [rowl_kernel::longest::PrefixResult]
-    Source: 'crates/rowl-kernel/src/longest.rs', lines 9:0-12:1
-    Visibility: public -/
-@[discriminant isize]
-inductive longest.PrefixResult where
-| Matched : Option Std.Usize → longest.PrefixResult
-| MalformedUtf8 : unicode.TextError → longest.PrefixResult
 
 /-- [rowl_kernel::longest::scan]:
     Source: 'crates/rowl-kernel/src/longest.rs', lines 14:0-32:1 -/
@@ -32916,13 +33402,26 @@ def names.validate_prefix
   let e ← names.prefix_grammar
   regular.matches_utf8 e bytes
 
+/-- [rowl_kernel::iri::validate]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 329:0-336:1 -/
+def iri.validate
+  (grammar : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
+  Result regular.MatchResult
+  := do
+  let nodes ← compiled.table
+  let (root, nodes1) ← compiled.compile nodes grammar
+  let o ← compiled.matches nodes1 root bytes
+  match o with
+  | none => regular.matches_utf8 grammar bytes
+  | some result => ok result
+
 /-- [rowl_kernel::iri::validate_iri]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 327:0-329:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 339:0-341:1
     Visibility: public -/
 def iri.validate_iri
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
   let e ← iri.iri
-  regular.matches_utf8 e bytes
+  iri.validate e bytes
 
 /-- [rowl_kernel::prefixes::expand_parts]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 166:0-191:1
@@ -43475,7 +43974,7 @@ def indexing.check_ontology_typing
     ok (indexing.IndexedTyping.CapacityExceeded st iri)
 
 /-- [rowl_kernel::iri::segment_nz_nc]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 155:0-160:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 156:0-161:1 -/
 def iri.segment_nz_nc : Result regular.Expression := do
   let e ← iri.iunreserved
   let e1 ← iri.pct_encoded
@@ -43487,14 +43986,14 @@ def iri.segment_nz_nc : Result regular.Expression := do
   iri.plus e6
 
 /-- [rowl_kernel::iri::path_noscheme]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 170:0-172:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 171:0-173:1 -/
 def iri.path_noscheme : Result regular.Expression := do
   let e ← iri.segment_nz_nc
   let e1 ← iri.path_tail
   iri.cat e e1
 
 /-- [rowl_kernel::iri::relative_part]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 302:0-307:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 303:0-308:1 -/
 def iri.relative_part : Result regular.Expression := do
   let e ← iri.authority_path
   let e1 ← iri.path_absolute
@@ -43504,14 +44003,14 @@ def iri.relative_part : Result regular.Expression := do
   iri.alt e e4
 
 /-- [rowl_kernel::iri::relative_ref]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 317:0-319:1 -/
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 318:0-320:1 -/
 def iri.relative_ref : Result regular.Expression := do
   let e ← iri.relative_part
   let e1 ← iri.suffix
   iri.cat e e1
 
 /-- [rowl_kernel::iri::iri_reference]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 321:0-323:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 322:0-324:1
     Visibility: public -/
 def iri.iri_reference : Result regular.Expression := do
   let e ← iri.iri
@@ -43519,12 +44018,12 @@ def iri.iri_reference : Result regular.Expression := do
   iri.alt e e1
 
 /-- [rowl_kernel::iri::validate_reference]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 332:0-334:1
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1
     Visibility: public -/
 def iri.validate_reference
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
   let e ← iri.iri_reference
-  regular.matches_utf8 e bytes
+  iri.validate e bytes
 
 /-- [rowl_kernel::keys::axioms_from]:
     Source: 'crates/rowl-kernel/src/keys.rs', lines 15:0-26:1 -/
