@@ -304,62 +304,6 @@ theorem is_atom_correct (e : concept_table.Entry) (c : Class) :
     simp only [concept_table.Entry.Atom.injEq,class_eq_iff]
   | _ => rw [completion.is_atom]; simp
 
-private theorem has_atom_cons (entries : List concept_table.Entry) (head : Usize) (rest : List Usize) (c : Class)
-    (no : ¬ entries[head.val]? = some (.Atom c)) :
-    HasAtom entries rest c ↔ HasAtom entries (head :: rest) c := by
-  constructor
-  · rintro ⟨i,member,found⟩
-    exact ⟨i,List.mem_cons_of_mem _ member,found⟩
-  · rintro ⟨i,member,found⟩
-    rcases List.mem_cons.mp member with rfl | later
-    · exact absurd found no
-    · exact ⟨i,later,found⟩
-
-theorem has_atom_correct (entries : alloc.vec.Vec concept_table.Entry) (label : alloc.vec.Vec Usize) (c : Class)
-    (index : Usize) :
-    completion.has_atom entries label c index = .ok (decide (HasAtom entries.val (label.val.drop index.val) c)) := by
-  rw [completion.has_atom]
-  by_cases more : index.val < label.val.length
-  · have lookup : label.index_usize index = .ok label.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
-    have split : label.val.drop index.val = label.val[index.val] :: label.val.drop (index.val+1) :=
-      List.drop_eq_getElem_cons more
-    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    have rest := has_atom_correct entries label c index'
-    rw [nextIndex] at rest
-    by_cases itemIn : label.val[index.val].val < entries.val.length
-    · have one : entries.index_usize label.val[index.val] = .ok entries.val[label.val[index.val].val] := by
-        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem itemIn]
-      by_cases found : entries.val[label.val[index.val].val] = .Atom c
-      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,itemIn,one,is_atom_correct,found,decide_true]
-        congr 1
-        symm
-        rw [decide_eq_true_iff]
-        exact ⟨label.val[index.val],by rw [split]; exact List.mem_cons_self ..,
-          by rw [List.getElem?_eq_getElem itemIn,found]⟩
-      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,itemIn,one,is_atom_correct,found,decide_false,Bool.false_eq_true,advance,rest]
-        congr 1
-        rw [decide_eq_decide,split]
-        apply has_atom_cons
-        rw [List.getElem?_eq_getElem itemIn]
-        intro same
-        exact found (Option.some.inj same)
-    · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-        lookup,bind_ok,itemIn,Bool.false_eq_true,advance,rest]
-      congr 1
-      rw [decide_eq_decide,split]
-      apply has_atom_cons
-      rw [List.getElem?_eq_none_iff.mpr (by omega)]
-      simp
-  · have empty : label.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,empty,HasAtom]
-termination_by label.val.length - index.val
-decreasing_by omega
-
 theorem subset_correct (small large : alloc.vec.Vec Usize) (index : Usize) :
     completion.subset small large index = .ok (decide (∀ i ∈ small.val.drop index.val, i ∈ large.val)) := by
   rw [completion.subset]
@@ -474,67 +418,141 @@ private theorem missing_requirement_correct (P : completion.Problem) (label : al
 termination_by P.requirements.val.length - index.val
 decreasing_by omega
 
-private theorem unfolding_missing_correct (P : completion.Problem) (label : alloc.vec.Vec Usize)
-    (u : completion.Unfolding) :
-    completion.unfolding_missing P label u =
-      .ok (decide (HasAtom P.entries.val label.val u.class ∧ ¬ Holds P.entries.val label.val u.concept.val)) := by
-  rw [completion.unfolding_missing,has_atom_correct]
-  simp only [show (0#usize).val = 0 from rfl,List.drop_zero]
-  by_cases atom : HasAtom P.entries.val label.val u.class
-  · rw [decide_eq_true atom]
-    simp only [bind_ok,↓reduceIte,holds_correct _ _ _ _ rfl,atom,true_and]
-    by_cases satisfied : Holds P.entries.val label.val u.concept.val <;> simp [satisfied]
-  · rw [decide_eq_false atom]
-    simp [atom]
+/-- For every entry, the listed indices point to exactly the unfoldings whose
+    class the entry is. -/
+def TriggersFor (entries : List concept_table.Entry) (unfoldings : List completion.Unfolding)
+    (triggers : List (alloc.vec.Vec Usize)) : Prop :=
+  triggers.length = entries.length ∧
+  ∀ i (inside : i < triggers.length) (u : completion.Unfolding),
+    (∃ k ∈ triggers[i].val, unfoldings[k.val]? = some u) ↔ (u ∈ unfoldings ∧ entries[i]? = some (.Atom u.class))
 
-theorem missing_unfolding_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (index : Usize) :
-    ∃ r, completion.missing_unfolding P label index = .ok r ∧
-      (∀ c, r = some c → (∃ u ∈ P.unfoldings.val.drop index.val, HasAtom P.entries.val label.val u.class ∧
-        u.concept = c) ∧ ¬ Holds P.entries.val label.val c.val) ∧
-      (r = none → ∀ u ∈ P.unfoldings.val.drop index.val, HasAtom P.entries.val label.val u.class →
+/-- The problem's triggers list the unfoldings of every entry. -/
+def TriggersOk (P : completion.Problem) : Prop := TriggersFor P.entries.val P.unfoldings.val P.triggers.val
+
+private theorem missing_among_correct (P : completion.Problem) (label listed : alloc.vec.Vec Usize) (index : Usize) :
+    ∃ r, completion.missing_among P label listed index = .ok r ∧
+      (∀ c, r = some c → (∃ k ∈ listed.val.drop index.val, ∃ u, P.unfoldings.val[k.val]? = some u ∧ u.concept = c) ∧
+        ¬ Holds P.entries.val label.val c.val) ∧
+      (r = none → ∀ k ∈ listed.val.drop index.val, ∀ u, P.unfoldings.val[k.val]? = some u →
         Holds P.entries.val label.val u.concept.val) := by
-  rw [completion.missing_unfolding]
-  by_cases more : index.val < P.unfoldings.val.length
-  · have lookup : P.unfoldings.index_usize index = .ok P.unfoldings.val[index.val] := by
+  rw [completion.missing_among]
+  by_cases more : index.val < listed.val.length
+  · have lookup : listed.index_usize index = .ok listed.val[index.val] := by
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
-    have split : P.unfoldings.val.drop index.val =
-        P.unfoldings.val[index.val] :: P.unfoldings.val.drop (index.val+1) := List.drop_eq_getElem_cons more
+    have split : listed.val.drop index.val = listed.val[index.val] :: listed.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨r,run,found,absent⟩ := missing_unfolding_correct P label index'
+    obtain ⟨r,run,found,absent⟩ := missing_among_correct P label listed index'
     rw [nextIndex] at found absent
-    by_cases missing : HasAtom P.entries.val label.val P.unfoldings.val[index.val].class ∧
-        ¬ Holds P.entries.val label.val P.unfoldings.val[index.val].concept.val
-    · refine ⟨some P.unfoldings.val[index.val].concept,?_,?_,by simp⟩
-      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,unfolding_missing_correct,missing,decide_true]
-        simp
-      · intro c same
-        cases same
-        exact ⟨⟨_,by rw [split]; exact List.mem_cons_self ..,missing.1,rfl⟩,missing.2⟩
-    · refine ⟨r,?_,?_,?_⟩
-      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,unfolding_missing_correct,missing,decide_false,Bool.false_eq_true,advance,run]
-      · intro c same
-        obtain ⟨⟨u,member,atom,concept⟩,missing'⟩ := found c same
-        exact ⟨⟨u,by rw [split]; exact List.mem_cons_of_mem _ member,atom,concept⟩,missing'⟩
-      · intro none u member atom
+    have foundLater : ∀ c, r = some c → (∃ k ∈ listed.val.drop index.val, ∃ u,
+        P.unfoldings.val[k.val]? = some u ∧ u.concept = c) ∧ ¬ Holds P.entries.val label.val c.val := by
+      intro c same
+      obtain ⟨⟨k,member,u,at_k,concept⟩,missing⟩ := found c same
+      exact ⟨⟨k,by rw [split]; exact List.mem_cons_of_mem _ member,u,at_k,concept⟩,missing⟩
+    by_cases inside : listed.val[index.val].val < P.unfoldings.val.length
+    · have lookupU : P.unfoldings.index_usize listed.val[index.val] =
+          .ok P.unfoldings.val[listed.val[index.val].val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+      by_cases satisfied : Holds P.entries.val label.val P.unfoldings.val[listed.val[index.val].val].concept.val
+      · refine ⟨r,?_,foundLater,?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,inside,lookup,lookupU,
+            holds_correct _ _ _ _ rfl,satisfied,advance,run]
+        · intro none k member u at_k
+          rw [split] at member
+          rcases List.mem_cons.mp member with rfl | later
+          · rw [List.getElem?_eq_getElem inside] at at_k
+            cases Option.some.inj at_k
+            exact satisfied
+          · exact absent none k later u at_k
+      · refine ⟨some P.unfoldings.val[listed.val[index.val].val].concept,?_,?_,by simp⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,inside,lookup,lookupU,
+            holds_correct _ _ _ _ rfl,satisfied]
+        · intro c same
+          cases same
+          exact ⟨⟨_,by rw [split]; exact List.mem_cons_self ..,_,List.getElem?_eq_getElem inside,rfl⟩,satisfied⟩
+    · refine ⟨r,?_,foundLater,?_⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,inside,lookup,advance,run]
+      · intro none k member u at_k
         rw [split] at member
         rcases List.mem_cons.mp member with rfl | later
-        · by_contra fails
-          exact missing ⟨atom,fails⟩
-        · exact absent none u later atom
+        · rw [List.getElem?_eq_none (by omega)] at at_k
+          cases at_k
+        · exact absent none k later u at_k
   · refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
-    intro _ u member
+    intro _ k member
     rw [List.drop_eq_nil_iff.mpr (by omega)] at member
     cases member
-termination_by P.unfoldings.val.length - index.val
+termination_by listed.val.length - index.val
+decreasing_by omega
+
+/-- The search over the label's items finds an unfolding of one of them that the
+    label does not satisfy, or nothing when it satisfies every unfolding whose
+    class is listed from `index` on. -/
+theorem missing_unfolding_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (triggers : TriggersOk P)
+    (index : Usize) :
+    ∃ r, completion.missing_unfolding P label index = .ok r ∧
+      (∀ c, r = some c → (∃ u ∈ P.unfoldings.val, HasAtom P.entries.val label.val u.class ∧ u.concept = c) ∧
+        ¬ Holds P.entries.val label.val c.val) ∧
+      (r = none → ∀ u ∈ P.unfoldings.val, (∃ i ∈ label.val.drop index.val, P.entries.val[i.val]? = some (.Atom u.class)) →
+        Holds P.entries.val label.val u.concept.val) := by
+  obtain ⟨lengths,lists⟩ := triggers
+  rw [completion.missing_unfolding]
+  by_cases more : index.val < label.val.length
+  · have lookup : label.index_usize index = .ok label.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have split : label.val.drop index.val = label.val[index.val] :: label.val.drop (index.val+1) :=
+      List.drop_eq_getElem_cons more
+    have itemListed : label.val[index.val] ∈ label.val := List.getElem_mem more
+    obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : index'.val = index.val+1 := by simpa using indexValue
+    obtain ⟨r,run,found,absent⟩ := missing_unfolding_correct P label ⟨lengths,lists⟩ index'
+    rw [nextIndex] at absent
+    by_cases itemIn : label.val[index.val].val < P.triggers.val.length
+    · have lookupT : P.triggers.index_usize label.val[index.val] = .ok P.triggers.val[label.val[index.val].val] := by
+        simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem itemIn]
+      obtain ⟨here,hereRun,hereFound,hereAbsent⟩ :=
+        missing_among_correct P label P.triggers.val[label.val[index.val].val] 0#usize
+      simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at hereFound hereAbsent
+      cases here with
+      | some c =>
+        refine ⟨some c,?_,?_,by simp⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,itemIn,lookup,lookupT,hereRun]
+        · intro c' same
+          cases same
+          obtain ⟨⟨k,member,u,at_k,concept⟩,missing⟩ := hereFound c rfl
+          obtain ⟨uIn,atom⟩ := (lists label.val[index.val].val itemIn u).mp ⟨k,member,at_k⟩
+          exact ⟨⟨u,uIn,⟨_,itemListed,atom⟩,concept⟩,missing⟩
+      | none =>
+        refine ⟨r,?_,found,?_⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,itemIn,lookup,lookupT,hereRun,advance,run]
+        · intro none u member ⟨i,iMember,atom⟩
+          rw [split] at iMember
+          rcases List.mem_cons.mp iMember with rfl | later
+          · obtain ⟨k,kMember,at_k⟩ := (lists _ itemIn u).mpr ⟨member,atom⟩
+            exact hereAbsent rfl k kMember u at_k
+          · exact absent none u member ⟨i,later,atom⟩
+    · refine ⟨r,?_,found,?_⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,itemIn,lookup,advance,run]
+      · intro none u member ⟨i,iMember,atom⟩
+        rw [split] at iMember
+        rcases List.mem_cons.mp iMember with rfl | later
+        · rw [List.getElem?_eq_none (by rw [← lengths]; omega)] at atom
+          cases atom
+        · exact absent none u member ⟨i,later,atom⟩
+  · refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
+    intro _ u _ ⟨i,iMember,_⟩
+    rw [List.drop_eq_nil_iff.mpr (by omega)] at iMember
+    cases iMember
+termination_by label.val.length - index.val
 decreasing_by omega
 
 /-- The search at one node returns something the node needs and its label does
     not satisfy, or nothing when the label satisfies everything it needs. -/
-theorem missing_at_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (x : Usize) :
+theorem missing_at_correct (P : completion.Problem) (label : alloc.vec.Vec Usize) (x : Usize)
+    (triggers : TriggersOk P) :
     ∃ r, completion.missing_at P label x = .ok r ∧
       (∀ c, r = some c → NodeNeeds P label.val x.val c ∧ ¬ Holds P.entries.val label.val c.val) ∧
       (r = none → NodeOk P label.val x.val) := by
@@ -551,7 +569,7 @@ theorem missing_at_correct (P : completion.Problem) (label : alloc.vec.Vec Usize
   | none =>
     have requirements := absent1 rfl
     by_cases axiomsHold : Holds P.entries.val label.val P.axioms.val
-    · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P label 0#usize
+    · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P label triggers 0#usize
       simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found2 absent2
       refine ⟨r2,by simp [holds_correct _ _ _ _ rfl,axiomsHold,run2],?_,?_⟩
       · intro c same
@@ -575,7 +593,8 @@ def labelOf (nodes : List completion.Node) (x : Nat) : List Usize :=
 
 /-- The node search returns a node and something it needs and lacks, or nothing
     when every node from `index` on satisfies what it needs. -/
-theorem missing_node_correct (P : completion.Problem) (nodes : alloc.vec.Vec completion.Node) (index : Usize) :
+theorem missing_node_correct (P : completion.Problem) (nodes : alloc.vec.Vec completion.Node) (index : Usize)
+    (triggers : TriggersOk P) :
     ∃ r, completion.missing_node P nodes index = .ok r ∧
       (∀ x c, r = some (x,c) → x.val < nodes.val.length ∧ NodeNeeds P (labelOf nodes.val x.val) x.val c ∧
         ¬ Holds P.entries.val (labelOf nodes.val x.val) c.val) ∧
@@ -586,7 +605,7 @@ theorem missing_node_correct (P : completion.Problem) (nodes : alloc.vec.Vec com
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
     have labelHere : labelOf nodes.val index.val = nodes.val[index.val].label.val := by
       simp [labelOf,List.getElem?_eq_getElem more]
-    obtain ⟨here,hereRun,hereFound,hereAbsent⟩ := missing_at_correct P nodes.val[index.val].label index
+    obtain ⟨here,hereRun,hereFound,hereAbsent⟩ := missing_at_correct P nodes.val[index.val].label index triggers
     cases here with
     | some c =>
       refine ⟨some (index,c),?_,?_,by simp⟩
@@ -601,7 +620,7 @@ theorem missing_node_correct (P : completion.Problem) (nodes : alloc.vec.Vec com
       obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
         (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
       have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-      obtain ⟨r,run,found,absent⟩ := missing_node_correct P nodes index'
+      obtain ⟨r,run,found,absent⟩ := missing_node_correct P nodes index' triggers
       refine ⟨r,?_,found,?_⟩
       · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
           lookup,bind_ok,hereRun,advance,run]
@@ -1886,7 +1905,8 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : Lis
 /-- The rule search returns a node and an entry it needs and lacks, else an
     unblocked node with an existential restriction without a witness, else
     `Done`, and then no rule applies. -/
-theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : alloc.vec.Vec completion.Node) :
+theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : alloc.vec.Vec completion.Node)
+    (triggers : TriggersOk P) :
     ∃ s, completion.next_step P h nodes = .ok s ∧
       (∀ x c, s = .Add x c → x.val < nodes.val.length ∧ Needs P h nodes.val x.val c ∧
         ¬ Holds P.entries.val (labelOf nodes.val x.val) c.val) ∧
@@ -1894,7 +1914,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
         ∃ r f, P.entries.val[i.val]? = some (.Exists r f) ∧ ¬ Witnessed P h nodes.val x.val r f) ∧
       (s = .Done → Complete P h nodes.val) := by
   rw [completion.next_step]
-  obtain ⟨node,nodeRun,nodeFound,nodeAbsent⟩ := missing_node_correct P nodes 0#usize
+  obtain ⟨node,nodeRun,nodeFound,nodeAbsent⟩ := missing_node_correct P nodes 0#usize triggers
   cases node with
   | some pair =>
     obtain ⟨x,c⟩ := pair

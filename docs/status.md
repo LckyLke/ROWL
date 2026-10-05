@@ -953,10 +953,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and data assertions over the five datatypes under the OWL 2 datatype map.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 495 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
+- 502 Rust regression tests, plus a separately fetched 68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
-  lazy unfolding with absorption, clash detection on insertion, equality
+  lazy unfolding with absorption (unfoldings indexed by their triggering
+  entry), a concept table prepared once per ontology, clash detection on
+  insertion, equality
   blocking and backjumping, the queries that count or have nominals a
   completion forest with pairwise blocking and backjumping over merges, and a
   closure or document

@@ -1628,7 +1628,6 @@
         "Rowl.CompletionSearch.complementary_correct",
         "Rowl.CompletionSearch.clashes_correct",
         "Rowl.CompletionSearch.is_atom_correct",
-        "Rowl.CompletionSearch.has_atom_correct",
         "Rowl.CompletionSearch.subset_correct",
         "Rowl.CompletionSearch.same_label_correct",
         "Rowl.CompletionSearch.missing_unfolding_correct",
@@ -1740,6 +1739,10 @@
         "Rowl.Completion.intern_facts_correct",
         "Rowl.Completion.intern_definitions_correct",
         "Rowl.Completion.named_nodes_correct",
+        "Rowl.Completion.triggered_by_correct",
+        "Rowl.Completion.triggers_from_correct",
+        "Rowl.Completion.copy_rows_correct",
+        "Rowl.Completion.triggers_fresh",
         "Rowl.Completion.satisfiable_correct",
         "Rowl.Completion.copy_entries_correct",
         "Rowl.Completion.copy_requirements_correct",
@@ -4112,6 +4115,8 @@
     "Rowl.Compiled.Grows",
     "Rowl.Compiled.partOf",
     "Rowl.Completion.BaseFor",
-    "Rowl.ShiOntology.TableauRun"
+    "Rowl.ShiOntology.TableauRun",
+    "Rowl.CompletionSearch.TriggersFor",
+    "Rowl.CompletionSearch.TriggersOk"
   ]
 }

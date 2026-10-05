@@ -1087,7 +1087,10 @@ left, and branching by copying the graph. The design keeps the proofs modular:
 - Performance is part of the design from the start: a clash is found when the
   literal that causes it is inserted, and an axiom `A ⊑ C` with a named class on
   the left is applied only at nodes whose label contains `A` (lazy unfolding)
-  instead of adding `¬A ⊔ C` everywhere. Inclusions whose left side is an
+  instead of adding `¬A ⊔ C` everywhere. Every problem lists, for every entry
+  of its concept table, the unfoldings whose class that entry is
+  (`TriggersOk`), so checking a node walks its label and only those
+  unfoldings instead of every unfolding of the ontology. Inclusions whose left side is an
   existential restriction or an intersection are absorbed into such
   definitions first (`∃r.E ⊑ D` as `E ⊑ ∀r⁻.D`, `E ⊓ F ⊑ D` as `E ⊑ ¬F ⊔ D`),
   which inverse roles make possible. Domain axioms become universal

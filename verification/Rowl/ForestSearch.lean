@@ -31,7 +31,7 @@ open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Concepts (inv inverse_correct copy_role_identity same_role_correct)
 open Rowl.Hierarchy (Below below_correct transitives)
 open Rowl.CompletionSearch (Holds holds_correct contains_correct mem_index_iff EdgeNeeds EdgeOk HasAtom
-  missing_along_correct missing_unfolding_correct SameLabel same_label_correct)
+  missing_along_correct missing_unfolding_correct SameLabel same_label_correct TriggersOk)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 
@@ -1210,7 +1210,7 @@ theorem missing_requirement_correct (P : completion.Problem) (F : forest.Forest)
 termination_by P.requirements.val.length - index.val
 decreasing_by all_goals omega
 
-theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usize) :
+theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usize) (triggers : TriggersOk P) :
     ∃ r, forest.missing_at P F x = .ok r ∧
       (∀ c, r = some c → NodeNeeds P F x.val c ∧ ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
       (r = none → x.val < F.nodes.val.length → ∀ c, NodeNeeds P F x.val c →
@@ -1235,7 +1235,7 @@ theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usi
     | none =>
       have axiomsRun := holds_correct P.entries F.nodes.val[x.val].label P.axioms.val P.axioms rfl
       by_cases axiomsHold : Holds P.entries.val F.nodes.val[x.val].label.val P.axioms.val
-      · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P F.nodes.val[x.val].label 0#usize
+      · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P F.nodes.val[x.val].label triggers 0#usize
         simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found2 absent2
         cases r2 with
         | some c =>
@@ -1296,7 +1296,7 @@ theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usi
     intro _ within
     exact absurd within inside
 
-theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) :
+theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) (triggers : TriggersOk P) :
     ∃ r, forest.missing_node P F index = .ok r ∧
       (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧ NodeNeeds P F x.val c ∧
         ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
@@ -1310,9 +1310,9 @@ theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨r,run,found,absent⟩ := missing_node_correct P F index'
+    obtain ⟨r,run,found,absent⟩ := missing_node_correct P F index' triggers
     by_cases active : F.nodes.val[index.val].active = true
-    · obtain ⟨here,hereRun,hereFound,hereAbsent⟩ := missing_at_correct P F index
+    · obtain ⟨here,hereRun,hereFound,hereAbsent⟩ := missing_at_correct P F index triggers
       cases here with
       | some c =>
         refine ⟨some (index,c),?_,?_,by simp⟩
@@ -3417,7 +3417,8 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.
     to decide, a maximum restriction with too many neighbours, or a restriction
     to expand at an unblocked node; it reports `Done` exactly for a complete
     forest. -/
-theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest) :
+theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest)
+    (triggers : TriggersOk P) :
     ∃ r, forest.next_step P h F = .ok r ∧
       (∀ y c, r = some (.Add y c) → y.val < F.nodes.val.length ∧ AddNeeds P h F y.val c ∧
         ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c.val) ∧
@@ -3436,7 +3437,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
       (r = some .Done → Complete P h F) := by
   rw [forest.next_step]
   have zero : (0#usize).val = 0 := rfl
-  obtain ⟨r0,run0,found0,absent0⟩ := missing_node_correct P F 0#usize
+  obtain ⟨r0,run0,found0,absent0⟩ := missing_node_correct P F 0#usize triggers
   cases r0 with
   | some pair =>
     obtain ⟨y,c⟩ := pair

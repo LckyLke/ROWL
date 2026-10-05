@@ -4170,3 +4170,26 @@ every unfolding at every node, is now the main cost.
 
 This block adds 6 public theorems and 2 definitions. Totals are 2248 audited
 theorems, 1083 definitions, 502 Rust regressions and 2441 ledger obligations.
+
+## Performance: unfoldings indexed by their trigger
+
+With the table prepared once, the tableau run dominated, and in it the check of
+a node: it walked every unfolding of the ontology and, for each, compared IRI
+spellings against the node's label, about 40 µs per node on the 400-class
+ontology. A problem now lists, for every entry of its concept table, the
+unfoldings whose class the entry is (`triggers`, built by `triggers_from` once
+for a base and extended only for a query's new entries), and
+`missing_unfolding` walks the label's items and only their unfoldings. The
+unused per-unfolding check and `has_atom` are gone. `CompletionSearch.lean`
+states the index (`TriggersFor`, `TriggersOk`) and proves the new search with
+the same conclusions as before (`missing_unfolding_correct`); the index is a
+fixed hypothesis of the rule searches and of `run_correct` for both tableaux,
+and `Completion.lean` proves it for every problem that `satisfiable`, `base`,
+`satisfiable_from` and the completion forest build (`triggered_by_correct`,
+`triggers_from_correct`, `triggers_fresh`). The slowest queries on the
+400-class ontology went from about 450 ms to about 3.5 ms, and the average
+query from 23 ms to 2.3 ms.
+
+This block adds 4 public theorems and 2 definitions and removes
+`has_atom_correct`. Totals are 2251 audited theorems, 1085 definitions, 502
+Rust regressions and 2444 ledger obligations.

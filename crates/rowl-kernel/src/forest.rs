@@ -87,8 +87,8 @@
 use crate::assertion_equality::same_individual_value;
 use crate::completion::{
     clashes, contains, copy_label, copy_links, copy_pending, holds, intern_definitions,
-    intern_facts, join, join_from, missing_along, missing_unfolding, same_label, without_from,
-    Definition, Fact, Link, Outcome, Pending, Problem,
+    intern_facts, join, join_from, missing_along, missing_unfolding, same_label, triggers_from,
+    without_from, Definition, Fact, Link, Outcome, Pending, Problem,
 };
 use crate::concept_table::{close, intern, Entry};
 use crate::concepts::{copy_role, inverse, same_role, Concept};
@@ -3269,11 +3269,16 @@ pub fn satisfiable(
         Some(graph) => graph,
         None => return None,
     };
+    let triggers = match triggers_from(&entries, &unfoldings, 0, Vec::new()) {
+        Some(triggers) => triggers,
+        None => return None,
+    };
     let problem = Problem {
         entries,
         links: copy_links(links, 0, Vec::new()),
         requirements,
         unfoldings,
+        triggers,
         axioms,
     };
     match run(&problem, roles, graph, 0) {

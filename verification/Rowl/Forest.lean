@@ -29,7 +29,7 @@ open Rowl.Owl (Interpretation objectRelation)
 open Rowl.Concepts (inv inv_inv relation_inv denote negate_correct)
 open Rowl.Hierarchy (Below Closed Respects Constrained transitives below_refl respects_below below_correct)
 open Rowl.ConceptTable (WellFormed meaning meaning_at rebuild parts Complements complements_append FromOriginal Added)
-open Rowl.CompletionSearch (Holds Complementary Clashes contains_correct clashes_correct holds_listed)
+open Rowl.CompletionSearch (Holds Complementary Clashes contains_correct clashes_correct holds_listed TriggersOk)
 open Rowl.Completion (Sub pendingList pendingWeight three_pow_lt join_correct without_from_correct
   copy_label_correct copy_pending_correct copy_links_correct holds_mono holds_denote grow_strict Corresponds Unfolds
   corresponds_append unfolds_append intern_facts_correct intern_definitions_correct)
@@ -1836,7 +1836,7 @@ theorem nominal_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (
 
 /-- The main loop terminates on every forest that keeps the invariant and whose
     points are below `fresh`, and its answer means what `Answers` says. -/
-theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) :
+theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (triggers : TriggersOk P) :
     ∀ (m : Nat) (F : forest.Forest) (fresh : Usize), ForestInv.measure P F = m → Inv P h count F →
       FreshForest F fresh.val →
       ∃ r, forest.run P h F fresh = .ok r ∧ Answers.{u,v} P h count F 0 [] [] fresh.val r := by
@@ -1850,7 +1850,7 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
     fun F' fresh' smaller inv' fresh'' => ih _ smaller F' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
   obtain ⟨step,stepRun,addCase,chooseCase,mergeCase,nameCase,cappedCase,nominalCase,loopCase,overlapCase,createCase,
-    doneCase⟩ := next_step_correct P h F
+    doneCase⟩ := next_step_correct P h F triggers
   rw [forest.run,stepRun]
   cases step with
   | none => exact ⟨none,by simp,by simp,by simp⟩
@@ -2378,7 +2378,8 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
   obtain ⟨F0,run4,length0,roots0,sameLength0,sameIs0,edges0,distinct0,caps0⟩ := roots_correct count
     ⟨alloc.vec.Vec.new forest.Node,alloc.vec.Vec.new forest.Edge,alloc.vec.Vec.new forest.Distinct,
       alloc.vec.Vec.new Usize,alloc.vec.Vec.new forest.Cap⟩ (by simp) (by simp) (by simp) (by simp)
-  let P : completion.Problem := { entries := t3, links, requirements, unfoldings, axioms := ax }
+  obtain ⟨tt,runT,triggersOk⟩ := Rowl.Completion.triggers_fresh t3 unfoldings
+  let P : completion.Problem := { entries := t3, links, requirements, unfoldings, triggers := tt, axioms := ax }
   have axMeaning3 : meaning t3.val ax.val = axioms := by
     have insideq : ax.val < tq.val.length := by rw [growsq]; simp; omega
     have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
@@ -2488,8 +2489,8 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     · intro d member
       rw [distinct0] at member
       simp at member
-  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val _ F0 0#usize rfl inv0 fresh0
-  have run' : forest.run ⟨t3,links,requirements,unfoldings,ax⟩ h F0 0#usize = .ok r := run
+  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val triggersOk _ F0 0#usize rfl inv0 fresh0
+  have run' : forest.run ⟨t3,links,requirements,unfoldings,tt,ax⟩ h F0 0#usize = .ok r := run
   have linksCopy := copy_links_correct links 0#usize (alloc.vec.Vec.new completion.Link) (by simp) (by simp)
   have code : ∀ (rest : Option Bool), (match r with
       | none => ok none
@@ -2502,7 +2503,7 @@ theorem satisfiable_answers (count : Usize) (query facts : alloc.vec.Vec complet
     rw [decide_eq_true simple']
     simp only [↓reduceIte,bind_ok,disjoint_simple_correct]
     rw [decide_eq_true pairsSimple']
-    simp only [↓reduceIte,bind_ok,run4,linksCopy,run']
+    simp only [↓reduceIte,bind_ok,run4,linksCopy,runT,run']
     cases r with
     | none => simpa using same
     | some outcome => cases outcome <;> simpa using same

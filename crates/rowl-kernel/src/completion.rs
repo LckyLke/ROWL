@@ -96,6 +96,8 @@ pub struct Problem {
     pub links: Vec<Link>,
     pub requirements: Vec<Requirement>,
     pub unfoldings: Vec<Unfolding>,
+    /// For every entry, the unfoldings whose class it is.
+    pub triggers: Vec<Vec<usize>>,
     pub axioms: usize,
 }
 /// The part of a problem that does not depend on the query: the closed table
@@ -105,6 +107,7 @@ pub struct Base {
     pub entries: Vec<Entry>,
     pub requirements: Vec<Requirement>,
     pub unfoldings: Vec<Unfolding>,
+    pub triggers: Vec<Vec<usize>>,
     pub axioms: usize,
 }
 /// Table entries still to be added to one label.
@@ -209,24 +212,6 @@ fn is_atom(entry: &Entry, class: &Class) -> bool {
         _ => false,
     }
 }
-/// Whether `label[index..]` has the named class.
-fn has_atom(entries: &Vec<Entry>, label: &Vec<usize>, class: &Class, index: usize) -> bool {
-    if index < label.len() {
-        let item = label[index];
-        let here = if item < entries.len() {
-            is_atom(&entries[item], class)
-        } else {
-            false
-        };
-        if here {
-            true
-        } else {
-            has_atom(entries, label, class, index + 1)
-        }
-    } else {
-        false
-    }
-}
 /// The first requirement of `requirements[index..]` at `node` that the label
 /// does not satisfy.
 fn missing_requirement(
@@ -251,30 +236,48 @@ fn missing_requirement(
         None
     }
 }
-/// Whether the label has the unfolding's class but does not satisfy its concept.
-pub(crate) fn unfolding_missing(
+/// The concept of the first unfolding of `listed[index..]` that the label does
+/// not satisfy.
+fn missing_among(
     problem: &Problem,
     label: &Vec<usize>,
-    unfolding: &Unfolding,
-) -> bool {
-    if has_atom(&problem.entries, label, &unfolding.class, 0) {
-        !holds(&problem.entries, label, unfolding.concept)
+    listed: &Vec<usize>,
+    index: usize,
+) -> Option<usize> {
+    if index < listed.len() {
+        let unfolding = listed[index];
+        if unfolding < problem.unfoldings.len()
+            && !holds(
+                &problem.entries,
+                label,
+                problem.unfoldings[unfolding].concept,
+            )
+        {
+            Some(problem.unfoldings[unfolding].concept)
+        } else {
+            missing_among(problem, label, listed, index + 1)
+        }
     } else {
-        false
+        None
     }
 }
-/// The first unfolding of `unfoldings[index..]` whose class the label has but
-/// whose concept it does not satisfy.
+/// The concept of the first unfolding whose class is an item of `label[index..]`
+/// and which the label does not satisfy.
 pub(crate) fn missing_unfolding(
     problem: &Problem,
     label: &Vec<usize>,
     index: usize,
 ) -> Option<usize> {
-    if index < problem.unfoldings.len() {
-        if unfolding_missing(problem, label, &problem.unfoldings[index]) {
-            Some(problem.unfoldings[index].concept)
+    if index < label.len() {
+        let item = label[index];
+        let found = if item < problem.triggers.len() {
+            missing_among(problem, label, &problem.triggers[item], 0)
         } else {
-            missing_unfolding(problem, label, index + 1)
+            None
+        };
+        match found {
+            Some(concept) => Some(concept),
+            None => missing_unfolding(problem, label, index + 1),
         }
     } else {
         None
@@ -1350,17 +1353,69 @@ pub fn satisfiable(
         Some(nodes) => nodes,
         None => return None,
     };
+    let triggers = match triggers_from(&entries, &unfoldings, 0, Vec::new()) {
+        Some(triggers) => triggers,
+        None => return None,
+    };
     let problem = Problem {
         entries,
         links: copy_links(links, 0, Vec::new()),
         requirements,
         unfoldings,
+        triggers,
         axioms,
     };
     match run(&problem, roles, nodes, 0) {
         Some(Outcome::Accepted) => Some(true),
         Some(Outcome::Rejected(_)) => Some(false),
         None => None,
+    }
+}
+/// `out` followed by the indices in `unfoldings[index..]` of the unfoldings
+/// whose class is the entry.
+fn triggered_by(
+    entry: &Entry,
+    unfoldings: &Vec<Unfolding>,
+    index: usize,
+    mut out: Vec<usize>,
+) -> Vec<usize> {
+    if index < unfoldings.len() {
+        if is_atom(entry, &unfoldings[index].class) && out.len() < usize::MAX {
+            out.push(index);
+        }
+        triggered_by(entry, unfoldings, index + 1, out)
+    } else {
+        out
+    }
+}
+/// `out` followed by the unfoldings triggered by every entry of
+/// `entries[index..]`; `None` when there is no room.
+pub(crate) fn triggers_from(
+    entries: &Vec<Entry>,
+    unfoldings: &Vec<Unfolding>,
+    index: usize,
+    mut out: Vec<Vec<usize>>,
+) -> Option<Vec<Vec<usize>>> {
+    if index < entries.len() {
+        if out.len() < usize::MAX {
+            out.push(triggered_by(&entries[index], unfoldings, 0, Vec::new()));
+            triggers_from(entries, unfoldings, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// A copy of `rows[index..]` after `out`.
+fn copy_rows(rows: &Vec<Vec<usize>>, index: usize, mut out: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    if index < rows.len() {
+        if out.len() < usize::MAX {
+            out.push(copy_label(&rows[index], 0, Vec::new()));
+        }
+        copy_rows(rows, index + 1, out)
+    } else {
+        out
     }
 }
 /// A copy of `entries[index..]` after `out`.
@@ -1436,10 +1491,15 @@ pub fn base(
         Some(entries) => entries,
         None => return None,
     };
+    let triggers = match triggers_from(&entries, &unfoldings, 0, Vec::new()) {
+        Some(triggers) => triggers,
+        None => return None,
+    };
     Some(Base {
         entries,
         requirements,
         unfoldings,
+        triggers,
         axioms,
     })
 }
@@ -1466,11 +1526,18 @@ pub fn satisfiable_from(
         Some(nodes) => nodes,
         None => return None,
     };
+    let unfoldings = copy_unfoldings(&base.unfoldings, 0, Vec::new());
+    let triggers = copy_rows(&base.triggers, 0, Vec::new());
+    let triggers = match triggers_from(&entries, &unfoldings, base.entries.len(), triggers) {
+        Some(triggers) => triggers,
+        None => return None,
+    };
     let problem = Problem {
         entries,
         links: copy_links(links, 0, Vec::new()),
         requirements,
-        unfoldings: copy_unfoldings(&base.unfoldings, 0, Vec::new()),
+        unfoldings,
+        triggers,
         axioms: base.axioms,
     };
     match run(&problem, roles, nodes, 0) {

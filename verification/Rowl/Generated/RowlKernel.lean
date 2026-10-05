@@ -11196,26 +11196,28 @@ inductive concept_table.Entry where
   concept_table.Entry
 
 /-- [rowl_kernel::completion::Problem]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 94:0-100:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 94:0-102:1
     Visibility: public -/
 structure completion.Problem where
   entries : alloc.vec.Vec concept_table.Entry
   links : alloc.vec.Vec completion.Link
   requirements : alloc.vec.Vec completion.Requirement
   unfoldings : alloc.vec.Vec completion.Unfolding
+  triggers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
   axioms : Std.Usize
 
 /-- [rowl_kernel::completion::Base]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 104:0-109:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 106:0-112:1
     Visibility: public -/
 structure completion.Base where
   entries : alloc.vec.Vec concept_table.Entry
   requirements : alloc.vec.Vec completion.Requirement
   unfoldings : alloc.vec.Vec completion.Unfolding
+  triggers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
   axioms : Std.Usize
 
 /-- [rowl_kernel::completion::Pending]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 111:0-114:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 114:0-117:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Pending where
@@ -11223,7 +11225,7 @@ inductive completion.Pending where
 | Item : Std.Usize → completion.Pending → completion.Pending
 
 /-- [rowl_kernel::completion::Step]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 116:0-120:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 119:0-123:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Step where
@@ -11232,7 +11234,7 @@ inductive completion.Step where
 | Done : completion.Step
 
 /-- [rowl_kernel::completion::Outcome]
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 123:0-126:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 126:0-129:1
     Visibility: public -/
 @[discriminant isize]
 inductive completion.Outcome where
@@ -11240,7 +11242,7 @@ inductive completion.Outcome where
 | Rejected : alloc.vec.Vec Std.Usize → completion.Outcome
 
 /-- [rowl_kernel::completion::contains]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 129:0-139:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 132:0-142:1 -/
 def completion.contains
   (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
   Result Bool
@@ -11259,7 +11261,7 @@ def completion.contains
 partial_fixpoint
 
 /-- [rowl_kernel::completion::holds]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 142:0-174:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 145:0-177:1 -/
 def completion.holds
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (concept : Std.Usize) :
@@ -11337,7 +11339,7 @@ def concepts.same_role
       symbols.same_spelling a.iri.spelling b.iri.spelling
 
 /-- [rowl_kernel::completion::complementary]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 176:0-186:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 179:0-189:1 -/
 def completion.complementary
   (left : concept_table.Entry) (right : concept_table.Entry) :
   Result Bool
@@ -11452,7 +11454,7 @@ def completion.complementary
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::completion::clashes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 188:0-204:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 191:0-207:1 -/
 def completion.clashes
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (item : Std.Usize) (index : Std.Usize) :
@@ -11489,7 +11491,7 @@ def completion.clashes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::is_atom]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 206:0-211:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 209:0-214:1 -/
 def completion.is_atom
   (entry : concept_table.Entry) («class» : model.Class) : Result Bool := do
   match entry with
@@ -11509,40 +11511,8 @@ def completion.is_atom
   | concept_table.Entry.AtLeast _ _ _ => ok false
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
-/-- [rowl_kernel::completion::has_atom]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 213:0-229:1 -/
-def completion.has_atom
-  (entries : alloc.vec.Vec concept_table.Entry)
-  (label : alloc.vec.Vec Std.Usize) («class» : model.Class)
-  (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len label
-  if index < i
-  then
-    let item ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
-        label index
-    let i1 := alloc.vec.Vec.len entries
-    let here ←
-      if item < i1
-      then
-        do
-        let e ←
-          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-            concept_table.Entry) entries item
-        completion.is_atom e «class»
-      else ok false
-    if here
-    then ok true
-    else
-      let i2 ← index + 1#usize
-      completion.has_atom entries label «class» i2
-  else ok false
-partial_fixpoint
-
 /-- [rowl_kernel::completion::missing_requirement]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 232:0-253:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 217:0-238:1 -/
 def completion.missing_requirement
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) (index : Std.Usize) :
@@ -11569,44 +11539,70 @@ def completion.missing_requirement
   else ok none
 partial_fixpoint
 
-/-- [rowl_kernel::completion::unfolding_missing]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 255:0-265:1 -/
-def completion.unfolding_missing
+/-- [rowl_kernel::completion::missing_among]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 241:0-263:1 -/
+def completion.missing_among
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
-  (unfolding : completion.Unfolding) :
-  Result Bool
+  (listed : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
   := do
-  let b ← completion.has_atom problem.entries label unfolding.class 0#usize
-  if b
+  let i := alloc.vec.Vec.len listed
+  if index < i
   then
-    let b1 ← completion.holds problem.entries label unfolding.concept
-    ok (¬ b1)
-  else ok false
+    let unfolding ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        listed index
+    let i1 := alloc.vec.Vec.len problem.unfoldings
+    if unfolding < i1
+    then
+      let u ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          completion.Unfolding) problem.unfoldings unfolding
+      let b ← completion.holds problem.entries label u.concept
+      if b
+      then
+        let i2 ← index + 1#usize
+        completion.missing_among problem label listed i2
+      else ok (some u.concept)
+    else
+      let i2 ← index + 1#usize
+      completion.missing_among problem label listed i2
+  else ok none
+partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_unfolding]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 268:0-282:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 266:0-285:1 -/
 def completion.missing_unfolding
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) :
   Result (Option Std.Usize)
   := do
-  let i := alloc.vec.Vec.len problem.unfoldings
+  let i := alloc.vec.Vec.len label
   if index < i
   then
-    let u ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        completion.Unfolding) problem.unfoldings index
-    let b ← completion.unfolding_missing problem label u
-    if b
-    then ok (some u.concept)
-    else
-      let i1 ← index + 1#usize
-      completion.missing_unfolding problem label i1
+    let item ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        label index
+    let i1 := alloc.vec.Vec.len problem.triggers
+    let found ←
+      if item < i1
+      then
+        do
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) problem.triggers item
+        completion.missing_among problem label v 0#usize
+      else ok none
+    match found with
+    | none =>
+      let i2 ← index + 1#usize
+      completion.missing_unfolding problem label i2
+    | some _ => ok found
   else ok none
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_at]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 285:0-296:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 288:0-299:1 -/
 def completion.missing_at
   (problem : completion.Problem) (label : alloc.vec.Vec Std.Usize)
   (node : Std.Usize) :
@@ -11622,7 +11618,7 @@ def completion.missing_at
   | some _ => ok o
 
 /-- [rowl_kernel::completion::missing_node]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 298:0-307:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 301:0-310:1 -/
 def completion.missing_node
   (problem : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
   (index : Std.Usize) :
@@ -11670,7 +11666,7 @@ def concept_table.universal_is
   | concept_table.Entry.AtMost _ _ _ _ => ok false
 
 /-- [rowl_kernel::completion::has_universal]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 309:0-331:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 312:0-334:1 -/
 def completion.has_universal
   (entries : alloc.vec.Vec concept_table.Entry)
   (label : alloc.vec.Vec Std.Usize) (role : model.ObjectPropertyExpression)
@@ -11789,7 +11785,7 @@ def concept_table.universal_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_transitive]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 334:0-359:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 337:0-362:1 -/
 def completion.missing_transitive
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (role : model.ObjectPropertyExpression)
@@ -11835,7 +11831,7 @@ def completion.missing_transitive
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_for]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 362:0-387:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 365:0-390:1 -/
 def completion.missing_for
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (item : Std.Usize)
@@ -11876,7 +11872,7 @@ def completion.missing_for
   else ok none
 
 /-- [rowl_kernel::completion::missing_along]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 390:0-406:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 393:0-409:1 -/
 def completion.missing_along
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (label : alloc.vec.Vec Std.Usize)
@@ -11915,7 +11911,7 @@ def concepts.inverse
     ok (model.ObjectPropertyExpression.Property { iri := i })
 
 /-- [rowl_kernel::completion::missing_edge]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 409:0-445:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 412:0-448:1 -/
 def completion.missing_edge
   (entries : alloc.vec.Vec concept_table.Entry)
   (roles : hierarchy.RoleHierarchy) (nodes : alloc.vec.Vec completion.Node)
@@ -11950,7 +11946,7 @@ def completion.missing_edge
   else ok none
 
 /-- [rowl_kernel::completion::missing_link]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 447:0-469:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 450:0-472:1 -/
 def completion.missing_link
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -11988,7 +11984,7 @@ def concepts.copy_role
     ok (model.ObjectPropertyExpression.Inverse { iri := i })
 
 /-- [rowl_kernel::completion::created_role]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 471:0-480:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 474:0-483:1 -/
 def completion.created_role
   (entries : alloc.vec.Vec concept_table.Entry) (via : Std.Usize) :
   Result (Option model.ObjectPropertyExpression)
@@ -12019,7 +12015,7 @@ def completion.created_role
   else ok none
 
 /-- [rowl_kernel::completion::missing_tree]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 482:0-511:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 485:0-514:1 -/
 def completion.missing_tree
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -12053,7 +12049,7 @@ def completion.missing_tree
 partial_fixpoint
 
 /-- [rowl_kernel::completion::child_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 514:0-545:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 517:0-548:1 -/
 def completion.child_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12095,7 +12091,7 @@ def completion.child_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::parent_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 549:0-574:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 552:0-577:1 -/
 def completion.parent_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12131,7 +12127,7 @@ def completion.parent_witness
   else ok false
 
 /-- [rowl_kernel::completion::forward_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 577:0-594:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 580:0-597:1 -/
 def completion.forward_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
@@ -12156,7 +12152,7 @@ def completion.forward_witness
   else ok false
 
 /-- [rowl_kernel::completion::backward_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 597:0-615:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 600:0-618:1 -/
 def completion.backward_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (link : completion.Link)
@@ -12182,7 +12178,7 @@ def completion.backward_witness
   else ok false
 
 /-- [rowl_kernel::completion::link_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 618:0-654:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 621:0-657:1 -/
 def completion.link_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12211,7 +12207,7 @@ def completion.link_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::has_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 657:0-672:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 660:0-675:1 -/
 def completion.has_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12229,7 +12225,7 @@ def completion.has_witness
     else completion.link_witness problem roles nodes node role filler 0#usize
 
 /-- [rowl_kernel::completion::missing_witness]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 675:0-705:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 678:0-708:1 -/
 def completion.missing_witness
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12285,7 +12281,7 @@ def completion.missing_witness
 partial_fixpoint
 
 /-- [rowl_kernel::completion::subset]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 707:0-717:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 710:0-720:1 -/
 def completion.subset
   (small : alloc.vec.Vec Std.Usize) (large : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) :
@@ -12306,7 +12302,7 @@ def completion.subset
 partial_fixpoint
 
 /-- [rowl_kernel::completion::same_label]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 719:0-725:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 722:0-728:1 -/
 def completion.same_label
   (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
   Result Bool
@@ -12317,7 +12313,7 @@ def completion.same_label
   else ok false
 
 /-- [rowl_kernel::completion::repeats_above]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 728:0-744:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 731:0-747:1 -/
 def completion.repeats_above
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
   (ancestor : Std.Usize) :
@@ -12350,7 +12346,7 @@ def completion.repeats_above
 partial_fixpoint
 
 /-- [rowl_kernel::completion::blocked]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 747:0-766:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 750:0-769:1 -/
 def completion.blocked
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) :
   Result Bool
@@ -12375,7 +12371,7 @@ def completion.blocked
 partial_fixpoint
 
 /-- [rowl_kernel::completion::missing_successor]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 769:0-793:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 772:0-796:1 -/
 def completion.missing_successor
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize) :
@@ -12403,7 +12399,7 @@ def completion.missing_successor
 partial_fixpoint
 
 /-- [rowl_kernel::completion::next_step]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 796:0-813:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 799:0-816:1 -/
 def completion.next_step
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) :
@@ -12433,7 +12429,7 @@ def completion.next_step
               ok (completion.Step.Add node concept)
 
 /-- [rowl_kernel::completion::join_from]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 871:0-884:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 874:0-887:1 -/
 def completion.join_from
   (set : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -12461,7 +12457,7 @@ def completion.join_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_label]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 834:0-843:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 837:0-846:1 -/
 def completion.copy_label
   (label : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -12486,7 +12482,7 @@ def completion.copy_label
 partial_fixpoint
 
 /-- [rowl_kernel::completion::join]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 886:0-888:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 889:0-891:1 -/
 def completion.join
   (left : alloc.vec.Vec Std.Usize) (right : alloc.vec.Vec Std.Usize) :
   Result (Option (alloc.vec.Vec Std.Usize))
@@ -12495,7 +12491,7 @@ def completion.join
   completion.join_from right 0#usize v
 
 /-- [rowl_kernel::completion::insert]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 816:0-833:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 819:0-836:1 -/
 def completion.insert
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (item : Std.Usize)
   (deps : alloc.vec.Vec Std.Usize) :
@@ -12528,7 +12524,7 @@ def completion.insert
   else ok none
 
 /-- [rowl_kernel::completion::copy_nodes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 844:0-859:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 847:0-862:1 -/
 def completion.copy_nodes
   (nodes : alloc.vec.Vec completion.Node) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Node) :
@@ -12558,7 +12554,7 @@ def completion.copy_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_pending]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 860:0-868:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 863:0-871:1 -/
 def completion.copy_pending
   (pending : completion.Pending) : Result completion.Pending := do
   match pending with
@@ -12569,7 +12565,7 @@ def completion.copy_pending
 partial_fixpoint
 
 /-- [rowl_kernel::completion::without_from]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 890:0-906:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 893:0-909:1 -/
 def completion.without_from
   (set : alloc.vec.Vec Std.Usize) (point : Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -12595,7 +12591,7 @@ def completion.without_from
 partial_fixpoint
 
 /-- [rowl_kernel::completion::end_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1137:0-1143:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1140:0-1146:1 -/
 def completion.end_deps
   (nodes : alloc.vec.Vec completion.Node) («end» : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -12611,7 +12607,7 @@ def completion.end_deps
   else ok (some out)
 
 /-- [rowl_kernel::completion::linked_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1146:0-1178:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1149:0-1181:1 -/
 def completion.linked_deps
   (links : alloc.vec.Vec completion.Link)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12644,7 +12640,7 @@ def completion.linked_deps
 partial_fixpoint
 
 /-- [rowl_kernel::completion::children_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1112:0-1135:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1115:0-1138:1 -/
 def completion.children_deps
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec Std.Usize) :
@@ -12673,7 +12669,7 @@ def completion.children_deps
 partial_fixpoint
 
 /-- [rowl_kernel::completion::rule_deps]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1181:0-1199:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1184:0-1202:1 -/
 def completion.rule_deps
   (problem : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
   (node : Std.Usize) :
@@ -12702,7 +12698,7 @@ def completion.rule_deps
   else ok none
 
 /-- [rowl_kernel::completion::filler_of]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1054:0-1063:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1057:0-1066:1 -/
 def completion.filler_of
   (entries : alloc.vec.Vec concept_table.Entry) (existential : Std.Usize) :
   Result (Option Std.Usize)
@@ -12733,7 +12729,7 @@ def completion.filler_of
 mutual
 
 /-- [rowl_kernel::completion::branch]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 911:0-971:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 914:0-974:1 -/
 def completion.branch
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize) (left : Std.Usize)
@@ -12778,7 +12774,7 @@ def completion.branch
 partial_fixpoint
 
 /-- [rowl_kernel::completion::add_literal]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 975:0-1002:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 978:0-1005:1 -/
 def completion.add_literal
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12813,7 +12809,7 @@ def completion.add_literal
 partial_fixpoint
 
 /-- [rowl_kernel::completion::add]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1005:0-1052:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1008:0-1055:1 -/
 def completion.add
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12858,7 +12854,7 @@ def completion.add
 partial_fixpoint
 
 /-- [rowl_kernel::completion::create]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1066:0-1110:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1069:0-1113:1 -/
 def completion.create
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (node : Std.Usize)
@@ -12900,7 +12896,7 @@ def completion.create
 partial_fixpoint
 
 /-- [rowl_kernel::completion::run]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1202:0-1229:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1205:0-1232:1 -/
 def completion.run
   (problem : completion.Problem) (roles : hierarchy.RoleHierarchy)
   (nodes : alloc.vec.Vec completion.Node) (depth : Std.Usize) :
@@ -13520,7 +13516,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::completion::intern_facts]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1230:0-1253:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1233:0-1256:1 -/
 def completion.intern_facts
   (entries : alloc.vec.Vec concept_table.Entry)
   (facts : alloc.vec.Vec completion.Fact) (index : Std.Usize)
@@ -13552,7 +13548,7 @@ def completion.intern_facts
 partial_fixpoint
 
 /-- [rowl_kernel::completion::intern_definitions]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1254:0-1279:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1257:0-1282:1 -/
 def completion.intern_definitions
   (entries : alloc.vec.Vec concept_table.Entry)
   (definitions : alloc.vec.Vec completion.Definition) (index : Std.Usize)
@@ -13585,7 +13581,7 @@ def completion.intern_definitions
 partial_fixpoint
 
 /-- [rowl_kernel::completion::named_nodes]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1280:0-1297:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1283:0-1300:1 -/
 def completion.named_nodes
   (count : Std.Usize) (nodes : alloc.vec.Vec completion.Node) :
   Result (Option (alloc.vec.Vec completion.Node))
@@ -13611,7 +13607,7 @@ def completion.named_nodes
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_links]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1299:0-1312:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1302:0-1315:1 -/
 def completion.copy_links
   (links : alloc.vec.Vec completion.Link) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Link) :
@@ -13731,8 +13727,63 @@ def concept_table.close
   let limit := alloc.vec.Vec.len entries
   concept_table.close_from entries roles 0#usize limit
 
+/-- [rowl_kernel::completion::triggered_by]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1376:0-1390:1 -/
+def completion.triggered_by
+  (entry : concept_table.Entry)
+  (unfoldings : alloc.vec.Vec completion.Unfolding) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (alloc.vec.Vec Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len unfoldings
+  if index < i
+  then
+    let u ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        completion.Unfolding) unfoldings index
+    let b ← completion.is_atom entry u.class
+    let out1 ←
+      if b
+      then
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then alloc.vec.Vec.push out index
+        else ok out
+      else ok out
+    let i1 ← index + 1#usize
+    completion.triggered_by entry unfoldings i1 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::completion::triggers_from]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1393:0-1409:1 -/
+def completion.triggers_from
+  (entries : alloc.vec.Vec concept_table.Entry)
+  (unfoldings : alloc.vec.Vec completion.Unfolding) (index : Std.Usize)
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len entries
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let e ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          concept_table.Entry) entries index
+      let v ←
+        completion.triggered_by e unfoldings 0#usize (alloc.vec.Vec.new
+          Std.Usize)
+      let out1 ← alloc.vec.Vec.push out v
+      let i2 ← index + 1#usize
+      completion.triggers_from entries unfoldings i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
 /-- [rowl_kernel::completion::satisfiable]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1320:0-1365:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1323:0-1373:1
     Visibility: public -/
 def completion.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
@@ -13775,24 +13826,58 @@ def completion.satisfiable
             match o5 with
             | none => ok none
             | some nodes =>
-              let v ←
-                completion.copy_links links 0#usize (alloc.vec.Vec.new
-                  completion.Link)
               let o6 ←
-                completion.run
-                  {
-                    entries := entries4,
-                    links := v,
-                    requirements := requirements1,
-                    unfoldings,
-                    axioms := axioms1
-                  } roles nodes 0#usize
+                completion.triggers_from entries4 unfoldings 0#usize
+                  (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
               match o6 with
               | none => ok none
-              | some o7 =>
+              | some triggers =>
+                let v ←
+                  completion.copy_links links 0#usize (alloc.vec.Vec.new
+                    completion.Link)
+                let o7 ←
+                  completion.run
+                    {
+                      entries := entries4,
+                      links := v,
+                      requirements := requirements1,
+                      unfoldings,
+                      triggers,
+                      axioms := axioms1
+                    } roles nodes 0#usize
                 match o7 with
-                | completion.Outcome.Accepted => ok (some true)
-                | completion.Outcome.Rejected _ => ok (some false)
+                | none => ok none
+                | some o8 =>
+                  match o8 with
+                  | completion.Outcome.Accepted => ok (some true)
+                  | completion.Outcome.Rejected _ => ok (some false)
+
+/-- [rowl_kernel::completion::copy_rows]:
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1411:0-1420:1 -/
+def completion.copy_rows
+  (rows : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize)
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len rows
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    let out1 ←
+      if i1 < core.num.Usize.MAX
+      then
+        do
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) rows index
+        let v1 ←
+          completion.copy_label v 0#usize (alloc.vec.Vec.new Std.Usize)
+        alloc.vec.Vec.push out v1
+      else ok out
+    let i2 ← index + 1#usize
+    completion.copy_rows rows i2 out1
+  else ok out
+partial_fixpoint
 
 /-- [rowl_kernel::concept_table::copy_entry]:
     Source: 'crates/rowl-kernel/src/concept_table.rs', lines 101:0-124:1 -/
@@ -13835,7 +13920,7 @@ def concept_table.copy_entry
     ok (concept_table.Entry.AtMost n ope filler other)
 
 /-- [rowl_kernel::completion::copy_entries]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1367:0-1376:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1422:0-1431:1 -/
 def completion.copy_entries
   (entries : alloc.vec.Vec concept_table.Entry) (index : Std.Usize)
   (out : alloc.vec.Vec concept_table.Entry) :
@@ -13861,7 +13946,7 @@ def completion.copy_entries
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_requirements]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1378:0-1394:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1433:0-1449:1 -/
 def completion.copy_requirements
   (requirements : alloc.vec.Vec completion.Requirement) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Requirement) :
@@ -13886,7 +13971,7 @@ def completion.copy_requirements
 partial_fixpoint
 
 /-- [rowl_kernel::completion::copy_unfoldings]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1396:0-1414:1 -/
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1451:0-1469:1 -/
 def completion.copy_unfoldings
   (unfoldings : alloc.vec.Vec completion.Unfolding) (index : Std.Usize)
   (out : alloc.vec.Vec completion.Unfolding) :
@@ -13912,7 +13997,7 @@ def completion.copy_unfoldings
 partial_fixpoint
 
 /-- [rowl_kernel::completion::base]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1417:0-1445:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1472:0-1505:1
     Visibility: public -/
 def completion.base
   (facts : alloc.vec.Vec completion.Fact) (axioms : concepts.Concept)
@@ -13943,12 +14028,23 @@ def completion.base
         match o3 with
         | none => ok none
         | some entries3 =>
-          ok (some
-            { entries := entries3, requirements, unfoldings, axioms := axioms1
-            })
+          let o4 ←
+            completion.triggers_from entries3 unfoldings 0#usize
+              (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+          match o4 with
+          | none => ok none
+          | some triggers =>
+            ok (some
+              {
+                entries := entries3,
+                requirements,
+                unfoldings,
+                triggers,
+                axioms := axioms1
+              })
 
 /-- [rowl_kernel::completion::satisfiable_from]:
-    Source: 'crates/rowl-kernel/src/completion.rs', lines 1448:0-1481:1
+    Source: 'crates/rowl-kernel/src/completion.rs', lines 1508:0-1548:1
     Visibility: public -/
 def completion.satisfiable_from
   (base : completion.Base) (count : Std.Usize)
@@ -13976,27 +14072,36 @@ def completion.satisfiable_from
       match o2 with
       | none => ok none
       | some nodes =>
-        let v ←
-          completion.copy_links links 0#usize (alloc.vec.Vec.new
-            completion.Link)
-        let v1 ←
+        let unfoldings ←
           completion.copy_unfoldings base.unfoldings 0#usize (alloc.vec.Vec.new
             completion.Unfolding)
-        let o3 ←
-          completion.run
-            {
-              entries := entries2,
-              links := v,
-              requirements := requirements1,
-              unfoldings := v1,
-              axioms := base.axioms
-            } roles nodes 0#usize
+        let triggers ←
+          completion.copy_rows base.triggers 0#usize (alloc.vec.Vec.new
+            (alloc.vec.Vec Std.Usize))
+        let i := alloc.vec.Vec.len base.entries
+        let o3 ← completion.triggers_from entries2 unfoldings i triggers
         match o3 with
         | none => ok none
-        | some o4 =>
+        | some triggers1 =>
+          let v ←
+            completion.copy_links links 0#usize (alloc.vec.Vec.new
+              completion.Link)
+          let o4 ←
+            completion.run
+              {
+                entries := entries2,
+                links := v,
+                requirements := requirements1,
+                unfoldings,
+                triggers := triggers1,
+                axioms := base.axioms
+              } roles nodes 0#usize
           match o4 with
-          | completion.Outcome.Accepted => ok (some true)
-          | completion.Outcome.Rejected _ => ok (some false)
+          | none => ok none
+          | some o5 =>
+            match o5 with
+            | completion.Outcome.Accepted => ok (some true)
+            | completion.Outcome.Rejected _ => ok (some false)
 
 /-- [rowl_kernel::concepts::named]:
     Source: 'crates/rowl-kernel/src/concepts.rs', lines 206:0-229:1 -/
@@ -27938,7 +28043,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::forest::satisfiable]:
-    Source: 'crates/rowl-kernel/src/forest.rs', lines 3219:0-3284:1
+    Source: 'crates/rowl-kernel/src/forest.rs', lines 3219:0-3289:1
     Visibility: public -/
 def forest.satisfiable
   (count : Std.Usize) (query : alloc.vec.Vec completion.Fact)
@@ -27999,24 +28104,31 @@ def forest.satisfiable
                   match o6 with
                   | none => ok none
                   | some graph =>
-                    let v ←
-                      completion.copy_links links 0#usize (alloc.vec.Vec.new
-                        completion.Link)
                     let o7 ←
-                      forest.run
-                        {
-                          entries := entries5,
-                          links := v,
-                          requirements := requirements1,
-                          unfoldings,
-                          axioms := axioms1
-                        } roles graph 0#usize
+                      completion.triggers_from entries5 unfoldings 0#usize
+                        (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
                     match o7 with
                     | none => ok none
-                    | some o8 =>
+                    | some triggers =>
+                      let v ←
+                        completion.copy_links links 0#usize (alloc.vec.Vec.new
+                          completion.Link)
+                      let o8 ←
+                        forest.run
+                          {
+                            entries := entries5,
+                            links := v,
+                            requirements := requirements1,
+                            unfoldings,
+                            triggers,
+                            axioms := axioms1
+                          } roles graph 0#usize
                       match o8 with
-                      | completion.Outcome.Accepted => ok (some true)
-                      | completion.Outcome.Rejected _ => ok (some false)
+                      | none => ok none
+                      | some o9 =>
+                        match o9 with
+                        | completion.Outcome.Accepted => ok (some true)
+                        | completion.Outcome.Rejected _ => ok (some false)
                 else ok none
               else ok none
 

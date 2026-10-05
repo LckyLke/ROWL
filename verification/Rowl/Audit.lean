@@ -1170,7 +1170,6 @@ import Rowl.DataOntology
 #print axioms Rowl.CompletionSearch.complementary_correct
 #print axioms Rowl.CompletionSearch.clashes_correct
 #print axioms Rowl.CompletionSearch.is_atom_correct
-#print axioms Rowl.CompletionSearch.has_atom_correct
 #print axioms Rowl.CompletionSearch.subset_correct
 #print axioms Rowl.CompletionSearch.same_label_correct
 #print axioms Rowl.CompletionSearch.missing_unfolding_correct
@@ -1270,6 +1269,10 @@ import Rowl.DataOntology
 #print axioms Rowl.Completion.intern_facts_correct
 #print axioms Rowl.Completion.intern_definitions_correct
 #print axioms Rowl.Completion.named_nodes_correct
+#print axioms Rowl.Completion.triggered_by_correct
+#print axioms Rowl.Completion.triggers_from_correct
+#print axioms Rowl.Completion.copy_rows_correct
+#print axioms Rowl.Completion.triggers_fresh
 #print axioms Rowl.Completion.satisfiable_correct
 #print axioms Rowl.Completion.copy_entries_correct
 #print axioms Rowl.Completion.copy_requirements_correct
@@ -3460,3 +3463,5 @@ import Rowl.DataOntology
 #print axioms Rowl.Compiled.partOf
 #print axioms Rowl.Completion.BaseFor
 #print axioms Rowl.ShiOntology.TableauRun
+#print axioms Rowl.CompletionSearch.TriggersFor
+#print axioms Rowl.CompletionSearch.TriggersOk

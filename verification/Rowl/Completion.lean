@@ -1981,7 +1981,8 @@ theorem add_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
 
 /-- The main loop terminates on every graph satisfying the invariant whose points
     are below `fresh`, and its answer means what `Answers` says. -/
-theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (positive : 0 < count) :
+theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : Nat) (positive : 0 < count)
+    (triggers : TriggersOk P) :
     ∀ (m : Nat) (nodes : alloc.vec.Vec completion.Node) (fresh : Usize), measure P h nodes.val = m →
       Inv P h count nodes.val → FreshNodes nodes.val fresh.val →
       ∃ r, completion.run P h nodes fresh = .ok r ∧ Answers.{u,v} P h count nodes.val 0 [] [] fresh.val r := by
@@ -1994,7 +1995,7 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
       ∃ r, completion.run P h nodes' fresh' = .ok r ∧ Answers.{u,v} P h count nodes'.val 0 [] [] fresh'.val r :=
     fun nodes' fresh' smaller inv' fresh'' => ih _ smaller nodes' fresh' rfl inv' fresh''
   have wf := inv.shape.wellFormed
-  obtain ⟨step,stepRun,addCase,createCase,doneCase⟩ := next_step_correct P h nodes
+  obtain ⟨step,stepRun,addCase,createCase,doneCase⟩ := next_step_correct P h nodes triggers
   cases step with
   | Add x c =>
     obtain ⟨inside,needs,missing⟩ := addCase x c rfl
@@ -2316,6 +2317,165 @@ termination_by count.val - nodes.val.length
 decreasing_by
   rw [contents]; simp; omega
 
+/-! ### The unfoldings of every entry -/
+
+theorem triggered_by_correct (entry : concept_table.Entry) (unfoldings : alloc.vec.Vec completion.Unfolding)
+    (index : Usize) (out : alloc.vec.Vec Usize) (short : out.val.length ≤ index.val) :
+    ∃ r, completion.triggered_by entry unfoldings index out = .ok r ∧
+      ∀ u, (∃ k ∈ r.val, unfoldings.val[k.val]? = some u) ↔
+        ((∃ k ∈ out.val, unfoldings.val[k.val]? = some u) ∨
+          ∃ n, index.val ≤ n ∧ unfoldings.val[n]? = some u ∧ entry = .Atom u.class) := by
+  rw [completion.triggered_by]
+  by_cases more : index.val < unfoldings.val.length
+  · have lookup : unfoldings.index_usize index = .ok unfoldings.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have at_index : unfoldings.val[index.val]? = some unfoldings.val[index.val] := List.getElem?_eq_getElem more
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    by_cases atom : entry = .Atom unfoldings.val[index.val].class
+    · have room : out.val.length < Usize.max := by have := unfoldings.property; omega
+      obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out index room)
+      obtain ⟨r,run,spec⟩ := triggered_by_correct entry unfoldings next appended
+        (by rw [contents,nextIndex]; simp; omega)
+      have isAtom : completion.is_atom entry unfoldings.val[index.val].class = .ok true := by
+        rw [is_atom_correct]; simp [atom]
+      refine ⟨r,?_,?_⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,isAtom,usize_max_val,room,push,advance,run]
+      · intro u
+        rw [spec u,nextIndex]
+        constructor
+        · rintro (⟨k,kIn,at_k⟩ | ⟨n,low,at_n,atomU⟩)
+          · rw [contents] at kIn
+            rcases List.mem_append.mp kIn with old | new
+            · exact .inl ⟨k,old,at_k⟩
+            · simp only [List.mem_singleton] at new
+              rw [new,at_index] at at_k
+              cases Option.some.inj at_k
+              exact .inr ⟨index.val,le_refl _,at_index,atom⟩
+          · exact .inr ⟨n,by omega,at_n,atomU⟩
+        · rintro (⟨k,kIn,at_k⟩ | ⟨n,low,at_n,atomU⟩)
+          · exact .inl ⟨k,by rw [contents]; exact List.mem_append_left _ kIn,at_k⟩
+          · by_cases same : n = index.val
+            · subst same
+              exact .inl ⟨index,by rw [contents]; simp,at_n⟩
+            · exact .inr ⟨n,by omega,at_n,atomU⟩
+    · obtain ⟨r,run,spec⟩ := triggered_by_correct entry unfoldings next out (by rw [nextIndex]; omega)
+      have isAtom : completion.is_atom entry unfoldings.val[index.val].class = .ok false := by
+        rw [is_atom_correct]; simp [atom]
+      refine ⟨r,?_,?_⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,isAtom,advance,run]
+      · intro u
+        rw [spec u,nextIndex]
+        constructor
+        · rintro (old | ⟨n,low,at_n,atomU⟩)
+          · exact .inl old
+          · exact .inr ⟨n,by omega,at_n,atomU⟩
+        · rintro (old | ⟨n,low,at_n,atomU⟩)
+          · exact .inl old
+          · by_cases same : n = index.val
+            · subst same
+              rw [at_index] at at_n
+              cases Option.some.inj at_n
+              exact absurd atomU atom
+            · exact .inr ⟨n,by omega,at_n,atomU⟩
+  · refine ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],?_⟩
+    intro u
+    constructor
+    · intro found; exact .inl found
+    · rintro (found | ⟨n,low,at_n,_⟩)
+      · exact found
+      · rw [List.getElem?_eq_none (by omega)] at at_n
+        cases at_n
+termination_by unfoldings.val.length - index.val
+decreasing_by all_goals omega
+
+theorem triggers_from_correct (entries : alloc.vec.Vec concept_table.Entry)
+    (unfoldings : alloc.vec.Vec completion.Unfolding) (index : Usize) (out : alloc.vec.Vec (alloc.vec.Vec Usize))
+    (lengthIs : out.val.length = index.val) (inside : index.val ≤ entries.val.length) :
+    ∃ t, completion.triggers_from entries unfoldings index out = .ok (some t) ∧
+      t.val.length = entries.val.length ∧ (∀ i, i < index.val → t.val[i]? = out.val[i]?) ∧
+      ∀ i (_lo : index.val ≤ i) (hi : i < t.val.length) (u : completion.Unfolding),
+        (∃ k ∈ t.val[i].val, unfoldings.val[k.val]? = some u) ↔
+          (u ∈ unfoldings.val ∧ entries.val[i]? = some (.Atom u.class)) := by
+  rw [completion.triggers_from]
+  by_cases more : index.val < entries.val.length
+  · have lookup : entries.index_usize index = .ok entries.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by have := entries.property; omega
+    obtain ⟨row,rowRun,rowSpec⟩ := triggered_by_correct entries.val[index.val] unfoldings 0#usize
+      (alloc.vec.Vec.new Usize) (by simp)
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out row room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    obtain ⟨t,run,length,kept,fresh⟩ := triggers_from_correct entries unfoldings next appended
+      (by rw [contents,nextIndex]; simp [lengthIs]) (by omega)
+    rw [nextIndex] at kept fresh
+    refine ⟨t,?_,length,?_,?_⟩
+    · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,usize_max_val,room,lookup,rowRun,push,advance,run]
+    · intro i below
+      rw [kept i (by omega),contents,List.getElem?_append_left (by omega)]
+    · intro i lo hi u
+      by_cases here : i = index.val
+      · subst here
+        have rowIs : t.val[index.val] = row := by
+          have := kept index.val (by omega)
+          rw [contents,List.getElem?_append_right (by omega),lengthIs,Nat.sub_self,List.getElem?_eq_getElem hi]
+            at this
+          simpa using this
+        rw [rowIs,rowSpec u,List.getElem?_eq_getElem more]
+        constructor
+        · rintro (⟨k,kIn,_⟩ | ⟨n,_,at_n,atomU⟩)
+          · simp at kIn
+          · exact ⟨List.mem_of_getElem? at_n,by rw [atomU]⟩
+        · rintro ⟨member,atomU⟩
+          obtain ⟨n,at_n⟩ := List.mem_iff_getElem?.mp member
+          exact .inr ⟨n,by simp,at_n,Option.some.inj atomU⟩
+      · exact fresh i (by omega) hi u
+  · have same : index.val = entries.val.length := by omega
+    refine ⟨out,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by rw [lengthIs,same],fun _ _ => rfl,?_⟩
+    intro i lo hi
+    omega
+termination_by entries.val.length - index.val
+decreasing_by omega
+
+theorem copy_rows_correct (rows : alloc.vec.Vec (alloc.vec.Vec Usize)) (index : Usize)
+    (out : alloc.vec.Vec (alloc.vec.Vec Usize))
+    (copied : out.val = rows.val.take index.val) (inside : index.val ≤ rows.val.length) :
+    completion.copy_rows rows index out = .ok rows := by
+  rw [completion.copy_rows]
+  by_cases more : index.val < rows.val.length
+  · have lookup : rows.index_usize index = .ok rows.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
+    have room : out.val.length < Usize.max := by
+      rw [copied]; simp; have := rows.property; scalar_tac
+    have rowCopy := copy_label_correct rows.val[index.val] 0#usize (alloc.vec.Vec.new Usize) (by simp) (by simp)
+    obtain ⟨appended,push,contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out rows.val[index.val] room)
+    obtain ⟨next,advance,nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val+1 := by simpa using nextValue
+    have rest := copy_rows_correct rows next appended
+      (by rw [contents,copied,nextIndex,List.take_succ_eq_append_getElem more]) (by omega)
+    simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,usize_max_val,room,
+      alloc.vec.Vec.index_slice_index,lookup,bind_ok,rowCopy,push,advance,rest]
+  · have full : index.val = rows.val.length := by omega
+    have same : out = rows := by
+      apply (alloc.vec.Vec.eq_iff out rows).mpr
+      rw [copied,full,List.take_length]
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,same]
+termination_by rows.val.length - index.val
+decreasing_by omega
+
+/-- The unfoldings of every entry of a fresh table, computed from scratch. -/
+theorem triggers_fresh (entries : alloc.vec.Vec concept_table.Entry)
+    (unfoldings : alloc.vec.Vec completion.Unfolding) :
+    ∃ t, completion.triggers_from entries unfoldings 0#usize (alloc.vec.Vec.new (alloc.vec.Vec Usize)) =
+      .ok (some t) ∧ TriggersFor entries.val unfoldings.val t.val := by
+  obtain ⟨t,run,length,_,fresh⟩ := triggers_from_correct entries unfoldings 0#usize
+    (alloc.vec.Vec.new (alloc.vec.Vec Usize)) (by simp) (by simp)
+  exact ⟨t,run,length,fun i inside u => fresh i (Nat.zero_le _) inside u⟩
+
 /-- The completion graph tableau terminates; an acceptance comes with a model of
     the role hierarchy in which the TBox concept and every definition hold
     everywhere and every fact and link holds at the elements of its named nodes
@@ -2379,7 +2539,8 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   obtain ⟨wf3,⟨more3,grows3,_⟩,closedTable⟩ := spec3 t3 rfl
   obtain ⟨nodes0,run4,length0,blanks⟩ := named_nodes_correct count (alloc.vec.Vec.new completion.Node) (by simp)
     (by simp)
-  let P : completion.Problem := { entries := t3, links, requirements, unfoldings, axioms := ax }
+  obtain ⟨tt,runT,triggersOk⟩ := triggers_fresh t3 unfoldings
+  let P : completion.Problem := { entries := t3, links, requirements, unfoldings, triggers := tt, axioms := ax }
   have axMeaning3 : meaning t3.val ax.val = axioms := by
     have insideq : ax.val < tq.val.length := by rw [growsq]; simp; omega
     have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
@@ -2443,14 +2604,15 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
     | some n =>
       rw [at_y,blankNode y n at_y] at member
       simp [blank] at member
-  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 0#usize rfl inv0 fresh0
-  have run' : completion.run ⟨t3,links,requirements,unfoldings,ax⟩ h nodes0 0#usize = .ok r := run
+  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive triggersOk _ nodes0 0#usize rfl inv0
+    fresh0
+  have run' : completion.run ⟨t3,links,requirements,unfoldings,tt,ax⟩ h nodes0 0#usize = .ok r := run
   have linksCopy := copy_links_correct links 0#usize (alloc.vec.Vec.new completion.Link) (by simp) (by simp)
   cases r with
   | none =>
     refine ⟨none,?_,by simp,by simp⟩
     rw [completion.satisfiable]
-    simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
+    simp only [run0,runq,run1,run2,run3,run4,runT,bind_ok,uncurry_apply_pair,linksCopy]
     rw [run']
     simp
   | some outcome =>
@@ -2458,7 +2620,7 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   | Accepted =>
     refine ⟨some true,?_,?_,by simp⟩
     · rw [completion.satisfiable]
-      simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
+      simp only [run0,runq,run1,run2,run3,run4,runT,bind_ok,uncurry_apply_pair,linksCopy]
       rw [run']
       simp
     intro _
@@ -2478,7 +2640,7 @@ theorem satisfiable_correct (count : Usize) (query facts : alloc.vec.Vec complet
   | Rejected D =>
     refine ⟨some false,?_,by simp,?_⟩
     · rw [completion.satisfiable]
-      simp only [run0,runq,run1,run2,run3,run4,bind_ok,uncurry_apply_pair,linksCopy]
+      simp only [run0,runq,run1,run2,run3,run4,runT,bind_ok,uncurry_apply_pair,linksCopy]
       rw [run']
       simp
     intro _
@@ -2598,7 +2760,8 @@ decreasing_by omega
 def BaseFor (facts : List completion.Fact) (axioms : concepts.Concept)
     (definitions : List completion.Definition) (b : completion.Base) : Prop :=
   WellFormed b.entries.val ∧ b.axioms.val < b.entries.val.length ∧ meaning b.entries.val b.axioms.val = axioms ∧
-    Corresponds facts b.entries.val b.requirements.val ∧ Unfolds definitions b.entries.val b.unfoldings.val
+    Corresponds facts b.entries.val b.requirements.val ∧ Unfolds definitions b.entries.val b.unfoldings.val ∧
+    TriggersFor b.entries.val b.unfoldings.val b.triggers.val
 
 theorem base_correct (facts : alloc.vec.Vec completion.Fact) (axioms : concepts.Concept)
     (definitions : alloc.vec.Vec completion.Definition) (h : hierarchy.RoleHierarchy) :
@@ -2632,14 +2795,15 @@ theorem base_correct (facts : alloc.vec.Vec completion.Fact) (axioms : concepts.
   | none => exact ⟨none,by rw [completion.base]; simp [run0,run1,run2,run3],by simp⟩
   | some t3 =>
   obtain ⟨wf3,⟨more3,grows3,_⟩,_⟩ := spec3 t3 rfl
-  refine ⟨some ⟨t3,requirements,unfoldings,ax⟩,?_,?_⟩
+  obtain ⟨tt,runT,triggersOk⟩ := triggers_fresh t3 unfoldings
+  refine ⟨some ⟨t3,requirements,unfoldings,tt,ax⟩,?_,?_⟩
   · rw [completion.base]
-    simp only [run0,run1,run2,run3,bind_ok,uncurry_apply_pair]
+    simp only [run0,run1,run2,run3,runT,bind_ok,uncurry_apply_pair]
   · intro b same
     cases same
     have inside1 : ax.val < t1.val.length := by rw [grows1]; simp; omega
     have inside2 : ax.val < t2.val.length := by rw [grows2]; simp; omega
-    refine ⟨wf3,by rw [grows3]; simp; omega,?_,?_,?_⟩
+    refine ⟨wf3,by rw [grows3]; simp; omega,?_,?_,?_,triggersOk⟩
     · show meaning t3.val ax.val = axioms
       rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf2 _ inside2,grows2,
         Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,Rowl.ConceptTable.meaning_append _ _ wf0 _ axIn,
@@ -2686,7 +2850,7 @@ theorem satisfiable_from_correct (b : completion.Base) (facts : List completion.
         (∀ d ∈ definitions, ∀ y, I.classes d.class y → denote I d.concept y) ∧
         (∀ f ∈ query.val ++ facts, denote I f.concept (π f.node.val)) ∧
         (∀ l ∈ links.val, objectRelation I l.role (π l.from.val) (π l.to.val))) := by
-  obtain ⟨wf0,axIn,axMeaning,corresponds0,unfolds0⟩ := based
+  obtain ⟨wf0,axIn,axMeaning,corresponds0,unfolds0,triggers0⟩ := based
   have entriesCopy := copy_entries_correct b.entries 0#usize (alloc.vec.Vec.new concept_table.Entry)
     (by simp) (by simp)
   have requirementsCopy := copy_requirements_correct b.requirements 0#usize
@@ -2711,7 +2875,24 @@ theorem satisfiable_from_correct (b : completion.Base) (facts : List completion.
   obtain ⟨wf3,⟨more3,grows3,_⟩,closedTable⟩ := spec3 t3 rfl
   obtain ⟨nodes0,run4,length0,blanks⟩ := named_nodes_correct count (alloc.vec.Vec.new completion.Node) (by simp)
     (by simp)
-  let P : completion.Problem := { entries := t3, links, requirements, unfoldings := b.unfoldings, axioms := b.axioms }
+  have rowsCopy := copy_rows_correct b.triggers 0#usize (alloc.vec.Vec.new (alloc.vec.Vec Usize)) (by simp) (by simp)
+  obtain ⟨tt,runT,lengthT,keptT,freshT⟩ := triggers_from_correct t3 b.unfoldings (alloc.vec.Vec.len b.entries)
+    b.triggers (by simp [triggers0.1]) (by simp [grows3,grows1])
+  have triggersOk : TriggersFor t3.val b.unfoldings.val tt.val := by
+    refine ⟨lengthT,?_⟩
+    intro i inside u
+    by_cases old : i < b.entries.val.length
+    · have rowIs : tt.val[i] = b.triggers.val[i]'(by rw [triggers0.1]; exact old) := by
+        have := keptT i (by simpa using old)
+        rw [List.getElem?_eq_getElem inside,List.getElem?_eq_getElem (by rw [triggers0.1]; exact old)] at this
+        exact Option.some.inj this
+      have entryIs : t3.val[i]? = b.entries.val[i]? := by
+        rw [grows3,grows1,List.append_assoc,List.getElem?_append_left old]
+      rw [rowIs,entryIs]
+      exact triggers0.2 i (by rw [triggers0.1]; exact old) u
+    · exact freshT i (by simp; omega) inside u
+  let P : completion.Problem :=
+    { entries := t3, links, requirements, unfoldings := b.unfoldings, triggers := tt, axioms := b.axioms }
   have axMeaning3 : meaning t3.val b.axioms.val = axioms := by
     have inside1 : b.axioms.val < t1.val.length := by rw [grows1]; simp; omega
     rw [grows3,Rowl.ConceptTable.meaning_append _ _ wf1 _ inside1,grows1,
@@ -2772,12 +2953,13 @@ theorem satisfiable_from_correct (b : completion.Base) (facts : List completion.
     | some n =>
       rw [at_y,blankNode y n at_y] at member
       simp [blank] at member
-  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive _ nodes0 0#usize rfl inv0 fresh0
-  have run' : completion.run ⟨t3,links,requirements,b.unfoldings,b.axioms⟩ h nodes0 0#usize = .ok r := run
+  obtain ⟨r,run,sound,complete⟩ := run_correct.{u,v} P h count.val positive triggersOk _ nodes0 0#usize rfl inv0
+    fresh0
+  have run' : completion.run ⟨t3,links,requirements,b.unfoldings,tt,b.axioms⟩ h nodes0 0#usize = .ok r := run
   have linksCopy := copy_links_correct links 0#usize (alloc.vec.Vec.new completion.Link) (by simp) (by simp)
   have unfoldingsCopy := copy_unfoldings_correct b.unfoldings 0#usize (alloc.vec.Vec.new completion.Unfolding)
     (by simp) (by simp)
-  have code : ∀ x, completion.run ⟨t3,links,requirements,b.unfoldings,b.axioms⟩ h nodes0 0#usize = .ok x →
+  have code : ∀ x, completion.run ⟨t3,links,requirements,b.unfoldings,tt,b.axioms⟩ h nodes0 0#usize = .ok x →
       completion.satisfiable_from b count query links h =
         match x with
         | some completion.Outcome.Accepted => ok (some true)
@@ -2785,7 +2967,8 @@ theorem satisfiable_from_correct (b : completion.Base) (facts : List completion.
         | none => ok none := by
     intro x ran
     rw [completion.satisfiable_from]
-    simp only [entriesCopy,requirementsCopy,run1,run3,run4,bind_ok,uncurry_apply_pair,linksCopy,unfoldingsCopy]
+    simp only [entriesCopy,requirementsCopy,run1,run3,run4,bind_ok,uncurry_apply_pair,linksCopy,unfoldingsCopy,
+      rowsCopy,alloc.vec.Vec.len_val,runT]
     rw [ran]
     rcases x with _ | _ | _ <;> simp
   cases r with
