@@ -1185,8 +1185,11 @@ import Rowl.Classification
 #print axioms Rowl.CompletionSearch.missing_tree_correct
 #print axioms Rowl.CompletionSearch.has_witness_correct
 #print axioms Rowl.CompletionSearch.missing_witness_correct
-#print axioms Rowl.CompletionSearch.repeats_above_correct
-#print axioms Rowl.CompletionSearch.blocked_correct
+#print axioms Rowl.CompletionSearch.blocks_correct
+#print axioms Rowl.CompletionSearch.repeated_before_correct
+#print axioms Rowl.CompletionSearch.flagged_correct
+#print axioms Rowl.CompletionSearch.blocked_at_correct
+#print axioms Rowl.CompletionSearch.blocking_correct
 #print axioms Rowl.CompletionSearch.missing_successor_correct
 #print axioms Rowl.CompletionSearch.next_step_correct
 #print axioms Rowl.CompletionModel.holds_same
@@ -1195,6 +1198,8 @@ import Rowl.Classification
 #print axioms Rowl.CompletionModel.blocked_down
 #print axioms Rowl.CompletionModel.treePath_tree
 #print axioms Rowl.CompletionModel.child_blocked
+#print axioms Rowl.CompletionModel.treePath_le
+#print axioms Rowl.CompletionModel.path_blocked_blocked
 #print axioms Rowl.CompletionModel.named_free
 #print axioms Rowl.CompletionModel.family_mem
 #print axioms Rowl.CompletionModel.below_inv_iff
@@ -3532,3 +3537,5 @@ import Rowl.Classification
 #print axioms Rowl.Classification.RowsRight
 #print axioms Rowl.Classification.Context
 #print axioms Rowl.Classification.Classified
+#print axioms Rowl.CompletionSearch.PathBlocked
+#print axioms Rowl.CompletionSearch.FlagBlocks

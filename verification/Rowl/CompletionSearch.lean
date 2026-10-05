@@ -1614,215 +1614,261 @@ def treePath (nodes : List completion.Node) (x : Nat) : List Nat :=
   | none => []
 termination_by x
 
-/-- Equality blocking: some tree node on the path from `x` to its named root has
-    the label of a tree node above it. -/
-def Blocked (nodes : List completion.Node) (x : Nat) : Prop :=
+/-- Blocking along tree paths: some tree node on the path from `x` to its named
+    root has the label of a tree node above it. -/
+def PathBlocked (nodes : List completion.Node) (x : Nat) : Prop :=
   match nodes[x]? with
   | some n =>
     if _below : n.parent.val < x then
       n.tree = true ∧ ((∃ v ∈ treePath nodes n.parent.val, SameLabel (labelOf nodes x) (labelOf nodes v)) ∨
-        Blocked nodes n.parent.val)
+        PathBlocked nodes n.parent.val)
     else False
   | none => False
 termination_by x
 
-theorem repeats_above_correct (nodes : alloc.vec.Vec completion.Node) (node : Usize) :
-    ∀ (n : Nat) (ancestor : Usize), ancestor.val = n → completion.repeats_above nodes node ancestor =
-      .ok (decide (node.val < nodes.val.length ∧ ∃ v ∈ treePath nodes.val ancestor.val,
-        SameLabel (labelOf nodes.val node.val) (labelOf nodes.val v))) := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro ancestor same
-    by_cases ancestorIn : ancestor.val < nodes.val.length
-    · have at_ancestor := List.getElem?_eq_getElem ancestorIn
-      have lookupAncestor : nodes.index_usize ancestor = .ok nodes.val[ancestor.val] := by
-        simp [alloc.vec.Vec.index_usize,at_ancestor]
-      have ancestorLabel : labelOf nodes.val ancestor.val = nodes.val[ancestor.val].label.val := by
-        simp [labelOf,at_ancestor]
-      by_cases nodeIn : node.val < nodes.val.length
-      · have lookupNode : nodes.index_usize node = .ok nodes.val[node.val] := by
-          simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem nodeIn]
-        have nodeLabel : labelOf nodes.val node.val = nodes.val[node.val].label.val := by
-          simp [labelOf,List.getElem?_eq_getElem nodeIn]
-        by_cases tree : nodes.val[ancestor.val].tree = true
-        · by_cases equal : SameLabel nodes.val[node.val].label.val nodes.val[ancestor.val].label.val
-          · have lhs : completion.repeats_above nodes node ancestor = .ok true := by
-              rw [completion.repeats_above]
-              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,nodeIn,↓reduceIte,
-                alloc.vec.Vec.index_slice_index,lookupAncestor,lookupNode,bind_ok,tree,same_label_correct]
-              rw [decide_eq_true (show ∀ i, i ∈ nodes.val[node.val].label.val ↔ i ∈ nodes.val[ancestor.val].label.val
-                from equal)]
-              simp
-            rw [lhs]
-            congr 1
-            symm
-            rw [decide_eq_true_iff]
-            refine ⟨nodeIn,ancestor.val,?_,by rw [nodeLabel,ancestorLabel]; exact equal⟩
-            rw [treePath.eq_def,at_ancestor]
-            simp only [tree,↓reduceIte]
-            split <;> simp
-          · by_cases parentVal : nodes.val[ancestor.val].parent.val < ancestor.val
-            · have rest := ih nodes.val[ancestor.val].parent.val (by omega) nodes.val[ancestor.val].parent rfl
-              have lhs : completion.repeats_above nodes node ancestor =
-                  completion.repeats_above nodes node nodes.val[ancestor.val].parent := by
-                rw [completion.repeats_above]
-                simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,nodeIn,↓reduceIte,
-                  alloc.vec.Vec.index_slice_index,lookupAncestor,lookupNode,bind_ok,tree,same_label_correct]
-                rw [decide_eq_false (show ¬ ∀ i, i ∈ nodes.val[node.val].label.val ↔
-                  i ∈ nodes.val[ancestor.val].label.val from equal)]
-                simp [parentVal]
-              rw [lhs,rest]
-              congr 1
-              rw [decide_eq_decide]
-              have path : treePath nodes.val ancestor.val =
-                  ancestor.val :: treePath nodes.val nodes.val[ancestor.val].parent.val := by
-                rw [treePath.eq_def,at_ancestor]
-                simp [tree,dif_pos parentVal]
-              rw [path]
+/-- Anywhere equality blocking: a tree node is blocked when its parent is, or
+    when an earlier tree node that is not blocked has a label of the same length
+    with the same items. -/
+def Blocked (nodes : List completion.Node) (x : Nat) : Prop :=
+  match nodes[x]? with
+  | some n =>
+    if _below : n.parent.val < x then
+      n.tree = true ∧ (Blocked nodes n.parent.val ∨
+        ∃ v, ∃ _ : v < x, (∃ m, nodes[v]? = some m ∧ m.tree = true) ∧ ¬ Blocked nodes v ∧
+          (labelOf nodes v).length = (labelOf nodes x).length ∧ SameLabel (labelOf nodes x) (labelOf nodes v))
+    else False
+  | none => False
+termination_by x
+
+/-- `v` blocks `x` by the flags: a tree node whose flag says unblocked, with a
+    label of the same length and items as `x`'s. -/
+def FlagBlocks (nodes : List completion.Node) (flags : List Bool) (x v : Nat) : Prop :=
+  x < nodes.length ∧ (∃ m, nodes[v]? = some m ∧ m.tree = true) ∧ flags[v]? = some false ∧
+    (labelOf nodes v).length = (labelOf nodes x).length ∧ SameLabel (labelOf nodes x) (labelOf nodes v)
+
+theorem blocks_correct (nodes : alloc.vec.Vec completion.Node) (flags : alloc.vec.Vec Bool) (node v : Usize) :
+    ∃ b, completion.blocks nodes flags node v = .ok b ∧ (b = true ↔ FlagBlocks nodes.val flags.val node.val v.val) := by
+  rw [completion.blocks]
+  by_cases nodeIn : node.val < nodes.val.length
+  · by_cases vIn : v.val < nodes.val.length
+    · by_cases vFlag : v.val < flags.val.length
+      · have atV := List.getElem?_eq_getElem vIn
+        have atF := List.getElem?_eq_getElem vFlag
+        have lookupV : nodes.index_usize v = .ok nodes.val[v.val] := by simp [alloc.vec.Vec.index_usize, atV]
+        have lookupN : nodes.index_usize node = .ok nodes.val[node.val] := by
+          simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem nodeIn]
+        have lookupF : flags.index_usize v = .ok flags.val[v.val] := by simp [alloc.vec.Vec.index_usize, atF]
+        have labelV : labelOf nodes.val v.val = nodes.val[v.val].label.val := by simp [labelOf, atV]
+        have labelN : labelOf nodes.val node.val = nodes.val[node.val].label.val := by
+          simp [labelOf, List.getElem?_eq_getElem nodeIn]
+        by_cases tree : nodes.val[v.val].tree = true
+        · cases flag : flags.val[v.val] with
+          | true =>
+            refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn, vFlag, lookupV, lookupF,
+              tree, flag], ?_⟩
+            simp only [Bool.false_eq_true, false_iff]
+            rintro ⟨_, _, flagFalse, _⟩
+            rw [atF, flag] at flagFalse
+            cases flagFalse
+          | false =>
+            by_cases lengths : nodes.val[v.val].label.val.length = nodes.val[node.val].label.val.length
+            · refine ⟨decide (∀ i, i ∈ nodes.val[node.val].label.val ↔ i ∈ nodes.val[v.val].label.val),
+                by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn, vFlag, lookupV, lookupN, lookupF, tree,
+                  flag, lengths, same_label_correct], ?_⟩
+              rw [decide_eq_true_iff]
               constructor
-              · rintro ⟨inside,v,member,sameLabel⟩
-                exact ⟨inside,v,List.mem_cons_of_mem _ member,sameLabel⟩
-              · rintro ⟨inside,v,member,sameLabel⟩
-                rcases List.mem_cons.mp member with rfl | later
-                · exact absurd (by rw [nodeLabel,ancestorLabel] at sameLabel; exact sameLabel) equal
-                · exact ⟨inside,v,later,sameLabel⟩
-            · have lhs : completion.repeats_above nodes node ancestor = .ok false := by
-                rw [completion.repeats_above]
-                simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,nodeIn,↓reduceIte,
-                  alloc.vec.Vec.index_slice_index,lookupAncestor,lookupNode,bind_ok,tree,same_label_correct]
-                rw [decide_eq_false (show ¬ ∀ i, i ∈ nodes.val[node.val].label.val ↔
-                  i ∈ nodes.val[ancestor.val].label.val from equal)]
-                simp [parentVal]
-              rw [lhs]
-              congr 1
+              · intro same
+                refine ⟨nodeIn, ⟨_, atV, tree⟩, by rw [atF, flag], by rw [labelV, labelN]; exact lengths, ?_⟩
+                rw [labelN, labelV]
+                exact same
+              · rintro ⟨_, _, _, _, same⟩
+                rw [labelN, labelV] at same
+                exact same
+            · refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn, vFlag, lookupV, lookupN,
+                lookupF, tree, flag, lengths], ?_⟩
+              simp only [Bool.false_eq_true, false_iff]
+              rintro ⟨_, _, _, sameLength, _⟩
+              rw [labelV, labelN] at sameLength
+              exact lengths sameLength
+        · refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn, vFlag, lookupV, tree], ?_⟩
+          simp only [Bool.false_eq_true, false_iff]
+          rintro ⟨_, ⟨m, at_m, mTree⟩, _⟩
+          rw [atV] at at_m
+          cases Option.some.inj at_m
+          exact tree mTree
+      · refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn, vFlag], ?_⟩
+        simp only [Bool.false_eq_true, false_iff]
+        rintro ⟨_, _, flagFalse, _⟩
+        rw [List.getElem?_eq_none (by omega)] at flagFalse
+        cases flagFalse
+    · refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn, vIn], ?_⟩
+      simp only [Bool.false_eq_true, false_iff]
+      rintro ⟨_, ⟨m, at_m, _⟩, _⟩
+      rw [List.getElem?_eq_none (by omega)] at at_m
+      cases at_m
+  · refine ⟨false, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, nodeIn], ?_⟩
+    simp only [Bool.false_eq_true, false_iff]
+    rintro ⟨inside, _⟩
+    exact nodeIn inside
+
+theorem repeated_before_correct (nodes : alloc.vec.Vec completion.Node) (flags : alloc.vec.Vec Bool) (node v : Usize) :
+    ∃ b, completion.repeated_before nodes flags node v = .ok b ∧
+      (b = true ↔ ∃ k, v.val ≤ k ∧ k < node.val ∧ FlagBlocks nodes.val flags.val node.val k) := by
+  rw [completion.repeated_before]
+  by_cases more : v.val < node.val
+  · obtain ⟨here, hereRun, hereSpec⟩ := blocks_correct nodes flags node v
+    cases here with
+    | true =>
+      refine ⟨true, by simp [UScalar.lt_equiv, more, hereRun], ?_⟩
+      simp only [true_iff]
+      exact ⟨v.val, le_refl _, more, hereSpec.mp rfl⟩
+    | false =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := v) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = v.val + 1 := by simpa using nextValue
+      obtain ⟨r, run, spec⟩ := repeated_before_correct nodes flags node next
+      refine ⟨r, by simp [UScalar.lt_equiv, more, hereRun, advance, run], ?_⟩
+      rw [spec, nextIndex]
+      constructor
+      · rintro ⟨k, low, high, blocks⟩
+        exact ⟨k, by omega, high, blocks⟩
+      · rintro ⟨k, low, high, blocks⟩
+        by_cases same : k = v.val
+        · subst same
+          exact absurd (hereSpec.mpr blocks) (by simp)
+        · exact ⟨k, by omega, high, blocks⟩
+  · refine ⟨false, by simp [UScalar.lt_equiv, more], ?_⟩
+    simp only [Bool.false_eq_true, false_iff]
+    rintro ⟨k, low, high, _⟩
+    omega
+termination_by node.val - v.val
+decreasing_by omega
+
+theorem flagged_correct (flags : alloc.vec.Vec Bool) (index : Usize) :
+    completion.flagged flags index = .ok (decide (flags.val[index.val]? = some true)) := by
+  rw [completion.flagged]
+  by_cases inside : index.val < flags.val.length
+  · have lookup : flags.index_usize index = .ok flags.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, List.getElem?_eq_getElem inside]
+  · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, List.getElem?_eq_none (show flags.val.length ≤ index.val
+      by omega)]
+
+/-- With right flags for the nodes before it, `blocked_at` decides `Blocked`. -/
+theorem blocked_at_correct (nodes : alloc.vec.Vec completion.Node) (flags : alloc.vec.Vec Bool) (x : Usize)
+    (flagsOk : ∀ y < x.val, flags.val[y]? = some (decide (Blocked nodes.val y))) :
+    completion.blocked_at nodes flags x = .ok (decide (Blocked nodes.val x.val)) := by
+  rw [completion.blocked_at]
+  by_cases inside : x.val < nodes.val.length
+  · have at_x := List.getElem?_eq_getElem inside
+    have lookup : nodes.index_usize x = .ok nodes.val[x.val] := by simp [alloc.vec.Vec.index_usize, at_x]
+    have unfold : Blocked nodes.val x.val ↔ nodes.val[x.val].parent.val < x.val ∧ nodes.val[x.val].tree = true ∧
+        (Blocked nodes.val nodes.val[x.val].parent.val ∨
+          ∃ v, ∃ _ : v < x.val, (∃ m, nodes.val[v]? = some m ∧ m.tree = true) ∧ ¬ Blocked nodes.val v ∧
+            (labelOf nodes.val v).length = (labelOf nodes.val x.val).length ∧
+            SameLabel (labelOf nodes.val x.val) (labelOf nodes.val v)) := by
+      rw [Blocked.eq_def, at_x]
+      simp only
+      split
+      · rename_i below
+        simp [below]
+      · rename_i below
+        simp [below]
+    -- the flags say exactly which earlier nodes are blocked
+    have flagMeaning : ∀ v < x.val, (flags.val[v]? = some false ↔ ¬ Blocked nodes.val v) := by
+      intro v low
+      rw [flagsOk v low]
+      by_cases blocked : Blocked nodes.val v <;> simp [blocked]
+    have repeats : ∀ b, (b = true ↔ ∃ k, 0 ≤ k ∧ k < x.val ∧ FlagBlocks nodes.val flags.val x.val k) →
+        (b = true ↔ ∃ v, ∃ _ : v < x.val, (∃ m, nodes.val[v]? = some m ∧ m.tree = true) ∧ ¬ Blocked nodes.val v ∧
+          (labelOf nodes.val v).length = (labelOf nodes.val x.val).length ∧
+          SameLabel (labelOf nodes.val x.val) (labelOf nodes.val v)) := by
+      intro b spec
+      rw [spec]
+      constructor
+      · rintro ⟨k, _, high, _, tree, flag, lengths, same⟩
+        exact ⟨k, high, tree, (flagMeaning k high).mp flag, lengths, same⟩
+      · rintro ⟨k, high, tree, free, lengths, same⟩
+        exact ⟨k, Nat.zero_le _, high, inside, tree, (flagMeaning k high).mpr free, lengths, same⟩
+    by_cases tree : nodes.val[x.val].tree = true
+    · by_cases below : nodes.val[x.val].parent.val < x.val
+      · have parentFlag := flagsOk _ below
+        obtain ⟨r, run, spec⟩ := repeated_before_correct nodes flags x 0#usize
+        have spec' := repeats r (by simpa using spec)
+        by_cases parentBlocked : Blocked nodes.val nodes.val[x.val].parent.val
+        · have flagTrue : completion.flagged flags nodes.val[x.val].parent = .ok true := by
+            rw [flagged_correct, parentFlag]
+            simp [parentBlocked]
+          rw [show (decide (Blocked nodes.val x.val)) = true from decide_eq_true
+            (unfold.mpr ⟨below, tree, .inl parentBlocked⟩)]
+          simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, tree, below, flagTrue]
+        · have flagFalse : completion.flagged flags nodes.val[x.val].parent = .ok false := by
+            rw [flagged_correct, parentFlag]
+            simp [parentBlocked]
+          have same : r = decide (Blocked nodes.val x.val) := by
+            cases r with
+            | true =>
+              symm
+              rw [decide_eq_true_iff]
+              exact unfold.mpr ⟨below, tree, .inr (spec'.mp rfl)⟩
+            | false =>
               symm
               rw [decide_eq_false_iff_not]
-              have path : treePath nodes.val ancestor.val = [ancestor.val] := by
-                rw [treePath.eq_def,at_ancestor]
-                simp [tree,dif_neg parentVal]
-              rw [path]
-              rintro ⟨_,v,member,sameLabel⟩
-              simp only [List.mem_singleton] at member
-              subst member
-              exact equal (by rw [nodeLabel,ancestorLabel] at sameLabel; exact sameLabel)
-        · have lhs : completion.repeats_above nodes node ancestor = .ok false := by
-            rw [completion.repeats_above]
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,nodeIn,lookupAncestor,tree]
-          rw [lhs]
-          congr 1
-          symm
-          rw [decide_eq_false_iff_not]
-          have path : treePath nodes.val ancestor.val = [] := by
-            rw [treePath.eq_def,at_ancestor]
-            simp [tree]
-          rw [path]
-          simp
-      · have lhs : completion.repeats_above nodes node ancestor = .ok false := by
-          rw [completion.repeats_above]
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn,nodeIn]
-        rw [lhs]
-        congr 1
-        symm
-        rw [decide_eq_false_iff_not]
-        rintro ⟨inside,_⟩
-        exact nodeIn inside
-    · have lhs : completion.repeats_above nodes node ancestor = .ok false := by
-        rw [completion.repeats_above]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,ancestorIn]
-      rw [lhs]
-      congr 1
-      symm
-      rw [decide_eq_false_iff_not]
-      have path : treePath nodes.val ancestor.val = [] := by
-        rw [treePath.eq_def,List.getElem?_eq_none_iff.mpr (show nodes.val.length ≤ ancestor.val by omega)]
-      rw [path]
-      simp
+              intro blocked
+              obtain ⟨_, _, parentOrRepeat⟩ := unfold.mp blocked
+              rcases parentOrRepeat with parent | found
+              · exact parentBlocked parent
+              · exact absurd (spec'.mpr found) (by simp)
+          rw [← same]
+          simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, tree, below, flagFalse, run]
+      · rw [show (decide (Blocked nodes.val x.val)) = false from decide_eq_false
+          (fun blocked => below (unfold.mp blocked).1)]
+        simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, tree, below]
+    · rw [show (decide (Blocked nodes.val x.val)) = false from decide_eq_false
+        (fun blocked => tree (unfold.mp blocked).2.1)]
+      simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, tree]
+  · rw [show (decide (Blocked nodes.val x.val)) = false from decide_eq_false (fun blocked => by
+      rw [Blocked.eq_def, List.getElem?_eq_none (show nodes.val.length ≤ x.val by omega)] at blocked
+      exact blocked)]
+    simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside]
 
-/-- The actual blocking test decides `Blocked`. -/
-theorem blocked_correct (nodes : alloc.vec.Vec completion.Node) :
-    ∀ (n : Nat) (x : Usize), x.val = n → completion.blocked nodes x = .ok (decide (Blocked nodes.val x.val)) := by
-  intro n
-  induction n using Nat.strong_induction_on with
-  | _ n ih =>
-    intro x same
-    by_cases inside : x.val < nodes.val.length
-    · have at_x := List.getElem?_eq_getElem inside
-      have lookup : nodes.index_usize x = .ok nodes.val[x.val] := by
-        simp [alloc.vec.Vec.index_usize,at_x]
-      have unfold : Blocked nodes.val x.val ↔ nodes.val[x.val].parent.val < x.val ∧ nodes.val[x.val].tree = true ∧
-          ((∃ v ∈ treePath nodes.val nodes.val[x.val].parent.val,
-              SameLabel (labelOf nodes.val x.val) (labelOf nodes.val v)) ∨
-            Blocked nodes.val nodes.val[x.val].parent.val) := by
-        rw [Blocked.eq_def,at_x]
-        simp only
-        split
-        · rename_i below
-          simp [below]
-        · rename_i below
-          simp [below]
-      by_cases tree : nodes.val[x.val].tree = true
-      · by_cases parentVal : nodes.val[x.val].parent.val < x.val
-        · have rest := ih nodes.val[x.val].parent.val (by omega) nodes.val[x.val].parent rfl
-          have repeatsRun := repeats_above_correct nodes x _ nodes.val[x.val].parent rfl
-          by_cases repeats : ∃ v ∈ treePath nodes.val nodes.val[x.val].parent.val,
-              SameLabel (labelOf nodes.val x.val) (labelOf nodes.val v)
-          · have lhs : completion.blocked nodes x = .ok true := by
-              rw [completion.blocked]
-              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-                lookup,bind_ok,tree,parentVal,repeatsRun]
-              simp [repeats]
-            rw [lhs]
-            congr 1
-            symm
-            rw [decide_eq_true_iff,unfold]
-            exact ⟨parentVal,tree,.inl repeats⟩
-          · have lhs : completion.blocked nodes x = completion.blocked nodes nodes.val[x.val].parent := by
-              rw [completion.blocked]
-              simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,↓reduceIte,alloc.vec.Vec.index_slice_index,
-                lookup,bind_ok,tree,parentVal,repeatsRun]
-              rw [decide_eq_false (fun both => repeats both.2)]
-              simp
-            rw [lhs,rest]
-            congr 1
-            rw [decide_eq_decide,unfold]
-            constructor
-            · intro blocked
-              exact ⟨parentVal,tree,.inr blocked⟩
-            · rintro ⟨_,_,found | blocked⟩
-              · exact absurd found repeats
-              · exact blocked
-        · have lhs : completion.blocked nodes x = .ok false := by
-            rw [completion.blocked]
-            simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree,parentVal]
-          rw [lhs]
-          congr 1
-          symm
-          rw [decide_eq_false_iff_not,unfold]
-          rintro ⟨below,_⟩
-          exact parentVal below
-      · have lhs : completion.blocked nodes x = .ok false := by
-          rw [completion.blocked]
-          simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,tree]
-        rw [lhs]
-        congr 1
-        symm
-        rw [decide_eq_false_iff_not,unfold]
-        rintro ⟨_,isTree,_⟩
-        exact tree isTree
-    · have lhs : completion.blocked nodes x = .ok false := by
-        rw [completion.blocked]
-        simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside]
-      rw [lhs]
-      congr 1
-      symm
-      rw [decide_eq_false_iff_not,Blocked.eq_def,
-        List.getElem?_eq_none_iff.mpr (show nodes.val.length ≤ x.val by omega)]
-      simp
+/-- The flags of every node: whether it is blocked. -/
+theorem blocking_correct (nodes : alloc.vec.Vec completion.Node) (index : Usize) (out : alloc.vec.Vec Bool)
+    (length : out.val.length = index.val)
+    (outOk : ∀ y < index.val, out.val[y]? = some (decide (Blocked nodes.val y))) :
+    ∃ r, completion.blocking nodes index out = .ok r ∧
+      ∀ y < nodes.val.length, r.val[y]? = some (decide (Blocked nodes.val y)) := by
+  rw [completion.blocking]
+  by_cases more : index.val < nodes.val.length
+  · have room : out.val.length < Usize.max := by have := nodes.property; omega
+    obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (decide (Blocked nodes.val index.val)) room)
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨r, run, spec⟩ := blocking_correct nodes next pushed (by rw [contents, nextIndex]; simp [length])
+      (by
+        intro y low
+        rw [contents]
+        by_cases same : y = index.val
+        · subst same
+          rw [List.getElem?_append_right (by omega), length, Nat.sub_self]
+          rfl
+        · rw [List.getElem?_append_left (by omega)]
+          exact outOk y (by omega))
+    refine ⟨r, ?_, spec⟩
+    simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, blocked_at_correct nodes out index outOk, push,
+      advance, run]
+  · refine ⟨out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], ?_⟩
+    intro y low
+    exact outOk y (by omega)
+termination_by nodes.val.length - index.val
+decreasing_by omega
 
 theorem missing_successor_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
-    (nodes : alloc.vec.Vec completion.Node) (index : Usize) :
-    ∃ r, completion.missing_successor P h nodes index = .ok r ∧
+    (nodes : alloc.vec.Vec completion.Node) (flags : alloc.vec.Vec Bool)
+    (flagsOk : ∀ y < nodes.val.length, flags.val[y]? = some (decide (Blocked nodes.val y))) (index : Usize) :
+    ∃ r, completion.missing_successor P h nodes flags index = .ok r ∧
       (∀ x i, r = some (x,i) → index.val ≤ x.val ∧ x.val < nodes.val.length ∧ ¬ Blocked nodes.val x.val ∧
         i ∈ labelOf nodes.val x.val ∧ ∃ role f, P.entries.val[i.val]? = some (.Exists role f) ∧
           ¬ Witnessed P h nodes.val x.val role f) ∧
@@ -1834,7 +1880,7 @@ theorem missing_successor_correct (P : completion.Problem) (h : hierarchy.RoleHi
   · obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨r,run,found,absent⟩ := missing_successor_correct P h nodes index'
+    obtain ⟨r,run,found,absent⟩ := missing_successor_correct P h nodes flags flagsOk index'
     rw [nextIndex] at found absent
     have later : ∀ x i, r = some (x,i) → index.val ≤ x.val ∧ x.val < nodes.val.length ∧ ¬ Blocked nodes.val x.val ∧
         i ∈ labelOf nodes.val x.val ∧ ∃ role f, P.entries.val[i.val]? = some (.Exists role f) ∧
@@ -1855,15 +1901,14 @@ theorem missing_successor_correct (P : completion.Problem) (h : hierarchy.RoleHi
     | some i =>
       by_cases blocked : Blocked nodes.val index.val
       · refine ⟨r,?_,later,?_⟩
-        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,wRun,bind_ok,
-            blocked_correct nodes _ index rfl,blocked,decide_true,advance,run]
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,wRun,flagged_correct,flagsOk index.val more,blocked,
+            advance,run]
         · intro none y low high notBlocked
           by_cases same : y = index.val
           · subst same; exact absurd blocked notBlocked
           · exact absent none y (by omega) high notBlocked
       · refine ⟨some (index,i),?_,?_,by simp⟩
-        · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,wRun,bind_ok,
-            blocked_correct nodes _ index rfl,blocked,decide_false,Bool.false_eq_true]
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,wRun,flagged_correct,flagsOk index.val more,blocked]
         · intro x i' same
           simp only [Option.some.injEq,Prod.mk.injEq] at same
           obtain ⟨rfl,rfl⟩ := same
@@ -1957,19 +2002,21 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
         · exact ⟨parentIn,.inr (.inr ⟨y,n,s,at_y,isTree,role,parentIn,.inr ⟨rfl,needs⟩⟩),missing⟩
       | none =>
         have treesOk := treeAbsent rfl
+        obtain ⟨flags,flagsRun,flagsOk⟩ := blocking_correct nodes 0#usize (alloc.vec.Vec.new Bool) (by simp)
+          (by intro y low; simp at low)
         obtain ⟨successor,successorRun,successorFound,successorAbsent⟩ :=
-          missing_successor_correct P h nodes 0#usize
+          missing_successor_correct P h nodes flags flagsOk 0#usize
         cases successor with
         | some pair =>
           obtain ⟨x,i⟩ := pair
-          refine ⟨.Create x i,by simp [nodeRun,linkRun,treeRun,successorRun],by simp,?_,by simp⟩
+          refine ⟨.Create x i,by simp [nodeRun,linkRun,treeRun,flagsRun,successorRun],by simp,?_,by simp⟩
           intro x' i' same
           simp only [completion.Step.Create.injEq] at same
           obtain ⟨rfl,rfl⟩ := same
           obtain ⟨_,rest⟩ := successorFound x i rfl
           exact rest
         | none =>
-          refine ⟨.Done,by simp [nodeRun,linkRun,treeRun,successorRun],by simp,by simp,?_⟩
+          refine ⟨.Done,by simp [nodeRun,linkRun,treeRun,flagsRun,successorRun],by simp,by simp,?_⟩
           intro _
           refine ⟨fun y yIn => nodesOk y (Nat.zero_le _) yIn,linksOk,?_,
             fun x xIn notBlocked => successorAbsent rfl x (Nat.zero_le _) xIn notBlocked⟩

@@ -1642,8 +1642,11 @@
         "Rowl.CompletionSearch.missing_tree_correct",
         "Rowl.CompletionSearch.has_witness_correct",
         "Rowl.CompletionSearch.missing_witness_correct",
-        "Rowl.CompletionSearch.repeats_above_correct",
-        "Rowl.CompletionSearch.blocked_correct",
+        "Rowl.CompletionSearch.blocks_correct",
+        "Rowl.CompletionSearch.repeated_before_correct",
+        "Rowl.CompletionSearch.flagged_correct",
+        "Rowl.CompletionSearch.blocked_at_correct",
+        "Rowl.CompletionSearch.blocking_correct",
         "Rowl.CompletionSearch.missing_successor_correct",
         "Rowl.CompletionSearch.next_step_correct"
       ]
@@ -1658,6 +1661,8 @@
         "Rowl.CompletionModel.blocked_down",
         "Rowl.CompletionModel.treePath_tree",
         "Rowl.CompletionModel.child_blocked",
+        "Rowl.CompletionModel.treePath_le",
+        "Rowl.CompletionModel.path_blocked_blocked",
         "Rowl.CompletionModel.named_free",
         "Rowl.CompletionModel.family_mem",
         "Rowl.CompletionModel.below_inv_iff",
@@ -4189,6 +4194,8 @@
     "Rowl.Classification.Complete",
     "Rowl.Classification.RowsRight",
     "Rowl.Classification.Context",
-    "Rowl.Classification.Classified"
+    "Rowl.Classification.Classified",
+    "Rowl.CompletionSearch.PathBlocked",
+    "Rowl.CompletionSearch.FlagBlocks"
   ]
 }

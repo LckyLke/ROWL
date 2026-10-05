@@ -707,7 +707,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   table adds the universal restrictions that transitive roles pass along. The
   completion graph tableau runs on the table: named individuals and trees of
   anonymous nodes, clash detection on insertion, lazy unfolding of `A ⊑ C`, and
-  equality blocking. Its rule search is proved exact: it returns what a node
+  equality blocking (since the anywhere-blocking stage by any earlier unblocked
+  tree node with the same label, not only by one on the node's own path). Its
+  rule search is proved exact: it returns what a node
   needs and lacks, else an unblocked node with an unwitnessed existential
   restriction, else Done exactly when no rule applies. completion::satisfiable
   is proved total, sound and complete for SHI with named individuals: an
@@ -971,7 +973,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Python layer are unverified glue that only converts text and adds no
   reasoning; the crate is the only one outside the kernel with `unsafe` code,
   confined to reading the caller's buffers and releasing handles.
-- 2307 audited public theorems and 1095 audited semantic definitions. Consistency,
+- 2312 audited public theorems and 1097 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -992,8 +994,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
   entry), a concept table prepared once per ontology, clash detection on
-  insertion, equality
-  blocking and backjumping, the queries that count or have nominals a
+  insertion, anywhere equality blocking and backjumping, the queries that count or have nominals a
   completion forest with pairwise blocking and backjumping over merges, and a
   closure or document
   prepared once answers any number of queries.
@@ -1004,7 +1005,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2500-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2505-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

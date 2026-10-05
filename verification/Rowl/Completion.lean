@@ -831,7 +831,7 @@ theorem witnessed_mono (P : completion.Problem) (h : hierarchy.RoleHierarchy) {n
 /-- The labels along the tree path of an unblocked node are pairwise different
     sets. -/
 theorem path_distinct (nodes : List completion.Node) :
-    ∀ x, ¬ Blocked nodes x →
+    ∀ x, ¬ PathBlocked nodes x →
       ((treePath nodes x).map (fun v => ((labelOf nodes v).map (·.val)).toFinset)).Nodup := by
   intro x
   induction x using Nat.strong_induction_on with
@@ -846,11 +846,11 @@ theorem path_distinct (nodes : List completion.Node) :
       · rw [if_pos tree]
         by_cases below : n.parent.val < x
         · rw [dif_pos below]
-          have unfold : Blocked nodes x ↔ n.tree = true ∧ ((∃ v ∈ treePath nodes n.parent.val,
-              SameLabel (labelOf nodes x) (labelOf nodes v)) ∨ Blocked nodes n.parent.val) := by
-            rw [Blocked.eq_def,at_x]
+          have unfold : PathBlocked nodes x ↔ n.tree = true ∧ ((∃ v ∈ treePath nodes n.parent.val,
+              SameLabel (labelOf nodes x) (labelOf nodes v)) ∨ PathBlocked nodes n.parent.val) := by
+            rw [PathBlocked.eq_def,at_x]
             simp only [dif_pos below]
-          have parentFree : ¬ Blocked nodes n.parent.val := fun blocked => free (unfold.mpr ⟨tree,.inr blocked⟩)
+          have parentFree : ¬ PathBlocked nodes n.parent.val := fun blocked => free (unfold.mpr ⟨tree,.inr blocked⟩)
           rw [List.map_cons,List.nodup_cons]
           refine ⟨?_,ih n.parent.val below parentFree⟩
           intro member
@@ -876,8 +876,9 @@ theorem path_distinct (nodes : List completion.Node) :
 /-- An unblocked node with labels of table indices has at most `2^n` tree nodes
     on its path. -/
 theorem depth_le (nodes : List completion.Node) (n : Nat) (labelsIn : ∀ y, ∀ i ∈ labelOf nodes y, i.val < n)
-    (x : Nat) (free : ¬ Blocked nodes x) : depth nodes x ≤ 2 ^ n := by
-  have nodup := path_distinct nodes x free
+    (labelsNodup : ∀ y, (labelOf nodes y).Nodup) (x : Nat) (free : ¬ Blocked nodes x) : depth nodes x ≤ 2 ^ n := by
+  have nodup := path_distinct nodes x
+    (fun pathBlocked => free (Rowl.CompletionModel.path_blocked_blocked nodes labelsNodup x pathBlocked))
   have sub : ∀ S ∈ (treePath nodes x).map (fun v => ((labelOf nodes v).map (·.val)).toFinset),
       S ∈ (Finset.range n).powerset := by
     intro S member
@@ -1291,7 +1292,7 @@ theorem create_inv (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count
     simp only [List.length_cons]
     rw [parentIs,grows_treePath grows x inside]
   have labelsIn := labels_in shape
-  have shallow := depth_le nodes P.entries.val.length labelsIn x free
+  have shallow := depth_le nodes P.entries.val.length labelsIn inv.nodup x free
   -- Every index is old, the new one, or beyond.
   have cases' : ∀ y, y < nodes.length ∨ y = nodes.length ∨ nodes.length < y := by intro y; omega
   refine ⟨⟨⟨shape.wellFormed,shape.closedTable,shape.closed,?_,by simp; have := shape.countIn; omega,?_,shape.links,
@@ -2082,7 +2083,7 @@ theorem run_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (coun
           obtain ⟨n',at_new',parent',via',tree',_⟩ := grows'.2 nodes.val.length _ at_new
           apply measure_lt_child P h (grows_trans grows1 grows') (by rw [length',length1])
             (fun y yIn => by rw [others' y (by omega),labels1 y yIn]) inv.nodup (labels_in inv.shape) x.val inside
-            (depth_le nodes.val P.entries.val.length (labels_in inv.shape) x.val free)
+            (depth_le nodes.val P.entries.val.length (labels_in inv.shape) inv.nodup x.val free)
             (by
               unfold depth
               rw [grows_treePath grows' nodes.val.length (by rw [length1]; omega)]

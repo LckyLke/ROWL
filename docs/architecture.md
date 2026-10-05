@@ -1073,10 +1073,11 @@ left, and branching by copying the graph. The design keeps the proofs modular:
   labels are lists of indices, item equality is index equality, and the
   restrictions `∀t.C` that transitive roles add are ordinary table entries. The
   finite table bounds every label.
-- A tree node is blocked when the labels on its path to its named root repeat
-  (equality blocking, which inverse roles need instead of subset blocking).
-  Unblocked paths therefore have pairwise distinct labels, which bounds the
-  depth by 2^|table|; termination follows from a measure that weights each node
+- A tree node is blocked when its parent is, or when an earlier unblocked tree
+  node anywhere in the graph has the same label (anywhere equality blocking,
+  which inverse roles need instead of subset blocking). Every node whose path to
+  its named root repeats a label is blocked too, so unblocked paths have
+  pairwise distinct labels, which bounds the depth by 2^|table|; termination follows from a measure that weights each node
   by that bound minus its depth, so creating a successor for an unsatisfied
   existential always decreases it.
 - Soundness reads the final graph as a Hintikka structure, as before, with one

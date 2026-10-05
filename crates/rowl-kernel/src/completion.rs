@@ -17,9 +17,11 @@
 //!    an included role that satisfies its filler; otherwise a new tree node is
 //!    created.
 //!
-//! A tree node is blocked when two tree nodes on its path to its named root have
-//! the same label (equality blocking, which inverse roles need), so unblocked
-//! paths are bounded by the number of label sets.
+//! A tree node is blocked when its parent is, or when an earlier unblocked tree
+//! node anywhere in the graph has the same label (anywhere equality blocking,
+//! which inverse roles need). Every tree node whose path to its named root
+//! repeats a label is blocked, so unblocked paths are bounded by the number of
+//! label sets, and a node is never expanded twice for one label.
 //!
 //! Backjumping: every node records the branch points its label depends on, the
 //! points of the disjunctions chosen on the way to it. A rule adds to a node with
@@ -726,36 +728,22 @@ pub(crate) fn same_label(left: &Vec<usize>, right: &Vec<usize>) -> bool {
         false
     }
 }
-/// Whether the label of `node` is the label of `ancestor` or of a tree node
-/// above it.
-fn repeats_above(nodes: &Vec<Node>, node: usize, ancestor: usize) -> bool {
-    if ancestor < nodes.len() && node < nodes.len() {
-        if nodes[ancestor].tree {
-            if same_label(&nodes[node].label, &nodes[ancestor].label) {
-                true
-            } else if nodes[ancestor].parent < ancestor {
-                repeats_above(nodes, node, nodes[ancestor].parent)
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    } else {
-        false
-    }
-}
-/// Whether a tree node on the path from `node` up to its named root has the
-/// label of a tree node above it.
-fn blocked(nodes: &Vec<Node>, node: usize) -> bool {
+/// Whether `v` is a tree node that is not flagged as blocked and has the label
+/// of `node`.
+fn blocks(nodes: &Vec<Node>, flags: &Vec<bool>, node: usize, v: usize) -> bool {
     if node < nodes.len() {
-        if nodes[node].tree {
-            let parent = nodes[node].parent;
-            if parent < node {
-                if repeats_above(nodes, node, parent) {
-                    true
+        if v < nodes.len() {
+            if v < flags.len() {
+                if nodes[v].tree {
+                    if flags[v] {
+                        false
+                    } else if nodes[v].label.len() == nodes[node].label.len() {
+                        same_label(&nodes[node].label, &nodes[v].label)
+                    } else {
+                        false
+                    }
                 } else {
-                    blocked(nodes, parent)
+                    false
                 }
             } else {
                 false
@@ -767,18 +755,70 @@ fn blocked(nodes: &Vec<Node>, node: usize) -> bool {
         false
     }
 }
+/// Whether one of the nodes `v..node` blocks `node`.
+fn repeated_before(nodes: &Vec<Node>, flags: &Vec<bool>, node: usize, v: usize) -> bool {
+    if v < node {
+        if blocks(nodes, flags, node, v) {
+            true
+        } else {
+            repeated_before(nodes, flags, node, v + 1)
+        }
+    } else {
+        false
+    }
+}
+/// Whether the flag of `index` says blocked.
+fn flagged(flags: &Vec<bool>, index: usize) -> bool {
+    if index < flags.len() {
+        flags[index]
+    } else {
+        false
+    }
+}
+/// Whether tree node `node` is blocked, given the flags of the nodes before
+/// it: its parent is blocked, or an earlier unblocked tree node has its label.
+fn blocked_at(nodes: &Vec<Node>, flags: &Vec<bool>, node: usize) -> bool {
+    if node < nodes.len() {
+        if nodes[node].tree {
+            if nodes[node].parent < node {
+                if flagged(flags, nodes[node].parent) {
+                    true
+                } else {
+                    repeated_before(nodes, flags, node, 0)
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+/// `out` followed by whether each node of `nodes[index..]` is blocked.
+fn blocking(nodes: &Vec<Node>, index: usize, mut out: Vec<bool>) -> Vec<bool> {
+    if index < nodes.len() {
+        let flag = blocked_at(nodes, &out, index);
+        out.push(flag);
+        blocking(nodes, index + 1, out)
+    } else {
+        out
+    }
+}
 /// The first unblocked node of `nodes[index..]` with an existential restriction
-/// without a witness, and that restriction.
+/// without a witness, and that restriction, given the blocking flags.
 fn missing_successor(
     problem: &Problem,
     roles: &RoleHierarchy,
     nodes: &Vec<Node>,
+    flags: &Vec<bool>,
     index: usize,
 ) -> Option<(usize, usize)> {
     if index < nodes.len() {
         let found = match missing_witness(problem, roles, nodes, index, 0) {
             Some(item) => {
-                if blocked(nodes, index) {
+                if flagged(flags, index) {
                     None
                 } else {
                     Some(item)
@@ -788,7 +828,7 @@ fn missing_successor(
         };
         match found {
             Some(item) => Some((index, item)),
-            None => missing_successor(problem, roles, nodes, index + 1),
+            None => missing_successor(problem, roles, nodes, flags, index + 1),
         }
     } else {
         None
@@ -809,7 +849,7 @@ fn next_step(problem: &Problem, roles: &RoleHierarchy, nodes: &Vec<Node>) -> Ste
         Some((node, concept)) => return Step::Add { node, concept },
         None => {}
     }
-    match missing_successor(problem, roles, nodes, 0) {
+    match missing_successor(problem, roles, nodes, &blocking(nodes, 0, Vec::new()), 0) {
         Some((node, existential)) => Step::Create { node, existential },
         None => Step::Done,
     }

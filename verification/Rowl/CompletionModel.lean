@@ -118,7 +118,7 @@ theorem blocked_down (nodes : List completion.Node) :
           · have parentBlocked := ih n.parent.val below v later blocked
             rw [Blocked.eq_def,at_w]
             simp only [dif_pos below]
-            exact ⟨tree,.inr parentBlocked⟩
+            exact ⟨tree,.inl parentBlocked⟩
         · rw [dif_neg below] at member
           simp only [List.mem_singleton] at member
           subst member
@@ -153,18 +153,80 @@ theorem treePath_tree (nodes : List completion.Node) :
       · rw [if_neg tree] at member
         cases member
 
-/-- A child of a node that is not blocked is blocked only by a node on its
-    parent's tree path with the same label. -/
+/-- A child of a node that is not blocked is blocked only by an earlier tree
+    node that is not blocked and has the same label. -/
 theorem child_blocked (nodes : List completion.Node) (w y : Nat) (n : completion.Node) (at_y : nodes[y]? = some n)
     (parent : n.parent.val = w) (blocked : Blocked nodes y) (free : ¬ Blocked nodes w) :
-    ∃ v ∈ treePath nodes w, SameLabel (labelOf nodes y) (labelOf nodes v) := by
+    ∃ v, (∃ m, nodes[v]? = some m ∧ m.tree = true) ∧ ¬ Blocked nodes v ∧
+      SameLabel (labelOf nodes y) (labelOf nodes v) := by
   rw [Blocked.eq_def,at_y] at blocked
   simp only at blocked
   split at blocked
-  · obtain ⟨_,found | parentBlocked⟩ := blocked
-    · rw [← parent]; exact found
+  · obtain ⟨_,parentBlocked | ⟨v,_,tree,vFree,_,same⟩⟩ := blocked
     · rw [parent] at parentBlocked; exact absurd parentBlocked free
+    · exact ⟨v,tree,vFree,same⟩
   · exact blocked.elim
+
+/-- Every node on a tree path is at most its start. -/
+theorem treePath_le (nodes : List completion.Node) :
+    ∀ w v, v ∈ treePath nodes w → v ≤ w := by
+  intro w
+  induction w using Nat.strong_induction_on with
+  | _ w ih =>
+    intro v member
+    rw [treePath.eq_def] at member
+    cases at_w : nodes[w]? with
+    | none => rw [at_w] at member; cases member
+    | some n =>
+      rw [at_w] at member
+      simp only at member
+      by_cases tree : n.tree = true
+      · rw [if_pos tree] at member
+        by_cases below : n.parent.val < w
+        · rw [dif_pos below] at member
+          rcases List.mem_cons.mp member with rfl | later
+          · exact le_refl _
+          · have := ih n.parent.val below v later
+            omega
+        · rw [dif_neg below] at member
+          simp only [List.mem_singleton] at member
+          omega
+      · rw [if_neg tree] at member
+        cases member
+
+/-- Every node blocked along its tree path is blocked anywhere: labels without
+    repetitions with the same items have the same length. -/
+theorem path_blocked_blocked (nodes : List completion.Node) (nodup : ∀ y, (labelOf nodes y).Nodup) :
+    ∀ x, PathBlocked nodes x → Blocked nodes x := by
+  intro x
+  induction x using Nat.strong_induction_on with
+  | _ x ih =>
+    intro pathBlocked
+    rw [PathBlocked.eq_def] at pathBlocked
+    cases at_x : nodes[x]? with
+    | none => rw [at_x] at pathBlocked; exact pathBlocked.elim
+    | some n =>
+      rw [at_x] at pathBlocked
+      simp only at pathBlocked
+      by_cases below : n.parent.val < x
+      · rw [dif_pos below] at pathBlocked
+        have unfold : Blocked nodes x ↔ n.tree = true ∧ (Blocked nodes n.parent.val ∨
+            ∃ v, ∃ _ : v < x, (∃ m, nodes[v]? = some m ∧ m.tree = true) ∧ ¬ Blocked nodes v ∧
+              (labelOf nodes v).length = (labelOf nodes x).length ∧ SameLabel (labelOf nodes x) (labelOf nodes v)) := by
+          rw [Blocked.eq_def, at_x]
+          simp only [dif_pos below]
+        obtain ⟨tree, found | parentBlocked⟩ := pathBlocked
+        · obtain ⟨v, onPath, same⟩ := found
+          have vBelow := treePath_le nodes n.parent.val v onPath
+          by_cases vBlocked : Blocked nodes v
+          · exact unfold.mpr ⟨tree, .inl (blocked_down nodes n.parent.val v onPath vBlocked)⟩
+          · obtain ⟨m, at_v, vTree⟩ := treePath_tree nodes n.parent.val v onPath
+            have lengths : (labelOf nodes v).length = (labelOf nodes x).length :=
+              ((List.perm_ext_iff_of_nodup (nodup x) (nodup v)).mpr same).length_eq.symm
+            exact unfold.mpr ⟨tree, .inr ⟨v, by omega, ⟨m, at_v, vTree⟩, vBlocked, lengths, same⟩⟩
+        · exact unfold.mpr ⟨tree, .inl (ih n.parent.val below parentBlocked)⟩
+      · rw [dif_neg below] at pathBlocked
+        exact pathBlocked.elim
 
 /-- A node that is not a tree node is never blocked. -/
 theorem named_free (nodes : List completion.Node) (a : Nat) (n : completion.Node) (at_a : nodes[a]? = some n)
@@ -445,9 +507,7 @@ theorem witness (P : completion.Problem) (h : hierarchy.RoleHierarchy) (count : 
       ∃ L : {L : List Usize // L ∈ family nodes}, SameLabel (labelOf nodes y0) L.val := by
     intro w y0 nw ny at_w free at_y0 tree parent
     by_cases blocked : Blocked nodes y0
-    · obtain ⟨v,onPath,same⟩ := child_blocked nodes w y0 ny at_y0 parent blocked free
-      obtain ⟨nv,at_v,vTree⟩ := treePath_tree nodes w v onPath
-      have vFree : ¬ Blocked nodes v := fun vBlocked => free (blocked_down nodes w v onPath vBlocked)
+    · obtain ⟨v,⟨nv,at_v,vTree⟩,vFree,same⟩ := child_blocked nodes w y0 ny at_y0 parent blocked free
       exact ⟨⟨labelOf nodes v,(family_mem nodes _).mpr ⟨v,nv,at_v,vTree,vFree,rfl⟩⟩,same⟩
     · exact ⟨⟨labelOf nodes y0,(family_mem nodes _).mpr ⟨y0,ny,at_y0,tree,blocked,rfl⟩⟩,fun _ => Iff.rfl⟩
   have sameEdge : ∀ (A B B' : List Usize), SameLabel B B' → Compatible P.entries.val h A r B →

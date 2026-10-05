@@ -4284,3 +4284,30 @@ rejected documents and invalid arguments, and nine Python tests check the
 package, including that its classification agrees with the pairwise questions.
 Totals are 2307 audited theorems, 1095 definitions, 508 Rust regressions and
 2500 ledger obligations.
+
+## Performance: anywhere blocking in the completion graph
+
+The completion graph blocked a tree node only when its own path to the named
+root repeated a label, so equal labels in different branches were expanded
+again and again: on a generated 1091-class ontology a single query built up to
+600 nodes, and classifying it took 60 s. A tree node is now blocked when its
+parent is, or when an earlier tree node that is not blocked has a label of the
+same length with the same items (anywhere equality blocking, which inverse roles
+need). `blocking` computes the flags of all nodes in one pass in index order
+(`blocked_at`, `repeated_before`, `blocks`), and `missing_successor` reads them.
+
+`CompletionSearch.lean` states the new condition (`Blocked`, with `FlagBlocks`
+for the flags) and proves the flags exact (`blocks_correct`,
+`repeated_before_correct`, `blocked_at_correct`, `blocking_correct`); the rule
+search keeps its statement. The model of a complete graph needs nothing more: a
+blocked child of an unblocked node has an unblocked tree node with its label,
+whose label is an element of the model (`child_blocked`). Termination keeps its
+measure: the old path condition is kept as `PathBlocked`, and a node blocked
+along its path is blocked anywhere, because labels without repetitions that have
+the same items have the same length (`path_blocked_blocked`), so an unblocked
+node still has a path of distinct labels (`depth_le`). On the 1091-class
+ontology the largest query graph has 67 nodes and classification takes 10 s.
+
+This block adds 7 public theorems and 2 definitions and removes
+`repeats_above_correct` and `blocked_correct`. Totals are 2312 audited
+theorems, 1097 definitions, 508 Rust regressions and 2505 ledger obligations.
