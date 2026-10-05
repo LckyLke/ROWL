@@ -252,13 +252,21 @@ def check_functional_inventory():
                  "AnnotationProperty", "NamedIndividual", "Annotation"}
     if required != set(keywords):
         raise RuntimeError("Functional Syntax keywords do not cover the complete raw OWL model")
-    selection = rust.split("pub fn next_terminal", 1)[1]
-    selected = re.findall(r"Terminal::(?:Keyword\(Keyword::(\w+)\)|(\w+))", selection)
     expected_kinds = [(word, "") for word in keywords] + [("", kind) for kind in
         ["Open", "Close", "Equals", "DatatypeIndicator", "Integer", "QuotedString",
          "LanguageTag", "NodeId", "FullIri", "PrefixName", "AbbreviatedIri", "Whitespace", "Comment"]]
-    if selected != expected_kinds:
-        raise RuntimeError("Actual combined selector does not visit the complete standard inventory")
+    # The standard selector and both validated-text selectors visit the whole
+    # inventory in the same order; each body ends at the next item.
+    for name in ["next_terminal", "next_terminal_valid", "next_terminal_from"]:
+        start = re.search(r"(?m)^(?:pub )?fn " + name + r"\(", rust)
+        if not start:
+            raise RuntimeError(f"Actual selector {name} is missing")
+        rest = rust[start.end():]
+        end = re.search(r"(?m)^(?:pub )?fn ", rest)
+        selection = rest[:end.start()] if end else rest
+        selected = re.findall(r"Terminal::(?:Keyword\(Keyword::(\w+)\)|(\w+))", selection)
+        if selected != expected_kinds:
+            raise RuntimeError(f"Actual selector {name} does not visit the complete standard inventory")
     selection_spec = (VERIFICATION / "Rowl/FunctionalSelection.lean").read_text()
     selected_keywords = re.findall(r"^  \.Keyword \.(\w+)", selection_spec, re.M)
     selected_other = re.findall(r"^  \.(\w+)(?:,|\])", selection_spec, re.M)

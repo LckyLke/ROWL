@@ -1,4 +1,5 @@
 import Rowl.FunctionalSelection
+import Rowl.FunctionalFast
 import Rowl.NTriples
 
 namespace Rowl.FunctionalLexer
@@ -163,11 +164,11 @@ private theorem gap_from_trivia (bytes : alloc.vec.Vec U8) (token : Token) (last
     (ending : Ending bytes.val token last) (notReady : ¬ Ready bytes.val token last)
     (valid : ∃ word, Rowl.Regular.Utf8From bytes.val token.end.val word) :
     ∃ result, (do
-      let space ← functional.longest .Whitespace bytes token.end
+      let space ← functional.longest_valid .Whitespace bytes token.end
       match space with
       | .Matched endpoint => match endpoint with
         | none =>
-          let comment ← functional.longest .Comment bytes token.end
+          let comment ← functional.longest_valid .Comment bytes token.end
           match comment with
           | .Matched endpoint => match endpoint with
             | none => .ok Gap.Missing
@@ -175,6 +176,8 @@ private theorem gap_from_trivia (bytes : alloc.vec.Vec U8) (token : Token) (last
           | .MalformedUtf8 error => .ok (Gap.InvalidText error)
         | some finish => .ok (Gap.Next finish)
       | .MalformedUtf8 error => .ok (Gap.InvalidText error)) = .ok result ∧ GapCorrect bytes.val token result := by
+  rw [Rowl.FunctionalFast.longest_valid_eq .Whitespace bytes token.end valid,
+    Rowl.FunctionalFast.longest_valid_eq .Comment bytes token.end valid]
   obtain ⟨space,spaceExecuted,spaceCorrect⟩ := Rowl.Functional.longest_total_correct .Whitespace bytes token.end
   simp only [spaceExecuted,bind_ok]
   cases space with
@@ -380,7 +383,7 @@ private theorem scan_total (bytes : alloc.vec.Vec U8) (position remaining : Usiz
       simp [alloc.vec.Vec.len,UScalar.eq_equiv,atEnd]
     · simpa [atEnd] using (Run.endOfInput (bs := bytes.val) (remaining := remaining.val))
   · obtain ⟨selected,selectionExecuted,selectionCorrect⟩ := Rowl.FunctionalSelection.next_terminal_total_correct bytes position
-    rw [scan]
+    rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes position valid]
     simp only [UScalar.eq_equiv,alloc.vec.Vec.len_val,atEnd,↓reduceIte,selectionExecuted,bind_ok]
     cases selected with
     | NoMatch =>
@@ -495,7 +498,7 @@ private theorem run_execution (bytes : alloc.vec.Vec U8) {start budget : Nat} {r
       obtain ⟨word,valid⟩ := valid
       exact False.elim (Rowl.Regular.failure_excludes_utf8 _ _ _ correct word valid)
     | NoMatch =>
-      rw [scan]
+      rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes original (by simpa [positionValue] using valid)]
       simp [UScalar.eq_equiv,alloc.vec.Vec.len_val,show original.val ≠ bytes.val.length from by omega,executed]
   | tokenLimit original token selected notSpecial =>
     intro position remaining positionValue remainingValue valid
@@ -503,7 +506,7 @@ private theorem run_execution (bytes : alloc.vec.Vec U8) {start budget : Nat} {r
     subst position
     have before := selected_before_end bytes original token selected
     have executed := (Rowl.FunctionalSelection.next_terminal_token_iff bytes original token).mpr selected
-    rw [scan]
+    rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes original (by simpa [positionValue] using valid)]
     simp [UScalar.eq_equiv,alloc.vec.Vec.len_val,show original.val ≠ bytes.val.length from by omega,
       executed,special_total_correct,notSpecial,remainingValue]
   | missingSeparator original budget token selected notSpecial positive missing =>
@@ -515,7 +518,7 @@ private theorem run_execution (bytes : alloc.vec.Vec U8) {start budget : Nat} {r
     have tokenSelected : Rowl.FunctionalSelection.Correct bytes.val token.start.val (.Token token) := by
       simpa [selected.2.1] using selected
     have gapExecuted := (separator_missing_iff bytes token tokenSelected).mpr missing
-    rw [scan]
+    rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes original (by simpa [positionValue] using valid)]
     simp [UScalar.eq_equiv,alloc.vec.Vec.len_val,show original.val ≠ bytes.val.length from by omega,
       executed,special_total_correct,notSpecial,show remaining.val ≠ 0 from by omega,gapExecuted]
   | @trivia start budget token result selected discarded tail ih =>
@@ -527,7 +530,7 @@ private theorem run_execution (bytes : alloc.vec.Vec U8) {start budget : Nat} {r
     obtain ⟨text,valid⟩ := valid
     have suffix := after_span span text valid
     have restExecuted := ih token.end remaining rfl remainingValue suffix
-    rw [scan]
+    rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes position (by simpa [positionValue] using ⟨text,valid⟩)]
     simp [UScalar.eq_equiv,alloc.vec.Vec.len_val,show position.val ≠ bytes.val.length from by omega,
       executed,special_total_correct,discarded,restExecuted]
   | @regular start budget token next result selected notSpecial positive allowed tail ih =>
@@ -549,7 +552,7 @@ private theorem run_execution (bytes : alloc.vec.Vec U8) {start budget : Nat} {r
       (Usize.sub_spec (x := remaining) (y := 1#usize) (by scalar_tac))
     have smallerValue : smaller.val = budget-1 := by simpa [remainingValue] using subValue.1
     have restExecuted := ih finish smaller finishValue smallerValue suffix
-    rw [scan]
+    rw [scan,Rowl.FunctionalFast.next_terminal_fast_eq bytes position (by simpa [positionValue] using ⟨text,valid⟩)]
     cases result <;> simp [UScalar.eq_equiv,alloc.vec.Vec.len_val,show position.val ≠ bytes.val.length from by omega,
       executed,special_total_correct,notSpecial,show remaining.val ≠ 0 from by omega,gapExecuted,
       subExecuted,restExecuted,WithToken]

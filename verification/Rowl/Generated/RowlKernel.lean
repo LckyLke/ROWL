@@ -29294,7 +29294,7 @@ def encoding.encode
   else ok none
 
 /-- [rowl_kernel::functional::Keyword]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 9:0-81:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 10:0-82:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional.Keyword where
@@ -29371,14 +29371,14 @@ inductive functional.Keyword where
 | NegativeDataPropertyAssertion : functional.Keyword
 
 /-- [rowl_kernel::functional::{impl core::clone::Clone for rowl_kernel::functional::Keyword}::clone]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 8:9-8:14
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 9:9-9:14
     Visibility: public -/
 def functional.Keyword.Insts.CoreCloneClone.clone
   (self : functional.Keyword) : Result functional.Keyword := do
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional::{impl core::clone::Clone for rowl_kernel::functional::Keyword}]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 8:9-8:14 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 9:9-9:14 -/
 @[reducible]
 def functional.Keyword.Insts.CoreCloneClone : core.clone.Clone
   functional.Keyword := {
@@ -29386,7 +29386,7 @@ def functional.Keyword.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [rowl_kernel::functional::{impl core::marker::Copy for rowl_kernel::functional::Keyword}]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 8:16-8:20 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 9:16-9:20 -/
 @[reducible]
 def functional.Keyword.Insts.CoreMarkerCopy : core.marker.Copy
   functional.Keyword := {
@@ -29394,7 +29394,7 @@ def functional.Keyword.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [rowl_kernel::functional::Terminal]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 83:0-98:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 84:0-99:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional.Terminal where
@@ -29414,14 +29414,14 @@ inductive functional.Terminal where
 | Comment : functional.Terminal
 
 /-- [rowl_kernel::functional::{impl core::clone::Clone for rowl_kernel::functional::Terminal}::clone]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 82:9-82:14
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 83:9-83:14
     Visibility: public -/
 def functional.Terminal.Insts.CoreCloneClone.clone
   (self : functional.Terminal) : Result functional.Terminal := do
   ok self
 
 /-- Trait implementation: [rowl_kernel::functional::{impl core::clone::Clone for rowl_kernel::functional::Terminal}]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 82:9-82:14 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 83:9-83:14 -/
 @[reducible]
 def functional.Terminal.Insts.CoreCloneClone : core.clone.Clone
   functional.Terminal := {
@@ -29429,7 +29429,7 @@ def functional.Terminal.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [rowl_kernel::functional::{impl core::marker::Copy for rowl_kernel::functional::Terminal}]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 82:16-82:20 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 83:16-83:20 -/
 @[reducible]
 def functional.Terminal.Insts.CoreMarkerCopy : core.marker.Copy
   functional.Terminal := {
@@ -29437,18 +29437,18 @@ def functional.Terminal.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [rowl_kernel::functional::range]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 99:0-101:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 100:0-102:1 -/
 def functional.range
   (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
   ok (regular.Expression.Interval lower upper)
 
 /-- [rowl_kernel::functional::ch]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 102:0-104:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 103:0-105:1 -/
 def functional.ch (cp : Std.U32) : Result regular.Expression := do
   functional.range cp cp
 
 /-- [rowl_kernel::functional::alt]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 105:0-107:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 106:0-108:1 -/
 def functional.alt
   (a : regular.Expression) (b : regular.Expression) :
   Result regular.Expression
@@ -29456,7 +29456,7 @@ def functional.alt
   ok (regular.Expression.Alternative a b)
 
 /-- [rowl_kernel::functional::cat]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 108:0-110:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 109:0-111:1 -/
 def functional.cat
   (a : regular.Expression) (b : regular.Expression) :
   Result regular.Expression
@@ -29464,12 +29464,12 @@ def functional.cat
   ok (regular.Expression.Sequence a b)
 
 /-- [rowl_kernel::functional::star]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 111:0-113:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 112:0-114:1 -/
 def functional.star (a : regular.Expression) : Result regular.Expression := do
   ok (regular.Expression.Repeat a)
 
 /-- [rowl_kernel::functional::literal_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 114:0-123:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 115:0-124:1 -/
 def functional.literal_from
   (bytes : Slice Std.U8) (position : Std.Usize) :
   Result regular.Expression
@@ -29487,12 +29487,12 @@ def functional.literal_from
 partial_fixpoint
 
 /-- [rowl_kernel::functional::literal]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 124:0-126:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 125:0-127:1 -/
 def functional.literal (bytes : Slice Std.U8) : Result regular.Expression := do
   functional.literal_from bytes 0#usize
 
 /-- [rowl_kernel::functional::keyword_grammar]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 128:0-202:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 129:0-203:1
     Visibility: public -/
 def functional.keyword_grammar
   (keyword : functional.Keyword) : Result regular.Expression := do
@@ -30090,14 +30090,14 @@ def functional.keyword_grammar
     functional.literal s
 
 /-- [rowl_kernel::functional::digits]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 203:0-205:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 204:0-206:1 -/
 def functional.digits : Result regular.Expression := do
   let e ← functional.range 48#u32 57#u32
   let e1 ← functional.star e
   functional.cat e e1
 
 /-- [rowl_kernel::functional::quoted_raw]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 206:0-226:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 207:0-227:1 -/
 def functional.quoted_raw : Result regular.Expression := do
   let e ← functional.ch 9#u32
   let e1 ← functional.ch 10#u32
@@ -30116,7 +30116,7 @@ def functional.quoted_raw : Result regular.Expression := do
   functional.alt e e13
 
 /-- [rowl_kernel::functional::quoted]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 227:0-235:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 228:0-236:1 -/
 def functional.quoted : Result regular.Expression := do
   let e ← functional.ch 34#u32
   let e1 ← functional.quoted_raw
@@ -30129,7 +30129,7 @@ def functional.quoted : Result regular.Expression := do
   functional.cat e e7
 
 /-- [rowl_kernel::functional::space]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 236:0-238:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 237:0-239:1 -/
 def functional.space : Result regular.Expression := do
   let e ← functional.ch 32#u32
   let e1 ← functional.ch 9#u32
@@ -30140,14 +30140,14 @@ def functional.space : Result regular.Expression := do
   functional.alt e e5
 
 /-- [rowl_kernel::functional::whitespace]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 239:0-241:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 240:0-242:1 -/
 def functional.whitespace : Result regular.Expression := do
   let e ← functional.space
   let e1 ← functional.star e
   functional.cat e e1
 
 /-- [rowl_kernel::functional::comment_raw]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 242:0-250:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 243:0-251:1 -/
 def functional.comment_raw : Result regular.Expression := do
   let e ← functional.ch 9#u32
   let e1 ← functional.range 32#u32 55295#u32
@@ -30158,7 +30158,7 @@ def functional.comment_raw : Result regular.Expression := do
   functional.alt e e5
 
 /-- [rowl_kernel::functional::comment]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 251:0-253:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 252:0-254:1 -/
 def functional.comment : Result regular.Expression := do
   let e ← functional.ch 35#u32
   let e1 ← functional.comment_raw
@@ -30838,7 +30838,7 @@ def iri.iri : Result regular.Expression := do
   iri.cat e e5
 
 /-- [rowl_kernel::functional::grammar]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 255:0-272:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 256:0-273:1
     Visibility: public -/
 def functional.grammar
   (terminal : functional.Terminal) : Result regular.Expression := do
@@ -30869,7 +30869,7 @@ def functional.grammar
   | functional.Terminal.Comment => functional.comment
 
 /-- [rowl_kernel::functional::recognize]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 275:0-277:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 276:0-278:1
     Visibility: public -/
 def functional.recognize
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8) :
@@ -30918,7 +30918,7 @@ def longest.longest_prefix
   longest.scan expression bytes offset none
 
 /-- [rowl_kernel::functional::longest]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 282:0-284:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 283:0-285:1
     Visibility: public -/
 def functional.longest
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
@@ -30928,8 +30928,65 @@ def functional.longest
   let e ← functional.grammar terminal
   longest.longest_prefix e bytes position
 
+/-- [rowl_kernel::longest::dead]:
+    Source: 'crates/rowl-kernel/src/longest.rs', lines 42:0-44:1 -/
+def longest.dead (expression : regular.Expression) : Result Bool := do
+  match expression with
+  | regular.Expression.Empty => ok true
+  | regular.Expression.Epsilon => ok false
+  | regular.Expression.Interval _ _ => ok false
+  | regular.Expression.Alternative _ _ => ok false
+  | regular.Expression.Sequence _ _ => ok false
+  | regular.Expression.Repeat _ => ok false
+
+/-- [rowl_kernel::longest::scan_valid]:
+    Source: 'crates/rowl-kernel/src/longest.rs', lines 45:0-66:1 -/
+def longest.scan_valid
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
+  (offset : Std.Usize) (last : Option Std.Usize) :
+  Result longest.PrefixResult
+  := do
+  let b ← longest.dead expression
+  if b
+  then ok (longest.PrefixResult.Matched last)
+  else
+    let b1 ← regular.nullable expression
+    let latest ← if b1
+                   then ok (some offset)
+                   else ok last
+    let d ← unicode.decode_next bytes offset
+    match d with
+    | unicode.Decoded.End => ok (longest.PrefixResult.Matched latest)
+    | unicode.Decoded.Scalar codepoint next =>
+      let e ← regular.derivative expression codepoint
+      longest.scan_valid e bytes next latest
+    | unicode.Decoded.Error error =>
+      ok (longest.PrefixResult.MalformedUtf8 error)
+partial_fixpoint
+
+/-- [rowl_kernel::longest::longest_valid_prefix]:
+    Source: 'crates/rowl-kernel/src/longest.rs', lines 73:0-79:1
+    Visibility: public -/
+def longest.longest_valid_prefix
+  (expression : regular.Expression) (bytes : alloc.vec.Vec Std.U8)
+  (offset : Std.Usize) :
+  Result longest.PrefixResult
+  := do
+  longest.scan_valid expression bytes offset none
+
+/-- [rowl_kernel::functional::longest_valid]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 288:0-290:1
+    Visibility: public -/
+def functional.longest_valid
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) :
+  Result longest.PrefixResult
+  := do
+  let e ← functional.grammar terminal
+  longest.longest_valid_prefix e bytes position
+
 /-- [rowl_kernel::functional::Token]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 287:0-291:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 293:0-297:1
     Visibility: public -/
 structure functional.Token where
   terminal : functional.Terminal
@@ -30937,7 +30994,7 @@ structure functional.Token where
   «end» : Std.Usize
 
 /-- [rowl_kernel::functional::Selection]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 292:0-296:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 298:0-302:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional.Selection where
@@ -30946,7 +31003,7 @@ inductive functional.Selection where
 | MalformedUtf8 : unicode.TextError → functional.Selection
 
 /-- [rowl_kernel::functional::seed]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 297:0-307:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 303:0-313:1 -/
 def functional.seed
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -30963,7 +31020,7 @@ def functional.seed
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 308:0-328:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 314:0-334:1 -/
 def functional.extend
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -30988,7 +31045,7 @@ def functional.extend
   | functional.Selection.MalformedUtf8 _ => ok previous
 
 /-- [rowl_kernel::functional::next_terminal]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 333:0-753:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 339:0-759:1
     Visibility: public -/
 def functional.next_terminal
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -31236,6 +31293,720 @@ def functional.next_terminal
   let choice82 ←
     functional.extend functional.Terminal.Whitespace bytes position choice81
   functional.extend functional.Terminal.Comment bytes position choice82
+
+/-- [rowl_kernel::functional::seed_valid]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1820:0-1830:1 -/
+def functional.seed_valid
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) :
+  Result functional.Selection
+  := do
+  let pr ← functional.longest_valid terminal bytes position
+  match pr with
+  | longest.PrefixResult.Matched o =>
+    match o with
+    | none => ok functional.Selection.NoMatch
+    | some «end» =>
+      ok (functional.Selection.Token { terminal, start := position, «end» })
+  | longest.PrefixResult.MalformedUtf8 error =>
+    ok (functional.Selection.MalformedUtf8 error)
+
+/-- [rowl_kernel::functional::extend_valid]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1831:0-1856:1 -/
+def functional.extend_valid
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) (previous : functional.Selection) :
+  Result functional.Selection
+  := do
+  match previous with
+  | functional.Selection.NoMatch =>
+    functional.seed_valid terminal bytes position
+  | functional.Selection.Token prior =>
+    let pr ← functional.longest_valid terminal bytes position
+    match pr with
+    | longest.PrefixResult.Matched o =>
+      match o with
+      | none => ok previous
+      | some «end» =>
+        if «end» > prior.end
+        then
+          ok (functional.Selection.Token
+            { terminal, start := position, «end» })
+        else ok previous
+    | longest.PrefixResult.MalformedUtf8 error =>
+      ok (functional.Selection.MalformedUtf8 error)
+  | functional.Selection.MalformedUtf8 _ => ok previous
+
+/-- [rowl_kernel::functional::next_terminal_valid]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 763:0-1183:1
+    Visibility: public -/
+def functional.next_terminal_valid
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result functional.Selection
+  := do
+  let choice ←
+    functional.seed_valid (functional.Terminal.Keyword
+      functional.Keyword.Prefix) bytes position
+  let choice1 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Ontology) bytes position choice
+  let choice2 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Import) bytes position choice1
+  let choice3 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Declaration) bytes position choice2
+  let choice4 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Class) bytes position choice3
+  let choice5 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Datatype) bytes position choice4
+  let choice6 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectProperty) bytes position choice5
+  let choice7 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataProperty) bytes position choice6
+  let choice8 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.AnnotationProperty) bytes position choice7
+  let choice9 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.NamedIndividual) bytes position choice8
+  let choice10 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.Annotation) bytes position choice9
+  let choice11 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.AnnotationAssertion) bytes position choice10
+  let choice12 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SubAnnotationPropertyOf) bytes position choice11
+  let choice13 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.AnnotationPropertyDomain) bytes position choice12
+  let choice14 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.AnnotationPropertyRange) bytes position choice13
+  let choice15 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectInverseOf) bytes position choice14
+  let choice16 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataIntersectionOf) bytes position choice15
+  let choice17 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataUnionOf) bytes position choice16
+  let choice18 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataComplementOf) bytes position choice17
+  let choice19 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataOneOf) bytes position choice18
+  let choice20 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DatatypeRestriction) bytes position choice19
+  let choice21 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectIntersectionOf) bytes position choice20
+  let choice22 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectUnionOf) bytes position choice21
+  let choice23 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectComplementOf) bytes position choice22
+  let choice24 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectOneOf) bytes position choice23
+  let choice25 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectSomeValuesFrom) bytes position choice24
+  let choice26 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectAllValuesFrom) bytes position choice25
+  let choice27 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectHasValue) bytes position choice26
+  let choice28 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectHasSelf) bytes position choice27
+  let choice29 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectMinCardinality) bytes position choice28
+  let choice30 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectMaxCardinality) bytes position choice29
+  let choice31 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectExactCardinality) bytes position choice30
+  let choice32 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataSomeValuesFrom) bytes position choice31
+  let choice33 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataAllValuesFrom) bytes position choice32
+  let choice34 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataHasValue) bytes position choice33
+  let choice35 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataMinCardinality) bytes position choice34
+  let choice36 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataMaxCardinality) bytes position choice35
+  let choice37 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataExactCardinality) bytes position choice36
+  let choice38 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SubClassOf) bytes position choice37
+  let choice39 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.EquivalentClasses) bytes position choice38
+  let choice40 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DisjointClasses) bytes position choice39
+  let choice41 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DisjointUnion) bytes position choice40
+  let choice42 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SubObjectPropertyOf) bytes position choice41
+  let choice43 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyChain) bytes position choice42
+  let choice44 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.EquivalentObjectProperties) bytes position choice43
+  let choice45 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DisjointObjectProperties) bytes position choice44
+  let choice46 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyDomain) bytes position choice45
+  let choice47 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyRange) bytes position choice46
+  let choice48 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.InverseObjectProperties) bytes position choice47
+  let choice49 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.FunctionalObjectProperty) bytes position choice48
+  let choice50 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.InverseFunctionalObjectProperty) bytes position
+      choice49
+  let choice51 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ReflexiveObjectProperty) bytes position choice50
+  let choice52 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.IrreflexiveObjectProperty) bytes position choice51
+  let choice53 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SymmetricObjectProperty) bytes position choice52
+  let choice54 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.AsymmetricObjectProperty) bytes position choice53
+  let choice55 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.TransitiveObjectProperty) bytes position choice54
+  let choice56 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SubDataPropertyOf) bytes position choice55
+  let choice57 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.EquivalentDataProperties) bytes position choice56
+  let choice58 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DisjointDataProperties) bytes position choice57
+  let choice59 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyDomain) bytes position choice58
+  let choice60 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyRange) bytes position choice59
+  let choice61 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.FunctionalDataProperty) bytes position choice60
+  let choice62 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DatatypeDefinition) bytes position choice61
+  let choice63 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.HasKey) bytes position choice62
+  let choice64 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.SameIndividual) bytes position choice63
+  let choice65 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DifferentIndividuals) bytes position choice64
+  let choice66 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ClassAssertion) bytes position choice65
+  let choice67 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyAssertion) bytes position choice66
+  let choice68 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.NegativeObjectPropertyAssertion) bytes position
+      choice67
+  let choice69 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyAssertion) bytes position choice68
+  let choice70 ←
+    functional.extend_valid (functional.Terminal.Keyword
+      functional.Keyword.NegativeDataPropertyAssertion) bytes position choice69
+  let choice71 ←
+    functional.extend_valid functional.Terminal.Open bytes position choice70
+  let choice72 ←
+    functional.extend_valid functional.Terminal.Close bytes position choice71
+  let choice73 ←
+    functional.extend_valid functional.Terminal.Equals bytes position choice72
+  let choice74 ←
+    functional.extend_valid functional.Terminal.DatatypeIndicator bytes
+      position choice73
+  let choice75 ←
+    functional.extend_valid functional.Terminal.Integer bytes position choice74
+  let choice76 ←
+    functional.extend_valid functional.Terminal.QuotedString bytes position
+      choice75
+  let choice77 ←
+    functional.extend_valid functional.Terminal.LanguageTag bytes position
+      choice76
+  let choice78 ←
+    functional.extend_valid functional.Terminal.NodeId bytes position choice77
+  let choice79 ←
+    functional.extend_valid functional.Terminal.FullIri bytes position choice78
+  let choice80 ←
+    functional.extend_valid functional.Terminal.PrefixName bytes position
+      choice79
+  let choice81 ←
+    functional.extend_valid functional.Terminal.AbbreviatedIri bytes position
+      choice80
+  let choice82 ←
+    functional.extend_valid functional.Terminal.Whitespace bytes position
+      choice81
+  functional.extend_valid functional.Terminal.Comment bytes position choice82
+
+/-- [rowl_kernel::functional::keyword_first]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1186:0-1260:1 -/
+def functional.keyword_first
+  (keyword : functional.Keyword) : Result Std.U32 := do
+  match keyword with
+  | functional.Keyword.Prefix => ok 80#u32
+  | functional.Keyword.Ontology => ok 79#u32
+  | functional.Keyword.Import => ok 73#u32
+  | functional.Keyword.Declaration => ok 68#u32
+  | functional.Keyword.Class => ok 67#u32
+  | functional.Keyword.Datatype => ok 68#u32
+  | functional.Keyword.ObjectProperty => ok 79#u32
+  | functional.Keyword.DataProperty => ok 68#u32
+  | functional.Keyword.AnnotationProperty => ok 65#u32
+  | functional.Keyword.NamedIndividual => ok 78#u32
+  | functional.Keyword.Annotation => ok 65#u32
+  | functional.Keyword.AnnotationAssertion => ok 65#u32
+  | functional.Keyword.SubAnnotationPropertyOf => ok 83#u32
+  | functional.Keyword.AnnotationPropertyDomain => ok 65#u32
+  | functional.Keyword.AnnotationPropertyRange => ok 65#u32
+  | functional.Keyword.ObjectInverseOf => ok 79#u32
+  | functional.Keyword.DataIntersectionOf => ok 68#u32
+  | functional.Keyword.DataUnionOf => ok 68#u32
+  | functional.Keyword.DataComplementOf => ok 68#u32
+  | functional.Keyword.DataOneOf => ok 68#u32
+  | functional.Keyword.DatatypeRestriction => ok 68#u32
+  | functional.Keyword.ObjectIntersectionOf => ok 79#u32
+  | functional.Keyword.ObjectUnionOf => ok 79#u32
+  | functional.Keyword.ObjectComplementOf => ok 79#u32
+  | functional.Keyword.ObjectOneOf => ok 79#u32
+  | functional.Keyword.ObjectSomeValuesFrom => ok 79#u32
+  | functional.Keyword.ObjectAllValuesFrom => ok 79#u32
+  | functional.Keyword.ObjectHasValue => ok 79#u32
+  | functional.Keyword.ObjectHasSelf => ok 79#u32
+  | functional.Keyword.ObjectMinCardinality => ok 79#u32
+  | functional.Keyword.ObjectMaxCardinality => ok 79#u32
+  | functional.Keyword.ObjectExactCardinality => ok 79#u32
+  | functional.Keyword.DataSomeValuesFrom => ok 68#u32
+  | functional.Keyword.DataAllValuesFrom => ok 68#u32
+  | functional.Keyword.DataHasValue => ok 68#u32
+  | functional.Keyword.DataMinCardinality => ok 68#u32
+  | functional.Keyword.DataMaxCardinality => ok 68#u32
+  | functional.Keyword.DataExactCardinality => ok 68#u32
+  | functional.Keyword.SubClassOf => ok 83#u32
+  | functional.Keyword.EquivalentClasses => ok 69#u32
+  | functional.Keyword.DisjointClasses => ok 68#u32
+  | functional.Keyword.DisjointUnion => ok 68#u32
+  | functional.Keyword.SubObjectPropertyOf => ok 83#u32
+  | functional.Keyword.ObjectPropertyChain => ok 79#u32
+  | functional.Keyword.EquivalentObjectProperties => ok 69#u32
+  | functional.Keyword.DisjointObjectProperties => ok 68#u32
+  | functional.Keyword.ObjectPropertyDomain => ok 79#u32
+  | functional.Keyword.ObjectPropertyRange => ok 79#u32
+  | functional.Keyword.InverseObjectProperties => ok 73#u32
+  | functional.Keyword.FunctionalObjectProperty => ok 70#u32
+  | functional.Keyword.InverseFunctionalObjectProperty => ok 73#u32
+  | functional.Keyword.ReflexiveObjectProperty => ok 82#u32
+  | functional.Keyword.IrreflexiveObjectProperty => ok 73#u32
+  | functional.Keyword.SymmetricObjectProperty => ok 83#u32
+  | functional.Keyword.AsymmetricObjectProperty => ok 65#u32
+  | functional.Keyword.TransitiveObjectProperty => ok 84#u32
+  | functional.Keyword.SubDataPropertyOf => ok 83#u32
+  | functional.Keyword.EquivalentDataProperties => ok 69#u32
+  | functional.Keyword.DisjointDataProperties => ok 68#u32
+  | functional.Keyword.DataPropertyDomain => ok 68#u32
+  | functional.Keyword.DataPropertyRange => ok 68#u32
+  | functional.Keyword.FunctionalDataProperty => ok 70#u32
+  | functional.Keyword.DatatypeDefinition => ok 68#u32
+  | functional.Keyword.HasKey => ok 72#u32
+  | functional.Keyword.SameIndividual => ok 83#u32
+  | functional.Keyword.DifferentIndividuals => ok 68#u32
+  | functional.Keyword.ClassAssertion => ok 67#u32
+  | functional.Keyword.ObjectPropertyAssertion => ok 79#u32
+  | functional.Keyword.NegativeObjectPropertyAssertion => ok 78#u32
+  | functional.Keyword.DataPropertyAssertion => ok 68#u32
+  | functional.Keyword.NegativeDataPropertyAssertion => ok 78#u32
+
+/-- [rowl_kernel::functional::may_start]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1265:0-1284:1 -/
+def functional.may_start
+  (terminal : functional.Terminal) (codepoint : Std.U32) : Result Bool := do
+  match terminal with
+  | functional.Terminal.Keyword keyword =>
+    let i ← functional.keyword_first keyword
+    ok (codepoint = i)
+  | functional.Terminal.Open => ok (codepoint = 40#u32)
+  | functional.Terminal.Close => ok (codepoint = 41#u32)
+  | functional.Terminal.Equals => ok (codepoint = 61#u32)
+  | functional.Terminal.DatatypeIndicator => ok (codepoint = 94#u32)
+  | functional.Terminal.Integer =>
+    if 48#u32 <= codepoint
+    then ok (codepoint <= 57#u32)
+    else ok false
+  | functional.Terminal.QuotedString => ok (codepoint = 34#u32)
+  | functional.Terminal.LanguageTag => ok (codepoint = 64#u32)
+  | functional.Terminal.NodeId => ok (codepoint = 95#u32)
+  | functional.Terminal.FullIri => ok (codepoint = 60#u32)
+  | functional.Terminal.PrefixName => ok true
+  | functional.Terminal.AbbreviatedIri => ok true
+  | functional.Terminal.Whitespace =>
+    if codepoint = 32#u32
+    then ok true
+    else
+      if codepoint = 9#u32
+      then ok true
+      else if codepoint = 10#u32
+           then ok true
+           else ok (codepoint = 13#u32)
+  | functional.Terminal.Comment => ok (codepoint = 35#u32)
+
+/-- [rowl_kernel::functional::seed_from]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1285:0-1291:1 -/
+def functional.seed_from
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) (first : Std.U32) :
+  Result functional.Selection
+  := do
+  let b ← functional.may_start terminal first
+  if b
+  then functional.seed_valid terminal bytes position
+  else ok functional.Selection.NoMatch
+
+/-- [rowl_kernel::functional::extend_from]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1292:0-1304:1 -/
+def functional.extend_from
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) (first : Std.U32) (previous : functional.Selection) :
+  Result functional.Selection
+  := do
+  let b ← functional.may_start terminal first
+  if b
+  then functional.extend_valid terminal bytes position previous
+  else ok previous
+
+/-- [rowl_kernel::functional::next_terminal_from]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1305:0-1810:1 -/
+def functional.next_terminal_from
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (first : Std.U32) :
+  Result functional.Selection
+  := do
+  let choice ←
+    functional.seed_from (functional.Terminal.Keyword
+      functional.Keyword.Prefix) bytes position first
+  let choice1 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Ontology) bytes position first choice
+  let choice2 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Import) bytes position first choice1
+  let choice3 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Declaration) bytes position first choice2
+  let choice4 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Class) bytes position first choice3
+  let choice5 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Datatype) bytes position first choice4
+  let choice6 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectProperty) bytes position first choice5
+  let choice7 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataProperty) bytes position first choice6
+  let choice8 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.AnnotationProperty) bytes position first choice7
+  let choice9 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.NamedIndividual) bytes position first choice8
+  let choice10 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.Annotation) bytes position first choice9
+  let choice11 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.AnnotationAssertion) bytes position first choice10
+  let choice12 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SubAnnotationPropertyOf) bytes position first choice11
+  let choice13 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.AnnotationPropertyDomain) bytes position first
+      choice12
+  let choice14 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.AnnotationPropertyRange) bytes position first choice13
+  let choice15 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectInverseOf) bytes position first choice14
+  let choice16 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataIntersectionOf) bytes position first choice15
+  let choice17 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataUnionOf) bytes position first choice16
+  let choice18 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataComplementOf) bytes position first choice17
+  let choice19 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataOneOf) bytes position first choice18
+  let choice20 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DatatypeRestriction) bytes position first choice19
+  let choice21 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectIntersectionOf) bytes position first choice20
+  let choice22 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectUnionOf) bytes position first choice21
+  let choice23 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectComplementOf) bytes position first choice22
+  let choice24 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectOneOf) bytes position first choice23
+  let choice25 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectSomeValuesFrom) bytes position first choice24
+  let choice26 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectAllValuesFrom) bytes position first choice25
+  let choice27 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectHasValue) bytes position first choice26
+  let choice28 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectHasSelf) bytes position first choice27
+  let choice29 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectMinCardinality) bytes position first choice28
+  let choice30 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectMaxCardinality) bytes position first choice29
+  let choice31 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectExactCardinality) bytes position first choice30
+  let choice32 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataSomeValuesFrom) bytes position first choice31
+  let choice33 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataAllValuesFrom) bytes position first choice32
+  let choice34 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataHasValue) bytes position first choice33
+  let choice35 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataMinCardinality) bytes position first choice34
+  let choice36 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataMaxCardinality) bytes position first choice35
+  let choice37 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataExactCardinality) bytes position first choice36
+  let choice38 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SubClassOf) bytes position first choice37
+  let choice39 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.EquivalentClasses) bytes position first choice38
+  let choice40 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DisjointClasses) bytes position first choice39
+  let choice41 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DisjointUnion) bytes position first choice40
+  let choice42 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SubObjectPropertyOf) bytes position first choice41
+  let choice43 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyChain) bytes position first choice42
+  let choice44 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.EquivalentObjectProperties) bytes position first
+      choice43
+  let choice45 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DisjointObjectProperties) bytes position first
+      choice44
+  let choice46 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyDomain) bytes position first choice45
+  let choice47 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyRange) bytes position first choice46
+  let choice48 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.InverseObjectProperties) bytes position first choice47
+  let choice49 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.FunctionalObjectProperty) bytes position first
+      choice48
+  let choice50 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.InverseFunctionalObjectProperty) bytes position first
+      choice49
+  let choice51 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ReflexiveObjectProperty) bytes position first choice50
+  let choice52 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.IrreflexiveObjectProperty) bytes position first
+      choice51
+  let choice53 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SymmetricObjectProperty) bytes position first choice52
+  let choice54 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.AsymmetricObjectProperty) bytes position first
+      choice53
+  let choice55 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.TransitiveObjectProperty) bytes position first
+      choice54
+  let choice56 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SubDataPropertyOf) bytes position first choice55
+  let choice57 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.EquivalentDataProperties) bytes position first
+      choice56
+  let choice58 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DisjointDataProperties) bytes position first choice57
+  let choice59 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyDomain) bytes position first choice58
+  let choice60 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyRange) bytes position first choice59
+  let choice61 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.FunctionalDataProperty) bytes position first choice60
+  let choice62 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DatatypeDefinition) bytes position first choice61
+  let choice63 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.HasKey) bytes position first choice62
+  let choice64 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.SameIndividual) bytes position first choice63
+  let choice65 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DifferentIndividuals) bytes position first choice64
+  let choice66 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ClassAssertion) bytes position first choice65
+  let choice67 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.ObjectPropertyAssertion) bytes position first choice66
+  let choice68 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.NegativeObjectPropertyAssertion) bytes position first
+      choice67
+  let choice69 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.DataPropertyAssertion) bytes position first choice68
+  let choice70 ←
+    functional.extend_from (functional.Terminal.Keyword
+      functional.Keyword.NegativeDataPropertyAssertion) bytes position first
+      choice69
+  let choice71 ←
+    functional.extend_from functional.Terminal.Open bytes position first
+      choice70
+  let choice72 ←
+    functional.extend_from functional.Terminal.Close bytes position first
+      choice71
+  let choice73 ←
+    functional.extend_from functional.Terminal.Equals bytes position first
+      choice72
+  let choice74 ←
+    functional.extend_from functional.Terminal.DatatypeIndicator bytes position
+      first choice73
+  let choice75 ←
+    functional.extend_from functional.Terminal.Integer bytes position first
+      choice74
+  let choice76 ←
+    functional.extend_from functional.Terminal.QuotedString bytes position
+      first choice75
+  let choice77 ←
+    functional.extend_from functional.Terminal.LanguageTag bytes position first
+      choice76
+  let choice78 ←
+    functional.extend_from functional.Terminal.NodeId bytes position first
+      choice77
+  let choice79 ←
+    functional.extend_from functional.Terminal.FullIri bytes position first
+      choice78
+  let choice80 ←
+    functional.extend_from functional.Terminal.PrefixName bytes position first
+      choice79
+  let choice81 ←
+    functional.extend_from functional.Terminal.AbbreviatedIri bytes position
+      first choice80
+  let choice82 ←
+    functional.extend_from functional.Terminal.Whitespace bytes position first
+      choice81
+  functional.extend_from functional.Terminal.Comment bytes position first
+    choice82
+
+/-- [rowl_kernel::functional::next_terminal_fast]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1814:0-1819:1
+    Visibility: public -/
+def functional.next_terminal_fast
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result functional.Selection
+  := do
+  let d ← unicode.decode_next bytes position
+  match d with
+  | unicode.Decoded.End => functional.next_terminal_valid bytes position
+  | unicode.Decoded.Scalar codepoint _ =>
+    functional.next_terminal_from bytes position codepoint
+  | unicode.Decoded.Error _ => functional.next_terminal_valid bytes position
 
 /-- [rowl_kernel::functional_annotation_axioms::AnnotationAxiomKind]
     Source: 'crates/rowl-kernel/src/functional_annotation_axioms.rs', lines 18:0-23:1
@@ -40525,13 +41296,15 @@ def functional_lexer.separator
         then ok (functional_lexer.Gap.Next token.end)
         else
           let pr ←
-            functional.longest functional.Terminal.Whitespace bytes token.end
+            functional.longest_valid functional.Terminal.Whitespace bytes
+              token.end
           match pr with
           | longest.PrefixResult.Matched o1 =>
             match o1 with
             | none =>
               let pr1 ←
-                functional.longest functional.Terminal.Comment bytes token.end
+                functional.longest_valid functional.Terminal.Comment bytes
+                  token.end
               match pr1 with
               | longest.PrefixResult.Matched o2 =>
                 match o2 with
@@ -40588,7 +41361,7 @@ def functional_lexer.scan
   if position = i
   then ok (functional_lexer.LexResult.Tokens functional_lexer.Tokens.Empty)
   else
-    let s ← functional.next_terminal bytes position
+    let s ← functional.next_terminal_fast bytes position
     match s with
     | functional.Selection.NoMatch =>
       ok (functional_lexer.LexResult.NoToken position)

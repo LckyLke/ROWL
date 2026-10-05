@@ -534,6 +534,20 @@ byte-to-ontology/import assembly are still pending; lexically valid sequences
 can contain unmatched parentheses or wrong axiom arities. Physical machine
 resources, cancellation and a release-safe API remain M8 work.
 
+Because the whole source is validated first, the lexer selects tokens with
+matchers that need not decode the rest of the text.
+`longest::longest_valid_prefix` stops as soon as the derivative is the empty
+expression, since no longer prefix can then match, and
+`functional::next_terminal_fast` runs only the matchers of terminals whose words
+can begin with the next code point (`may_start`). `FunctionalFast.lean` proves
+`may_start` sound against the independent terminal languages: every word of a
+terminal begins with a code point that passes the test, so a skipped terminal
+has no candidate endpoint. On any suffix with a UTF-8 decoding, both shortcuts
+are proved equal to the full matchers (`longest_valid_prefix_eq`,
+`next_terminal_fast_eq`), and the stream proofs use those equalities, so the
+lexer's theorems are unchanged. Each token scan now ends where its longest
+possible match ends instead of at the end of the document.
+
 
 ### Complete terminal disjointness and priority-free greatest matching
 

@@ -4096,3 +4096,29 @@ the others) now state each answer under every datatype map that is the OWL 2 map
 on the five datatypes (`Normative`), in the universes of the data queries, and
 `source_prepared_correct` describes a prepared closure by `DataPrepared`; the
 completeness and soundness corollaries hold in the same universes.
+
+## Performance: linear lexing on validated text
+
+The lexer validates the whole source before selecting tokens, so it now selects
+each token with matchers that use that fact. `longest::longest_valid_prefix`
+stops as soon as the derivative is the empty expression (`dead_total_correct`),
+because no longer prefix can then match, and on any suffix with a UTF-8
+decoding it returns exactly what `longest_prefix` returns
+(`longest_valid_prefix_eq`). `functional::next_terminal_fast` decodes the next
+code point and runs only the matchers of terminals whose words can begin with it
+(`may_start`). `FunctionalFast.lean` proves the test sound against the
+independent terminal languages (`may_start_sound`): a skipped terminal has no
+candidate endpoint (`longest_skip`), so skipping it leaves the selection
+unchanged, and on a valid suffix `next_terminal_fast_eq` equates the dispatching
+selection with the standard greatest selection `next_terminal`. The stream
+proofs in `FunctionalLexer.lean` rewrite with these equalities, so every lexer
+theorem keeps its statement.
+
+Each token scan now ends where its longest possible match ends instead of at the
+end of the document, and most terminals are not tried at all. On a generated
+200-class document lexing went from 1.55 s to 0.23 s in a release build. The
+remaining reader cost is IRI validation, which derives the RFC 3987 grammar
+code point by code point.
+
+This block adds 13 public theorems. Totals are 2195 audited theorems, 1073
+definitions, 497 Rust regressions and 2388 ledger obligations.

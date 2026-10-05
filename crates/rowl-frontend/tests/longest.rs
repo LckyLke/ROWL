@@ -1,4 +1,4 @@
-use rowl_frontend::longest::{longest_prefix, PrefixResult};
+use rowl_frontend::longest::{longest_prefix, longest_valid_prefix, PrefixResult};
 use rowl_frontend::regular::{alternate, repeat, sequence, Expression};
 use rowl_frontend::unicode::TextError;
 
@@ -19,6 +19,13 @@ fn choices(words: &[&str]) -> Expression {
 }
 fn endpoint(expression: Expression, text: &str, offset: usize) -> Option<usize> {
     match longest_prefix(expression, &text.as_bytes().to_vec(), offset) {
+        PrefixResult::Matched(value) => value,
+        PrefixResult::MalformedUtf8(_) => panic!("fixture starts at a valid UTF-8 boundary"),
+    }
+}
+
+fn valid_endpoint(expression: Expression, text: &str, offset: usize) -> Option<usize> {
+    match longest_valid_prefix(expression, &text.as_bytes().to_vec(), offset) {
         PrefixResult::Matched(value) => value,
         PrefixResult::MalformedUtf8(_) => panic!("fixture starts at a valid UTF-8 boundary"),
     }
@@ -73,6 +80,33 @@ fn finite_languages_agree_with_independent_prefix_search_at_every_utf8_boundary(
             .iter()
             .flat_map(|s| alphabet.iter().map(move |c| format!("{s}{c}")))
             .collect();
+    }
+}
+
+#[test]
+fn early_stopping_scan_agrees_with_the_full_scan_on_valid_text() {
+    let sample = |index: usize| match index {
+        0 => Expression::Empty,
+        1 => Expression::Epsilon,
+        2 => choices(&["a", "aa", "aé"]),
+        3 => choices(&["é", "é𐀀", "𐀀a"]),
+        4 => repeat(sequence(letter('é'), letter('𐀀'))),
+        _ => sequence(repeat(letter('a')), letter(':')),
+    };
+    for text in ["", "a", "aaé", "é𐀀é𐀀:", "aaaa:a", "𐀀aé", ":::"] {
+        for start in text
+            .char_indices()
+            .map(|(index, _)| index)
+            .chain(std::iter::once(text.len()))
+        {
+            for index in 0..6 {
+                assert_eq!(
+                    valid_endpoint(sample(index), text, start),
+                    endpoint(sample(index), text, start),
+                    "{text:?} at {start}, expression {index}"
+                );
+            }
+        }
     }
 }
 

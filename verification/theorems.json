@@ -684,7 +684,10 @@
       "theorems": [
         "Rowl.Longest.longest_prefix_total_correct",
         "Rowl.Longest.longest_prefix_matched_iff",
-        "Rowl.Longest.longest_prefix_endpoint_bounds"
+        "Rowl.Longest.longest_prefix_endpoint_bounds",
+        "Rowl.Longest.dead_total_correct",
+        "Rowl.Longest.scan_valid_eq",
+        "Rowl.Longest.longest_valid_prefix_eq"
       ]
     },
     {
@@ -2948,6 +2951,22 @@
         "Rowl.FunctionalDataAxioms.read_data_axiom_total_correct",
         "Rowl.FunctionalDataAxioms.read_data_axiom_result_iff",
         "Rowl.FunctionalDataAxioms.data_axiom_progress"
+      ]
+    },
+    {
+      "module": "Rowl.FunctionalFast",
+      "namespace": "Rowl.FunctionalFast",
+      "theorems": [
+        "Rowl.FunctionalFast.longest_valid_eq",
+        "Rowl.FunctionalFast.seed_valid_eq",
+        "Rowl.FunctionalFast.extend_valid_eq",
+        "Rowl.FunctionalFast.next_terminal_valid_eq",
+        "Rowl.FunctionalFast.may_start_sound",
+        "Rowl.FunctionalFast.longest_skip",
+        "Rowl.FunctionalFast.seed_from_eq",
+        "Rowl.FunctionalFast.extend_from_eq",
+        "Rowl.FunctionalFast.next_terminal_from_eq",
+        "Rowl.FunctionalFast.next_terminal_fast_eq"
       ]
     }
   ],

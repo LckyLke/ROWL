@@ -62,6 +62,7 @@ import Rowl.Functional
 import Rowl.FunctionalSelection
 
 import Rowl.FunctionalPayload
+import Rowl.FunctionalFast
 
 import Rowl.FunctionalLexer
 

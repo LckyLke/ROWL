@@ -1,9 +1,10 @@
 use rowl_frontend::functional::{
-    grammar, longest, next_terminal, recognize, Keyword, Selection, Terminal,
+    grammar, longest, next_terminal, next_terminal_fast, recognize, Keyword, Selection, Terminal,
 };
 use rowl_frontend::longest::PrefixResult;
 use rowl_frontend::regular::{matches_utf8, MatchResult};
 use rowl_frontend::unicode::TextError;
+use std::mem::discriminant;
 
 fn matches(terminal: Terminal, text: &str) -> bool {
     match recognize(terminal, &text.as_bytes().to_vec()) {
@@ -342,4 +343,55 @@ fn combined_selection_uses_the_entire_inventory_and_returns_actual_source_spans(
         next_terminal(&vec![0xff], 0),
         Selection::MalformedUtf8(TextError::InvalidUtf8 { offset: 0 })
     ));
+}
+
+type Shape = (
+    std::mem::Discriminant<Terminal>,
+    Option<std::mem::Discriminant<Keyword>>,
+    usize,
+    usize,
+);
+
+fn shape(selection: Selection) -> Option<Shape> {
+    match selection {
+        Selection::NoMatch => None,
+        Selection::Token(token) => {
+            let keyword = match token.terminal {
+                Terminal::Keyword(keyword) => Some(discriminant(&keyword)),
+                _ => None,
+            };
+            Some((
+                discriminant(&token.terminal),
+                keyword,
+                token.start,
+                token.end,
+            ))
+        }
+        Selection::MalformedUtf8(_) => panic!("valid Rust str"),
+    }
+}
+
+#[test]
+fn first_code_point_dispatch_selects_exactly_the_standard_terminal() {
+    for text in [
+        "Prefix(:=<urn:maintenance:>)\nOntology(<urn:o> Import(<urn:i>)",
+        "Declaration(Class(:Pump)) SubClassOf(:Pump ObjectSomeValuesFrom(:part owl:Thing))",
+        "DataPropertyAssertion(:dose :a \"5\"^^xsd:integer) # note\r\n_:b1 \"x\"@en-GB",
+        "ObjectMinCardinality(10 :p) DatatypeDefinition(:d DataOneOf(\"é𐀀\"))",
+        "unknownWord 123abc ^^ = ( ) <> :",
+        "AnnotationAssertion(rdfs:label :Pump \"Pumpe\"@de)\t\t",
+    ] {
+        let bytes = text.as_bytes().to_vec();
+        for start in text
+            .char_indices()
+            .map(|(index, _)| index)
+            .chain(std::iter::once(text.len()))
+        {
+            assert_eq!(
+                shape(next_terminal_fast(&bytes, start)),
+                shape(next_terminal(&bytes, start)),
+                "{text:?} at {start}"
+            );
+        }
+    }
 }

@@ -296,4 +296,103 @@ theorem longest_prefix_endpoint_bounds (expression : regular.Expression) (bytes 
   obtain ⟨word, span, _⟩ := correct.2.1
   exact span_bounds span
 
+/-! ### Scanning a suffix already known to be valid UTF-8 -/
+
+private theorem prefix_at_end (bs : List U8) : Rowl.Unicode.Prefix bs bs.length = none := by
+  simp [Rowl.Unicode.Prefix]
+
+private theorem utf8_tail {bs : List U8} {offset cp width : Nat} {word : List Nat}
+    (valid : Utf8From bs offset word) (unit : Rowl.Unicode.Prefix bs offset = some (cp,width)) :
+    ∃ tail, Utf8From bs (offset+width) tail := by
+  cases valid with
+  | endOfInput => rw [prefix_at_end] at unit; cases unit
+  | character other _ _ tail =>
+    rw [unit] at other
+    cases Option.some.inj other
+    exact ⟨_,tail⟩
+
+theorem dead_total_correct (expression : regular.Expression) :
+    dead expression = .ok (decide (expression = .Empty)) := by
+  cases expression <;> simp [dead]
+
+/-- From a valid suffix the empty language matches nothing more, so the full
+    scan returns the previous endpoint. -/
+private theorem scan_empty (bytes : alloc.vec.Vec U8) (offset : Usize) (last : Option Usize)
+    (valid : ∃ word, Utf8From bytes.val offset.val word) :
+    scan .Empty bytes offset last = .ok (.Matched last) := by
+  obtain ⟨decoded,executed,correct⟩ := Rowl.Unicode.decode_next_total_correct bytes offset
+  rw [scan]
+  simp only [regular.nullable,bind_ok,Bool.false_eq_true,↓reduceIte,executed]
+  cases decoded with
+  | End => rfl
+  | Error error =>
+    obtain ⟨word,valid⟩ := valid
+    cases error with
+    | InvalidPosition position =>
+      exact False.elim (failure_excludes_utf8 _ _ _ (.position (congrArg UScalar.val correct.1) correct.2) word valid)
+    | InvalidUtf8 position =>
+      exact False.elim (failure_excludes_utf8 _ _ _
+        (.utf8 (congrArg UScalar.val correct.1) correct.2.1 correct.2.2) word valid)
+    | NonXmlCharacter _ _ => exact False.elim correct
+  | Scalar cp next =>
+    obtain ⟨advance,bound,unit⟩ := correct
+    obtain ⟨word,valid⟩ := valid
+    have sameNext : offset.val + (next.val - offset.val) = next.val := by omega
+    obtain ⟨tail,tailValid⟩ := utf8_tail valid unit
+    have derived : regular.derivative .Empty cp = .ok .Empty := by simp [regular.derivative]
+    simp only [derived,bind_ok]
+    exact scan_empty bytes next last ⟨tail,by simpa [sameNext] using tailValid⟩
+termination_by bytes.val.length - offset.val
+decreasing_by omega
+
+/-- On a suffix that is valid UTF-8, the scan that stops at the empty language
+    returns exactly what the full scan returns. -/
+theorem scan_valid_eq (expression : regular.Expression) (bytes : alloc.vec.Vec U8) (offset : Usize)
+    (last : Option Usize) (valid : ∃ word, Utf8From bytes.val offset.val word) :
+    scan_valid expression bytes offset last = scan expression bytes offset last := by
+  rw [scan_valid,dead_total_correct,bind_ok]
+  by_cases empty : expression = .Empty
+  · subst empty
+    simp only [decide_true,↓reduceIte]
+    exact (scan_empty bytes offset last valid).symm
+  · simp only [empty,decide_false,Bool.false_eq_true,↓reduceIte]
+    rw [scan]
+    obtain ⟨decoded,executed,correct⟩ := Rowl.Unicode.decode_next_total_correct bytes offset
+    rw [nullable_total_correct]
+    by_cases accepts : [] ∈ Denotes expression
+    · simp only [accepts,decide_true,↓reduceIte,bind_ok,executed]
+      cases decoded with
+      | End => rfl
+      | Error error => rfl
+      | Scalar cp next =>
+        obtain ⟨advance,bound,unit⟩ := correct
+        obtain ⟨word,valid⟩ := valid
+        have sameNext : offset.val + (next.val - offset.val) = next.val := by omega
+        obtain ⟨tail,tailValid⟩ := utf8_tail valid unit
+        obtain ⟨derived,computed,_⟩ := derivative_total_correct expression cp
+        simp only [computed,bind_ok]
+        exact scan_valid_eq derived bytes next (some offset) ⟨tail,by simpa [sameNext] using tailValid⟩
+    · simp only [accepts,decide_false,Bool.false_eq_true,↓reduceIte,bind_ok,executed]
+      cases decoded with
+      | End => rfl
+      | Error error => rfl
+      | Scalar cp next =>
+        obtain ⟨advance,bound,unit⟩ := correct
+        obtain ⟨word,valid⟩ := valid
+        have sameNext : offset.val + (next.val - offset.val) = next.val := by omega
+        obtain ⟨tail,tailValid⟩ := utf8_tail valid unit
+        obtain ⟨derived,computed,_⟩ := derivative_total_correct expression cp
+        simp only [computed,bind_ok]
+        exact scan_valid_eq derived bytes next last ⟨tail,by simpa [sameNext] using tailValid⟩
+termination_by bytes.val.length - offset.val
+decreasing_by all_goals omega
+
+/-- The greatest accepted endpoint on a suffix the caller has validated: the
+    early-stopping matcher equals the full matcher there. -/
+theorem longest_valid_prefix_eq (expression : regular.Expression) (bytes : alloc.vec.Vec U8) (offset : Usize)
+    (valid : ∃ word, Utf8From bytes.val offset.val word) :
+    longest_valid_prefix expression bytes offset = longest_prefix expression bytes offset := by
+  rw [longest_valid_prefix,longest_prefix]
+  exact scan_valid_eq expression bytes offset none valid
+
 end Rowl.Longest

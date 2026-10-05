@@ -1,8 +1,9 @@
 //! Complete OWL 2 Functional Syntax terminal grammars (2012 edition).
 //! Whole-byte matching and greedy matching share these same compiled grammars.
 //! This module does not decode token payloads or assemble an OWL ontology.
-use crate::longest::{longest_prefix, PrefixResult};
+use crate::longest::{longest_prefix, longest_valid_prefix, PrefixResult};
 use crate::regular::{matches_utf8, Expression, MatchResult};
+use crate::unicode::{decode_next, Decoded};
 use crate::{iri, langtag, names};
 
 #[derive(Clone, Copy)]
@@ -281,6 +282,11 @@ pub fn recognize(terminal: Terminal, bytes: &Vec<u8>) -> MatchResult {
 #[allow(clippy::ptr_arg)]
 pub fn longest(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> PrefixResult {
     longest_prefix(grammar(terminal), bytes, position)
+}
+/// `longest` for text already validated as UTF-8 from `position`; the same
+/// result there, without rescanning the rest of the text.
+pub fn longest_valid(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> PrefixResult {
+    longest_valid_prefix(grammar(terminal), bytes, position)
 }
 
 /// A selected source span; payload decoding remains the parser's responsibility.
@@ -750,4 +756,1101 @@ pub fn next_terminal(bytes: &Vec<u8>, position: usize) -> Selection {
     let choice = extend(Terminal::AbbreviatedIri, bytes, position, choice);
     let choice = extend(Terminal::Whitespace, bytes, position, choice);
     extend(Terminal::Comment, bytes, position, choice)
+}
+/// `next_terminal` for text already validated as UTF-8 from `position`: the
+/// same selection there, with each terminal's scan stopping as soon as it can
+/// match no longer prefix.
+pub fn next_terminal_valid(bytes: &Vec<u8>, position: usize) -> Selection {
+    let choice = seed_valid(Terminal::Keyword(Keyword::Prefix), bytes, position);
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::Ontology),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(Terminal::Keyword(Keyword::Import), bytes, position, choice);
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::Declaration),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(Terminal::Keyword(Keyword::Class), bytes, position, choice);
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::Datatype),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::AnnotationProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::NamedIndividual),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::Annotation),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::AnnotationAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SubAnnotationPropertyOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::AnnotationPropertyDomain),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::AnnotationPropertyRange),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectInverseOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataIntersectionOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataUnionOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataComplementOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataOneOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DatatypeRestriction),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectIntersectionOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectUnionOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectComplementOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectOneOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectSomeValuesFrom),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectAllValuesFrom),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectHasValue),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectHasSelf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectMinCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectMaxCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectExactCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataSomeValuesFrom),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataAllValuesFrom),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataHasValue),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataMinCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataMaxCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataExactCardinality),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SubClassOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::EquivalentClasses),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DisjointClasses),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DisjointUnion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SubObjectPropertyOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectPropertyChain),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::EquivalentObjectProperties),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DisjointObjectProperties),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectPropertyDomain),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectPropertyRange),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::InverseObjectProperties),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::FunctionalObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::InverseFunctionalObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ReflexiveObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::IrreflexiveObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SymmetricObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::AsymmetricObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::TransitiveObjectProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SubDataPropertyOf),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::EquivalentDataProperties),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DisjointDataProperties),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataPropertyDomain),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataPropertyRange),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::FunctionalDataProperty),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DatatypeDefinition),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(Terminal::Keyword(Keyword::HasKey), bytes, position, choice);
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::SameIndividual),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DifferentIndividuals),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ClassAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::ObjectPropertyAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::DataPropertyAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(
+        Terminal::Keyword(Keyword::NegativeDataPropertyAssertion),
+        bytes,
+        position,
+        choice,
+    );
+    let choice = extend_valid(Terminal::Open, bytes, position, choice);
+    let choice = extend_valid(Terminal::Close, bytes, position, choice);
+    let choice = extend_valid(Terminal::Equals, bytes, position, choice);
+    let choice = extend_valid(Terminal::DatatypeIndicator, bytes, position, choice);
+    let choice = extend_valid(Terminal::Integer, bytes, position, choice);
+    let choice = extend_valid(Terminal::QuotedString, bytes, position, choice);
+    let choice = extend_valid(Terminal::LanguageTag, bytes, position, choice);
+    let choice = extend_valid(Terminal::NodeId, bytes, position, choice);
+    let choice = extend_valid(Terminal::FullIri, bytes, position, choice);
+    let choice = extend_valid(Terminal::PrefixName, bytes, position, choice);
+    let choice = extend_valid(Terminal::AbbreviatedIri, bytes, position, choice);
+    let choice = extend_valid(Terminal::Whitespace, bytes, position, choice);
+    extend_valid(Terminal::Comment, bytes, position, choice)
+}
+
+/// The first code point of each keyword's spelling.
+fn keyword_first(keyword: Keyword) -> u32 {
+    match keyword {
+        Keyword::Prefix => 80,
+        Keyword::Ontology => 79,
+        Keyword::Import => 73,
+        Keyword::Declaration => 68,
+        Keyword::Class => 67,
+        Keyword::Datatype => 68,
+        Keyword::ObjectProperty => 79,
+        Keyword::DataProperty => 68,
+        Keyword::AnnotationProperty => 65,
+        Keyword::NamedIndividual => 78,
+        Keyword::Annotation => 65,
+        Keyword::AnnotationAssertion => 65,
+        Keyword::SubAnnotationPropertyOf => 83,
+        Keyword::AnnotationPropertyDomain => 65,
+        Keyword::AnnotationPropertyRange => 65,
+        Keyword::ObjectInverseOf => 79,
+        Keyword::DataIntersectionOf => 68,
+        Keyword::DataUnionOf => 68,
+        Keyword::DataComplementOf => 68,
+        Keyword::DataOneOf => 68,
+        Keyword::DatatypeRestriction => 68,
+        Keyword::ObjectIntersectionOf => 79,
+        Keyword::ObjectUnionOf => 79,
+        Keyword::ObjectComplementOf => 79,
+        Keyword::ObjectOneOf => 79,
+        Keyword::ObjectSomeValuesFrom => 79,
+        Keyword::ObjectAllValuesFrom => 79,
+        Keyword::ObjectHasValue => 79,
+        Keyword::ObjectHasSelf => 79,
+        Keyword::ObjectMinCardinality => 79,
+        Keyword::ObjectMaxCardinality => 79,
+        Keyword::ObjectExactCardinality => 79,
+        Keyword::DataSomeValuesFrom => 68,
+        Keyword::DataAllValuesFrom => 68,
+        Keyword::DataHasValue => 68,
+        Keyword::DataMinCardinality => 68,
+        Keyword::DataMaxCardinality => 68,
+        Keyword::DataExactCardinality => 68,
+        Keyword::SubClassOf => 83,
+        Keyword::EquivalentClasses => 69,
+        Keyword::DisjointClasses => 68,
+        Keyword::DisjointUnion => 68,
+        Keyword::SubObjectPropertyOf => 83,
+        Keyword::ObjectPropertyChain => 79,
+        Keyword::EquivalentObjectProperties => 69,
+        Keyword::DisjointObjectProperties => 68,
+        Keyword::ObjectPropertyDomain => 79,
+        Keyword::ObjectPropertyRange => 79,
+        Keyword::InverseObjectProperties => 73,
+        Keyword::FunctionalObjectProperty => 70,
+        Keyword::InverseFunctionalObjectProperty => 73,
+        Keyword::ReflexiveObjectProperty => 82,
+        Keyword::IrreflexiveObjectProperty => 73,
+        Keyword::SymmetricObjectProperty => 83,
+        Keyword::AsymmetricObjectProperty => 65,
+        Keyword::TransitiveObjectProperty => 84,
+        Keyword::SubDataPropertyOf => 83,
+        Keyword::EquivalentDataProperties => 69,
+        Keyword::DisjointDataProperties => 68,
+        Keyword::DataPropertyDomain => 68,
+        Keyword::DataPropertyRange => 68,
+        Keyword::FunctionalDataProperty => 70,
+        Keyword::DatatypeDefinition => 68,
+        Keyword::HasKey => 72,
+        Keyword::SameIndividual => 83,
+        Keyword::DifferentIndividuals => 68,
+        Keyword::ClassAssertion => 67,
+        Keyword::ObjectPropertyAssertion => 79,
+        Keyword::NegativeObjectPropertyAssertion => 78,
+        Keyword::DataPropertyAssertion => 68,
+        Keyword::NegativeDataPropertyAssertion => 78,
+    }
+}
+/// Whether a token of the terminal can start with the code point: every token
+/// of the fixed-start terminals begins with its one code point or set, and the
+/// two prefixed-name terminals are always tried.
+#[allow(clippy::manual_range_contains)] // Keep comparisons explicit for extraction.
+fn may_start(terminal: Terminal, codepoint: u32) -> bool {
+    match terminal {
+        Terminal::Keyword(keyword) => codepoint == keyword_first(keyword),
+        Terminal::Open => codepoint == 40,
+        Terminal::Close => codepoint == 41,
+        Terminal::Equals => codepoint == 61,
+        Terminal::DatatypeIndicator => codepoint == 94,
+        Terminal::Integer => 48 <= codepoint && codepoint <= 57,
+        Terminal::QuotedString => codepoint == 34,
+        Terminal::LanguageTag => codepoint == 64,
+        Terminal::NodeId => codepoint == 95,
+        Terminal::FullIri => codepoint == 60,
+        Terminal::PrefixName => true,
+        Terminal::AbbreviatedIri => true,
+        Terminal::Whitespace => {
+            codepoint == 32 || codepoint == 9 || codepoint == 10 || codepoint == 13
+        }
+        Terminal::Comment => codepoint == 35,
+    }
+}
+fn seed_from(terminal: Terminal, bytes: &Vec<u8>, position: usize, first: u32) -> Selection {
+    if may_start(terminal, first) {
+        seed_valid(terminal, bytes, position)
+    } else {
+        Selection::NoMatch
+    }
+}
+fn extend_from(
+    terminal: Terminal,
+    bytes: &Vec<u8>,
+    position: usize,
+    first: u32,
+    previous: Selection,
+) -> Selection {
+    if may_start(terminal, first) {
+        extend_valid(terminal, bytes, position, previous)
+    } else {
+        previous
+    }
+}
+fn next_terminal_from(bytes: &Vec<u8>, position: usize, first: u32) -> Selection {
+    let choice = seed_from(Terminal::Keyword(Keyword::Prefix), bytes, position, first);
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Ontology),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Import),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Declaration),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Class),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Datatype),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::AnnotationProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::NamedIndividual),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::Annotation),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::AnnotationAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SubAnnotationPropertyOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::AnnotationPropertyDomain),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::AnnotationPropertyRange),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectInverseOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataIntersectionOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataUnionOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataComplementOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataOneOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DatatypeRestriction),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectIntersectionOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectUnionOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectComplementOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectOneOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectSomeValuesFrom),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectAllValuesFrom),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectHasValue),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectHasSelf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectMinCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectMaxCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectExactCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataSomeValuesFrom),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataAllValuesFrom),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataHasValue),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataMinCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataMaxCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataExactCardinality),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SubClassOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::EquivalentClasses),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DisjointClasses),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DisjointUnion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SubObjectPropertyOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectPropertyChain),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::EquivalentObjectProperties),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DisjointObjectProperties),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectPropertyDomain),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectPropertyRange),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::InverseObjectProperties),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::FunctionalObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::InverseFunctionalObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ReflexiveObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::IrreflexiveObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SymmetricObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::AsymmetricObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::TransitiveObjectProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SubDataPropertyOf),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::EquivalentDataProperties),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DisjointDataProperties),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataPropertyDomain),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataPropertyRange),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::FunctionalDataProperty),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DatatypeDefinition),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::HasKey),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::SameIndividual),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DifferentIndividuals),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ClassAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::ObjectPropertyAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::NegativeObjectPropertyAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::DataPropertyAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(
+        Terminal::Keyword(Keyword::NegativeDataPropertyAssertion),
+        bytes,
+        position,
+        first,
+        choice,
+    );
+    let choice = extend_from(Terminal::Open, bytes, position, first, choice);
+    let choice = extend_from(Terminal::Close, bytes, position, first, choice);
+    let choice = extend_from(Terminal::Equals, bytes, position, first, choice);
+    let choice = extend_from(Terminal::DatatypeIndicator, bytes, position, first, choice);
+    let choice = extend_from(Terminal::Integer, bytes, position, first, choice);
+    let choice = extend_from(Terminal::QuotedString, bytes, position, first, choice);
+    let choice = extend_from(Terminal::LanguageTag, bytes, position, first, choice);
+    let choice = extend_from(Terminal::NodeId, bytes, position, first, choice);
+    let choice = extend_from(Terminal::FullIri, bytes, position, first, choice);
+    let choice = extend_from(Terminal::PrefixName, bytes, position, first, choice);
+    let choice = extend_from(Terminal::AbbreviatedIri, bytes, position, first, choice);
+    let choice = extend_from(Terminal::Whitespace, bytes, position, first, choice);
+    extend_from(Terminal::Comment, bytes, position, first, choice)
+}
+/// `next_terminal` for text already validated as UTF-8 from `position`, trying
+/// only the terminals whose tokens can start with the code point there: the
+/// same selection, without building the grammars that cannot match.
+pub fn next_terminal_fast(bytes: &Vec<u8>, position: usize) -> Selection {
+    match decode_next(bytes, position) {
+        Decoded::Scalar { codepoint, .. } => next_terminal_from(bytes, position, codepoint),
+        _ => next_terminal_valid(bytes, position),
+    }
+}
+fn seed_valid(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> Selection {
+    match longest_valid(terminal, bytes, position) {
+        PrefixResult::Matched(None) => Selection::NoMatch,
+        PrefixResult::Matched(Some(end)) => Selection::Token(Token {
+            terminal,
+            start: position,
+            end,
+        }),
+        PrefixResult::MalformedUtf8(error) => Selection::MalformedUtf8(error),
+    }
+}
+fn extend_valid(
+    terminal: Terminal,
+    bytes: &Vec<u8>,
+    position: usize,
+    previous: Selection,
+) -> Selection {
+    match previous {
+        Selection::MalformedUtf8(error) => Selection::MalformedUtf8(error),
+        Selection::NoMatch => seed_valid(terminal, bytes, position),
+        Selection::Token(prior) => match longest_valid(terminal, bytes, position) {
+            PrefixResult::MalformedUtf8(error) => Selection::MalformedUtf8(error),
+            PrefixResult::Matched(None) => Selection::Token(prior),
+            PrefixResult::Matched(Some(end)) => {
+                if end > prior.end {
+                    Selection::Token(Token {
+                        terminal,
+                        start: position,
+                        end,
+                    })
+                } else {
+                    Selection::Token(prior)
+                }
+            }
+        },
+    }
 }

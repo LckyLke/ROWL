@@ -1,7 +1,7 @@
 //! Functional Syntax token streams with XML text and separator validation.
 //! Terminal kinds are proved disjoint; full ontology parsing remains pending.
 #![allow(clippy::ptr_arg)]
-use crate::functional::{longest, next_terminal, Selection, Terminal, Token};
+use crate::functional::{longest_valid, next_terminal_fast, Selection, Terminal, Token};
 use crate::longest::PrefixResult;
 use crate::unicode::{decode_next, read_text, Decoded, TextError, TextScan};
 
@@ -62,12 +62,12 @@ fn separator(bytes: &Vec<u8>, token: &Token) -> Gap {
         }
         _ => {}
     }
-    match longest(Terminal::Whitespace, bytes, token.end) {
+    match longest_valid(Terminal::Whitespace, bytes, token.end) {
         PrefixResult::Matched(Some(end)) => return Gap::Next(end),
         PrefixResult::MalformedUtf8(error) => return Gap::InvalidText(error),
         PrefixResult::Matched(None) => {}
     }
-    match longest(Terminal::Comment, bytes, token.end) {
+    match longest_valid(Terminal::Comment, bytes, token.end) {
         PrefixResult::Matched(Some(end)) => Gap::Next(end),
         PrefixResult::MalformedUtf8(error) => Gap::InvalidText(error),
         PrefixResult::Matched(None) => Gap::Missing,
@@ -77,7 +77,7 @@ fn scan(bytes: &Vec<u8>, position: usize, remaining: usize) -> LexResult {
     if position == bytes.len() {
         return LexResult::Tokens(Tokens::Empty);
     }
-    match next_terminal(bytes, position) {
+    match next_terminal_fast(bytes, position) {
         Selection::NoMatch => LexResult::NoToken { offset: position },
         Selection::MalformedUtf8(error) => LexResult::InvalidText(error),
         Selection::Token(token) => {

@@ -6476,6 +6476,39 @@
       "implementation_scope": "Actual generic longest-prefix regular-language matching from a supplied byte position is proved total. Independent canonical UTF-8 segments define the eligible endpoints; the result is exactly their mathematical maximum, including distinct no-match and accepted empty-match outcomes. Success requires a completely valid UTF-8 suffix, malformed units retain exact first-unit evidence even after an earlier accepted prefix, and successful endpoints are bounded source positions. The algorithm uses proved derivatives and nullable recognition while retaining the latest accepted endpoint; the maximum proof uses independent language membership and segment endpoints, not a second implementation of that scan. This is a lexer primitive, not the complete Functional Syntax token grammar, token identification, separator/comment policy or document parser. Physical memory/stack and cancellation remain separate M8 obligations."
     },
     {
+      "id": "m3.Longest.dead_total_correct",
+      "requirement": "Early-stopping greedy prefix matching on validated text: dead_total_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::longest::longest_valid_prefix",
+      "theorem": "Rowl.Longest.dead_total_correct",
+      "regression": "crates/rowl-frontend/tests/longest.rs::early_stopping_scan_agrees_with_the_full_scan_on_valid_text",
+      "implementation_scope": "Early-stopping greedy prefix matching on validated text: the actual longest_valid_prefix scan stops as soon as the derivative is the empty expression, since no longer prefix can then match. Its dead-state test is exact, and on every suffix with a UTF-8 decoding it returns exactly the result of the full longest_prefix scan, so every longest_prefix theorem applies to it. Text that is not valid UTF-8 keeps the full scan's diagnostics only through that full scan; this variant is used after whole-source validation."
+    },
+    {
+      "id": "m3.Longest.scan_valid_eq",
+      "requirement": "Early-stopping greedy prefix matching on validated text: scan_valid_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::longest::longest_valid_prefix",
+      "theorem": "Rowl.Longest.scan_valid_eq",
+      "regression": "crates/rowl-frontend/tests/longest.rs::early_stopping_scan_agrees_with_the_full_scan_on_valid_text",
+      "implementation_scope": "Early-stopping greedy prefix matching on validated text: the actual longest_valid_prefix scan stops as soon as the derivative is the empty expression, since no longer prefix can then match. Its dead-state test is exact, and on every suffix with a UTF-8 decoding it returns exactly the result of the full longest_prefix scan, so every longest_prefix theorem applies to it. Text that is not valid UTF-8 keeps the full scan's diagnostics only through that full scan; this variant is used after whole-source validation."
+    },
+    {
+      "id": "m3.Longest.longest_valid_prefix_eq",
+      "requirement": "Early-stopping greedy prefix matching on validated text: longest_valid_prefix_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::longest::longest_valid_prefix",
+      "theorem": "Rowl.Longest.longest_valid_prefix_eq",
+      "regression": "crates/rowl-frontend/tests/longest.rs::early_stopping_scan_agrees_with_the_full_scan_on_valid_text",
+      "implementation_scope": "Early-stopping greedy prefix matching on validated text: the actual longest_valid_prefix scan stops as soon as the derivative is the empty expression, since no longer prefix can then match. Its dead-state test is exact, and on every suffix with a UTF-8 decoding it returns exactly the result of the full longest_prefix scan, so every longest_prefix theorem applies to it. Text that is not valid UTF-8 keeps the full scan's diagnostics only through that full scan; this variant is used after whole-source validation."
+    },
+    {
       "id": "m3.Regular.failure_excludes_utf8",
       "requirement": "Functional Syntax terminal component: failure_excludes_utf8",
       "owner": "rowl-frontend/verification",
@@ -26043,6 +26076,116 @@
       "theorem": "Rowl.FunctionalDataAxioms.data_axiom_progress",
       "regression": "crates/rowl-frontend/tests/functional_data_axioms.rs; crates/rowl-frontend/tests/functional_document.rs; crates/rowl-kernel/tests/source_reasoning.rs",
       "implementation_scope": "Actual Functional Syntax reading of the eight data property axioms, datatype definitions and keys at a caller-supplied axiom position is total and has exact result/error equivalence to an independent grammar: SubDataPropertyOf with two data properties, EquivalentDataProperties and DisjointDataProperties with at least two, DataPropertyDomain with a class expression, DataPropertyRange with a data range, FunctionalDataProperty with one data property, DatatypeDefinition with a datatype and a data range, and HasKey with a class expression and two parenthesized, possibly empty lists of object property expressions and data properties. In source order it reads the keyword, (, the maximal axiom-annotation sequence with the proved annotation reader, the body, then ). Data properties and datatypes are IRIs resolved through the checked prefix table under the class IRI limit, property lists stop before ) and share the class count limit, and class expressions, object property expressions and data ranges reuse the proved readers with the caller's class limits. Errors report the first failing step in source order with original offsets (a member list after its two-member minimum). Every successful axiom consumes at least its keyword and its closing parenthesis, which the document loop uses for termination. No source/extraction assumption, admitted claim or custom semantic axiom is introduced."
+    },
+    {
+      "id": "m3.FunctionalFast.longest_valid_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: longest_valid_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::longest_valid",
+      "theorem": "Rowl.FunctionalFast.longest_valid_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.seed_valid_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: seed_valid_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_valid",
+      "theorem": "Rowl.FunctionalFast.seed_valid_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.extend_valid_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: extend_valid_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_valid",
+      "theorem": "Rowl.FunctionalFast.extend_valid_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.next_terminal_valid_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: next_terminal_valid_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_valid",
+      "theorem": "Rowl.FunctionalFast.next_terminal_valid_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.may_start_sound",
+      "requirement": "Fast Functional Syntax token selection on validated text: may_start_sound",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.may_start_sound",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.longest_skip",
+      "requirement": "Fast Functional Syntax token selection on validated text: longest_skip",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.longest_skip",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.seed_from_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: seed_from_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.seed_from_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.extend_from_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: extend_from_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.extend_from_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.next_terminal_from_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: next_terminal_from_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.next_terminal_from_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.FunctionalFast.next_terminal_fast_eq",
+      "requirement": "Fast Functional Syntax token selection on validated text: next_terminal_fast_eq",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::next_terminal_fast",
+      "theorem": "Rowl.FunctionalFast.next_terminal_fast_eq",
+      "regression": "crates/rowl-frontend/tests/functional.rs::first_code_point_dispatch_selects_exactly_the_standard_terminal",
+      "implementation_scope": "Fast Functional Syntax token selection on validated text: the lexer selects each token with the early-stopping matchers (longest_valid, next_terminal_valid) and runs only the matchers of terminals whose words can begin with the next code point (next_terminal_fast). The dispatch test is proved sound against the independent terminal languages: every word of every terminal begins with a code point that passes it, so a skipped terminal has no candidate endpoint and reports no match. On every suffix with a UTF-8 decoding both shortcuts are proved equal to the standard greatest selection next_terminal, and the stream proofs use those equalities, so the lexer's correctness theorems are unchanged."
     }
   ]
 }

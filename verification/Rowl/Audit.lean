@@ -47,6 +47,7 @@ import Rowl.Longest
 import Rowl.Functional
 import Rowl.FunctionalSelection
 import Rowl.FunctionalPayload
+import Rowl.FunctionalFast
 import Rowl.FunctionalLexer
 import Rowl.FunctionalDisjointness
 import Rowl.Decimal
@@ -537,6 +538,9 @@ import Rowl.DataOntology
 #print axioms Rowl.Longest.longest_prefix_total_correct
 #print axioms Rowl.Longest.longest_prefix_matched_iff
 #print axioms Rowl.Longest.longest_prefix_endpoint_bounds
+#print axioms Rowl.Longest.dead_total_correct
+#print axioms Rowl.Longest.scan_valid_eq
+#print axioms Rowl.Longest.longest_valid_prefix_eq
 #print axioms Rowl.Functional.keyword_words_injective
 #print axioms Rowl.Functional.keyword_clone_total_correct
 #print axioms Rowl.Functional.terminal_clone_total_correct
@@ -2309,6 +2313,16 @@ import Rowl.DataOntology
 #print axioms Rowl.FunctionalDataAxioms.read_data_axiom_total_correct
 #print axioms Rowl.FunctionalDataAxioms.read_data_axiom_result_iff
 #print axioms Rowl.FunctionalDataAxioms.data_axiom_progress
+#print axioms Rowl.FunctionalFast.longest_valid_eq
+#print axioms Rowl.FunctionalFast.seed_valid_eq
+#print axioms Rowl.FunctionalFast.extend_valid_eq
+#print axioms Rowl.FunctionalFast.next_terminal_valid_eq
+#print axioms Rowl.FunctionalFast.may_start_sound
+#print axioms Rowl.FunctionalFast.longest_skip
+#print axioms Rowl.FunctionalFast.seed_from_eq
+#print axioms Rowl.FunctionalFast.extend_from_eq
+#print axioms Rowl.FunctionalFast.next_terminal_from_eq
+#print axioms Rowl.FunctionalFast.next_terminal_fast_eq
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
