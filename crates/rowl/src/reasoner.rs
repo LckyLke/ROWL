@@ -3,8 +3,9 @@
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
 //! the mapping into the raw OWL model (for N-Triples, the reverse OWL RDF
-//! mapping of `rdf_mapping`), the prepared queries of `data_ontology` and the
-//! classification of `classification`. `None` means the question or the
+//! mapping of `rdf_mapping`), the prepared queries of `data_ontology`, the
+//! classification of `classification` and, for EL ontologies, the saturation of
+//! `saturation`. `None` means the question or the
 //! document is outside the reasoner's supported fragment, or a limit was
 //! reached. This module only collects names and lays out answers; it adds no
 //! reasoning of its own.
@@ -24,6 +25,7 @@ use rowl_kernel::rdf_mapping::map_graph;
 use rowl_kernel::saturation;
 use rowl_kernel::source_reasoning::source_ontology;
 use std::collections::BTreeSet;
+use std::sync::OnceLock;
 
 /// The stack the verified kernel runs on. Its readers, mapping and queries
 /// recurse over the length of their input, so a large document needs far more
@@ -78,15 +80,16 @@ pub enum LoadError {
     /// reverse mapping reads: an undeclared entity, an incomplete expression,
     /// an annotated axiom or a triple left over.
     Graph,
-    /// The document maps into the model, but its axioms are outside the
-    /// fragment the queries prepare.
+    /// The read document does not map into the raw OWL model.
     Unsupported,
 }
 
-/// A document read and prepared once.
+/// A document read once. Its queries are prepared once, when the first
+/// question that needs them is asked, so a classification that saturation
+/// answers never prepares them.
 pub struct Reasoner {
     ontology: RawOntology,
-    prepared: Prepared,
+    prepared: OnceLock<Option<Prepared>>,
 }
 
 fn class_expression(iri: &str) -> ClassExpression {
@@ -155,7 +158,7 @@ fn axiom_classes(axiom: &Axiom, out: &mut BTreeSet<Vec<u8>>) {
 }
 
 impl Reasoner {
-    /// Read a Functional Syntax document from its bytes and prepare it once.
+    /// Read a Functional Syntax document from its bytes.
     pub fn from_functional(bytes: &[u8], limits: &DocumentLimits) -> Result<Reasoner, LoadError> {
         on_kernel_stack(|| {
             let scope = b"document".to_vec();
@@ -164,11 +167,11 @@ impl Reasoner {
                 Ok(None) => return Err(LoadError::Unsupported),
                 Err(error) => return Err(LoadError::Document(error)),
             };
-            Reasoner::prepared(ontology)
+            Ok(Reasoner::new(ontology))
         })
     }
-    /// Read an N-Triples document from its bytes, read the OWL ontology its
-    /// graph encodes by the verified reverse RDF mapping and prepare it once.
+    /// Read an N-Triples document from its bytes and the OWL ontology its
+    /// graph encodes by the verified reverse RDF mapping.
     pub fn from_ntriples(bytes: &[u8]) -> Result<Reasoner, LoadError> {
         on_kernel_stack(|| {
             let scope = b"document".to_vec();
@@ -177,32 +180,46 @@ impl Reasoner {
                 ReadResult::Error(error) => return Err(LoadError::Triples(error)),
             };
             match map_graph(&graph) {
-                Some(mapped) => Reasoner::prepared(mapped.ontology),
+                Some(mapped) => Ok(Reasoner::new(mapped.ontology)),
                 None => Err(LoadError::Graph),
             }
         })
     }
-    fn prepared(ontology: RawOntology) -> Result<Reasoner, LoadError> {
-        match prepare(&ontology.axioms) {
-            Some(prepared) => Ok(Reasoner { ontology, prepared }),
-            None => Err(LoadError::Unsupported),
+    fn new(ontology: RawOntology) -> Reasoner {
+        Reasoner {
+            ontology,
+            prepared: OnceLock::new(),
         }
+    }
+    /// The prepared queries, prepared on first use; `None` when the axioms are
+    /// outside the fragment the queries prepare.
+    fn queries(&self) -> Option<&Prepared> {
+        self.prepared
+            .get_or_init(|| on_kernel_stack(|| prepare(&self.ontology.axioms)))
+            .as_ref()
     }
     /// The raw OWL ontology that was read.
     pub fn ontology(&self) -> &RawOntology {
         &self.ontology
     }
-    /// Whether the axioms have a model.
+    /// Whether the axioms have a model; an EL ontology is answered by
+    /// saturation without preparing the queries.
     pub fn consistent(&self) -> Option<bool> {
-        on_kernel_stack(|| prepared_consistent(&self.prepared))
+        if let Some(answer) = on_kernel_stack(|| saturation::consistent(&self.ontology.axioms)) {
+            return Some(answer);
+        }
+        let prepared = self.queries()?;
+        on_kernel_stack(|| prepared_consistent(prepared))
     }
     /// Whether some model of the axioms has an instance of `class`.
     pub fn satisfiable(&self, class: &ClassExpression) -> Option<bool> {
-        on_kernel_stack(|| prepared_class_satisfiable(&self.prepared, class))
+        let prepared = self.queries()?;
+        on_kernel_stack(|| prepared_class_satisfiable(prepared, class))
     }
     /// Whether every instance of `sub` is an instance of `sup` in every model.
     pub fn subsumed(&self, sub: &ClassExpression, sup: &ClassExpression) -> Option<bool> {
-        on_kernel_stack(|| prepared_subsumed(&self.prepared, sub, sup))
+        let prepared = self.queries()?;
+        on_kernel_stack(|| prepared_subsumed(prepared, sub, sup))
     }
     /// Whether the named individual is an instance of `class` in every model.
     pub fn instance_of(&self, individual: &str, class: &ClassExpression) -> Option<bool> {
@@ -211,7 +228,8 @@ impl Reasoner {
                 spelling: individual.as_bytes().to_vec(),
             },
         };
-        on_kernel_stack(|| prepared_instance_of(&self.prepared, &individual, class))
+        let prepared = self.queries()?;
+        on_kernel_stack(|| prepared_instance_of(prepared, &individual, class))
     }
     /// The named classes the document declares or uses, without `owl:Thing` and
     /// `owl:Nothing`, sorted by IRI.
@@ -281,13 +299,32 @@ impl Reasoner {
                 },
             })
             .collect();
-        let result =
-            on_kernel_stack(
-                || match saturation::classify(&self.ontology.axioms, &classes) {
-                    Some(result) => Some(result),
-                    None => classify(&self.prepared, &self.ontology.axioms, &classes),
-                },
-            )?;
+        if let Some(taxonomy) =
+            on_kernel_stack(|| saturation::taxonomy(&self.ontology.axioms, &classes))
+        {
+            let mut out = Vec::new();
+            for (index, class) in names.iter().enumerate() {
+                let satisfiable = *taxonomy.satisfiable.get(index)?;
+                let mut supers = Vec::new();
+                if satisfiable {
+                    let mut positions = taxonomy.supers.get(index)?.clone();
+                    positions.sort_unstable();
+                    for other in positions {
+                        if other != index {
+                            supers.push(names.get(other)?.clone());
+                        }
+                    }
+                }
+                out.push(Classified {
+                    class: class.clone(),
+                    satisfiable,
+                    superclasses: supers,
+                });
+            }
+            return Some(out);
+        }
+        let prepared = self.queries()?;
+        let result = on_kernel_stack(|| classify(prepared, &self.ontology.axioms, &classes))?;
         let mut out = Vec::new();
         for (index, class) in names.iter().enumerate() {
             let satisfiable = *result.satisfiable.get(index)?;

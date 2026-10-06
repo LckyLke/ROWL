@@ -4374,18 +4374,31 @@ decreasing_by omega
 
 /-! ### Saturation as a whole -/
 
+/-- What an accepted saturation of the axioms and the listed classes gives: the
+    translation, the final table and the class concepts, the index, the sound
+    state with the class contexts and `owl:Thing` active, and the closure. -/
+structure Saturated (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.Vec Class)
+    (t3 T : saturation.Table) (list : List saturation.Rule) (seen : List Bool) (rules : saturation.Rules)
+    (state : saturation.State) (ids : alloc.vec.Vec Usize) : Prop where
+  ok3 : TableOk t3
+  okT : TableOk T
+  grown : Extends t3 T
+  inside3 : ∀ rule ∈ list, RuleInside t3 rule
+  meaning3 : ∀ {Object : Type u} {Value : Type v} (I : Interpretation Object Value), Fixed I →
+    ((∀ a ∈ items.val, satisfies I a.axiom) ↔ ∀ rule ∈ list, RuleHolds I t3.concepts.val t3.roles.val rule)
+  classIds : ClassIds T ids.val classes.val
+  topAt : T.concepts.val[rules.top.val]? = some .Top
+  bottomAt : T.concepts.val[rules.bottom.val]? = some .Bottom
+  complete : IndexComplete T.concepts.val list rules seen
+  stateOk : StateOk.{u,v} T list (fun _ => False) state
+  activeIds : ∀ id ∈ ids.val, state.active.val[id.val]? = some true
+  activeTop : state.active.val[rules.top.val]? = some true
+  closure : Closure rules T.concepts.val state
+
 theorem saturated_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.Vec Class) :
     ∃ r, saturation.saturated items classes = .ok r ∧ ∀ T rules state ids, r = some (T, rules, state, ids) →
       ∃ (t3 : saturation.Table) (list : List saturation.Rule) (seen : List Bool),
-        TableOk t3 ∧ TableOk T ∧ Extends t3 T ∧ (∀ rule ∈ list, RuleInside t3 rule) ∧
-        (∀ {Object : Type u} {Value : Type v} (I : Interpretation Object Value), Fixed I →
-          ((∀ a ∈ items.val, satisfies I a.axiom) ↔ ∀ rule ∈ list, RuleHolds I t3.concepts.val t3.roles.val rule)) ∧
-        ClassIds T ids.val classes.val ∧
-        T.concepts.val[rules.top.val]? = some .Top ∧ T.concepts.val[rules.bottom.val]? = some .Bottom ∧
-        IndexComplete T.concepts.val list rules seen ∧
-        StateOk.{u,v} T list (fun _ => False) state ∧
-        (∀ id ∈ ids.val, state.active.val[id.val]? = some true) ∧
-        Closure rules T.concepts.val state := by
+        Saturated.{u,v} items classes t3 T list seen rules state ids := by
   rw [saturation.saturated]
   obtain ⟨t0, run0, ok0, _, _⟩ := empty_table_spec
   obtain ⟨r1, run1, spec1⟩ := intern_spec t0 ok0 .Top trivial
@@ -4489,13 +4502,15 @@ theorem saturated_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.v
                       runV4, run5, empty, state0, run6, run7, run8, runB], fun T' rules' state' ids' same => ?_⟩
                     simp only [Option.some.injEq, Prod.mk.injEq] at same
                     obtain ⟨rfl, rfl, rfl, rfl⟩ := same
-                    refine ⟨t3, list.val, seen, ok3, okT, grownT, by rw [listIs]; exact inside3, fun I fixed => ?_,
+                    refine ⟨t3, list.val, seen, ⟨ok3, okT, grownT, by rw [listIs]; exact inside3, fun I fixed => ?_,
                       by simpa using classIds, rulesTopAt, rulesBottomAt, complete,
-                      state_ok_weaken s3Ok (fun _ h => h.elim), fun id member => ?_, specB rfl⟩
+                      state_ok_weaken s3Ok (fun _ h => h.elim), fun id member => ?_, ?_, specB rfl⟩⟩
                     · rw [listIs, ← meaning3 I fixed]
                       simp
                     · obtain ⟨i, at_i⟩ := List.mem_iff_getElem?.mp member
                       exact s3Ok.active id.val (Or.inr ⟨i, id, by simp, at_i, rfl⟩)
+                    · rw [rulesTop]
+                      exact s3Ok.active top.val (Or.inl (Or.inr rfl))
 
 /-! ### Classification -/
 
@@ -4534,6 +4549,128 @@ theorem no_instances {T : saturation.Table} {list : List saturation.Rule} {rules
   · exact meaning_bottom I bottomAt x
       (stateOk.subsumers id.val rules.bottom unsat I models x ((meaning_class I fixed at_id x).mpr member))
 
+section Semantics
+variable {items : alloc.vec.Vec AnnotatedAxiom} {classes : alloc.vec.Vec Class} {t3 T : saturation.Table}
+  {list : List saturation.Rule} {seen : List Bool} {rules : saturation.Rules} {state : saturation.State}
+  {ids : alloc.vec.Vec Usize}
+
+/-- Whether `owl:Thing` is unsatisfiable, as the answers read it. -/
+abbrev Inconsistent (rules : saturation.Rules) (state : saturation.State) : Bool :=
+  decide (rules.bottom ∈ entries state.subsumers.val rules.top.val)
+
+/-- A model of the axioms, with its anonymous individuals placed, satisfies every rule. -/
+theorem saturated_models (sat : Saturated.{u,v} items classes t3 T list seen rules state ids)
+    {Native : Type w} {D : DatatypeMap Native} {V : Vocabulary} {Object : Type u} {Value : Type v}
+    {embed : ValueEmbedding D Value} {I : Interpretation Object Value} (model : Model D embed V I items.val) :
+    ∃ I' : Interpretation Object Value, Fixed I' ∧ Models.{u,v} T list I' ∧ I'.classes = I.classes :=
+  model_models sat.ok3 sat.grown sat.inside3 sat.meaning3 model
+
+/-- A context without `owl:Nothing` is an element of a model of the axioms, the
+    lifted canonical model, where its class holds. -/
+theorem saturated_witness (sat : Saturated.{u, max w v} items classes t3 T list seen rules state ids)
+    {id : Usize} {a : Class} (active : state.active.val[id.val]? = some true)
+    (at_id : T.concepts.val[id.val]? = some (classConcept a))
+    (notBottom : rules.bottom ∉ entries state.subsumers.val id.val)
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
+    ∃ root : Domain rules state, root.val = id ∧
+      Model D (Rowl.AlcOntology.embedding.{v,w} D) V (lifted.{u,v,w} T rules state root D) items.val ∧
+      classDenote (lifted.{u,v,w} T rules state root D) (.Class a) (ULift.up root) := by
+  have insideT : ∀ rule ∈ list, RuleInside T rule := fun rule member => inside_later sat.grown (sat.inside3 rule member)
+  let root : Domain rules state := ⟨id, active, notBottom⟩
+  have valid := Rowl.AlcOntology.owl_model_valid.{u,v,w} (canonical T rules state root) root (fun _ => root) D V
+  have fixed := lifted_fixed.{u,v,w} (t := T) root D
+  have models := canonical_models.{u,v,w} root D sat.okT sat.closure sat.topAt sat.bottomAt sat.complete insideT
+  refine ⟨root, rfl, ⟨vocabulary, valid, (lifted.{u,v,w} T rules state root D).anonymousIndividuals, ?_⟩, ?_⟩
+  · rw [with_anonymous_self]
+    exact (sat.meaning3 _ fixed).mpr fun rule member => (holds_later _ sat.ok3 sat.grown (sat.inside3 rule member)).mp
+      (models rule member)
+  · have context := sat.closure.contexts id (domain_inside sat.closure root)
+    have self := (context.1 active).1
+    rw [Rowl.Owl.classDenote, ← meaning_class _ fixed at_id]
+    exact positive root D sat.okT sat.closure sat.bottomAt id.val id rfl root self
+
+/-- A listed class is satisfiable exactly when its answer is not empty. -/
+theorem saturated_satisfiable_iff (sat : Saturated.{u, max w v} items classes t3 T list seen rules state ids)
+    {id : Usize} {a : Class} (member : id ∈ ids.val) (at_id : T.concepts.val[id.val]? = some (classConcept a))
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
+    EmptyAt state rules.bottom (Inconsistent rules state) id = false ↔
+      ClassSatisfiable.{u, max w v, w} D V items.val (.Class a) := by
+  constructor
+  · intro notEmpty
+    simp only [EmptyAt, Bool.or_eq_false_iff, decide_eq_false_iff_not] at notEmpty
+    obtain ⟨root, _, model, holds⟩ := (saturated_witness sat) (sat.activeIds id member) at_id notEmpty.2 D V vocabulary
+    exact ⟨_, _, _, _, model, _, holds⟩
+  · rintro ⟨Object, Value, embed, I, model, x, holds⟩
+    cases emptyIs : EmptyAt state rules.bottom (Inconsistent rules state) id with
+    | false => rfl
+    | true =>
+      obtain ⟨I', fixed, models, sameClasses⟩ := (saturated_models sat) model
+      rw [Rowl.Owl.classDenote, ← sameClasses] at holds
+      exact absurd holds (no_instances sat.topAt sat.bottomAt sat.stateOk at_id emptyIs I' fixed models x)
+
+/-- An unsatisfiable listed class is subsumed by every class. -/
+theorem saturated_empty_subsumed (sat : Saturated.{u, max w v} items classes t3 T list seen rules state ids)
+    {id : Usize} {a : Class} (at_id : T.concepts.val[id.val]? = some (classConcept a))
+    (empty : EmptyAt state rules.bottom (Inconsistent rules state) id = true) (b : ClassExpression)
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) :
+    Subsumed.{u, max w v, w} D V items.val (.Class a) b := by
+  intro Object Value embed I model x holds
+  obtain ⟨I', fixed, models, sameClasses⟩ := (saturated_models sat) model
+  rw [Rowl.Owl.classDenote, ← sameClasses] at holds
+  exact absurd holds (no_instances sat.topAt sat.bottomAt sat.stateOk at_id empty I' fixed models x)
+
+/-- A satisfiable listed class is subsumed by a class exactly when the class's
+    concept is among its subsumers. -/
+theorem saturated_subsumed_iff (sat : Saturated.{u, max w v} items classes t3 T list seen rules state ids)
+    {ida idb : Usize} {a b : Class} (member : ida ∈ ids.val)
+    (at_ida : T.concepts.val[ida.val]? = some (classConcept a))
+    (at_idb : T.concepts.val[idb.val]? = some (classConcept b))
+    (notEmpty : EmptyAt state rules.bottom (Inconsistent rules state) ida = false)
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
+    idb ∈ entries state.subsumers.val ida.val ↔ Subsumed.{u, max w v, w} D V items.val (.Class a) (.Class b) := by
+  constructor
+  · intro yes Object Value embed I model x holds
+    obtain ⟨I', fixed, models, sameClasses⟩ := (saturated_models sat) model
+    rw [Rowl.Owl.classDenote, ← sameClasses] at holds ⊢
+    have sub := sat.stateOk.subsumers ida.val idb yes I' models x ((meaning_class I' fixed at_ida x).mpr holds)
+    exact (meaning_class I' fixed at_idb x).mp sub
+  · intro subsumed
+    simp only [EmptyAt, Bool.or_eq_false_iff, decide_eq_false_iff_not] at notEmpty
+    obtain ⟨root, rootIs, model, holds⟩ := (saturated_witness sat) (sat.activeIds ida member) at_ida notEmpty.2 D V vocabulary
+    have there := subsumed _ _ _ _ model _ holds
+    rw [Rowl.Owl.classDenote, ← meaning_class _ (lifted_fixed.{u,v,w} (t := T) root D) at_idb] at there
+    have found := negative root D sat.okT sat.closure sat.topAt sat.complete idb.val idb rfl
+      (Or.inr (class_simple at_idb)) root there
+    rw [rootIs] at found
+    exact found
+
+/-- The axioms have a model exactly when `owl:Nothing` does not subsume `owl:Thing`. -/
+theorem saturated_consistent_iff (sat : Saturated.{u, max w v} items classes t3 T list seen rules state ids)
+    {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary) (vocabulary : IsVocabulary D V) :
+    rules.bottom ∉ entries state.subsumers.val rules.top.val ↔ Rowl.Owl.Consistent.{u, max w v, w} D V items.val := by
+  constructor
+  · intro notBottom
+    have at_top : T.concepts.val[rules.top.val]? = some (classConcept thing) := by
+      rw [sat.topAt]; simp [classConcept]
+    obtain ⟨root, _, model, _⟩ := (saturated_witness sat) sat.activeTop at_top notBottom D V vocabulary
+    exact ⟨_, _, _, _, model⟩
+  · rintro ⟨Object, Value, embed, I, model⟩ inconsistent
+    obtain ⟨I', fixed, models, _⟩ := (saturated_models sat) model
+    obtain ⟨x⟩ := I'.objectsNonempty
+    exact meaning_bottom I' sat.bottomAt x
+      (sat.stateOk.subsumers rules.top.val rules.bottom inconsistent I' models x (meaning_top I' sat.topAt x))
+
+/-- The concept of a listed class. -/
+theorem saturated_concept_of (sat : Saturated.{u,v} items classes t3 T list seen rules state ids)
+    {i : Nat} {a : Class} (at_a : classes.val[i]? = some a) :
+    ∃ id, ids.val[i]? = some id ∧ T.concepts.val[id.val]? = some (classConcept a) := by
+  have inside : i < ids.val.length := by
+    rw [sat.classIds.length_eq]; exact (List.getElem?_eq_some_iff.mp at_a).1
+  exact ⟨ids.val[i], List.getElem?_eq_getElem inside,
+    forall2_lookup sat.classIds i _ a (List.getElem?_eq_getElem inside) at_a⟩
+
+end Semantics
+
 /-- Saturation classifies the named classes of an EL ontology: for every listed
     class, whether the class is satisfiable and, for every pair of listed
     classes, whether the first is subsumed by the second, exactly as the
@@ -4556,15 +4693,13 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc
   | none => exact ⟨none, by simp [run1], by simp⟩
   | some found =>
     obtain ⟨T, rules, state, ids⟩ := found
-    obtain ⟨t3, list, seen, ok3, okT, grownT, inside3, meaning3, classIds, topAt, bottomAt, complete, stateOk,
-      activeIds, closure⟩ := spec1 T rules state ids rfl
+    obtain ⟨t3, list, seen, sat⟩ := spec1 T rules state ids rfl
     have topInside : rules.top.val < state.subsumers.val.length := by
-      rw [closure.subsumersLength]; exact closure.top
+      rw [sat.closure.subsumersLength]; exact sat.closure.top
     have lookupTop : state.subsumers.index_usize rules.top = .ok state.subsumers.val[rules.top.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem topInside]
     have e0 := entries_lookup (List.getElem?_eq_getElem topInside)
-    let inconsistent := decide (rules.bottom ∈ entries state.subsumers.val rules.top.val)
-    obtain ⟨r2, run2, spec2⟩ := answers_from_spec state rules.bottom inconsistent ids 0#usize
+    obtain ⟨r2, run2, spec2⟩ := answers_from_spec state rules.bottom (Inconsistent rules state) ids 0#usize
       (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec Bool)) (by simp)
       ⟨by simp, by simp, fun i id lt => by simp at lt⟩
     have run2' : saturation.answers_from state rules.bottom
@@ -4574,84 +4709,350 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc
     refine ⟨r2, by simp [run1, UScalar.lt_equiv, alloc.vec.Vec.len_val, topInside, lookupTop, has_spec, run2'],
       fun result same => ?_⟩
     obtain ⟨satsLength, rowsLength, answers⟩ := spec2 result same
-    have idsLength : ids.val.length = classes.val.length := classIds.length_eq
-    have insideT : ∀ rule ∈ list, RuleInside T rule := fun rule member => inside_later grownT (inside3 rule member)
-    -- the concept of a listed class
-    have conceptOf : ∀ (i : Nat) (a : Class), classes.val[i]? = some a →
-        ∃ id, ids.val[i]? = some id ∧ T.concepts.val[id.val]? = some (classConcept a) := by
-      intro i a at_a
-      have inside : i < ids.val.length := by rw [idsLength]; exact (List.getElem?_eq_some_iff.mp at_a).1
-      exact ⟨ids.val[i], List.getElem?_eq_getElem inside,
-        forall2_lookup classIds i _ a (List.getElem?_eq_getElem inside) at_a⟩
-    -- the canonical model at a satisfiable class
-    have witness : ∀ (id : Usize) (a : Class), id ∈ ids.val → T.concepts.val[id.val]? = some (classConcept a) →
-        EmptyAt state rules.bottom inconsistent id = false →
-        ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
-          ∃ root : Domain rules state, root.val = id ∧
-            Model D (Rowl.AlcOntology.embedding.{v,w} D) V (lifted.{u,v,w} T rules state root D) items.val ∧
-            classDenote (lifted.{u,v,w} T rules state root D) (.Class a) (ULift.up root) := by
-      intro id a member at_id notEmpty Native D V vocabulary
-      simp only [EmptyAt, Bool.or_eq_false_iff, decide_eq_false_iff_not] at notEmpty
-      have inDomain : InDomain rules state id := ⟨activeIds id member, notEmpty.2⟩
-      let root : Domain rules state := ⟨id, inDomain⟩
-      have valid := Rowl.AlcOntology.owl_model_valid.{u,v,w} (canonical T rules state root) root (fun _ => root) D V
-      have fixed := lifted_fixed.{u,v,w} (t := T) root D
-      have models := canonical_models.{u,v,w} root D okT closure topAt bottomAt complete insideT
-      refine ⟨root, rfl, ⟨vocabulary, valid, (lifted.{u,v,w} T rules state root D).anonymousIndividuals, ?_⟩, ?_⟩
-      · rw [with_anonymous_self]
-        exact (meaning3 _ fixed).mpr fun rule member => (holds_later _ ok3 grownT (inside3 rule member)).mp
-          (models rule member)
-      · have context := closure.contexts id (domain_inside closure root)
-        have self := (context.1 inDomain.1).1
-        rw [Rowl.Owl.classDenote, ← meaning_class _ fixed at_id]
-        exact positive root D okT closure bottomAt id.val id rfl root self
+    have idsLength : ids.val.length = classes.val.length := sat.classIds.length_eq
     refine ⟨by rw [satsLength, idsLength], by rw [rowsLength, idsLength], fun i a at_a => ?_,
       fun i j a b at_a at_b => ?_⟩
-    · obtain ⟨id, at_id, conceptAt⟩ := conceptOf i a at_a
-      have lt : i < ids.val.length := (List.getElem?_eq_some_iff.mp at_id).1
-      obtain ⟨satAt, _⟩ := answers i id lt at_id
+    · obtain ⟨id, at_id, conceptAt⟩ := (saturated_concept_of sat) at_a
+      obtain ⟨satAt, _⟩ := answers i id (List.getElem?_eq_some_iff.mp at_id).1 at_id
       refine ⟨_, satAt, fun D V vocabulary => ?_⟩
-      cases emptyIs : EmptyAt state rules.bottom inconsistent id with
-      | false =>
-        simp only [Bool.not_false, true_iff]
-        obtain ⟨root, _, model, holds⟩ := witness id a (List.mem_of_getElem? at_id) conceptAt emptyIs D V vocabulary
-        exact ⟨_, _, _, _, model, _, holds⟩
-      | true =>
-        simp only [Bool.not_true, Bool.false_eq_true, false_iff]
-        rintro ⟨Object, Value, embed, I, model, x, holds⟩
-        obtain ⟨I', fixed, models, sameClasses⟩ := model_models ok3 grownT inside3 meaning3 model
-        rw [Rowl.Owl.classDenote, ← sameClasses] at holds
-        exact no_instances topAt bottomAt stateOk conceptAt emptyIs I' fixed models x holds
-    · obtain ⟨ida, at_ida, conceptA⟩ := conceptOf i a at_a
-      obtain ⟨idb, at_idb, conceptB⟩ := conceptOf j b at_b
-      have lt : i < ids.val.length := (List.getElem?_eq_some_iff.mp at_ida).1
-      obtain ⟨_, row, rowAt, rowIs⟩ := answers i ida lt at_ida
-      have cellAt : row.val[j]? = some (EmptyAt state rules.bottom inconsistent ida ||
+      rw [← (saturated_satisfiable_iff sat) (List.mem_of_getElem? at_id) conceptAt D V vocabulary]
+      cases EmptyAt state rules.bottom (Inconsistent rules state) id <;> simp
+    · obtain ⟨ida, at_ida, conceptA⟩ := (saturated_concept_of sat) at_a
+      obtain ⟨idb, at_idb, conceptB⟩ := (saturated_concept_of sat) at_b
+      obtain ⟨_, row, rowAt, rowIs⟩ := answers i ida (List.getElem?_eq_some_iff.mp at_ida).1 at_ida
+      have cellAt : row.val[j]? = some (EmptyAt state rules.bottom (Inconsistent rules state) ida ||
           decide (idb ∈ entries state.subsumers.val ida.val)) := by
         rw [rowIs, List.getElem?_map, at_idb]; rfl
       refine ⟨row, _, rowAt, cellAt, fun D V vocabulary => ?_⟩
+      cases emptyIs : EmptyAt state rules.bottom (Inconsistent rules state) ida with
+      | true => simpa using (saturated_empty_subsumed sat) conceptA emptyIs (.Class b) D V
+      | false =>
+        rw [Bool.false_or, decide_eq_true_iff]
+        exact (saturated_subsumed_iff sat) (List.mem_of_getElem? at_ida) conceptA conceptB emptyIs D V vocabulary
+
+/-- Saturation decides whether the axioms of an EL ontology have a model,
+    exactly as the semantics decides over every vocabulary and datatype map. -/
+theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ r, saturation.consistent items = .ok r ∧ ∀ answer, r = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
+        (answer = true ↔ Rowl.Owl.Consistent.{u, max w v, w} D V items.val) := by
+  rw [saturation.consistent]
+  obtain ⟨r1, run1, spec1⟩ := saturated_spec.{u, max w v} items (alloc.vec.Vec.new Class)
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some found =>
+    obtain ⟨T, rules, state, ids⟩ := found
+    obtain ⟨t3, list, seen, sat⟩ := spec1 T rules state ids rfl
+    have topInside : rules.top.val < state.subsumers.val.length := by
+      rw [sat.closure.subsumersLength]; exact sat.closure.top
+    have lookupTop : state.subsumers.index_usize rules.top = .ok state.subsumers.val[rules.top.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem topInside]
+    have e0 := entries_lookup (List.getElem?_eq_getElem topInside)
+    refine ⟨some (!decide (rules.bottom ∈ entries state.subsumers.val rules.top.val)), ?_, fun answer same => ?_⟩
+    · rw [e0]; simp [run1, UScalar.lt_equiv, alloc.vec.Vec.len_val, topInside, lookupTop, has_spec]
+    · cases same
+      intro Native D V vocabulary
+      rw [← (saturated_consistent_iff sat) D V vocabulary]
+      simp
+
+/-! ### Taxonomies -/
+
+theorem positions_from_spec (ids : alloc.vec.Vec Usize) (index : Usize) (out : alloc.vec.Vec (alloc.vec.Vec Usize)) :
+    ∃ r, saturation.positions_from ids index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ (c j : Nat), (∃ k ∈ entries out'.val c, k.val = j) ↔
+        ((∃ k ∈ entries out.val c, k.val = j) ∨ (index.val ≤ j ∧ ∃ id, ids.val[j]? = some id ∧ id.val = c)) := by
+  rw [saturation.positions_from]
+  by_cases more : index.val < ids.val.length
+  · have lookup : ids.index_usize index = .ok ids.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨r1, run1, spec1⟩ := push_item_spec out ids.val[index.val] index
+    cases r1 with
+    | none => exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, run1], by simp⟩
+    | some out1 =>
+      obtain ⟨old, new, at_old, newIs, out1Is⟩ := spec1 out1 rfl
+      have mem := mem_entries_push at_old newIs out1Is
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨r, run, spec⟩ := positions_from_spec ids next out1
+      refine ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, run1, advance, run],
+        fun out' same c j => ?_⟩
+      rw [spec out' same c j, nextIs]
       constructor
-      · intro yes Object Value embed I model x holds
-        obtain ⟨I', fixed, models, sameClasses⟩ := model_models ok3 grownT inside3 meaning3 model
-        rw [Rowl.Owl.classDenote, ← sameClasses] at holds ⊢
-        cases emptyIs : EmptyAt state rules.bottom inconsistent ida with
-        | true => exact absurd holds (no_instances topAt bottomAt stateOk conceptA emptyIs I' fixed models x)
-        | false =>
-          rw [emptyIs, Bool.false_or, decide_eq_true_eq] at yes
-          have sub := stateOk.subsumers ida.val idb yes I' models x ((meaning_class I' fixed conceptA x).mpr holds)
-          exact (meaning_class I' fixed conceptB x).mp sub
-      · intro subsumed
-        cases emptyIs : EmptyAt state rules.bottom inconsistent ida with
-        | true => simp
-        | false =>
-          simp only [Bool.false_or, decide_eq_true_eq]
-          obtain ⟨root, rootIs, model, holds⟩ := witness ida a (List.mem_of_getElem? at_ida) conceptA emptyIs D V
-            vocabulary
-          have there := subsumed _ _ _ _ model _ holds
-          rw [Rowl.Owl.classDenote, ← meaning_class _ (lifted_fixed.{u,v,w} (t := T) root D) conceptB] at there
-          have found := negative root D okT closure topAt complete idb.val idb rfl (Or.inr (class_simple conceptB))
-            root there
-          rw [rootIs] at found
-          exact found
+      · rintro (⟨k, inK, rfl⟩ | ⟨low, id, at_j, rfl⟩)
+        · rcases (mem c k).mp inK with old | ⟨rfl, rfl⟩
+          · exact Or.inl ⟨k, old, rfl⟩
+          · exact Or.inr ⟨le_refl _, _, List.getElem?_eq_getElem more, rfl⟩
+        · exact Or.inr ⟨by omega, id, at_j, rfl⟩
+      · rintro (⟨k, inK, rfl⟩ | ⟨low, id, at_j, rfl⟩)
+        · exact Or.inl ⟨k, (mem c k).mpr (Or.inl inK), rfl⟩
+        · by_cases here : j = index.val
+          · subst here
+            rw [List.getElem?_eq_getElem more] at at_j
+            cases at_j
+            exact Or.inl ⟨index, (mem _ index).mpr (Or.inr ⟨rfl, rfl⟩), rfl⟩
+          · exact Or.inr ⟨by omega, id, at_j, rfl⟩
+  · refine ⟨some out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], fun out' same c j => ?_⟩
+    cases same
+    constructor
+    · exact Or.inl
+    · rintro (found | ⟨low, id, at_j, _⟩)
+      · exact found
+      · have := (List.getElem?_eq_some_iff.mp at_j).1
+        omega
+termination_by ids.val.length - index.val
+decreasing_by omega
+
+theorem append_from_spec (items : alloc.vec.Vec Usize) (index : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ r, saturation.append_from items index out = .ok r ∧ ∀ out', r = some out' →
+      out'.val = out.val ++ items.val.drop index.val := by
+  rw [saturation.append_from]
+  by_cases more : index.val < items.val.length
+  · by_cases room : out.val.length < Usize.max
+    · have lookup : items.index_usize index = .ok items.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+      obtain ⟨out1, push, outIs⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out items.val[index.val] room)
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨r, run, spec⟩ := append_from_spec items next out1
+      refine ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, room, lookup, push, advance,
+        run], fun out' same => ?_⟩
+      rw [spec out' same, outIs, nextIs, List.drop_eq_getElem_cons more]
+      simp
+    · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, room], by simp⟩
+  · refine ⟨some out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], fun out' same => ?_⟩
+    cases same
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp
+termination_by items.val.length - index.val
+decreasing_by omega
+
+theorem positions_of_spec (list : alloc.vec.Vec Usize) (positions : alloc.vec.Vec (alloc.vec.Vec Usize))
+    (index : Usize) (out : alloc.vec.Vec Usize) :
+    ∃ r, saturation.positions_of list positions index out = .ok r ∧ ∀ out', r = some out' →
+      ∀ (k : Usize), k ∈ out'.val ↔ (k ∈ out.val ∨ ∃ c ∈ list.val.drop index.val, k ∈ entries positions.val c.val) := by
+  rw [saturation.positions_of]
+  by_cases more : index.val < list.val.length
+  · have lookup : list.index_usize index = .ok list.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    by_cases inside : list.val[index.val].val < positions.val.length
+    · have lookup2 : positions.index_usize list.val[index.val] = .ok positions.val[list.val[index.val].val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+      have e1 := entries_lookup (List.getElem?_eq_getElem inside)
+      obtain ⟨r1, run1, spec1⟩ := append_from_spec positions.val[list.val[index.val].val] 0#usize out
+      cases r1 with
+      | none => exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside, lookup2, run1],
+          by simp⟩
+      | some out1 =>
+        have out1Is := spec1 out1 rfl
+        obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+        have nextIs : next.val = index.val + 1 := by simpa using nextValue
+        obtain ⟨r, run, spec⟩ := positions_of_spec list positions next out1
+        refine ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside, lookup2, run1, advance, run],
+          fun out' same k => ?_⟩
+        have zero : (0#usize).val = 0 := rfl
+        rw [spec out' same k, out1Is, nextIs, zero, List.drop_zero, List.drop_eq_getElem_cons more]
+        constructor
+        · rintro (inOut1 | ⟨c, inRest, inC⟩)
+          · rcases List.mem_append.mp inOut1 with old | here
+            · exact Or.inl old
+            · exact Or.inr ⟨list.val[index.val], List.mem_cons.mpr (Or.inl rfl), by rw [e1]; exact here⟩
+          · exact Or.inr ⟨c, List.mem_cons.mpr (Or.inr inRest), inC⟩
+        · rintro (old | ⟨c, inList, inC⟩)
+          · exact Or.inl (List.mem_append_left _ old)
+          · rcases List.mem_cons.mp inList with rfl | inRest
+            · rw [e1] at inC; exact Or.inl (List.mem_append_right _ inC)
+            · exact Or.inr ⟨c, inRest, inC⟩
+    · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside], by simp⟩
+  · refine ⟨some out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], fun out' same k => ?_⟩
+    cases same
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp
+termination_by list.val.length - index.val
+decreasing_by omega
+
+/-- The taxonomy rows of the first `n` classes. -/
+def TaxonomyOk (state : saturation.State) (bottom : Usize) (inconsistent : Bool) (ids : List Usize)
+    (positions : List (alloc.vec.Vec Usize)) (n : Nat) (sats : List Bool) (supers : List (alloc.vec.Vec Usize)) :
+    Prop :=
+  sats.length = n ∧ supers.length = n ∧ ∀ (i : Nat) (id : Usize), i < n → ids[i]? = some id →
+    sats[i]? = some (!EmptyAt state bottom inconsistent id) ∧
+    ∃ list, supers[i]? = some list ∧ (EmptyAt state bottom inconsistent id = false →
+      ∀ (k : Usize), k ∈ list.val ↔ ∃ c ∈ entries state.subsumers.val id.val, k ∈ entries positions c.val)
+
+theorem taxonomy_from_spec (state : saturation.State) (bottom : Usize) (inconsistent : Bool)
+    (ids : alloc.vec.Vec Usize) (positions : alloc.vec.Vec (alloc.vec.Vec Usize)) (index : Usize)
+    (satisfiable : alloc.vec.Vec Bool) (supers : alloc.vec.Vec (alloc.vec.Vec Usize))
+    (low : index.val ≤ ids.val.length)
+    (before : TaxonomyOk state bottom inconsistent ids.val positions.val index.val satisfiable.val supers.val) :
+    ∃ r, saturation.taxonomy_from state bottom inconsistent ids positions index satisfiable supers = .ok r ∧
+      ∀ result, r = some result →
+        TaxonomyOk state bottom inconsistent ids.val positions.val ids.val.length result.satisfiable.val
+          result.supers.val := by
+  rw [saturation.taxonomy_from]
+  by_cases more : index.val < ids.val.length
+  · have lookup : ids.index_usize index = .ok ids.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    by_cases inside : ids.val[index.val].val < state.subsumers.val.length
+    · have lookup2 : state.subsumers.index_usize ids.val[index.val] =
+          .ok state.subsumers.val[ids.val[index.val].val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+      have e1 := entries_lookup (List.getElem?_eq_getElem inside)
+      have emptyIs : (if inconsistent = true then (Result.ok true : Result Bool) else
+          saturation.has state.subsumers.val[ids.val[index.val].val] bottom) =
+          .ok (EmptyAt state bottom inconsistent ids.val[index.val]) := by
+        cases inconsistent <;> simp [EmptyAt, has_spec, e1]
+      obtain ⟨satLen, supLen, old⟩ := before
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      -- the shared step: push the answers and recurse
+      have step : ∀ (list : alloc.vec.Vec Usize),
+          (EmptyAt state bottom inconsistent ids.val[index.val] = false →
+            ∀ (k : Usize), k ∈ list.val ↔ ∃ c ∈ entries state.subsumers.val ids.val[index.val].val,
+              k ∈ entries positions.val c.val) →
+          satisfiable.val.length < Usize.max → supers.val.length < Usize.max →
+          ∃ sat1 sup1, satisfiable.push (!EmptyAt state bottom inconsistent ids.val[index.val]) = .ok sat1 ∧
+            supers.push list = .ok sup1 ∧
+            TaxonomyOk state bottom inconsistent ids.val positions.val next.val sat1.val sup1.val := by
+        intro list listOk room1 room2
+        obtain ⟨sat1, push1, sat1Is⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec satisfiable (!EmptyAt state bottom inconsistent ids.val[index.val]) room1)
+        obtain ⟨sup1, push2, sup1Is⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec supers list room2)
+        refine ⟨sat1, sup1, push1, push2, by rw [sat1Is, nextIs]; simp [satLen], by rw [sup1Is, nextIs]; simp [supLen],
+          fun i id lt at_i => ?_⟩
+        rw [nextIs] at lt
+        by_cases here : i = index.val
+        · subst here
+          rw [List.getElem?_eq_getElem more] at at_i
+          cases at_i
+          exact ⟨by rw [sat1Is]; simp [satLen], list, by rw [sup1Is]; simp [supLen], listOk⟩
+        · obtain ⟨satAt, list', listAt, listOk'⟩ := old i id (by omega) at_i
+          exact ⟨by rw [sat1Is, List.getElem?_append_left (by omega)]; exact satAt, list',
+            by rw [sup1Is, List.getElem?_append_left (by omega)]; exact listAt, listOk'⟩
+      cases emptyCase : EmptyAt state bottom inconsistent ids.val[index.val] with
+      | true =>
+        by_cases room1 : satisfiable.val.length < Usize.max
+        · by_cases room2 : supers.val.length < Usize.max
+          · obtain ⟨sat1, sup1, push1, push2, now⟩ := step (alloc.vec.Vec.new Usize)
+              (fun notEmpty => by rw [emptyCase] at notEmpty; cases notEmpty) room1 room2
+            rw [emptyCase, Bool.not_true] at push1
+            obtain ⟨r, run, spec⟩ := taxonomy_from_spec state bottom inconsistent ids positions next sat1 sup1
+              (by omega) now
+            exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside, lookup2,
+              emptyIs, emptyCase, room1, room2, push1, push2, advance, run], spec⟩
+          · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside, lookup2,
+              emptyIs, emptyCase, room1, room2], by simp⟩
+        · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside, lookup2,
+            emptyIs, emptyCase, room1], by simp⟩
+      | false =>
+        obtain ⟨r1, run1, spec1⟩ := positions_of_spec state.subsumers.val[ids.val[index.val].val] positions 0#usize
+          (alloc.vec.Vec.new Usize)
+        cases r1 with
+        | none => exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside, lookup2,
+            emptyIs, emptyCase, run1], by simp⟩
+        | some list =>
+          have listOk : ∀ (k : Usize), k ∈ list.val ↔ ∃ c ∈ entries state.subsumers.val ids.val[index.val].val,
+              k ∈ entries positions.val c.val := by
+            intro k
+            rw [spec1 list rfl k, e1]
+            simp
+          by_cases room1 : satisfiable.val.length < Usize.max
+          · by_cases room2 : supers.val.length < Usize.max
+            · obtain ⟨sat1, sup1, push1, push2, now⟩ := step list (fun _ => listOk) room1 room2
+              rw [emptyCase, Bool.not_false] at push1
+              obtain ⟨r, run, spec⟩ := taxonomy_from_spec state bottom inconsistent ids positions next sat1 sup1
+                (by omega) now
+              exact ⟨r, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside, lookup2,
+                emptyIs, emptyCase, run1, room1, room2, push1, push2, advance, run], spec⟩
+            · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside,
+                lookup2, emptyIs, emptyCase, run1, room1, room2], by simp⟩
+          · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, more, lookup, inside, lookup2,
+              emptyIs, emptyCase, run1, room1], by simp⟩
+    · exact ⟨none, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, lookup, inside], by simp⟩
+  · refine ⟨some { satisfiable, supers }, by simp [UScalar.lt_equiv, alloc.vec.Vec.len_val, more],
+      fun result same => ?_⟩
+    cases same
+    have equal : index.val = ids.val.length := by omega
+    rw [← equal]
+    exact before
+termination_by ids.val.length - index.val
+decreasing_by all_goals omega
+
+/-- Saturation classifies the named classes of an EL ontology as lists: for
+    every listed class, whether it is satisfiable and, if it is, the positions
+    of the listed classes that subsume it, exactly as the semantics decides over
+    every vocabulary and datatype map. -/
+theorem taxonomy_correct (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.Vec Class) :
+    ∃ r, saturation.taxonomy items classes = .ok r ∧
+      ∀ result, r = some result →
+        result.satisfiable.val.length = classes.val.length ∧
+        result.supers.val.length = classes.val.length ∧
+        ∀ (i : Nat) (a : Class), classes.val[i]? = some a →
+          ∃ (s : Bool) (list : alloc.vec.Vec Usize), result.satisfiable.val[i]? = some s ∧
+            result.supers.val[i]? = some list ∧
+            (∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
+              (s = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val (.Class a))) ∧
+            (s = true → ∀ (j : Nat) (b : Class), classes.val[j]? = some b →
+              ∀ {Native : Type w} (D : DatatypeMap Native) (V : Vocabulary), IsVocabulary D V →
+                ((∃ k ∈ list.val, k.val = j) ↔ Subsumed.{u, max w v, w} D V items.val (.Class a) (.Class b))) := by
+  rw [saturation.taxonomy]
+  obtain ⟨r1, run1, spec1⟩ := saturated_spec.{u, max w v} items classes
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some found =>
+    obtain ⟨T, rules, state, ids⟩ := found
+    obtain ⟨t3, list, seen, sat⟩ := spec1 T rules state ids rfl
+    obtain ⟨empty, runEmpty, _, allEmpty⟩ := empty_lists_spec (alloc.vec.Vec.len T.concepts)
+      (alloc.vec.Vec.new (alloc.vec.Vec Usize)) (by simp) (by simp)
+    obtain ⟨r2, run2, spec2⟩ := positions_from_spec ids 0#usize empty
+    cases r2 with
+    | none => exact ⟨none, by simp [run1, runEmpty, run2], by simp⟩
+    | some positions =>
+      have positionsOk : ∀ (c j : Nat), (∃ k ∈ entries positions.val c, k.val = j) ↔
+          ∃ id, ids.val[j]? = some id ∧ id.val = c := by
+        intro c j
+        rw [spec2 positions rfl c j]
+        simp [entries_empty allEmpty]
+      have topInside : rules.top.val < state.subsumers.val.length := by
+        rw [sat.closure.subsumersLength]; exact sat.closure.top
+      have lookupTop : state.subsumers.index_usize rules.top = .ok state.subsumers.val[rules.top.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem topInside]
+      have e0 := entries_lookup (List.getElem?_eq_getElem topInside)
+      obtain ⟨r3, run3, spec3⟩ := taxonomy_from_spec state rules.bottom (Inconsistent rules state) ids positions
+        0#usize (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec Usize)) (by simp)
+        ⟨by simp, by simp, fun i id lt => by simp at lt⟩
+      have run3' : saturation.taxonomy_from state rules.bottom
+          (decide (rules.bottom ∈ state.subsumers.val[rules.top.val].val)) ids positions 0#usize
+          (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec Usize)) = .ok r3 := by
+        rw [← e0]; exact run3
+      refine ⟨r3, by simp [run1, runEmpty, run2, UScalar.lt_equiv, alloc.vec.Vec.len_val, topInside, lookupTop,
+        has_spec, run3'], fun result same => ?_⟩
+      obtain ⟨satsLength, supersLength, rows⟩ := spec3 result same
+      have idsLength : ids.val.length = classes.val.length := sat.classIds.length_eq
+      refine ⟨by rw [satsLength, idsLength], by rw [supersLength, idsLength], fun i a at_a => ?_⟩
+      obtain ⟨ida, at_ida, conceptA⟩ := (saturated_concept_of sat) at_a
+      obtain ⟨satAt, row, rowAt, rowOk⟩ := rows i ida (List.getElem?_eq_some_iff.mp at_ida).1 at_ida
+      refine ⟨_, row, satAt, rowAt, fun D V vocabulary => ?_, fun yes j b at_b => fun D V vocabulary => ?_⟩
+      · rw [← (saturated_satisfiable_iff sat) (List.mem_of_getElem? at_ida) conceptA D V vocabulary]
+        cases EmptyAt state rules.bottom (Inconsistent rules state) ida <;> simp
+      · have notEmpty : EmptyAt state rules.bottom (Inconsistent rules state) ida = false := by
+          simpa using yes
+        obtain ⟨idb, at_idb, conceptB⟩ := (saturated_concept_of sat) at_b
+        rw [← (saturated_subsumed_iff sat) (List.mem_of_getElem? at_ida) conceptA conceptB notEmpty D V vocabulary]
+        have members := rowOk notEmpty
+        constructor
+        · rintro ⟨k, inRow, rfl⟩
+          obtain ⟨c, inS, inC⟩ := (members k).mp inRow
+          obtain ⟨id, at_id, idIs⟩ := (positionsOk c.val k.val).mp ⟨k, inC, rfl⟩
+          rw [at_idb] at at_id
+          cases at_id
+          rw [UScalar.eq_of_val_eq idIs]
+          exact inS
+        · intro inS
+          obtain ⟨k, inC, kIs⟩ := (positionsOk idb.val j).mpr ⟨idb, at_idb, rfl⟩
+          exact ⟨k, (members k).mpr ⟨idb, inS, inC⟩, kIs⟩
 
 end Rowl.Saturation

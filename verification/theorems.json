@@ -3372,7 +3372,20 @@
         "Rowl.Saturation.with_anonymous_self",
         "Rowl.Saturation.model_models",
         "Rowl.Saturation.no_instances",
-        "Rowl.Saturation.classify_correct"
+        "Rowl.Saturation.saturated_models",
+        "Rowl.Saturation.saturated_witness",
+        "Rowl.Saturation.saturated_satisfiable_iff",
+        "Rowl.Saturation.saturated_empty_subsumed",
+        "Rowl.Saturation.saturated_subsumed_iff",
+        "Rowl.Saturation.saturated_consistent_iff",
+        "Rowl.Saturation.saturated_concept_of",
+        "Rowl.Saturation.classify_correct",
+        "Rowl.Saturation.consistent_correct",
+        "Rowl.Saturation.positions_from_spec",
+        "Rowl.Saturation.append_from_spec",
+        "Rowl.Saturation.positions_of_spec",
+        "Rowl.Saturation.taxonomy_from_spec",
+        "Rowl.Saturation.taxonomy_correct"
       ]
     }
   ],
@@ -4544,6 +4557,9 @@
     "Rowl.Saturation.lifted",
     "Rowl.Saturation.Simple",
     "Rowl.Saturation.EmptyAt",
-    "Rowl.Saturation.AnswersOk"
+    "Rowl.Saturation.AnswersOk",
+    "Rowl.Saturation.Saturated",
+    "Rowl.Saturation.Inconsistent",
+    "Rowl.Saturation.TaxonomyOk"
   ]
 }

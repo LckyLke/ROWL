@@ -1,7 +1,7 @@
 use rowl_kernel::classification::classify as tableau_classify;
-use rowl_kernel::data_ontology::prepare;
+use rowl_kernel::data_ontology::{prepare, prepared_consistent};
 use rowl_kernel::model::*;
-use rowl_kernel::saturation::classify;
+use rowl_kernel::saturation::{classify, consistent, taxonomy};
 
 /// A small deterministic generator.
 struct Random(u64);
@@ -167,6 +167,23 @@ fn agreement() {
         };
         assert_eq!(saturated.satisfiable, expected.satisfiable, "round {round}");
         assert_eq!(saturated.subsumed, expected.subsumed, "round {round}");
+        let listed = taxonomy(&items, &names).expect("the ontology is EL");
+        assert_eq!(listed.satisfiable, expected.satisfiable, "round {round}");
+        for (i, row) in expected.subsumed.iter().enumerate() {
+            if expected.satisfiable[i] {
+                let mut supers = listed.supers[i].clone();
+                supers.sort();
+                let wanted: Vec<usize> = (0..row.len()).filter(|j| row[*j]).collect();
+                assert_eq!(supers, wanted, "round {round}, class {i}");
+            } else {
+                assert!(listed.supers[i].is_empty(), "round {round}, class {i}");
+            }
+        }
+        assert_eq!(
+            consistent(&items),
+            prepared_consistent(&prepared),
+            "round {round}"
+        );
         compared += 1;
         unsatisfiable += saturated.satisfiable.iter().filter(|s| !**s).count();
         for (i, row) in saturated.subsumed.iter().enumerate() {
@@ -195,6 +212,8 @@ fn saturation_declines_outside_el() {
         })),
     ))];
     assert!(classify(&items, &vec![class(2)]).is_none());
+    assert!(taxonomy(&items, &vec![class(2)]).is_none());
+    assert!(consistent(&items).is_none());
     let assertion = vec![annotated(Axiom::ClassAssertion(
         ClassExpression::Class(class(2)),
         Individual::Named(NamedIndividual {

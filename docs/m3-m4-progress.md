@@ -4454,3 +4454,38 @@ A plain IRI is now validated in about 40 ns. Reading a generated 5000-class
 ontology in N-Triples takes 0.025 s instead of 10.8 s, and in Functional Syntax
 3.3 s instead of 8.2 s, where lexing is now the main cost. Totals are 516 Rust
 regressions; the audited theorems and definitions are unchanged.
+
+## Reasoner: EL consistency, taxonomies and lazy preparation
+
+With reading fast, a generated EL ontology with 20 000 classes still took 15 s
+to classify from N-Triples: 60% of the time went into preparing the tableau
+queries, which the saturation never uses but the CLI's consistency check did,
+and 20% into the answer matrix of 400 million pairs.
+
+`saturation::consistent` decides consistency of an EL ontology: the axioms have
+a model exactly when `owl:Nothing` does not subsume `owl:Thing`.
+`saturation::taxonomy` gives the classification as lists: for every listed class
+whether it is satisfiable and, if so, the positions of the listed classes that
+subsume it, found through a table from concepts to the positions of their
+classes, so its size follows the subsumptions rather than the pairs. The proofs
+in `Saturation.lean` now share one set of lemmas over what an accepted
+saturation gives (`Saturated`): a listed class is satisfiable exactly when its
+answer is not empty (`saturated_satisfiable_iff`), a satisfiable class is
+subsumed by a class exactly when the class's concept is among its subsumers
+(`saturated_subsumed_iff`), an unsatisfiable class by every class
+(`saturated_empty_subsumed`), and the axioms have a model exactly when
+`owl:Nothing` does not subsume `owl:Thing` (`saturated_consistent_iff`), the last
+with the lifted canonical model rooted at `owl:Thing`. `classify_correct`,
+`taxonomy_correct` and `consistent_correct` follow from them.
+
+`Reasoner::consistent` and `Reasoner::classify` try the saturation first and the
+tableau otherwise, and the reasoner prepares the tableau queries only when the
+first question that needs them is asked; an ontology whose axioms the queries
+cannot prepare now loads and answers what the saturation answers. The 20 000
+class ontology classifies in 2.2 s from N-Triples, using 210 MB instead of
+672 MB, and in 12 s from Functional Syntax. The regression test also compares
+the taxonomy and the consistency answers with the tableau's on the 400 random
+EL ontologies.
+
+This block adds 13 public theorems and 3 definitions. Totals are 2590 audited
+theorems, 1171 definitions, 516 Rust regressions and 2783 ledger obligations.

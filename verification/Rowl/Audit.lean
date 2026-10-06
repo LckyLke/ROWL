@@ -2708,7 +2708,20 @@ import Rowl.Saturation
 #print axioms Rowl.Saturation.with_anonymous_self
 #print axioms Rowl.Saturation.model_models
 #print axioms Rowl.Saturation.no_instances
+#print axioms Rowl.Saturation.saturated_models
+#print axioms Rowl.Saturation.saturated_witness
+#print axioms Rowl.Saturation.saturated_satisfiable_iff
+#print axioms Rowl.Saturation.saturated_empty_subsumed
+#print axioms Rowl.Saturation.saturated_subsumed_iff
+#print axioms Rowl.Saturation.saturated_consistent_iff
+#print axioms Rowl.Saturation.saturated_concept_of
 #print axioms Rowl.Saturation.classify_correct
+#print axioms Rowl.Saturation.consistent_correct
+#print axioms Rowl.Saturation.positions_from_spec
+#print axioms Rowl.Saturation.append_from_spec
+#print axioms Rowl.Saturation.positions_of_spec
+#print axioms Rowl.Saturation.taxonomy_from_spec
+#print axioms Rowl.Saturation.taxonomy_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -3877,3 +3890,6 @@ import Rowl.Saturation
 #print axioms Rowl.Saturation.Simple
 #print axioms Rowl.Saturation.EmptyAt
 #print axioms Rowl.Saturation.AnswersOk
+#print axioms Rowl.Saturation.Saturated
+#print axioms Rowl.Saturation.Inconsistent
+#print axioms Rowl.Saturation.TaxonomyOk

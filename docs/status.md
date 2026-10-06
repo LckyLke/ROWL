@@ -986,10 +986,16 @@ progress. Full OWL parsing and executable reasoning are still future work.
   satisfies its subsumers and every registered concept that holds at a context
   is one of them (`closed_spec`, `positive`, `negative`, `canonical_models`).
   `classify_correct` proves every answer the Direct Semantics answer under
-  every vocabulary and datatype map. `Reasoner::classify` uses it whenever the
-  ontology is EL and the tableau classification otherwise; on a generated EL
-  ontology with 1000 classes classification takes 1.9 s instead of 19.5 s with
-  the same answers, and one with 20 000 classes takes 47 s, mostly reading.
+  every vocabulary and datatype map. `saturation::taxonomy` gives the same
+  answers as lists of the subsuming classes, in space proportional to the
+  subsumptions rather than the pairs (`taxonomy_correct`), and
+  `saturation::consistent` decides consistency (`consistent_correct`).
+  `Reasoner::classify` and `Reasoner::consistent` use them whenever the
+  ontology is EL and the tableau otherwise, and the reasoner prepares the
+  tableau queries only when a question needs them. A generated EL ontology with
+  1000 classes classifies in 0.6 s instead of 19.5 s with the same answers, and
+  one with 20 000 classes in 2.2 s from N-Triples and 12 s from Functional
+  Syntax, where lexing takes most of the time.
 - Python bindings: the `rowl` package in `bindings/python` reads a
   Functional Syntax or N-Triples document once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
@@ -1011,7 +1017,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2577 audited public theorems and 1168 audited semantic definitions. Consistency,
+- 2590 audited public theorems and 1171 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1024,7 +1030,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
   and data assertions over the five datatypes under the OWL 2 datatype map;
-  EL ontologies are also classified by a proved saturation procedure.
+  EL ontologies are also classified and checked for consistency by a proved
+  saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
 - 516 Rust regression tests and 11 Python binding tests, plus a separately fetched
@@ -1044,7 +1051,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2770-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2783-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

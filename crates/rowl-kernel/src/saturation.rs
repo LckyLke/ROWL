@@ -1932,3 +1932,161 @@ pub fn classify(items: &Vec<AnnotatedAxiom>, classes: &Vec<Class>) -> Option<Cla
         None
     }
 }
+
+/// Whether the axioms of an EL ontology have a model: whether `owl:Nothing`
+/// does not subsume `owl:Thing`; `None` outside the EL fragment.
+pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+    let (_, rules, state, _) = match saturated(items, &Vec::new()) {
+        Some(found) => found,
+        None => return None,
+    };
+    if rules.top < state.subsumers.len() {
+        Some(!has(&state.subsumers[rules.top], rules.bottom))
+    } else {
+        None
+    }
+}
+
+/// The classification of the listed named classes as lists: whether each class
+/// is satisfiable and, for a satisfiable class, the positions of the listed
+/// classes that subsume it (its own among them). An unsatisfiable class is
+/// subsumed by every class and lists none.
+pub struct Taxonomy {
+    pub satisfiable: Vec<bool>,
+    pub supers: Vec<Vec<usize>>,
+}
+
+/// For every concept, the positions of the classes `ids[index..]` with that
+/// concept, added to `out`.
+fn positions_from(ids: &Vec<usize>, index: usize, out: Vec<Vec<usize>>) -> Option<Vec<Vec<usize>>> {
+    if index < ids.len() {
+        match push_item(out, ids[index], index) {
+            Some(out) => positions_from(ids, index + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `items[index..]` added to `out`.
+fn append_from(items: &Vec<usize>, index: usize, mut out: Vec<usize>) -> Option<Vec<usize>> {
+    if index < items.len() {
+        if out.len() < usize::MAX {
+            out.push(items[index]);
+            append_from(items, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The positions of the classes whose concepts are among `list[index..]`,
+/// added to `out`.
+fn positions_of(
+    list: &Vec<usize>,
+    positions: &Vec<Vec<usize>>,
+    index: usize,
+    out: Vec<usize>,
+) -> Option<Vec<usize>> {
+    if index < list.len() {
+        let c = list[index];
+        if c < positions.len() {
+            match append_from(&positions[c], 0, out) {
+                Some(out) => positions_of(list, positions, index + 1, out),
+                None => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The answers for the classes `ids[index..]`.
+fn taxonomy_from(
+    state: &State,
+    bottom: usize,
+    inconsistent: bool,
+    ids: &Vec<usize>,
+    positions: &Vec<Vec<usize>>,
+    index: usize,
+    mut satisfiable: Vec<bool>,
+    mut supers: Vec<Vec<usize>>,
+) -> Option<Taxonomy> {
+    if index < ids.len() {
+        let id = ids[index];
+        if id < state.subsumers.len() {
+            let empty = if inconsistent {
+                true
+            } else {
+                has(&state.subsumers[id], bottom)
+            };
+            let list = if empty {
+                Vec::new()
+            } else {
+                match positions_of(&state.subsumers[id], positions, 0, Vec::new()) {
+                    Some(list) => list,
+                    None => return None,
+                }
+            };
+            if satisfiable.len() < usize::MAX {
+                if supers.len() < usize::MAX {
+                    satisfiable.push(!empty);
+                    supers.push(list);
+                    taxonomy_from(
+                        state,
+                        bottom,
+                        inconsistent,
+                        ids,
+                        positions,
+                        index + 1,
+                        satisfiable,
+                        supers,
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(Taxonomy {
+            satisfiable,
+            supers,
+        })
+    }
+}
+
+/// Classify the named classes of an EL ontology as lists: for every listed
+/// class whether it is satisfiable and, if so, the positions of the listed
+/// classes that subsume it; `None` outside the EL fragment. Unlike `classify`
+/// it takes space in proportion to the subsumptions, not to the pairs.
+pub fn taxonomy(items: &Vec<AnnotatedAxiom>, classes: &Vec<Class>) -> Option<Taxonomy> {
+    let (table, rules, state, ids) = match saturated(items, classes) {
+        Some(found) => found,
+        None => return None,
+    };
+    let positions = match positions_from(&ids, 0, empty_lists(table.concepts.len(), Vec::new())) {
+        Some(positions) => positions,
+        None => return None,
+    };
+    if rules.top < state.subsumers.len() {
+        let inconsistent = has(&state.subsumers[rules.top], rules.bottom);
+        taxonomy_from(
+            &state,
+            rules.bottom,
+            inconsistent,
+            &ids,
+            &positions,
+            0,
+            Vec::new(),
+            Vec::new(),
+        )
+    } else {
+        None
+    }
+}

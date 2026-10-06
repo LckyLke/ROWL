@@ -15,16 +15,16 @@ use rowl::reasoner::{default_limits, named, Classified, LoadError, Reasoner};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
-/// A document read and prepared once.
+/// A document read once.
 pub struct RowlReasoner {
     inner: Reasoner,
 }
 
-/// The document was read and prepared.
+/// The document was read.
 pub const ROWL_LOADED: i32 = 0;
 /// The verified reader rejected the document.
 pub const ROWL_REJECTED: i32 = 1;
-/// The axioms are outside the reasoner's supported fragment.
+/// The read document does not map into the OWL model.
 pub const ROWL_UNSUPPORTED: i32 = 2;
 /// The document pointer was null.
 pub const ROWL_INVALID: i32 = 3;
@@ -157,7 +157,7 @@ pub extern "C" fn rowl_version() -> *const c_char {
     VERSION.as_ptr()
 }
 
-/// Read and prepare a Functional Syntax document. Returns a handle for the
+/// Read a Functional Syntax document. Returns a handle for the
 /// other functions, or null with `status` set to [`ROWL_REJECTED`],
 /// [`ROWL_UNSUPPORTED`] or [`ROWL_INVALID`].
 ///
@@ -182,8 +182,8 @@ pub unsafe extern "C" fn rowl_reasoner_from_functional(
     reasoner
 }
 
-/// Read an N-Triples document and the OWL ontology its graph encodes, and
-/// prepare it. Returns a handle for the other functions, or null with `status`
+/// Read an N-Triples document and the OWL ontology its graph encodes.
+/// Returns a handle for the other functions, or null with `status`
 /// set to [`ROWL_REJECTED`], [`ROWL_UNMAPPED`], [`ROWL_UNSUPPORTED`] or
 /// [`ROWL_INVALID`].
 ///

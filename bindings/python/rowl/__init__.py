@@ -41,7 +41,7 @@ class DocumentRejected(RowlError):
 
 
 class UnsupportedOntology(RowlError):
-    """The document's axioms are outside the reasoner's supported fragment."""
+    """The read document does not map into the OWL model."""
 
 
 @dataclass(frozen=True)
@@ -138,7 +138,7 @@ def _utf8(text: str) -> bytes:
 
 
 class Reasoner:
-    """An OWL Functional Syntax or N-Triples document read and prepared once.
+    """An OWL Functional Syntax or N-Triples document read once.
 
     ``syntax`` is ``"functional"`` (the default) or ``"ntriples"``; an
     N-Triples graph is read as the OWL ontology it encodes by the verified
@@ -168,7 +168,7 @@ class Reasoner:
                 raise DocumentRejected(
                     "the graph is not the RDF mapping of an OWL ontology the verified mapping reads")
             if status.value == _UNSUPPORTED:
-                raise UnsupportedOntology("the axioms are outside the reasoner's supported fragment")
+                raise UnsupportedOntology("the document does not map into the OWL model")
             raise RowlError("the document could not be loaded")
         self._handle = handle
 
@@ -182,7 +182,7 @@ class Reasoner:
         return cls(path.read_bytes(), syntax)
 
     def close(self) -> None:
-        """Release the prepared document; further questions raise ``ValueError``."""
+        """Release the document; further questions raise ``ValueError``."""
         handle, self._handle = getattr(self, "_handle", None), None
         if handle:
             _lib.rowl_reasoner_free(handle)

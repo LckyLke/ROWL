@@ -56928,6 +56928,211 @@ def saturation.classify
         (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec Bool))
     else ok none
 
+/-- [rowl_kernel::saturation::consistent]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1938:0-1948:1
+    Visibility: public -/
+def saturation.consistent
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
+  let o ← saturation.saturated items (alloc.vec.Vec.new model.Class)
+  match o with
+  | none => ok none
+  | some found =>
+    let (_, rules, state, _) := found
+    let i := alloc.vec.Vec.len state.subsumers
+    if rules.top < i
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) state.subsumers rules.top
+      let b ← saturation.has v rules.bottom
+      ok (some (¬ b))
+    else ok none
+
+/-- [rowl_kernel::saturation::Taxonomy]
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1954:0-1957:1
+    Visibility: public -/
+structure saturation.Taxonomy where
+  satisfiable : alloc.vec.Vec Bool
+  supers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
+
+/-- [rowl_kernel::saturation::positions_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1961:0-1970:1 -/
+def saturation.positions_from
+  (ids : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Option (alloc.vec.Vec (alloc.vec.Vec Std.Usize)))
+  := do
+  let i := alloc.vec.Vec.len ids
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) ids
+        index
+    let o ← saturation.push_item out i1 index
+    match o with
+    | none => ok none
+    | some out1 =>
+      let i2 ← index + 1#usize
+      saturation.positions_from ids i2 out1
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::append_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1972:0-1983:1 -/
+def saturation.append_from
+  (items : alloc.vec.Vec Std.Usize) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          items index
+      let out1 ← alloc.vec.Vec.push out i2
+      let i3 ← index + 1#usize
+      saturation.append_from items i3 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::positions_of]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 1986:0-2005:1 -/
+def saturation.positions_of
+  (list : alloc.vec.Vec Std.Usize)
+  (positions : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len list
+  if index < i
+  then
+    let c ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        list index
+    let i1 := alloc.vec.Vec.len positions
+    if c < i1
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec Std.Usize)) positions c
+      let o ← saturation.append_from v 0#usize out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let i2 ← index + 1#usize
+        saturation.positions_of list positions i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::taxonomy_from]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 2007:0-2062:1 -/
+def saturation.taxonomy_from
+  (state : saturation.State) (bottom : Std.Usize) (inconsistent : Bool)
+  (ids : alloc.vec.Vec Std.Usize)
+  (positions : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (index : Std.Usize)
+  (satisfiable : alloc.vec.Vec Bool)
+  (supers : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (Option saturation.Taxonomy)
+  := do
+  let i := alloc.vec.Vec.len ids
+  if index < i
+  then
+    let id ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize) ids
+        index
+    let i1 := alloc.vec.Vec.len state.subsumers
+    if id < i1
+    then
+      let empty ←
+        if inconsistent
+        then ok true
+        else
+          do
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) state.subsumers id
+          saturation.has v bottom
+      if empty
+      then
+        let i2 := alloc.vec.Vec.len satisfiable
+        if i2 < core.num.Usize.MAX
+        then
+          let i3 := alloc.vec.Vec.len supers
+          if i3 < core.num.Usize.MAX
+          then
+            let satisfiable1 ← alloc.vec.Vec.push satisfiable (¬ true)
+            let supers1 ←
+              alloc.vec.Vec.push supers (alloc.vec.Vec.new Std.Usize)
+            let i4 ← index + 1#usize
+            saturation.taxonomy_from state bottom inconsistent ids positions i4
+              satisfiable1 supers1
+          else ok none
+        else ok none
+      else
+        let v ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) state.subsumers id
+        let o ←
+          saturation.positions_of v positions 0#usize (alloc.vec.Vec.new
+            Std.Usize)
+        match o with
+        | none => ok none
+        | some list =>
+          let i2 := alloc.vec.Vec.len satisfiable
+          if i2 < core.num.Usize.MAX
+          then
+            let i3 := alloc.vec.Vec.len supers
+            if i3 < core.num.Usize.MAX
+            then
+              let satisfiable1 ← alloc.vec.Vec.push satisfiable (¬ false)
+              let supers1 ← alloc.vec.Vec.push supers list
+              let i4 ← index + 1#usize
+              saturation.taxonomy_from state bottom inconsistent ids positions
+                i4 satisfiable1 supers1
+            else ok none
+          else ok none
+    else ok none
+  else ok (some { satisfiable, supers })
+partial_fixpoint
+
+/-- [rowl_kernel::saturation::taxonomy]:
+    Source: 'crates/rowl-kernel/src/saturation.rs', lines 2068:0-2092:1
+    Visibility: public -/
+def saturation.taxonomy
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (classes : alloc.vec.Vec model.Class) :
+  Result (Option saturation.Taxonomy)
+  := do
+  let o ← saturation.saturated items classes
+  match o with
+  | none => ok none
+  | some found =>
+    let (table, rules, state, ids) := found
+    let i := alloc.vec.Vec.len table.concepts
+    let v ←
+      saturation.empty_lists i (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+    let o1 ← saturation.positions_from ids 0#usize v
+    match o1 with
+    | none => ok none
+    | some positions =>
+      let i1 := alloc.vec.Vec.len state.subsumers
+      if rules.top < i1
+      then
+        let v1 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            (alloc.vec.Vec Std.Usize)) state.subsumers rules.top
+        let inconsistent ← saturation.has v1 rules.bottom
+        saturation.taxonomy_from state rules.bottom inconsistent ids positions
+          0#usize (alloc.vec.Vec.new Bool) (alloc.vec.Vec.new (alloc.vec.Vec
+          Std.Usize))
+      else ok none
+
 /-- [rowl_kernel::shi_ontology::consistent]:
     Source: 'crates/rowl-kernel/src/shi_ontology.rs', lines 1908:0-1913:1
     Visibility: public -/

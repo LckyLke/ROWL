@@ -31,7 +31,7 @@ fn load(path: &str) -> Result<Reasoner, String> {
             "{path}: the graph is not the RDF mapping of an OWL ontology the verified mapping reads"
         )),
         Err(LoadError::Unsupported) => Err(format!(
-            "{path}: the axioms are outside the reasoner's supported fragment"
+            "{path}: the document does not map into the OWL model"
         )),
     }
 }

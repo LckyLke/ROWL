@@ -27,8 +27,8 @@ outside the supported fragment (see the repository's `docs/status.md`) or a
 limit was reached. `False` means *not entailed by the axioms*, not *proved
 false*. Loading raises `rowl.DocumentRejected` when the verified reader
 rejects the document or its RDF graph is not the mapping of an OWL ontology
-the verified reverse mapping reads, and `rowl.UnsupportedOntology` when its
-axioms are outside the supported fragment.
+the verified reverse mapping reads, and `rowl.UnsupportedOntology` when the
+read document does not map into the OWL model.
 
 | Method | Question |
 | --- | --- |
