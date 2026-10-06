@@ -1,19 +1,22 @@
 //! The mapping from RDF graphs to OWL 2 ontologies (OWL 2 Mapping to RDF
-//! Graphs, 2012, §3), for graphs whose axioms and annotations carry no
-//! annotations of their own.
+//! Graphs, 2012, §3), for axioms with or without annotations.
 //!
-//! Declarations are read first and fix which IRIs name object, data and
-//! annotation properties and datatypes, together with the built-in vocabulary.
-//! The ontology header follows: an IRI typed `owl:Ontology` with its version
-//! IRI, imports and annotations. Every other triple that can start an axiom is
-//! then read in graph order, together with the blank nodes of its class
-//! expressions, data ranges, inverse properties and lists, and every triple
-//! read is marked used. The mapping succeeds only when every triple is used or
-//! repeats a used one, and it returns the blank nodes it read for expressions,
-//! lists and axiom nodes in the order in which the forward mapping of the
-//! result allocates them. `None` means that the graph is not the image of such
-//! an ontology under the forward mapping (§2), that the type of an entity is
-//! missing or ambiguous, or that a cardinality exceeds `usize`.
+//! The declarations are collected first and fix which IRIs name object, data
+//! and annotation properties and datatypes, together with the built-in
+//! vocabulary. The ontology header follows: an IRI typed `owl:Ontology` with its
+//! version IRI, imports and annotations. Every other triple that can start an
+//! axiom is then read in graph order, together with the blank nodes of its class
+//! expressions, data ranges, inverse properties and lists, and every triple read
+//! is marked used. An axiom's annotations are those of the blank node that
+//! reifies its main triple (typed `owl:Axiom`, §2.3.1), or of the blank node
+//! that represents it (§2.3.3); an annotation's own annotations are those of the
+//! blank node typed `owl:Annotation` that reifies its triple (§2.2). The mapping
+//! succeeds only when every triple is used or repeats a used one, and it returns
+//! the blank nodes it read for expressions, lists, axiom nodes and reifications
+//! in the order in which the forward mapping of the result allocates them.
+//! `None` means that the graph is not the image of such an ontology under the
+//! forward mapping (§2), that the type of an entity is missing or ambiguous, or
+//! that a cardinality exceeds `usize`.
 #![allow(
     clippy::ptr_arg,
     clippy::collapsible_if,
@@ -28,7 +31,8 @@
     clippy::large_enum_variant,
     clippy::match_like_matches_macro,
     clippy::if_same_then_else,
-    clippy::type_complexity
+    clippy::type_complexity,
+    clippy::redundant_pattern_matching
 )] // Indexed operations, explicit branches and pushes for the pinned extraction subset.
 
 use crate::builtins::builtin_kind;
@@ -58,6 +62,9 @@ pub struct State {
     pub used: Vec<bool>,
     pub blanks: Vec<BlankNode>,
     pub subjects: Vec<Vec<usize>>,
+    /// The positions of the `owl:annotatedSource` triples of blank nodes,
+    /// bucketed by the hash of their object in ascending order.
+    pub sources: Vec<Vec<usize>>,
 }
 
 /// A declared IRI and its kind.
@@ -246,6 +253,24 @@ fn hash_iri(spelling: &Vec<u8>) -> usize {
     hash_from(spelling, 0, 7)
 }
 
+/// The hash of the subject of a triple.
+fn hash_subject(subject: &Subject) -> usize {
+    match subject {
+        Subject::Iri(iri) => hash_iri(&iri.spelling),
+        Subject::Blank(node) => hash_blank(node),
+    }
+}
+
+/// The hash of the object of a triple; an IRI or a blank node hashes as it
+/// does as a subject.
+fn hash_object(object: &Object) -> usize {
+    match object {
+        Object::Iri(iri) => hash_iri(&iri.spelling),
+        Object::Blank(node) => hash_blank(node),
+        Object::Literal(literal) => hash_iri(&literal.lexical),
+    }
+}
+
 /// The bucket of a hash among `count` buckets.
 fn bucket_of(hash: usize, count: usize) -> usize {
     if 0 < count {
@@ -285,6 +310,39 @@ fn subjects_from(
             }
             Subject::Iri(_) => subjects_from(triples, index + 1, buckets),
         }
+    } else {
+        buckets
+    }
+}
+
+/// Whether the triple is an `owl:annotatedSource` triple of a blank node.
+fn is_source(triple: &Triple) -> bool {
+    match &triple.subject {
+        Subject::Blank(_) => same(
+            &triple.predicate.spelling,
+            b"http://www.w3.org/2002/07/owl#annotatedSource",
+        ),
+        Subject::Iri(_) => false,
+    }
+}
+
+/// The buckets with the positions of the `owl:annotatedSource` triples of blank
+/// nodes of `triples[index..]` added to the bucket of their object.
+fn sources_from(
+    triples: &Vec<Triple>,
+    index: usize,
+    mut buckets: Vec<Vec<usize>>,
+) -> Vec<Vec<usize>> {
+    if index < triples.len() {
+        if is_source(&triples[index]) {
+            let bucket = bucket_of(hash_object(&triples[index].object), buckets.len());
+            if bucket < buckets.len() {
+                if buckets[bucket].len() < usize::MAX {
+                    buckets[bucket].push(index);
+                }
+            }
+        }
+        sources_from(triples, index + 1, buckets)
     } else {
         buckets
     }
@@ -2897,14 +2955,28 @@ fn typing(triples: &Vec<Triple>, kinds: &Kinds, index: usize, state: State, fuel
         if blank_subject(&triples[index]) {
             Read::Skip(state)
         } else {
-            Read::Fail
+            declaration(triples, index, state)
         }
     } else if object_is(object, b"http://www.w3.org/2000/01/rdf-schema#Datatype") {
         if blank_subject(&triples[index]) {
             Read::Skip(state)
         } else {
+            declaration(triples, index, state)
+        }
+    } else if object_is(object, b"http://www.w3.org/2002/07/owl#Axiom") {
+        if blank_subject(&triples[index]) {
+            Read::Skip(state)
+        } else {
             Read::Fail
         }
+    } else if object_is(object, b"http://www.w3.org/2002/07/owl#Annotation") {
+        if blank_subject(&triples[index]) {
+            Read::Skip(state)
+        } else {
+            Read::Fail
+        }
+    } else if declares(object) {
+        declaration(triples, index, state)
     } else if object_is(object, b"http://www.w3.org/2002/07/owl#FunctionalProperty") {
         characteristic(triples, kinds, index, state, 0)
     } else if object_is(
@@ -2940,6 +3012,28 @@ fn typing(triples: &Vec<Triple>, kinds: &Kinds, index: usize, state: State, fuel
         Read::Fail
     } else {
         class_assertion(triples, kinds, index, state, fuel)
+    }
+}
+
+/// Whether the object is a type that declares an entity.
+fn declares(object: &Object) -> bool {
+    match declaration_kind(object) {
+        Some(_) => true,
+        None => false,
+    }
+}
+
+/// The declaration of the main triple at `index`.
+fn declaration(triples: &Vec<Triple>, index: usize, state: State) -> Read {
+    match &triples[index].subject {
+        Subject::Iri(iri) => match declaration_kind(&triples[index].object) {
+            Some(kind) => Read::Found(
+                Axiom::Declaration(entity_of(&kind, &iri.spelling)),
+                take(state, index),
+            ),
+            None => Read::Fail,
+        },
+        Subject::Blank(_) => Read::Fail,
     }
 }
 
@@ -2996,20 +3090,31 @@ fn assertion(triples: &Vec<Triple>, kinds: &Kinds, index: usize, state: State) -
             },
             None => Read::Fail,
         },
-        Some(PropertyKind::Annotation) => match annotation_value(&triple.object) {
+        Some(PropertyKind::Annotation) => annotation_assertion(triples, index, state),
+        None => Read::Fail,
+    }
+}
+
+/// An annotation assertion, unless its subject is the blank node of a
+/// reification or of an axiom represented by a blank node: such annotation
+/// triples are read with that node.
+fn annotation_assertion(triples: &Vec<Triple>, index: usize, state: State) -> Read {
+    if reifier_subject(triples, &state, &triples[index].subject) {
+        Read::Skip(state)
+    } else {
+        match annotation_value(&triples[index].object) {
             Some(value) => Read::Found(
                 Axiom::AnnotationAssertion(
                     AnnotationProperty {
-                        iri: iri_of(&triple.predicate.spelling),
+                        iri: iri_of(&triples[index].predicate.spelling),
                     },
-                    annotation_subject(&triple.subject),
+                    annotation_subject(&triples[index].subject),
                     value,
                 ),
                 take(state, index),
             ),
             None => Read::Fail,
-        },
-        None => Read::Fail,
+        }
     }
 }
 
@@ -3034,6 +3139,502 @@ fn annotation_value(node: &Object) -> Option<AnnotationValue> {
             Some(value) => Some(AnnotationValue::Literal(value)),
             None => None,
         },
+    }
+}
+
+/// Whether the object is the IRI spelled `spelling`.
+fn object_spells(object: &Object, spelling: &Vec<u8>) -> bool {
+    match object {
+        Object::Iri(iri) => same_vec(&iri.spelling, spelling),
+        _ => false,
+    }
+}
+
+/// Whether the object is the node the subject is.
+fn subject_is(object: &Object, subject: &Subject) -> bool {
+    match subject {
+        Subject::Iri(iri) => object_spells(object, &iri.spelling),
+        Subject::Blank(node) => match object {
+            Object::Blank(blank) => same_blank(blank, node),
+            _ => false,
+        },
+    }
+}
+
+/// The positions of the unused `owl:annotatedProperty`, `owl:annotatedTarget`
+/// and `rdf:type` triples of `node` that make it reify `main` as `kind`.
+fn reifier_parts(
+    triples: &Vec<Triple>,
+    state: &State,
+    node: &BlankNode,
+    main: &Triple,
+    kind: &[u8],
+) -> Option<(usize, usize, usize)> {
+    match find(
+        triples,
+        state,
+        node,
+        b"http://www.w3.org/2002/07/owl#annotatedProperty",
+    ) {
+        Some(property) => {
+            if object_spells(&triples[property].object, &main.predicate.spelling) {
+                match find(
+                    triples,
+                    state,
+                    node,
+                    b"http://www.w3.org/2002/07/owl#annotatedTarget",
+                ) {
+                    Some(target) => {
+                        if same_object(&triples[target].object, &main.object) {
+                            match find_type(triples, state, node, kind) {
+                                Some(typing) => Some((property, target, typing)),
+                                None => None,
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            }
+        }
+        None => None,
+    }
+}
+
+/// The positions of the four triples of the reification of `main` as `kind`
+/// whose `owl:annotatedSource` triple is `triple`, at `source`, all unused.
+fn reifier_source(
+    triples: &Vec<Triple>,
+    state: &State,
+    main: &Triple,
+    kind: &[u8],
+    source: usize,
+    triple: &Triple,
+) -> Option<(usize, usize, usize, usize)> {
+    match &triple.subject {
+        Subject::Blank(node) => {
+            if same(
+                &triple.predicate.spelling,
+                b"http://www.w3.org/2002/07/owl#annotatedSource",
+            ) {
+                if subject_is(&triple.object, &main.subject) {
+                    match reifier_parts(triples, state, node, main, kind) {
+                        Some((property, target, typing)) => {
+                            Some((source, property, target, typing))
+                        }
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        Subject::Iri(_) => None,
+    }
+}
+
+/// The reification of `main` as `kind` whose unused `owl:annotatedSource`
+/// triple is at `source`.
+fn reifier_at(
+    triples: &Vec<Triple>,
+    state: &State,
+    main: &Triple,
+    kind: &[u8],
+    source: usize,
+) -> Option<(usize, usize, usize, usize)> {
+    if source < triples.len() {
+        if is_used(&state.used, source) {
+            None
+        } else {
+            reifier_source(triples, state, main, kind, source, &triples[source])
+        }
+    } else {
+        None
+    }
+}
+
+/// The first reification of `main` as `kind` with its `owl:annotatedSource`
+/// triple in `bucket[k..]`.
+fn reifier_in(
+    triples: &Vec<Triple>,
+    state: &State,
+    main: &Triple,
+    kind: &[u8],
+    bucket: &Vec<usize>,
+    k: usize,
+) -> Option<(usize, usize, usize, usize)> {
+    if k < bucket.len() {
+        match reifier_at(triples, state, main, kind, bucket[k]) {
+            Some(found) => Some(found),
+            None => reifier_in(triples, state, main, kind, bucket, k + 1),
+        }
+    } else {
+        None
+    }
+}
+
+/// The positions of the `owl:annotatedSource`, `owl:annotatedProperty`,
+/// `owl:annotatedTarget` and `rdf:type` triples of an unused blank node that
+/// reifies `main` as `kind`, among the triples of its bucket.
+fn reifier(
+    triples: &Vec<Triple>,
+    state: &State,
+    main: &Triple,
+    kind: &[u8],
+) -> Option<(usize, usize, usize, usize)> {
+    let bucket = bucket_of(hash_subject(&main.subject), state.sources.len());
+    if bucket < state.sources.len() {
+        reifier_in(triples, state, main, kind, &state.sources[bucket], 0)
+    } else {
+        None
+    }
+}
+
+/// Whether the predicate is an annotation property.
+fn is_annotation(kinds: &Kinds, name: &Vec<u8>) -> bool {
+    match property_kind(kinds, name) {
+        Some(PropertyKind::Annotation) => true,
+        _ => false,
+    }
+}
+
+/// Whether the triple at `index` is unused, about `node` and has an
+/// annotation property as its predicate.
+fn fits_annotation(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    used: &Vec<bool>,
+    index: usize,
+    node: &BlankNode,
+) -> bool {
+    if index < triples.len() {
+        if is_used(used, index) {
+            false
+        } else if about(&triples[index], node) {
+            is_annotation(kinds, &triples[index].predicate.spelling)
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// The first position of `bucket[k..]` whose triple is an unused annotation of
+/// `node`.
+fn find_annotation_in(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    used: &Vec<bool>,
+    bucket: &Vec<usize>,
+    node: &BlankNode,
+    k: usize,
+) -> Option<usize> {
+    if k < bucket.len() {
+        if fits_annotation(triples, kinds, used, bucket[k], node) {
+            Some(bucket[k])
+        } else {
+            find_annotation_in(triples, kinds, used, bucket, node, k + 1)
+        }
+    } else {
+        None
+    }
+}
+
+/// The first unused annotation triple of `node`, among the triples of its bucket.
+fn find_annotation(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    state: &State,
+    node: &BlankNode,
+) -> Option<usize> {
+    let bucket = bucket_of(hash_blank(node), state.subjects.len());
+    if bucket < state.subjects.len() {
+        find_annotation_in(
+            triples,
+            kinds,
+            &state.used,
+            &state.subjects[bucket],
+            node,
+            0,
+        )
+    } else {
+        None
+    }
+}
+
+/// The annotations of the reification of the triple at `main` as `kind`: none
+/// when it has none; otherwise its four triples used, its node recorded and
+/// its annotations read, of which there must be one at least.
+fn reified(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    main: usize,
+    kind: &[u8],
+    state: State,
+    fuel: usize,
+) -> Option<(Vec<Annotation>, State)> {
+    match reifier(triples, &state, &triples[main], kind) {
+        Some((source, property, target, typing)) => match &triples[source].subject {
+            Subject::Blank(node) => {
+                let state = take(take(take(take(state, source), property), target), typing);
+                let state = record(state, node);
+                match node_annotations(triples, kinds, node, state, Vec::new(), fuel) {
+                    Some((annotations, state)) => {
+                        if 0 < annotations.len() {
+                            Some((annotations, state))
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }
+            }
+            Subject::Iri(_) => None,
+        },
+        None => Some((Vec::new(), state)),
+    }
+}
+
+/// `out` followed by the annotations of `node` in its unused triples whose
+/// predicate is an annotation property, in order, each with the annotations of
+/// the reification of its triple.
+fn node_annotations(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    node: &BlankNode,
+    state: State,
+    mut out: Vec<Annotation>,
+    fuel: usize,
+) -> Option<(Vec<Annotation>, State)> {
+    match find_annotation(triples, kinds, &state, node) {
+        Some(index) => {
+            if 0 < fuel {
+                match annotation_value(&triples[index].object) {
+                    Some(value) => {
+                        match reified(
+                            triples,
+                            kinds,
+                            index,
+                            b"http://www.w3.org/2002/07/owl#Annotation",
+                            take(state, index),
+                            fuel - 1,
+                        ) {
+                            Some((inner, state)) => {
+                                if out.len() < usize::MAX {
+                                    out.push(Annotation {
+                                        annotations: inner,
+                                        property: AnnotationProperty {
+                                            iri: iri_of(&triples[index].predicate.spelling),
+                                        },
+                                        value,
+                                    });
+                                    node_annotations(triples, kinds, node, state, out, fuel - 1)
+                                } else {
+                                    None
+                                }
+                            }
+                            None => None,
+                        }
+                    }
+                    None => None,
+                }
+            } else {
+                None
+            }
+        }
+        None => Some((out, state)),
+    }
+}
+
+/// How the annotations of an axiom are mapped: 0 for an axiom represented by
+/// a blank node (§2.3.3), 1 for an axiom with one main triple (§2.3.1), 2 for
+/// an equivalence or equality of three or more, which has several (§2.3.2).
+fn main_triples(axiom: &Axiom) -> u8 {
+    match axiom {
+        Axiom::NegativeObjectPropertyAssertion(_, _, _) => 0,
+        Axiom::NegativeDataPropertyAssertion(_, _, _) => 0,
+        Axiom::DisjointClasses(members) => {
+            if 0 < members.rest.len() {
+                0
+            } else {
+                1
+            }
+        }
+        Axiom::DisjointObjectProperties(members) => {
+            if 0 < members.rest.len() {
+                0
+            } else {
+                1
+            }
+        }
+        Axiom::DisjointDataProperties(members) => {
+            if 0 < members.rest.len() {
+                0
+            } else {
+                1
+            }
+        }
+        Axiom::DifferentIndividuals(members) => {
+            if 0 < members.rest.len() {
+                0
+            } else {
+                1
+            }
+        }
+        Axiom::EquivalentClasses(members) => {
+            if 0 < members.rest.len() {
+                2
+            } else {
+                1
+            }
+        }
+        Axiom::EquivalentObjectProperties(members) => {
+            if 0 < members.rest.len() {
+                2
+            } else {
+                1
+            }
+        }
+        Axiom::EquivalentDataProperties(members) => {
+            if 0 < members.rest.len() {
+                2
+            } else {
+                1
+            }
+        }
+        Axiom::SameIndividual(members) => {
+            if 0 < members.rest.len() {
+                2
+            } else {
+                1
+            }
+        }
+        _ => 1,
+    }
+}
+
+/// The axiom read from the main triple at `index` with its annotations: those
+/// of its own blank node, or those of the reification of its main triple.
+fn annotate(
+    triples: &Vec<Triple>,
+    kinds: &Kinds,
+    index: usize,
+    axiom: Axiom,
+    state: State,
+    fuel: usize,
+) -> Option<(AnnotatedAxiom, State)> {
+    let shape = main_triples(&axiom);
+    if shape == 0 {
+        match &triples[index].subject {
+            Subject::Blank(node) => {
+                match node_annotations(triples, kinds, node, state, Vec::new(), fuel) {
+                    Some((annotations, state)) => {
+                        Some((AnnotatedAxiom { annotations, axiom }, state))
+                    }
+                    None => None,
+                }
+            }
+            Subject::Iri(_) => None,
+        }
+    } else if shape == 1 {
+        match reified(
+            triples,
+            kinds,
+            index,
+            b"http://www.w3.org/2002/07/owl#Axiom",
+            state,
+            fuel,
+        ) {
+            Some((annotations, state)) => Some((AnnotatedAxiom { annotations, axiom }, state)),
+            None => None,
+        }
+    } else {
+        None
+    }
+}
+
+/// Whether the object is a type of the blank nodes of reifications and of
+/// axioms represented by blank nodes (§3.1.2, Table 8).
+fn reifier_type(object: &Object) -> bool {
+    if object_is(object, b"http://www.w3.org/2002/07/owl#Axiom") {
+        true
+    } else if object_is(object, b"http://www.w3.org/2002/07/owl#Annotation") {
+        true
+    } else if object_is(object, b"http://www.w3.org/2002/07/owl#AllDisjointClasses") {
+        true
+    } else if object_is(
+        object,
+        b"http://www.w3.org/2002/07/owl#AllDisjointProperties",
+    ) {
+        true
+    } else if object_is(object, b"http://www.w3.org/2002/07/owl#AllDifferent") {
+        true
+    } else {
+        object_is(
+            object,
+            b"http://www.w3.org/2002/07/owl#NegativePropertyAssertion",
+        )
+    }
+}
+
+/// Whether the triple at `index` types `node` with a type of Table 8.
+fn reifier_typing(triples: &Vec<Triple>, index: usize, node: &BlankNode) -> bool {
+    if index < triples.len() {
+        if about(&triples[index], node) {
+            if same(
+                &triples[index].predicate.spelling,
+                b"http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+            ) {
+                reifier_type(&triples[index].object)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+/// Whether a triple of `bucket[k..]` types `node` with a type of Table 8.
+fn typed_reifier_in(
+    triples: &Vec<Triple>,
+    bucket: &Vec<usize>,
+    node: &BlankNode,
+    k: usize,
+) -> bool {
+    if k < bucket.len() {
+        if reifier_typing(triples, bucket[k], node) {
+            true
+        } else {
+            typed_reifier_in(triples, bucket, node, k + 1)
+        }
+    } else {
+        false
+    }
+}
+
+/// Whether the subject is a blank node that a reification or an axiom
+/// represented by a blank node owns: its annotation triples wait for that
+/// axiom or annotation.
+fn reifier_subject(triples: &Vec<Triple>, state: &State, subject: &Subject) -> bool {
+    match subject {
+        Subject::Blank(node) => {
+            let bucket = bucket_of(hash_blank(node), state.subjects.len());
+            if bucket < state.subjects.len() {
+                typed_reifier_in(triples, &state.subjects[bucket], node, 0)
+            } else {
+                false
+            }
+        }
+        Subject::Iri(_) => false,
     }
 }
 
@@ -3113,14 +3714,16 @@ fn axioms_from(
             match read_axiom(triples, kinds, index, state, triples.len()) {
                 Read::Skip(state) => axioms_from(triples, kinds, index + 1, state, out),
                 Read::Found(axiom, state) => {
-                    if out.len() < usize::MAX {
-                        out.push(AnnotatedAxiom {
-                            annotations: Vec::new(),
-                            axiom,
-                        });
-                        axioms_from(triples, kinds, index + 1, state, out)
-                    } else {
-                        None
+                    match annotate(triples, kinds, index, axiom, state, triples.len()) {
+                        Some((annotated, state)) => {
+                            if out.len() < usize::MAX {
+                                out.push(annotated);
+                                axioms_from(triples, kinds, index + 1, state, out)
+                            } else {
+                                None
+                            }
+                        }
+                        None => None,
                     }
                 }
                 Read::Fail => None,
@@ -3177,51 +3780,36 @@ fn add_kind(mut kinds: Kinds, iri: Vec<u8>, kind: EntityKind) -> Option<Kinds> {
     }
 }
 
-/// The declarations of `triples[index..]`, after `axioms` and `kinds`, used.
-fn declarations(
-    triples: &Vec<Triple>,
-    index: usize,
-    state: State,
-    mut axioms: Vec<AnnotatedAxiom>,
-    kinds: Kinds,
-) -> Option<(Vec<AnnotatedAxiom>, Kinds, State)> {
-    if index < triples.len() {
-        let triple = &triples[index];
-        let declared = if same(
-            &triple.predicate.spelling,
-            b"http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
-        ) {
-            match &triple.subject {
-                Subject::Iri(iri) => match declaration_kind(&triple.object) {
-                    Some(kind) => Some((copy_bytes(&iri.spelling), kind)),
-                    None => None,
-                },
-                Subject::Blank(_) => None,
-            }
-        } else {
-            None
-        };
-        match declared {
-            Some((spelling, kind)) => {
-                if axioms.len() < usize::MAX {
-                    axioms.push(AnnotatedAxiom {
-                        annotations: Vec::new(),
-                        axiom: Axiom::Declaration(entity_of(&kind, &spelling)),
-                    });
-                    match add_kind(kinds, spelling, kind) {
-                        Some(kinds) => {
-                            declarations(triples, index + 1, take(state, index), axioms, kinds)
-                        }
-                        None => None,
-                    }
-                } else {
-                    None
-                }
-            }
-            None => declarations(triples, index + 1, state, axioms, kinds),
+/// The IRI and kind a declaration triple declares.
+fn declared_entity(triple: &Triple) -> Option<(Vec<u8>, EntityKind)> {
+    if same(
+        &triple.predicate.spelling,
+        b"http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+    ) {
+        match &triple.subject {
+            Subject::Iri(iri) => match declaration_kind(&triple.object) {
+                Some(kind) => Some((copy_bytes(&iri.spelling), kind)),
+                None => None,
+            },
+            Subject::Blank(_) => None,
         }
     } else {
-        Some((axioms, kinds, state))
+        None
+    }
+}
+
+/// `kinds` with the declarations of `triples[index..]`.
+fn declared_kinds(triples: &Vec<Triple>, index: usize, kinds: Kinds) -> Option<Kinds> {
+    if index < triples.len() {
+        match declared_entity(&triples[index]) {
+            Some((spelling, kind)) => match add_kind(kinds, spelling, kind) {
+                Some(kinds) => declared_kinds(triples, index + 1, kinds),
+                None => None,
+            },
+            None => declared_kinds(triples, index + 1, kinds),
+        }
+    } else {
+        Some(kinds)
     }
 }
 
@@ -3332,27 +3920,37 @@ fn header_parts(
                 match property_kind(kinds, name) {
                     Some(PropertyKind::Annotation) => {
                         match annotation_value(&triples[index].object) {
-                            Some(value) => {
-                                if annotations.len() < usize::MAX {
-                                    annotations.push(Annotation {
-                                        annotations: Vec::new(),
-                                        property: AnnotationProperty { iri: iri_of(name) },
-                                        value,
-                                    });
-                                    header_parts(
-                                        triples,
-                                        kinds,
-                                        ontology,
-                                        index + 1,
-                                        take(state, index),
-                                        version,
-                                        imports,
-                                        annotations,
-                                    )
-                                } else {
-                                    None
+                            Some(value) => match reified(
+                                triples,
+                                kinds,
+                                index,
+                                b"http://www.w3.org/2002/07/owl#Annotation",
+                                take(state, index),
+                                triples.len(),
+                            ) {
+                                Some((inner, state)) => {
+                                    if annotations.len() < usize::MAX {
+                                        annotations.push(Annotation {
+                                            annotations: inner,
+                                            property: AnnotationProperty { iri: iri_of(name) },
+                                            value,
+                                        });
+                                        header_parts(
+                                            triples,
+                                            kinds,
+                                            ontology,
+                                            index + 1,
+                                            state,
+                                            version,
+                                            imports,
+                                            annotations,
+                                        )
+                                    } else {
+                                        None
+                                    }
                                 }
-                            }
+                                None => None,
+                            },
                             None => None,
                         }
                     }
@@ -3432,16 +4030,17 @@ fn unused(count: usize, mut out: Vec<bool>) -> Vec<bool> {
 pub fn map_graph(graph: &RawGraph) -> Option<Mapped> {
     let triples = &graph.triples;
     let count = bucket_count(triples.len());
-    let state = State {
-        used: unused(triples.len(), Vec::new()),
-        blanks: Vec::new(),
-        subjects: subjects_from(triples, 0, empty_buckets(count, Vec::new())),
-    };
     let kinds = Kinds {
         buckets: empty_buckets(count, Vec::new()),
     };
-    match declarations(triples, 0, state, Vec::new(), kinds) {
-        Some((axioms, kinds, state)) => {
+    match declared_kinds(triples, 0, kinds) {
+        Some(kinds) => {
+            let state = State {
+                used: unused(triples.len(), Vec::new()),
+                blanks: Vec::new(),
+                subjects: subjects_from(triples, 0, empty_buckets(count, Vec::new())),
+                sources: sources_from(triples, 0, empty_buckets(count, Vec::new())),
+            };
             let (identity, imports, annotations, state) = match find_header(triples, &state.used, 0)
             {
                 Some(header) => match &triples[header].subject {
@@ -3473,7 +4072,7 @@ pub fn map_graph(graph: &RawGraph) -> Option<Mapped> {
                 },
                 None => (OntologyIdentity::Anonymous, Vec::new(), Vec::new(), state),
             };
-            match axioms_from(triples, &kinds, 0, state, axioms) {
+            match axioms_from(triples, &kinds, 0, state, Vec::new()) {
                 Some((axioms, state)) => {
                     if all_read(triples, &state.used, 0) {
                         Some(Mapped {

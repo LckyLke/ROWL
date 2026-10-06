@@ -120,7 +120,7 @@ document reading now compose those stages with totality and complete-acceptance
 proofs. Exact ordered graph occurrences, caller-scope blank identities, repeated
 triples, count-limit outcomes and first errors are checked. Canonical identity
 assignment across imports, the completeness of the RDF-to-OWL mapping (proved
-sound for axioms without annotations of their own) and parse-after-write graph-
+sound, annotated axioms and annotations included) and parse-after-write graph-
 isomorphism laws remain pending. Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 

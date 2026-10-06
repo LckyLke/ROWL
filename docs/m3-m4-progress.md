@@ -4531,3 +4531,81 @@ reads a graph of 1000 restrictions whose triples are far apart.
 This block adds 6 public theorems and no definitions, and removes
 `copy_kind_identity` with the function it described. Totals are 2595 audited
 theorems, 1171 definitions, 517 Rust regressions and 2788 ledger obligations.
+
+## M3: annotated axioms in the RDF mapping
+
+`rdf_mapping::map_graph` read only axioms, headers and ontology annotations
+without annotations of their own. It now reads them with their annotations, as
+the OWL 2 mapping to RDF graphs writes them (§2.2, §2.3). An annotation whose
+own annotations are not empty is reified by a blank node typed
+`owl:Annotation`, with `owl:annotatedSource`, `owl:annotatedProperty` and
+`owl:annotatedTarget` triples naming its triple, and that node carries the
+annotations (Table 2). An axiom with annotations keeps its main triple, which a
+blank node typed `owl:Axiom` reifies in the same way and which carries the
+annotations (§2.3.1). The annotations of an axiom that a blank node represents,
+an `owl:AllDisjointClasses`, `owl:AllDisjointProperties`, `owl:AllDifferent` or
+`owl:NegativePropertyAssertion` node, are on that node (§2.3.3).
+
+The reader first only collects which IRIs are declared with which kind; the
+declaration triples are then read in graph order like the other axioms, so that
+annotated declarations are read with their reifications. After reading an
+axiom from its main triple it looks for an unused blank node of the right type
+that reifies that triple, through a third index: the positions of the
+`owl:annotatedSource` triples bucketed by a hash of their object (`reifier`). It
+takes the four triples of the reification and every unused triple of its node
+whose predicate is an annotation property, each with the annotations of its own
+reification (`reified`, `node_annotations`); a reification without annotations
+is refused. Axioms represented by a blank node read the annotations of that node
+(`annotate`, `main_triples`). The main loop leaves the annotation triples of
+reification nodes and of axiom nodes, which it recognizes by their types
+(§3.1.2, Table 8), to the axiom that reads them, so the triples of a graph may
+come in any order.
+
+`RdfMapping.lean` states the forward mapping of annotations and annotated
+axioms independently of the Rust code: `TAnn` and `TAnns` translate annotations
+of a node (Table 2), `TReified` reifies main triples, `mainTriples` says how
+many main triples the row of Table 1 of an axiom has (one, one per consecutive
+pair of members for equivalences and equalities, §2.3.2, or none for axioms
+represented by blank nodes), and `TAnnotatedAxiom` maps an axiom with its
+annotations. `TAxiom` lists the main triples of each row of Table 1 first, as
+the table writes them. `THeader` maps ontology annotations with theirs, and
+`TOntology` allocates the blank nodes of the header before those of the axioms.
+The readers' contract `ReadOk` now also says that the triples of an axiom start
+with the pattern of the triple the reader started from (`matches_mk`), and
+`declaration_spec` and `annotation_assertion_spec` cover the two new readers.
+`reifier_spec` and `take_reifier` prove that a found reification is four unused
+triples that reify the main triple, `annotations_right` proves the annotation
+readers right by induction on their fuel, `main_triples_spec` relates the
+reader's classification to `mainTriples`, and `annotate_spec` gives the
+annotated axiom. `map_graph_correct` keeps its statement over the extended
+relations: whenever `map_graph` returns an ontology and its blank nodes, the
+forward mapping of that ontology, annotations included, allocating exactly
+those blank nodes, gives the input graph.
+
+The forward mapping reifies an annotated annotation assertion with a node
+typed `owl:Axiom` (§2.3.1), and the reader reads it so; the reverse mapping of
+§3.2.2 would instead take it from a node typed `owl:Annotation`, which the
+forward mapping never writes, and such graphs are refused. Reading several
+reifications of one main triple, for structurally different axioms with the
+same main triple, is not supported, and neither is an annotated annotation
+assertion about the ontology IRI, whose triple the header reads as an ontology
+annotation. Not proved: that the forward mapping of every ontology is read
+back, `owl:imports` closure, that the returned blank nodes are distinct, and RDF
+datasets.
+
+`examples/medication-safety-annotated.nt` is the mapping of
+`medication-safety.ofn` with its two axiom annotations; the CLI and the
+reasoner load it with the same answers as the unannotated graph. Regression
+tests read it, a graph with annotations of every kind (nested, on declarations,
+on axioms represented by blank nodes, on annotation assertions and on the
+header, with reifications before their main triples) with its exact blank-node
+order, and refuse reifications without annotations, of missing triples or of
+the wrong type.
+
+Looking for reifications costs little: el20000.nt now maps in 0.072 s (0.063 s
+after the indexed lookups), and `rowl classify` on it takes 0.40 s with the same
+output.
+
+This block adds 24 public theorems and 6 definitions, and removes
+`declarations_spec` and `TAnnotation`. Totals are 2618 audited theorems, 1176
+definitions, 520 Rust regressions and 2811 ledger obligations.
