@@ -31482,7 +31482,7 @@ structure roles.Role where
   inverse : Bool
 
 /-- [rowl_kernel::dl_validity::DlCheck]
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 55:0-129:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 58:0-132:1
     Visibility: public -/
 @[discriminant isize]
 inductive dl_validity.DlCheck where
@@ -31525,7 +31525,7 @@ inductive dl_validity.DlCheck where
 | AnonymousNoBoundaryRoot : model.AnonymousIndividual → dl_validity.DlCheck
 
 /-- [rowl_kernel::dl_validity::TypingCheck]
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 132:0-146:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 135:0-149:1
     Visibility: public -/
 @[discriminant isize]
 inductive dl_validity.TypingCheck where
@@ -31541,7 +31541,7 @@ inductive dl_validity.TypingCheck where
   dl_validity.TypingCheck
 
 /-- [rowl_kernel::dl_validity::DeclarationCheck]
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 149:0-156:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 152:0-159:1
     Visibility: public -/
 @[discriminant isize]
 inductive dl_validity.DeclarationCheck where
@@ -31549,7 +31549,7 @@ inductive dl_validity.DeclarationCheck where
 | Undeclared : model.Iri → typing.EntityKind → dl_validity.DeclarationCheck
 
 /-- [rowl_kernel::dl_validity::same_kind]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 158:0-171:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 161:0-174:1 -/
 def dl_validity.same_kind
   (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
   match left with
@@ -31603,7 +31603,7 @@ def dl_validity.same_kind
     | typing.EntityKind.NamedIndividual => ok true
 
 /-- [rowl_kernel::dl_validity::forbidden]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 175:0-187:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 178:0-190:1 -/
 def dl_validity.forbidden
   (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
   match left with
@@ -31650,7 +31650,7 @@ def dl_validity.forbidden
   | typing.EntityKind.NamedIndividual => ok false
 
 /-- [rowl_kernel::dl_validity::same_before]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 189:0-195:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 192:0-198:1 -/
 def dl_validity.same_before
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
   («end» : Std.Usize) :
@@ -31671,7 +31671,7 @@ def dl_validity.same_before
 partial_fixpoint
 
 /-- [rowl_kernel::dl_validity::same_bytes]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 199:0-201:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 202:0-204:1
     Visibility: public -/
 def dl_validity.same_bytes
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
@@ -31685,7 +31685,7 @@ def dl_validity.same_bytes
   else ok false
 
 /-- [rowl_kernel::dl_validity::entity_iri]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 204:0-213:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 207:0-216:1 -/
 def dl_validity.entity_iri (entity : model.Entity) : Result model.Iri := do
   match entity with
   | model.Entity.Class c => ok c.iri
@@ -31709,7 +31709,7 @@ def typing.entity_kind (entity : model.Entity) : Result typing.EntityKind := do
   | model.Entity.NamedIndividual _ => ok typing.EntityKind.NamedIndividual
 
 /-- [rowl_kernel::dl_validity::entity_declares]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 216:0-218:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 219:0-221:1 -/
 def dl_validity.entity_declares
   (entity : model.Entity) (iri : model.Iri) (kind : typing.EntityKind) :
   Result Bool
@@ -31723,7 +31723,7 @@ def dl_validity.entity_declares
   else ok false
 
 /-- [rowl_kernel::dl_validity::item_declares]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 221:0-226:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 224:0-229:1 -/
 def dl_validity.item_declares
   (item : model.AnnotatedAxiom) (iri : model.Iri) (kind : typing.EntityKind) :
   Result Bool
@@ -31768,30 +31768,236 @@ def dl_validity.item_declares
   | model.Axiom.AnnotationPropertyDomain _ _ => ok false
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
-/-- [rowl_kernel::dl_validity::declared_from]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 230:0-236:1 -/
-def dl_validity.declared_from
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (iri : model.Iri)
-  (kind : typing.EntityKind) (index : Std.Usize) :
+/-- [rowl_kernel::dl_validity::BUCKETS]
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 232:0-232:28 -/
+@[global_simps, irreducible] def dl_validity.BUCKETS : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::dl_validity::mix]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 235:0-237:1 -/
+def dl_validity.mix (hash : Std.Usize) (byte : Std.U8) : Result Std.Usize := do
+  let i ← hash % dl_validity.BUCKETS
+  let i1 ← i * 31#usize
+  let i2 ← lift (UScalar.cast .Usize byte)
+  let i3 ← i1 + i2
+  i3 % dl_validity.BUCKETS
+
+/-- [rowl_kernel::dl_validity::hash_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 239:0-245:1 -/
+def dl_validity.hash_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i3 ← dl_validity.mix hash i2
+    dl_validity.hash_from bytes i1 i3
+  else ok hash
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::bucket_of]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 249:0-251:1 -/
+def dl_validity.bucket_of (iri : model.Iri) : Result Std.Usize := do
+  dl_validity.hash_from iri.spelling 0#usize 0#usize
+
+/-- [rowl_kernel::dl_validity::empty_buckets]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 253:0-260:1 -/
+def dl_validity.empty_buckets
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < dl_validity.BUCKETS
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new Std.Usize)
+    dl_validity.empty_buckets out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::has_room]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 263:0-265:1 -/
+def dl_validity.has_room
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len buckets
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) buckets bucket
+    let i1 := alloc.vec.Vec.len v
+    ok (i1 < core.num.Usize.MAX)
+  else ok false
+
+/-- [rowl_kernel::dl_validity::record]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 268:0-273:1 -/
+def dl_validity.record
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (position : Std.Usize) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let b ← dl_validity.has_room buckets bucket
+  if b
+  then
+    let (v, index_mut_back) ←
+      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+        (alloc.vec.Vec Std.Usize)) buckets bucket
+    let v1 ← alloc.vec.Vec.push v position
+    ok (index_mut_back v1)
+  else ok buckets
+
+/-- [rowl_kernel::dl_validity::index_item]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 275:0-280:1 -/
+def dl_validity.index_item
+  (item : model.AnnotatedAxiom) (position : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  match item.axiom with
+  | model.Axiom.Declaration entity =>
+    let i ← dl_validity.entity_iri entity
+    let i1 ← dl_validity.bucket_of i
+    dl_validity.record buckets i1 position
+  | model.Axiom.SubClassOf _ _ => ok buckets
+  | model.Axiom.EquivalentClasses _ => ok buckets
+  | model.Axiom.DisjointClasses _ => ok buckets
+  | model.Axiom.DisjointUnion _ _ => ok buckets
+  | model.Axiom.SubObjectPropertyOf _ _ => ok buckets
+  | model.Axiom.EquivalentObjectProperties _ => ok buckets
+  | model.Axiom.DisjointObjectProperties _ => ok buckets
+  | model.Axiom.InverseObjectProperties _ _ => ok buckets
+  | model.Axiom.ObjectPropertyDomain _ _ => ok buckets
+  | model.Axiom.ObjectPropertyRange _ _ => ok buckets
+  | model.Axiom.FunctionalObjectProperty _ => ok buckets
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok buckets
+  | model.Axiom.ReflexiveObjectProperty _ => ok buckets
+  | model.Axiom.IrreflexiveObjectProperty _ => ok buckets
+  | model.Axiom.SymmetricObjectProperty _ => ok buckets
+  | model.Axiom.AsymmetricObjectProperty _ => ok buckets
+  | model.Axiom.TransitiveObjectProperty _ => ok buckets
+  | model.Axiom.SubDataPropertyOf _ _ => ok buckets
+  | model.Axiom.EquivalentDataProperties _ => ok buckets
+  | model.Axiom.DisjointDataProperties _ => ok buckets
+  | model.Axiom.DataPropertyDomain _ _ => ok buckets
+  | model.Axiom.DataPropertyRange _ _ => ok buckets
+  | model.Axiom.FunctionalDataProperty _ => ok buckets
+  | model.Axiom.DatatypeDefinition _ _ => ok buckets
+  | model.Axiom.HasKey _ _ _ => ok buckets
+  | model.Axiom.SameIndividual _ => ok buckets
+  | model.Axiom.DifferentIndividuals _ => ok buckets
+  | model.Axiom.ClassAssertion _ _ => ok buckets
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.AnnotationAssertion _ _ _ => ok buckets
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok buckets
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok buckets
+  | model.Axiom.AnnotationPropertyRange _ _ => ok buckets
+
+/-- [rowl_kernel::dl_validity::index_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 282:0-296:1 -/
+def dl_validity.index_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if position < i
+  then
+    let i1 ← position + 1#usize
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms position
+    let v ← dl_validity.index_item aa position buckets
+    dl_validity.index_from axioms i1 v
+  else ok buckets
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::declaration_index]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 300:0-302:1 -/
+def dl_validity.declaration_index
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let v ←
+    dl_validity.empty_buckets (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+  dl_validity.index_from axioms 0#usize v
+
+/-- [rowl_kernel::dl_validity::position_declares]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 305:0-316:1 -/
+def dl_validity.position_declares
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) :
   Result Bool
   := do
   let i := alloc.vec.Vec.len axioms
-  if index < i
+  if position < i
   then
     let aa ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) axioms index
-    let b ← dl_validity.item_declares aa iri kind
+        model.AnnotatedAxiom) axioms position
+    dl_validity.item_declares aa iri kind
+  else ok false
+
+/-- [rowl_kernel::dl_validity::declared_at]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 318:0-331:1 -/
+def dl_validity.declared_at
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (positions : alloc.vec.Vec Std.Usize) (iri : model.Iri)
+  (kind : typing.EntityKind) («at» : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len positions
+  if «at» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        positions «at»
+    let b ← dl_validity.position_declares axioms i1 iri kind
     if b
     then ok true
     else
-      let i1 ← index + 1#usize
-      dl_validity.declared_from axioms iri kind i1
+      let i2 ← «at» + 1#usize
+      dl_validity.declared_at axioms positions iri kind i2
   else ok false
 partial_fixpoint
 
+/-- [rowl_kernel::dl_validity::declared_in_bucket]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 333:0-345:1 -/
+def dl_validity.declared_in_bucket
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len index
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) index bucket
+    dl_validity.declared_at axioms v iri kind 0#usize
+  else ok false
+
+/-- [rowl_kernel::dl_validity::declared_indexed]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 349:0-356:1 -/
+def dl_validity.declared_indexed
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i ← dl_validity.bucket_of iri
+  dl_validity.declared_in_bucket axioms index i iri kind
+
 /-- [rowl_kernel::dl_validity::builtin_role]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 239:0-244:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 359:0-364:1 -/
 def dl_validity.builtin_role
   (iri : model.Iri) (kind : typing.EntityKind) : Result Bool := do
   let o ← builtins.builtin_kind iri.spelling
@@ -31800,7 +32006,7 @@ def dl_validity.builtin_role
   | some role => dl_validity.same_kind role kind
 
 /-- [rowl_kernel::dl_validity::conflicting_role]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 247:0-253:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 367:0-373:1 -/
 def dl_validity.conflicting_role
   (kind : typing.EntityKind) (role : typing.EntityKind) :
   Result (Option typing.EntityKind)
@@ -31811,7 +32017,7 @@ def dl_validity.conflicting_role
   else ok none
 
 /-- [rowl_kernel::dl_validity::builtin_conflict]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 256:0-261:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 376:0-381:1 -/
 def dl_validity.builtin_conflict
   (iri : model.Iri) (kind : typing.EntityKind) :
   Result (Option typing.EntityKind)
@@ -31822,7 +32028,7 @@ def dl_validity.builtin_conflict
   | some role => dl_validity.conflicting_role kind role
 
 /-- [rowl_kernel::dl_validity::item_conflict]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 265:0-276:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 385:0-396:1 -/
 def dl_validity.item_conflict
   (item : model.AnnotatedAxiom) (iri : model.Iri) (kind : typing.EntityKind) :
   Result (Option typing.EntityKind)
@@ -31873,52 +32079,102 @@ def dl_validity.item_conflict
   | model.Axiom.AnnotationPropertyDomain _ _ => ok none
   | model.Axiom.AnnotationPropertyRange _ _ => ok none
 
-/-- [rowl_kernel::dl_validity::later_conflict]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 280:0-294:1 -/
-def dl_validity.later_conflict
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (iri : model.Iri)
-  (kind : typing.EntityKind) (index : Std.Usize) :
+/-- [rowl_kernel::dl_validity::position_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 400:0-416:1 -/
+def dl_validity.position_conflict
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) (after : Std.Usize) :
   Result (Option typing.EntityKind)
   := do
-  let i := alloc.vec.Vec.len axioms
-  if index < i
+  if after < position
   then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) axioms index
-    let o ← dl_validity.item_conflict aa iri kind
+    let i := alloc.vec.Vec.len axioms
+    if position < i
+    then
+      let aa ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.AnnotatedAxiom) axioms position
+      dl_validity.item_conflict aa iri kind
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::dl_validity::conflict_at]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 418:0-434:1 -/
+def dl_validity.conflict_at
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (positions : alloc.vec.Vec Std.Usize) (iri : model.Iri)
+  (kind : typing.EntityKind) (after : Std.Usize) («at» : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i := alloc.vec.Vec.len positions
+  if «at» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        positions «at»
+    let o ← dl_validity.position_conflict axioms i1 iri kind after
     match o with
     | none =>
-      let i1 ← index + 1#usize
-      dl_validity.later_conflict axioms iri kind i1
+      let i2 ← «at» + 1#usize
+      dl_validity.conflict_at axioms positions iri kind after i2
     | some _ => ok o
   else ok none
 partial_fixpoint
 
+/-- [rowl_kernel::dl_validity::conflict_in_bucket]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 436:0-449:1 -/
+def dl_validity.conflict_in_bucket
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) (after : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i := alloc.vec.Vec.len index
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) index bucket
+    dl_validity.conflict_at axioms v iri kind after 0#usize
+  else ok none
+
+/-- [rowl_kernel::dl_validity::later_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 453:0-461:1 -/
+def dl_validity.later_conflict
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
+  (kind : typing.EntityKind) (after : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i ← dl_validity.bucket_of iri
+  dl_validity.conflict_in_bucket axioms index i iri kind after
+
 /-- [rowl_kernel::dl_validity::entity_conflict]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 298:0-307:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 465:0-481:1 -/
 def dl_validity.entity_conflict
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (entity : model.Entity)
-  (index : Std.Usize) :
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (entity : model.Entity)
+  (position : Std.Usize) :
   Result (Option typing.EntityKind)
   := do
   let i ← dl_validity.entity_iri entity
   let ek ← typing.entity_kind entity
   let o ← dl_validity.builtin_conflict i ek
   match o with
-  | none => dl_validity.later_conflict axioms i ek index
+  | none => dl_validity.later_conflict axioms index i ek position
   | some _ => ok o
 
 /-- [rowl_kernel::dl_validity::item_conflicts]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 311:0-327:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 485:0-502:1 -/
 def dl_validity.item_conflicts
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (item : model.AnnotatedAxiom)
-  (index : Std.Usize) :
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (item : model.AnnotatedAxiom) (position : Std.Usize) :
   Result dl_validity.TypingCheck
   := do
   match item.axiom with
   | model.Axiom.Declaration entity =>
-    let o ← dl_validity.entity_conflict axioms entity index
+    let o ← dl_validity.entity_conflict axioms index entity position
     match o with
     | none => ok dl_validity.TypingCheck.Valid
     | some other =>
@@ -31969,28 +32225,30 @@ def dl_validity.item_conflicts
   | model.Axiom.AnnotationPropertyRange _ _ => ok dl_validity.TypingCheck.Valid
 
 /-- [rowl_kernel::dl_validity::conflict_from]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 332:0-341:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 507:0-520:1 -/
 def dl_validity.conflict_from
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (position : Std.Usize) :
   Result dl_validity.TypingCheck
   := do
   let i := alloc.vec.Vec.len axioms
-  if index < i
+  if position < i
   then
     let aa ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) axioms index
-    let i1 ← index + 1#usize
-    let tc ← dl_validity.item_conflicts axioms aa i1
+        model.AnnotatedAxiom) axioms position
+    let tc ← dl_validity.item_conflicts axioms index aa position
     match tc with
-    | dl_validity.TypingCheck.Valid => dl_validity.conflict_from axioms i1
+    | dl_validity.TypingCheck.Valid =>
+      let i1 ← position + 1#usize
+      dl_validity.conflict_from axioms index i1
     | dl_validity.TypingCheck.ConflictingDeclarations _ _ _ => ok tc
     | dl_validity.TypingCheck.MissingDeclaration _ _ => ok tc
   else ok dl_validity.TypingCheck.Valid
 partial_fixpoint
 
 /-- [rowl_kernel::dl_validity::exempt]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 345:0-347:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 524:0-526:1 -/
 def dl_validity.exempt
   (kind : typing.EntityKind) (strict : Bool) : Result Bool := do
   if strict
@@ -32005,9 +32263,10 @@ def dl_validity.exempt
     | typing.EntityKind.NamedIndividual => ok true
 
 /-- [rowl_kernel::dl_validity::use_declared]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 351:0-353:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 530:0-538:1 -/
 def dl_validity.use_declared
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (iri : model.Iri)
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
   (kind : typing.EntityKind) (strict : Bool) :
   Result Bool
   := do
@@ -32018,34 +32277,37 @@ def dl_validity.use_declared
     let b1 ← dl_validity.builtin_role iri kind
     if b1
     then ok true
-    else dl_validity.declared_from axioms iri kind 0#usize
+    else dl_validity.declared_indexed axioms index iri kind
 
 /-- [rowl_kernel::dl_validity::undeclared_from]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 358:0-373:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 543:0-559:1 -/
 def dl_validity.undeclared_from
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (uses : collection.EntityUses)
-  (strict : Bool) :
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) (strict : Bool) :
   Result (Option (model.Iri × typing.EntityKind))
   := do
   match uses with
   | collection.EntityUses.Empty => ok none
   | collection.EntityUses.Entry iri kind next =>
-    let b ← dl_validity.use_declared axioms iri kind strict
+    let b ← dl_validity.use_declared axioms index iri kind strict
     if b
-    then dl_validity.undeclared_from axioms next strict
+    then dl_validity.undeclared_from axioms index next strict
     else ok (some (iri, kind))
 partial_fixpoint
 
-/-- [rowl_kernel::dl_validity::check_typing]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 379:0-393:1
-    Visibility: public -/
-def dl_validity.check_typing
-  (ontology : model.RawOntology) : Result dl_validity.TypingCheck := do
-  let tc ← dl_validity.conflict_from ontology.axioms 0#usize
+/-- [rowl_kernel::dl_validity::typing_with]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 561:0-573:1 -/
+def dl_validity.typing_with
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) :
+  Result dl_validity.TypingCheck
+  := do
+  let tc ← dl_validity.conflict_from axioms index 0#usize
   match tc with
   | dl_validity.TypingCheck.Valid =>
-    let ce ← collection.axiom_closure_entities ontology
-    let o ← dl_validity.undeclared_from ontology.axioms ce.uses false
+    let o ← dl_validity.undeclared_from axioms index uses false
     match o with
     | none => ok dl_validity.TypingCheck.Valid
     | some p =>
@@ -32054,21 +32316,41 @@ def dl_validity.check_typing
   | dl_validity.TypingCheck.ConflictingDeclarations _ _ _ => ok tc
   | dl_validity.TypingCheck.MissingDeclaration _ _ => ok tc
 
-/-- [rowl_kernel::dl_validity::check_declarations]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 398:0-407:1
+/-- [rowl_kernel::dl_validity::check_typing]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 580:0-586:1
     Visibility: public -/
-def dl_validity.check_declarations
-  (ontology : model.RawOntology) : Result dl_validity.DeclarationCheck := do
+def dl_validity.check_typing
+  (ontology : model.RawOntology) : Result dl_validity.TypingCheck := do
+  let v ← dl_validity.declaration_index ontology.axioms
   let ce ← collection.axiom_closure_entities ontology
-  let o ← dl_validity.undeclared_from ontology.axioms ce.uses true
+  dl_validity.typing_with ontology.axioms v ce.uses
+
+/-- [rowl_kernel::dl_validity::declarations_with]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 588:0-597:1 -/
+def dl_validity.declarations_with
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) :
+  Result dl_validity.DeclarationCheck
+  := do
+  let o ← dl_validity.undeclared_from axioms index uses true
   match o with
   | none => ok dl_validity.DeclarationCheck.Consistent
   | some p =>
     let (iri, kind) := p
     ok (dl_validity.DeclarationCheck.Undeclared iri kind)
 
+/-- [rowl_kernel::dl_validity::check_declarations]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 602:0-608:1
+    Visibility: public -/
+def dl_validity.check_declarations
+  (ontology : model.RawOntology) : Result dl_validity.DeclarationCheck := do
+  let v ← dl_validity.declaration_index ontology.axioms
+  let ce ← collection.axiom_closure_entities ontology
+  dl_validity.declarations_with ontology.axioms v ce.uses
+
 /-- [rowl_kernel::dl_validity::is_chain]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 410:0-415:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 611:0-616:1 -/
 def dl_validity.is_chain (item : model.AnnotatedAxiom) : Result Bool := do
   match item.axiom with
   | model.Axiom.Declaration _ => ok false
@@ -32113,7 +32395,7 @@ def dl_validity.is_chain (item : model.AnnotatedAxiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
 /-- [rowl_kernel::dl_validity::chain_from]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 417:0-423:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 618:0-624:1 -/
 def dl_validity.chain_from
   (axioms : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -32133,14 +32415,14 @@ def dl_validity.chain_from
 partial_fixpoint
 
 /-- [rowl_kernel::dl_validity::has_chain]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 427:0-429:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 628:0-630:1
     Visibility: public -/
 def dl_validity.has_chain
   (axioms : alloc.vec.Vec model.AnnotatedAxiom) : Result Bool := do
   dl_validity.chain_from axioms 0#usize
 
 /-- [rowl_kernel::dl_validity::anonymous_assertion]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 432:0-438:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 633:0-639:1 -/
 def dl_validity.anonymous_assertion
   (item : model.AnnotatedAxiom) : Result Bool := do
   match item.axiom with
@@ -32189,7 +32471,7 @@ def dl_validity.anonymous_assertion
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
 /-- [rowl_kernel::dl_validity::anonymous_from]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 440:0-446:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 641:0-647:1 -/
 def dl_validity.anonymous_from
   (axioms : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -32209,14 +32491,14 @@ def dl_validity.anonymous_from
 partial_fixpoint
 
 /-- [rowl_kernel::dl_validity::has_anonymous_assertion]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 452:0-454:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 653:0-655:1
     Visibility: public -/
 def dl_validity.has_anonymous_assertion
   (axioms : alloc.vec.Vec model.AnnotatedAxiom) : Result Bool := do
   dl_validity.anonymous_from axioms 0#usize
 
 /-- [rowl_kernel::dl_validity::anonymous_graph_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 456:0-467:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 657:0-668:1 -/
 def dl_validity.anonymous_graph_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let ac ← anonymous_restrictions.check_anonymous ontology.axioms
@@ -32235,7 +32517,7 @@ def dl_validity.anonymous_graph_stage
     ok (dl_validity.DlCheck.AnonymousNoBoundaryRoot value)
 
 /-- [rowl_kernel::dl_validity::anonymous_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 469:0-478:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 670:0-679:1 -/
 def dl_validity.anonymous_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let b ← dl_validity.has_anonymous_assertion ontology.axioms
@@ -33607,7 +33889,7 @@ def role_order.check_regularity
     ok (role_order.RegularityCheck.MissingPair r r1)
 
 /-- [rowl_kernel::dl_validity::hierarchy_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 480:0-500:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 681:0-701:1 -/
 def dl_validity.hierarchy_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let b ← dl_validity.has_chain ontology.axioms
@@ -33664,7 +33946,7 @@ def roles.check_simplicity
   | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
 /-- [rowl_kernel::dl_validity::role_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 502:0-509:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 703:0-710:1 -/
 def dl_validity.role_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let sc ← roles.check_simplicity ontology.axioms
@@ -33676,7 +33958,7 @@ def dl_validity.role_stage
     ok (dl_validity.DlCheck.NonSimpleRole r)
 
 /-- [rowl_kernel::dl_validity::datatype_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 511:0-531:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 712:0-732:1 -/
 def dl_validity.datatype_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let sdc ← datatype_restrictions.check_structural_datatypes ontology
@@ -33909,7 +34191,7 @@ def topdata.check_axioms
   topdata.axioms_from axioms 0#usize
 
 /-- [rowl_kernel::dl_validity::global_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 533:0-538:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 734:0-739:1 -/
 def dl_validity.global_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let o ← topdata.check_axioms ontology.axioms
@@ -33918,7 +34200,7 @@ def dl_validity.global_stage
   | some item => ok (dl_validity.DlCheck.TopDataProperty item)
 
 /-- [rowl_kernel::dl_validity::typing_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 540:0-548:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 741:0-749:1 -/
 def dl_validity.typing_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let tc ← dl_validity.check_typing ontology
@@ -34122,7 +34404,7 @@ def vocabulary.check_reserved_vocabulary
           vocabulary.check_uses collected.uses
 
 /-- [rowl_kernel::dl_validity::vocabulary_stage]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 550:0-557:1 -/
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 751:0-758:1 -/
 def dl_validity.vocabulary_stage
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
   let vr ← vocabulary.check_reserved_vocabulary ontology
@@ -34165,7 +34447,7 @@ def keys.check_keys
   keys.axioms_from axioms 0#usize
 
 /-- [rowl_kernel::dl_validity::check_ontology]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 563:0-571:1
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 764:0-772:1
     Visibility: public -/
 def dl_validity.check_ontology
   (ontology : model.RawOntology) : Result dl_validity.DlCheck := do

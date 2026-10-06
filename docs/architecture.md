@@ -392,8 +392,12 @@ Typing is decided on exact IRI spellings (`check_typing`) rather than through
 the symbol table of `indexing::check_ontology_typing`, whose capacity would
 leave an outcome without a verdict and would make the acceptance theorem
 conditional. Both decide `Indexing.RawWellTyped`, and `check_typing_agrees`
-relates them. Declarations are read from the declaration axioms themselves, so
-the check allocates nothing beyond the collected uses.
+relates them. Declarations are found through an index of the positions of the
+declaration axioms in 4096 buckets chosen by a hash of the IRI's bytes: a
+lookup reads only the declarations in the bucket of its IRI and still compares
+spellings exactly, so colliding spellings stay apart. The invariant `IndexOK`
+(every declaration's position lies in its IRI's bucket) is all the proofs need
+from the hash.
 
 Two shortcuts skip quadratic work that cannot fail, each justified by a
 theorem rather than by testing: an ontology without property chains satisfies

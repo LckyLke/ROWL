@@ -26,7 +26,8 @@ normative datatype map and are not part of `OwlDlValid`.
 `Valid` exactly for `OwlDlValid` ontologies and otherwise the first violated
 restriction, with the evidence of its component checker and the proof that
 every earlier restriction holds. `check_typing` decides the typing constraints
-on exact IRI spellings, without a symbol-count limit; `check_declarations`
+on exact IRI spellings, without a symbol-count limit, finding declarations
+through a hashed index of their positions (`IndexOK`); `check_declarations`
 decides declaration consistency (§5.8.2), which OWL 2 DL does not require.
 `strip_annotations_models` and its corollaries prove that annotations have no
 logical effect.
@@ -159,55 +160,6 @@ private theorem drop_rows (axioms : alloc.vec.Vec AnnotatedAxiom) (index : Nat)
     (axioms.val.drop index).flatMap f = f axioms.val[index] ++ (axioms.val.drop (index + 1)).flatMap f := by
   rw [List.drop_eq_getElem_cons inside, List.flatMap_cons]
 
-private theorem declared_from_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (iri : Iri)
-    (kind : EntityKind) (index : Usize) :
-    dl_validity.declared_from axioms iri kind index =
-      .ok (decide (∃ d ∈ (axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses,
-        DeclaresAs iri kind d)) := by
-  rw [dl_validity.declared_from]
-  by_cases inside : index.val < axioms.val.length
-  · have lookup : axioms.index_usize index = .ok axioms.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
-    have cond : index < alloc.vec.Vec.len axioms := by
-      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
-    have size := axioms.property
-    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextval : next.val = index.val + 1 := by simpa using hv
-    have ih := declared_from_spec axioms iri kind next
-    have rows := drop_rows axioms index.val inside Rowl.Collection.declarationUses
-    simp only [cond, ↓reduceIte, alloc.vec.Vec.index_slice_index, lookup, bind_ok, item_declares_spec]
-    split
-    · rename_i decided
-      have here := of_decide_eq_true decided
-      have found : ∃ d ∈ (axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses,
-          DeclaresAs iri kind d := by
-        obtain ⟨d, member, declares⟩ := here
-        exact ⟨d, by rw [rows]; exact List.mem_append_left _ member, declares⟩
-      simp only [found, decide_true]
-    · rename_i decided
-      have here := of_decide_eq_false (Bool.of_not_eq_true decided)
-      have same : (∃ d ∈ (axioms.val.drop next.val).flatMap Rowl.Collection.declarationUses,
-          DeclaresAs iri kind d) ↔ ∃ d ∈ (axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses,
-          DeclaresAs iri kind d := by
-        rw [rows, nextval]
-        constructor
-        · rintro ⟨d, member, declares⟩
-          exact ⟨d, List.mem_append_right _ member, declares⟩
-        · rintro ⟨d, member, declares⟩
-          rcases List.mem_append.mp member with member | member
-          · exact False.elim (here ⟨d, member, declares⟩)
-          · exact ⟨d, member, declares⟩
-      simp only [hn, bind_ok, ih]
-      congr 1
-      exact decide_eq_decide.mpr same
-  · have cond : ¬ index < alloc.vec.Vec.len axioms := by
-      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
-    have empty : axioms.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp only [cond, ↓reduceIte, empty, List.flatMap_nil, List.not_mem_nil, false_and, exists_false,
-      decide_false]
-termination_by axioms.val.length - index.val
-decreasing_by omega
-
 private theorem builtin_role_spec (iri : Iri) (kind : EntityKind) :
     dl_validity.builtin_role iri kind =
       .ok (decide (Rowl.Builtins.role iri.spelling.val = some kind)) := by
@@ -252,43 +204,6 @@ private theorem item_conflict_spec (item : AnnotatedAxiom) (iri : Iri) (kind : E
       by_cases f : Rowl.Typing.Forbidden kind (Rowl.Typing.kindOf entity) <;> simp [same, f]
   all_goals simp [h, Rowl.Collection.declarationUses, firstClash]
 
-private theorem first_clash_append (iri : Iri) (kind : EntityKind) (front back : List Row) :
-    firstClash iri kind (front ++ back) =
-      match firstClash iri kind front with
-      | some other => some other
-      | none => firstClash iri kind back := by
-  unfold firstClash
-  rw [List.find?_append]
-  cases front.find? (fun d => decide (Clashes iri kind d)) <;> simp
-
-private theorem later_conflict_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (iri : Iri)
-    (kind : EntityKind) (index : Usize) :
-    dl_validity.later_conflict axioms iri kind index =
-      .ok (firstClash iri kind ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses)) := by
-  rw [dl_validity.later_conflict]
-  by_cases inside : index.val < axioms.val.length
-  · have lookup : axioms.index_usize index = .ok axioms.val[index.val] := by
-      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
-    have cond : index < alloc.vec.Vec.len axioms := by
-      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
-    have size := axioms.property
-    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextval : next.val = index.val + 1 := by simpa using hv
-    have ih := later_conflict_spec axioms iri kind next
-    have rows := drop_rows axioms index.val inside Rowl.Collection.declarationUses
-    rw [nextval] at ih
-    simp only [cond, ↓reduceIte, alloc.vec.Vec.index_slice_index, lookup, bind_ok, item_conflict_spec]
-    rw [rows, first_clash_append]
-    cases here : firstClash iri kind (Rowl.Collection.declarationUses axioms.val[index.val]) with
-    | some other => simp only [here]
-    | none => simp only [here, hn, bind_ok, ih]
-  · have cond : ¬ index < alloc.vec.Vec.len axioms := by
-      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
-    have empty : axioms.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
-    simp only [cond, ↓reduceIte, empty, List.flatMap_nil, firstClash, List.find?_nil, Option.map_none]
-termination_by axioms.val.length - index.val
-decreasing_by omega
-
 private theorem first_clash_none (iri : Iri) (kind : EntityKind) (rows : List Row)
     (none : firstClash iri kind rows = none) : ∀ d ∈ rows, ¬ Clashes iri kind d := by
   intro d member clash
@@ -304,6 +219,469 @@ private theorem first_clash_some (iri : Iri) (kind : EntityKind) (rows : List Ro
   have member := List.mem_of_find?_eq_some hd
   have clash := List.find?_some hd
   exact ⟨d, member, by simpa using clash, same⟩
+
+/-! ## The hashed declaration index -/
+
+private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
+  simp [core.num.Usize.MAX]
+
+private theorem buckets_val : dl_validity.BUCKETS.val = 4096 := by
+  rw [dl_validity.BUCKETS]
+  rfl
+
+private theorem mix_spec (hash : Usize) (byte : U8) :
+    ∃ m, dl_validity.mix hash byte = .ok m ∧ m.val < 4096 := by
+  have nonzero : dl_validity.BUCKETS.val ≠ 0 := by rw [buckets_val]; omega
+  obtain ⟨i, iRun, iValue⟩ := WP.spec_imp_exists (UScalar.rem_spec hash (y := dl_validity.BUCKETS) nonzero)
+  have iLt : i.val < 4096 := by rw [iValue, buckets_val]; exact Nat.mod_lt _ (by omega)
+  obtain ⟨i1, i1Run, i1Value⟩ := WP.spec_imp_exists (UScalar.mul_spec (x := i) (y := 31#usize)
+    (by have : (31#usize : Usize).val = 31 := rfl; rw [this]; scalar_tac))
+  have i1Lt : i1.val < 4096 * 31 := by
+    have : (31#usize : Usize).val = 31 := rfl
+    rw [i1Value, this]
+    omega
+  have byteLt : (UScalar.cast .Usize byte).val < 256 := by
+    rw [U8.cast_Usize_val_eq byte]
+    scalar_tac
+  obtain ⟨i3, i3Run, i3Value⟩ := WP.spec_imp_exists
+    (UScalar.add_spec (x := i1) (y := UScalar.cast .Usize byte) (by scalar_tac))
+  obtain ⟨m, mRun, mValue⟩ := WP.spec_imp_exists (UScalar.rem_spec i3 (y := dl_validity.BUCKETS) nonzero)
+  refine ⟨m, ?_, by rw [mValue, buckets_val]; exact Nat.mod_lt _ (by omega)⟩
+  simp [dl_validity.mix, iRun, i1Run, i3Run, mRun, lift]
+
+private theorem hash_from_spec (bytes : alloc.vec.Vec U8) (index hash : Usize) (small : hash.val < 4096) :
+    ∃ h, dl_validity.hash_from bytes index hash = .ok h ∧ h.val < 4096 := by
+  rw [dl_validity.hash_from]
+  by_cases more : index.val < bytes.val.length
+  · have lookup : bytes.index_usize index = .ok bytes.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    obtain ⟨m, mixRun, mLt⟩ := mix_spec hash bytes.val[index.val]
+    obtain ⟨h, run, hLt⟩ := hash_from_spec bytes next m mLt
+    exact ⟨h, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, advance, lookup, mixRun, run], hLt⟩
+  · exact ⟨hash, by simp [UScalar.lt_equiv, more], small⟩
+termination_by bytes.val.length - index.val
+decreasing_by (have := nextValue; simp at this; omega)
+
+private theorem bucket_of_spec (iri : Iri) : ∃ b, dl_validity.bucket_of iri = .ok b ∧ b.val < 4096 := by
+  simpa [dl_validity.bucket_of] using hash_from_spec iri.spelling 0#usize 0#usize (by decide)
+
+/-- The bucket of an IRI depends only on its spelling. -/
+private theorem bucket_of_spelling (left right : Iri) (same : left.spelling.val = right.spelling.val) :
+    dl_validity.bucket_of left = dl_validity.bucket_of right := by
+  have bytes : left.spelling = right.spelling := alloc.vec.Vec.ext _ _ same
+  unfold dl_validity.bucket_of
+  rw [bytes]
+
+private theorem empty_buckets_spec (out : alloc.vec.Vec (alloc.vec.Vec Usize)) (small : out.val.length ≤ 4096)
+    (empty : ∀ b ∈ out.val, b.val = []) :
+    ∃ r, dl_validity.empty_buckets out = .ok r ∧ r.val.length = 4096 ∧ ∀ b ∈ r.val, b.val = [] := by
+  rw [dl_validity.empty_buckets]
+  by_cases more : out.val.length < 4096
+  · have moreU : alloc.vec.Vec.len out < dl_validity.BUCKETS := by
+      rw [UScalar.lt_equiv, buckets_val]; simpa using more
+    obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec out (alloc.vec.Vec.new Usize) (by scalar_tac))
+    obtain ⟨r, run, length, all⟩ := empty_buckets_spec pushed (by rw [contents]; simp; omega) (by
+      intro b member
+      rw [contents] at member
+      rcases List.mem_append.mp member with old | new
+      · exact empty b old
+      · rw [List.mem_singleton] at new; rw [new]; rfl)
+    exact ⟨r, by simp [moreU, push, run], length, all⟩
+  · have stop : ¬ alloc.vec.Vec.len out < dl_validity.BUCKETS := by
+      rw [UScalar.lt_equiv, buckets_val]; simpa using more
+    exact ⟨out, by simp [stop], by omega, empty⟩
+termination_by 4096 - out.val.length
+decreasing_by
+  have grown : pushed.val.length = out.val.length + 1 := by rw [contents]; simp
+  omega
+
+/-- The positions below `count` of the declarations of `axioms` all sit in the
+    bucket of their IRI, and no bucket is longer than `count`. -/
+private def IndexOK (axioms : List AnnotatedAxiom) (count : Nat)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) : Prop :=
+  index.val.length = 4096 ∧ (∀ bucket ∈ index.val, bucket.val.length ≤ count) ∧
+  ∀ (p : Nat) (inside : p < axioms.length) (entity : Entity), p < count →
+    axioms[p].axiom = .Declaration entity → ∀ b, dl_validity.bucket_of (entityIri entity) = .ok b →
+      ∃ bucket, index.val[b.val]? = some bucket ∧ ∃ q ∈ bucket.val, q.val = p
+
+private theorem record_spec (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (b position : Usize)
+    (inside : b.val < index.val.length) (room : index.val[b.val].val.length < Usize.max) :
+    ∃ r, dl_validity.record index b position = .ok r ∧ r.val.length = index.val.length ∧
+      (∀ c, c ≠ b.val → r.val[c]? = index.val[c]?) ∧
+      ∃ bucket, r.val[b.val]? = some bucket ∧ bucket.val = index.val[b.val].val ++ [position] := by
+  have lookup : index.index_usize b = .ok index.val[b.val] := by
+    simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+  obtain ⟨bucket, pushRun, bucketIs⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec index.val[b.val] position room)
+  have roomed : dl_validity.has_room index b = .ok true := by
+    simp [dl_validity.has_room, alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index,
+      lookup, usize_max_val, room]
+  refine ⟨index.set b bucket, ?_, by simp [alloc.vec.Vec.set_val_eq], ?_, bucket, ?_, bucketIs⟩
+  · simp [dl_validity.record, roomed, alloc.vec.Vec.index_mut_usize, lookup, pushRun]
+  · intro c differ
+    simp only [alloc.vec.Vec.set_val_eq]
+    exact List.getElem?_set_ne (Ne.symm differ)
+  · simp [alloc.vec.Vec.set_val_eq, inside]
+
+private theorem index_item_spec (axioms : List AnnotatedAxiom) (item : AnnotatedAxiom) (n : Usize)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (inside : n.val < axioms.length) (at_n : axioms[n.val] = item)
+    (bound : axioms.length ≤ Usize.max) (ok : IndexOK axioms n.val index) :
+    ∃ r, dl_validity.index_item item n index = .ok r ∧ IndexOK axioms (n.val + 1) r := by
+  obtain ⟨length, short, covers⟩ := ok
+  unfold dl_validity.index_item
+  cases shape : item.axiom
+  case Declaration entity =>
+    obtain ⟨b, bucketRun, bLt⟩ := bucket_of_spec (entityIri entity)
+    have bInside : b.val < index.val.length := by rw [length]; exact bLt
+    have room : index.val[b.val].val.length < Usize.max := by
+      have := short _ (List.getElem_mem bInside)
+      omega
+    obtain ⟨r, recordRun, rLength, others, bucket, at_b, bucketIs⟩ := record_spec index b n bInside room
+    refine ⟨r, by simp [shape, entity_iri_spec, bucketRun, recordRun], ?_, ?_, ?_⟩
+    · rw [rLength, length]
+    · intro v member
+      obtain ⟨c, cInside, at_c⟩ := List.getElem_of_mem member
+      by_cases same : c = b.val
+      · subst same
+        have : r.val[b.val]? = some v := by rw [List.getElem?_eq_getElem cInside, at_c]
+        rw [at_b] at this
+        cases this
+        rw [bucketIs]
+        simp only [List.length_append, List.length_singleton]
+        have := short _ (List.getElem_mem bInside)
+        omega
+      · have old : index.val[c]? = some v := by
+          rw [← others c same, List.getElem?_eq_getElem cInside, at_c]
+        have := short v (List.mem_of_getElem? old)
+        omega
+    · intro p pInside e below declared b' bucket'Run
+      by_cases current : p = n.val
+      · subst current
+        rw [at_n, shape] at declared
+        cases declared
+        have sameBucket := Result.ok_injective (bucketRun.symm.trans bucket'Run)
+        subst sameBucket
+        exact ⟨bucket, at_b, n, by rw [bucketIs]; simp, rfl⟩
+      · obtain ⟨old, at_old, q, member, qIs⟩ := covers p pInside e (by omega) declared b' bucket'Run
+        by_cases same : b'.val = b.val
+        · refine ⟨bucket, by rw [same]; exact at_b, q, ?_, qIs⟩
+          rw [same, List.getElem?_eq_getElem bInside] at at_old
+          cases at_old
+          rw [bucketIs]
+          exact List.mem_append_left _ member
+        · exact ⟨old, by rw [others _ same]; exact at_old, q, member, qIs⟩
+  all_goals
+    refine ⟨index, by simp [shape], length, fun v member => by have := short v member; omega, ?_⟩
+    intro p pInside e below declared b' bucket'Run
+    by_cases current : p = n.val
+    · subst current
+      rw [at_n, shape] at declared
+      cases declared
+    · exact covers p pInside e (by omega) declared b' bucket'Run
+
+private theorem index_from_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (n : Usize)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val n.val index)
+    (le : n.val ≤ axioms.val.length) :
+    ∃ r, dl_validity.index_from axioms n index = .ok r ∧ IndexOK axioms.val axioms.val.length r := by
+  rw [dl_validity.index_from]
+  by_cases more : n.val < axioms.val.length
+  · have lookup : axioms.index_usize n = .ok axioms.val[n.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    have cond : n < alloc.vec.Vec.len axioms := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have size := axioms.property
+    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := n) (y := 1#usize) (by scalar_tac))
+    have nextval : next.val = n.val + 1 := by simpa using hv
+    obtain ⟨indexed, itemRun, itemOk⟩ :=
+      index_item_spec axioms.val (axioms.val[n.val]'more) n index more rfl size ok
+    rw [← nextval] at itemOk
+    obtain ⟨r, run, rOk⟩ := index_from_spec axioms next indexed itemOk (by omega)
+    exact ⟨r, by simp [cond, alloc.vec.Vec.index_slice_index, lookup, itemRun, hn, run], rOk⟩
+  · have cond : ¬ n < alloc.vec.Vec.len axioms := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have same : n.val = axioms.val.length := by omega
+    exact ⟨index, by simp [cond], by rw [← same]; exact ok⟩
+termination_by axioms.val.length - n.val
+decreasing_by omega
+
+private theorem declaration_index_spec (axioms : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ r, dl_validity.declaration_index axioms = .ok r ∧ IndexOK axioms.val axioms.val.length r := by
+  obtain ⟨empty, emptyRun, length, all⟩ := empty_buckets_spec (alloc.vec.Vec.new (alloc.vec.Vec Usize))
+    (by simp) (by simp)
+  have zero : (0#usize).val = 0 := by simp
+  have start : IndexOK axioms.val (0#usize).val empty := by
+    rw [zero]
+    exact ⟨length, fun v member => by simp [all v member], fun p _ _ below => absurd below (by omega)⟩
+  obtain ⟨r, run, ok⟩ := index_from_spec axioms 0#usize empty start (by simp)
+  exact ⟨r, by simp [dl_validity.declaration_index, emptyRun, run], ok⟩
+
+/-! ### Lookups in the index -/
+
+/-- The declaration row of an axiom, if it is a declaration. -/
+private theorem declaration_row_of (item : AnnotatedAxiom) (d : Row)
+    (row : d ∈ Rowl.Collection.declarationUses item) :
+    ∃ entity, item.axiom = .Declaration entity ∧ d = (entityIri entity, Rowl.Typing.kindOf entity) := by
+  unfold Rowl.Collection.declarationUses at row
+  cases shape : item.axiom
+  case Declaration entity =>
+    rw [shape] at row
+    simp only [entity_uses_eq, List.mem_singleton] at row
+    exact ⟨entity, rfl, row⟩
+  all_goals (rw [shape] at row; simp at row)
+
+private theorem position_declares_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (position : Usize)
+    (iri : Iri) (kind : EntityKind) :
+    ∃ r, dl_validity.position_declares axioms position iri kind = .ok r ∧
+      (r = true ↔ ∃ item, axioms.val[position.val]? = some item ∧
+        ∃ d ∈ Rowl.Collection.declarationUses item, DeclaresAs iri kind d) := by
+  rw [dl_validity.position_declares]
+  by_cases inside : position.val < axioms.val.length
+  · have lookup : axioms.index_usize position = .ok axioms.val[position.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have cond : position < alloc.vec.Vec.len axioms := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
+    have run := item_declares_spec (axioms.val[position.val]'inside) iri kind
+    refine ⟨_, by simp only [cond, ↓reduceIte, alloc.vec.Vec.index_slice_index, lookup, bind_ok]; exact run, ?_⟩
+    rw [decide_eq_true_iff]
+    constructor
+    · intro found
+      exact ⟨_, List.getElem?_eq_getElem inside, found⟩
+    · rintro ⟨item, at_p, found⟩
+      rw [List.getElem?_eq_getElem inside] at at_p
+      cases at_p
+      exact found
+  · have cond : ¬ position < alloc.vec.Vec.len axioms := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
+    have none : axioms.val[position.val]? = none := List.getElem?_eq_none (by omega)
+    exact ⟨false, by simp [cond], by simp [none]⟩
+
+private theorem declared_at_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (positions : alloc.vec.Vec Usize)
+    (iri : Iri) (kind : EntityKind) (at_ : Usize) :
+    ∃ r, dl_validity.declared_at axioms positions iri kind at_ = .ok r ∧
+      (r = true ↔ ∃ q ∈ positions.val.drop at_.val, ∃ item, axioms.val[q.val]? = some item ∧
+        ∃ d ∈ Rowl.Collection.declarationUses item, DeclaresAs iri kind d) := by
+  rw [dl_validity.declared_at]
+  by_cases more : at_.val < positions.val.length
+  · have lookup : positions.index_usize at_ = .ok positions.val[at_.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    have cond : at_ < alloc.vec.Vec.len positions := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have size := positions.property
+    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := at_) (y := 1#usize) (by scalar_tac))
+    have nextval : next.val = at_.val + 1 := by simpa using hv
+    have drop : positions.val.drop at_.val = positions.val[at_.val] :: positions.val.drop next.val := by
+      rw [nextval]; exact List.drop_eq_getElem_cons more
+    obtain ⟨here, hereRun, hereIff⟩ := position_declares_spec axioms (positions.val[at_.val]'more) iri kind
+    obtain ⟨rest, restRun, restIff⟩ := declared_at_spec axioms positions iri kind next
+    cases here with
+    | true =>
+      refine ⟨true, by simp [cond, alloc.vec.Vec.index_slice_index, lookup, hereRun], fun _ => ?_, fun _ => rfl⟩
+      rw [drop]
+      exact ⟨_, List.mem_cons_self, hereIff.mp rfl⟩
+    | false =>
+      refine ⟨rest, by simp [cond, alloc.vec.Vec.index_slice_index, lookup, hereRun, hn, restRun], ?_⟩
+      rw [restIff, drop]
+      constructor
+      · rintro ⟨q, member, found⟩
+        exact ⟨q, List.mem_cons_of_mem _ member, found⟩
+      · rintro ⟨q, member, found⟩
+        rcases List.mem_cons.mp member with same | member
+        · subst same
+          exact absurd (hereIff.mpr found) (by simp)
+        · exact ⟨q, member, found⟩
+  · have cond : ¬ at_ < alloc.vec.Vec.len positions := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have empty : positions.val.drop at_.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    exact ⟨false, by simp [cond], by simp [empty]⟩
+termination_by positions.val.length - at_.val
+decreasing_by omega
+
+private theorem declared_indexed_spec (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (iri : Iri) (kind : EntityKind) :
+    ∃ r, dl_validity.declared_indexed axioms index iri kind = .ok r ∧
+      (r = true ↔ ∃ d ∈ axioms.val.flatMap Rowl.Collection.declarationUses, DeclaresAs iri kind d) := by
+  obtain ⟨b, bucketRun, bLt⟩ := bucket_of_spec iri
+  have bInside : b.val < index.val.length := by rw [ok.1]; exact bLt
+  have lookup : index.index_usize b = .ok index.val[b.val] := by
+    simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem bInside]
+  have cond : b < alloc.vec.Vec.len index := by
+    simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact bInside
+  obtain ⟨r, run, iff⟩ := declared_at_spec axioms (index.val[b.val]'bInside) iri kind 0#usize
+  refine ⟨r, by simp [dl_validity.declared_indexed, dl_validity.declared_in_bucket, bucketRun, cond, bInside,
+    alloc.vec.Vec.index_slice_index, lookup, run], ?_⟩
+  rw [iff]
+  have zero : (0#usize).val = 0 := by simp
+  rw [zero, List.drop_zero]
+  constructor
+  · rintro ⟨q, _, item, at_q, d, member, declares⟩
+    refine ⟨d, ?_, declares⟩
+    simp only [List.mem_flatMap]
+    exact ⟨item, List.mem_of_getElem? at_q, member⟩
+  · rintro ⟨d, member, declares⟩
+    simp only [List.mem_flatMap] at member
+    obtain ⟨item, itemMember, row⟩ := member
+    obtain ⟨p, inside, at_p⟩ := List.getElem_of_mem itemMember
+    obtain ⟨entity, declared, rfl⟩ := declaration_row_of item d row
+    have sameBucket : dl_validity.bucket_of (entityIri entity) = .ok b := by
+      rw [bucket_of_spelling (entityIri entity) iri declares.2]
+      exact bucketRun
+    obtain ⟨bucket, at_b, q, qMember, qIs⟩ :=
+      ok.2.2 p inside entity inside (by rw [at_p]; exact declared) b sameBucket
+    rw [List.getElem?_eq_getElem bInside] at at_b
+    cases at_b
+    exact ⟨q, qMember, item, by rw [qIs, List.getElem?_eq_getElem inside, at_p], _, row, declares⟩
+
+private theorem declared_indexed_eq (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (iri : Iri) (kind : EntityKind) :
+    dl_validity.declared_indexed axioms index iri kind =
+      .ok (decide (∃ d ∈ axioms.val.flatMap Rowl.Collection.declarationUses, DeclaresAs iri kind d)) := by
+  obtain ⟨r, run, iff⟩ := declared_indexed_spec axioms index ok iri kind
+  rw [run]
+  congr 1
+  cases r with
+  | true => exact (decide_eq_true (iff.mp rfl)).symm
+  | false => exact (decide_eq_false (fun found => Bool.false_ne_true (iff.mpr found))).symm
+private theorem position_conflict_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (position : Usize)
+    (iri : Iri) (kind : EntityKind) (after : Usize) :
+    ∃ r, dl_validity.position_conflict axioms position iri kind after = .ok r ∧
+      (∀ k, r = some k → after.val < position.val ∧ ∃ item, axioms.val[position.val]? = some item ∧
+        ∃ d ∈ Rowl.Collection.declarationUses item, Clashes iri kind d ∧ d.2 = k) ∧
+      (r = none → after.val < position.val → ∀ item, axioms.val[position.val]? = some item →
+        ∀ d ∈ Rowl.Collection.declarationUses item, ¬ Clashes iri kind d) := by
+  rw [dl_validity.position_conflict]
+  by_cases later : after.val < position.val
+  · have laterU : after < position := by simp only [UScalar.lt_equiv]; exact later
+    by_cases inside : position.val < axioms.val.length
+    · have lookup : axioms.index_usize position = .ok axioms.val[position.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+      have cond : position < alloc.vec.Vec.len axioms := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
+      have at_p : axioms.val[position.val]? = some (axioms.val[position.val]'inside) :=
+        List.getElem?_eq_getElem inside
+      refine ⟨firstClash iri kind (Rowl.Collection.declarationUses (axioms.val[position.val]'inside)),
+        by simp [laterU, cond, inside, alloc.vec.Vec.index_slice_index, lookup, item_conflict_spec], ?_, ?_⟩
+      · intro k found
+        obtain ⟨d, member, clash, kindIs⟩ := first_clash_some _ _ _ k found
+        exact ⟨later, _, at_p, d, member, clash, kindIs⟩
+      · intro none _ item at_item d member
+        rw [at_p] at at_item
+        cases at_item
+        exact first_clash_none _ _ _ none d member
+    · have cond : ¬ position < alloc.vec.Vec.len axioms := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
+      have outside : axioms.val[position.val]? = none := List.getElem?_eq_none (by omega)
+      exact ⟨none, by simp [laterU, cond], by simp, fun _ _ item at_item => by simp [outside] at at_item⟩
+  · have laterU : ¬ after < position := by simp only [UScalar.lt_equiv]; exact later
+    exact ⟨none, by simp [laterU], by simp, fun _ below => absurd below later⟩
+
+private theorem conflict_at_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (positions : alloc.vec.Vec Usize)
+    (iri : Iri) (kind : EntityKind) (after at_ : Usize) :
+    ∃ r, dl_validity.conflict_at axioms positions iri kind after at_ = .ok r ∧
+      (∀ k, r = some k → ∃ q ∈ positions.val.drop at_.val, after.val < q.val ∧
+        ∃ item, axioms.val[q.val]? = some item ∧
+          ∃ d ∈ Rowl.Collection.declarationUses item, Clashes iri kind d ∧ d.2 = k) ∧
+      (r = none → ∀ q ∈ positions.val.drop at_.val, after.val < q.val →
+        ∀ item, axioms.val[q.val]? = some item →
+          ∀ d ∈ Rowl.Collection.declarationUses item, ¬ Clashes iri kind d) := by
+  rw [dl_validity.conflict_at]
+  by_cases more : at_.val < positions.val.length
+  · have lookup : positions.index_usize at_ = .ok positions.val[at_.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    have cond : at_ < alloc.vec.Vec.len positions := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have size := positions.property
+    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := at_) (y := 1#usize) (by scalar_tac))
+    have nextval : next.val = at_.val + 1 := by simpa using hv
+    have drop : positions.val.drop at_.val = positions.val[at_.val] :: positions.val.drop next.val := by
+      rw [nextval]; exact List.drop_eq_getElem_cons more
+    obtain ⟨here, hereRun, hereSome, hereNone⟩ :=
+      position_conflict_spec axioms (positions.val[at_.val]'more) iri kind after
+    cases here with
+    | some other =>
+      refine ⟨some other, by simp [cond, alloc.vec.Vec.index_slice_index, lookup, hereRun], ?_, by simp⟩
+      intro k same
+      cases Option.some.inj same
+      obtain ⟨later, item, at_q, d, member, clash, kindIs⟩ := hereSome other rfl
+      exact ⟨_, by rw [drop]; exact List.mem_cons_self, later, item, at_q, d, member, clash, kindIs⟩
+    | none =>
+      obtain ⟨rest, restRun, restSome, restNone⟩ := conflict_at_spec axioms positions iri kind after next
+      refine ⟨rest, by simp [cond, alloc.vec.Vec.index_slice_index, lookup, hereRun, hn, restRun], ?_, ?_⟩
+      · intro k found
+        obtain ⟨q, member, later, item, at_q, d, dMember, clash, kindIs⟩ := restSome k found
+        exact ⟨q, by rw [drop]; exact List.mem_cons_of_mem _ member, later, item, at_q, d, dMember, clash,
+          kindIs⟩
+      · intro none q member later item at_q d dMember
+        rw [drop] at member
+        rcases List.mem_cons.mp member with same | member
+        · subst same
+          exact hereNone rfl later item at_q d dMember
+        · exact restNone none q member later item at_q d dMember
+  · have cond : ¬ at_ < alloc.vec.Vec.len positions := by
+      simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact more
+    have empty : positions.val.drop at_.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+    exact ⟨none, by simp [cond], by simp, by simp [empty]⟩
+termination_by positions.val.length - at_.val
+decreasing_by omega
+
+private theorem mem_drop_rows (axioms : List AnnotatedAxiom) (m : Nat) (d : Row) :
+    d ∈ (axioms.drop m).flatMap Rowl.Collection.declarationUses ↔
+      ∃ (p : Nat) (inside : p < axioms.length), m ≤ p ∧ d ∈ Rowl.Collection.declarationUses axioms[p] := by
+  simp only [List.mem_flatMap]
+  constructor
+  · rintro ⟨item, member, row⟩
+    obtain ⟨i, inside, at_i⟩ := List.getElem_of_mem member
+    rw [List.getElem_drop] at at_i
+    exact ⟨m + i, by rw [List.length_drop] at inside; omega, by omega, by rw [at_i]; exact row⟩
+  · rintro ⟨p, inside, low, row⟩
+    refine ⟨axioms[p], ?_, row⟩
+    rw [List.mem_iff_getElem]
+    refine ⟨p - m, by rw [List.length_drop]; omega, ?_⟩
+    rw [List.getElem_drop]
+    congr 1
+    omega
+
+private theorem later_conflict_spec (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (iri : Iri) (kind : EntityKind) (after : Usize) :
+    ∃ r, dl_validity.later_conflict axioms index iri kind after = .ok r ∧
+      (∀ k, r = some k → ∃ d ∈ (axioms.val.drop (after.val + 1)).flatMap Rowl.Collection.declarationUses,
+        Clashes iri kind d ∧ d.2 = k) ∧
+      (r = none → ∀ d ∈ (axioms.val.drop (after.val + 1)).flatMap Rowl.Collection.declarationUses,
+        ¬ Clashes iri kind d) := by
+  obtain ⟨b, bucketRun, bLt⟩ := bucket_of_spec iri
+  have bInside : b.val < index.val.length := by rw [ok.1]; exact bLt
+  have lookup : index.index_usize b = .ok index.val[b.val] := by
+    simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem bInside]
+  have cond : b < alloc.vec.Vec.len index := by
+    simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact bInside
+  obtain ⟨r, run, someCase, noneCase⟩ :=
+    conflict_at_spec axioms (index.val[b.val]'bInside) iri kind after 0#usize
+  have zero : (0#usize).val = 0 := by simp
+  rw [zero, List.drop_zero] at someCase noneCase
+  refine ⟨r, by simp [dl_validity.later_conflict, dl_validity.conflict_in_bucket, bucketRun, cond, bInside,
+    alloc.vec.Vec.index_slice_index, lookup, run], ?_, ?_⟩
+  · intro k found
+    obtain ⟨q, _, later, item, at_q, d, member, clash, kindIs⟩ := someCase k found
+    obtain ⟨inside, at_q'⟩ := List.getElem?_eq_some_iff.mp at_q
+    refine ⟨d, (mem_drop_rows axioms.val _ d).mpr ⟨q.val, inside, by omega, ?_⟩, clash, kindIs⟩
+    rw [at_q']
+    exact member
+  · intro none d member clash
+    obtain ⟨p, inside, low, row⟩ := (mem_drop_rows axioms.val _ d).mp member
+    obtain ⟨entity, declared, rfl⟩ := declaration_row_of axioms.val[p] d row
+    have sameBucket : dl_validity.bucket_of (entityIri entity) = .ok b := by
+      rw [bucket_of_spelling (entityIri entity) iri clash.1]
+      exact bucketRun
+    obtain ⟨bucket, at_b, q, qMember, qIs⟩ := ok.2.2 p inside entity inside declared b sameBucket
+    rw [List.getElem?_eq_getElem bInside] at at_b
+    cases at_b
+    exact noneCase none q qMember (by omega) axioms.val[p]
+      (by rw [qIs]; exact List.getElem?_eq_getElem inside) _ row clash
 
 /-! ## The typing constraints on declaration and use rows (§5.8.1) -/
 
@@ -507,16 +885,18 @@ private theorem builtin_conflict_some (iri : Iri) (kind other : EntityKind)
       exact ⟨rfl, f⟩
     · simp [f] at found
 
-private theorem entity_conflict_correct (axioms : alloc.vec.Vec AnnotatedAxiom) (entity : Entity)
-    (index : Usize) :
-    ∃ r, dl_validity.entity_conflict axioms entity index = .ok r ∧
-      (r = none → ∀ k, ¬ ConflictWith ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses)
+private theorem entity_conflict_correct (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (entity : Entity) (position : Usize) :
+    ∃ r, dl_validity.entity_conflict axioms index entity position = .ok r ∧
+      (r = none → ∀ k, ¬ ConflictWith ((axioms.val.drop (position.val + 1)).flatMap Rowl.Collection.declarationUses)
         (entityIri entity, Rowl.Typing.kindOf entity) k) ∧
-      (∀ k, r = some k → ConflictWith ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses)
+      (∀ k, r = some k → ConflictWith ((axioms.val.drop (position.val + 1)).flatMap Rowl.Collection.declarationUses)
         (entityIri entity, Rowl.Typing.kindOf entity) k) := by
+  obtain ⟨later, laterRun, laterSome, laterNone⟩ :=
+    later_conflict_spec axioms index ok (entityIri entity) (Rowl.Typing.kindOf entity) position
   unfold dl_validity.entity_conflict
-  simp only [entity_iri_spec, Rowl.Typing.entity_kind_total_correct, builtin_conflict_spec, bind_ok,
-    later_conflict_spec]
+  simp only [entity_iri_spec, Rowl.Typing.entity_kind_total_correct, builtin_conflict_spec, bind_ok]
   cases builtin : builtinConflict (entityIri entity) (Rowl.Typing.kindOf entity) with
   | some r =>
     obtain ⟨role, forbidden⟩ := builtin_conflict_some _ _ _ builtin
@@ -524,28 +904,30 @@ private theorem entity_conflict_correct (axioms : alloc.vec.Vec AnnotatedAxiom) 
     cases Option.some.inj same
     exact ⟨forbidden, .inl role⟩
   | none =>
-    refine ⟨_, rfl, fun none k conflict => ?_, fun k found => ?_⟩
+    refine ⟨later, by simp [laterRun], fun none k conflict => ?_, fun k found => ?_⟩
     · obtain ⟨forbidden, source⟩ := conflict
       rcases source with role | ⟨d, member, kind, same⟩
       · exact builtin_conflict_none _ _ builtin k role forbidden
       · subst kind
-        exact first_clash_none _ _ _ none d member ⟨same, forbidden⟩
-    · obtain ⟨d, member, ⟨same, forbidden⟩, kind⟩ := first_clash_some _ _ _ k found
+        exact laterNone none d member ⟨same, forbidden⟩
+    · obtain ⟨d, member, ⟨same, forbidden⟩, kind⟩ := laterSome k found
       subst kind
       exact ⟨forbidden, .inr ⟨d, member, rfl, same⟩⟩
 
-private theorem item_conflicts_correct (axioms : alloc.vec.Vec AnnotatedAxiom) (item : AnnotatedAxiom)
-    (index : Usize) :
-    ∃ r, dl_validity.item_conflicts axioms item index = .ok r ∧
+private theorem item_conflicts_correct (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (item : AnnotatedAxiom) (position : Usize) :
+    ∃ r, dl_validity.item_conflicts axioms index item position = .ok r ∧
       ((r = .Valid ∧ ∀ row ∈ Rowl.Collection.declarationUses item, ∀ k,
-          ¬ ConflictWith ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses) row k) ∨
+          ¬ ConflictWith ((axioms.val.drop (position.val + 1)).flatMap Rowl.Collection.declarationUses) row k) ∨
         ∃ iri kind other, r = .ConflictingDeclarations iri kind other ∧
           Rowl.Collection.declarationUses item = [(iri, kind)] ∧
-          ConflictWith ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses) (iri, kind) other) := by
+          ConflictWith ((axioms.val.drop (position.val + 1)).flatMap Rowl.Collection.declarationUses)
+            (iri, kind) other) := by
   unfold dl_validity.item_conflicts
   cases h : item.axiom
   case Declaration entity =>
-    obtain ⟨r, run, none, some⟩ := entity_conflict_correct axioms entity index
+    obtain ⟨r, run, none, some⟩ := entity_conflict_correct axioms index ok entity position
     have uses : Rowl.Collection.declarationUses item = [(entityIri entity, Rowl.Typing.kindOf entity)] := by
       simp [Rowl.Collection.declarationUses, h, entity_uses_eq]
     cases r with
@@ -573,29 +955,32 @@ private theorem declaration_uses_shape (item : AnnotatedAxiom) :
   case Declaration entity => exact .inr ⟨_, entity_uses_eq entity⟩
   all_goals exact .inl rfl
 
-private theorem conflict_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom) (index : Usize) :
-    ∃ r, dl_validity.conflict_from axioms index = .ok r ∧
-      ConflictsCorrect ((axioms.val.drop index.val).flatMap Rowl.Collection.declarationUses) r := by
+private theorem conflict_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (position : Usize) :
+    ∃ r, dl_validity.conflict_from axioms index position = .ok r ∧
+      ConflictsCorrect ((axioms.val.drop position.val).flatMap Rowl.Collection.declarationUses) r := by
   rw [dl_validity.conflict_from]
-  by_cases inside : index.val < axioms.val.length
-  · have lookup : axioms.index_usize index = .ok axioms.val[index.val] := by
+  by_cases inside : position.val < axioms.val.length
+  · have lookup : axioms.index_usize position = .ok axioms.val[position.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
     have size := axioms.property
-    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
-    have nextval : next.val = index.val + 1 := by simpa using hv
-    have rows := drop_rows axioms index.val inside Rowl.Collection.declarationUses
+    obtain ⟨next, hn, hv⟩ := WP.spec_imp_exists (Usize.add_spec (x := position) (y := 1#usize) (by scalar_tac))
+    have nextval : next.val = position.val + 1 := by simpa using hv
+    have rows := drop_rows axioms position.val inside Rowl.Collection.declarationUses
     rw [rows]
-    rw [← nextval] at rows ⊢
-    obtain ⟨r, run, verdict⟩ := item_conflicts_correct axioms axioms.val[index.val] next
+    obtain ⟨r, run, verdict⟩ := item_conflicts_correct axioms index ok axioms.val[position.val] position
     rcases verdict with ⟨valid, unconflicted⟩ | ⟨iri, kind, other, conflict, uses, conflictWith⟩
     · subst valid
-      obtain ⟨rest, restRun, restCorrect⟩ := conflict_from_correct axioms next
+      obtain ⟨rest, restRun, restCorrect⟩ := conflict_from_correct axioms index ok next
+      rw [nextval] at restCorrect
       refine ⟨rest, by simp [inside, alloc.vec.Vec.index_slice_index, lookup, hn, run, restRun], ?_⟩
-      rcases declaration_uses_shape axioms.val[index.val] with empty | ⟨row, single⟩
+      rcases declaration_uses_shape axioms.val[position.val] with empty | ⟨row, single⟩
       · rw [empty]
         simpa using restCorrect
       · rw [single]
-        have free : ∀ k, ¬ ConflictWith ((axioms.val.drop next.val).flatMap Rowl.Collection.declarationUses) row k :=
+        have free : ∀ k, ¬ ConflictWith ((axioms.val.drop (position.val + 1)).flatMap
+            Rowl.Collection.declarationUses) row k :=
           unconflicted row (by rw [single]; exact List.mem_singleton_self row)
         cases rest with
         | Valid => exact ⟨free, restCorrect⟩
@@ -603,12 +988,12 @@ private theorem conflict_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom) (i
         | MissingDeclaration _ _ => exact False.elim restCorrect
     · subst conflict
       refine ⟨.ConflictingDeclarations iri kind other,
-        by simp [inside, alloc.vec.Vec.index_slice_index, lookup, hn, run], ?_⟩
+        by simp [inside, alloc.vec.Vec.index_slice_index, lookup, run], ?_⟩
       rw [uses]
       exact .here conflictWith
-  · have empty : axioms.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
+  · have empty : axioms.val.drop position.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     exact ⟨.Valid, by simp [inside], by simp [empty, ConflictsCorrect, ConflictFree]⟩
-termination_by axioms.val.length - index.val
+termination_by axioms.val.length - position.val
 decreasing_by omega
 
 private theorem exempt_spec (kind : EntityKind) (strict : Bool) :
@@ -616,14 +1001,13 @@ private theorem exempt_spec (kind : EntityKind) (strict : Bool) :
   unfold dl_validity.exempt
   cases strict <;> cases kind <;> simp
 
-private theorem use_declared_spec (axioms : alloc.vec.Vec AnnotatedAxiom) (iri : Iri) (kind : EntityKind)
-    (strict : Bool) :
-    dl_validity.use_declared axioms iri kind strict =
+private theorem use_declared_spec (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (iri : Iri) (kind : EntityKind) (strict : Bool) :
+    dl_validity.use_declared axioms index iri kind strict =
       .ok (decide (Declared strict (axioms.val.flatMap Rowl.Collection.declarationUses) (iri, kind))) := by
   unfold dl_validity.use_declared
-  have zero : (0#usize).val = 0 := by simp
-  have whole := declared_from_spec axioms iri kind 0#usize
-  simp only [zero, List.drop_zero] at whole
+  have whole := declared_indexed_eq axioms index ok iri kind
   by_cases exempt : strict = false ∧ kind = .NamedIndividual
   · simp [exempt_spec, exempt, Declared]
   · by_cases builtin : Rowl.Builtins.role iri.spelling.val = some kind
@@ -637,9 +1021,10 @@ private def UndeclaredCorrect (strict : Bool) (declarations rows : List Row) :
   | none => ∀ row ∈ rows, Declared strict declarations row
   | some (iri, kind) => FirstUndeclared strict declarations rows iri kind
 
-private theorem undeclared_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom) (uses : EntityUses)
-    (strict : Bool) :
-    ∃ r, dl_validity.undeclared_from axioms uses strict = .ok r ∧
+private theorem undeclared_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom)
+    (index : alloc.vec.Vec (alloc.vec.Vec Usize)) (ok : IndexOK axioms.val axioms.val.length index)
+    (uses : EntityUses) (strict : Bool) :
+    ∃ r, dl_validity.undeclared_from axioms index uses strict = .ok r ∧
       UndeclaredCorrect strict (axioms.val.flatMap Rowl.Collection.declarationUses) (Rowl.Collection.rows uses) r := by
   induction uses with
   | Empty =>
@@ -648,7 +1033,7 @@ private theorem undeclared_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom) 
     obtain ⟨r, run, correct⟩ := ih
     rw [dl_validity.undeclared_from]
     by_cases declared : Declared strict (axioms.val.flatMap Rowl.Collection.declarationUses) (iri, kind)
-    · refine ⟨r, by simp [use_declared_spec, declared, run], ?_⟩
+    · refine ⟨r, by simp [use_declared_spec axioms index ok, declared, run], ?_⟩
       cases r with
       | none =>
         intro row member
@@ -659,7 +1044,7 @@ private theorem undeclared_from_correct (axioms : alloc.vec.Vec AnnotatedAxiom) 
       | some found =>
         obtain ⟨missingIri, missingKind⟩ := found
         exact .later declared correct
-    · exact ⟨some (iri, kind), by simp [use_declared_spec, declared], .here declared⟩
+    · exact ⟨some (iri, kind), by simp [use_declared_spec axioms index ok, declared], .here declared⟩
 
 private theorem declarations_rows (o : RawOntology) :
     o.axioms.val.flatMap Rowl.Collection.declarationUses = Rowl.Indexing.ontologyDeclarations o := rfl
@@ -670,29 +1055,32 @@ private theorem declarations_rows (o : RawOntology) :
     missing declaration is the first undeclared use after conflict freedom. -/
 theorem check_typing_total_correct (o : RawOntology) :
     ∃ r, dl_validity.check_typing o = .ok r ∧ TypingCorrect o r := by
-  obtain ⟨conflicts, run, conflictsCorrect⟩ := conflict_from_correct o.axioms 0#usize
+  obtain ⟨index, indexRun, ok⟩ := declaration_index_spec o.axioms
+  obtain ⟨collected, collectedRun, collectedCorrect⟩ := Rowl.Collection.axiom_closure_entities_total_correct o
+  obtain ⟨conflicts, run, conflictsCorrect⟩ := conflict_from_correct o.axioms index ok 0#usize
   have zero : (0#usize).val = 0 := by simp
   simp only [zero, List.drop_zero, declarations_rows] at conflictsCorrect
   cases conflicts with
   | ConflictingDeclarations iri kind other =>
-    refine ⟨.ConflictingDeclarations iri kind other, by simp [dl_validity.check_typing, run],
+    refine ⟨.ConflictingDeclarations iri kind other,
+      by simp [dl_validity.check_typing, dl_validity.typing_with, indexRun, collectedRun, run],
       conflictsCorrect, ?_⟩
     rw [raw_well_typed_iff]
     exact fun ⟨free, _⟩ => first_conflict_not_free conflictsCorrect free
   | MissingDeclaration _ _ => exact False.elim conflictsCorrect
   | Valid =>
-    obtain ⟨collected, collectedRun, collectedCorrect⟩ := Rowl.Collection.axiom_closure_entities_total_correct o
-    obtain ⟨missing, missingRun, missingCorrect⟩ := undeclared_from_correct o.axioms collected.uses false
+    obtain ⟨missing, missingRun, missingCorrect⟩ := undeclared_from_correct o.axioms index ok collected.uses false
     have usesRows : Rowl.Collection.rows collected.uses = Rowl.Indexing.ontologyUses o := collectedCorrect.2
     rw [usesRows, declarations_rows] at missingCorrect
     cases missing with
     | none =>
-      refine ⟨.Valid, by simp [dl_validity.check_typing, run, collectedRun, missingRun], ?_⟩
+      refine ⟨.Valid, by simp [dl_validity.check_typing, dl_validity.typing_with, indexRun, collectedRun, run,
+        missingRun], ?_⟩
       exact (raw_well_typed_iff o).mpr ⟨conflictsCorrect, missingCorrect⟩
     | some found =>
       obtain ⟨iri, kind⟩ := found
-      refine ⟨.MissingDeclaration iri kind, by simp [dl_validity.check_typing, run, collectedRun, missingRun],
-        conflictsCorrect, missingCorrect, ?_⟩
+      refine ⟨.MissingDeclaration iri kind, by simp [dl_validity.check_typing, dl_validity.typing_with, indexRun,
+        collectedRun, run, missingRun], conflictsCorrect, missingCorrect, ?_⟩
       rw [raw_well_typed_iff]
       exact fun ⟨_, all⟩ => first_undeclared_not_all missingCorrect all
 
@@ -720,18 +1108,19 @@ theorem check_typing_agrees (o : RawOntology) (limit : U32) (table : RowlRust.sy
     undeclared use as evidence. -/
 theorem check_declarations_total_correct (o : RawOntology) :
     ∃ r, dl_validity.check_declarations o = .ok r ∧ DeclarationsCorrect o r := by
+  obtain ⟨index, indexRun, ok⟩ := declaration_index_spec o.axioms
   obtain ⟨collected, collectedRun, collectedCorrect⟩ := Rowl.Collection.axiom_closure_entities_total_correct o
-  obtain ⟨missing, missingRun, missingCorrect⟩ := undeclared_from_correct o.axioms collected.uses true
+  obtain ⟨missing, missingRun, missingCorrect⟩ := undeclared_from_correct o.axioms index ok collected.uses true
   have usesRows : Rowl.Collection.rows collected.uses = Rowl.Indexing.ontologyUses o := collectedCorrect.2
   rw [usesRows, declarations_rows] at missingCorrect
   cases missing with
   | none =>
-    exact ⟨.Consistent, by simp [dl_validity.check_declarations, collectedRun, missingRun],
-      (consistent_iff o).mpr missingCorrect⟩
+    exact ⟨.Consistent, by simp [dl_validity.check_declarations, dl_validity.declarations_with, indexRun,
+      collectedRun, missingRun], (consistent_iff o).mpr missingCorrect⟩
   | some found =>
     obtain ⟨iri, kind⟩ := found
-    refine ⟨.Undeclared iri kind, by simp [dl_validity.check_declarations, collectedRun, missingRun],
-      missingCorrect, ?_⟩
+    refine ⟨.Undeclared iri kind, by simp [dl_validity.check_declarations, dl_validity.declarations_with,
+      indexRun, collectedRun, missingRun], missingCorrect, ?_⟩
     rw [consistent_iff]
     exact first_undeclared_not_all missingCorrect
 

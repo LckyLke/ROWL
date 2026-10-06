@@ -289,6 +289,44 @@ fn missing_declarations_report_the_iri_and_its_kind() {
 }
 
 #[test]
+fn spellings_that_share_an_index_bucket_keep_their_own_declarations() {
+    // After a common prefix, `aO` and `b0` reach the same bucket of the
+    // declaration index (31 * 'a' + 'O' = 31 * 'b' + '0'), so the lookups
+    // must still compare the spellings themselves.
+    let shared = ontology(
+        "Declaration(Class(:aO)) Declaration(Datatype(:b0)) SubClassOf(:aO :aO) \
+         DataPropertyRange(:p :b0) Declaration(DataProperty(:p))",
+    );
+    assert!(matches!(check_typing(&shared), TypingCheck::Valid));
+    let missing = ontology("Declaration(Class(:aO)) SubClassOf(:b0 :aO)");
+    match check_typing(&missing) {
+        TypingCheck::MissingDeclaration { iri, kind } => {
+            assert_eq!(local(iri), "b0");
+            assert!(matches!(kind, EntityKind::Class));
+        }
+        _ => panic!("b0 is not declared as a class"),
+    }
+    let conflict =
+        ontology("Declaration(Class(:aO)) Declaration(Datatype(:b0)) Declaration(Datatype(:aO))");
+    match check_typing(&conflict) {
+        TypingCheck::ConflictingDeclarations { iri, kind, other } => {
+            assert_eq!(local(iri), "aO");
+            assert!(matches!(kind, EntityKind::Class));
+            assert!(matches!(other, EntityKind::Datatype));
+        }
+        _ => panic!("aO is declared as a class and a datatype"),
+    }
+    let undeclared = ontology("Declaration(NamedIndividual(:aO)) ClassAssertion(owl:Thing :b0)");
+    match check_declarations(&undeclared) {
+        DeclarationCheck::Undeclared { iri, kind } => {
+            assert_eq!(local(iri), "b0");
+            assert!(matches!(kind, EntityKind::NamedIndividual));
+        }
+        DeclarationCheck::Consistent => panic!("b0 is not declared"),
+    }
+}
+
+#[test]
 fn declaration_consistency_also_requires_named_individuals() {
     let undeclared = ontology("Declaration(Class(:A)) ClassAssertion(:A :i)");
     assert_eq!(verdict(&undeclared).0, "Valid");

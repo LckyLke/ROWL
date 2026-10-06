@@ -4627,3 +4627,44 @@ violation through the reasoner, the CLI, the C interface and Python.
 
 Totals are 534 Rust regressions and 13 Python binding tests; the audited
 theorems, definitions and ledger obligations are unchanged.
+
+## Hashed declaration lookups in the typing stage
+
+The typing stage of `dl_validity::check_ontology` scanned every axiom for each
+use and each declaration, so its time grew with the square of the number of
+axioms. `check_typing` and `check_declarations` now first build a declaration
+index: 4096 buckets, each holding, in increasing order, the positions of the
+declaration axioms whose IRI hashes to it. The hash depends only on the bytes
+of the IRI, so a declaration of a spelling can only sit in that spelling's
+bucket. A use is declared when a declaration in its bucket has its spelling and
+kind, and a declaration conflicts when a later declaration in its bucket has
+its spelling and a forbidden kind. Spellings are still compared exactly; the
+hash only selects the candidates, and colliding spellings stay apart.
+
+The public theorems are unchanged and now prove the indexed implementation:
+`check_typing_total_correct`, `check_typing_valid_iff`, `check_typing_agrees`,
+`check_declarations_total_correct`, `check_declarations_valid_iff`,
+`check_ontology_total_correct` and `check_ontology_valid_iff`. The index
+invariant `IndexOK` says that the buckets are 4096, none is longer than the
+number of axioms, and the position of every declaration axiom lies in the
+bucket of its IRI. `declaration_index_spec` proves that the built index has
+it, `declared_indexed_spec` that a bucket lookup finds a declaration of the
+spelling and kind exactly when one of the axioms is such a declaration, and
+`later_conflict_spec` that the bucket scan after a position finds a
+conflicting kind exactly when a later declaration axiom has one. A new
+regression declares two spellings that share a bucket.
+
+On the generated EL ontologies loaded from N-Triples, `check_ontology` now
+takes 5.3 ms for 1000 classes, 9.3 ms for 5000 classes and 38 ms for 20 000
+classes (46 023 axioms), instead of 5.5 ms, 0.10 s and 3.4 s; the typing
+stage alone takes 18 ms instead of 3.6 s on the largest one, and
+`check_declarations` 16 ms instead of 2.0 s. The unchanged anonymous
+restrictions took 4 ms on the largest ontology in this build and 4.9 s in the
+previous one: their pairwise scans are quadratic in the number of axioms, and
+whether the optimizer moves the test of the first axiom out of the inner scan
+depends on the build. `check_ontology` does not depend on it, since its
+shortcut skips those scans when no object property assertion has an anonymous
+endpoint.
+
+This block adds no public theorem or definition. Totals are 2611 audited
+theorems, 1187 definitions, 535 Rust regressions and 2804 ledger obligations.

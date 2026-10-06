@@ -286,7 +286,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   proved to return `Valid` exactly for it, and otherwise the first violation
   with its component evidence and every earlier restriction proved. The typing
   stage decides the typing predicate on exact IRI spellings without a symbol
-  limit and agrees with the indexed checker. Declaration consistency (§5.8.2)
+  limit, finding declarations through a hashed index of their positions, and
+  agrees with the symbol-indexed checker. Declaration consistency (§5.8.2)
   is decided separately, the built-in vocabulary restrictions and punning are
   characterized, and annotations are proved to have no logical effect on
   models, consistency and entailment. The lexical forms of literals (§5.7),
@@ -1053,7 +1054,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 534 Rust regression tests and 13 Python binding tests, plus a separately fetched
+- 535 Rust regression tests and 13 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use

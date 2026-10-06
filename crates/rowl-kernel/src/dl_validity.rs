@@ -23,8 +23,11 @@
 //!
 //! The declaration typing stage compares exact IRI spellings directly, so it
 //! has no symbol-count limit; it decides the same independent predicate as
-//! `indexing::check_ontology_typing`. Declaration consistency (§5.8.2) is not
-//! an OWL 2 DL condition; `check_declarations` decides it separately.
+//! `indexing::check_ontology_typing`. It finds declarations through an index
+//! of their positions in buckets chosen by a hash of the IRI's bytes, and
+//! still compares the spellings in a bucket exactly. Declaration consistency
+//! (§5.8.2) is not an OWL 2 DL condition; `check_declarations` decides it
+//! separately.
 //!
 //! Two shortcuts skip checks that cannot fail, each justified by a theorem:
 //! without a property chain the empty order satisfies the restriction on the
@@ -225,14 +228,131 @@ fn item_declares(item: &AnnotatedAxiom, iri: &Iri, kind: &EntityKind) -> bool {
     }
 }
 
-/// Whether a declaration in `axioms[index..]` declares the spelling of `iri`
-/// as `kind`. Declarations are read from the axioms themselves, in order.
-fn declared_from(axioms: &Vec<AnnotatedAxiom>, iri: &Iri, kind: &EntityKind, index: usize) -> bool {
-    if index < axioms.len() {
-        item_declares(&axioms[index], iri, kind) || declared_from(axioms, iri, kind, index + 1)
+/// The number of buckets of the declaration index.
+const BUCKETS: usize = 4096;
+
+/// `(hash mod BUCKETS) * 31 + byte`, reduced modulo `BUCKETS`, without overflow.
+fn mix(hash: usize, byte: u8) -> usize {
+    ((hash % BUCKETS) * 31 + byte as usize) % BUCKETS
+}
+
+fn hash_from(bytes: &Vec<u8>, index: usize, hash: usize) -> usize {
+    if index < bytes.len() {
+        hash_from(bytes, index + 1, mix(hash, bytes[index]))
+    } else {
+        hash
+    }
+}
+
+/// The bucket of an IRI in the declaration index. It depends only on the
+/// IRI's bytes, so equal spellings share a bucket.
+fn bucket_of(iri: &Iri) -> usize {
+    hash_from(&iri.spelling, 0, 0)
+}
+
+fn empty_buckets(mut out: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    if out.len() < BUCKETS {
+        out.push(Vec::new());
+        empty_buckets(out)
+    } else {
+        out
+    }
+}
+
+/// Whether bucket `bucket` exists and has room for one more position.
+fn has_room(buckets: &Vec<Vec<usize>>, bucket: usize) -> bool {
+    bucket < buckets.len() && buckets[bucket].len() < usize::MAX
+}
+
+/// Add `position` to the bucket `bucket` when both fit.
+fn record(mut buckets: Vec<Vec<usize>>, bucket: usize, position: usize) -> Vec<Vec<usize>> {
+    if has_room(&buckets, bucket) {
+        buckets[bucket].push(position);
+    }
+    buckets
+}
+
+fn index_item(item: &AnnotatedAxiom, position: usize, buckets: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    match &item.axiom {
+        Axiom::Declaration(entity) => record(buckets, bucket_of(entity_iri(entity)), position),
+        _ => buckets,
+    }
+}
+
+fn index_from(
+    axioms: &Vec<AnnotatedAxiom>,
+    position: usize,
+    buckets: Vec<Vec<usize>>,
+) -> Vec<Vec<usize>> {
+    if position < axioms.len() {
+        index_from(
+            axioms,
+            position + 1,
+            index_item(&axioms[position], position, buckets),
+        )
+    } else {
+        buckets
+    }
+}
+
+/// The declaration index: for every bucket, the positions of the declaration
+/// axioms whose IRI falls into it, in increasing order.
+fn declaration_index(axioms: &Vec<AnnotatedAxiom>) -> Vec<Vec<usize>> {
+    index_from(axioms, 0, empty_buckets(Vec::new()))
+}
+
+/// Whether the axiom at `position` declares the spelling of `iri` as `kind`.
+fn position_declares(
+    axioms: &Vec<AnnotatedAxiom>,
+    position: usize,
+    iri: &Iri,
+    kind: &EntityKind,
+) -> bool {
+    if position < axioms.len() {
+        item_declares(&axioms[position], iri, kind)
     } else {
         false
     }
+}
+
+fn declared_at(
+    axioms: &Vec<AnnotatedAxiom>,
+    positions: &Vec<usize>,
+    iri: &Iri,
+    kind: &EntityKind,
+    at: usize,
+) -> bool {
+    if at < positions.len() {
+        position_declares(axioms, positions[at], iri, kind)
+            || declared_at(axioms, positions, iri, kind, at + 1)
+    } else {
+        false
+    }
+}
+
+fn declared_in_bucket(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    bucket: usize,
+    iri: &Iri,
+    kind: &EntityKind,
+) -> bool {
+    if bucket < index.len() {
+        declared_at(axioms, &index[bucket], iri, kind, 0)
+    } else {
+        false
+    }
+}
+
+/// Whether a declaration axiom declares the spelling of `iri` as `kind`; only
+/// the declarations in the bucket of `iri` can.
+fn declared_indexed(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    iri: &Iri,
+    kind: &EntityKind,
+) -> bool {
+    declared_in_bucket(axioms, index, bucket_of(iri), iri, kind)
 }
 
 /// Whether `kind` is the built-in role of `iri` (Table 5).
@@ -275,46 +395,101 @@ fn item_conflict(item: &AnnotatedAxiom, iri: &Iri, kind: &EntityKind) -> Option<
     }
 }
 
-/// The kind of the first declaration in `axioms[index..]` that declares the
-/// spelling of `iri` with a kind forbidden together with `kind`.
-fn later_conflict(
+/// The kind the axiom at `position` declares the spelling of `iri` with, if
+/// the position comes after `after` and the kind is forbidden with `kind`.
+fn position_conflict(
     axioms: &Vec<AnnotatedAxiom>,
+    position: usize,
     iri: &Iri,
     kind: &EntityKind,
-    index: usize,
+    after: usize,
 ) -> Option<EntityKind> {
-    if index < axioms.len() {
-        match item_conflict(&axioms[index], iri, kind) {
-            Some(other) => Some(other),
-            None => later_conflict(axioms, iri, kind, index + 1),
+    if after < position {
+        if position < axioms.len() {
+            item_conflict(&axioms[position], iri, kind)
+        } else {
+            None
         }
     } else {
         None
     }
 }
 
-/// The conflict of the declaration of `entity` with its built-in role, or
-/// else with a declaration in `axioms[index..]`.
-fn entity_conflict(
+fn conflict_at(
     axioms: &Vec<AnnotatedAxiom>,
-    entity: &Entity,
-    index: usize,
+    positions: &Vec<usize>,
+    iri: &Iri,
+    kind: &EntityKind,
+    after: usize,
+    at: usize,
 ) -> Option<EntityKind> {
-    match builtin_conflict(entity_iri(entity), &entity_kind(entity)) {
-        Some(role) => Some(role),
-        None => later_conflict(axioms, entity_iri(entity), &entity_kind(entity), index),
+    if at < positions.len() {
+        match position_conflict(axioms, positions[at], iri, kind, after) {
+            Some(other) => Some(other),
+            None => conflict_at(axioms, positions, iri, kind, after, at + 1),
+        }
+    } else {
+        None
     }
 }
 
-/// The conflict of `item`, if it is a declaration that conflicts with its
-/// built-in role or with a declaration in `axioms[index..]`.
+fn conflict_in_bucket(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    bucket: usize,
+    iri: &Iri,
+    kind: &EntityKind,
+    after: usize,
+) -> Option<EntityKind> {
+    if bucket < index.len() {
+        conflict_at(axioms, &index[bucket], iri, kind, after, 0)
+    } else {
+        None
+    }
+}
+
+/// The kind of a declaration after position `after` that declares the
+/// spelling of `iri` with a kind forbidden together with `kind`.
+fn later_conflict(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    iri: &Iri,
+    kind: &EntityKind,
+    after: usize,
+) -> Option<EntityKind> {
+    conflict_in_bucket(axioms, index, bucket_of(iri), iri, kind, after)
+}
+
+/// The conflict of the declaration of `entity` at `position` with its
+/// built-in role, or else with a later declaration.
+fn entity_conflict(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    entity: &Entity,
+    position: usize,
+) -> Option<EntityKind> {
+    match builtin_conflict(entity_iri(entity), &entity_kind(entity)) {
+        Some(role) => Some(role),
+        None => later_conflict(
+            axioms,
+            index,
+            entity_iri(entity),
+            &entity_kind(entity),
+            position,
+        ),
+    }
+}
+
+/// The conflict of `item` at `position`, if it is a declaration that
+/// conflicts with its built-in role or with a later declaration.
 fn item_conflicts<'a>(
     axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
     item: &'a AnnotatedAxiom,
-    index: usize,
+    position: usize,
 ) -> TypingCheck<'a> {
     match &item.axiom {
-        Axiom::Declaration(entity) => match entity_conflict(axioms, entity, index) {
+        Axiom::Declaration(entity) => match entity_conflict(axioms, index, entity, position) {
             Some(other) => TypingCheck::ConflictingDeclarations {
                 iri: entity_iri(entity),
                 kind: entity_kind(entity),
@@ -326,13 +501,17 @@ fn item_conflicts<'a>(
     }
 }
 
-/// The first declaration in `axioms[index..]` that conflicts with its
+/// The first declaration in `axioms[position..]` that conflicts with its
 /// built-in role or with a later declaration. A conflict with an earlier
 /// declaration is found at that earlier one, since the relation is symmetric.
-fn conflict_from(axioms: &Vec<AnnotatedAxiom>, index: usize) -> TypingCheck<'_> {
-    if index < axioms.len() {
-        match item_conflicts(axioms, &axioms[index], index + 1) {
-            TypingCheck::Valid => conflict_from(axioms, index + 1),
+fn conflict_from<'a>(
+    axioms: &'a Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    position: usize,
+) -> TypingCheck<'a> {
+    if position < axioms.len() {
+        match item_conflicts(axioms, index, &axioms[position], position) {
+            TypingCheck::Valid => conflict_from(axioms, index, position + 1),
             conflict => conflict,
         }
     } else {
@@ -348,8 +527,14 @@ fn exempt(kind: &EntityKind, strict: bool) -> bool {
 
 /// Whether a use of `iri` as `kind` is declared: exempt, a built-in role, or
 /// declared explicitly in `axioms`.
-fn use_declared(axioms: &Vec<AnnotatedAxiom>, iri: &Iri, kind: &EntityKind, strict: bool) -> bool {
-    exempt(kind, strict) || builtin_role(iri, kind) || declared_from(axioms, iri, kind, 0)
+fn use_declared(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    iri: &Iri,
+    kind: &EntityKind,
+    strict: bool,
+) -> bool {
+    exempt(kind, strict) || builtin_role(iri, kind) || declared_indexed(axioms, index, iri, kind)
 }
 
 /// The first use whose spelling is not declared with its kind, explicitly in
@@ -357,14 +542,15 @@ fn use_declared(axioms: &Vec<AnnotatedAxiom>, iri: &Iri, kind: &EntityKind, stri
 /// `strict`.
 fn undeclared_from<'a>(
     axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
     uses: EntityUses<'a>,
     strict: bool,
 ) -> Option<(&'a Iri, EntityKind)> {
     match uses {
         EntityUses::Empty => None,
         EntityUses::Entry { iri, kind, next } => {
-            if use_declared(axioms, iri, &kind, strict) {
-                undeclared_from(axioms, *next, strict)
+            if use_declared(axioms, index, iri, &kind, strict) {
+                undeclared_from(axioms, index, *next, strict)
             } else {
                 Some((iri, kind))
             }
@@ -372,23 +558,41 @@ fn undeclared_from<'a>(
     }
 }
 
+fn typing_with<'a>(
+    axioms: &'a Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    uses: EntityUses<'a>,
+) -> TypingCheck<'a> {
+    match conflict_from(axioms, index, 0) {
+        TypingCheck::Valid => match undeclared_from(axioms, index, uses, false) {
+            Some((iri, kind)) => TypingCheck::MissingDeclaration { iri, kind },
+            None => TypingCheck::Valid,
+        },
+        conflict => conflict,
+    }
+}
+
 /// The typing constraints of §5.8.1 on the supplied axioms and their
 /// annotations, with the built-in declarations of Table 5: no IRI is declared
 /// with two forbidden kinds, and every class, datatype and property is
 /// declared. Ontology annotations are not axioms and need no declarations.
+/// Declarations are found through a hashed index of their positions.
 pub fn check_typing(ontology: &RawOntology) -> TypingCheck<'_> {
-    match conflict_from(&ontology.axioms, 0) {
-        TypingCheck::Valid => {
-            match undeclared_from(
-                &ontology.axioms,
-                axiom_closure_entities(ontology).uses,
-                false,
-            ) {
-                Some((iri, kind)) => TypingCheck::MissingDeclaration { iri, kind },
-                None => TypingCheck::Valid,
-            }
-        }
-        conflict => conflict,
+    typing_with(
+        &ontology.axioms,
+        &declaration_index(&ontology.axioms),
+        axiom_closure_entities(ontology).uses,
+    )
+}
+
+fn declarations_with<'a>(
+    axioms: &Vec<AnnotatedAxiom>,
+    index: &Vec<Vec<usize>>,
+    uses: EntityUses<'a>,
+) -> DeclarationCheck<'a> {
+    match undeclared_from(axioms, index, uses, true) {
+        Some((iri, kind)) => DeclarationCheck::Undeclared { iri, kind },
+        None => DeclarationCheck::Consistent,
     }
 }
 
@@ -396,14 +600,11 @@ pub fn check_typing(ontology: &RawOntology) -> TypingCheck<'_> {
 /// named individuals included, is declared with its kind, explicitly or as a
 /// built-in. OWL 2 DL does not require it.
 pub fn check_declarations(ontology: &RawOntology) -> DeclarationCheck<'_> {
-    match undeclared_from(
+    declarations_with(
         &ontology.axioms,
+        &declaration_index(&ontology.axioms),
         axiom_closure_entities(ontology).uses,
-        true,
-    ) {
-        Some((iri, kind)) => DeclarationCheck::Undeclared { iri, kind },
-        None => DeclarationCheck::Consistent,
-    }
+    )
 }
 
 /// Whether `item` is a SubObjectPropertyOf axiom with a property chain.
