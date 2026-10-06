@@ -1,5 +1,5 @@
-# Asset inspection graph. N-Triples parsing preserves all these facts; OWL
-# inference from this graph requires the later RDF-to-OWL mapping and reasoner.
+# Asset inspection graph. N-Triples parsing preserves all these facts, and the
+# declarations make it the RDF mapping of an OWL 2 DL ontology.
 <urn:plant:pump1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:plant:Machine> .
 <urn:plant:pump1> <urn:plant:hasPart> _:motor1 .
 _:motor1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:plant:FaultyPart> .
@@ -12,3 +12,6 @@ _:motor1 <http://www.w3.org/2000/01/rdf-schema#label> "Drive motor"@en .
 <urn:plant:FaultyPart> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
 <urn:plant:NeedsInspection> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
 <urn:plant:hasPart> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<urn:plant:serial> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#DatatypeProperty> .
+<urn:plant:installedAt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<urn:plant:inspectionNote> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#AnnotationProperty> .

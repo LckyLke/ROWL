@@ -4600,3 +4600,30 @@ them.
 This block adds 21 public theorems and 16 definitions. Totals are 2611
 audited theorems, 1187 definitions, 527 Rust regressions and 2804 ledger
 obligations.
+
+## Validating documents as OWL 2 DL
+
+`Reasoner::dl_violation` runs the verified `dl_validity::check_ontology` on the
+document's axioms when it is called and describes its verdict in words: `None`
+when the axioms satisfy every restriction the check decides, and otherwise the
+first violation, naming the restriction, the section of the Structural
+Specification and the offending IRI with its kind, role, anonymous individual
+or axiom with its position in the document. Loading never rejects a document
+for these restrictions, so the queries still answer for documents that are not
+OWL 2 DL. The CLI's `rowl validate FILE` prints `OWL 2 DL: valid` or
+`OWL 2 DL: not valid:` followed by the violation and then exits with status 1;
+it notes on standard error that imported ontologies are not read. The C
+interface has `rowl_dl_violation`, which returns the violation as JSON text,
+and the Python `Reasoner.dl_violation()` returns it as a string or `None`.
+The layer only formats the kernel's verdict and adds no checking of its own.
+
+Two examples were not OWL 2 DL: `maintenance-classes.ofn` used six classes
+without declaring them, and `maintenance.nt` used three properties without
+declaring them, so the reverse RDF mapping could not read it as an ontology.
+Both now declare them; the reader and N-Triples tests count the added axioms
+and triples. A test checks that every Functional Syntax and N-Triples example
+is OWL 2 DL, and one crafted document per restriction checks the reported
+violation through the reasoner, the CLI, the C interface and Python.
+
+Totals are 534 Rust regressions and 13 Python binding tests; the audited
+theorems, definitions and ledger obligations are unchanged.

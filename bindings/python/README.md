@@ -17,6 +17,7 @@ with rowl.Reasoner.from_file("examples/medication-safety.ofn") as r:
     r.instance_of(med + "bob", med + "AllergyAlert")        # False: not entailed
     for entry in r.classify():
         print(entry.iri, entry.satisfiable, entry.superclasses)
+    r.dl_violation()                                        # None: the document is OWL 2 DL
 ```
 
 `Reasoner.from_file` reads N-Triples for a `.nt` file and Functional Syntax
@@ -39,6 +40,14 @@ read document does not map into the OWL model.
 | `classes()`, `individuals()` | The named classes and individuals of the document |
 | `classify()` | Every named class with its named superclasses |
 | `superclasses(cls)` | The named superclasses of one named class |
+| `dl_violation()` | The first OWL 2 DL restriction the document violates, or `None` |
+
+`dl_violation()` reports the verdict of the verified OWL 2 DL check: keys and
+arities, the reserved vocabulary, declarations and typing, and the global
+restrictions of the OWL 2 Structural Specification, proved exact against their
+conjunction. It is computed when called; loading never rejects a document for
+these restrictions. The lexical forms of literals, facet values and imports are
+not checked yet.
 
 ## Installing
 

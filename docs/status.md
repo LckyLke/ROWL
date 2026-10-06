@@ -290,7 +290,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   is decided separately, the built-in vocabulary restrictions and punning are
   characterized, and annotations are proved to have no logical effect on
   models, consistency and entailment. The lexical forms of literals (§5.7),
-  facet values (§7.5) and imports are not checked.
+  facet values (§7.5) and imports are not checked. `Reasoner::dl_violation`,
+  the CLI's `validate` command, the C interface's `rowl_dl_violation` and the
+  Python `Reasoner.dl_violation()` report this verdict for a loaded document
+  in words, computed when asked; loading never rejects a document for it.
 - M3 complete Functional Syntax name recognition from bytes: prefix names,
   local names, abbreviated IRIs and node IDs use the referenced SPARQL 2008
   grammar. Actual grammar equivalence, totality, exact acceptance and malformed
@@ -1050,10 +1053,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 527 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 534 Rust regression tests and 13 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
-  bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
+  bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
   entry), a concept table prepared once per ontology, clash detection on
   insertion, anywhere equality blocking and backjumping, the queries that count or have nominals a

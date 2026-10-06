@@ -105,3 +105,27 @@ fn rejected_documents_and_bad_arguments_are_reported() {
     let version = unsafe { CStr::from_ptr(rowl_version()) };
     assert_eq!(version.to_str().unwrap(), "0.0.0");
 }
+
+#[test]
+fn dl_violations_come_back_as_json_text() {
+    let (reasoner, status) = load(MEDICATION);
+    assert_eq!(status, ROWL_LOADED);
+    // SAFETY: a live handle, released once.
+    unsafe {
+        assert_eq!(take(rowl_dl_violation(reasoner)), "null");
+        rowl_reasoner_free(reasoner);
+    }
+    let undeclared =
+        b"Prefix(:=<https://example.org/>)\nOntology(<https://example.org/o>\nSubClassOf(:A :B))\n";
+    let (reasoner, status) = load(undeclared);
+    assert_eq!(status, ROWL_LOADED);
+    // SAFETY: a live handle, released once.
+    unsafe {
+        assert_eq!(
+            take(rowl_dl_violation(reasoner)),
+            "\"https://example.org/A is used as a class but not declared as one (typing constraints, §5.8.1)\""
+        );
+        rowl_reasoner_free(reasoner);
+        assert!(rowl_dl_violation(ptr::null()).is_null());
+    }
+}

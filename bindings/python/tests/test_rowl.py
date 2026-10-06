@@ -97,3 +97,19 @@ class Errors(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Validity(unittest.TestCase):
+    def test_examples_are_owl_2_dl(self):
+        for example in (MEDICATION, MEDICATION_NT):
+            with rowl.Reasoner.from_file(example) as reasoner:
+                self.assertIsNone(reasoner.dl_violation())
+
+    def test_first_violation_is_reported(self):
+        text = ("Prefix(:=<https://example.org/>)\n"
+                "Ontology(<https://example.org/o>\nSubClassOf(:A :B))\n")
+        with rowl.Reasoner(text) as reasoner:
+            self.assertEqual(
+                reasoner.dl_violation(),
+                "https://example.org/A is used as a class but not declared as one "
+                "(typing constraints, §5.8.1)")
