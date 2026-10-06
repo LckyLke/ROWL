@@ -519,6 +519,10 @@ import Rowl.Saturation
 #print axioms Rowl.Names.local_grammar_total_correct
 #print axioms Rowl.Names.abbreviated_grammar_total_correct
 #print axioms Rowl.Names.node_grammar_total_correct
+#print axioms Rowl.Names.ascii_prefix_correct
+#print axioms Rowl.Names.ascii_abbreviated_correct
+#print axioms Rowl.Names.whole_total_correct
+#print axioms Rowl.Names.whole_scan_accepted
 #print axioms Rowl.Names.validate_prefix_total_correct
 #print axioms Rowl.Names.validate_local_total_correct
 #print axioms Rowl.Names.validate_abbreviated_total_correct
@@ -527,8 +531,6 @@ import Rowl.Saturation
 #print axioms Rowl.Names.validate_local_accepted_iff
 #print axioms Rowl.Names.validate_abbreviated_accepted_iff
 #print axioms Rowl.Names.validate_node_accepted_iff
-#print axioms Rowl.Names.ascii_prefix_correct
-#print axioms Rowl.Names.ascii_abbreviated_correct
 #print axioms Rowl.Prefixes.standard_total_correct
 #print axioms Rowl.Prefixes.namespace_total_correct
 #print axioms Rowl.Prefixes.lookup_total_correct
@@ -553,6 +555,7 @@ import Rowl.Saturation
 #print axioms Rowl.Functional.keyword_grammar_total_correct
 #print axioms Rowl.Functional.grammar_total_correct
 #print axioms Rowl.Functional.grammar_nonempty
+#print axioms Rowl.Functional.ascii_name_correct
 #print axioms Rowl.Functional.recognize_total_correct
 #print axioms Rowl.Functional.recognize_accepted_iff
 #print axioms Rowl.Functional.longest_total_correct

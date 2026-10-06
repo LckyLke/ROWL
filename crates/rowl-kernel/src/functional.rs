@@ -272,9 +272,15 @@ pub fn grammar(terminal: Terminal) -> Expression {
     }
 }
 /// Whole-byte token recognition, with exact malformed UTF-8 diagnostics.
+/// Prefix names and abbreviated IRIs that an ASCII scan reads whole are
+/// accepted without the grammars.
 #[allow(clippy::ptr_arg)]
 pub fn recognize(terminal: Terminal, bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(grammar(terminal), bytes)
+    if names::whole(ascii_name(terminal, bytes, 0), bytes.len()) {
+        MatchResult::Matched(true)
+    } else {
+        matches_utf8(grammar(terminal), bytes)
+    }
 }
 /// Greedy byte-prefix matching for any standard terminal. Empty matches are
 /// excluded by every terminal grammar. Token identification and separator policy

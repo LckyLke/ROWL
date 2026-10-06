@@ -102,14 +102,40 @@ pub(crate) fn node_grammar() -> Expression {
     cat(cat(ch(95), ch(58)), local_word())
 }
 
+/// Whether an ASCII scan from the start of a buffer of `length` bytes read it
+/// whole as one word.
+pub(crate) fn whole(result: Option<PrefixResult>, length: usize) -> bool {
+    match result {
+        Some(PrefixResult::Matched(Some(end))) => end == length,
+        _ => false,
+    }
+}
+/// Whole-buffer PNAME_NS recognition; ASCII names are scanned without the
+/// grammar.
 pub fn validate_prefix(bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(prefix_grammar(), bytes)
+    if whole(ascii_prefix(bytes, 0), bytes.len()) {
+        MatchResult::Matched(true)
+    } else {
+        matches_utf8(prefix_grammar(), bytes)
+    }
 }
+/// Whole-buffer PN_LOCAL recognition; ASCII names are scanned without the
+/// grammar.
 pub fn validate_local(bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(local_word(), bytes)
+    if whole(ascii_local(bytes, 0), bytes.len()) {
+        MatchResult::Matched(true)
+    } else {
+        matches_utf8(local_word(), bytes)
+    }
 }
+/// Whole-buffer PNAME_LN recognition; ASCII names are scanned without the
+/// grammar.
 pub fn validate_abbreviated(bytes: &Vec<u8>) -> MatchResult {
-    matches_utf8(abbreviated_grammar(), bytes)
+    if whole(ascii_abbreviated(bytes, 0), bytes.len()) {
+        MatchResult::Matched(true)
+    } else {
+        matches_utf8(abbreviated_grammar(), bytes)
+    }
 }
 pub fn validate_node(bytes: &Vec<u8>) -> MatchResult {
     matches_utf8(node_grammar(), bytes)

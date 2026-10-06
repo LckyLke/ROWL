@@ -17,26 +17,10 @@ open RowlRust.functional (Terminal Token Selection)
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
-/-- Whenever the ASCII name scanners answer, the answer is the greatest
-    candidate endpoint of the terminal's language. -/
-private theorem ascii_name_spec (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize) :
-    ∃ r, functional.ascii_name terminal bytes position = .ok r ∧
-      ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
-        Rowl.Longest.Maximal
-          (Rowl.Longest.Candidate bytes.val position.val (Rowl.Functional.TerminalLanguage terminal)) endpoint := by
-  cases terminal with
-  | PrefixName =>
-    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_prefix_correct bytes position
-    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
-  | AbbreviatedIri =>
-    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_abbreviated_correct bytes position
-    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
-  | _ => exact ⟨none, by rw [functional.ascii_name], by simp⟩
-
 theorem longest_valid_eq (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize)
     (valid : ∃ word, Rowl.Regular.Utf8From bytes.val position.val word) :
     functional.longest_valid terminal bytes position = functional.longest terminal bytes position := by
-  obtain ⟨fast, scanned, decided⟩ := ascii_name_spec terminal bytes position
+  obtain ⟨fast, scanned, decided⟩ := Rowl.Functional.ascii_name_correct terminal bytes position
   rw [functional.longest_valid, scanned, bind_ok]
   cases fast with
   | none =>

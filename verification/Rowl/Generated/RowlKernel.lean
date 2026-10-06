@@ -33126,15 +33126,253 @@ def functional.grammar
   | functional.Terminal.Whitespace => functional.whitespace
   | functional.Terminal.Comment => functional.comment
 
+/-- [rowl_kernel::names::whole]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 107:0-112:1 -/
+def names.whole
+  (result : Option longest.PrefixResult) (length : Std.Usize) :
+  Result Bool
+  := do
+  match result with
+  | none => ok false
+  | some pr =>
+    match pr with
+    | longest.PrefixResult.Matched o =>
+      match o with
+      | none => ok false
+      | some «end» => ok («end» = length)
+    | longest.PrefixResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::names::ascii_at]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 232:0-238:1 -/
+def names.ascii_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i1 < 128#u8)
+  else ok true
+
+/-- [rowl_kernel::names::trim_dots]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 204:0-214:1 -/
+def names.trim_dots
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i ← start + 1#usize
+  if i < «end»
+  then
+    let i1 ← «end» - 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i1
+    if i2 = 46#u8
+    then names.trim_dots bytes start i1
+    else ok «end»
+  else ok «end»
+partial_fixpoint
+
+/-- [rowl_kernel::names::ascii_letter]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 146:0-148:1 -/
+def names.ascii_letter (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::names::local_start]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 151:0-153:1 -/
+def names.local_start (byte : Std.U8) : Result Bool := do
+  let b ← names.ascii_letter byte
+  if b
+  then ok true
+  else
+    if byte = 95#u8
+    then ok true
+    else if 48#u8 <= byte
+         then ok (byte <= 57#u8)
+         else ok false
+
+/-- [rowl_kernel::names::local_end]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 219:0-229:1 -/
+def names.local_end
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  if start < «end»
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        start
+    let b ← names.local_start i
+    if b
+    then let i1 ← names.trim_dots bytes start «end»
+         ok (some i1)
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::names::label_byte]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 156:0-158:1 -/
+def names.label_byte (byte : Std.U8) : Result Bool := do
+  let b ← names.local_start byte
+  if b
+  then ok true
+  else if byte = 45#u8
+       then ok true
+       else ok (byte = 46#u8)
+
+/-- [rowl_kernel::names::label_end]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 161:0-171:1 -/
+def names.label_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← names.label_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         names.label_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::names::ascii_local]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 241:0-248:1 -/
+def names.ascii_local
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  let «end» ← names.label_end bytes start
+  let b ← names.ascii_at bytes «end»
+  if b
+  then
+    let o ← names.local_end bytes start «end»
+    ok (some (longest.PrefixResult.Matched o))
+  else ok none
+
+/-- [rowl_kernel::names::prefix_label]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 175:0-177:1 -/
+def names.prefix_label
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (colon : Std.Usize) :
+  Result Bool
+  := do
+  if colon = position
+  then ok true
+  else
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        position
+    let b ← names.ascii_letter i
+    if b
+    then
+      let i1 ← colon - 1#usize
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes i1
+      ok (i2 != 46#u8)
+    else ok false
+
+/-- [rowl_kernel::names::ascii_prefix_end]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 183:0-200:1 -/
+def names.ascii_prefix_end
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (Option (Option Std.Usize))
+  := do
+  let colon ← names.label_end bytes position
+  let i := alloc.vec.Vec.len bytes
+  if colon < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        colon
+    if i1 = 58#u8
+    then
+      let b ← names.prefix_label bytes position colon
+      if b
+      then let i2 ← colon + 1#usize
+           ok (some (some i2))
+      else ok (some none)
+    else if i1 < 128#u8
+         then ok (some none)
+         else ok none
+  else ok (some none)
+
+/-- [rowl_kernel::names::ascii_abbreviated]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 261:0-267:1
+    Visibility: public -/
+def names.ascii_abbreviated
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  let o ← names.ascii_prefix_end bytes position
+  match o with
+  | none => ok none
+  | some o1 =>
+    match o1 with
+    | none => ok (some (longest.PrefixResult.Matched none))
+    | some start => names.ascii_local bytes start
+
+/-- [rowl_kernel::names::ascii_prefix]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 252:0-257:1
+    Visibility: public -/
+def names.ascii_prefix
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  let o ← names.ascii_prefix_end bytes position
+  match o with
+  | none => ok none
+  | some «end» => ok (some (longest.PrefixResult.Matched «end»))
+
+/-- [rowl_kernel::functional::ascii_name]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 296:0-302:1 -/
+def functional.ascii_name
+  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
+  (position : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  match terminal with
+  | functional.Terminal.Keyword _ => ok none
+  | functional.Terminal.Open => ok none
+  | functional.Terminal.Close => ok none
+  | functional.Terminal.Equals => ok none
+  | functional.Terminal.DatatypeIndicator => ok none
+  | functional.Terminal.Integer => ok none
+  | functional.Terminal.QuotedString => ok none
+  | functional.Terminal.LanguageTag => ok none
+  | functional.Terminal.NodeId => ok none
+  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.PrefixName => names.ascii_prefix bytes position
+  | functional.Terminal.AbbreviatedIri =>
+    names.ascii_abbreviated bytes position
+  | functional.Terminal.Whitespace => ok none
+  | functional.Terminal.Comment => ok none
+
 /-- [rowl_kernel::functional::recognize]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 276:0-278:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 278:0-284:1
     Visibility: public -/
 def functional.recognize
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8) :
   Result regular.MatchResult
   := do
-  let e ← functional.grammar terminal
-  regular.matches_utf8 e bytes
+  let o ← functional.ascii_name terminal bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  let b ← names.whole o i
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← functional.grammar terminal
+       regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::longest::scan]:
     Source: 'crates/rowl-kernel/src/longest.rs', lines 14:0-32:1 -/
@@ -33168,7 +33406,7 @@ def longest.longest_prefix
   longest.scan expression bytes offset none
 
 /-- [rowl_kernel::functional::longest]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 283:0-285:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 289:0-291:1
     Visibility: public -/
 def functional.longest
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
@@ -33177,223 +33415,6 @@ def functional.longest
   := do
   let e ← functional.grammar terminal
   longest.longest_prefix e bytes position
-
-/-- [rowl_kernel::names::ascii_at]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 206:0-212:1 -/
-def names.ascii_at
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    ok (i1 < 128#u8)
-  else ok true
-
-/-- [rowl_kernel::names::trim_dots]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 178:0-188:1 -/
-def names.trim_dots
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
-  Result Std.Usize
-  := do
-  let i ← start + 1#usize
-  if i < «end»
-  then
-    let i1 ← «end» - 1#usize
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        i1
-    if i2 = 46#u8
-    then names.trim_dots bytes start i1
-    else ok «end»
-  else ok «end»
-partial_fixpoint
-
-/-- [rowl_kernel::names::ascii_letter]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 120:0-122:1 -/
-def names.ascii_letter (byte : Std.U8) : Result Bool := do
-  if 65#u8 <= byte
-  then
-    if byte <= 90#u8
-    then ok true
-    else if 97#u8 <= byte
-         then ok (byte <= 122#u8)
-         else ok false
-  else if 97#u8 <= byte
-       then ok (byte <= 122#u8)
-       else ok false
-
-/-- [rowl_kernel::names::local_start]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 125:0-127:1 -/
-def names.local_start (byte : Std.U8) : Result Bool := do
-  let b ← names.ascii_letter byte
-  if b
-  then ok true
-  else
-    if byte = 95#u8
-    then ok true
-    else if 48#u8 <= byte
-         then ok (byte <= 57#u8)
-         else ok false
-
-/-- [rowl_kernel::names::local_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 193:0-203:1 -/
-def names.local_end
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
-  Result (Option Std.Usize)
-  := do
-  if start < «end»
-  then
-    let i ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        start
-    let b ← names.local_start i
-    if b
-    then let i1 ← names.trim_dots bytes start «end»
-         ok (some i1)
-    else ok none
-  else ok none
-
-/-- [rowl_kernel::names::label_byte]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 130:0-132:1 -/
-def names.label_byte (byte : Std.U8) : Result Bool := do
-  let b ← names.local_start byte
-  if b
-  then ok true
-  else if byte = 45#u8
-       then ok true
-       else ok (byte = 46#u8)
-
-/-- [rowl_kernel::names::label_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 135:0-145:1 -/
-def names.label_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← names.label_byte i1
-    if b
-    then let i2 ← index + 1#usize
-         names.label_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::names::ascii_local]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 215:0-222:1 -/
-def names.ascii_local
-  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
-  Result (Option longest.PrefixResult)
-  := do
-  let «end» ← names.label_end bytes start
-  let b ← names.ascii_at bytes «end»
-  if b
-  then
-    let o ← names.local_end bytes start «end»
-    ok (some (longest.PrefixResult.Matched o))
-  else ok none
-
-/-- [rowl_kernel::names::prefix_label]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 149:0-151:1 -/
-def names.prefix_label
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (colon : Std.Usize) :
-  Result Bool
-  := do
-  if colon = position
-  then ok true
-  else
-    let i ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        position
-    let b ← names.ascii_letter i
-    if b
-    then
-      let i1 ← colon - 1#usize
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-          bytes i1
-      ok (i2 != 46#u8)
-    else ok false
-
-/-- [rowl_kernel::names::ascii_prefix_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 157:0-174:1 -/
-def names.ascii_prefix_end
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (Option (Option Std.Usize))
-  := do
-  let colon ← names.label_end bytes position
-  let i := alloc.vec.Vec.len bytes
-  if colon < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        colon
-    if i1 = 58#u8
-    then
-      let b ← names.prefix_label bytes position colon
-      if b
-      then let i2 ← colon + 1#usize
-           ok (some (some i2))
-      else ok (some none)
-    else if i1 < 128#u8
-         then ok (some none)
-         else ok none
-  else ok (some none)
-
-/-- [rowl_kernel::names::ascii_abbreviated]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 235:0-241:1
-    Visibility: public -/
-def names.ascii_abbreviated
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (Option longest.PrefixResult)
-  := do
-  let o ← names.ascii_prefix_end bytes position
-  match o with
-  | none => ok none
-  | some o1 =>
-    match o1 with
-    | none => ok (some (longest.PrefixResult.Matched none))
-    | some start => names.ascii_local bytes start
-
-/-- [rowl_kernel::names::ascii_prefix]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 226:0-231:1
-    Visibility: public -/
-def names.ascii_prefix
-  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
-  Result (Option longest.PrefixResult)
-  := do
-  let o ← names.ascii_prefix_end bytes position
-  match o with
-  | none => ok none
-  | some «end» => ok (some (longest.PrefixResult.Matched «end»))
-
-/-- [rowl_kernel::functional::ascii_name]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 290:0-296:1 -/
-def functional.ascii_name
-  (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
-  (position : Std.Usize) :
-  Result (Option longest.PrefixResult)
-  := do
-  match terminal with
-  | functional.Terminal.Keyword _ => ok none
-  | functional.Terminal.Open => ok none
-  | functional.Terminal.Close => ok none
-  | functional.Terminal.Equals => ok none
-  | functional.Terminal.DatatypeIndicator => ok none
-  | functional.Terminal.Integer => ok none
-  | functional.Terminal.QuotedString => ok none
-  | functional.Terminal.LanguageTag => ok none
-  | functional.Terminal.NodeId => ok none
-  | functional.Terminal.FullIri => ok none
-  | functional.Terminal.PrefixName => names.ascii_prefix bytes position
-  | functional.Terminal.AbbreviatedIri =>
-    names.ascii_abbreviated bytes position
-  | functional.Terminal.Whitespace => ok none
-  | functional.Terminal.Comment => ok none
 
 /-- [rowl_kernel::longest::dead]:
     Source: 'crates/rowl-kernel/src/longest.rs', lines 42:0-44:1 -/
@@ -33442,7 +33463,7 @@ def longest.longest_valid_prefix
   longest.scan_valid expression bytes offset none
 
 /-- [rowl_kernel::functional::longest_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 300:0-305:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 306:0-311:1
     Visibility: public -/
 def functional.longest_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
@@ -33457,7 +33478,7 @@ def functional.longest_valid
   | some result => ok result
 
 /-- [rowl_kernel::functional::Token]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 308:0-312:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 314:0-318:1
     Visibility: public -/
 structure functional.Token where
   terminal : functional.Terminal
@@ -33465,7 +33486,7 @@ structure functional.Token where
   «end» : Std.Usize
 
 /-- [rowl_kernel::functional::Selection]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 313:0-317:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 319:0-323:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional.Selection where
@@ -33474,7 +33495,7 @@ inductive functional.Selection where
 | MalformedUtf8 : unicode.TextError → functional.Selection
 
 /-- [rowl_kernel::functional::seed]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 318:0-328:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 324:0-334:1 -/
 def functional.seed
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -33491,7 +33512,7 @@ def functional.seed
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 329:0-349:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 335:0-355:1 -/
 def functional.extend
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -33516,7 +33537,7 @@ def functional.extend
   | functional.Selection.MalformedUtf8 _ => ok previous
 
 /-- [rowl_kernel::functional::next_terminal]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 354:0-774:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 360:0-780:1
     Visibility: public -/
 def functional.next_terminal
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -33766,7 +33787,7 @@ def functional.next_terminal
   functional.extend functional.Terminal.Comment bytes position choice82
 
 /-- [rowl_kernel::functional::seed_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1844:0-1854:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1850:0-1860:1 -/
 def functional.seed_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -33783,7 +33804,7 @@ def functional.seed_valid
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1855:0-1880:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1861:0-1886:1 -/
 def functional.extend_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -33809,7 +33830,7 @@ def functional.extend_valid
   | functional.Selection.MalformedUtf8 _ => ok previous
 
 /-- [rowl_kernel::functional::next_terminal_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 778:0-1198:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 784:0-1204:1
     Visibility: public -/
 def functional.next_terminal_valid
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -34063,7 +34084,7 @@ def functional.next_terminal_valid
   functional.extend_valid functional.Terminal.Comment bytes position choice82
 
 /-- [rowl_kernel::functional::keyword_first]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1201:0-1275:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1207:0-1281:1 -/
 def functional.keyword_first
   (keyword : functional.Keyword) : Result Std.U32 := do
   match keyword with
@@ -34140,7 +34161,7 @@ def functional.keyword_first
   | functional.Keyword.NegativeDataPropertyAssertion => ok 78#u32
 
 /-- [rowl_kernel::functional::name_start]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1280:0-1285:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1286:0-1291:1 -/
 def functional.name_start (codepoint : Std.U32) : Result Bool := do
   if codepoint = 58#u32
   then ok true
@@ -34164,7 +34185,7 @@ def functional.name_start (codepoint : Std.U32) : Result Bool := do
       else ok (128#u32 <= codepoint)
 
 /-- [rowl_kernel::functional::may_start]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1289:0-1308:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1295:0-1314:1 -/
 def functional.may_start
   (terminal : functional.Terminal) (codepoint : Std.U32) : Result Bool := do
   match terminal with
@@ -34197,7 +34218,7 @@ def functional.may_start
   | functional.Terminal.Comment => ok (codepoint = 35#u32)
 
 /-- [rowl_kernel::functional::seed_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1309:0-1315:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1315:0-1321:1 -/
 def functional.seed_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) :
@@ -34209,7 +34230,7 @@ def functional.seed_from
   else ok functional.Selection.NoMatch
 
 /-- [rowl_kernel::functional::extend_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1316:0-1328:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1322:0-1334:1 -/
 def functional.extend_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) (previous : functional.Selection) :
@@ -34221,7 +34242,7 @@ def functional.extend_from
   else ok previous
 
 /-- [rowl_kernel::functional::next_terminal_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1329:0-1834:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1335:0-1840:1 -/
 def functional.next_terminal_from
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (first : Std.U32) :
   Result functional.Selection
@@ -34490,7 +34511,7 @@ def functional.next_terminal_from
     choice82
 
 /-- [rowl_kernel::functional::next_terminal_fast]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1838:0-1843:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1844:0-1849:1
     Visibility: public -/
 def functional.next_terminal_fast
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -35396,20 +35417,30 @@ inductive prefixes.Expansion where
 | InvalidExpandedIri : prefixes.Expansion
 
 /-- [rowl_kernel::names::validate_local]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 108:0-110:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 124:0-130:1
     Visibility: public -/
 def names.validate_local
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let e ← names.local_word
-  regular.matches_utf8 e bytes
+  let o ← names.ascii_local bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  let b ← names.whole o i
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← names.local_word
+       regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::names::validate_prefix]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 105:0-107:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 115:0-121:1
     Visibility: public -/
 def names.validate_prefix
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let e ← names.prefix_grammar
-  regular.matches_utf8 e bytes
+  let o ← names.ascii_prefix bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  let b ← names.whole o i
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← names.prefix_grammar
+       regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::iri::ascii_digit]:
     Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1 -/
@@ -46270,15 +46301,20 @@ def model.invert
     ok (model.ObjectPropertyExpression.Property p)
 
 /-- [rowl_kernel::names::validate_abbreviated]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 111:0-113:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 133:0-139:1
     Visibility: public -/
 def names.validate_abbreviated
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let e ← names.abbreviated_grammar
-  regular.matches_utf8 e bytes
+  let o ← names.ascii_abbreviated bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  let b ← names.whole o i
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← names.abbreviated_grammar
+       regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::names::validate_node]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 114:0-116:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 140:0-142:1
     Visibility: public -/
 def names.validate_node
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do

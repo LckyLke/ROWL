@@ -4553,3 +4553,38 @@ grammars.
 
 This block adds 2 public theorems and no definitions. Totals are 2592 audited
 theorems, 1171 definitions, 518 Rust regressions and 2785 ledger obligations.
+
+## Performance: whole names over ASCII bytes
+
+After the ASCII scanners, a profile of reading the generated 20 000-class
+ontology put about 40% of the samples in resolving abbreviated IRIs and about
+20% in the lexer. Reading an abbreviated IRI recognizes its span as a PNAME_LN
+token (`functional::recognize`) and checks its prefix and local parts
+(`names::validate_prefix`, `names::validate_local`) before it expands and
+validates the IRI, and each of the three built its grammar and derived it code
+point by code point. They now accept a buffer that the ASCII scan from its start
+reads whole (`names::whole`), and match the grammar as before otherwise;
+`validate_abbreviated` does the same.
+
+`Names.lean` proves that a span from the start that ends at the end of the bytes
+decodes all of them, so when a scan whose answers are greatest candidate
+endpoints reads the bytes whole, they are a well-encoded word of the language
+(`whole_scan_accepted`, with `whole_total_correct` for the test).
+`validate_prefix_total_correct`, `validate_local_total_correct`,
+`validate_abbreviated_total_correct` and the three `accepted_iff` theorems keep
+their statements, and so do `recognize_total_correct` and
+`recognize_accepted_iff` in `Functional.lean`, which now states the scanners'
+contract for every terminal (`ascii_name_correct`). A regression test compares
+the three validators and `recognize` with the grammar matcher on 3000 random
+buffers of name pieces, some with a malformed byte.
+
+Classifying the generated 20 000-class EL ontology from Functional Syntax now
+takes 1.1 s instead of 4.3 s, faster than from N-Triples (2.3 to 2.5 s), and the
+5000-class one 0.3 s instead of 0.9 s, with the same answers; reading the larger
+one takes about 1.0 s instead of 4.0 s. Over the three performance stages its
+classification went from 13.7 s to 1.1 s. Keywords still derive their literal
+grammars, and full IRIs (`<…>`) are still matched by the RFC 3987 grammar both in
+the lexer and in the reader.
+
+This block adds 3 public theorems and no definitions. Totals are 2595 audited
+theorems, 1171 definitions, 519 Rust regressions and 2788 ledger obligations.

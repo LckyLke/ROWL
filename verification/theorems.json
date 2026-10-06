@@ -650,6 +650,10 @@
         "Rowl.Names.local_grammar_total_correct",
         "Rowl.Names.abbreviated_grammar_total_correct",
         "Rowl.Names.node_grammar_total_correct",
+        "Rowl.Names.ascii_prefix_correct",
+        "Rowl.Names.ascii_abbreviated_correct",
+        "Rowl.Names.whole_total_correct",
+        "Rowl.Names.whole_scan_accepted",
         "Rowl.Names.validate_prefix_total_correct",
         "Rowl.Names.validate_local_total_correct",
         "Rowl.Names.validate_abbreviated_total_correct",
@@ -657,9 +661,7 @@
         "Rowl.Names.validate_prefix_accepted_iff",
         "Rowl.Names.validate_local_accepted_iff",
         "Rowl.Names.validate_abbreviated_accepted_iff",
-        "Rowl.Names.validate_node_accepted_iff",
-        "Rowl.Names.ascii_prefix_correct",
-        "Rowl.Names.ascii_abbreviated_correct"
+        "Rowl.Names.validate_node_accepted_iff"
       ]
     },
     {
@@ -702,6 +704,7 @@
         "Rowl.Functional.keyword_grammar_total_correct",
         "Rowl.Functional.grammar_total_correct",
         "Rowl.Functional.grammar_nonempty",
+        "Rowl.Functional.ascii_name_correct",
         "Rowl.Functional.recognize_total_correct",
         "Rowl.Functional.recognize_accepted_iff",
         "Rowl.Functional.longest_total_correct",

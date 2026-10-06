@@ -279,6 +279,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   local names, abbreviated IRIs and node IDs use the referenced SPARQL 2008
   grammar. Actual grammar equivalence, totality, exact acceptance and malformed
   UTF-8 diagnostics are proved; broader Turtle/SPARQL 1.1 escapes are separate.
+  Prefix names, local names and abbreviated IRIs that an ASCII scan reads whole
+  are accepted without matching the grammar, with the same theorems.
 - M3 actual immutable prefix-table checking and expansion. Every declaration is
   validated, including unused ones; reserved and duplicate names are rejected
   with exact original evidence. The four implicit namespaces, exact lookup,
@@ -1021,7 +1023,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2592 audited public theorems and 1171 audited semantic definitions. Consistency,
+- 2595 audited public theorems and 1171 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1038,7 +1040,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 518 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 519 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1055,7 +1057,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2785-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2788-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

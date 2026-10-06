@@ -2,10 +2,15 @@
 //! grammar-based greatest-prefix matcher whenever they answer, and the
 //! validated-text matcher that uses them agrees with the standard one.
 use rowl_frontend::functional::{
-    longest, longest_valid, next_terminal, next_terminal_fast, Selection, Terminal,
+    grammar, longest, longest_valid, next_terminal, next_terminal_fast, recognize, Selection,
+    Terminal,
 };
 use rowl_frontend::longest::PrefixResult;
-use rowl_frontend::names::{ascii_abbreviated, ascii_prefix};
+use rowl_frontend::names::{
+    ascii_abbreviated, ascii_prefix, validate_abbreviated, validate_local, validate_prefix,
+};
+use rowl_frontend::regular::{matches_utf8, MatchResult};
+use rowl_frontend::unicode::TextError;
 use std::mem::discriminant;
 
 /// A small deterministic generator, so failures reproduce.
@@ -140,4 +145,63 @@ fn ascii_name_scanners_on_typical_names() {
     }
     assert!(ascii_prefix(&"aé:x".as_bytes().to_vec(), 0).is_none());
     assert!(ascii_prefix(&"a:é".as_bytes().to_vec(), 0).is_some());
+}
+
+/// Mostly name pieces, for buffers that are often whole names.
+const NAME_PIECES: [&str; 16] = [
+    "a", "Z", "q7", "0", "_", "-", ".", ":", "x:", ":y", "é", "·", "\u{300}", "𐀀", " ", "(",
+];
+
+fn outcome(result: MatchResult) -> Result<bool, (u8, usize)> {
+    match result {
+        MatchResult::Matched(value) => Ok(value),
+        MatchResult::MalformedUtf8(TextError::InvalidPosition { offset }) => Err((0, offset)),
+        MatchResult::MalformedUtf8(TextError::InvalidUtf8 { offset }) => Err((1, offset)),
+        MatchResult::MalformedUtf8(TextError::NonXmlCharacter { offset, .. }) => Err((2, offset)),
+    }
+}
+
+fn by_grammar(terminal: Terminal, bytes: &Vec<u8>) -> Result<bool, (u8, usize)> {
+    outcome(matches_utf8(grammar(terminal), bytes))
+}
+
+#[test]
+fn whole_name_recognition_agrees_with_the_grammars() {
+    let mut seed = Seed(11);
+    let mut accepted = 0;
+    for _ in 0..3000 {
+        let mut bytes: Vec<u8> = (0..seed.next(6))
+            .flat_map(|_| NAME_PIECES[seed.next(NAME_PIECES.len())].bytes())
+            .collect();
+        if seed.next(8) == 0 {
+            let at = seed.next(bytes.len() + 1);
+            bytes.insert(at, 0xff);
+        }
+        for terminal in [Terminal::PrefixName, Terminal::AbbreviatedIri] {
+            let expected = by_grammar(terminal, &bytes);
+            assert_eq!(outcome(recognize(terminal, &bytes)), expected, "{bytes:?}");
+            if expected == Ok(true) {
+                accepted += 1;
+            }
+        }
+        assert_eq!(
+            outcome(validate_prefix(&bytes)),
+            by_grammar(Terminal::PrefixName, &bytes),
+            "{bytes:?}"
+        );
+        assert_eq!(
+            outcome(validate_abbreviated(&bytes)),
+            by_grammar(Terminal::AbbreviatedIri, &bytes),
+            "{bytes:?}"
+        );
+        // A local name is exactly what follows the empty prefix name `:`.
+        let mut prefixed = vec![b':'];
+        prefixed.extend_from_slice(&bytes);
+        let local = outcome(validate_local(&bytes));
+        match by_grammar(Terminal::AbbreviatedIri, &prefixed) {
+            Ok(value) => assert_eq!(local, Ok(value), "{bytes:?}"),
+            Err((kind, offset)) => assert_eq!(local, Err((kind, offset - 1)), "{bytes:?}"),
+        }
+    }
+    assert!(accepted > 200, "{accepted} accepted");
 }

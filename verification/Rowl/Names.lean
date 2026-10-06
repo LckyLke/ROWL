@@ -89,53 +89,6 @@ theorem abbreviated_grammar_total_correct : ∃ e, names.abbreviated_grammar = .
 theorem node_grammar_total_correct : ∃ e, names.node_grammar = .ok e ∧ Denotes e = Node :=
   WP.spec_imp_exists node_spec
 
-private theorem converted (grammar : Language Nat) (e : regular.Expression) (bytes : List U8)
-    (result : regular.MatchResult) (equal : Denotes e = grammar) :
-    MatchCorrect e bytes 0 result ↔ Rowl.Iri.ValidationCorrect grammar bytes result := by
-  cases result <;> simp [MatchCorrect, Rowl.Iri.ValidationCorrect, equal]
-
-/-- Whole-byte exact prefix acceptance or the original malformed UTF-8 error. -/
-theorem validate_prefix_total_correct (bytes : alloc.vec.Vec U8) :
-    ∃ result, names.validate_prefix bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Prefix bytes.val result := by
-  obtain ⟨e, compiled, semantic⟩ := prefix_grammar_total_correct
-  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
-  exact ⟨result, by simp [names.validate_prefix, compiled, executed], (converted _ _ _ _ semantic).mp correct⟩
-/-- Whole-byte exact local-name acceptance or the original malformed UTF-8 error. -/
-theorem validate_local_total_correct (bytes : alloc.vec.Vec U8) :
-    ∃ result, names.validate_local bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Local bytes.val result := by
-  obtain ⟨e, compiled, semantic⟩ := local_grammar_total_correct
-  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
-  exact ⟨result, by simp [names.validate_local, compiled, executed], (converted _ _ _ _ semantic).mp correct⟩
-/-- Whole-byte exact abbreviated-IRI acceptance and complete suffix validation. -/
-theorem validate_abbreviated_total_correct (bytes : alloc.vec.Vec U8) :
-    ∃ result, names.validate_abbreviated bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Abbreviated bytes.val result := by
-  obtain ⟨e, compiled, semantic⟩ := abbreviated_grammar_total_correct
-  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
-  exact ⟨result, by simp [names.validate_abbreviated, compiled, executed], (converted _ _ _ _ semantic).mp correct⟩
-/-- Whole-byte exact node-ID acceptance; scope assignment remains separate. -/
-theorem validate_node_total_correct (bytes : alloc.vec.Vec U8) :
-    ∃ result, names.validate_node bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Node bytes.val result := by
-  obtain ⟨e, compiled, semantic⟩ := node_grammar_total_correct
-  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
-  exact ⟨result, by simp [names.validate_node, compiled, executed], (converted _ _ _ _ semantic).mp correct⟩
-
-theorem validate_prefix_accepted_iff (bytes : alloc.vec.Vec U8) :
-    names.validate_prefix bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Prefix := by
-  obtain ⟨e, compiled, semantic⟩ := prefix_grammar_total_correct
-  simpa [names.validate_prefix, compiled, semantic] using matches_utf8_accepted_iff e bytes
-theorem validate_local_accepted_iff (bytes : alloc.vec.Vec U8) :
-    names.validate_local bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Local := by
-  obtain ⟨e, compiled, semantic⟩ := local_grammar_total_correct
-  simpa [names.validate_local, compiled, semantic] using matches_utf8_accepted_iff e bytes
-theorem validate_abbreviated_accepted_iff (bytes : alloc.vec.Vec U8) :
-    names.validate_abbreviated bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Abbreviated := by
-  obtain ⟨e, compiled, semantic⟩ := abbreviated_grammar_total_correct
-  simpa [names.validate_abbreviated, compiled, semantic] using matches_utf8_accepted_iff e bytes
-theorem validate_node_accepted_iff (bytes : alloc.vec.Vec U8) :
-    names.validate_node bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Node := by
-  obtain ⟨e, compiled, semantic⟩ := node_grammar_total_correct
-  simpa [names.validate_node, compiled, semantic] using matches_utf8_accepted_iff e bytes
-
 /-! ## Prefix names and abbreviated IRIs scanned over ASCII bytes
 
 `names::ascii_prefix` and `names::ascii_abbreviated` find the greatest endpoint
@@ -1031,5 +984,123 @@ theorem ascii_abbreviated_correct (bytes : alloc.vec.Vec U8) (position : Usize) 
       exact maximal
 
 end Scan
+
+/-! ## Whole names over ASCII bytes
+
+`validate_prefix`, `validate_local` and `validate_abbreviated`, and the
+lexer's `recognize` for the two prefixed-name terminals, accept a buffer that
+an ASCII scan from its start reads whole without matching the grammar. -/
+
+section Whole
+open Rowl.Longest (Utf8Span Candidate Maximal)
+
+/-- A span that ends at the end of the bytes decodes the rest of them. -/
+private theorem span_to_end {bs : List U8} {i : Nat} {w : List Nat}
+    (span : Utf8Span bs i bs.length w) : Utf8From bs i w := by
+  generalize finish : bs.length = e at span
+  induction span with
+  | empty _ => subst finish; exact .endOfInput
+  | character unit positive fits _ ih => exact .character unit positive fits (ih finish)
+
+/-- The whole-buffer test of a scan result. -/
+theorem whole_total_correct (r : Option longest.PrefixResult) (length : Usize) :
+    names.whole r length = .ok (decide (r = some (.Matched (some length)))) := by
+  rcases r with _ | ((_ | e) | error) <;> simp [names.whole]
+
+/-- When an ASCII scan from the start of the bytes, whose answers are greatest
+    candidate endpoints, reads them whole, they decode to a word of the language. -/
+theorem whole_scan_accepted {language : Language Nat} {bytes : alloc.vec.Vec U8}
+    {r : Option longest.PrefixResult}
+    (decided : ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
+      Maximal (Candidate bytes.val (0#usize).val language) endpoint)
+    (full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))) :
+    ∃ word, Utf8From bytes.val 0 word ∧ word ∈ language := by
+  obtain ⟨endpoint, same, maximal⟩ := decided _ full
+  cases same
+  obtain ⟨⟨word, span, member⟩, -⟩ := maximal
+  simp only [alloc.vec.Vec.len_val] at span
+  exact ⟨word, span_to_end (by simpa using span), member⟩
+
+end Whole
+
+private theorem converted (grammar : Language Nat) (e : regular.Expression) (bytes : List U8)
+    (result : regular.MatchResult) (equal : Denotes e = grammar) :
+    MatchCorrect e bytes 0 result ↔ Rowl.Iri.ValidationCorrect grammar bytes result := by
+  cases result <;> simp [MatchCorrect, Rowl.Iri.ValidationCorrect, equal]
+
+/-- Whole-byte exact prefix acceptance or the original malformed UTF-8 error. -/
+theorem validate_prefix_total_correct (bytes : alloc.vec.Vec U8) :
+    ∃ result, names.validate_prefix bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Prefix bytes.val result := by
+  obtain ⟨r, scanned, decided⟩ := ascii_prefix_correct bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · obtain ⟨word, utf8, member⟩ := whole_scan_accepted decided full
+    exact ⟨.Matched true, by simp [names.validate_prefix, scanned, whole_total_correct, full],
+      word, utf8, by simp [member]⟩
+  · obtain ⟨e, compiled, semantic⟩ := prefix_grammar_total_correct
+    obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
+    exact ⟨result, by simp [names.validate_prefix, scanned, whole_total_correct, full, compiled, executed],
+      (converted _ _ _ _ semantic).mp correct⟩
+/-- Whole-byte exact local-name acceptance or the original malformed UTF-8 error. -/
+theorem validate_local_total_correct (bytes : alloc.vec.Vec U8) :
+    ∃ result, names.validate_local bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Local bytes.val result := by
+  obtain ⟨r, scanned, decided⟩ := ascii_local_spec bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · obtain ⟨word, utf8, member⟩ := whole_scan_accepted decided full
+    exact ⟨.Matched true, by simp [names.validate_local, scanned, whole_total_correct, full],
+      word, utf8, by simp [member]⟩
+  · obtain ⟨e, compiled, semantic⟩ := local_grammar_total_correct
+    obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
+    exact ⟨result, by simp [names.validate_local, scanned, whole_total_correct, full, compiled, executed],
+      (converted _ _ _ _ semantic).mp correct⟩
+/-- Whole-byte exact abbreviated-IRI acceptance and complete suffix validation. -/
+theorem validate_abbreviated_total_correct (bytes : alloc.vec.Vec U8) :
+    ∃ result, names.validate_abbreviated bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Abbreviated bytes.val result := by
+  obtain ⟨r, scanned, decided⟩ := ascii_abbreviated_correct bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · obtain ⟨word, utf8, member⟩ := whole_scan_accepted decided full
+    exact ⟨.Matched true, by simp [names.validate_abbreviated, scanned, whole_total_correct, full],
+      word, utf8, by simp [member]⟩
+  · obtain ⟨e, compiled, semantic⟩ := abbreviated_grammar_total_correct
+    obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
+    exact ⟨result, by simp [names.validate_abbreviated, scanned, whole_total_correct, full, compiled, executed],
+      (converted _ _ _ _ semantic).mp correct⟩
+/-- Whole-byte exact node-ID acceptance; scope assignment remains separate. -/
+theorem validate_node_total_correct (bytes : alloc.vec.Vec U8) :
+    ∃ result, names.validate_node bytes = .ok result ∧ Rowl.Iri.ValidationCorrect Node bytes.val result := by
+  obtain ⟨e, compiled, semantic⟩ := node_grammar_total_correct
+  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
+  exact ⟨result, by simp [names.validate_node, compiled, executed], (converted _ _ _ _ semantic).mp correct⟩
+
+theorem validate_prefix_accepted_iff (bytes : alloc.vec.Vec U8) :
+    names.validate_prefix bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Prefix := by
+  obtain ⟨r, scanned, decided⟩ := ascii_prefix_correct bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · have accepted := whole_scan_accepted decided full
+    simp [names.validate_prefix, scanned, whole_total_correct, full, accepted]
+  · obtain ⟨e, compiled, semantic⟩ := prefix_grammar_total_correct
+    simpa [names.validate_prefix, scanned, whole_total_correct, full, compiled, semantic] using
+      matches_utf8_accepted_iff e bytes
+theorem validate_local_accepted_iff (bytes : alloc.vec.Vec U8) :
+    names.validate_local bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Local := by
+  obtain ⟨r, scanned, decided⟩ := ascii_local_spec bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · have accepted := whole_scan_accepted decided full
+    simp [names.validate_local, scanned, whole_total_correct, full, accepted]
+  · obtain ⟨e, compiled, semantic⟩ := local_grammar_total_correct
+    simpa [names.validate_local, scanned, whole_total_correct, full, compiled, semantic] using
+      matches_utf8_accepted_iff e bytes
+theorem validate_abbreviated_accepted_iff (bytes : alloc.vec.Vec U8) :
+    names.validate_abbreviated bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Abbreviated := by
+  obtain ⟨r, scanned, decided⟩ := ascii_abbreviated_correct bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · have accepted := whole_scan_accepted decided full
+    simp [names.validate_abbreviated, scanned, whole_total_correct, full, accepted]
+  · obtain ⟨e, compiled, semantic⟩ := abbreviated_grammar_total_correct
+    simpa [names.validate_abbreviated, scanned, whole_total_correct, full, compiled, semantic] using
+      matches_utf8_accepted_iff e bytes
+theorem validate_node_accepted_iff (bytes : alloc.vec.Vec U8) :
+    names.validate_node bytes = .ok (.Matched true) ↔ ∃ word, Utf8From bytes.val 0 word ∧ word ∈ Node := by
+  obtain ⟨e, compiled, semantic⟩ := node_grammar_total_correct
+  simpa [names.validate_node, compiled, semantic] using matches_utf8_accepted_iff e bytes
 
 end Rowl.Names

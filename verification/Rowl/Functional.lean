@@ -260,20 +260,47 @@ theorem grammar_nonempty (terminal : Terminal) : ¬ [] ∈ TerminalLanguage term
   | Comment => simp [TerminalLanguage, CommentLanguage]
   | _ => simp [TerminalLanguage]
 
+/-- Whenever the ASCII name scanners answer for a terminal, the answer is the
+    greatest candidate endpoint of the terminal's language. -/
+theorem ascii_name_correct (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize) :
+    ∃ r, functional.ascii_name terminal bytes position = .ok r ∧
+      ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
+        Rowl.Longest.Maximal
+          (Rowl.Longest.Candidate bytes.val position.val (TerminalLanguage terminal)) endpoint := by
+  cases terminal with
+  | PrefixName =>
+    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_prefix_correct bytes position
+    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
+  | AbbreviatedIri =>
+    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_abbreviated_correct bytes position
+    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
+  | _ => exact ⟨none, by rw [functional.ascii_name], by simp⟩
+
 /-- Exact whole-byte terminal recognition and malformed-unit evidence. -/
 theorem recognize_total_correct (terminal : Terminal) (bytes : alloc.vec.Vec U8) :
     ∃ result, functional.recognize terminal bytes = .ok result ∧
       Rowl.Iri.ValidationCorrect (TerminalLanguage terminal) bytes.val result := by
-  obtain ⟨e, compiled, language⟩ := grammar_total_correct terminal
-  obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
-  refine ⟨result, by simp [functional.recognize, compiled, executed], ?_⟩
-  cases result <;> simpa [MatchCorrect, Rowl.Iri.ValidationCorrect, language] using correct
+  obtain ⟨r, scanned, decided⟩ := ascii_name_correct terminal bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · obtain ⟨word, utf8, member⟩ := Rowl.Names.whole_scan_accepted decided full
+    exact ⟨.Matched true, by simp [functional.recognize, scanned, Rowl.Names.whole_total_correct, full],
+      word, utf8, by simp [member]⟩
+  · obtain ⟨e, compiled, language⟩ := grammar_total_correct terminal
+    obtain ⟨result, executed, correct⟩ := matches_utf8_total_correct e bytes
+    refine ⟨result, by simp [functional.recognize, scanned, Rowl.Names.whole_total_correct, full, compiled,
+      executed], ?_⟩
+    cases result <;> simpa [MatchCorrect, Rowl.Iri.ValidationCorrect, language] using correct
 /-- Sound and complete whole-token acceptance for every standard terminal. -/
 theorem recognize_accepted_iff (terminal : Terminal) (bytes : alloc.vec.Vec U8) :
     functional.recognize terminal bytes = .ok (.Matched true) ↔
       ∃ word, Utf8From bytes.val 0 word ∧ word ∈ TerminalLanguage terminal := by
-  obtain ⟨e, compiled, language⟩ := grammar_total_correct terminal
-  simpa [functional.recognize, compiled, language] using matches_utf8_accepted_iff e bytes
+  obtain ⟨r, scanned, decided⟩ := ascii_name_correct terminal bytes 0#usize
+  by_cases full : r = some (.Matched (some (alloc.vec.Vec.len bytes)))
+  · have accepted := Rowl.Names.whole_scan_accepted decided full
+    simp [functional.recognize, scanned, Rowl.Names.whole_total_correct, full, accepted]
+  · obtain ⟨e, compiled, language⟩ := grammar_total_correct terminal
+    simpa [functional.recognize, scanned, Rowl.Names.whole_total_correct, full, compiled, language] using
+      matches_utf8_accepted_iff e bytes
 /-- Exact greedy endpoint selection, or precise malformed suffix evidence. -/
 theorem longest_total_correct (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize) :
     ∃ result, functional.longest terminal bytes position = .ok result ∧

@@ -6368,6 +6368,28 @@
       "implementation_scope": "Prefixed names scanned over ASCII bytes: names::ascii_prefix and names::ascii_abbreviated find the greatest PNAME_NS and PNAME_LN endpoint at a position without the grammars, by reading the run of ASCII label bytes (letters, digits, _, - and .), the colon right after it and, for PNAME_LN, the run after the colon up to its last byte other than a dot; they decline when a byte outside ASCII ends a run. Whenever they answer, the answer is proved to be the greatest candidate endpoint, or no endpoint, of the independent SPARQL 2008 languages (ascii_prefix_correct, ascii_abbreviated_correct). functional::longest_valid asks them before the grammar matcher, and longest_valid_eq keeps its statement, so the lexer's correctness theorems are unchanged."
     },
     {
+      "id": "m3.Names.whole_total_correct",
+      "requirement": "Whole names recognized over ASCII bytes: whole_total_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#IRIs",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::names::whole",
+      "theorem": "Rowl.Names.whole_total_correct",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::whole_name_recognition_agrees_with_the_grammars",
+      "implementation_scope": "Whole names over ASCII bytes: names::validate_prefix, validate_local and validate_abbreviated, and functional::recognize for the two prefixed-name terminals, accept a buffer that the ASCII scan from its start reads whole (names::whole) without matching the grammar, and match the grammar otherwise. A span from the start that ends at the end of the bytes decodes all of them, so such a buffer is a well-encoded word of the language (whole_scan_accepted); the total-correctness and acceptance theorems of the validators and of recognize keep their statements."
+    },
+    {
+      "id": "m3.Names.whole_scan_accepted",
+      "requirement": "Whole names recognized over ASCII bytes: whole_scan_accepted",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#IRIs",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::names::whole",
+      "theorem": "Rowl.Names.whole_scan_accepted",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::whole_name_recognition_agrees_with_the_grammars",
+      "implementation_scope": "Whole names over ASCII bytes: names::validate_prefix, validate_local and validate_abbreviated, and functional::recognize for the two prefixed-name terminals, accept a buffer that the ASCII scan from its start reads whole (names::whole) without matching the grammar, and match the grammar otherwise. A span from the start that ends at the end of the bytes decodes all of them, so such a buffer is a well-encoded word of the language (whole_scan_accepted); the total-correctness and acceptance theorems of the validators and of recognize keep their statements."
+    },
+    {
       "id": "m3.Prefixes.standard_total_correct",
       "requirement": "Verified Functional Syntax lexical component: standard_total_correct",
       "owner": "rowl-frontend/verification",
@@ -6993,6 +7015,17 @@
       "theorem": "Rowl.Functional.keyword_words_injective",
       "regression": "crates/rowl-frontend/tests/functional_disjointness.rs::every_standard_terminal_fixture_has_exactly_one_whole_token_kind",
       "implementation_scope": "Complete Functional Syntax terminal-language disjointness: all 71 independent keyword spellings are injective; distinct terminal kinds cannot accept the same arbitrary Unicode codepoint word. Canonical UTF-8 spans with equal original endpoints determine equal words and hence one terminal kind. The standard greatest-token predicate omits inventory priority; it is equivalent to the prior exact selector contract, uniquely determines full token identity and equals actual byte selection in both directions. Thus implementation priority cannot alter a grammar-valid token and the normative no-ties claim is proved. Proof-only head/colon/final-codepoint classification is derived from the independent complete grammars, not assumed or executed by Rust. The documented step-6 special-token prose interpretation, full document grammar/AST construction, other payloads, canonical scopes/import provenance, remaining RDF formats, complete OWL validation/reasoning and M8 operational outcomes remain pending."
+    },
+    {
+      "id": "m3.Functional.ascii_name_correct",
+      "requirement": "Prefixed names scanned over ASCII bytes: ascii_name_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#BNF_Notation",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional::ascii_name",
+      "theorem": "Rowl.Functional.ascii_name_correct",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::ascii_name_scanners_agree_with_the_grammars",
+      "implementation_scope": "Prefixed names scanned over ASCII bytes: names::ascii_prefix and names::ascii_abbreviated find the greatest PNAME_NS and PNAME_LN endpoint at a position without the grammars, by reading the run of ASCII label bytes (letters, digits, _, - and .), the colon right after it and, for PNAME_LN, the run after the colon up to its last byte other than a dot; they decline when a byte outside ASCII ends a run. Whenever they answer, the answer is proved to be the greatest candidate endpoint, or no endpoint, of the independent SPARQL 2008 languages (ascii_prefix_correct, ascii_abbreviated_correct). functional::longest_valid asks them before the grammar matcher, and longest_valid_eq keeps its statement, so the lexer's correctness theorems are unchanged."
     },
     {
       "id": "m3.FunctionalDisjointness.terminal_language_unique",
