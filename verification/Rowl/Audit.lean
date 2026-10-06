@@ -131,6 +131,7 @@ import Rowl.DataSound
 import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation
+import Rowl.DlValidity
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -2722,6 +2723,27 @@ import Rowl.Saturation
 #print axioms Rowl.Saturation.positions_of_spec
 #print axioms Rowl.Saturation.taxonomy_from_spec
 #print axioms Rowl.Saturation.taxonomy_correct
+#print axioms Rowl.DlValidity.same_bytes_spec
+#print axioms Rowl.DlValidity.raw_well_typed_iff
+#print axioms Rowl.DlValidity.check_typing_total_correct
+#print axioms Rowl.DlValidity.check_typing_valid_iff
+#print axioms Rowl.DlValidity.check_typing_agrees
+#print axioms Rowl.DlValidity.check_declarations_total_correct
+#print axioms Rowl.DlValidity.check_declarations_valid_iff
+#print axioms Rowl.DlValidity.has_chain_spec
+#print axioms Rowl.DlValidity.no_chain_regular
+#print axioms Rowl.DlValidity.has_anonymous_assertion_spec
+#print axioms Rowl.DlValidity.no_anonymous_assertion_restriction
+#print axioms Rowl.DlValidity.check_ontology_total_correct
+#print axioms Rowl.DlValidity.check_ontology_valid_iff
+#print axioms Rowl.DlValidity.builtin_vocabulary_restrictions
+#print axioms Rowl.DlValidity.typing_allows_punning
+#print axioms Rowl.DlValidity.annotation_axioms_hold
+#print axioms Rowl.DlValidity.strip_annotations_satisfies
+#print axioms Rowl.DlValidity.strip_annotations_models
+#print axioms Rowl.DlValidity.strip_annotations_model
+#print axioms Rowl.DlValidity.strip_annotations_consistent
+#print axioms Rowl.DlValidity.strip_annotations_entails
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -3893,3 +3915,19 @@ import Rowl.Saturation
 #print axioms Rowl.Saturation.Saturated
 #print axioms Rowl.Saturation.Inconsistent
 #print axioms Rowl.Saturation.TaxonomyOk
+#print axioms Rowl.DlValidity.ConflictWith
+#print axioms Rowl.DlValidity.ConflictFree
+#print axioms Rowl.DlValidity.FirstConflict
+#print axioms Rowl.DlValidity.Declared
+#print axioms Rowl.DlValidity.FirstUndeclared
+#print axioms Rowl.DlValidity.TypingCorrect
+#print axioms Rowl.DlValidity.ConsistentDeclarations
+#print axioms Rowl.DlValidity.DeclarationsCorrect
+#print axioms Rowl.DlValidity.OwlDlValid
+#print axioms Rowl.DlValidity.StructureOK
+#print axioms Rowl.DlValidity.NamesOK
+#print axioms Rowl.DlValidity.DataOK
+#print axioms Rowl.DlValidity.RolesOK
+#print axioms Rowl.DlValidity.Correct
+#print axioms Rowl.DlValidity.annotationAxiom
+#print axioms Rowl.DlValidity.stripAnnotations

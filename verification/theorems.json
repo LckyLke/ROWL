@@ -3387,6 +3387,33 @@
         "Rowl.Saturation.taxonomy_from_spec",
         "Rowl.Saturation.taxonomy_correct"
       ]
+    },
+    {
+      "module": "Rowl.DlValidity",
+      "namespace": "Rowl.DlValidity",
+      "theorems": [
+        "Rowl.DlValidity.same_bytes_spec",
+        "Rowl.DlValidity.raw_well_typed_iff",
+        "Rowl.DlValidity.check_typing_total_correct",
+        "Rowl.DlValidity.check_typing_valid_iff",
+        "Rowl.DlValidity.check_typing_agrees",
+        "Rowl.DlValidity.check_declarations_total_correct",
+        "Rowl.DlValidity.check_declarations_valid_iff",
+        "Rowl.DlValidity.has_chain_spec",
+        "Rowl.DlValidity.no_chain_regular",
+        "Rowl.DlValidity.has_anonymous_assertion_spec",
+        "Rowl.DlValidity.no_anonymous_assertion_restriction",
+        "Rowl.DlValidity.check_ontology_total_correct",
+        "Rowl.DlValidity.check_ontology_valid_iff",
+        "Rowl.DlValidity.builtin_vocabulary_restrictions",
+        "Rowl.DlValidity.typing_allows_punning",
+        "Rowl.DlValidity.annotation_axioms_hold",
+        "Rowl.DlValidity.strip_annotations_satisfies",
+        "Rowl.DlValidity.strip_annotations_models",
+        "Rowl.DlValidity.strip_annotations_model",
+        "Rowl.DlValidity.strip_annotations_consistent",
+        "Rowl.DlValidity.strip_annotations_entails"
+      ]
     }
   ],
   "specifications": [
@@ -4560,6 +4587,22 @@
     "Rowl.Saturation.AnswersOk",
     "Rowl.Saturation.Saturated",
     "Rowl.Saturation.Inconsistent",
-    "Rowl.Saturation.TaxonomyOk"
+    "Rowl.Saturation.TaxonomyOk",
+    "Rowl.DlValidity.ConflictWith",
+    "Rowl.DlValidity.ConflictFree",
+    "Rowl.DlValidity.FirstConflict",
+    "Rowl.DlValidity.Declared",
+    "Rowl.DlValidity.FirstUndeclared",
+    "Rowl.DlValidity.TypingCorrect",
+    "Rowl.DlValidity.ConsistentDeclarations",
+    "Rowl.DlValidity.DeclarationsCorrect",
+    "Rowl.DlValidity.OwlDlValid",
+    "Rowl.DlValidity.StructureOK",
+    "Rowl.DlValidity.NamesOK",
+    "Rowl.DlValidity.DataOK",
+    "Rowl.DlValidity.RolesOK",
+    "Rowl.DlValidity.Correct",
+    "Rowl.DlValidity.annotationAxiom",
+    "Rowl.DlValidity.stripAnnotations"
   ]
 }

@@ -56,6 +56,8 @@ pub mod keys;
 
 pub mod arity;
 
+pub mod dl_validity;
+
 pub mod axiom_equality;
 
 pub mod axiom_set;
