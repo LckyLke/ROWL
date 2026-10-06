@@ -518,3 +518,139 @@ fn incomplete_or_foreign_reifications_are_refused() {
     let foreign = declarations.clone() + &main + &reification("Annotation", "<urn:B>") + &comment;
     assert!(map_graph(&graph(foreign.as_bytes())).is_none());
 }
+
+/// A class expression of the EL fragment: a named class `C{n}`, or an
+/// existential restriction on the object property `r{n}`.
+enum El {
+    Named(usize),
+    Some(usize, Box<El>),
+}
+
+/// The node, the triples in the order of the forward mapping, and the blank
+/// nodes allocated, of an EL class expression.
+fn el_triples(expression: &El, next: &mut usize) -> (String, Vec<String>, Vec<String>) {
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    match expression {
+        El::Named(n) => (format!("<urn:el:C{n}>"), Vec::new(), Vec::new()),
+        El::Some(role, filler) => {
+            let label = format!("e{next}");
+            *next += 1;
+            let (node, rest, blanks) = el_triples(filler, next);
+            let mut lines = vec![
+                format!("_:{label} <{rdf}type> <{owl}Restriction> ."),
+                format!("_:{label} <{owl}onProperty> <urn:el:r{role}> ."),
+                format!("_:{label} <{owl}someValuesFrom> {node} ."),
+            ];
+            lines.extend(rest);
+            let mut all = vec![label.clone()];
+            all.extend(blanks);
+            (format!("_:{label}"), lines, all)
+        }
+    }
+}
+
+fn is_el(expression: &ClassExpression, expected: &El) -> bool {
+    match (expression, expected) {
+        (ClassExpression::Class(class), El::Named(n)) => {
+            class.iri.spelling == format!("urn:el:C{n}").into_bytes()
+        }
+        (
+            ClassExpression::ObjectSomeValuesFrom(
+                ObjectPropertyExpression::Property(property),
+                filler,
+            ),
+            El::Some(role, inner),
+        ) => {
+            property.iri.spelling == format!("urn:el:r{role}").into_bytes() && is_el(filler, inner)
+        }
+        _ => false,
+    }
+}
+
+#[test]
+fn el_graphs_in_forward_order_read_back_exactly() {
+    // The forward mapping of an EL ontology (the fragment of map_graph_complete):
+    // its header, its declarations and its subclass axioms with the triples of
+    // their restrictions, in that order, including a restriction on the left and
+    // nested restrictions.
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let rdfs = "http://www.w3.org/2000/01/rdf-schema#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    let subclasses = vec![
+        (El::Named(1), El::Named(0)),
+        (El::Named(2), El::Some(0, Box::new(El::Named(3)))),
+        (
+            El::Some(1, Box::new(El::Some(0, Box::new(El::Named(4))))),
+            El::Named(5),
+        ),
+        (
+            El::Some(0, Box::new(El::Named(6))),
+            El::Some(1, Box::new(El::Named(7))),
+        ),
+    ];
+    let mut lines = vec![format!("<urn:el> <{rdf}type> <{owl}Ontology> .")];
+    for n in 0..8 {
+        lines.push(format!("<urn:el:C{n}> <{rdf}type> <{owl}Class> ."));
+    }
+    for role in 0..2 {
+        lines.push(format!(
+            "<urn:el:r{role}> <{rdf}type> <{owl}ObjectProperty> ."
+        ));
+    }
+    let mut next = 0;
+    let mut expected_blanks = Vec::new();
+    for (sub, sup) in &subclasses {
+        let (left, left_lines, left_blanks) = el_triples(sub, &mut next);
+        let (right, right_lines, right_blanks) = el_triples(sup, &mut next);
+        lines.push(format!("{left} <{rdfs}subClassOf> {right} ."));
+        lines.extend(left_lines);
+        lines.extend(right_lines);
+        expected_blanks.extend(left_blanks);
+        expected_blanks.extend(right_blanks);
+    }
+    let source = lines.join("\n") + "\n";
+    let mapped =
+        map_graph(&graph(source.as_bytes())).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    match &ontology.identity {
+        OntologyIdentity::Named { ontology, version } => {
+            assert_eq!(ontology.spelling, b"urn:el".to_vec());
+            assert!(version.is_none());
+        }
+        OntologyIdentity::Anonymous => panic!("the header names the ontology"),
+    }
+    assert!(ontology.imports.is_empty());
+    assert!(ontology.annotations.is_empty());
+    assert_eq!(ontology.axioms.len(), 8 + 2 + subclasses.len());
+    for (index, item) in ontology.axioms.iter().enumerate() {
+        assert!(item.annotations.is_empty());
+        if index < 8 {
+            assert!(
+                matches!(&item.axiom, Axiom::Declaration(Entity::Class(class))
+                if class.iri.spelling == format!("urn:el:C{index}").into_bytes())
+            );
+        } else if index < 10 {
+            assert!(
+                matches!(&item.axiom, Axiom::Declaration(Entity::ObjectProperty(property))
+                if property.iri.spelling == format!("urn:el:r{}", index - 8).into_bytes())
+            );
+        } else {
+            let (sub, sup) = &subclasses[index - 10];
+            match &item.axiom {
+                Axiom::SubClassOf(left, right) => assert!(is_el(left, sub) && is_el(right, sup)),
+                _ => panic!("a subclass axiom"),
+            }
+        }
+    }
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let expected: Vec<Vec<u8>> = expected_blanks
+        .iter()
+        .map(|label| label.as_bytes().to_vec())
+        .collect();
+    assert_eq!(labels, expected);
+}

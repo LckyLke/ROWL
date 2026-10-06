@@ -4609,3 +4609,56 @@ output.
 This block adds 24 public theorems and 6 definitions, and removes
 `declarations_spec` and `TAnnotation`. Totals are 2618 audited theorems, 1176
 definitions, 520 Rust regressions and 2811 ledger obligations.
+
+## M3: reading EL graphs back completely
+
+`map_graph_correct` says that whatever `rdf_mapping::map_graph` reads is right;
+the new module `RdfMappingComplete.lean` proves the converse for the EL
+fragment. `map_graph_complete`: for every ontology of `ElOntology`, a graph that
+lists the triples of the forward mapping of the ontology (`TOntology` of
+`RdfMapping.lean`) in its order, as `List.Forall₂ Matches`, with pairwise
+distinct blank nodes, is mapped to exactly that ontology, and the returned blank
+nodes are exactly those of the forward mapping. `ElOntology` takes ontologies
+that are anonymous or named without a version IRI, have no imports or ontology
+annotations, and whose axioms are unannotated declarations of any entity and
+subclass axioms between `ElClass` expressions: named classes and existential
+restrictions of object properties that are `ObjectTyped`, that is declared as
+object properties by the axioms and neither declared nor built in as data or
+annotation properties. No main triple of an axiom may be about the ontology IRI
+(`subjectIri`), because the header reader takes every triple about that IRI with
+an annotation property as an ontology annotation. The Rust code is unchanged.
+
+The proof follows the reader. The indexes are complete: `subjects_from_spec`
+puts every triple with a blank subject in the bucket of its node, and
+`declared_kinds_spec` keeps exactly the declarations of the graph, each in the
+bucket of its IRI, so `declared_correct` and `has_kind_correct` decide whether
+the graph declares an IRI with a kind, and `object_typed_kind` classifies every
+`ObjectTyped` property as an object property. Given all triples about a blank
+node at known positions (`Heads`), the lookups find exactly those triples
+(`find_hit`, `find_type_hit`). The blank nodes of a construct have all their
+unused triples inside its block of the graph (`Owned`, `owned_split`), which
+follows from the order and the distinct blank nodes. Each construct is then read
+whole and in order, using exactly the positions of its block (`Marked`):
+existential restrictions (`existential_complete`), subclass axioms
+(`sub_class_complete`), declarations (`read_axiom_declaration`), without
+annotations since the graph has no reification (`sources_from_none`,
+`annotate_plain`). `axioms_complete` runs the loop of the reader over the blocks
+of the axioms, `find_header_at`, `find_header_none` and `header_parts_skip` read
+the header, and `all_read_used` checks that nothing is left over.
+
+Not proved: other axioms and class expressions (intersections, inverse
+properties and the rest of Table 1), annotations and annotated axioms, version
+IRIs, imports and ontology annotations, ontology IRIs punned in subject
+position, and graphs in another order; the reader accepts such graphs, as the
+regression tests show, but this theorem does not cover them. That the forward
+mapping is a function of the ontology up to its blank nodes, and that the
+returned blank nodes are distinct, are not proved either.
+
+A regression test builds the forward mapping of an EL ontology with a
+restriction on the left of a subclass axiom and nested restrictions, and checks
+that it reads back to its axioms in order with its blank nodes in allocation
+order. The generated EL benchmark graphs used for the measurements of the last
+blocks list their forward mappings in this order.
+
+This block adds 110 public theorems and 5 definitions. Totals are 2728 audited
+theorems, 1181 definitions, 521 Rust regressions and 2921 ledger obligations.

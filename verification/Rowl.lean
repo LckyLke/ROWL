@@ -23,6 +23,7 @@ import Rowl.Encoding
 import Rowl.LangTag
 import Rowl.NTriples
 import Rowl.RdfMapping
+import Rowl.RdfMappingComplete
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.AnonymousGraph

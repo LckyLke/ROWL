@@ -118,10 +118,13 @@ errors preserve their stage offsets. Literal kind binding, full subject/object
 construction, triple punctuation/line boundaries and bounded public whole-
 document reading now compose those stages with totality and complete-acceptance
 proofs. Exact ordered graph occurrences, caller-scope blank identities, repeated
-triples, count-limit outcomes and first errors are checked. Canonical identity
-assignment across imports, the completeness of the RDF-to-OWL mapping (proved
-sound, annotated axioms and annotations included) and parse-after-write graph-
-isomorphism laws remain pending. Extraction succeeds without unknown external
+triples, count-limit outcomes and first errors are checked. The RDF-to-OWL
+mapping is proved sound, annotated axioms and annotations included, and complete
+for the EL fragment: the graph of an ontology of declarations and subclass axioms
+between named classes and existential restrictions, listed in the order of the
+forward mapping, is read back to exactly that ontology. Canonical identity
+assignment across imports, the completeness of the mapping beyond that fragment
+and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 
 ```sh
