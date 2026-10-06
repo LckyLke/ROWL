@@ -48198,21 +48198,28 @@ structure rdf_mapping.Mapped where
   blanks : alloc.vec.Vec rdf.BlankNode
 
 /-- [rowl_kernel::rdf_mapping::State]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 55:0-58:1
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 57:0-61:1
     Visibility: public -/
 structure rdf_mapping.State where
   used : alloc.vec.Vec Bool
   blanks : alloc.vec.Vec rdf.BlankNode
+  subjects : alloc.vec.Vec (alloc.vec.Vec Std.Usize)
 
 /-- [rowl_kernel::rdf_mapping::Declared]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 61:0-64:1
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 64:0-67:1
     Visibility: public -/
 structure rdf_mapping.Declared where
   iri : alloc.vec.Vec Std.U8
   kind : typing.EntityKind
 
+/-- [rowl_kernel::rdf_mapping::Kinds]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 70:0-72:1
+    Visibility: public -/
+structure rdf_mapping.Kinds where
+  buckets : alloc.vec.Vec (alloc.vec.Vec rdf_mapping.Declared)
+
 /-- [rowl_kernel::rdf_mapping::PropertyKind]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 67:0-71:1
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 75:0-79:1
     Visibility: public -/
 @[discriminant isize]
 inductive rdf_mapping.PropertyKind where
@@ -48221,7 +48228,7 @@ inductive rdf_mapping.PropertyKind where
 | Annotation : rdf_mapping.PropertyKind
 
 /-- [rowl_kernel::rdf_mapping::Read]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 74:0-78:1
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 82:0-86:1
     Visibility: public -/
 @[discriminant isize]
 inductive rdf_mapping.Read where
@@ -48230,7 +48237,7 @@ inductive rdf_mapping.Read where
 | Fail : rdf_mapping.Read
 
 /-- [rowl_kernel::rdf_mapping::equal_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 80:0-94:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 88:0-102:1 -/
 def rdf_mapping.equal_from
   (left : alloc.vec.Vec Std.U8) (right : Slice Std.U8) (index : Std.Usize) :
   Result Bool
@@ -48254,7 +48261,7 @@ def rdf_mapping.equal_from
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::same]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 97:0-103:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 105:0-111:1 -/
 def rdf_mapping.same
   (left : alloc.vec.Vec Std.U8) («name» : Slice Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len left
@@ -48264,7 +48271,7 @@ def rdf_mapping.same
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::equal_vec_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 105:0-119:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 113:0-127:1 -/
 def rdf_mapping.equal_vec_from
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
   (index : Std.Usize) :
@@ -48291,7 +48298,7 @@ def rdf_mapping.equal_vec_from
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::same_vec]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 122:0-128:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 130:0-136:1 -/
 def rdf_mapping.same_vec
   (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
   Result Bool
@@ -48303,7 +48310,7 @@ def rdf_mapping.same_vec
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::same_blank]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 130:0-136:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 138:0-144:1 -/
 def rdf_mapping.same_blank
   (left : rdf.BlankNode) (right : rdf.BlankNode) : Result Bool := do
   let b ← rdf_mapping.same_vec left.scope right.scope
@@ -48312,7 +48319,7 @@ def rdf_mapping.same_blank
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::same_literal]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 138:0-150:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 146:0-158:1 -/
 def rdf_mapping.same_literal
   (left : rdf.RdfLiteral) (right : rdf.RdfLiteral) : Result Bool := do
   let b ← rdf_mapping.same_vec left.lexical right.lexical
@@ -48331,7 +48338,7 @@ def rdf_mapping.same_literal
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::same_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 152:0-158:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 160:0-166:1 -/
 def rdf_mapping.same_subject
   (left : rdf.Subject) (right : rdf.Subject) : Result Bool := do
   match left with
@@ -48345,7 +48352,7 @@ def rdf_mapping.same_subject
     | rdf.Subject.Blank b => rdf_mapping.same_blank a b
 
 /-- [rowl_kernel::rdf_mapping::same_object]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 160:0-167:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 168:0-175:1 -/
 def rdf_mapping.same_object
   (left : rdf.Object) (right : rdf.Object) : Result Bool := do
   match left with
@@ -48366,7 +48373,7 @@ def rdf_mapping.same_object
     | rdf.Object.Literal b => rdf_mapping.same_literal a b
 
 /-- [rowl_kernel::rdf_mapping::same_triple]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 170:0-180:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 178:0-188:1 -/
 def rdf_mapping.same_triple
   (left : rdf.Triple) (right : rdf.Triple) : Result Bool := do
   let b ← rdf_mapping.same_subject left.subject right.subject
@@ -48380,21 +48387,21 @@ def rdf_mapping.same_triple
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::copy_blank]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 182:0-187:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 190:0-195:1 -/
 def rdf_mapping.copy_blank (node : rdf.BlankNode) : Result rdf.BlankNode := do
   let v ← nnf.copy_bytes node.scope
   let v1 ← nnf.copy_bytes node.label
   ok { scope := v, label := v1 }
 
 /-- [rowl_kernel::rdf_mapping::iri_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 189:0-193:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 197:0-201:1 -/
 def rdf_mapping.iri_of
   (spelling : alloc.vec.Vec Std.U8) : Result model.Iri := do
   let v ← nnf.copy_bytes spelling
   ok { spelling := v }
 
 /-- [rowl_kernel::rdf_mapping::subject_node]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 196:0-203:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 204:0-211:1 -/
 def rdf_mapping.subject_node (subject : rdf.Subject) : Result rdf.Object := do
   match subject with
   | rdf.Subject.Iri iri =>
@@ -48404,8 +48411,125 @@ def rdf_mapping.subject_node (subject : rdf.Subject) : Result rdf.Object := do
     let bn ← rdf_mapping.copy_blank node
     ok (rdf.Object.Blank bn)
 
+/-- [rowl_kernel::rdf_mapping::BUCKET_LIMIT]
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 214:0-214:36 -/
+@[global_simps, irreducible]
+def rdf_mapping.BUCKET_LIMIT : Result Std.Usize := 1#usize <<< 20#i32
+
+/-- [rowl_kernel::rdf_mapping::bucket_count]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 217:0-223:1 -/
+def rdf_mapping.bucket_count (count : Std.Usize) : Result Std.Usize := do
+  let i ← rdf_mapping.BUCKET_LIMIT
+  if count < i
+  then count + 1#usize
+  else ok i
+
+/-- [rowl_kernel::rdf_mapping::mix]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 226:0-228:1 -/
+def rdf_mapping.mix (hash : Std.Usize) (byte : Std.U8) : Result Std.Usize := do
+  let i ← hash % 16777216#usize
+  let i1 ← i * 31#usize
+  let i2 ← lift (UScalar.cast .Usize byte)
+  i1 + i2
+
+/-- [rowl_kernel::rdf_mapping::hash_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 231:0-237:1 -/
+def rdf_mapping.hash_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i3 ← rdf_mapping.mix hash i2
+    rdf_mapping.hash_from bytes i1 i3
+  else ok hash
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::hash_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 240:0-242:1 -/
+def rdf_mapping.hash_blank (node : rdf.BlankNode) : Result Std.Usize := do
+  let i ← rdf_mapping.hash_from node.scope 0#usize 7#usize
+  rdf_mapping.hash_from node.label 0#usize i
+
+/-- [rowl_kernel::rdf_mapping::hash_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 245:0-247:1 -/
+def rdf_mapping.hash_iri
+  (spelling : alloc.vec.Vec Std.U8) : Result Std.Usize := do
+  rdf_mapping.hash_from spelling 0#usize 7#usize
+
+/-- [rowl_kernel::rdf_mapping::bucket_of]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 250:0-256:1 -/
+def rdf_mapping.bucket_of
+  (hash : Std.Usize) (count : Std.Usize) : Result Std.Usize := do
+  if 0#usize < count
+  then hash % count
+  else ok 0#usize
+
+/-- [rowl_kernel::rdf_mapping::empty_buckets]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 259:0-266:1 -/
+def rdf_mapping.empty_buckets
+  {T : Type} (count : Std.Usize) (out : alloc.vec.Vec (alloc.vec.Vec T)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec T))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new T)
+    rdf_mapping.empty_buckets count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_mapping::subjects_from]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 270:0-291:1 -/
+def rdf_mapping.subjects_from
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    match t.subject with
+    | rdf.Subject.Iri _ =>
+      let i1 ← index + 1#usize
+      rdf_mapping.subjects_from triples i1 buckets
+    | rdf.Subject.Blank node =>
+      let i1 ← rdf_mapping.hash_blank node
+      let i2 := alloc.vec.Vec.len buckets
+      let bucket ← rdf_mapping.bucket_of i1 i2
+      let i3 := alloc.vec.Vec.len buckets
+      let buckets1 ←
+        if bucket < i3
+        then
+          do
+          let v ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+              (alloc.vec.Vec Std.Usize)) buckets bucket
+          let i4 := alloc.vec.Vec.len v
+          if i4 < core.num.Usize.MAX
+          then
+            let (v1, index_mut_back) ←
+              alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+                (alloc.vec.Vec Std.Usize)) buckets bucket
+            let v2 ← alloc.vec.Vec.push v1 index
+            ok (index_mut_back v2)
+          else ok buckets
+        else ok buckets
+      let i4 ← index + 1#usize
+      rdf_mapping.subjects_from triples i4 buckets1
+  else ok buckets
+partial_fixpoint
+
 /-- [rowl_kernel::rdf_mapping::is_used]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 205:0-211:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 293:0-299:1 -/
 def rdf_mapping.is_used
   (used : alloc.vec.Vec Bool) (index : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len used
@@ -48415,7 +48539,7 @@ def rdf_mapping.is_used
   else ok true
 
 /-- [rowl_kernel::rdf_mapping::take]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 214:0-219:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 302:0-307:1 -/
 def rdf_mapping.take
   (state : rdf_mapping.State) (index : Std.Usize) :
   Result rdf_mapping.State
@@ -48431,7 +48555,7 @@ def rdf_mapping.take
   else ok state
 
 /-- [rowl_kernel::rdf_mapping::record]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 222:0-225:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 310:0-313:1 -/
 def rdf_mapping.record
   (state : rdf_mapping.State) (node : rdf.BlankNode) :
   Result rdf_mapping.State
@@ -48441,49 +48565,80 @@ def rdf_mapping.record
   ok { state with blanks := v }
 
 /-- [rowl_kernel::rdf_mapping::about]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 228:0-233:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 316:0-321:1 -/
 def rdf_mapping.about
   (triple : rdf.Triple) (node : rdf.BlankNode) : Result Bool := do
   match triple.subject with
   | rdf.Subject.Iri _ => ok false
   | rdf.Subject.Blank subject => rdf_mapping.same_blank subject node
 
-/-- [rowl_kernel::rdf_mapping::find]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 236:0-258:1 -/
-def rdf_mapping.find
+/-- [rowl_kernel::rdf_mapping::fits]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 325:0-343:1 -/
+def rdf_mapping.fits
   (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (node : rdf.BlankNode) («name» : Slice Std.U8) (index : Std.Usize) :
-  Result (Option Std.Usize)
+  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result Bool
   := do
   let i := alloc.vec.Vec.len triples
   if index < i
   then
     let b ← rdf_mapping.is_used used index
     if b
-    then
-      let i1 ← index + 1#usize
-      rdf_mapping.find triples used node «name» i1
+    then ok false
     else
       let t ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
           triples index
       let b1 ← rdf_mapping.about t node
       if b1
-      then
-        let b2 ← rdf_mapping.same t.predicate.spelling «name»
-        if b2
-        then ok (some index)
-        else
-          let i1 ← index + 1#usize
-          rdf_mapping.find triples used node «name» i1
-      else
-        let i1 ← index + 1#usize
-        rdf_mapping.find triples used node «name» i1
+      then rdf_mapping.same t.predicate.spelling «name»
+      else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 347:0-364:1 -/
+def rdf_mapping.find_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
+  («name» : Slice Std.U8) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits triples used i1 node «name»
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_in triples used bucket node «name» i2
   else ok none
 partial_fixpoint
 
+/-- [rowl_kernel::rdf_mapping::find]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 368:0-375:1 -/
+def rdf_mapping.find
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_in triples state.used v node «name» 0#usize
+  else ok none
+
 /-- [rowl_kernel::rdf_mapping::object_is]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 261:0-266:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 378:0-383:1 -/
 def rdf_mapping.object_is
   (object : rdf.Object) («name» : Slice Std.U8) : Result Bool := do
   match object with
@@ -48491,21 +48646,19 @@ def rdf_mapping.object_is
   | rdf.Object.Blank _ => ok false
   | rdf.Object.Literal _ => ok false
 
-/-- [rowl_kernel::rdf_mapping::find_type]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 269:0-298:1 -/
-def rdf_mapping.find_type
+/-- [rowl_kernel::rdf_mapping::fits_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 386:0-411:1 -/
+def rdf_mapping.fits_type
   (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (node : rdf.BlankNode) («name» : Slice Std.U8) (index : Std.Usize) :
-  Result (Option Std.Usize)
+  (index : Std.Usize) (node : rdf.BlankNode) («name» : Slice Std.U8) :
+  Result Bool
   := do
   let i := alloc.vec.Vec.len triples
   if index < i
   then
     let b ← rdf_mapping.is_used used index
     if b
-    then
-      let i1 ← index + 1#usize
-      rdf_mapping.find_type triples used node «name» i1
+    then ok false
     else
       let t ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
@@ -48525,50 +48678,116 @@ def rdf_mapping.find_type
               ]))
         let b2 ← rdf_mapping.same t.predicate.spelling s
         if b2
-        then
-          let b3 ← rdf_mapping.object_is t.object «name»
-          if b3
-          then ok (some index)
-          else
-            let i1 ← index + 1#usize
-            rdf_mapping.find_type triples used node «name» i1
-        else
-          let i1 ← index + 1#usize
-          rdf_mapping.find_type triples used node «name» i1
-      else
-        let i1 ← index + 1#usize
-        rdf_mapping.find_type triples used node «name» i1
+        then rdf_mapping.object_is t.object «name»
+        else ok false
+      else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_type_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 415:0-432:1 -/
+def rdf_mapping.find_type_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode)
+  («name» : Slice Std.U8) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits_type triples used i1 node «name»
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_type_in triples used bucket node «name» i2
   else ok none
 partial_fixpoint
 
-/-- [rowl_kernel::rdf_mapping::find_any]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 301:0-318:1 -/
-def rdf_mapping.find_any
-  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
-  (node : rdf.BlankNode) (index : Std.Usize) :
+/-- [rowl_kernel::rdf_mapping::find_type]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 436:0-443:1 -/
+def rdf_mapping.find_type
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) («name» : Slice Std.U8) :
   Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_type_in triples state.used v node «name» 0#usize
+  else ok none
+
+/-- [rowl_kernel::rdf_mapping::fits_any]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 446:0-456:1 -/
+def rdf_mapping.fits_any
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (index : Std.Usize) (node : rdf.BlankNode) :
+  Result Bool
   := do
   let i := alloc.vec.Vec.len triples
   if index < i
   then
     let b ← rdf_mapping.is_used used index
     if b
-    then let i1 ← index + 1#usize
-         rdf_mapping.find_any triples used node i1
+    then ok false
     else
       let t ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
           triples index
-      let b1 ← rdf_mapping.about t node
-      if b1
-      then ok (some index)
-      else let i1 ← index + 1#usize
-           rdf_mapping.find_any triples used node i1
+      rdf_mapping.about t node
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::find_any_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 459:0-475:1 -/
+def rdf_mapping.find_any_in
+  (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+  (bucket : alloc.vec.Vec Std.Usize) (node : rdf.BlankNode) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len bucket
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        bucket k
+    let b ← rdf_mapping.fits_any triples used i1 node
+    if b
+    then ok (some i1)
+    else
+      let i2 ← k + 1#usize
+      rdf_mapping.find_any_in triples used bucket node i2
   else ok none
 partial_fixpoint
 
+/-- [rowl_kernel::rdf_mapping::find_any]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 478:0-485:1 -/
+def rdf_mapping.find_any
+  (triples : alloc.vec.Vec rdf.Triple) (state : rdf_mapping.State)
+  (node : rdf.BlankNode) :
+  Result (Option Std.Usize)
+  := do
+  let i ← rdf_mapping.hash_blank node
+  let i1 := alloc.vec.Vec.len state.subjects
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len state.subjects
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) state.subjects bucket
+    rdf_mapping.find_any_in triples state.used v node 0#usize
+  else ok none
+
 /-- [rowl_kernel::rdf_mapping::same_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 337:0-347:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 514:0-524:1 -/
 def rdf_mapping.same_kind
   (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
   match left with
@@ -48621,40 +48840,60 @@ def rdf_mapping.same_kind
     | typing.EntityKind.AnnotationProperty => ok false
     | typing.EntityKind.NamedIndividual => ok true
 
-/-- [rowl_kernel::rdf_mapping::declared]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 321:0-335:1 -/
-def rdf_mapping.declared
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
+/-- [rowl_kernel::rdf_mapping::declared_in]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 488:0-502:1 -/
+def rdf_mapping.declared_in
+  (bucket : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
   (kind : typing.EntityKind) (index : Std.Usize) :
   Result Bool
   := do
-  let i := alloc.vec.Vec.len kinds
+  let i := alloc.vec.Vec.len bucket
   if index < i
   then
     let d ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        rdf_mapping.Declared) kinds index
+        rdf_mapping.Declared) bucket index
     let b ← rdf_mapping.same_vec d.iri iri
     if b
     then
       let b1 ← rdf_mapping.same_kind d.kind kind
       if b1
       then ok true
-      else let i1 ← index + 1#usize
-           rdf_mapping.declared kinds iri kind i1
+      else
+        let i1 ← index + 1#usize
+        rdf_mapping.declared_in bucket iri kind i1
     else let i1 ← index + 1#usize
-         rdf_mapping.declared kinds iri kind i1
+         rdf_mapping.declared_in bucket iri kind i1
   else ok false
 partial_fixpoint
 
-/-- [rowl_kernel::rdf_mapping::has_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 350:0-359:1 -/
-def rdf_mapping.has_kind
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8)
+/-- [rowl_kernel::rdf_mapping::declared]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 505:0-512:1 -/
+def rdf_mapping.declared
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
   (kind : typing.EntityKind) :
   Result Bool
   := do
-  let b ← rdf_mapping.declared kinds iri kind 0#usize
+  let i ← rdf_mapping.hash_iri iri
+  let i1 := alloc.vec.Vec.len kinds.buckets
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len kinds.buckets
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        rdf_mapping.Declared)) kinds.buckets bucket
+    rdf_mapping.declared_in v iri kind 0#usize
+  else ok false
+
+/-- [rowl_kernel::rdf_mapping::has_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 527:0-536:1 -/
+def rdf_mapping.has_kind
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let b ← rdf_mapping.declared kinds iri kind
   if b
   then ok true
   else
@@ -48664,9 +48903,9 @@ def rdf_mapping.has_kind
     | some builtin => rdf_mapping.same_kind builtin kind
 
 /-- [rowl_kernel::rdf_mapping::property_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 363:0-386:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 540:0-563:1 -/
 def rdf_mapping.property_kind
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (iri : alloc.vec.Vec Std.U8) :
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8) :
   Result (Option rdf_mapping.PropertyKind)
   := do
   let object ←
@@ -48694,9 +48933,9 @@ def rdf_mapping.property_kind
       else ok none
 
 /-- [rowl_kernel::rdf_mapping::node_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 390:0-396:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 567:0-573:1 -/
 def rdf_mapping.node_kind
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object) :
+  (kinds : rdf_mapping.Kinds) (node : rdf.Object) :
   Result (Option rdf_mapping.PropertyKind)
   := do
   match node with
@@ -48705,12 +48944,12 @@ def rdf_mapping.node_kind
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::CARDINALITY_LIMIT]
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 399:0-399:40 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 576:0-576:40 -/
 @[global_simps, irreducible]
 def rdf_mapping.CARDINALITY_LIMIT : Std.Usize := 10000#usize
 
 /-- [rowl_kernel::rdf_mapping::spelled]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 402:0-411:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 579:0-588:1 -/
 def rdf_mapping.spelled
   («name» : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
   Result (alloc.vec.Vec Std.U8)
@@ -48732,7 +48971,7 @@ def rdf_mapping.spelled
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::has_at]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 413:0-423:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 590:0-600:1 -/
 def rdf_mapping.has_at
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len bytes
@@ -48749,7 +48988,7 @@ def rdf_mapping.has_at
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::append_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 425:0-434:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 602:0-611:1 -/
 def rdf_mapping.append_from
   (out : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
   (index : Std.Usize) :
@@ -48774,7 +49013,7 @@ def rdf_mapping.append_from
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::literal_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 439:0-481:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 616:0-658:1 -/
 def rdf_mapping.literal_of
   (literal : rdf.RdfLiteral) : Result (Option model.Literal) := do
   match literal.kind with
@@ -48829,7 +49068,7 @@ def rdf_mapping.literal_of
         else ok none
 
 /-- [rowl_kernel::rdf_mapping::node_literal]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 484:0-489:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 661:0-666:1 -/
 def rdf_mapping.node_literal
   (node : rdf.Object) : Result (Option model.Literal) := do
   match node with
@@ -48838,7 +49077,7 @@ def rdf_mapping.node_literal
   | rdf.Object.Literal literal => rdf_mapping.literal_of literal
 
 /-- [rowl_kernel::rdf_mapping::natural_up]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 491:0-497:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 668:0-674:1 -/
 def rdf_mapping.natural_up
   (count : Std.Usize) (out : probes.Natural) : Result probes.Natural := do
   if count = 0#usize
@@ -48849,7 +49088,7 @@ def rdf_mapping.natural_up
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::node_natural]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 501:0-531:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 678:0-708:1 -/
 def rdf_mapping.node_natural
   (node : rdf.Object) : Result (Option probes.Natural) := do
   match node with
@@ -48904,7 +49143,7 @@ def rdf_mapping.node_natural
     | rdf.LiteralKind.Language _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::node_true]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 534:0-551:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 711:0-728:1 -/
 def rdf_mapping.node_true (node : rdf.Object) : Result Bool := do
   match node with
   | rdf.Object.Iri _ => ok false
@@ -48932,7 +49171,7 @@ def rdf_mapping.node_true (node : rdf.Object) : Result Bool := do
     | rdf.LiteralKind.Language _ => ok false
 
 /-- [rowl_kernel::rdf_mapping::node_individual]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 554:0-565:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 731:0-742:1 -/
 def rdf_mapping.node_individual
   (node : rdf.Object) : Result (Option model.Individual) := do
   match node with
@@ -48946,7 +49185,7 @@ def rdf_mapping.node_individual
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::node_iri]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 568:0-573:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 745:0-750:1 -/
 def rdf_mapping.node_iri (node : rdf.Object) : Result (Option model.Iri) := do
   match node with
   | rdf.Object.Iri iri => let i ← rdf_mapping.iri_of iri.spelling
@@ -48955,7 +49194,7 @@ def rdf_mapping.node_iri (node : rdf.Object) : Result (Option model.Iri) := do
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::property_expression]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 577:0-613:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 754:0-789:1 -/
 def rdf_mapping.property_expression
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) :
@@ -48975,7 +49214,7 @@ def rdf_mapping.property_expression
           119#u8, 108#u8, 35#u8, 105#u8, 110#u8, 118#u8, 101#u8, 114#u8,
           115#u8, 101#u8, 79#u8, 102#u8
           ]))
-    let o ← rdf_mapping.find triples state.used blank s 0#usize
+    let o ← rdf_mapping.find triples state blank s
     match o with
     | none => ok none
     | some index =>
@@ -48993,7 +49232,7 @@ def rdf_mapping.property_expression
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::cell]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 617:0-647:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 793:0-821:1 -/
 def rdf_mapping.cell
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) :
@@ -49012,7 +49251,7 @@ def rdf_mapping.cell
           97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
           115#u8, 116#u8
           ]))
-    let o ← rdf_mapping.find triples state.used blank s 0#usize
+    let o ← rdf_mapping.find triples state blank s
     match o with
     | none => ok none
     | some first =>
@@ -49027,7 +49266,7 @@ def rdf_mapping.cell
             121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8, 115#u8,
             35#u8, 114#u8, 101#u8, 115#u8, 116#u8
             ]))
-      let o1 ← rdf_mapping.find triples state1.used blank s1 0#usize
+      let o1 ← rdf_mapping.find triples state1 blank s1
       match o1 with
       | none => ok none
       | some rest =>
@@ -49037,7 +49276,7 @@ def rdf_mapping.cell
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::is_nil]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 650:0-652:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 824:0-826:1 -/
 def rdf_mapping.is_nil (node : rdf.Object) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -49051,7 +49290,7 @@ def rdf_mapping.is_nil (node : rdf.Object) : Result Bool := do
   rdf_mapping.object_is node s
 
 /-- [rowl_kernel::rdf_mapping::cells]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 656:0-680:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 830:0-854:1 -/
 def rdf_mapping.cells
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) (out : alloc.vec.Vec Std.Usize)
@@ -49083,7 +49322,7 @@ def rdf_mapping.cells
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 683:0-689:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 857:0-863:1 -/
 def rdf_mapping.element
   (triples : alloc.vec.Vec rdf.Triple) (first : Std.Usize) :
   Result (Option rdf.Object)
@@ -49098,7 +49337,7 @@ def rdf_mapping.element
   else ok none
 
 /-- [rowl_kernel::rdf_mapping::facet_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1885:0-1915:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2030:0-2060:1 -/
 def rdf_mapping.facet_element
   (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (state : rdf_mapping.State) :
@@ -49117,7 +49356,7 @@ def rdf_mapping.facet_element
       match o1 with
       | rdf.Object.Iri _ => ok none
       | rdf.Object.Blank blank =>
-        let o2 ← rdf_mapping.find_any triples state.used blank 0#usize
+        let o2 ← rdf_mapping.find_any triples state blank
         match o2 with
         | none => ok none
         | some found =>
@@ -49136,7 +49375,7 @@ def rdf_mapping.facet_element
   else ok none
 
 /-- [rowl_kernel::rdf_mapping::facet_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1918:0-1940:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2063:0-2085:1 -/
 def rdf_mapping.facet_members
   (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (state : rdf_mapping.State)
@@ -49162,7 +49401,7 @@ def rdf_mapping.facet_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::literal_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 872:0-896:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1046:0-1070:1 -/
 def rdf_mapping.literal_members
   (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec model.Literal) :
@@ -49193,7 +49432,7 @@ def rdf_mapping.literal_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::literal_list1]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 899:0-924:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1073:0-1098:1 -/
 def rdf_mapping.literal_list1
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) (fuel : Std.Usize) :
@@ -49230,11 +49469,10 @@ def rdf_mapping.literal_list1
 mutual
 
 /-- [rowl_kernel::rdf_mapping::data_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1764:0-1800:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1910:0-1945:1 -/
 def rdf_mapping.data_range
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.DataRange × rdf_mapping.State))
   := do
   match node with
@@ -49254,7 +49492,7 @@ def rdf_mapping.data_range
             101#u8, 109#u8, 97#u8, 35#u8, 68#u8, 97#u8, 116#u8, 97#u8, 116#u8,
             121#u8, 112#u8, 101#u8
             ]))
-      let o ← rdf_mapping.find_type triples state.used blank s 0#usize
+      let o ← rdf_mapping.find_type triples state blank s
       match o with
       | none => ok none
       | some index =>
@@ -49267,10 +49505,9 @@ def rdf_mapping.data_range
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::range_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1803:0-1830:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1948:0-1975:1 -/
 def rdf_mapping.range_members
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State) (out : alloc.vec.Vec model.DataRange)
   (fuel : Std.Usize) :
@@ -49302,10 +49539,9 @@ def rdf_mapping.range_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::range_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1833:0-1849:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1978:0-1994:1 -/
 def rdf_mapping.range_element
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.DataRange × rdf_mapping.State))
@@ -49324,11 +49560,10 @@ def rdf_mapping.range_element
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::range_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1852:0-1881:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1997:0-2026:1 -/
 def rdf_mapping.range_list2
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option ((model.AtLeastTwo model.DataRange) × rdf_mapping.State))
   := do
   let o ←
@@ -49360,11 +49595,10 @@ def rdf_mapping.range_list2
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::range_construct]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1943:0-2056:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2088:0-2196:1 -/
 def rdf_mapping.range_construct
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.DataRange × rdf_mapping.State))
   := do
   let s ←
@@ -49376,7 +49610,7 @@ def rdf_mapping.range_construct
         108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
         99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -49388,7 +49622,7 @@ def rdf_mapping.range_construct
           119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
           102#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -49401,7 +49635,7 @@ def rdf_mapping.range_construct
             116#u8, 121#u8, 112#u8, 101#u8, 67#u8, 111#u8, 109#u8, 112#u8,
             108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8, 102#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         let s3 ←
@@ -49413,7 +49647,7 @@ def rdf_mapping.range_construct
               47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
               79#u8, 102#u8
               ]))
-        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        let o3 ← rdf_mapping.find triples state blank s3
         match o3 with
         | none =>
           let s4 ←
@@ -49425,7 +49659,7 @@ def rdf_mapping.range_construct
                 47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 68#u8,
                 97#u8, 116#u8, 97#u8, 116#u8, 121#u8, 112#u8, 101#u8
                 ]))
-          let o4 ← rdf_mapping.find triples state.used blank s4 0#usize
+          let o4 ← rdf_mapping.find triples state blank s4
           match o4 with
           | none => ok none
           | some index =>
@@ -49448,7 +49682,7 @@ def rdf_mapping.range_construct
                     116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8,
                     110#u8, 115#u8
                     ]))
-              let o6 ← rdf_mapping.find triples state1.used blank s5 0#usize
+              let o6 ← rdf_mapping.find triples state1 blank s5
               match o6 with
               | none => ok none
               | some list =>
@@ -49527,11 +49761,10 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::rdf_mapping::on_data_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1616:0-1636:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1769:0-1788:1 -/
 def rdf_mapping.on_data_range
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.DataRange × rdf_mapping.State))
   := do
   let s ←
@@ -49543,7 +49776,7 @@ def rdf_mapping.on_data_range
         108#u8, 35#u8, 111#u8, 110#u8, 68#u8, 97#u8, 116#u8, 97#u8, 82#u8,
         97#u8, 110#u8, 103#u8, 101#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none => ok none
   | some index =>
@@ -49554,12 +49787,11 @@ def rdf_mapping.on_data_range
     rdf_mapping.data_range triples kinds t.object state1 fuel
 
 /-- [rowl_kernel::rdf_mapping::data_qualified]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1696:0-1760:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1845:0-1906:1 -/
 def rdf_mapping.data_qualified
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (property : model.DataProperty) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -49572,7 +49804,7 @@ def rdf_mapping.data_qualified
         105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
         105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -49585,7 +49817,7 @@ def rdf_mapping.data_qualified
           108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
           100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -49599,7 +49831,7 @@ def rdf_mapping.data_qualified
             114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
             121#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none => ok none
       | some index =>
@@ -49652,12 +49884,11 @@ def rdf_mapping.data_qualified
           range), state1))
 
 /-- [rowl_kernel::rdf_mapping::data_cardinality]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1639:0-1693:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1791:0-1842:1 -/
 def rdf_mapping.data_cardinality
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (property : model.DataProperty) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -49669,7 +49900,7 @@ def rdf_mapping.data_cardinality
         108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
         105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -49681,7 +49912,7 @@ def rdf_mapping.data_cardinality
           119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
           100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -49693,7 +49924,7 @@ def rdf_mapping.data_cardinality
             47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
             105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         rdf_mapping.data_qualified triples kinds blank property state fuel
@@ -49731,12 +49962,11 @@ def rdf_mapping.data_cardinality
       ok (some (model.ClassExpression.DataMinCardinality n property none, s1))
 
 /-- [rowl_kernel::rdf_mapping::data_restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1555:0-1613:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1711:0-1766:1 -/
 def rdf_mapping.data_restriction
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (property : model.DataProperty) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (property : model.DataProperty)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -49748,7 +49978,7 @@ def rdf_mapping.data_restriction
         108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
         117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -49760,7 +49990,7 @@ def rdf_mapping.data_restriction
           119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
           117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -49772,7 +50002,7 @@ def rdf_mapping.data_restriction
             47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
             97#u8, 108#u8, 117#u8, 101#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         rdf_mapping.data_cardinality triples kinds blank property state fuel
@@ -49812,7 +50042,7 @@ def rdf_mapping.data_restriction
         state2))
 
 /-- [rowl_kernel::rdf_mapping::individual_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 774:0-798:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 948:0-972:1 -/
 def rdf_mapping.individual_members
   (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.vec.Vec Std.Usize)
   (index : Std.Usize) (out : alloc.vec.Vec model.Individual) :
@@ -49843,7 +50073,7 @@ def rdf_mapping.individual_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::individual_list1]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 801:0-826:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 975:0-1000:1 -/
 def rdf_mapping.individual_list1
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) (fuel : Std.Usize) :
@@ -49880,10 +50110,9 @@ def rdf_mapping.individual_list1
 mutual
 
 /-- [rowl_kernel::rdf_mapping::class_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 692:0-719:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 866:0-893:1 -/
 def rdf_mapping.class_members
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State) (out : alloc.vec.Vec model.ClassExpression)
   (fuel : Std.Usize) :
@@ -49915,11 +50144,10 @@ def rdf_mapping.class_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::class_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 722:0-771:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 896:0-945:1 -/
 def rdf_mapping.class_list2
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option ((model.AtLeastTwo model.ClassExpression) ×
     rdf_mapping.State))
   := do
@@ -49969,11 +50197,10 @@ def rdf_mapping.class_list2
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::class_expression]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1156:0-1205:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1330:0-1377:1 -/
 def rdf_mapping.class_expression
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   match node with
@@ -49992,7 +50219,7 @@ def rdf_mapping.class_expression
             47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 82#u8, 101#u8, 115#u8,
             116#u8, 114#u8, 105#u8, 99#u8, 116#u8, 105#u8, 111#u8, 110#u8
             ]))
-      let o ← rdf_mapping.find_type triples state.used blank s 0#usize
+      let o ← rdf_mapping.find_type triples state blank s
       match o with
       | none =>
         let s1 ←
@@ -50004,7 +50231,7 @@ def rdf_mapping.class_expression
               47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 67#u8, 108#u8, 97#u8,
               115#u8, 115#u8
               ]))
-        let o1 ← rdf_mapping.find_type triples state.used blank s1 0#usize
+        let o1 ← rdf_mapping.find_type triples state blank s1
         match o1 with
         | none => ok none
         | some index =>
@@ -50022,11 +50249,10 @@ def rdf_mapping.class_expression
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::class_construct]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1208:0-1285:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1380:0-1453:1 -/
 def rdf_mapping.class_construct
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50038,7 +50264,7 @@ def rdf_mapping.class_construct
         108#u8, 35#u8, 105#u8, 110#u8, 116#u8, 101#u8, 114#u8, 115#u8, 101#u8,
         99#u8, 116#u8, 105#u8, 111#u8, 110#u8, 79#u8, 102#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -50050,7 +50276,7 @@ def rdf_mapping.class_construct
           119#u8, 108#u8, 35#u8, 117#u8, 110#u8, 105#u8, 111#u8, 110#u8, 79#u8,
           102#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -50063,7 +50289,7 @@ def rdf_mapping.class_construct
             112#u8, 108#u8, 101#u8, 109#u8, 101#u8, 110#u8, 116#u8, 79#u8,
             102#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         let s3 ←
@@ -50075,7 +50301,7 @@ def rdf_mapping.class_construct
               47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 111#u8, 110#u8, 101#u8,
               79#u8, 102#u8
               ]))
-        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        let o3 ← rdf_mapping.find triples state blank s3
         match o3 with
         | none => ok none
         | some index =>
@@ -50126,11 +50352,10 @@ def rdf_mapping.class_construct
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1288:0-1323:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1456:0-1490:1 -/
 def rdf_mapping.restriction
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50142,7 +50367,7 @@ def rdf_mapping.restriction
         108#u8, 35#u8, 111#u8, 110#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8,
         114#u8, 116#u8, 121#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none => ok none
   | some index =>
@@ -50172,12 +50397,11 @@ def rdf_mapping.restriction
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::object_restriction]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1326:0-1402:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1493:0-1565:1 -/
 def rdf_mapping.object_restriction
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50189,7 +50413,7 @@ def rdf_mapping.object_restriction
         108#u8, 35#u8, 115#u8, 111#u8, 109#u8, 101#u8, 86#u8, 97#u8, 108#u8,
         117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -50201,7 +50425,7 @@ def rdf_mapping.object_restriction
           119#u8, 108#u8, 35#u8, 97#u8, 108#u8, 108#u8, 86#u8, 97#u8, 108#u8,
           117#u8, 101#u8, 115#u8, 70#u8, 114#u8, 111#u8, 109#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -50213,7 +50437,7 @@ def rdf_mapping.object_restriction
             47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8, 86#u8,
             97#u8, 108#u8, 117#u8, 101#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         let s3 ←
@@ -50225,7 +50449,7 @@ def rdf_mapping.object_restriction
               47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 104#u8, 97#u8, 115#u8,
               83#u8, 101#u8, 108#u8, 102#u8
               ]))
-        let o3 ← rdf_mapping.find triples state.used blank s3 0#usize
+        let o3 ← rdf_mapping.find triples state blank s3
         match o3 with
         | none =>
           rdf_mapping.object_cardinality triples kinds blank role state fuel
@@ -50276,12 +50500,11 @@ def rdf_mapping.object_restriction
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::object_cardinality]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1405:0-1459:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1568:0-1619:1 -/
 def rdf_mapping.object_cardinality
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50293,7 +50516,7 @@ def rdf_mapping.object_cardinality
         108#u8, 35#u8, 109#u8, 105#u8, 110#u8, 67#u8, 97#u8, 114#u8, 100#u8,
         105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -50305,7 +50528,7 @@ def rdf_mapping.object_cardinality
           119#u8, 108#u8, 35#u8, 109#u8, 97#u8, 120#u8, 67#u8, 97#u8, 114#u8,
           100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -50317,7 +50540,7 @@ def rdf_mapping.object_cardinality
             47#u8, 111#u8, 119#u8, 108#u8, 35#u8, 99#u8, 97#u8, 114#u8, 100#u8,
             105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none =>
         rdf_mapping.object_qualified triples kinds blank role state fuel
@@ -50355,11 +50578,10 @@ def rdf_mapping.object_cardinality
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::on_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1462:0-1482:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1622:0-1641:1 -/
 def rdf_mapping.on_class
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50370,7 +50592,7 @@ def rdf_mapping.on_class
         50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
         108#u8, 35#u8, 111#u8, 110#u8, 67#u8, 108#u8, 97#u8, 115#u8, 115#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none => ok none
   | some index =>
@@ -50382,12 +50604,11 @@ def rdf_mapping.on_class
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::object_qualified]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1485:0-1552:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1644:0-1708:1 -/
 def rdf_mapping.object_qualified
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (blank : rdf.BlankNode)
-  (role : model.ObjectPropertyExpression) (state : rdf_mapping.State)
-  (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (blank : rdf.BlankNode) (role : model.ObjectPropertyExpression)
+  (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × rdf_mapping.State))
   := do
   let s ←
@@ -50400,7 +50621,7 @@ def rdf_mapping.object_qualified
         105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8, 100#u8,
         105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
         ]))
-  let o ← rdf_mapping.find triples state.used blank s 0#usize
+  let o ← rdf_mapping.find triples state blank s
   match o with
   | none =>
     let s1 ←
@@ -50413,7 +50634,7 @@ def rdf_mapping.object_qualified
           108#u8, 105#u8, 102#u8, 105#u8, 101#u8, 100#u8, 67#u8, 97#u8, 114#u8,
           100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8, 121#u8
           ]))
-    let o1 ← rdf_mapping.find triples state.used blank s1 0#usize
+    let o1 ← rdf_mapping.find triples state blank s1
     match o1 with
     | none =>
       let s2 ←
@@ -50427,7 +50648,7 @@ def rdf_mapping.object_qualified
             114#u8, 100#u8, 105#u8, 110#u8, 97#u8, 108#u8, 105#u8, 116#u8,
             121#u8
             ]))
-      let o2 ← rdf_mapping.find triples state.used blank s2 0#usize
+      let o2 ← rdf_mapping.find triples state blank s2
       match o2 with
       | none => ok none
       | some index =>
@@ -50483,7 +50704,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::rdf_mapping::individual_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 829:0-869:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1003:0-1043:1 -/
 def rdf_mapping.individual_list2
   (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object)
   (state : rdf_mapping.State) (fuel : Std.Usize) :
@@ -50529,10 +50750,9 @@ def rdf_mapping.individual_list2
     else ok none
 
 /-- [rowl_kernel::rdf_mapping::property_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 927:0-956:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1101:0-1130:1 -/
 def rdf_mapping.property_members
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -50573,10 +50793,9 @@ def rdf_mapping.property_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::property_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 959:0-977:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1133:0-1151:1 -/
 def rdf_mapping.property_element
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State) :
   Result (Option (model.ObjectPropertyExpression × rdf_mapping.State))
@@ -50603,11 +50822,10 @@ def rdf_mapping.property_element
   else ok none
 
 /-- [rowl_kernel::rdf_mapping::property_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 980:0-1009:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1154:0-1183:1 -/
 def rdf_mapping.property_list2
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option ((model.AtLeastTwo model.ObjectPropertyExpression) ×
     rdf_mapping.State))
   := do
@@ -50638,10 +50856,9 @@ def rdf_mapping.property_list2
           ok (some ({ first, second, rest }, state4))
 
 /-- [rowl_kernel::rdf_mapping::data_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1012:0-1040:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1186:0-1214:1 -/
 def rdf_mapping.data_members
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (out : alloc.vec.Vec model.DataProperty) :
   Result (Option (alloc.vec.Vec model.DataProperty))
@@ -50680,10 +50897,9 @@ def rdf_mapping.data_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::data_element]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1043:0-1063:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1217:0-1237:1 -/
 def rdf_mapping.data_element
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize) :
   Result (Option model.DataProperty)
   := do
@@ -50712,11 +50928,10 @@ def rdf_mapping.data_element
   else ok none
 
 /-- [rowl_kernel::rdf_mapping::data_list2]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1066:0-1093:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1240:0-1267:1 -/
 def rdf_mapping.data_list2
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (node : rdf.Object)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (node : rdf.Object) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option ((model.AtLeastTwo model.DataProperty) × rdf_mapping.State))
   := do
   let o ←
@@ -50741,10 +50956,9 @@ def rdf_mapping.data_list2
         | some rest => ok (some ({ first, second, rest }, state1))
 
 /-- [rowl_kernel::rdf_mapping::key_members]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1097:0-1152:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 1271:0-1326:1 -/
 def rdf_mapping.key_members
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (firsts : alloc.vec.Vec Std.Usize) (index : Std.Usize)
   (state : rdf_mapping.State)
   (objects : alloc.vec.Vec model.ObjectPropertyExpression)
@@ -50804,11 +51018,10 @@ def rdf_mapping.key_members
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::class_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2059:0-2077:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2199:0-2217:1 -/
 def rdf_mapping.class_pair
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result (Option (model.ClassExpression × model.ClassExpression ×
     rdf_mapping.State))
   := do
@@ -50829,17 +51042,16 @@ def rdf_mapping.class_pair
                  ok (some (left, right, state3))
 
 /-- [rowl_kernel::rdf_mapping::two]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2079:0-2085:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2219:0-2225:1 -/
 def rdf_mapping.two
   {T : Type} (first : T) (second : T) : Result (model.AtLeastTwo T) := do
   ok { first, second, rest := (alloc.vec.Vec.new T) }
 
 /-- [rowl_kernel::rdf_mapping::sub_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2087:0-2098:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2227:0-2238:1 -/
 def rdf_mapping.sub_class
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let o ← rdf_mapping.class_pair triples kinds index state fuel
@@ -50850,22 +51062,19 @@ def rdf_mapping.sub_class
     ok (rdf_mapping.Read.Found (model.Axiom.SubClassOf sub sup) state1)
 
 /-- [rowl_kernel::rdf_mapping::datatype_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2101:0-2106:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2241:0-2246:1 -/
 def rdf_mapping.datatype_subject
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (subject : rdf.Subject) :
-  Result Bool
-  := do
+  (kinds : rdf_mapping.Kinds) (subject : rdf.Subject) : Result Bool := do
   match subject with
   | rdf.Subject.Iri iri =>
     rdf_mapping.has_kind kinds iri.spelling typing.EntityKind.Datatype
   | rdf.Subject.Blank _ => ok false
 
 /-- [rowl_kernel::rdf_mapping::equivalent_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2108:0-2142:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2248:0-2282:1 -/
 def rdf_mapping.equivalent_class
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let t ←
@@ -50896,11 +51105,10 @@ def rdf_mapping.equivalent_class
       ok (rdf_mapping.Read.Found (model.Axiom.EquivalentClasses alt) state1)
 
 /-- [rowl_kernel::rdf_mapping::disjoint_class]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2144:0-2155:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2284:0-2295:1 -/
 def rdf_mapping.disjoint_class
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let o ← rdf_mapping.class_pair triples kinds index state fuel
@@ -50912,11 +51120,10 @@ def rdf_mapping.disjoint_class
     ok (rdf_mapping.Read.Found (model.Axiom.DisjointClasses alt) state1)
 
 /-- [rowl_kernel::rdf_mapping::disjoint_union]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2157:0-2182:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2297:0-2322:1 -/
 def rdf_mapping.disjoint_union
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let t ←
@@ -50936,7 +51143,7 @@ def rdf_mapping.disjoint_union
   | rdf.Subject.Blank _ => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::property_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2185:0-2198:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2325:0-2338:1 -/
 def rdf_mapping.property_pair
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) :
@@ -50959,7 +51166,7 @@ def rdf_mapping.property_pair
                  ok (some (left, right, state2))
 
 /-- [rowl_kernel::rdf_mapping::data_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2201:0-2210:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2341:0-2350:1 -/
 def rdf_mapping.data_pair
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
   Result (Option (model.DataProperty × model.DataProperty))
@@ -50978,10 +51185,10 @@ def rdf_mapping.data_pair
     | some right => ok (some ({ iri := left }, { iri := right }))
 
 /-- [rowl_kernel::rdf_mapping::subject_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2213:0-2219:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2353:0-2355:1 -/
 def rdf_mapping.subject_kind
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) :
   Result (Option rdf_mapping.PropertyKind)
   := do
   let t ←
@@ -50991,11 +51198,10 @@ def rdf_mapping.subject_kind
   rdf_mapping.node_kind kinds o
 
 /-- [rowl_kernel::rdf_mapping::sub_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2221:0-2247:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2357:0-2383:1 -/
 def rdf_mapping.sub_property
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51030,11 +51236,10 @@ def rdf_mapping.sub_property
           { iri := sub.iri } { iri := sup.iri }) state1)
 
 /-- [rowl_kernel::rdf_mapping::property_chain]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2249:0-2270:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2385:0-2406:1 -/
 def rdf_mapping.property_chain
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51056,11 +51261,10 @@ def rdf_mapping.property_chain
         (model.SubObjectPropertyExpression.Chain chain) sup) state3)
 
 /-- [rowl_kernel::rdf_mapping::equivalent_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2272:0-2294:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2408:0-2425:1 -/
 def rdf_mapping.equivalent_property
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51090,11 +51294,10 @@ def rdf_mapping.equivalent_property
     | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::disjoint_property]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2296:0-2318:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2427:0-2444:1 -/
 def rdf_mapping.disjoint_property
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51124,7 +51327,7 @@ def rdf_mapping.disjoint_property
     | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::inverse_properties]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2320:0-2333:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2446:0-2459:1 -/
 def rdf_mapping.inverse_properties
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) :
@@ -51146,11 +51349,11 @@ def rdf_mapping.inverse_properties
   | rdf.Subject.Blank _ => ok (rdf_mapping.Read.Skip state)
 
 /-- [rowl_kernel::rdf_mapping::domain_range]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2336:0-2405:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2462:0-2531:1 -/
 def rdf_mapping.domain_range
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (range : Bool) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (range : Bool)
+  (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51223,7 +51426,7 @@ def rdf_mapping.domain_range
               { iri } target) state1)
 
 /-- [rowl_kernel::rdf_mapping::individual_pair]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2408:0-2416:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2534:0-2542:1 -/
 def rdf_mapping.individual_pair
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) :
   Result (Option (model.Individual × model.Individual))
@@ -51242,7 +51445,7 @@ def rdf_mapping.individual_pair
     | some right => ok (some (left, right))
 
 /-- [rowl_kernel::rdf_mapping::same_individual]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2418:0-2425:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2544:0-2551:1 -/
 def rdf_mapping.same_individual
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) :
@@ -51258,7 +51461,7 @@ def rdf_mapping.same_individual
     ok (rdf_mapping.Read.Found (model.Axiom.SameIndividual alt) s)
 
 /-- [rowl_kernel::rdf_mapping::different_individuals]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2427:0-2435:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2553:0-2561:1 -/
 def rdf_mapping.different_individuals
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) :
@@ -51274,11 +51477,10 @@ def rdf_mapping.different_individuals
     ok (rdf_mapping.Read.Found (model.Axiom.DifferentIndividuals alt) s)
 
 /-- [rowl_kernel::rdf_mapping::has_key]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2437:0-2462:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2563:0-2582:1 -/
 def rdf_mapping.has_key
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51310,11 +51512,10 @@ def rdf_mapping.has_key
           state4)
 
 /-- [rowl_kernel::rdf_mapping::characteristic]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2467:0-2511:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2587:0-2631:1 -/
 def rdf_mapping.characteristic
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (kind : Std.U8) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (kind : Std.U8) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51378,7 +51579,7 @@ def rdf_mapping.characteristic
     | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::axiom_node]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2514:0-2523:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2634:0-2643:1 -/
 def rdf_mapping.axiom_node
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) :
@@ -51396,11 +51597,10 @@ def rdf_mapping.axiom_node
     ok (some (bn, state2))
 
 /-- [rowl_kernel::rdf_mapping::all_disjoint_classes]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2525:0-2557:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2645:0-2676:1 -/
 def rdf_mapping.all_disjoint_classes
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let o ← rdf_mapping.axiom_node triples index state
@@ -51417,7 +51617,7 @@ def rdf_mapping.all_disjoint_classes
           119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
           115#u8
           ]))
-    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    let o1 ← rdf_mapping.find triples state1 blank s
     match o1 with
     | none => ok rdf_mapping.Read.Fail
     | some list =>
@@ -51438,11 +51638,10 @@ def rdf_mapping.all_disjoint_classes
         else ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::first_member_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2560:0-2579:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2679:0-2697:1 -/
 def rdf_mapping.first_member_kind
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (used : alloc.vec.Vec Bool)
-  (node : rdf.Object) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (state : rdf_mapping.State) (node : rdf.Object) :
   Result (Option rdf_mapping.PropertyKind)
   := do
   match node with
@@ -51458,7 +51657,7 @@ def rdf_mapping.first_member_kind
           97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
           115#u8, 116#u8
           ]))
-    let o ← rdf_mapping.find triples used blank s 0#usize
+    let o ← rdf_mapping.find triples state blank s
     match o with
     | none => ok none
     | some first =>
@@ -51469,11 +51668,10 @@ def rdf_mapping.first_member_kind
   | rdf.Object.Literal _ => ok none
 
 /-- [rowl_kernel::rdf_mapping::all_disjoint_properties]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2581:0-2630:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2699:0-2747:1 -/
 def rdf_mapping.all_disjoint_properties
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let o ← rdf_mapping.axiom_node triples index state
@@ -51490,7 +51688,7 @@ def rdf_mapping.all_disjoint_properties
           119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
           115#u8
           ]))
-    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    let o1 ← rdf_mapping.find triples state1 blank s
     match o1 with
     | none => ok rdf_mapping.Read.Fail
     | some list =>
@@ -51498,8 +51696,7 @@ def rdf_mapping.all_disjoint_properties
       let t ←
         alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
           triples list
-      let o2 ←
-        rdf_mapping.first_member_kind triples kinds state2.used t.object
+      let o2 ← rdf_mapping.first_member_kind triples kinds state2 t.object
       match o2 with
       | none => ok rdf_mapping.Read.Fail
       | some pk =>
@@ -51532,7 +51729,7 @@ def rdf_mapping.all_disjoint_properties
         | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::all_different]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2632:0-2658:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2749:0-2774:1 -/
 def rdf_mapping.all_different
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) (fuel : Std.Usize) :
@@ -51552,7 +51749,7 @@ def rdf_mapping.all_different
           119#u8, 108#u8, 35#u8, 109#u8, 101#u8, 109#u8, 98#u8, 101#u8, 114#u8,
           115#u8
           ]))
-    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    let o1 ← rdf_mapping.find triples state1 blank s
     match o1 with
     | none => ok rdf_mapping.Read.Fail
     | some list =>
@@ -51573,11 +51770,10 @@ def rdf_mapping.all_different
         else ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::negative_assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2660:0-2749:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2776:0-2856:1 -/
 def rdf_mapping.negative_assertion
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
   Result rdf_mapping.Read
   := do
   let o ← rdf_mapping.axiom_node triples index state
@@ -51595,7 +51791,7 @@ def rdf_mapping.negative_assertion
           73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8, 100#u8, 117#u8, 97#u8,
           108#u8
           ]))
-    let o1 ← rdf_mapping.find triples state1.used blank s 0#usize
+    let o1 ← rdf_mapping.find triples state1 blank s
     match o1 with
     | none => ok rdf_mapping.Read.Fail
     | some source =>
@@ -51617,7 +51813,7 @@ def rdf_mapping.negative_assertion
               101#u8, 114#u8, 116#u8, 105#u8, 111#u8, 110#u8, 80#u8, 114#u8,
               111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
               ]))
-        let o3 ← rdf_mapping.find triples state2.used blank s1 0#usize
+        let o3 ← rdf_mapping.find triples state2 blank s1
         match o3 with
         | none => ok rdf_mapping.Read.Fail
         | some property =>
@@ -51648,8 +51844,7 @@ def rdf_mapping.negative_assertion
                       116#u8, 73#u8, 110#u8, 100#u8, 105#u8, 118#u8, 105#u8,
                       100#u8, 117#u8, 97#u8, 108#u8
                       ]))
-                let o6 ←
-                  rdf_mapping.find triples state4.used blank s2 0#usize
+                let o6 ← rdf_mapping.find triples state4 blank s2
                 match o6 with
                 | none => ok rdf_mapping.Read.Fail
                 | some target =>
@@ -51679,8 +51874,7 @@ def rdf_mapping.negative_assertion
                       108#u8, 35#u8, 116#u8, 97#u8, 114#u8, 103#u8, 101#u8,
                       116#u8, 86#u8, 97#u8, 108#u8, 117#u8, 101#u8
                       ]))
-                let o6 ←
-                  rdf_mapping.find triples state3.used blank s2 0#usize
+                let o6 ← rdf_mapping.find triples state3 blank s2
                 match o6 with
                 | none => ok rdf_mapping.Read.Fail
                 | some target =>
@@ -51698,11 +51892,10 @@ def rdf_mapping.negative_assertion
             | rdf_mapping.PropertyKind.Annotation => ok rdf_mapping.Read.Fail
 
 /-- [rowl_kernel::rdf_mapping::class_assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2751:0-2770:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2858:0-2877:1 -/
 def rdf_mapping.class_assertion
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let state1 ← rdf_mapping.take state index
@@ -51723,7 +51916,7 @@ def rdf_mapping.class_assertion
         individual) state2)
 
 /-- [rowl_kernel::rdf_mapping::blank_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2773:0-2778:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2880:0-2885:1 -/
 def rdf_mapping.blank_subject (triple : rdf.Triple) : Result Bool := do
   match triple.subject with
   | rdf.Subject.Iri _ => ok false
@@ -51807,7 +52000,7 @@ def vocabulary.reserved_iri (key : alloc.vec.Vec Std.U8) : Result Bool := do
         vocabulary.prefix_from key s3 0#usize
 
 /-- [rowl_kernel::rdf_mapping::reserved_object]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2848:0-2863:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2949:0-2964:1 -/
 def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
   match node with
   | rdf.Object.Iri iri =>
@@ -51843,11 +52036,10 @@ def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
   | rdf.Object.Literal _ => ok false
 
 /-- [rowl_kernel::rdf_mapping::typing]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2781:0-2843:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2888:0-2944:1 -/
 def rdf_mapping.typing
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let t ←
@@ -52091,7 +52283,7 @@ def rdf_mapping.typing
                                   state fuel
 
 /-- [rowl_kernel::rdf_mapping::annotation_value]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2925:0-2937:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3026:0-3038:1 -/
 def rdf_mapping.annotation_value
   (node : rdf.Object) : Result (Option model.AnnotationValue) := do
   match node with
@@ -52109,7 +52301,7 @@ def rdf_mapping.annotation_value
     | some value => ok (some (model.AnnotationValue.Literal value))
 
 /-- [rowl_kernel::rdf_mapping::annotation_subject]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2915:0-2923:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3016:0-3024:1 -/
 def rdf_mapping.annotation_subject
   (subject : rdf.Subject) : Result model.AnnotationSubject := do
   match subject with
@@ -52122,11 +52314,10 @@ def rdf_mapping.annotation_subject
     ok (model.AnnotationSubject.Anonymous { scope := v, label := v1 })
 
 /-- [rowl_kernel::rdf_mapping::assertion]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2866:0-2913:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2967:0-3014:1 -/
 def rdf_mapping.assertion
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) :
   Result rdf_mapping.Read
   := do
   let triple ←
@@ -52174,7 +52365,7 @@ def rdf_mapping.assertion
           { iri := i } «as» value) s)
 
 /-- [rowl_kernel::rdf_mapping::structural]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2940:0-2951:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3041:0-3052:1 -/
 def rdf_mapping.structural
   («name» : alloc.vec.Vec Std.U8) : Result Bool := do
   let b ← vocabulary.reserved_iri «name»
@@ -52194,11 +52385,10 @@ def rdf_mapping.structural
   else ok false
 
 /-- [rowl_kernel::rdf_mapping::read_axiom]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2954:0-2997:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3055:0-3098:1 -/
 def rdf_mapping.read_axiom
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (fuel : Std.Usize) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State) (fuel : Std.Usize) :
   Result rdf_mapping.Read
   := do
   let t ←
@@ -52443,11 +52633,11 @@ def rdf_mapping.read_axiom
                                     state
 
 /-- [rowl_kernel::rdf_mapping::axioms_from]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3001:0-3031:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3102:0-3132:1 -/
 def rdf_mapping.axioms_from
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Std.Usize)
-  (state : rdf_mapping.State) (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
+  (index : Std.Usize) (state : rdf_mapping.State)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
   Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × rdf_mapping.State))
   := do
   let i := alloc.vec.Vec.len triples
@@ -52481,7 +52671,7 @@ def rdf_mapping.axioms_from
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::declaration_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3034:0-3050:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3135:0-3151:1 -/
 def rdf_mapping.declaration_kind
   (object : rdf.Object) : Result (Option typing.EntityKind) := do
   let s ←
@@ -52567,7 +52757,7 @@ def rdf_mapping.declaration_kind
             else ok none
 
 /-- [rowl_kernel::rdf_mapping::entity_of]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3052:0-3062:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3153:0-3163:1 -/
 def rdf_mapping.entity_of
   (kind : typing.EntityKind) (spelling : alloc.vec.Vec Std.U8) :
   Result model.Entity
@@ -52584,27 +52774,42 @@ def rdf_mapping.entity_of
   | typing.EntityKind.NamedIndividual =>
     ok (model.Entity.NamedIndividual { iri })
 
-/-- [rowl_kernel::rdf_mapping::copy_kind]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3064:0-3073:1 -/
-def rdf_mapping.copy_kind
-  (kind : typing.EntityKind) : Result typing.EntityKind := do
-  match kind with
-  | typing.EntityKind.Class => ok typing.EntityKind.Class
-  | typing.EntityKind.Datatype => ok typing.EntityKind.Datatype
-  | typing.EntityKind.ObjectProperty => ok typing.EntityKind.ObjectProperty
-  | typing.EntityKind.DataProperty => ok typing.EntityKind.DataProperty
-  | typing.EntityKind.AnnotationProperty =>
-    ok typing.EntityKind.AnnotationProperty
-  | typing.EntityKind.NamedIndividual => ok typing.EntityKind.NamedIndividual
+/-- [rowl_kernel::rdf_mapping::add_kind]:
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3166:0-3178:1 -/
+def rdf_mapping.add_kind
+  (kinds : rdf_mapping.Kinds) (iri : alloc.vec.Vec Std.U8)
+  (kind : typing.EntityKind) :
+  Result (Option rdf_mapping.Kinds)
+  := do
+  let i ← rdf_mapping.hash_iri iri
+  let i1 := alloc.vec.Vec.len kinds.buckets
+  let bucket ← rdf_mapping.bucket_of i i1
+  let i2 := alloc.vec.Vec.len kinds.buckets
+  if bucket < i2
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        rdf_mapping.Declared)) kinds.buckets bucket
+    let i3 := alloc.vec.Vec.len v
+    if i3 < core.num.Usize.MAX
+    then
+      let (v1, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec rdf_mapping.Declared)) kinds.buckets bucket
+      let v2 ← alloc.vec.Vec.push v1 ({ iri, kind } : rdf_mapping.Declared)
+      let v3 := index_mut_back v2
+      ok (some { buckets := v3 })
+    else ok none
+  else ok none
 
 /-- [rowl_kernel::rdf_mapping::declarations]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3076:0-3124:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3181:0-3226:1 -/
 def rdf_mapping.declarations
   (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize)
   (state : rdf_mapping.State) (axioms : alloc.vec.Vec model.AnnotatedAxiom)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared) :
-  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × (alloc.vec.Vec
-    rdf_mapping.Declared) × rdf_mapping.State))
+  (kinds : rdf_mapping.Kinds) :
+  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × rdf_mapping.Kinds ×
+    rdf_mapping.State))
   := do
   let i := alloc.vec.Vec.len triples
   if index < i
@@ -52646,30 +52851,26 @@ def rdf_mapping.declarations
       let i1 := alloc.vec.Vec.len axioms
       if i1 < core.num.Usize.MAX
       then
-        let i2 := alloc.vec.Vec.len kinds
-        if i2 < core.num.Usize.MAX
-        then
-          let e ← rdf_mapping.entity_of kind spelling
-          let axioms1 ←
-            alloc.vec.Vec.push axioms
-              ({
-                 annotations := (alloc.vec.Vec.new model.Annotation),
-                 «axiom» := (model.Axiom.Declaration e)
-               } : model.AnnotatedAxiom)
-          let ek ← rdf_mapping.copy_kind kind
-          let kinds1 ←
-            alloc.vec.Vec.push kinds ({ iri := spelling, kind := ek } :
-              rdf_mapping.Declared)
-          let i3 ← index + 1#usize
+        let e ← rdf_mapping.entity_of kind spelling
+        let axioms1 ←
+          alloc.vec.Vec.push axioms
+            ({
+               annotations := (alloc.vec.Vec.new model.Annotation),
+               «axiom» := (model.Axiom.Declaration e)
+             } : model.AnnotatedAxiom)
+        let o ← rdf_mapping.add_kind kinds spelling kind
+        match o with
+        | none => ok none
+        | some kinds1 =>
+          let i2 ← index + 1#usize
           let s1 ← rdf_mapping.take state index
-          rdf_mapping.declarations triples i3 s1 axioms1 kinds1
-        else ok none
+          rdf_mapping.declarations triples i2 s1 axioms1 kinds1
       else ok none
   else ok (some (axioms, kinds, state))
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::find_header]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3127:0-3152:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3229:0-3254:1 -/
 def rdf_mapping.find_header
   (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
   (index : Std.Usize) :
@@ -52724,7 +52925,7 @@ def rdf_mapping.find_header
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::about_iri]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3155:0-3160:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3257:0-3262:1 -/
 def rdf_mapping.about_iri
   (triple : rdf.Triple) (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
   match triple.subject with
@@ -52732,10 +52933,9 @@ def rdf_mapping.about_iri
   | rdf.Subject.Blank _ => ok false
 
 /-- [rowl_kernel::rdf_mapping::header_parts]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3164:0-3284:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3266:0-3386:1 -/
 def rdf_mapping.header_parts
-  (triples : alloc.vec.Vec rdf.Triple)
-  (kinds : alloc.vec.Vec rdf_mapping.Declared)
+  (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
   (ontology : alloc.vec.Vec Std.U8) (index : Std.Usize)
   (state : rdf_mapping.State) (version : Option model.Iri)
   (imports : alloc.vec.Vec model.Iri)
@@ -52851,7 +53051,7 @@ def rdf_mapping.header_parts
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::repeats_used]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3287:0-3301:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3389:0-3403:1 -/
 def rdf_mapping.repeats_used
   (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
   (triple : rdf.Triple) (index : Std.Usize) :
@@ -52879,7 +53079,7 @@ def rdf_mapping.repeats_used
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::all_read]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3304:0-3316:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3406:0-3418:1 -/
 def rdf_mapping.all_read
   (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
   (index : Std.Usize) :
@@ -52905,7 +53105,7 @@ def rdf_mapping.all_read
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::unused]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3318:0-3325:1 -/
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3420:0-3427:1 -/
 def rdf_mapping.unused
   (count : Std.Usize) (out : alloc.vec.Vec Bool) :
   Result (alloc.vec.Vec Bool)
@@ -52918,17 +53118,25 @@ def rdf_mapping.unused
 partial_fixpoint
 
 /-- [rowl_kernel::rdf_mapping::map_graph]:
-    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3330:0-3390:1
+    Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 3432:0-3497:1
     Visibility: public -/
 def rdf_mapping.map_graph
   (graph : rdf.RawGraph) : Result (Option rdf_mapping.Mapped) := do
   let i := alloc.vec.Vec.len graph.triples
-  let v ← rdf_mapping.unused i (alloc.vec.Vec.new Bool)
+  let count ← rdf_mapping.bucket_count i
+  let i1 := alloc.vec.Vec.len graph.triples
+  let v ← rdf_mapping.unused i1 (alloc.vec.Vec.new Bool)
+  let v1 ←
+    rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
+      Std.Usize))
+  let v2 ← rdf_mapping.subjects_from graph.triples 0#usize v1
+  let v3 ←
+    rdf_mapping.empty_buckets count (alloc.vec.Vec.new (alloc.vec.Vec
+      rdf_mapping.Declared))
   let o ←
     rdf_mapping.declarations graph.triples 0#usize
-      { used := v, blanks := (alloc.vec.Vec.new rdf.BlankNode) }
-      (alloc.vec.Vec.new model.AnnotatedAxiom) (alloc.vec.Vec.new
-      rdf_mapping.Declared)
+      { used := v, blanks := (alloc.vec.Vec.new rdf.BlankNode), subjects := v2
+      } (alloc.vec.Vec.new model.AnnotatedAxiom) { buckets := v3 }
   match o with
   | none => ok none
   | some t =>
@@ -52972,7 +53180,7 @@ def rdf_mapping.map_graph
         | none => ok none
         | some t2 =>
           let (version, imports, annotations, state2) := t2
-          let i1 ← rdf_mapping.iri_of iri.spelling
+          let i2 ← rdf_mapping.iri_of iri.spelling
           let o3 ←
             rdf_mapping.axioms_from graph.triples kinds 0#usize state2 axioms
           match o3 with
@@ -52986,7 +53194,7 @@ def rdf_mapping.map_graph
                 {
                   ontology :=
                     {
-                      identity := (model.OntologyIdentity.Named i1 version),
+                      identity := (model.OntologyIdentity.Named i2 version),
                       imports,
                       annotations,
                       axioms := axioms1

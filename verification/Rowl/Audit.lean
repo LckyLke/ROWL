@@ -2458,9 +2458,16 @@ import Rowl.Saturation
 #print axioms Rowl.RdfMapping.take_correct
 #print axioms Rowl.RdfMapping.record_correct
 #print axioms Rowl.RdfMapping.about_correct
+#print axioms Rowl.RdfMapping.bind_eq_ok
+#print axioms Rowl.RdfMapping.fits_spec
+#print axioms Rowl.RdfMapping.find_in_spec
 #print axioms Rowl.RdfMapping.find_spec
 #print axioms Rowl.RdfMapping.object_is_correct
+#print axioms Rowl.RdfMapping.fits_type_spec
+#print axioms Rowl.RdfMapping.find_type_in_spec
 #print axioms Rowl.RdfMapping.find_type_spec
+#print axioms Rowl.RdfMapping.fits_any_spec
+#print axioms Rowl.RdfMapping.find_any_in_spec
 #print axioms Rowl.RdfMapping.find_any_spec
 #print axioms Rowl.RdfMapping.is_nil_correct
 #print axioms Rowl.RdfMapping.grows_refl
@@ -2470,7 +2477,6 @@ import Rowl.Saturation
 #print axioms Rowl.RdfMapping.grows_record
 #print axioms Rowl.RdfMapping.take_grows
 #print axioms Rowl.RdfMapping.usize_max_val
-#print axioms Rowl.RdfMapping.bind_eq_ok
 #print axioms Rowl.RdfMapping.cell_spec
 #print axioms Rowl.RdfMapping.cells_spec
 #print axioms Rowl.RdfMapping.element_spec
@@ -2558,7 +2564,6 @@ import Rowl.Saturation
 #print axioms Rowl.RdfMapping.typing_spec
 #print axioms Rowl.RdfMapping.read_axiom_spec
 #print axioms Rowl.RdfMapping.axioms_from_spec
-#print axioms Rowl.RdfMapping.copy_kind_identity
 #print axioms Rowl.RdfMapping.entity_of_spec
 #print axioms Rowl.RdfMapping.declarations_spec
 #print axioms Rowl.RdfMapping.find_header_spec

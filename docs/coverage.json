@@ -28731,17 +28731,6 @@
       "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
     },
     {
-      "id": "m3.RdfMapping.copy_kind_identity",
-      "requirement": "Verified RDF-to-OWL mapping: copy_kind_identity",
-      "owner": "rowl-kernel",
-      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
-      "status": "verified",
-      "rust_symbol": "rowl_kernel::rdf_mapping::copy_kind",
-      "theorem": "Rowl.RdfMapping.copy_kind_identity",
-      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
-      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
-    },
-    {
       "id": "m3.RdfMapping.entity_of_spec",
       "requirement": "Verified RDF-to-OWL mapping: entity_of_spec",
       "owner": "rowl-kernel",
@@ -28859,6 +28848,72 @@
       "status": "verified",
       "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
       "theorem": "Rowl.RdfMapping.map_graph_correct",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.fits_spec",
+      "requirement": "Verified RDF-to-OWL mapping: fits_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::fits",
+      "theorem": "Rowl.RdfMapping.fits_spec",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.find_in_spec",
+      "requirement": "Verified RDF-to-OWL mapping: find_in_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::find_in",
+      "theorem": "Rowl.RdfMapping.find_in_spec",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.fits_type_spec",
+      "requirement": "Verified RDF-to-OWL mapping: fits_type_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::fits_type",
+      "theorem": "Rowl.RdfMapping.fits_type_spec",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.find_type_in_spec",
+      "requirement": "Verified RDF-to-OWL mapping: find_type_in_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::find_type_in",
+      "theorem": "Rowl.RdfMapping.find_type_in_spec",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.fits_any_spec",
+      "requirement": "Verified RDF-to-OWL mapping: fits_any_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::fits_any",
+      "theorem": "Rowl.RdfMapping.fits_any_spec",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
+    },
+    {
+      "id": "m3.RdfMapping.find_any_in_spec",
+      "requirement": "Verified RDF-to-OWL mapping: find_any_in_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::find_any_in",
+      "theorem": "Rowl.RdfMapping.find_any_in_spec",
       "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
       "implementation_scope": "Actual reverse OWL 2 RDF mapping rdf_mapping::map_graph from raw RDF graphs to structural ontologies, proved against an independent relational statement of the forward mapping of OWL 2 Mapping to RDF Graphs (2012) \u00a72.1-2.3, Tables 1-4, for ontologies whose axioms, header and ontology annotations carry no annotations of their own: whenever map_graph returns an ontology with a list of blank nodes, the forward mapping of that ontology, allocating exactly those blank nodes in order, gives the input graph, so every input triple instantiates a forward pattern and every pattern is instantiated by an input triple (map_graph_correct). Triples compare through views: IRIs by spelling, blank nodes as they are, literals by lexical form and datatype IRI or language tag; a structural rdf:PlainLiteral maps to the RDF 1.1 language-tagged or xsd:string literal and a cardinality to its canonical xsd:nonNegativeInteger spelling. Typing is strict as in OWL 2 DL: the graph declares every class, datatype and property it uses. Not covered: acceptance completeness (that the forward mapping of every such ontology is read back), annotated axioms and their reification, owl:imports closure, distinct blank nodes and RDF datasets."
     },

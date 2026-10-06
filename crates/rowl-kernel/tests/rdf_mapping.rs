@@ -191,3 +191,80 @@ fn every_construct_of_the_mapping_is_read() {
     assert_eq!(mapped.blanks.len(), 12);
     assert_eq!(mapped.ontology.imports.len(), 1);
 }
+
+/// Runs `body` on a thread with a large stack: the readers recurse over the
+/// triples of the graph.
+fn on_large_stack(body: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new()
+        .stack_size(256 << 20)
+        .spawn(body)
+        .expect("thread")
+        .join()
+        .expect("no panic");
+}
+
+#[test]
+fn scattered_blank_nodes_of_a_large_graph_are_read() {
+    on_large_stack(|| {
+        // Every class is below a restriction on p with the next class. The
+        // four triples of each restriction are far apart: first every typing,
+        // then every property, every filler and every subclass triple, the
+        // property triples in reverse order.
+        let count = 1000;
+        let rdf_type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+        let owl = "http://www.w3.org/2002/07/owl#";
+        let mut lines = Vec::new();
+        for i in 0..=count {
+            lines.push(format!("<urn:C{i}> {rdf_type} <{owl}Class> ."));
+        }
+        for i in 0..count {
+            lines.push(format!("_:r{i} {rdf_type} <{owl}Restriction> ."));
+        }
+        for i in (0..count).rev() {
+            lines.push(format!("_:r{i} <{owl}onProperty> <urn:p> ."));
+        }
+        for i in 0..count {
+            lines.push(format!("_:r{i} <{owl}someValuesFrom> <urn:C{}> .", i + 1));
+        }
+        for i in 0..count {
+            lines.push(format!(
+                "<urn:C{i}> <http://www.w3.org/2000/01/rdf-schema#subClassOf> _:r{i} ."
+            ));
+        }
+        lines.push(format!("<urn:p> {rdf_type} <{owl}ObjectProperty> ."));
+        let source = lines.join("\n") + "\n";
+        let mapped = map_graph(&graph(source.as_bytes())).expect("the graph is read");
+        let axioms = &mapped.ontology.axioms;
+        assert_eq!(axioms.len(), (count + 2) + count);
+        assert_eq!(mapped.blanks.len(), count);
+        let mut subclasses = 0;
+        for item in axioms {
+            if let Axiom::SubClassOf(ClassExpression::Class(sub), sup) = &item.axiom {
+                let index: usize = String::from_utf8(sub.iri.spelling[5..].to_vec())
+                    .expect("utf-8")
+                    .parse()
+                    .expect("a number");
+                match sup {
+                    ClassExpression::ObjectSomeValuesFrom(
+                        ObjectPropertyExpression::Property(property),
+                        filler,
+                    ) => {
+                        assert_eq!(property.iri.spelling, b"urn:p".to_vec());
+                        assert!(matches!(
+                            filler.as_ref(),
+                            ClassExpression::Class(next)
+                                if next.iri.spelling == format!("urn:C{}", index + 1).into_bytes()
+                        ));
+                    }
+                    _ => panic!("a restriction"),
+                }
+                assert_eq!(
+                    mapped.blanks[subclasses].label,
+                    format!("r{index}").into_bytes()
+                );
+                subclasses += 1;
+            }
+        }
+        assert_eq!(subclasses, count);
+    });
+}

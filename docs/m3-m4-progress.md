@@ -4489,3 +4489,45 @@ EL ontologies.
 
 This block adds 13 public theorems and 3 definitions. Totals are 2590 audited
 theorems, 1171 definitions, 516 Rust regressions and 2783 ledger obligations.
+
+## Performance: indexed lookups in the RDF mapping
+
+Reading a generated EL ontology with 20 000 classes from N-Triples spent 2.5 s
+in `rdf_mapping::map_graph`, nearly all of it in lookups that scanned: `find`,
+`find_type` and `find_any`, which look for an unused triple about a blank node,
+went through every triple of the graph for each lookup, and `declared`, behind
+`property_kind` and `node_kind`, went through every declaration for each
+property it classified. Both made the mapping quadratic in the size of the
+graph.
+
+`map_graph` now builds two indexes once. The positions of the triples whose
+subject is a blank node are bucketed by a hash of the node's scope and label in
+ascending order (`subjects_from`), kept in the reader's `State`, and the
+declarations are bucketed by a hash of their IRI (`Kinds`, filled by
+`add_kind`). There is one bucket more than there are triples, at most 2^20. The
+lookups go through the bucket of their node (`find_in`, `find_type_in`,
+`find_any_in`) or IRI (`declared_in`) and check every candidate with the same
+tests as before: unused, about the node, the predicate and the type. When the
+bucket holds every triple of its node they therefore return the triple a scan
+returned.
+
+The lookup lemmas describe only what a lookup returns, so they hold whatever
+the buckets contain. `fits_spec`, `fits_type_spec` and `fits_any_spec` prove
+that an accepted candidate is an unused triple about the node with the
+predicate (and type), `find_in_spec`, `find_type_in_spec` and `find_any_in_spec`
+extend this to a bucket, and `find_spec`, `find_type_spec` and `find_any_spec`
+keep their statements, now over the state. No lemma gives meaning to a lookup
+that finds nothing, and the declaration lookups were never given one, so
+`map_graph_correct` keeps its statement. That the buckets hold every triple of
+their node, and so that the readers return what they returned before, is not
+proved; the regression tests and the benchmark outputs show it.
+
+On el20000.nt the mapping takes 0.063 s instead of 2.49 s and on el5000.nt
+0.013 s instead of 0.142 s. On the same loaded machine `rowl classify` takes
+0.76 s instead of 3.21 s on el20000.nt (2.2 s on an idle machine before) and
+0.13 s instead of 0.32 s on el5000.nt, with the same output. A regression test
+reads a graph of 1000 restrictions whose triples are far apart.
+
+This block adds 6 public theorems and no definitions, and removes
+`copy_kind_identity` with the function it described. Totals are 2595 audited
+theorems, 1171 definitions, 517 Rust regressions and 2788 ledger obligations.

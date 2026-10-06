@@ -899,39 +899,89 @@ theorem about_correct (triple : rdf.Triple) (node : rdf.BlankNode) :
   | Iri _ => simp [subjectView]
   | Blank b => simp [same_blank_correct, subjectView]
 
+theorem bind_eq_ok {α β : Type} {x : Result α} {f : α → Result β} {y : β} (h : (x >>= f) = Result.ok y) :
+    ∃ a, x = Result.ok a ∧ f a = Result.ok y := by
+  cases hx : x.match with
+  | ok a =>
+    have xa : x = Result.ok a := Result.match.isOk.mp hx
+    subst xa
+    exact ⟨a, rfl, by simpa using h⟩
+  | vis e k =>
+    have xv : x = Result.vis e k := Result.match.isVis.mp hx
+    subst xv
+    have h' : Aeneas.Std.bind (Result.vis e k) f = Result.ok y := h
+    rw [bind_vis] at h'
+    exact absurd h' vis_not_ok
+  | div =>
+    have xd : x = Result.div := Result.match.isDiv.mp hx
+    subst xd
+    have h' : Aeneas.Std.bind Result.div f = Result.ok y := h
+    rw [bind_div] at h'
+    exact absurd h' div_not_ok
+
 /-- An index the lookups return: a triple, not yet used. -/
 def Unused (triples : List rdf.Triple) (used : List Bool) (index : Nat) (triple : rdf.Triple) : Prop :=
   triples[index]? = some triple ∧ used[index]? = some false
 
-theorem find_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (node : rdf.BlankNode)
-    (key : Slice U8) (index found : Usize) (ran : rdf_mapping.find triples used node key index = .ok (some found)) :
-    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node ∧
+theorem fits_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (index : Usize)
+    (node : rdf.BlankNode) (key : Slice U8) (ran : rdf_mapping.fits triples used index node key = .ok true) :
+    ∃ t, Unused triples.val used.val index.val t ∧ subjectView t.subject = .blank node ∧
       t.predicate.spelling.val = key.val := by
-  rw [rdf_mapping.find] at ran
+  rw [rdf_mapping.fits] at ran
   by_cases more : index.val < triples.val.length
   · have lookup : triples.index_usize index = .ok triples.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
-    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, is_used_correct, bind_ok,
-      alloc.vec.Vec.index_slice_index, lookup, about_correct, same_correct, advance] at ran
+      alloc.vec.Vec.index_slice_index, lookup, about_correct, same_correct] at ran
     by_cases isUsed : used.val[index.val]? = some false
     · simp only [isUsed, ne_eq, not_true_eq_false, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
       by_cases here : subjectView triples.val[index.val].subject = .blank node
-      · simp only [here, decide_true, ↓reduceIte] at ran
-        by_cases named : triples.val[index.val].predicate.spelling.val = key.val
-        · simp only [named, decide_true, ↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
-          subst ran
-          exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, here, named⟩
-        · simp only [named, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-          exact find_spec triples used node key next found ran
-      · simp only [here, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-        exact find_spec triples used node key next found ran
-    · simp only [isUsed, ne_eq, not_false_eq_true, decide_true, ↓reduceIte] at ran
-      exact find_spec triples used node key next found ran
+      · simp only [here, decide_true, ↓reduceIte, Result.ok.injEq, decide_eq_true_eq] at ran
+        exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, here, ran⟩
+      · simp [here] at ran
+    · simp [isUsed] at ran
   · simp [UScalar.lt_equiv, more] at ran
-termination_by triples.val.length - index.val
+
+theorem find_in_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+    (bucket : alloc.vec.Vec Usize) (node : rdf.BlankNode) (key : Slice U8) (k found : Usize)
+    (ran : rdf_mapping.find_in triples used bucket node key k = .ok (some found)) :
+    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node ∧
+      t.predicate.spelling.val = key.val := by
+  rw [rdf_mapping.find_in] at ran
+  by_cases more : k.val < bucket.val.length
+  · have lookup : bucket.index_usize k = .ok bucket.val[k.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := k) (y := 1#usize) (by scalar_tac))
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, bind_ok,
+      alloc.vec.Vec.index_slice_index, lookup] at ran
+    obtain ⟨b, fitsRun, ran⟩ := bind_eq_ok ran
+    cases b with
+    | true =>
+      simp only [↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
+      subst ran
+      exact fits_spec triples used _ node key fitsRun
+    | false =>
+      simp only [Bool.false_eq_true, ↓reduceIte, advance, bind_ok] at ran
+      exact find_in_spec triples used bucket node key next found ran
+  · simp [UScalar.lt_equiv, more] at ran
+termination_by bucket.val.length - k.val
 decreasing_by all_goals (have := nextValue; simp at this; omega)
+
+theorem find_spec (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) (node : rdf.BlankNode)
+    (key : Slice U8) (found : Usize) (ran : rdf_mapping.find triples s node key = .ok (some found)) :
+    ∃ t, Unused triples.val s.used.val found.val t ∧ subjectView t.subject = .blank node ∧
+      t.predicate.spelling.val = key.val := by
+  rw [rdf_mapping.find] at ran
+  obtain ⟨h, -, ran⟩ := bind_eq_ok ran
+  obtain ⟨bucket, -, ran⟩ := bind_eq_ok ran
+  by_cases inside : bucket.val < s.subjects.val.length
+  · have lookup : s.subjects.index_usize bucket = .ok s.subjects.val[bucket.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, ↓reduceIte, alloc.vec.Vec.index_slice_index,
+      lookup, bind_ok] at ran
+    exact find_in_spec triples s.used _ node key 0#usize found ran
+  · simp [UScalar.lt_equiv, inside] at ran
 
 theorem object_is_correct (object : rdf.Object) (key : Slice U8) :
     rdf_mapping.object_is object key = .ok (decide (objectView object = .iri key.val)) := by
@@ -945,19 +995,16 @@ private theorem slice_val (n : Usize) (bytes : List U8) (h : bytes.length = n.va
     (Array.to_slice (Array.make n bytes h)).val = bytes := by
   simp [Array.to_slice, Array.make]
 
-theorem find_type_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (node : rdf.BlankNode)
-    (key : Slice U8) (index found : Usize)
-    (ran : rdf_mapping.find_type triples used node key index = .ok (some found)) :
-    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node ∧
+theorem fits_type_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (index : Usize)
+    (node : rdf.BlankNode) (key : Slice U8) (ran : rdf_mapping.fits_type triples used index node key = .ok true) :
+    ∃ t, Unused triples.val used.val index.val t ∧ subjectView t.subject = .blank node ∧
       t.predicate.spelling.val = rdfType ∧ objectView t.object = .iri key.val := by
-  rw [rdf_mapping.find_type] at ran
+  rw [rdf_mapping.fits_type] at ran
   by_cases more : index.val < triples.val.length
   · have lookup : triples.index_usize index = .ok triples.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
-    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, is_used_correct, bind_ok,
-      alloc.vec.Vec.index_slice_index, lookup, about_correct, same_correct, object_is_correct, advance, lift,
+      alloc.vec.Vec.index_slice_index, lookup, about_correct, same_correct, object_is_correct, lift,
       slice_val] at ran
     by_cases isUsed : used.val[index.val]? = some false
     · simp only [isUsed, ne_eq, not_true_eq_false, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
@@ -965,48 +1012,109 @@ theorem find_type_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Ve
       · simp only [here, decide_true, ↓reduceIte] at ran
         by_cases typed : triples.val[index.val].predicate.spelling.val = rdfType
         · simp only [rdfType] at typed
-          simp only [typed, decide_true, ↓reduceIte] at ran
-          by_cases object : objectView triples.val[index.val].object = .iri key.val
-          · simp only [object, decide_true, ↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
-            subst ran
-            exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, here, by simpa [rdfType] using typed, object⟩
-          · simp only [object, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-            exact find_type_spec triples used node key next found ran
+          simp only [typed, decide_true, ↓reduceIte, Result.ok.injEq, decide_eq_true_eq] at ran
+          exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, here, by simpa [rdfType] using typed, ran⟩
         · simp only [rdfType] at typed
-          simp only [typed, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-          exact find_type_spec triples used node key next found ran
-      · simp only [here, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-        exact find_type_spec triples used node key next found ran
-    · simp only [isUsed, ne_eq, not_false_eq_true, decide_true, ↓reduceIte] at ran
-      exact find_type_spec triples used node key next found ran
+          simp [typed] at ran
+      · simp [here] at ran
+    · simp [isUsed] at ran
   · simp [UScalar.lt_equiv, more] at ran
-termination_by triples.val.length - index.val
+
+theorem find_type_in_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+    (bucket : alloc.vec.Vec Usize) (node : rdf.BlankNode) (key : Slice U8) (k found : Usize)
+    (ran : rdf_mapping.find_type_in triples used bucket node key k = .ok (some found)) :
+    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node ∧
+      t.predicate.spelling.val = rdfType ∧ objectView t.object = .iri key.val := by
+  rw [rdf_mapping.find_type_in] at ran
+  by_cases more : k.val < bucket.val.length
+  · have lookup : bucket.index_usize k = .ok bucket.val[k.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := k) (y := 1#usize) (by scalar_tac))
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, bind_ok,
+      alloc.vec.Vec.index_slice_index, lookup] at ran
+    obtain ⟨b, fitsRun, ran⟩ := bind_eq_ok ran
+    cases b with
+    | true =>
+      simp only [↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
+      subst ran
+      exact fits_type_spec triples used _ node key fitsRun
+    | false =>
+      simp only [Bool.false_eq_true, ↓reduceIte, advance, bind_ok] at ran
+      exact find_type_in_spec triples used bucket node key next found ran
+  · simp [UScalar.lt_equiv, more] at ran
+termination_by bucket.val.length - k.val
 decreasing_by all_goals (have := nextValue; simp at this; omega)
 
-theorem find_any_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (node : rdf.BlankNode)
-    (index found : Usize) (ran : rdf_mapping.find_any triples used node index = .ok (some found)) :
-    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node := by
-  rw [rdf_mapping.find_any] at ran
+theorem find_type_spec (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) (node : rdf.BlankNode)
+    (key : Slice U8) (found : Usize) (ran : rdf_mapping.find_type triples s node key = .ok (some found)) :
+    ∃ t, Unused triples.val s.used.val found.val t ∧ subjectView t.subject = .blank node ∧
+      t.predicate.spelling.val = rdfType ∧ objectView t.object = .iri key.val := by
+  rw [rdf_mapping.find_type] at ran
+  obtain ⟨h, -, ran⟩ := bind_eq_ok ran
+  obtain ⟨bucket, -, ran⟩ := bind_eq_ok ran
+  by_cases inside : bucket.val < s.subjects.val.length
+  · have lookup : s.subjects.index_usize bucket = .ok s.subjects.val[bucket.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, ↓reduceIte, alloc.vec.Vec.index_slice_index,
+      lookup, bind_ok] at ran
+    exact find_type_in_spec triples s.used _ node key 0#usize found ran
+  · simp [UScalar.lt_equiv, inside] at ran
+
+theorem fits_any_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool) (index : Usize)
+    (node : rdf.BlankNode) (ran : rdf_mapping.fits_any triples used index node = .ok true) :
+    ∃ t, Unused triples.val used.val index.val t ∧ subjectView t.subject = .blank node := by
+  rw [rdf_mapping.fits_any] at ran
   by_cases more : index.val < triples.val.length
   · have lookup : triples.index_usize index = .ok triples.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
-    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
-      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, is_used_correct, bind_ok,
-      alloc.vec.Vec.index_slice_index, lookup, about_correct, advance] at ran
+      alloc.vec.Vec.index_slice_index, lookup, about_correct] at ran
     by_cases isUsed : used.val[index.val]? = some false
-    · simp only [isUsed, ne_eq, not_true_eq_false, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-      by_cases here : subjectView triples.val[index.val].subject = .blank node
-      · simp only [here, decide_true, ↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
-        subst ran
-        exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, here⟩
-      · simp only [here, decide_false, Bool.false_eq_true, ↓reduceIte] at ran
-        exact find_any_spec triples used node next found ran
-    · simp only [isUsed, ne_eq, not_false_eq_true, decide_true, ↓reduceIte] at ran
-      exact find_any_spec triples used node next found ran
+    · simp only [isUsed, ne_eq, not_true_eq_false, decide_false, Bool.false_eq_true, ↓reduceIte,
+        Result.ok.injEq, decide_eq_true_eq] at ran
+      exact ⟨_, ⟨List.getElem?_eq_getElem more, isUsed⟩, ran⟩
+    · simp [isUsed] at ran
   · simp [UScalar.lt_equiv, more] at ran
-termination_by triples.val.length - index.val
+
+theorem find_any_in_spec (triples : alloc.vec.Vec rdf.Triple) (used : alloc.vec.Vec Bool)
+    (bucket : alloc.vec.Vec Usize) (node : rdf.BlankNode) (k found : Usize)
+    (ran : rdf_mapping.find_any_in triples used bucket node k = .ok (some found)) :
+    ∃ t, Unused triples.val used.val found.val t ∧ subjectView t.subject = .blank node := by
+  rw [rdf_mapping.find_any_in] at ran
+  by_cases more : k.val < bucket.val.length
+  · have lookup : bucket.index_usize k = .ok bucket.val[k.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := k) (y := 1#usize) (by scalar_tac))
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, ↓reduceIte, bind_ok,
+      alloc.vec.Vec.index_slice_index, lookup] at ran
+    obtain ⟨b, fitsRun, ran⟩ := bind_eq_ok ran
+    cases b with
+    | true =>
+      simp only [↓reduceIte, Result.ok.injEq, Option.some.injEq] at ran
+      subst ran
+      exact fits_any_spec triples used _ node fitsRun
+    | false =>
+      simp only [Bool.false_eq_true, ↓reduceIte, advance, bind_ok] at ran
+      exact find_any_in_spec triples used bucket node next found ran
+  · simp [UScalar.lt_equiv, more] at ran
+termination_by bucket.val.length - k.val
 decreasing_by all_goals (have := nextValue; simp at this; omega)
+
+theorem find_any_spec (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) (node : rdf.BlankNode)
+    (found : Usize) (ran : rdf_mapping.find_any triples s node = .ok (some found)) :
+    ∃ t, Unused triples.val s.used.val found.val t ∧ subjectView t.subject = .blank node := by
+  rw [rdf_mapping.find_any] at ran
+  obtain ⟨h, -, ran⟩ := bind_eq_ok ran
+  obtain ⟨bucket, -, ran⟩ := bind_eq_ok ran
+  by_cases inside : bucket.val < s.subjects.val.length
+  · have lookup : s.subjects.index_usize bucket = .ok s.subjects.val[bucket.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    simp only [alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, ↓reduceIte, alloc.vec.Vec.index_slice_index,
+      lookup, bind_ok] at ran
+    exact find_any_in_spec triples s.used _ node 0#usize found ran
+  · simp [UScalar.lt_equiv, inside] at ran
 
 theorem is_nil_correct (node : rdf.Object) :
     rdf_mapping.is_nil node = .ok (decide (objectView node = .iri rdfNil)) := by
@@ -1137,26 +1245,6 @@ theorem take_grows (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) 
 
 theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by simp [core.num.Usize.MAX]
 
-theorem bind_eq_ok {α β : Type} {x : Result α} {f : α → Result β} {y : β} (h : (x >>= f) = Result.ok y) :
-    ∃ a, x = Result.ok a ∧ f a = Result.ok y := by
-  cases hx : x.match with
-  | ok a =>
-    have xa : x = Result.ok a := Result.match.isOk.mp hx
-    subst xa
-    exact ⟨a, rfl, by simpa using h⟩
-  | vis e k =>
-    have xv : x = Result.vis e k := Result.match.isVis.mp hx
-    subst xv
-    have h' : Aeneas.Std.bind (Result.vis e k) f = Result.ok y := h
-    rw [bind_vis] at h'
-    exact absurd h' vis_not_ok
-  | div =>
-    have xd : x = Result.div := Result.match.isDiv.mp hx
-    subst xd
-    have h' : Aeneas.Std.bind Result.div f = Result.ok y := h
-    rw [bind_div] at h'
-    exact absurd h' div_not_ok
-
 /-- The node of the element of the list cell whose `rdf:first` triple is at `k`. -/
 def elementNode (triples : List rdf.Triple) (k : Usize) : Node :=
   match triples[k.val]? with
@@ -1187,8 +1275,8 @@ theorem cell_spec (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Object) (s s'
         obtain ⟨s3, hrec, ran⟩ := bind_eq_ok ran
         simp only [Result.ok.injEq, Option.some.injEq, Prod.mk.injEq] at ran
         obtain ⟨rfl, rfl, rfl⟩ := ran
-        obtain ⟨tf, unusedF, subjF, predF⟩ := find_spec _ _ _ _ _ _ ho
-        obtain ⟨tr, unusedR, subjR, predR⟩ := find_spec _ _ _ _ _ _ ho1
+        obtain ⟨tf, unusedF, subjF, predF⟩ := find_spec _ _ _ _ _ ho
+        obtain ⟨tr, unusedR, subjR, predR⟩ := find_spec _ _ _ _ _ ho1
         refine ⟨c, tf, tr, rfl, unusedF.1, unusedR.1, ?_⟩
         have g1 := grows_take triples.val s f tf ⟨.blank c, rdfFirst, objectView tf.object⟩ unusedF
           ⟨subjF, by simpa [slice_val, rdfFirst] using predF, rfl⟩
@@ -1577,7 +1665,7 @@ theorem property_expression_spec (triples : alloc.vec.Vec rdf.Triple) (node : rd
     cases o with
     | none => simp at ran
     | some index =>
-      obtain ⟨t, unused, subject, predicate⟩ := find_spec _ _ _ _ _ _ findRun
+      obtain ⟨t, unused, subject, predicate⟩ := find_spec _ _ _ _ _ findRun
       have lookup : triples.index_usize index = .ok t := by simp [alloc.vec.Vec.index_usize, unused.1]
       simp only [alloc.vec.Vec.index_slice_index, lookup, bind_ok] at ran
       cases object : t.object with
@@ -1725,10 +1813,10 @@ theorem literal_list1_spec (triples : alloc.vec.Vec rdf.Triple) (node : rdf.Obje
 /-- A triple about `b` with the predicate `word` that `find` returned, used. -/
 theorem found_take (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) (b : rdf.BlankNode) (key : Slice U8)
     (word : List U8) (named : key.val = word) (index : Usize)
-    (findRun : rdf_mapping.find triples s.used b key 0#usize = .ok (some index)) :
+    (findRun : rdf_mapping.find triples s b key = .ok (some index)) :
     ∃ t, triples.index_usize index = .ok t ∧
       Grows triples.val s { s with used := s.used.set index true } [⟨.blank b, word, objectView t.object⟩] [] := by
-  obtain ⟨t, unused, subject, predicate⟩ := find_spec _ _ _ _ _ _ findRun
+  obtain ⟨t, unused, subject, predicate⟩ := find_spec _ _ _ _ _ findRun
   exact ⟨t, by simp [alloc.vec.Vec.index_usize, unused.1],
     grows_take triples.val s index t _ unused ⟨subject, by rw [predicate, named], rfl⟩⟩
 
@@ -1762,7 +1850,7 @@ theorem facet_element_spec (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.
         cases o1 with
         | none => simp at ran
         | some found =>
-          obtain ⟨t, unused, subject⟩ := find_any_spec _ _ _ _ _ anyRun
+          obtain ⟨t, unused, subject⟩ := find_any_spec _ _ _ _ anyRun
           have lookup : triples.index_usize found = .ok t := by simp [alloc.vec.Vec.index_usize, unused.1]
           simp only [alloc.vec.Vec.index_slice_index, lookup, bind_ok] at ran
           obtain ⟨o2, literalRun, ran⟩ := bind_eq_ok ran
@@ -1822,14 +1910,14 @@ theorem facet_members_spec (triples : alloc.vec.Vec rdf.Triple) (firsts : alloc.
       · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room] at ran
 
 /-- The data range reader is right at a fuel. -/
-def RangeRight (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared) (fuel : Usize) :
+def RangeRight (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) (fuel : Usize) :
     Prop :=
   ∀ (node : rdf.Object) (s s' : rdf_mapping.State) (r : model.DataRange),
     rdf_mapping.data_range triples kinds node s fuel = .ok (some (r, s')) →
     ∃ patterns fresh, Grows triples.val s s' patterns fresh ∧
       ∀ rest, TDR r (fresh ++ rest) (objectView node) patterns rest
 
-theorem range_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem range_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : RangeRight triples kinds fuel) (firsts : alloc.vec.Vec Usize) (k : Usize)
     (s s' : rdf_mapping.State) (r : model.DataRange)
     (ran : rdf_mapping.range_element triples kinds firsts k s fuel = .ok (some (r, s'))) :
@@ -1849,7 +1937,7 @@ theorem range_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.v
       exact ⟨inside, patterns, fresh, grows, fun rest => by rw [← view]; exact tdr rest⟩
   · simp [UScalar.lt_equiv, inside] at ran
 
-theorem range_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem range_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : RangeRight triples kinds fuel) (firsts : alloc.vec.Vec Usize) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (out values : alloc.vec.Vec model.DataRange),
       rdf_mapping.range_members triples kinds firsts index s out fuel = .ok (some (values, s')) →
@@ -1903,7 +1991,7 @@ theorem range_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.v
           exact .cons member news _ _ _ _ nodes p1 patterns head tail
         · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room] at ran
 
-theorem range_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem range_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : RangeRight triples kinds fuel) (node : rdf.Object) (s s' : rdf_mapping.State)
     (xs : model.AtLeastTwo model.DataRange)
     (ran : rdf_mapping.range_list2 triples kinds node s fuel = .ok (some (xs, s'))) :
@@ -1969,7 +2057,7 @@ theorem range_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec
             exact .cons first (second :: news3) _ _ _ _ _ ps1 (ps2 ++ ps3) (tdr1 _)
               (.cons second news3 _ _ _ _ _ ps2 ps3 (tdr2 _) tail)
 
-theorem range_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem range_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : RangeRight triples kinds fuel) (blank : rdf.BlankNode) (s s' : rdf_mapping.State)
     (r : model.DataRange) (ran : rdf_mapping.range_construct triples kinds blank s fuel = .ok (some (r, s'))) :
     ∃ patterns fresh, Grows triples.val s s' patterns fresh ∧
@@ -2141,7 +2229,7 @@ theorem range_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc
                         rw [head, ← baseView] at tdr
                         simpa only [List.append_assoc, List.cons_append] using tdr
 
-theorem data_range_step (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_range_step (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (below : ∀ (i : Usize), i.val + 1 = fuel.val → RangeRight triples kinds i) :
     RangeRight triples kinds fuel := by
   intro node s s' r ran
@@ -2159,7 +2247,7 @@ theorem data_range_step (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.
       cases o with
       | none => simp at ran
       | some index =>
-        obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ _ findRun
+        obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ findRun
         simp only [take_correct, bind_ok] at ran
         obtain ⟨s2, recordRun, ran⟩ := bind_eq_ok ran
         obtain ⟨fewer, back, fewerValue⟩ := WP.spec_imp_exists
@@ -2178,7 +2266,7 @@ theorem data_range_step (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.
           fun rest => by simpa [objectView] using tdr rest⟩
     · simp [positive] at ran
 
-theorem data_range_right (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared) :
+theorem data_range_right (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) :
     ∀ (fuel : Usize), RangeRight triples kinds fuel := by
   have every : ∀ (n : Nat) (fuel : Usize), fuel.val = n → RangeRight triples kinds fuel := by
     intro n
@@ -2197,7 +2285,7 @@ def DataRestrictionOk (triples : alloc.vec.Vec rdf.Triple) (blank : rdf.BlankNod
     ∀ rest, TCE c (blank :: (fresh ++ rest)) (.blank blank)
       (restrictionHead blank (iriNode property.iri) ++ (head ++ tail)) rest
 
-theorem on_data_range_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem on_data_range_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (blank : rdf.BlankNode) (s s' : rdf_mapping.State) (fuel : Usize) (range : model.DataRange)
     (ran : rdf_mapping.on_data_range triples kinds blank s fuel = .ok (some (range, s'))) :
     ∃ r patterns fresh, Grows triples.val s s' (⟨.blank blank, owlOnDataRange, r⟩ :: patterns) fresh ∧
@@ -2214,7 +2302,7 @@ theorem on_data_range_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.v
     obtain ⟨patterns, fresh, grows2, tdr⟩ := data_range_right triples kinds fuel t.object _ s' range ran
     exact ⟨objectView t.object, patterns, fresh, by simpa using grows_trans grows1 grows2, tdr⟩
 
-theorem data_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (blank : rdf.BlankNode) (property : model.DataProperty) (s s' : rdf_mapping.State) (fuel : Usize)
     (c : model.ClassExpression)
     (ran : rdf_mapping.data_qualified triples kinds blank property s fuel = .ok (some (c, s'))) :
@@ -2297,7 +2385,7 @@ theorem data_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.
                 simpa using TCE.dataExactQualified n property range blank (fresh ++ rest) rest _ r patterns
                   (node_natural_spec _ n naturalRun) (tdr rest)⟩
 
-theorem data_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (blank : rdf.BlankNode) (property : model.DataProperty) (s s' : rdf_mapping.State) (fuel : Usize)
     (c : model.ClassExpression)
     (ran : rdf_mapping.data_cardinality triples kinds blank property s fuel = .ok (some (c, s'))) :
@@ -2352,7 +2440,7 @@ theorem data_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
           exact ⟨[⟨.blank blank, owlCardinality, objectView t.object⟩], [], [], by simpa using grows1, fun rest => by
             simpa using TCE.dataExact n property blank rest _ (node_natural_spec _ n naturalRun)⟩
 
-theorem data_restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (blank : rdf.BlankNode) (property : model.DataProperty) (s s' : rdf_mapping.State) (fuel : Usize)
     (c : model.ClassExpression)
     (ran : rdf_mapping.data_restriction triples kinds blank property s fuel = .ok (some (c, s'))) :
@@ -2521,7 +2609,7 @@ theorem individual_list1_spec (triples : alloc.vec.Vec rdf.Triple) (node : rdf.O
 /-! ### Class expressions -/
 
 /-- The class expression reader is right at a fuel. -/
-def ClassRight (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared) (fuel : Usize) :
+def ClassRight (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) (fuel : Usize) :
     Prop :=
   ∀ (node : rdf.Object) (s s' : rdf_mapping.State) (c : model.ClassExpression),
     rdf_mapping.class_expression triples kinds node s fuel = .ok (some (c, s')) →
@@ -2538,7 +2626,7 @@ def ObjectRestrictionOk (triples : alloc.vec.Vec rdf.Triple) (blank : rdf.BlankN
     ∀ rest, TCE c (blank :: (f1 ++ (fresh ++ rest))) (.blank blank)
       (restrictionHead blank n1 ++ (head ++ (p1 ++ tail))) rest
 
-theorem on_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem on_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode) (s s' : rdf_mapping.State)
     (c : model.ClassExpression) (ran : rdf_mapping.on_class triples kinds blank s fuel = .ok (some (c, s'))) :
     ∃ n2 patterns fresh, Grows triples.val s s' (⟨.blank blank, owlOnClass, n2⟩ :: patterns) fresh ∧
@@ -2555,7 +2643,7 @@ theorem on_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Ve
     obtain ⟨patterns, fresh, grows2, tce⟩ := right t.object _ s' c ran
     exact ⟨objectView t.object, patterns, fresh, by simpa using grows_trans grows1 grows2, tce⟩
 
-theorem object_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem object_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode)
     (role : model.ObjectPropertyExpression) (n1 : Node) (p1 : List Pattern) (f1 : Supply)
     (roleOk : ∀ rest, TOPE role (f1 ++ rest) n1 p1 rest) (s s' : rdf_mapping.State) (c : model.ClassExpression)
@@ -2640,7 +2728,7 @@ theorem object_qualified_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
                 simpa using TCE.exactQualified n role filler blank (f1 ++ (fresh ++ rest)) (fresh ++ rest) rest n1 n2
                   _ p1 patterns (roleOk _) (node_natural_spec _ n naturalRun) (tce rest)⟩
 
-theorem object_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem object_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode)
     (role : model.ObjectPropertyExpression) (n1 : Node) (p1 : List Pattern) (f1 : Supply)
     (roleOk : ∀ rest, TOPE role (f1 ++ rest) n1 p1 rest) (s s' : rdf_mapping.State) (c : model.ClassExpression)
@@ -2697,7 +2785,7 @@ theorem object_cardinality_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : al
             simpa using TCE.exact n role blank (f1 ++ rest) rest n1 _ p1 (roleOk rest)
               (node_natural_spec _ n naturalRun)⟩
 
-theorem object_restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem object_restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode)
     (role : model.ObjectPropertyExpression) (n1 : Node) (p1 : List Pattern) (f1 : Supply)
     (roleOk : ∀ rest, TOPE role (f1 ++ rest) n1 p1 rest) (s s' : rdf_mapping.State) (c : model.ClassExpression)
@@ -2779,7 +2867,7 @@ theorem object_restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : al
             exact ⟨[⟨.blank blank, owlHasSelf, trueNode⟩], [], [], by simpa using grows1, fun rest => by
               simpa using TCE.hasSelf role blank (f1 ++ rest) rest n1 p1 (roleOk rest)⟩
 
-theorem restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode) (s s' : rdf_mapping.State)
     (c : model.ClassExpression) (ran : rdf_mapping.restriction triples kinds blank s fuel = .ok (some (c, s'))) :
     ∃ patterns fresh, Grows triples.val s s' patterns fresh ∧
@@ -2833,7 +2921,7 @@ theorem restriction_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec
           rw [view]
           simpa [restrictionHead] using tce rest
 
-theorem class_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (firsts : alloc.vec.Vec Usize) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (out values : alloc.vec.Vec model.ClassExpression),
       rdf_mapping.class_members triples kinds firsts index s out fuel = .ok (some (values, s')) →
@@ -2887,7 +2975,7 @@ theorem class_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.v
           exact .cons member news _ _ _ _ nodes p1 patterns head tail
         · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room] at ran
 
-theorem class_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (node : rdf.Object) (s s' : rdf_mapping.State)
     (xs : model.AtLeastTwo model.ClassExpression)
     (ran : rdf_mapping.class_list2 triples kinds node s fuel = .ok (some (xs, s'))) :
@@ -2971,7 +3059,7 @@ theorem class_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec
     · have noneU : ¬ alloc.vec.Vec.len firsts ≥ 2#usize := by scalar_tac
       simp [noneU, two] at ran
 
-theorem class_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (right : ClassRight triples kinds fuel) (blank : rdf.BlankNode) (s s' : rdf_mapping.State)
     (c : model.ClassExpression) (ran : rdf_mapping.class_construct triples kinds blank s fuel = .ok (some (c, s'))) :
     ∃ patterns fresh, Grows triples.val s s' patterns fresh ∧
@@ -3062,7 +3150,7 @@ theorem class_construct_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc
             rw [head] at tce
             exact tce
 
-theorem class_expression_step (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_expression_step (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (fuel : Usize) (below : ∀ (i : Usize), i.val + 1 = fuel.val → ClassRight triples kinds i) :
     ClassRight triples kinds fuel := by
   intro node s s' c ran
@@ -3086,7 +3174,7 @@ theorem class_expression_step (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
       obtain ⟨o, findRun, ran⟩ := bind_eq_ok ran
       cases o with
       | some index =>
-        obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ _ findRun
+        obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ findRun
         simp only [take_correct, bind_ok] at ran
         obtain ⟨s2, recordRun, ran⟩ := bind_eq_ok ran
         simp only [back, bind_ok] at ran
@@ -3102,7 +3190,7 @@ theorem class_expression_step (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
         cases o1 with
         | none => simp at ran
         | some index =>
-          obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ _ findRun1
+          obtain ⟨t, unused, subject, predicate, object⟩ := find_type_spec _ _ _ _ _ findRun1
           simp only [take_correct, bind_ok] at ran
           obtain ⟨s2, recordRun, ran⟩ := bind_eq_ok ran
           simp only [back, bind_ok] at ran
@@ -3114,7 +3202,7 @@ theorem class_expression_step (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
             fun rest => by simpa [objectView] using tce rest⟩
     · simp [positive] at ran
 
-theorem class_expression_right (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared) :
+theorem class_expression_right (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) :
     ∀ (fuel : Usize), ClassRight triples kinds fuel := by
   have every : ∀ (n : Nat) (fuel : Usize), fuel.val = n → ClassRight triples kinds fuel := by
     intro n
@@ -3140,7 +3228,7 @@ theorem topes_nil {s : Supply} {ns : List Node} {ps : List Pattern} {s' : Supply
   cases h
   exact ⟨rfl, rfl, rfl⟩
 
-theorem class_pair_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_pair_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s s' : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (first second : model.ClassExpression)
     (ran : rdf_mapping.class_pair triples kinds index s fuel = .ok (some (first, second, s'))) :
@@ -3236,7 +3324,7 @@ theorem individual_pair_spec (triples : alloc.vec.Vec rdf.Triple) (index : Usize
       exact ⟨by rw [← view]; exact (node_individual_spec node l firstRun).symm,
         (node_individual_spec t.object r secondRun).symm⟩
 
-theorem property_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem property_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (firsts : alloc.vec.Vec Usize) (k : Usize) (s s' : rdf_mapping.State) (role : model.ObjectPropertyExpression)
     (ran : rdf_mapping.property_element triples kinds firsts k s = .ok (some (role, s'))) :
     ∃ (inside : k.val < firsts.val.length) (patterns : List Pattern) (fresh : List rdf.BlankNode),
@@ -3264,7 +3352,7 @@ theorem property_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
           exact ⟨inside, patterns, fresh, grows, fun rest => by rw [← view]; exact tope rest⟩
   · simp [UScalar.lt_equiv, inside] at ran
 
-theorem property_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem property_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (firsts : alloc.vec.Vec Usize) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (out values : alloc.vec.Vec model.ObjectPropertyExpression),
       rdf_mapping.property_members triples kinds firsts index s out = .ok (some (values, s')) →
@@ -3327,7 +3415,7 @@ theorem property_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
               exact .cons member news _ _ _ _ nodes p1 patterns head tail
             · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room] at ran
 
-theorem property_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem property_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (node : rdf.Object) (s s' : rdf_mapping.State) (fuel : Usize)
     (xs : model.AtLeastTwo model.ObjectPropertyExpression)
     (ran : rdf_mapping.property_list2 triples kinds node s fuel = .ok (some (xs, s'))) :
@@ -3389,7 +3477,7 @@ theorem property_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.
             exact .cons first (second :: news3) _ _ _ _ _ ps1 (ps2 ++ ps3) (tope1 _)
               (.cons second news3 _ _ _ _ _ ps2 ps3 (tope2 _) tail)
 
-theorem data_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (firsts : alloc.vec.Vec Usize) (k : Usize) (d : model.DataProperty)
     (ran : rdf_mapping.data_element triples kinds firsts k = .ok (some d)) :
     ∃ (inside : k.val < firsts.val.length), iriNode d.iri = elementNode triples.val firsts.val[k.val] := by
@@ -3421,7 +3509,7 @@ theorem data_element_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.ve
             exact ⟨inside, by rw [← view]; exact (node_iri_spec node iri iriRun).symm⟩
   · simp [UScalar.lt_equiv, inside] at ran
 
-theorem data_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (firsts : alloc.vec.Vec Usize) :
     ∀ (index : Usize) (out values : alloc.vec.Vec model.DataProperty),
       rdf_mapping.data_members triples kinds firsts index out = .ok (some values) →
@@ -3480,7 +3568,7 @@ theorem data_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.ve
               rfl
             · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room] at ran
 
-theorem data_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem data_list2_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (node : rdf.Object) (s s' : rdf_mapping.State) (fuel : Usize) (xs : model.AtLeastTwo model.DataProperty)
     (ran : rdf_mapping.data_list2 triples kinds node s fuel = .ok (some (xs, s'))) :
     ∃ cells, cells.length = (members2 xs).length ∧
@@ -3619,7 +3707,7 @@ theorem individual_list2_spec (triples : alloc.vec.Vec rdf.Triple) (node : rdf.O
     · have noneU : ¬ alloc.vec.Vec.len firsts ≥ 2#usize := by scalar_tac
       simp [noneU, two] at ran
 
-theorem key_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem key_members_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (firsts : alloc.vec.Vec Usize) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (objs objs' : alloc.vec.Vec model.ObjectPropertyExpression)
       (datas datas' : alloc.vec.Vec model.DataProperty),
@@ -3772,7 +3860,7 @@ theorem take_main (triples : alloc.vec.Vec rdf.Triple) (s : rdf_mapping.State) (
       [⟨subjectView t.subject, t.predicate.spelling.val, objectView t.object⟩] [] :=
   grows_take triples.val s index t _ unused ⟨rfl, rfl, rfl⟩
 
-theorem sub_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem sub_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = rdfsSubClassOf)
     (r : rdf_mapping.Read) (ran : rdf_mapping.sub_class triples kinds index s fuel = .ok r) : ReadOk triples s r := by
@@ -3790,7 +3878,7 @@ theorem sub_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.V
     exact ⟨_, f1 ++ f2, grows, fun rest => by
       simpa using TAxiom.subClassOf c1 c2 (f1 ++ (f2 ++ rest)) (f2 ++ rest) rest _ _ p1 p2 (tce1 _) (tce2 rest)⟩
 
-theorem equivalent_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem equivalent_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = owlEquivalentClass)
     (r : rdf_mapping.Read) (ran : rdf_mapping.equivalent_class triples kinds index s fuel = .ok r) :
@@ -3838,7 +3926,7 @@ theorem equivalent_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : allo
         .cons c1 [c2] _ _ _ _ _ p1 (p2 ++ []) (tce1 _) (.cons c2 [] _ _ _ _ _ p2 [] (tce2 rest) (.nil rest))
       simpa [chainOf] using TAxiom.equivalentClasses ⟨c1, c2, alloc.vec.Vec.new _⟩ _ _ _ _ tces
 
-theorem disjoint_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem disjoint_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = owlDisjointWith)
     (r : rdf_mapping.Read) (ran : rdf_mapping.disjoint_class triples kinds index s fuel = .ok r) :
@@ -3857,7 +3945,7 @@ theorem disjoint_class_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.
     exact ⟨_, f1 ++ f2, grows, fun rest => by
       simpa using TAxiom.disjointClasses c1 c2 (f1 ++ (f2 ++ rest)) (f2 ++ rest) rest _ _ p1 p2 (tce1 _) (tce2 rest)⟩
 
-theorem disjoint_union_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem disjoint_union_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = owlDisjointUnionOf)
     (r : rdf_mapping.Read) (ran : rdf_mapping.disjoint_union triples kinds index s fuel = .ok r) :
@@ -3887,7 +3975,7 @@ theorem disjoint_union_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.
       rw [head] at statement
       simpa only [List.append_assoc, iriNode] using statement
 
-theorem sub_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem sub_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (predicate : t.predicate.spelling.val = rdfsSubPropertyOf) (r : rdf_mapping.Read)
     (ran : rdf_mapping.sub_property triples kinds index s = .ok r) : ReadOk triples s r := by
@@ -3943,7 +4031,7 @@ theorem sub_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.ve
         dsimp only [ReadOk]
         exact ⟨_, [], g0, fun rest => TAxiom.subAnnotationProperty ⟨sub.iri⟩ ⟨sup.iri⟩ rest⟩
 
-theorem property_chain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem property_chain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t)
     (predicate : t.predicate.spelling.val = owlPropertyChainAxiom) (r : rdf_mapping.Read)
@@ -3984,7 +4072,7 @@ theorem property_chain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.
         rw [head, view] at statement
         simpa only [List.append_assoc] using statement
 
-theorem equivalent_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem equivalent_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (predicate : t.predicate.spelling.val = owlEquivalentProperty) (r : rdf_mapping.Read)
     (ran : rdf_mapping.equivalent_property triples kinds index s = .ok r) : ReadOk triples s r := by
@@ -4033,7 +4121,7 @@ theorem equivalent_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : a
           TAxiom.equivalentDataProperties ⟨d1, d2, alloc.vec.Vec.new _⟩ rest
         exact statement
 
-theorem disjoint_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem disjoint_property_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (predicate : t.predicate.spelling.val = owlPropertyDisjointWith) (r : rdf_mapping.Read)
     (ran : rdf_mapping.disjoint_property triples kinds index s = .ok r) : ReadOk triples s r := by
@@ -4102,7 +4190,7 @@ theorem inverse_properties_spec (triples : alloc.vec.Vec rdf.Triple) (index : Us
       simpa using TAxiom.inverseProperties p1 p2 (f1 ++ (f2 ++ rest)) (f2 ++ rest) rest _ _ q1 q2 (tope1 _)
         (tope2 rest)
 
-theorem domain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem domain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = rdfsDomain)
     (r : rdf_mapping.Read) (ran : rdf_mapping.domain_range triples kinds index s false fuel = .ok r) :
@@ -4183,7 +4271,7 @@ theorem domain_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec 
           dsimp only [ReadOk]
           exact ⟨_, [], g0, fun rest => TAxiom.annotationDomain ⟨iri⟩ target rest⟩
 
-theorem range_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem range_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = rdfsRange)
     (r : rdf_mapping.Read) (ran : rdf_mapping.domain_range triples kinds index s true fuel = .ok r) :
@@ -4304,7 +4392,7 @@ theorem different_individuals_spec (triples : alloc.vec.Vec rdf.Triple) (index :
     dsimp only [ReadOk]
     exact ⟨_, [], g0, fun rest => TAxiom.differentIndividuals a b rest⟩
 
-theorem has_key_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem has_key_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (predicate : t.predicate.spelling.val = owlHasKey)
     (r : rdf_mapping.Read) (ran : rdf_mapping.has_key triples kinds index s fuel = .ok r) : ReadOk triples s r := by
@@ -4375,7 +4463,7 @@ def characteristicWord (kind : U8) : List U8 :=
   else if kind = 5#u8 then owlAsymmetricProperty
   else owlTransitiveProperty
 
-theorem characteristic_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem characteristic_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (typed : t.predicate.spelling.val = rdfType) (kind : U8)
     (object : objectView t.object = .iri (characteristicWord kind)) (r : rdf_mapping.Read)
@@ -4479,7 +4567,7 @@ theorem axiom_node_spec (triples : alloc.vec.Vec rdf.Triple) (index : Usize) (s 
     rw [subject] at g0
     simpa [subjectView] using grows_trans g0 (grows_record triples.val _ s2 b recordRun)
 
-theorem all_disjoint_classes_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem all_disjoint_classes_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (typed : t.predicate.spelling.val = rdfType)
     (object : objectView t.object = .iri owlAllDisjointClasses) (r : rdf_mapping.Read)
@@ -4527,7 +4615,7 @@ theorem all_disjoint_classes_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : 
           trivial
 
 theorem all_disjoint_properties_spec (triples : alloc.vec.Vec rdf.Triple)
-    (kinds : alloc.vec.Vec rdf_mapping.Declared) (index : Usize) (s : rdf_mapping.State) (fuel : Usize)
+    (kinds : rdf_mapping.Kinds) (index : Usize) (s : rdf_mapping.State) (fuel : Usize)
     (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (typed : t.predicate.spelling.val = rdfType) (object : objectView t.object = .iri owlAllDisjointProperties)
     (r : rdf_mapping.Read) (ran : rdf_mapping.all_disjoint_properties triples kinds index s fuel = .ok r) :
@@ -4652,7 +4740,7 @@ theorem all_different_spec (triples : alloc.vec.Vec rdf.Triple) (index : Usize) 
           subst ran
           trivial
 
-theorem negative_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem negative_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (typed : t.predicate.spelling.val = rdfType) (object : objectView t.object = .iri owlNegativePropertyAssertion)
     (r : rdf_mapping.Read) (ran : rdf_mapping.negative_assertion triples kinds index s = .ok r) :
@@ -4755,7 +4843,7 @@ theorem negative_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : al
                     exact ⟨_, [blank], by simpa using grows_trans (grows_trans (grows_trans g0 g1) g2) g4,
                       fun rest => TAxiom.negativeData ⟨iri⟩ a value blank rest _ (node_literal_spec _ value valueRun)⟩
 
-theorem class_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem class_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (typed : t.predicate.spelling.val = rdfType)
     (r : rdf_mapping.Read) (ran : rdf_mapping.class_assertion triples kinds index s fuel = .ok r) :
@@ -4786,7 +4874,7 @@ theorem class_assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc
       exact ⟨⟨individualNode a, rdfType, objectView t.object⟩ :: q, f, by simpa using grows_trans g0 grows,
         fun rest => TAxiom.classAssertion c a (f ++ rest) rest _ q (tce rest)⟩
 
-theorem assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (t : rdf.Triple) (unused : Unused triples.val s.used.val index.val t)
     (r : rdf_mapping.Read) (ran : rdf_mapping.assertion triples kinds index s = .ok r) : ReadOk triples s r := by
   rw [rdf_mapping.assertion] at ran
@@ -4848,7 +4936,7 @@ theorem assertion_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.V
 
 /-! ### Reading the axioms of a graph -/
 
-theorem typing_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem typing_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (typed : t.predicate.spelling.val = rdfType)
     (r : rdf_mapping.Read) (ran : rdf_mapping.typing triples kinds index s fuel = .ok r) : ReadOk triples s r := by
@@ -4966,7 +5054,7 @@ theorem typing_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec 
     exact class_assertion_spec triples kinds index s fuel t unused typed r ran
   · simp at ran; subst ran; trivial
 
-theorem read_axiom_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem read_axiom_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (index : Usize) (s : rdf_mapping.State) (fuel : Usize) (t : rdf.Triple)
     (unused : Unused triples.val s.used.val index.val t) (r : rdf_mapping.Read)
     (ran : rdf_mapping.read_axiom triples kinds index s fuel = .ok r) : ReadOk triples s r := by
@@ -5085,7 +5173,7 @@ theorem read_axiom_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.
     exact assertion_spec triples kinds index s t unused r ran
   · simp at ran; subst ran; exact grows_refl _ _
 
-theorem axioms_from_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared) :
+theorem axioms_from_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (out axioms : alloc.vec.Vec model.AnnotatedAxiom),
       rdf_mapping.axioms_from triples kinds index s out = .ok (some (axioms, s')) →
       ∃ news patterns fresh, axioms.val = out.val ++ news ∧ Grows triples.val s s' patterns fresh ∧
@@ -5136,9 +5224,6 @@ theorem axioms_from_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec
       exact ih next (by omega) s s' out axioms ran
 
 /-! ### Declarations -/
-
-theorem copy_kind_identity (kind : typing.EntityKind) : rdf_mapping.copy_kind kind = .ok kind := by
-  cases kind <;> rfl
 
 theorem entity_of_spec (object : rdf.Object) (kind : typing.EntityKind)
     (kindRun : rdf_mapping.declaration_kind object = .ok (some kind)) (spelling : alloc.vec.Vec U8) :
@@ -5205,7 +5290,7 @@ theorem entity_of_spec (object : rdf.Object) (kind : typing.EntityKind)
 
 theorem declarations_spec (triples : alloc.vec.Vec rdf.Triple) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (axioms axioms' : alloc.vec.Vec model.AnnotatedAxiom)
-      (kinds kinds' : alloc.vec.Vec rdf_mapping.Declared),
+      (kinds kinds' : rdf_mapping.Kinds),
       rdf_mapping.declarations triples index s axioms kinds = .ok (some (axioms', kinds', s')) →
       (∀ (j : Nat), index.val ≤ j → j < triples.val.length → s.used.val[j]? = some false) →
       ∃ news patterns, axioms'.val = axioms.val ++ news ∧ Grows triples.val s s' patterns [] ∧
@@ -5259,20 +5344,21 @@ theorem declarations_spec (triples : alloc.vec.Vec rdf.Triple) :
       obtain ⟨iri, subject, rfl, typed, kindRun⟩ := found
       obtain ⟨e, entityRun, pattern⟩ := entity_of_spec _ kind kindRun iri.spelling
       by_cases room1 : axioms.val.length < Usize.max
-      · by_cases room2 : kinds.val.length < Usize.max
-        · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
-            (alloc.vec.Vec.push_spec axioms { annotations := alloc.vec.Vec.new _, «axiom» := .Declaration e } room1)
-          obtain ⟨pushedK, pushK, -⟩ := WP.spec_imp_exists
-            (alloc.vec.Vec.push_spec kinds { iri := iri.spelling, kind := kind } room2)
-          simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room1, room2, entityRun, push,
-            copy_kind_identity, pushK, advance, take_correct] at ran
+      · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec axioms { annotations := alloc.vec.Vec.new _, «axiom» := .Declaration e } room1)
+        simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room1, entityRun, push] at ran
+        obtain ⟨o, -, ran⟩ := bind_eq_ok ran
+        cases o with
+        | none => simp at ran
+        | some kinds1 =>
+          simp only [advance, take_correct, bind_ok] at ran
           have unused : Unused triples.val s.used.val index.val t := ⟨at_t, fresh index.val (le_refl _) more⟩
           have g0 := take_main triples s index t unused
           rw [subject, typed] at g0
           have g1 : Grows triples.val s { s with used := s.used.set index true } [declarationPattern e] [] := by
             rw [pattern]
             exact g0
-          obtain ⟨news, patterns, split, grows, decls⟩ := ih next (by omega) _ s' pushed axioms' pushedK kinds' ran
+          obtain ⟨news, patterns, split, grows, decls⟩ := ih next (by omega) _ s' pushed axioms' kinds1 kinds' ran
             (fun j low high => by
               simp only [alloc.vec.Vec.set_val_eq]
               rw [List.getElem?_set_ne (by omega)]
@@ -5281,7 +5367,6 @@ theorem declarations_spec (triples : alloc.vec.Vec rdf.Triple) :
             declarationPattern e :: patterns, by rw [split, contents]; simp, by simpa using grows_trans g1 grows,
             fun rest => ?_⟩
           exact .cons _ news rest rest rest [declarationPattern e] patterns rfl (TAxiom.declaration e rest) (decls rest)
-        · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room1, room2] at ran
       · simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, usize_max_val, room1] at ran
 
 /-! ### The ontology header -/
@@ -5344,7 +5429,7 @@ def versionPatterns (ontology : Node) : Option model.Iri → Option model.Iri �
   | none, some v => [⟨ontology, owlVersionIRI, iriNode v⟩]
   | _, _ => []
 
-theorem header_parts_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : alloc.vec.Vec rdf_mapping.Declared)
+theorem header_parts_spec (triples : alloc.vec.Vec rdf.Triple) (kinds : rdf_mapping.Kinds)
     (ontology : alloc.vec.Vec U8) :
     ∀ (index : Usize) (s s' : rdf_mapping.State) (version version' : Option model.Iri)
       (imports imports' : alloc.vec.Vec model.Iri) (annotations annotations' : alloc.vec.Vec model.Annotation),
@@ -5618,11 +5703,16 @@ theorem map_graph_correct (graph : rdf.RawGraph) (m : rdf_mapping.Mapped)
       (∀ t ∈ graph.triples.val, ∃ p ∈ patterns, Matches p t) ∧
       (∀ p ∈ patterns, ∃ t ∈ graph.triples.val, Matches p t) := by
   rw [rdf_mapping.map_graph] at ran
+  obtain ⟨count, -, ran⟩ := bind_eq_ok ran
   obtain ⟨v, unusedRun, ran⟩ := bind_eq_ok ran
+  obtain ⟨buckets, -, ran⟩ := bind_eq_ok ran
+  obtain ⟨subjects, -, ran⟩ := bind_eq_ok ran
+  obtain ⟨kindBuckets, -, ran⟩ := bind_eq_ok ran
   have vIs := unused_spec _ _ v unusedRun
   simp at vIs
   have start : ∀ (j : Nat), j < graph.triples.val.length →
-      (({ used := v, blanks := alloc.vec.Vec.new rdf.BlankNode } : rdf_mapping.State).used.val[j]? = some false) := by
+      (({ used := v, blanks := alloc.vec.Vec.new rdf.BlankNode, subjects } : rdf_mapping.State).used.val[j]? =
+        some false) := by
     intro j inside
     simp [vIs, List.getElem?_replicate, inside]
   obtain ⟨o, declarationsRun, ran⟩ := bind_eq_ok ran

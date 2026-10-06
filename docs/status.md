@@ -994,8 +994,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   ontology is EL and the tableau otherwise, and the reasoner prepares the
   tableau queries only when a question needs them. A generated EL ontology with
   1000 classes classifies in 0.6 s instead of 19.5 s with the same answers, and
-  one with 20 000 classes in 2.2 s from N-Triples and 12 s from Functional
-  Syntax, where lexing takes most of the time.
+  one with 20 000 classes in under a second from N-Triples (2.2 s before the RDF
+  mapping's lookups were indexed) and 12 s from Functional Syntax, where lexing
+  takes most of the time.
 - Python bindings: the `rowl` package in `bindings/python` reads a
   Functional Syntax or N-Triples document once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
@@ -1016,8 +1017,12 @@ progress. Full OWL parsing and executable reasoning are still future work.
   That every such ontology is read back, annotated axioms, imports and distinct
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
-  read N-Triples documents through the verified reader and this mapping.
-- 2590 audited public theorems and 1171 audited semantic definitions. Consistency,
+  read N-Triples documents through the verified reader and this mapping. Its
+  lookups of the triples about a blank node and of declarations go through
+  buckets by hash, built once, and check every candidate, so the proofs hold
+  whatever the buckets contain; a generated 20 000-class ontology now maps in
+  0.06 s instead of 2.5 s.
+- 2595 audited public theorems and 1171 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1034,7 +1039,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 516 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 517 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1051,7 +1056,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2783-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2788-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
