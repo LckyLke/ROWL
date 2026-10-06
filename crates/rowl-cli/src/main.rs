@@ -74,6 +74,27 @@ fn reasoning_command(command: &str, path: &str, extra: &[String]) -> Result<(), 
     Ok(())
 }
 
+/// Print whether the document's axioms are OWL 2 DL; `Ok(false)` when not.
+fn validate_command(path: &str) -> Result<bool, String> {
+    let reasoner = load(path)?;
+    let valid = match reasoner.dl_violation() {
+        None => {
+            println!("OWL 2 DL: valid");
+            true
+        }
+        Some(violation) => {
+            println!("OWL 2 DL: not valid: {violation}");
+            false
+        }
+    };
+    let imports = reasoner.ontology().imports.len();
+    if imports > 0 {
+        eprintln!("The document has {imports} import(s); imported ontologies are not read, so only its own axioms are checked.");
+    }
+    eprintln!("The verdict comes from the verified OWL 2 DL check: keys and arities, the reserved vocabulary, declarations and typing, and the global restrictions of the 2012 Structural Specification. The lexical forms of literals and facet values are not checked yet.");
+    Ok(valid)
+}
+
 fn nt_command(path: &str, export: bool) -> Result<(), String> {
     let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
     let scope = path.as_bytes().to_vec();
@@ -150,6 +171,7 @@ fn main() -> std::process::ExitCode {
             println!("A verified completion for named individuals decides concepts at nodes related by named object properties under the TBox and role axioms: proved total, sound (explicit models with a successor model per existential restriction) and complete in every universe. Consistency, satisfiability, subsumption and instance checking now take class and positive and negative object property assertions, also from source text, with each answer proved against the Direct Semantics.");
             println!("Role axioms are read from ontologies and source text: SubObjectPropertyOf between named properties, EquivalentObjectProperties and TransitiveObjectProperty become a role box closed under composition, proved exact for those axioms, and every query decides under it with its answer proved against the Direct Semantics.");
             println!("The queries now cover SROIQ: inverse roles, number restrictions, nominals of named individuals, self restrictions, reflexive, irreflexive, asymmetric and disjoint properties, role chains and the universal and empty roles, decided by a completion forest whose answers are proved against the Direct Semantics. See docs/status.md.");
+            println!("validate decides the OWL 2 DL restrictions on keys, arities, the reserved vocabulary, declarations and typing, and the global restrictions of §11 by a verified check proved exact against their conjunction; literal lexical forms, facet values and imports are not checked.");
             println!("Full OWL 2 DL parsing and reasoning are not implemented.");
         }
         [command] if command == "demo" => {
@@ -177,6 +199,14 @@ fn main() -> std::process::ExitCode {
                 return std::process::ExitCode::FAILURE;
             }
         }
+        [command, path] if command == "validate" => match validate_command(path) {
+            Ok(true) => {}
+            Ok(false) => return std::process::ExitCode::FAILURE,
+            Err(error) => {
+                eprintln!("{error}");
+                return std::process::ExitCode::FAILURE;
+            }
+        },
         [command, path] if command == "check-nt" || command == "export-nt" => {
             if let Err(error) = nt_command(path, command == "export-nt") {
                 eprintln!("{error}");
@@ -184,8 +214,9 @@ fn main() -> std::process::ExitCode {
             }
         }
         _ => {
-            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|check-nt FILE|export-nt FILE>");
-            eprintln!("check, classify and instances read N-Triples for a .nt FILE and Functional Syntax otherwise.");
+            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE>");
+            eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE and Functional Syntax otherwise.");
+            eprintln!("validate prints whether the document is OWL 2 DL or its first violation, and exits with status 1 when it is not.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;
         }

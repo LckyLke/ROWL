@@ -130,30 +130,33 @@
       "requirement": "Punning",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.typing_allows_punning",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::punning_is_allowed_exactly_as_the_typing_constraints_say",
+      "implementation_scope": "Punning (\u00a75.9): the typing predicate RawWellTyped, which check_typing and check_ontology decide exactly, forbids on one IRI only a class together with a datatype and two different kinds of property (typing_allows_punning); every other reuse, such as one IRI as a class, an individual and an object property, is accepted. The Direct Semantics interprets the views of a punned IRI by independent functions of the interpretation."
     },
     {
       "id": "entity.EntityTyping",
       "requirement": "EntityTyping",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.check_typing_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::typing_agrees_with_the_symbol_indexed_checker",
+      "implementation_scope": "The typing constraints of \u00a75.8.1 with the built-in declarations of Table 5 on the supplied axioms and their annotations, decided on exact IRI spellings without a symbol-count limit (check_typing_total_correct, check_typing_valid_iff); check_typing_agrees gives the verdict of the symbol-indexed check_ontology_typing whenever that completes. The first conflicting declaration is reported before the first undeclared use. Ontology annotations are not axioms and need no declarations."
     },
     {
       "id": "entity.DeclarationConsistency",
       "requirement": "DeclarationConsistency",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_declarations",
+      "theorem": "Rowl.DlValidity.check_declarations_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::declaration_consistency_also_requires_named_individuals",
+      "implementation_scope": "Consistent declarations (\u00a75.8.2): every entity occurrence of the supplied axioms, named individuals included, has its IRI declared with its kind, explicitly or by Table 5. Decided exactly with the first undeclared use as evidence (check_declarations_total_correct). OWL 2 DL does not require it, so it is not part of OwlDlValid."
     },
     {
       "id": "expression.ObjectInverseOf",
@@ -928,20 +931,22 @@
       "requirement": "NoLogicalEffect",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_models",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "Annotations have no logical effect: removing every axiom annotation (nested ones included) and every annotation axiom from a closure preserves satisfaction in every interpretation and the models for every reinterpretation of the anonymous individuals (strip_annotations_satisfies, strip_annotations_models), and therefore Model, consistency and entailment (strip_annotations_model, strip_annotations_consistent, strip_annotations_entails). Ontology annotations are not part of the closure. Annotations still count for OWL 2 DL validity: annotation properties need declarations, and reserved IRIs, anonymous individuals and defined datatypes are restricted inside them."
     },
     {
       "id": "global.SimplePropertyClosure",
       "requirement": "SimplePropertyClosure",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::roles::classify_non_simple",
+      "theorem": "Rowl.RoleClosure.classify_non_simple_total_correct",
+      "regression": "crates/rowl-kernel/tests/roles.rs::simplicity_checker_rejects_the_first_nested_restriction_after_transitive_propagation",
+      "implementation_scope": "The non-simple object property expressions of the supplied complete axiom closure (2012 Structural Specification \u00a711.1): the composite expressions (owl:topObjectProperty, owl:bottomObjectProperty, the superproperties of property chains and transitive properties, with their inverses) closed under the property hierarchy relation, computed by a finite worklist without fuel and proved to be exactly the expressions that are not Simple. The composed OWL 2 DL check dl_validity::check_ontology decides the restriction on simple roles with it. Per the literal \u00a711.1 text, ObjectInverseOf(owl:topObjectProperty) is not composite. Import assembly remains separate."
     },
     {
       "id": "global.SimplePropertyUses",
@@ -981,20 +986,22 @@
       "requirement": "BuiltinVocabularyRestrictions",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_ontology",
+      "theorem": "Rowl.DlValidity.builtin_vocabulary_restrictions",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::built_in_vocabulary_keeps_its_roles_and_positions",
+      "implementation_scope": "Every ontology the composed OWL 2 DL check accepts uses IRIs of the reserved vocabulary (rdf:, rdfs:, xsd:, owl:) only in their built-in roles and never as ontology or version IRI (\u00a73.1, \u00a75.1\u20135.6), with the built-in declarations of Table 5 counting for typing; uses owl:topDataProperty only as a SubDataPropertyOf superproperty (\u00a711.2); never puts owl:topObjectProperty or owl:bottomObjectProperty, which \u00a711.1 makes composite, where a simple object property is required; and never redefines rdfs:Literal or a datatype of the OWL 2 datatype map (\u00a711.2). The lexical and facet spaces of the built-in datatypes belong to the normative datatype map (M5)."
     },
     {
       "id": "global.AxiomClosureValidation",
       "requirement": "AxiomClosureValidation",
       "owner": "rowl-kernel",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_ontology",
+      "theorem": "Rowl.DlValidity.check_ontology_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::every_restriction_has_a_crafted_violation",
+      "implementation_scope": "The supplied axioms, taken as the complete axiom closure, are checked against the OWL 2 DL conditions of Structural Specification Section 3 in that order: nonempty keys and structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations, and the \u00a711.2 restrictions on owl:topDataProperty, datatypes (with defined-datatype positions), simple roles, the property hierarchy and anonymous individuals. Valid exactly for OwlDlValid, the conjunction of the components' independent specifications; otherwise the first violation with its component evidence and every earlier restriction proved (check_ontology_total_correct). Not covered: the lexical forms of literals (\u00a75.7) and facet values (\u00a77.5), which need the normative datatype map (M5), and import resolution."
     },
     {
       "id": "global.ArityAndCardinalityValidation",
@@ -30588,6 +30595,237 @@
       "theorem": "Rowl.Saturation.taxonomy_correct",
       "regression": "crates/rowl-kernel/tests/saturation.rs",
       "implementation_scope": "Classification of named classes in the EL fragment by saturation (saturation::classify): for axiom closures whose logical axioms are subclass, equivalent-class and disjoint-class axioms between class expressions built from named classes, owl:Thing, owl:Nothing, intersections and existential restrictions on named object properties, object property domains, inclusions and two-member equivalences of named object properties, chains of two named object properties and transitivity, with declarations and annotation axioms ignored, classify answers for every listed class whether it is satisfiable and for every pair whether the first is subsumed by the second, taxonomy gives the same answers as a list of the subsuming classes of each satisfiable class, and consistent whether the axioms have a model; classify_correct, taxonomy_correct and consistent_correct prove every answer the Direct Semantics answer under every vocabulary and datatype map. The axioms translate into rules over a table of interned concepts that hold exactly when the axioms do (translate_spec); every subsumer and link saturation derives holds in every model of the rules (saturate_spec); the final check confirms that the saturated state is closed under every rule (closed_spec), and the closed state then yields a canonical model of the axioms (canonical_models, positive, negative). Any other axiom, and a machine limit, give no answer."
+    },
+    {
+      "id": "m4.DlValidity.same_bytes_spec",
+      "requirement": "Verified OWL 2 DL validity: same_bytes_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::same_bytes",
+      "theorem": "Rowl.DlValidity.same_bytes_spec",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.raw_well_typed_iff",
+      "requirement": "Verified OWL 2 DL validity: raw_well_typed_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.raw_well_typed_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_typing_total_correct",
+      "requirement": "Verified OWL 2 DL validity: check_typing_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.check_typing_total_correct",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_typing_valid_iff",
+      "requirement": "Verified OWL 2 DL validity: check_typing_valid_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.check_typing_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_typing_agrees",
+      "requirement": "Verified OWL 2 DL validity: check_typing_agrees",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.check_typing_agrees",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_declarations_total_correct",
+      "requirement": "Verified OWL 2 DL validity: check_declarations_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_declarations",
+      "theorem": "Rowl.DlValidity.check_declarations_total_correct",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_declarations_valid_iff",
+      "requirement": "Verified OWL 2 DL validity: check_declarations_valid_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_declarations",
+      "theorem": "Rowl.DlValidity.check_declarations_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.has_chain_spec",
+      "requirement": "Verified OWL 2 DL validity: has_chain_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::has_chain",
+      "theorem": "Rowl.DlValidity.has_chain_spec",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.no_chain_regular",
+      "requirement": "Verified OWL 2 DL validity: no_chain_regular",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::has_chain",
+      "theorem": "Rowl.DlValidity.no_chain_regular",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.has_anonymous_assertion_spec",
+      "requirement": "Verified OWL 2 DL validity: has_anonymous_assertion_spec",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::has_anonymous_assertion",
+      "theorem": "Rowl.DlValidity.has_anonymous_assertion_spec",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.no_anonymous_assertion_restriction",
+      "requirement": "Verified OWL 2 DL validity: no_anonymous_assertion_restriction",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::has_anonymous_assertion",
+      "theorem": "Rowl.DlValidity.no_anonymous_assertion_restriction",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_ontology_total_correct",
+      "requirement": "Verified OWL 2 DL validity: check_ontology_total_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_ontology",
+      "theorem": "Rowl.DlValidity.check_ontology_total_correct",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.check_ontology_valid_iff",
+      "requirement": "Verified OWL 2 DL validity: check_ontology_valid_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_ontology",
+      "theorem": "Rowl.DlValidity.check_ontology_valid_iff",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.builtin_vocabulary_restrictions",
+      "requirement": "Verified OWL 2 DL validity: builtin_vocabulary_restrictions",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_ontology",
+      "theorem": "Rowl.DlValidity.builtin_vocabulary_restrictions",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.typing_allows_punning",
+      "requirement": "Verified OWL 2 DL validity: typing_allows_punning",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Ontologies",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::dl_validity::check_typing",
+      "theorem": "Rowl.DlValidity.typing_allows_punning",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.annotation_axioms_hold",
+      "requirement": "Annotations have no logical effect: annotation_axioms_hold",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.annotation_axioms_hold",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.strip_annotations_satisfies",
+      "requirement": "Annotations have no logical effect: strip_annotations_satisfies",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_satisfies",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.strip_annotations_models",
+      "requirement": "Annotations have no logical effect: strip_annotations_models",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_models",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.strip_annotations_model",
+      "requirement": "Annotations have no logical effect: strip_annotations_model",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_model",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.strip_annotations_consistent",
+      "requirement": "Annotations have no logical effect: strip_annotations_consistent",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_consistent",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
+    },
+    {
+      "id": "m4.DlValidity.strip_annotations_entails",
+      "requirement": "Annotations have no logical effect: strip_annotations_entails",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-direct-semantics-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::model::AnnotatedAxiom",
+      "theorem": "Rowl.DlValidity.strip_annotations_entails",
+      "regression": "crates/rowl-kernel/tests/dl_validity.rs::annotations_do_not_change_reasoning_answers",
+      "implementation_scope": "M4 composed OWL 2 DL validity of a supplied complete axiom closure (dl_validity::check_ontology): nonempty keys, structural arities, the reserved vocabulary in headers and entity positions, the typing constraints with the built-in declarations of Table 5 (decided on exact IRI spellings without a symbol-count limit by check_typing) and the 2012 Structural Specification \u00a711.2 restrictions on owl:topDataProperty, datatypes with defined-datatype positions, simple roles, the property hierarchy and anonymous individuals, in the order of Section 3. check_ontology_valid_iff proves Valid exactly for OwlDlValid, the conjunction of the component specifications, and check_ontology_total_correct gives the first violation with its component evidence and every earlier restriction proved. Declaration consistency (\u00a75.8.2) is decided separately by check_declarations, the built-in vocabulary restrictions and punning are characterized, and annotations are proved to have no logical effect on models, consistency and entailment. The lexical forms of literals (\u00a75.7), facet values (\u00a77.5) and import resolution are not checked."
     }
   ]
 }

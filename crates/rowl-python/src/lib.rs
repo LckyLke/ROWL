@@ -9,8 +9,8 @@
 //! Text crosses the interface as UTF-8 bytes with an explicit length. A query
 //! answers 1 (yes), 0 (no), -1 (no answer: the question is outside the
 //! supported fragment or a limit was reached) or -2 (a null handle or text that
-//! is not UTF-8). Lists come back as JSON text that the caller releases with
-//! [`rowl_string_free`].
+//! is not UTF-8). Lists and the OWL 2 DL verdict come back as JSON text that
+//! the caller releases with [`rowl_string_free`].
 use rowl::reasoner::{default_limits, named, Classified, LoadError, Reasoner};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
@@ -348,6 +348,28 @@ pub unsafe extern "C" fn rowl_classify(reasoner: *const RowlReasoner) -> *mut c_
     match unsafe { handle(reasoner) } {
         Some(found) => match found.classify() {
             Some(classified) => into_c(json_classification(&classified)),
+            None => into_c(String::from("null")),
+        },
+        None => ptr::null_mut(),
+    }
+}
+
+/// The first OWL 2 DL restriction the document violates, in words, as a JSON
+/// string, or the JSON text `null` when the verified OWL 2 DL check accepts
+/// the document; null for a null handle.
+///
+/// # Safety
+/// `reasoner` must be null or a live handle.
+#[no_mangle]
+pub unsafe extern "C" fn rowl_dl_violation(reasoner: *const RowlReasoner) -> *mut c_char {
+    // SAFETY: forwarded from the caller.
+    match unsafe { handle(reasoner) } {
+        Some(found) => match found.dl_violation() {
+            Some(violation) => {
+                let mut out = String::new();
+                json_string(&mut out, &violation);
+                into_c(out)
+            }
             None => into_c(String::from("null")),
         },
         None => ptr::null_mut(),

@@ -8,22 +8,27 @@
 //! `saturation`. `None` means the question or the
 //! document is outside the reasoner's supported fragment, or a limit was
 //! reached. This module only collects names and lays out answers; it adds no
-//! reasoning of its own.
+//! reasoning of its own. `dl_violation` reports, in words, the verdict of the
+//! verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
     prepared_subsumed, Prepared,
 };
+use rowl_kernel::dl_validity::{check_ontology, DlCheck};
 use rowl_kernel::functional_annotations::AnnotationLimits;
 use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
 use rowl_kernel::model::{
-    Axiom, Class, ClassExpression, Entity, Individual, Iri, NamedIndividual, RawOntology,
+    AnnotatedAxiom, AnonymousIndividual, Axiom, Class, ClassExpression, Entity, Individual, Iri,
+    NamedIndividual, RawOntology,
 };
 use rowl_kernel::ntriples::{read, ReadError, ReadResult};
 use rowl_kernel::rdf_mapping::map_graph;
+use rowl_kernel::roles::Role;
 use rowl_kernel::saturation;
 use rowl_kernel::source_reasoning::source_ontology;
+use rowl_kernel::typing::EntityKind;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
@@ -86,10 +91,12 @@ pub enum LoadError {
 
 /// A document read once. Its queries are prepared once, when the first
 /// question that needs them is asked, so a classification that saturation
-/// answers never prepares them.
+/// answers never prepares them; its OWL 2 DL verdict is likewise computed when
+/// first asked for.
 pub struct Reasoner {
     ontology: RawOntology,
     prepared: OnceLock<Option<Prepared>>,
+    violation: OnceLock<Option<String>>,
 }
 
 fn class_expression(iri: &str) -> ClassExpression {
@@ -157,6 +164,200 @@ fn axiom_classes(axiom: &Axiom, out: &mut BTreeSet<Vec<u8>>) {
     }
 }
 
+/// The words for an entity kind.
+fn kind_name(kind: &EntityKind) -> &'static str {
+    match kind {
+        EntityKind::Class => "class",
+        EntityKind::Datatype => "datatype",
+        EntityKind::ObjectProperty => "object property",
+        EntityKind::DataProperty => "data property",
+        EntityKind::AnnotationProperty => "annotation property",
+        EntityKind::NamedIndividual => "named individual",
+    }
+}
+
+fn iri_text(iri: &Iri) -> String {
+    String::from_utf8_lossy(&iri.spelling).into_owned()
+}
+
+fn role_text(role: &Role<'_>) -> String {
+    if role.inverse {
+        format!("ObjectInverseOf({})", iri_text(role.iri))
+    } else {
+        iri_text(role.iri)
+    }
+}
+
+fn anonymous_text(individual: &AnonymousIndividual) -> String {
+    format!("_:{}", String::from_utf8_lossy(&individual.label))
+}
+
+/// The Functional Syntax keyword of an axiom.
+fn axiom_name(axiom: &Axiom) -> &'static str {
+    match axiom {
+        Axiom::Declaration(_) => "Declaration",
+        Axiom::SubClassOf(..) => "SubClassOf",
+        Axiom::EquivalentClasses(_) => "EquivalentClasses",
+        Axiom::DisjointClasses(_) => "DisjointClasses",
+        Axiom::DisjointUnion(..) => "DisjointUnion",
+        Axiom::SubObjectPropertyOf(..) => "SubObjectPropertyOf",
+        Axiom::EquivalentObjectProperties(_) => "EquivalentObjectProperties",
+        Axiom::DisjointObjectProperties(_) => "DisjointObjectProperties",
+        Axiom::InverseObjectProperties(..) => "InverseObjectProperties",
+        Axiom::ObjectPropertyDomain(..) => "ObjectPropertyDomain",
+        Axiom::ObjectPropertyRange(..) => "ObjectPropertyRange",
+        Axiom::FunctionalObjectProperty(_) => "FunctionalObjectProperty",
+        Axiom::InverseFunctionalObjectProperty(_) => "InverseFunctionalObjectProperty",
+        Axiom::ReflexiveObjectProperty(_) => "ReflexiveObjectProperty",
+        Axiom::IrreflexiveObjectProperty(_) => "IrreflexiveObjectProperty",
+        Axiom::SymmetricObjectProperty(_) => "SymmetricObjectProperty",
+        Axiom::AsymmetricObjectProperty(_) => "AsymmetricObjectProperty",
+        Axiom::TransitiveObjectProperty(_) => "TransitiveObjectProperty",
+        Axiom::SubDataPropertyOf(..) => "SubDataPropertyOf",
+        Axiom::EquivalentDataProperties(_) => "EquivalentDataProperties",
+        Axiom::DisjointDataProperties(_) => "DisjointDataProperties",
+        Axiom::DataPropertyDomain(..) => "DataPropertyDomain",
+        Axiom::DataPropertyRange(..) => "DataPropertyRange",
+        Axiom::FunctionalDataProperty(_) => "FunctionalDataProperty",
+        Axiom::DatatypeDefinition(..) => "DatatypeDefinition",
+        Axiom::HasKey(..) => "HasKey",
+        Axiom::SameIndividual(_) => "SameIndividual",
+        Axiom::DifferentIndividuals(_) => "DifferentIndividuals",
+        Axiom::ClassAssertion(..) => "ClassAssertion",
+        Axiom::ObjectPropertyAssertion(..) => "ObjectPropertyAssertion",
+        Axiom::NegativeObjectPropertyAssertion(..) => "NegativeObjectPropertyAssertion",
+        Axiom::DataPropertyAssertion(..) => "DataPropertyAssertion",
+        Axiom::NegativeDataPropertyAssertion(..) => "NegativeDataPropertyAssertion",
+        Axiom::AnnotationAssertion(..) => "AnnotationAssertion",
+        Axiom::SubAnnotationPropertyOf(..) => "SubAnnotationPropertyOf",
+        Axiom::AnnotationPropertyDomain(..) => "AnnotationPropertyDomain",
+        Axiom::AnnotationPropertyRange(..) => "AnnotationPropertyRange",
+    }
+}
+
+/// An axiom by its kind and its position in the document's axioms, from 1.
+fn axiom_text(ontology: &RawOntology, item: &AnnotatedAxiom) -> String {
+    match ontology
+        .axioms
+        .iter()
+        .position(|candidate| std::ptr::eq(candidate, item))
+    {
+        Some(index) => format!(
+            "the {} axiom at position {}",
+            axiom_name(&item.axiom),
+            index + 1
+        ),
+        None => format!("a {} axiom", axiom_name(&item.axiom)),
+    }
+}
+
+/// The verified check's first violation in words, or `None` for `Valid`.
+fn describe_violation(ontology: &RawOntology, check: &DlCheck<'_>) -> Option<String> {
+    let axiom = |item: &AnnotatedAxiom| axiom_text(ontology, item);
+    Some(match check {
+        DlCheck::Valid => return None,
+        DlCheck::EmptyKey(item) => format!(
+            "{} has neither an object nor a data property (keys, §9.5)",
+            axiom(item)
+        ),
+        DlCheck::Arity(item) => format!(
+            "{} has fewer than two different members where two are required, or repeats a member \
+             that must be different (structural arity)",
+            axiom(item)
+        ),
+        DlCheck::ReservedOntologyIri(iri) => format!(
+            "the ontology IRI {} is in the reserved vocabulary (§3.1)",
+            iri_text(iri)
+        ),
+        DlCheck::ReservedVersionIri(iri) => format!(
+            "the version IRI {} is in the reserved vocabulary (§3.1)",
+            iri_text(iri)
+        ),
+        DlCheck::ReservedEntity { iri, kind } => format!(
+            "{} is in the reserved vocabulary and cannot be used as a {} (§5.1–5.6)",
+            iri_text(iri),
+            kind_name(kind)
+        ),
+        DlCheck::ConflictingDeclarations { iri, kind, other } => format!(
+            "{} is declared as a {} but is also a {} (typing constraints, §5.8.1)",
+            iri_text(iri),
+            kind_name(kind),
+            kind_name(other)
+        ),
+        DlCheck::MissingDeclaration { iri, kind } => format!(
+            "{} is used as a {} but not declared as one (typing constraints, §5.8.1)",
+            iri_text(iri),
+            kind_name(kind)
+        ),
+        DlCheck::TopDataProperty(item) => format!(
+            "{} uses owl:topDataProperty other than as the superproperty of SubDataPropertyOf (§11.2)",
+            axiom(item)
+        ),
+        DlCheck::MissingDatatypeDefinition(iri) => format!(
+            "the datatype {} is neither built in nor defined by a DatatypeDefinition axiom (§11.2)",
+            iri_text(iri)
+        ),
+        DlCheck::PredefinedDatatypeRedefined(item) => {
+            format!("{} redefines a built-in datatype (§11.2)", axiom(item))
+        }
+        DlCheck::MultipleDatatypeDefinitions { first, second } => format!(
+            "{} and {} define one datatype differently (§11.2)",
+            axiom(first),
+            axiom(second)
+        ),
+        DlCheck::DatatypeCycle { smaller, larger } => format!(
+            "the datatype definitions are cyclic: {} is defined using {}, which depends on it (§11.2)",
+            iri_text(larger),
+            iri_text(smaller)
+        ),
+        DlCheck::DefinedDatatypeInOntologyAnnotation(_) => {
+            "an ontology annotation has a literal of a defined datatype (§9.4)".to_string()
+        }
+        DlCheck::DefinedDatatypePosition(item) => format!(
+            "{} uses a defined datatype in a literal or a datatype restriction (§9.4)",
+            axiom(item)
+        ),
+        DlCheck::NonSimpleRole(role) => format!(
+            "{} is not simple but is used where a simple object property is required: in a \
+             cardinality or self restriction, or a functional, inverse-functional, irreflexive, \
+             asymmetric or disjointness axiom (§11.2)",
+            role_text(role)
+        ),
+        DlCheck::IrregularHierarchy { sub, sup } => format!(
+            "the property chains require {} below {}, but {} is a subproperty of {}, so the \
+             property hierarchy is not regular (§11.2)",
+            role_text(sub),
+            role_text(sup),
+            role_text(sup),
+            role_text(sub)
+        ),
+        DlCheck::AnonymousPosition(item) => format!(
+            "{} uses an anonymous individual where OWL 2 DL forbids one (§11.2)",
+            axiom(item)
+        ),
+        DlCheck::AnonymousSelfLoop(individual) => format!(
+            "an object property assertion connects the anonymous individual {} with itself (§11.2)",
+            anonymous_text(individual)
+        ),
+        DlCheck::AnonymousCycle { left, right } => format!(
+            "the object property assertions between anonymous individuals form a cycle through {} \
+             and {} (§11.2)",
+            anonymous_text(left),
+            anonymous_text(right)
+        ),
+        DlCheck::AnonymousMultipleAssertions { first, second } => format!(
+            "{} and {} connect the same two anonymous individuals (§11.2)",
+            axiom(first),
+            axiom(second)
+        ),
+        DlCheck::AnonymousNoBoundaryRoot(individual) => format!(
+            "no anonymous individual connected to {} has at most one assertion with a named \
+             individual (§11.2)",
+            anonymous_text(individual)
+        ),
+    })
+}
+
 impl Reasoner {
     /// Read a Functional Syntax document from its bytes.
     pub fn from_functional(bytes: &[u8], limits: &DocumentLimits) -> Result<Reasoner, LoadError> {
@@ -189,6 +390,7 @@ impl Reasoner {
         Reasoner {
             ontology,
             prepared: OnceLock::new(),
+            violation: OnceLock::new(),
         }
     }
     /// The prepared queries, prepared on first use; `None` when the axioms are
@@ -230,6 +432,22 @@ impl Reasoner {
         };
         let prepared = self.queries()?;
         on_kernel_stack(|| prepared_instance_of(prepared, &individual, class))
+    }
+    /// The first OWL 2 DL restriction the document's axioms violate, in words,
+    /// or `None` when they satisfy all of them. It is computed on demand by
+    /// the verified `dl_validity::check_ontology`, whose verdict is proved
+    /// exact for the structural, reserved-vocabulary, typing and global
+    /// restrictions of the 2012 Structural Specification; the lexical forms of
+    /// literals, facet values and imports are not checked. Loading never
+    /// rejects a document for these restrictions; the check runs on the first
+    /// call and its verdict is kept.
+    pub fn dl_violation(&self) -> Option<String> {
+        let ontology = &self.ontology;
+        self.violation
+            .get_or_init(|| {
+                on_kernel_stack(|| describe_violation(ontology, &check_ontology(ontology)))
+            })
+            .clone()
     }
     /// The named classes the document declares or uses, without `owl:Thing` and
     /// `owl:Nothing`, sorted by IRI.

@@ -157,3 +157,4 @@ import Rowl.DataSound
 import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation
+import Rowl.DlValidity

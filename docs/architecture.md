@@ -377,6 +377,44 @@ As elsewhere, mathematical Vec/index bounds do not eliminate physical allocation
 or stack exhaustion; typed operational limits remain the separate M8 scope.
 
 
+### OWL 2 DL validity of a supplied closure
+
+`dl_validity::check_ontology` is the single entry point for the OWL 2 DL
+restrictions the project decides. It runs the component checkers in the order
+of the condition lists of Structural Specification Section 3 (keys and
+arities, the reserved vocabulary, the typing constraints, then the §11.2
+global restrictions in the order of that section) and stops at the first
+violation, so a reported violation proves every earlier restriction. The
+order is part of the proved contract (`Correct`), not an implementation
+accident.
+
+Typing is decided on exact IRI spellings (`check_typing`) rather than through
+the symbol table of `indexing::check_ontology_typing`, whose capacity would
+leave an outcome without a verdict and would make the acceptance theorem
+conditional. Both decide `Indexing.RawWellTyped`, and `check_typing_agrees`
+relates them. Declarations are found through an index of the positions of the
+declaration axioms in 4096 buckets chosen by a hash of the IRI's bytes: a
+lookup reads only the declarations in the bucket of its IRI and still compares
+spellings exactly, so colliding spellings stay apart. The invariant `IndexOK`
+(every declaration's position lies in its IRI's bucket) is all the proofs need
+from the hash.
+
+Two shortcuts skip quadratic work that cannot fail, each justified by a
+theorem rather than by testing: an ontology without property chains satisfies
+the restriction on the property hierarchy with the empty order
+(`no_chain_regular`), and an ontology without an object property assertion
+that has an anonymous endpoint satisfies the forest, multiplicity and boundary
+conditions on anonymous individuals (`no_anonymous_assertion_restriction`).
+
+`Valid` is not a release-level `ValidatedOntology`: the lexical forms of
+literals (§5.7) and facet values (§7.5) need the normative datatype map, and
+the supplied axioms stand for the whole import closure. Declaration
+consistency (§5.8.2) is an optional property and stays outside `OwlDlValid`.
+The checker follows the literal §11.1 text, under which
+`ObjectInverseOf(owl:topObjectProperty)` is not composite; only the two
+built-in properties themselves are.
+
+
 ### Functional Syntax names and prefix expansion
 
 `rowl-frontend::names` recognizes complete PNAME_NS, PN_LOCAL, PNAME_LN and

@@ -107,7 +107,7 @@ _lib.rowl_subsumed.argtypes = [_handle, _text, _size, _text, _size]
 _lib.rowl_subsumed.restype = ctypes.c_int32
 _lib.rowl_instance_of.argtypes = [_handle, _text, _size, _text, _size]
 _lib.rowl_instance_of.restype = ctypes.c_int32
-for _name in ("rowl_classes", "rowl_individuals", "rowl_classify"):
+for _name in ("rowl_classes", "rowl_individuals", "rowl_classify", "rowl_dl_violation"):
     getattr(_lib, _name).argtypes = [_handle]
     getattr(_lib, _name).restype = ctypes.c_void_p
 _lib.rowl_string_free.argtypes = [ctypes.c_void_p]
@@ -248,6 +248,15 @@ class Reasoner:
             Classified(entry["class"], entry["satisfiable"], list(entry["superclasses"]))
             for entry in entries
         ]
+
+    def dl_violation(self) -> Optional[str]:
+        """The first OWL 2 DL restriction the document violates, in words, or
+        ``None`` when the verified OWL 2 DL check accepts it. The check covers
+        keys and arities, the reserved vocabulary, declarations and typing, and
+        the global restrictions of the OWL 2 Structural Specification; the
+        lexical forms of literals, facet values and imports are not checked."""
+        found = self._json(_lib.rowl_dl_violation)
+        return None if found is None else str(found)
 
     def superclasses(self, cls: str) -> Optional[List[str]]:
         """The named superclasses of a named class, from the classification."""

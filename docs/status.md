@@ -275,6 +275,26 @@ progress. Full OWL parsing and executable reasoning are still future work.
   models, consistency and entailment under each fixed datatype map/vocabulary.
   Origins and anonymous scopes are still caller supplied; duplicate-free nested
   AST materialization, parser provenance and full DL validation remain pending.
+- M4 composed OWL 2 DL validity. `dl_validity::check_ontology` checks the
+  supplied axioms, taken as the complete axiom closure, against the OWL 2 DL
+  conditions of Structural Specification Section 3 in that order: nonempty keys
+  and structural arities, the reserved vocabulary in headers and entity
+  positions, the typing constraints with the built-in declarations, and the
+  §11.2 restrictions on `owl:topDataProperty`, datatypes, simple roles, the
+  property hierarchy and anonymous individuals. `OwlDlValid` is the
+  conjunction of the components' independent specifications; the check is
+  proved to return `Valid` exactly for it, and otherwise the first violation
+  with its component evidence and every earlier restriction proved. The typing
+  stage decides the typing predicate on exact IRI spellings without a symbol
+  limit, finding declarations through a hashed index of their positions, and
+  agrees with the symbol-indexed checker. Declaration consistency (§5.8.2)
+  is decided separately, the built-in vocabulary restrictions and punning are
+  characterized, and annotations are proved to have no logical effect on
+  models, consistency and entailment. The lexical forms of literals (§5.7),
+  facet values (§7.5) and imports are not checked. `Reasoner::dl_violation`,
+  the CLI's `validate` command, the C interface's `rowl_dl_violation` and the
+  Python `Reasoner.dl_violation()` report this verdict for a loaded document
+  in words, computed when asked; loading never rejects a document for it.
 - M3 complete Functional Syntax name recognition from bytes: prefix names,
   local names, abbreviated IRIs and node IDs use the referenced SPARQL 2008
   grammar. Actual grammar equivalence, totality, exact acceptance and malformed
@@ -1023,7 +1043,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2595 audited public theorems and 1171 audited semantic definitions. Consistency,
+- 2616 audited public theorems and 1187 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1040,10 +1060,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 519 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 538 Rust regression tests and 13 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
-  bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
+  bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
   entry), a concept table prepared once per ontology, clash detection on
   insertion, anywhere equality blocking and backjumping, the queries that count or have nominals a
@@ -1057,7 +1077,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2788-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2809-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1119,7 +1139,9 @@ external solver. Agreement with the OWL 2 map on five datatypes is specified
 under every such map; the complete normative OWL map, its other datatypes and
 facets are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
-validity, vocabulary membership, canonical structure and DL restrictions.
+validity, canonical structure and the complete import closure. The structural,
+vocabulary, typing and global DL restrictions are decided by the verified
+`dl_validity::check_ontology` on the supplied axioms.
 No ValidatedOntology or definitive OWL-query entry point exists yet.
 
 No sorry, admitted project claim or custom semantic axiom is accepted. Pinned
@@ -1138,8 +1160,9 @@ The expanded CI workflow exists locally; no hosted CI run is claimed.
    laws and canonical mapping (see `formats.md`);
    connect the proved indexed closure to document IRIs, headers, declarations,
    RDF includes, anonymous scopes and provenance.
-2. M4: finish structural/global DL
-   validation, normalization and role preprocessing, then compose the components.
+2. M4: the structural and global DL restrictions are composed into one verified
+   check (`dl_validity`); normalization and role preprocessing for reasoning
+   remain, and lexical and facet validity wait for the M5 datatype map.
 3. M5–M7: normative datatypes, SROIQ tableau and full OWL integration.
 4. M8–M9: queries, replayable evidence, operational outcomes and byte-to-answer
    composition before the full OWL 2 DL v0.1 release.

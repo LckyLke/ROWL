@@ -13,7 +13,7 @@ fn cli_checks_and_exports_a_real_graph_without_polluting_export_bytes() {
     assert!(check.status.success());
     assert!(String::from_utf8(check.stdout)
         .unwrap()
-        .contains("12 triple occurrences"));
+        .contains("15 triple occurrences"));
     let exported = Command::new(env!("CARGO_BIN_EXE_rowl"))
         .arg("export-nt")
         .arg(fixture())
@@ -25,7 +25,7 @@ fn cli_checks_and_exports_a_real_graph_without_polluting_export_bytes() {
     else {
         panic!("CLI export wasn't N-Triples")
     };
-    assert_eq!(graph.triples.len(), 12);
+    assert_eq!(graph.triples.len(), 15);
     assert!(String::from_utf8(exported.stderr)
         .unwrap()
         .contains("proofs"));

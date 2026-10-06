@@ -75,7 +75,7 @@ fn every_example_document_reads_completely() {
         ),
         (
             include_bytes!("../../../examples/maintenance-classes.ofn"),
-            12,
+            18,
         ),
         (
             include_bytes!("../../../examples/maintenance-individuals.ofn"),

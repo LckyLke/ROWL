@@ -4588,3 +4588,182 @@ the lexer and in the reader.
 
 This block adds 3 public theorems and no definitions. Totals are 2595 audited
 theorems, 1171 definitions, 519 Rust regressions and 2788 ledger obligations.
+
+## M4: OWL 2 DL validity of an axiom closure
+
+`dl_validity::check_ontology` decides whether the supplied ontology, whose
+axioms are taken as its complete axiom closure, satisfies the OWL 2 DL
+restrictions that the verified checkers cover, and otherwise returns the first
+violated one. It runs the checkers in the order of the condition lists of the
+2012 Structural Specification, Section 3: nonempty keys (§9.5,
+`keys::check_keys`) and the structural arities (`arity::check_arities`, with
+the documented duplicate-disjointness decision); the
+reserved vocabulary in the ontology and version IRIs (§3.1) and in every entity
+position (§5.1–5.6, `vocabulary::check_reserved_vocabulary`); the typing
+constraints with the built-in declarations of Table 5 (§5.8.1); and the global
+restrictions of §11.2 in the order of that section: `owl:topDataProperty`
+(`topdata::check_axioms`), datatypes with the positions of defined datatypes
+(§9.4, `datatype_restrictions::check_structural_datatypes`), simple roles
+(`roles::check_simplicity`), the property hierarchy (`role_order::check_regularity`)
+and anonymous individuals (`anonymous_restrictions::check_anonymous`). A
+violation names its restriction and carries the evidence of its component
+checker: the offending axiom, the IRI and its kind, the role or the anonymous
+individual.
+
+The typing stage, `dl_validity::check_typing`, is new. `indexing::check_ontology_typing`
+decides the same predicate on interned symbols, but its symbol table has a
+capacity, so it can end without a verdict. `check_typing` compares exact IRI
+spellings and always decides. It reads the declarations from the axioms in
+order, reports the first declaration that conflicts with the built-in role of
+its IRI or with a later declaration, and then the first use whose IRI is
+neither built in nor declared with its kind; named individuals need no
+declaration. Spellings are compared from the last byte, where the IRIs of one
+namespace usually differ. Two shortcuts skip work that cannot fail: without a
+property chain the empty order satisfies the restriction on the property
+hierarchy, and without an object property assertion that has an anonymous
+endpoint the anonymous individual graph has no edge, so only the positional
+restriction on anonymous individuals is checked.
+
+`DlValidity.lean` defines `OwlDlValid` as the conjunction of the components'
+independent specifications: `Keys.ClosureOK`, `Arity.ClosureOK`,
+`Vocabulary.VocabularyOK`, `Indexing.RawWellTyped`, `TopData.ClosureOK`,
+`DatatypeRestrictions.StructuralRestriction`, `Roles.SimpleRestriction`,
+`Roles.Regular` and `AnonymousRestrictions.Restriction`.
+`check_ontology_total_correct` proves that `check_ontology` terminates and
+returns `Valid` exactly for `OwlDlValid` ontologies, and otherwise a violation
+whose `Correct` record holds its component's evidence (for example the first
+forbidden axiom, the first conflicting declaration or a forced order pair that
+the hierarchy contradicts), the proof that every earlier restriction holds and
+the rejection of `OwlDlValid`. `check_ontology_valid_iff` is the acceptance
+equivalence. `check_typing_total_correct` and `check_typing_valid_iff` prove the
+typing stage exact against `RawWellTyped`, which `raw_well_typed_iff` rewrites
+into conflict-free declarations (`ConflictFree`) and declared uses
+(`Declared`); `check_typing_agrees` shows that whenever `check_ontology_typing`
+completes, its verdict is the same. `no_chain_regular` and
+`no_anonymous_assertion_restriction` justify the two shortcuts.
+
+The umbrella requirements of the ledger were audited against the
+specification text:
+
+- `entity.EntityTyping` (§5.8.1) is `check_typing_valid_iff`.
+- `entity.Punning` (§5.9): `typing_allows_punning` shows that the typing
+  predicate forbids on one IRI only a class with a datatype and two different
+  kinds of property, so every other reuse, such as one IRI as a class, an
+  individual and an object property, is accepted. The Direct Semantics
+  interprets these views by independent functions of the interpretation.
+- `entity.DeclarationConsistency` (§5.8.2) is not an OWL 2 DL condition: an
+  ontology may be used without consistent declarations. `check_declarations`
+  decides it on its own (`check_declarations_valid_iff` against
+  `ConsistentDeclarations`): every entity of the axioms, named individuals
+  included, is declared with its kind, explicitly or by Table 5.
+- `global.SimplePropertyClosure` is the existing `classify_non_simple_total_correct`:
+  the set of non-simple object property expressions of the closure (§11.1),
+  which `check_ontology` uses through `check_simplicity`.
+- `global.BuiltinVocabularyRestrictions`: `builtin_vocabulary_restrictions`
+  proves that every `OwlDlValid` ontology uses reserved IRIs only in their
+  built-in roles and never as ontology or version IRI, uses
+  `owl:topDataProperty` only as a SubDataPropertyOf superproperty, never puts
+  `owl:topObjectProperty` or `owl:bottomObjectProperty` where a simple object
+  property is required, and never redefines `rdfs:Literal` or a datatype of the
+  OWL 2 datatype map. No further restriction on these positions exists in the
+  2012 text; the literal and facet conditions on the built-in datatypes belong
+  to the normative datatype map below. Following the literal text of §11.1,
+  `ObjectInverseOf(owl:topObjectProperty)` is not composite.
+- `global.AxiomClosureValidation` is `check_ontology_valid_iff`, with the
+  exclusions below.
+- `annotation.NoLogicalEffect`: `stripAnnotations` removes every axiom
+  annotation, nested ones included, and every annotation axiom.
+  `strip_annotations_satisfies` and `strip_annotations_models` prove that a
+  closure and its stripped version have the same models, for every
+  reinterpretation of the anonymous individuals, and
+  `strip_annotations_model`, `strip_annotations_consistent` and
+  `strip_annotations_entails` carry this to models with a vocabulary,
+  consistency and entailment. Annotations still count for OWL 2 DL validity:
+  annotation properties need declarations, and reserved IRIs, anonymous
+  individuals and defined datatypes are restricted inside them.
+
+Not checked: the lexical forms of literals in the lexical spaces of their
+datatypes (§5.7) and facet values in the facet spaces of their datatypes
+(§7.5), which need the normative datatype map (M5); and imports, since the
+supplied axioms are taken as the complete closure, as for every component
+checker. `OwlDlValid` therefore is the OWL 2 DL condition list of Section 3
+without these two conditions and without the imported ontologies.
+
+On the generated EL ontologies loaded from N-Triples, `check_ontology` takes
+5.5 ms for 1000 classes, 0.10 s for 5000 classes and 3.4 s for 20 000 classes
+(46 023 axioms), almost all in the typing stage, whose scans grow with the
+square of the number of axioms. The anonymous restrictions alone took 3.6 s on
+the largest ontology, which has no anonymous individual; the shortcut skips
+them.
+
+This block adds 21 public theorems and 16 definitions. Totals are 2616
+audited theorems, 1187 definitions, 530 Rust regressions and 2809 ledger
+obligations.
+
+## Validating documents as OWL 2 DL
+
+`Reasoner::dl_violation` runs the verified `dl_validity::check_ontology` on the
+document's axioms when it is called and describes its verdict in words: `None`
+when the axioms satisfy every restriction the check decides, and otherwise the
+first violation, naming the restriction, the section of the Structural
+Specification and the offending IRI with its kind, role, anonymous individual
+or axiom with its position in the document. Loading never rejects a document
+for these restrictions, so the queries still answer for documents that are not
+OWL 2 DL. The CLI's `rowl validate FILE` prints `OWL 2 DL: valid` or
+`OWL 2 DL: not valid:` followed by the violation and then exits with status 1;
+it notes on standard error that imported ontologies are not read. The C
+interface has `rowl_dl_violation`, which returns the violation as JSON text,
+and the Python `Reasoner.dl_violation()` returns it as a string or `None`.
+The layer only formats the kernel's verdict and adds no checking of its own.
+
+Two examples were not OWL 2 DL: `maintenance-classes.ofn` used six classes
+without declaring them, and `maintenance.nt` used three properties without
+declaring them, so the reverse RDF mapping could not read it as an ontology.
+Both now declare them; the reader and N-Triples tests count the added axioms
+and triples. A test checks that every Functional Syntax and N-Triples example
+is OWL 2 DL, and one crafted document per restriction checks the reported
+violation through the reasoner, the CLI, the C interface and Python.
+
+Totals are 537 Rust regressions and 13 Python binding tests; the audited
+theorems, definitions and ledger obligations are unchanged.
+
+## Hashed declaration lookups in the typing stage
+
+The typing stage of `dl_validity::check_ontology` scanned every axiom for each
+use and each declaration, so its time grew with the square of the number of
+axioms. `check_typing` and `check_declarations` now first build a declaration
+index: 4096 buckets, each holding, in increasing order, the positions of the
+declaration axioms whose IRI hashes to it. The hash depends only on the bytes
+of the IRI, so a declaration of a spelling can only sit in that spelling's
+bucket. A use is declared when a declaration in its bucket has its spelling and
+kind, and a declaration conflicts when a later declaration in its bucket has
+its spelling and a forbidden kind. Spellings are still compared exactly; the
+hash only selects the candidates, and colliding spellings stay apart.
+
+The public theorems are unchanged and now prove the indexed implementation:
+`check_typing_total_correct`, `check_typing_valid_iff`, `check_typing_agrees`,
+`check_declarations_total_correct`, `check_declarations_valid_iff`,
+`check_ontology_total_correct` and `check_ontology_valid_iff`. The index
+invariant `IndexOK` says that the buckets are 4096, none is longer than the
+number of axioms, and the position of every declaration axiom lies in the
+bucket of its IRI. `declaration_index_spec` proves that the built index has
+it, `declared_indexed_spec` that a bucket lookup finds a declaration of the
+spelling and kind exactly when one of the axioms is such a declaration, and
+`later_conflict_spec` that the bucket scan after a position finds a
+conflicting kind exactly when a later declaration axiom has one. A new
+regression declares two spellings that share a bucket.
+
+On the generated EL ontologies loaded from N-Triples, `check_ontology` now
+takes 5.3 ms for 1000 classes, 9.3 ms for 5000 classes and 38 ms for 20 000
+classes (46 023 axioms), instead of 5.5 ms, 0.10 s and 3.4 s; the typing
+stage alone takes 18 ms instead of 3.6 s on the largest one, and
+`check_declarations` 16 ms instead of 2.0 s. The unchanged anonymous
+restrictions took 4 ms on the largest ontology in this build and 4.9 s in the
+previous one: their pairwise scans are quadratic in the number of axioms, and
+whether the optimizer moves the test of the first axiom out of the inner scan
+depends on the build. `check_ontology` does not depend on it, since its
+shortcut skips those scans when no object property assertion has an anonymous
+endpoint.
+
+This block adds no public theorem or definition. Totals are 2616 audited
+theorems, 1187 definitions, 538 Rust regressions and 2809 ledger obligations.

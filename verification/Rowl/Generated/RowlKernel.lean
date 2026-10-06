@@ -31474,6 +31474,2992 @@ def decimal.read_bounded
   then ok none
   else decimal.bounded_from bytes start «end» 0#usize limit
 
+/-- [rowl_kernel::roles::Role]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 15:0-18:1
+    Visibility: public -/
+structure roles.Role where
+  iri : model.Iri
+  inverse : Bool
+
+/-- [rowl_kernel::dl_validity::DlCheck]
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 58:0-132:1
+    Visibility: public -/
+@[discriminant isize]
+inductive dl_validity.DlCheck where
+| Valid : dl_validity.DlCheck
+| EmptyKey : model.AnnotatedAxiom → dl_validity.DlCheck
+| Arity : model.AnnotatedAxiom → dl_validity.DlCheck
+| ReservedOntologyIri : model.Iri → dl_validity.DlCheck
+| ReservedVersionIri : model.Iri → dl_validity.DlCheck
+| ReservedEntity : model.Iri → typing.EntityKind → dl_validity.DlCheck
+| ConflictingDeclarations :
+  model.Iri →
+  typing.EntityKind →
+  typing.EntityKind →
+  dl_validity.DlCheck
+| MissingDeclaration : model.Iri → typing.EntityKind → dl_validity.DlCheck
+| TopDataProperty : model.AnnotatedAxiom → dl_validity.DlCheck
+| MissingDatatypeDefinition : model.Iri → dl_validity.DlCheck
+| PredefinedDatatypeRedefined : model.AnnotatedAxiom → dl_validity.DlCheck
+| MultipleDatatypeDefinitions :
+  model.AnnotatedAxiom →
+  model.AnnotatedAxiom →
+  dl_validity.DlCheck
+| DatatypeCycle : model.Iri → model.Iri → dl_validity.DlCheck
+| DefinedDatatypeInOntologyAnnotation :
+  model.Annotation →
+  dl_validity.DlCheck
+| DefinedDatatypePosition : model.AnnotatedAxiom → dl_validity.DlCheck
+| NonSimpleRole : roles.Role → dl_validity.DlCheck
+| IrregularHierarchy : roles.Role → roles.Role → dl_validity.DlCheck
+| AnonymousPosition : model.AnnotatedAxiom → dl_validity.DlCheck
+| AnonymousSelfLoop : model.AnonymousIndividual → dl_validity.DlCheck
+| AnonymousCycle :
+  model.AnonymousIndividual →
+  model.AnonymousIndividual →
+  dl_validity.DlCheck
+| AnonymousMultipleAssertions :
+  model.AnnotatedAxiom →
+  model.AnnotatedAxiom →
+  dl_validity.DlCheck
+| AnonymousNoBoundaryRoot : model.AnonymousIndividual → dl_validity.DlCheck
+
+/-- [rowl_kernel::dl_validity::TypingCheck]
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 135:0-149:1
+    Visibility: public -/
+@[discriminant isize]
+inductive dl_validity.TypingCheck where
+| Valid : dl_validity.TypingCheck
+| ConflictingDeclarations :
+  model.Iri →
+  typing.EntityKind →
+  typing.EntityKind →
+  dl_validity.TypingCheck
+| MissingDeclaration :
+  model.Iri →
+  typing.EntityKind →
+  dl_validity.TypingCheck
+
+/-- [rowl_kernel::dl_validity::DeclarationCheck]
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 152:0-159:1
+    Visibility: public -/
+@[discriminant isize]
+inductive dl_validity.DeclarationCheck where
+| Consistent : dl_validity.DeclarationCheck
+| Undeclared : model.Iri → typing.EntityKind → dl_validity.DeclarationCheck
+
+/-- [rowl_kernel::dl_validity::same_kind]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 161:0-174:1 -/
+def dl_validity.same_kind
+  (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
+  match left with
+  | typing.EntityKind.Class =>
+    match right with
+    | typing.EntityKind.Class => ok true
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.Datatype =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok true
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.ObjectProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok true
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.DataProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok true
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.AnnotationProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok true
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.NamedIndividual =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok true
+
+/-- [rowl_kernel::dl_validity::forbidden]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 178:0-190:1 -/
+def dl_validity.forbidden
+  (left : typing.EntityKind) (right : typing.EntityKind) : Result Bool := do
+  match left with
+  | typing.EntityKind.Class =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok true
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.Datatype =>
+    match right with
+    | typing.EntityKind.Class => ok true
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.ObjectProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok true
+    | typing.EntityKind.AnnotationProperty => ok true
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.DataProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok true
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok true
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.AnnotationProperty =>
+    match right with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok true
+    | typing.EntityKind.DataProperty => ok true
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok false
+  | typing.EntityKind.NamedIndividual => ok false
+
+/-- [rowl_kernel::dl_validity::same_before]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 192:0-198:1 -/
+def dl_validity.same_before
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  («end» : Std.Usize) :
+  Result Bool
+  := do
+  if 0#usize < «end»
+  then
+    let i ← «end» - 1#usize
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left i
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) right
+        i
+    if i1 = i2
+    then dl_validity.same_before left right i
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::same_bytes]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 202:0-204:1
+    Visibility: public -/
+def dl_validity.same_bytes
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then let i2 := alloc.vec.Vec.len left
+       dl_validity.same_before left right i2
+  else ok false
+
+/-- [rowl_kernel::dl_validity::entity_iri]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 207:0-216:1 -/
+def dl_validity.entity_iri (entity : model.Entity) : Result model.Iri := do
+  match entity with
+  | model.Entity.Class c => ok c.iri
+  | model.Entity.Datatype d => ok d.iri
+  | model.Entity.ObjectProperty p => ok p.iri
+  | model.Entity.DataProperty p => ok p.iri
+  | model.Entity.AnnotationProperty p => ok p.iri
+  | model.Entity.NamedIndividual i => ok i.iri
+
+/-- [rowl_kernel::typing::entity_kind]:
+    Source: 'crates/rowl-kernel/src/typing.rs', lines 35:0-44:1
+    Visibility: public -/
+def typing.entity_kind (entity : model.Entity) : Result typing.EntityKind := do
+  match entity with
+  | model.Entity.Class _ => ok typing.EntityKind.Class
+  | model.Entity.Datatype _ => ok typing.EntityKind.Datatype
+  | model.Entity.ObjectProperty _ => ok typing.EntityKind.ObjectProperty
+  | model.Entity.DataProperty _ => ok typing.EntityKind.DataProperty
+  | model.Entity.AnnotationProperty _ =>
+    ok typing.EntityKind.AnnotationProperty
+  | model.Entity.NamedIndividual _ => ok typing.EntityKind.NamedIndividual
+
+/-- [rowl_kernel::dl_validity::entity_declares]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 219:0-221:1 -/
+def dl_validity.entity_declares
+  (entity : model.Entity) (iri : model.Iri) (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let ek ← typing.entity_kind entity
+  let b ← dl_validity.same_kind ek kind
+  if b
+  then
+    let i ← dl_validity.entity_iri entity
+    dl_validity.same_bytes i.spelling iri.spelling
+  else ok false
+
+/-- [rowl_kernel::dl_validity::item_declares]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 224:0-229:1 -/
+def dl_validity.item_declares
+  (item : model.AnnotatedAxiom) (iri : model.Iri) (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  match item.axiom with
+  | model.Axiom.Declaration entity =>
+    dl_validity.entity_declares entity iri kind
+  | model.Axiom.SubClassOf _ _ => ok false
+  | model.Axiom.EquivalentClasses _ => ok false
+  | model.Axiom.DisjointClasses _ => ok false
+  | model.Axiom.DisjointUnion _ _ => ok false
+  | model.Axiom.SubObjectPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentObjectProperties _ => ok false
+  | model.Axiom.DisjointObjectProperties _ => ok false
+  | model.Axiom.InverseObjectProperties _ _ => ok false
+  | model.Axiom.ObjectPropertyDomain _ _ => ok false
+  | model.Axiom.ObjectPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalObjectProperty _ => ok false
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok false
+  | model.Axiom.ReflexiveObjectProperty _ => ok false
+  | model.Axiom.IrreflexiveObjectProperty _ => ok false
+  | model.Axiom.SymmetricObjectProperty _ => ok false
+  | model.Axiom.AsymmetricObjectProperty _ => ok false
+  | model.Axiom.TransitiveObjectProperty _ => ok false
+  | model.Axiom.SubDataPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentDataProperties _ => ok false
+  | model.Axiom.DisjointDataProperties _ => ok false
+  | model.Axiom.DataPropertyDomain _ _ => ok false
+  | model.Axiom.DataPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalDataProperty _ => ok false
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey _ _ _ => ok false
+  | model.Axiom.SameIndividual _ => ok false
+  | model.Axiom.DifferentIndividuals _ => ok false
+  | model.Axiom.ClassAssertion _ _ => ok false
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.AnnotationAssertion _ _ _ => ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok false
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok false
+  | model.Axiom.AnnotationPropertyRange _ _ => ok false
+
+/-- [rowl_kernel::dl_validity::BUCKETS]
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 232:0-232:28 -/
+@[global_simps, irreducible] def dl_validity.BUCKETS : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::dl_validity::mix]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 235:0-237:1 -/
+def dl_validity.mix (hash : Std.Usize) (byte : Std.U8) : Result Std.Usize := do
+  let i ← hash % dl_validity.BUCKETS
+  let i1 ← i * 31#usize
+  let i2 ← lift (UScalar.cast .Usize byte)
+  let i3 ← i1 + i2
+  i3 % dl_validity.BUCKETS
+
+/-- [rowl_kernel::dl_validity::hash_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 239:0-245:1 -/
+def dl_validity.hash_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (hash : Std.Usize) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ← index + 1#usize
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i3 ← dl_validity.mix hash i2
+    dl_validity.hash_from bytes i1 i3
+  else ok hash
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::bucket_of]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 249:0-251:1 -/
+def dl_validity.bucket_of (iri : model.Iri) : Result Std.Usize := do
+  dl_validity.hash_from iri.spelling 0#usize 0#usize
+
+/-- [rowl_kernel::dl_validity::empty_buckets]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 253:0-260:1 -/
+def dl_validity.empty_buckets
+  (out : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < dl_validity.BUCKETS
+  then
+    let out1 ← alloc.vec.Vec.push out (alloc.vec.Vec.new Std.Usize)
+    dl_validity.empty_buckets out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::has_room]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 263:0-265:1 -/
+def dl_validity.has_room
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len buckets
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) buckets bucket
+    let i1 := alloc.vec.Vec.len v
+    ok (i1 < core.num.Usize.MAX)
+  else ok false
+
+/-- [rowl_kernel::dl_validity::record]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 268:0-273:1 -/
+def dl_validity.record
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (position : Std.Usize) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let b ← dl_validity.has_room buckets bucket
+  if b
+  then
+    let (v, index_mut_back) ←
+      alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+        (alloc.vec.Vec Std.Usize)) buckets bucket
+    let v1 ← alloc.vec.Vec.push v position
+    ok (index_mut_back v1)
+  else ok buckets
+
+/-- [rowl_kernel::dl_validity::index_item]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 275:0-280:1 -/
+def dl_validity.index_item
+  (item : model.AnnotatedAxiom) (position : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  match item.axiom with
+  | model.Axiom.Declaration entity =>
+    let i ← dl_validity.entity_iri entity
+    let i1 ← dl_validity.bucket_of i
+    dl_validity.record buckets i1 position
+  | model.Axiom.SubClassOf _ _ => ok buckets
+  | model.Axiom.EquivalentClasses _ => ok buckets
+  | model.Axiom.DisjointClasses _ => ok buckets
+  | model.Axiom.DisjointUnion _ _ => ok buckets
+  | model.Axiom.SubObjectPropertyOf _ _ => ok buckets
+  | model.Axiom.EquivalentObjectProperties _ => ok buckets
+  | model.Axiom.DisjointObjectProperties _ => ok buckets
+  | model.Axiom.InverseObjectProperties _ _ => ok buckets
+  | model.Axiom.ObjectPropertyDomain _ _ => ok buckets
+  | model.Axiom.ObjectPropertyRange _ _ => ok buckets
+  | model.Axiom.FunctionalObjectProperty _ => ok buckets
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok buckets
+  | model.Axiom.ReflexiveObjectProperty _ => ok buckets
+  | model.Axiom.IrreflexiveObjectProperty _ => ok buckets
+  | model.Axiom.SymmetricObjectProperty _ => ok buckets
+  | model.Axiom.AsymmetricObjectProperty _ => ok buckets
+  | model.Axiom.TransitiveObjectProperty _ => ok buckets
+  | model.Axiom.SubDataPropertyOf _ _ => ok buckets
+  | model.Axiom.EquivalentDataProperties _ => ok buckets
+  | model.Axiom.DisjointDataProperties _ => ok buckets
+  | model.Axiom.DataPropertyDomain _ _ => ok buckets
+  | model.Axiom.DataPropertyRange _ _ => ok buckets
+  | model.Axiom.FunctionalDataProperty _ => ok buckets
+  | model.Axiom.DatatypeDefinition _ _ => ok buckets
+  | model.Axiom.HasKey _ _ _ => ok buckets
+  | model.Axiom.SameIndividual _ => ok buckets
+  | model.Axiom.DifferentIndividuals _ => ok buckets
+  | model.Axiom.ClassAssertion _ _ => ok buckets
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok buckets
+  | model.Axiom.AnnotationAssertion _ _ _ => ok buckets
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok buckets
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok buckets
+  | model.Axiom.AnnotationPropertyRange _ _ => ok buckets
+
+/-- [rowl_kernel::dl_validity::index_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 282:0-296:1 -/
+def dl_validity.index_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (buckets : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if position < i
+  then
+    let i1 ← position + 1#usize
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms position
+    let v ← dl_validity.index_item aa position buckets
+    dl_validity.index_from axioms i1 v
+  else ok buckets
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::declaration_index]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 300:0-302:1 -/
+def dl_validity.declaration_index
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  := do
+  let v ←
+    dl_validity.empty_buckets (alloc.vec.Vec.new (alloc.vec.Vec Std.Usize))
+  dl_validity.index_from axioms 0#usize v
+
+/-- [rowl_kernel::dl_validity::position_declares]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 305:0-316:1 -/
+def dl_validity.position_declares
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if position < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms position
+    dl_validity.item_declares aa iri kind
+  else ok false
+
+/-- [rowl_kernel::dl_validity::declared_at]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 318:0-331:1 -/
+def dl_validity.declared_at
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (positions : alloc.vec.Vec Std.Usize) (iri : model.Iri)
+  (kind : typing.EntityKind) («at» : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len positions
+  if «at» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        positions «at»
+    let b ← dl_validity.position_declares axioms i1 iri kind
+    if b
+    then ok true
+    else
+      let i2 ← «at» + 1#usize
+      dl_validity.declared_at axioms positions iri kind i2
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::declared_in_bucket]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 333:0-345:1 -/
+def dl_validity.declared_in_bucket
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len index
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) index bucket
+    dl_validity.declared_at axioms v iri kind 0#usize
+  else ok false
+
+/-- [rowl_kernel::dl_validity::declared_indexed]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 349:0-356:1 -/
+def dl_validity.declared_indexed
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
+  (kind : typing.EntityKind) :
+  Result Bool
+  := do
+  let i ← dl_validity.bucket_of iri
+  dl_validity.declared_in_bucket axioms index i iri kind
+
+/-- [rowl_kernel::dl_validity::builtin_role]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 359:0-364:1 -/
+def dl_validity.builtin_role
+  (iri : model.Iri) (kind : typing.EntityKind) : Result Bool := do
+  let o ← builtins.builtin_kind iri.spelling
+  match o with
+  | none => ok false
+  | some role => dl_validity.same_kind role kind
+
+/-- [rowl_kernel::dl_validity::conflicting_role]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 367:0-373:1 -/
+def dl_validity.conflicting_role
+  (kind : typing.EntityKind) (role : typing.EntityKind) :
+  Result (Option typing.EntityKind)
+  := do
+  let b ← dl_validity.forbidden kind role
+  if b
+  then ok (some role)
+  else ok none
+
+/-- [rowl_kernel::dl_validity::builtin_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 376:0-381:1 -/
+def dl_validity.builtin_conflict
+  (iri : model.Iri) (kind : typing.EntityKind) :
+  Result (Option typing.EntityKind)
+  := do
+  let o ← builtins.builtin_kind iri.spelling
+  match o with
+  | none => ok none
+  | some role => dl_validity.conflicting_role kind role
+
+/-- [rowl_kernel::dl_validity::item_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 385:0-396:1 -/
+def dl_validity.item_conflict
+  (item : model.AnnotatedAxiom) (iri : model.Iri) (kind : typing.EntityKind) :
+  Result (Option typing.EntityKind)
+  := do
+  match item.axiom with
+  | model.Axiom.Declaration entity =>
+    let i ← dl_validity.entity_iri entity
+    let b ← dl_validity.same_bytes i.spelling iri.spelling
+    if b
+    then
+      let ek ← typing.entity_kind entity
+      dl_validity.conflicting_role kind ek
+    else ok none
+  | model.Axiom.SubClassOf _ _ => ok none
+  | model.Axiom.EquivalentClasses _ => ok none
+  | model.Axiom.DisjointClasses _ => ok none
+  | model.Axiom.DisjointUnion _ _ => ok none
+  | model.Axiom.SubObjectPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentObjectProperties _ => ok none
+  | model.Axiom.DisjointObjectProperties _ => ok none
+  | model.Axiom.InverseObjectProperties _ _ => ok none
+  | model.Axiom.ObjectPropertyDomain _ _ => ok none
+  | model.Axiom.ObjectPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalObjectProperty _ => ok none
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok none
+  | model.Axiom.ReflexiveObjectProperty _ => ok none
+  | model.Axiom.IrreflexiveObjectProperty _ => ok none
+  | model.Axiom.SymmetricObjectProperty _ => ok none
+  | model.Axiom.AsymmetricObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty _ => ok none
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual _ => ok none
+  | model.Axiom.DifferentIndividuals _ => ok none
+  | model.Axiom.ClassAssertion _ _ => ok none
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok none
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok none
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok none
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok none
+  | model.Axiom.AnnotationPropertyRange _ _ => ok none
+
+/-- [rowl_kernel::dl_validity::position_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 400:0-416:1 -/
+def dl_validity.position_conflict
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) (after : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  if after < position
+  then
+    let i := alloc.vec.Vec.len axioms
+    if position < i
+    then
+      let aa ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.AnnotatedAxiom) axioms position
+      dl_validity.item_conflict aa iri kind
+    else ok none
+  else ok none
+
+/-- [rowl_kernel::dl_validity::conflict_at]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 418:0-434:1 -/
+def dl_validity.conflict_at
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (positions : alloc.vec.Vec Std.Usize) (iri : model.Iri)
+  (kind : typing.EntityKind) (after : Std.Usize) («at» : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i := alloc.vec.Vec.len positions
+  if «at» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        positions «at»
+    let o ← dl_validity.position_conflict axioms i1 iri kind after
+    match o with
+    | none =>
+      let i2 ← «at» + 1#usize
+      dl_validity.conflict_at axioms positions iri kind after i2
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::conflict_in_bucket]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 436:0-449:1 -/
+def dl_validity.conflict_in_bucket
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (bucket : Std.Usize)
+  (iri : model.Iri) (kind : typing.EntityKind) (after : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i := alloc.vec.Vec.len index
+  if bucket < i
+  then
+    let v ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice (alloc.vec.Vec
+        Std.Usize)) index bucket
+    dl_validity.conflict_at axioms v iri kind after 0#usize
+  else ok none
+
+/-- [rowl_kernel::dl_validity::later_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 453:0-461:1 -/
+def dl_validity.later_conflict
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
+  (kind : typing.EntityKind) (after : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i ← dl_validity.bucket_of iri
+  dl_validity.conflict_in_bucket axioms index i iri kind after
+
+/-- [rowl_kernel::dl_validity::entity_conflict]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 465:0-481:1 -/
+def dl_validity.entity_conflict
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (entity : model.Entity)
+  (position : Std.Usize) :
+  Result (Option typing.EntityKind)
+  := do
+  let i ← dl_validity.entity_iri entity
+  let ek ← typing.entity_kind entity
+  let o ← dl_validity.builtin_conflict i ek
+  match o with
+  | none => dl_validity.later_conflict axioms index i ek position
+  | some _ => ok o
+
+/-- [rowl_kernel::dl_validity::item_conflicts]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 485:0-502:1 -/
+def dl_validity.item_conflicts
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (item : model.AnnotatedAxiom) (position : Std.Usize) :
+  Result dl_validity.TypingCheck
+  := do
+  match item.axiom with
+  | model.Axiom.Declaration entity =>
+    let o ← dl_validity.entity_conflict axioms index entity position
+    match o with
+    | none => ok dl_validity.TypingCheck.Valid
+    | some other =>
+      let i ← dl_validity.entity_iri entity
+      let ek ← typing.entity_kind entity
+      ok (dl_validity.TypingCheck.ConflictingDeclarations i ek other)
+  | model.Axiom.SubClassOf _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.EquivalentClasses _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DisjointClasses _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DisjointUnion _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.SubObjectPropertyOf _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.EquivalentObjectProperties _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DisjointObjectProperties _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.InverseObjectProperties _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.ObjectPropertyDomain _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.ObjectPropertyRange _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.FunctionalObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.InverseFunctionalObjectProperty _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.ReflexiveObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.IrreflexiveObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.SymmetricObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.AsymmetricObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.TransitiveObjectProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.SubDataPropertyOf _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.EquivalentDataProperties _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DisjointDataProperties _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DataPropertyDomain _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DataPropertyRange _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.FunctionalDataProperty _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DatatypeDefinition _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.HasKey _ _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.SameIndividual _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DifferentIndividuals _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.ClassAssertion _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.AnnotationAssertion _ _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok dl_validity.TypingCheck.Valid
+  | model.Axiom.AnnotationPropertyDomain _ _ =>
+    ok dl_validity.TypingCheck.Valid
+  | model.Axiom.AnnotationPropertyRange _ _ => ok dl_validity.TypingCheck.Valid
+
+/-- [rowl_kernel::dl_validity::conflict_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 507:0-520:1 -/
+def dl_validity.conflict_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (position : Std.Usize) :
+  Result dl_validity.TypingCheck
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if position < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms position
+    let tc ← dl_validity.item_conflicts axioms index aa position
+    match tc with
+    | dl_validity.TypingCheck.Valid =>
+      let i1 ← position + 1#usize
+      dl_validity.conflict_from axioms index i1
+    | dl_validity.TypingCheck.ConflictingDeclarations _ _ _ => ok tc
+    | dl_validity.TypingCheck.MissingDeclaration _ _ => ok tc
+  else ok dl_validity.TypingCheck.Valid
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::exempt]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 524:0-526:1 -/
+def dl_validity.exempt
+  (kind : typing.EntityKind) (strict : Bool) : Result Bool := do
+  if strict
+  then ok false
+  else
+    match kind with
+    | typing.EntityKind.Class => ok false
+    | typing.EntityKind.Datatype => ok false
+    | typing.EntityKind.ObjectProperty => ok false
+    | typing.EntityKind.DataProperty => ok false
+    | typing.EntityKind.AnnotationProperty => ok false
+    | typing.EntityKind.NamedIndividual => ok true
+
+/-- [rowl_kernel::dl_validity::use_declared]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 530:0-538:1 -/
+def dl_validity.use_declared
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize)) (iri : model.Iri)
+  (kind : typing.EntityKind) (strict : Bool) :
+  Result Bool
+  := do
+  let b ← dl_validity.exempt kind strict
+  if b
+  then ok true
+  else
+    let b1 ← dl_validity.builtin_role iri kind
+    if b1
+    then ok true
+    else dl_validity.declared_indexed axioms index iri kind
+
+/-- [rowl_kernel::dl_validity::undeclared_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 543:0-559:1 -/
+def dl_validity.undeclared_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) (strict : Bool) :
+  Result (Option (model.Iri × typing.EntityKind))
+  := do
+  match uses with
+  | collection.EntityUses.Empty => ok none
+  | collection.EntityUses.Entry iri kind next =>
+    let b ← dl_validity.use_declared axioms index iri kind strict
+    if b
+    then dl_validity.undeclared_from axioms index next strict
+    else ok (some (iri, kind))
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::typing_with]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 561:0-573:1 -/
+def dl_validity.typing_with
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) :
+  Result dl_validity.TypingCheck
+  := do
+  let tc ← dl_validity.conflict_from axioms index 0#usize
+  match tc with
+  | dl_validity.TypingCheck.Valid =>
+    let o ← dl_validity.undeclared_from axioms index uses false
+    match o with
+    | none => ok dl_validity.TypingCheck.Valid
+    | some p =>
+      let (iri, kind) := p
+      ok (dl_validity.TypingCheck.MissingDeclaration iri kind)
+  | dl_validity.TypingCheck.ConflictingDeclarations _ _ _ => ok tc
+  | dl_validity.TypingCheck.MissingDeclaration _ _ => ok tc
+
+/-- [rowl_kernel::dl_validity::check_typing]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 580:0-586:1
+    Visibility: public -/
+def dl_validity.check_typing
+  (ontology : model.RawOntology) : Result dl_validity.TypingCheck := do
+  let v ← dl_validity.declaration_index ontology.axioms
+  let ce ← collection.axiom_closure_entities ontology
+  dl_validity.typing_with ontology.axioms v ce.uses
+
+/-- [rowl_kernel::dl_validity::declarations_with]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 588:0-597:1 -/
+def dl_validity.declarations_with
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : alloc.vec.Vec (alloc.vec.Vec Std.Usize))
+  (uses : collection.EntityUses) :
+  Result dl_validity.DeclarationCheck
+  := do
+  let o ← dl_validity.undeclared_from axioms index uses true
+  match o with
+  | none => ok dl_validity.DeclarationCheck.Consistent
+  | some p =>
+    let (iri, kind) := p
+    ok (dl_validity.DeclarationCheck.Undeclared iri kind)
+
+/-- [rowl_kernel::dl_validity::check_declarations]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 602:0-608:1
+    Visibility: public -/
+def dl_validity.check_declarations
+  (ontology : model.RawOntology) : Result dl_validity.DeclarationCheck := do
+  let v ← dl_validity.declaration_index ontology.axioms
+  let ce ← collection.axiom_closure_entities ontology
+  dl_validity.declarations_with ontology.axioms v ce.uses
+
+/-- [rowl_kernel::dl_validity::is_chain]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 611:0-616:1 -/
+def dl_validity.is_chain (item : model.AnnotatedAxiom) : Result Bool := do
+  match item.axiom with
+  | model.Axiom.Declaration _ => ok false
+  | model.Axiom.SubClassOf _ _ => ok false
+  | model.Axiom.EquivalentClasses _ => ok false
+  | model.Axiom.DisjointClasses _ => ok false
+  | model.Axiom.DisjointUnion _ _ => ok false
+  | model.Axiom.SubObjectPropertyOf sope _ =>
+    match sope with
+    | model.SubObjectPropertyExpression.Single _ => ok false
+    | model.SubObjectPropertyExpression.Chain _ => ok true
+  | model.Axiom.EquivalentObjectProperties _ => ok false
+  | model.Axiom.DisjointObjectProperties _ => ok false
+  | model.Axiom.InverseObjectProperties _ _ => ok false
+  | model.Axiom.ObjectPropertyDomain _ _ => ok false
+  | model.Axiom.ObjectPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalObjectProperty _ => ok false
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok false
+  | model.Axiom.ReflexiveObjectProperty _ => ok false
+  | model.Axiom.IrreflexiveObjectProperty _ => ok false
+  | model.Axiom.SymmetricObjectProperty _ => ok false
+  | model.Axiom.AsymmetricObjectProperty _ => ok false
+  | model.Axiom.TransitiveObjectProperty _ => ok false
+  | model.Axiom.SubDataPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentDataProperties _ => ok false
+  | model.Axiom.DisjointDataProperties _ => ok false
+  | model.Axiom.DataPropertyDomain _ _ => ok false
+  | model.Axiom.DataPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalDataProperty _ => ok false
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey _ _ _ => ok false
+  | model.Axiom.SameIndividual _ => ok false
+  | model.Axiom.DifferentIndividuals _ => ok false
+  | model.Axiom.ClassAssertion _ _ => ok false
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.AnnotationAssertion _ _ _ => ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok false
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok false
+  | model.Axiom.AnnotationPropertyRange _ _ => ok false
+
+/-- [rowl_kernel::dl_validity::chain_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 618:0-624:1 -/
+def dl_validity.chain_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms index
+    let b ← dl_validity.is_chain aa
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         dl_validity.chain_from axioms i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::has_chain]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 628:0-630:1
+    Visibility: public -/
+def dl_validity.has_chain
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) : Result Bool := do
+  dl_validity.chain_from axioms 0#usize
+
+/-- [rowl_kernel::dl_validity::anonymous_assertion]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 633:0-639:1 -/
+def dl_validity.anonymous_assertion
+  (item : model.AnnotatedAxiom) : Result Bool := do
+  match item.axiom with
+  | model.Axiom.Declaration _ => ok false
+  | model.Axiom.SubClassOf _ _ => ok false
+  | model.Axiom.EquivalentClasses _ => ok false
+  | model.Axiom.DisjointClasses _ => ok false
+  | model.Axiom.DisjointUnion _ _ => ok false
+  | model.Axiom.SubObjectPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentObjectProperties _ => ok false
+  | model.Axiom.DisjointObjectProperties _ => ok false
+  | model.Axiom.InverseObjectProperties _ _ => ok false
+  | model.Axiom.ObjectPropertyDomain _ _ => ok false
+  | model.Axiom.ObjectPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalObjectProperty _ => ok false
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok false
+  | model.Axiom.ReflexiveObjectProperty _ => ok false
+  | model.Axiom.IrreflexiveObjectProperty _ => ok false
+  | model.Axiom.SymmetricObjectProperty _ => ok false
+  | model.Axiom.AsymmetricObjectProperty _ => ok false
+  | model.Axiom.TransitiveObjectProperty _ => ok false
+  | model.Axiom.SubDataPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentDataProperties _ => ok false
+  | model.Axiom.DisjointDataProperties _ => ok false
+  | model.Axiom.DataPropertyDomain _ _ => ok false
+  | model.Axiom.DataPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalDataProperty _ => ok false
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey _ _ _ => ok false
+  | model.Axiom.SameIndividual _ => ok false
+  | model.Axiom.DifferentIndividuals _ => ok false
+  | model.Axiom.ClassAssertion _ _ => ok false
+  | model.Axiom.ObjectPropertyAssertion _ i i1 =>
+    match i with
+    | model.Individual.Named _ =>
+      match i1 with
+      | model.Individual.Named _ => ok false
+      | model.Individual.Anonymous _ => ok true
+    | model.Individual.Anonymous _ => ok true
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.AnnotationAssertion _ _ _ => ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok false
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok false
+  | model.Axiom.AnnotationPropertyRange _ _ => ok false
+
+/-- [rowl_kernel::dl_validity::anonymous_from]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 641:0-647:1 -/
+def dl_validity.anonymous_from
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len axioms
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) axioms index
+    let b ← dl_validity.anonymous_assertion aa
+    if b
+    then ok true
+    else let i1 ← index + 1#usize
+         dl_validity.anonymous_from axioms i1
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::has_anonymous_assertion]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 653:0-655:1
+    Visibility: public -/
+def dl_validity.has_anonymous_assertion
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) : Result Bool := do
+  dl_validity.anonymous_from axioms 0#usize
+
+/-- [rowl_kernel::dl_validity::anonymous_graph_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 657:0-668:1 -/
+def dl_validity.anonymous_graph_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let ac ← anonymous_restrictions.check_anonymous ontology.axioms
+  match ac with
+  | anonymous_restrictions.AnonymousCheck.Allowed =>
+    ok dl_validity.DlCheck.Valid
+  | anonymous_restrictions.AnonymousCheck.ForbiddenPosition item =>
+    ok (dl_validity.DlCheck.AnonymousPosition item)
+  | anonymous_restrictions.AnonymousCheck.SelfLoop value =>
+    ok (dl_validity.DlCheck.AnonymousSelfLoop value)
+  | anonymous_restrictions.AnonymousCheck.Cycle left right =>
+    ok (dl_validity.DlCheck.AnonymousCycle left right)
+  | anonymous_restrictions.AnonymousCheck.MultipleAssertions first second =>
+    ok (dl_validity.DlCheck.AnonymousMultipleAssertions first second)
+  | anonymous_restrictions.AnonymousCheck.NoBoundaryRoot value =>
+    ok (dl_validity.DlCheck.AnonymousNoBoundaryRoot value)
+
+/-- [rowl_kernel::dl_validity::anonymous_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 670:0-679:1 -/
+def dl_validity.anonymous_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let b ← dl_validity.has_anonymous_assertion ontology.axioms
+  if b
+  then dl_validity.anonymous_graph_stage ontology
+  else
+    let o ← anonymous.check_positions ontology.axioms
+    match o with
+    | none => ok dl_validity.DlCheck.Valid
+    | some item => ok (dl_validity.DlCheck.AnonymousPosition item)
+
+/-- [rowl_kernel::roles::Edges]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 26:0-33:1
+    Visibility: public -/
+@[discriminant isize]
+inductive roles.Edges where
+| Empty : roles.Edges
+| Entry : roles.Role → roles.Role → roles.Edges → roles.Edges
+
+/-- [rowl_kernel::roles::same_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 431:0-434:1
+    Visibility: public -/
+def roles.same_role
+  (left : roles.Role) (right : roles.Role) : Result Bool := do
+  if left.inverse = right.inverse
+  then symbols.same_spelling left.iri.spelling right.iri.spelling
+  else ok false
+
+/-- [rowl_kernel::roles::Roles]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 19:0-25:1
+    Visibility: public -/
+@[discriminant isize]
+inductive roles.Roles where
+| Empty : roles.Roles
+| Entry : roles.Role → roles.Roles → roles.Roles
+
+/-- [rowl_kernel::roles::successors]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 477:0-509:1 -/
+def roles.successors
+  (edges : roles.Edges) (source : roles.Role) :
+  Result (roles.Roles × roles.Edges)
+  := do
+  match edges with
+  | roles.Edges.Empty => ok (roles.Roles.Empty, roles.Edges.Empty)
+  | roles.Edges.Entry r r1 next =>
+    let (tail, restored) ← roles.successors next source
+    let b ← roles.same_role r source
+    if b
+    then ok (roles.Roles.Entry r1 tail, roles.Edges.Entry r r1 restored)
+    else ok (tail, roles.Edges.Entry r r1 restored)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::TakenRole]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 425:0-428:1 -/
+@[discriminant isize]
+inductive roles.TakenRole where
+| Missing : roles.TakenRole
+| Found : roles.Roles → roles.TakenRole
+
+/-- [rowl_kernel::roles::take_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 456:0-475:1 -/
+def roles.take_role
+  (values : roles.Roles) (sought : roles.Role) : Result roles.TakenRole := do
+  match values with
+  | roles.Roles.Empty => ok roles.TakenRole.Missing
+  | roles.Roles.Entry r next =>
+    let b ← roles.same_role r sought
+    if b
+    then ok (roles.TakenRole.Found next)
+    else
+      let tr ← roles.take_role next sought
+      match tr with
+      | roles.TakenRole.Missing => ok roles.TakenRole.Missing
+      | roles.TakenRole.Found remaining =>
+        ok (roles.TakenRole.Found (roles.Roles.Entry r remaining))
+partial_fixpoint
+
+/-- [rowl_kernel::roles::contains_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 436:0-454:1 -/
+def roles.contains_role
+  (values : roles.Roles) (sought : roles.Role) :
+  Result (Bool × roles.Roles)
+  := do
+  match values with
+  | roles.Roles.Empty => ok (false, roles.Roles.Empty)
+  | roles.Roles.Entry r next =>
+    let b ← roles.same_role r sought
+    if b
+    then ok (true, values)
+    else
+      let (found, tail) ← roles.contains_role next sought
+      ok (found, roles.Roles.Entry r tail)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::RoleClosure]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 420:0-423:1
+    Visibility: public -/
+@[discriminant isize]
+inductive roles.RoleClosure where
+| Complete : roles.Roles → roles.RoleClosure
+| MissingNode : roles.Role → roles.RoleClosure
+
+/-- [rowl_kernel::roles::roles_append]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 75:0-83:1 -/
+def roles.roles_append
+  (left : roles.Roles) (right : roles.Roles) : Result roles.Roles := do
+  match left with
+  | roles.Roles.Empty => ok right
+  | roles.Roles.Entry r next =>
+    let r1 ← roles.roles_append next right
+    ok (roles.Roles.Entry r r1)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::discover_roles]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 511:0-539:1 -/
+def roles.discover_roles
+  (pending : roles.Roles) (available : roles.Roles) (resolved : roles.Roles)
+  (edges : roles.Edges) :
+  Result roles.RoleClosure
+  := do
+  match pending with
+  | roles.Roles.Empty => ok (roles.RoleClosure.Complete resolved)
+  | roles.Roles.Entry r next =>
+    let (seen, resolved1) ← roles.contains_role resolved r
+    if seen
+    then roles.discover_roles next available resolved1 edges
+    else
+      let tr ← roles.take_role available r
+      match tr with
+      | roles.TakenRole.Missing => ok (roles.RoleClosure.MissingNode r)
+      | roles.TakenRole.Found remaining =>
+        let (neighbors, edges1) ← roles.successors edges r
+        let pending1 ← roles.roles_append neighbors next
+        roles.discover_roles pending1 remaining (roles.Roles.Entry r resolved1)
+          edges1
+partial_fixpoint
+
+/-- [rowl_kernel::roles::non_simple_closure]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 544:0-550:1
+    Visibility: public -/
+def roles.non_simple_closure
+  (nodes : roles.Roles) (roots : roles.Roles) (edges : roles.Edges) :
+  Result roles.RoleClosure
+  := do
+  roles.discover_roles roots nodes roles.Roles.Empty edges
+
+/-- [rowl_kernel::roles::Chains]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 34:0-41:1
+    Visibility: public -/
+@[discriminant isize]
+inductive roles.Chains where
+| Empty : roles.Chains
+| Entry :
+  model.AtLeastTwo model.ObjectPropertyExpression →
+  model.ObjectPropertyExpression →
+  roles.Chains →
+  roles.Chains
+
+/-- [rowl_kernel::roles::chains_append]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 94:0-103:1 -/
+def roles.chains_append
+  (left : roles.Chains) (right : roles.Chains) : Result roles.Chains := do
+  match left with
+  | roles.Chains.Empty => ok right
+  | roles.Chains.Entry chain sup next =>
+    let c ← roles.chains_append next right
+    ok (roles.Chains.Entry chain sup c)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::edges_append]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 84:0-93:1 -/
+def roles.edges_append
+  (left : roles.Edges) (right : roles.Edges) : Result roles.Edges := do
+  match left with
+  | roles.Edges.Empty => ok right
+  | roles.Edges.Entry r r1 next =>
+    let e ← roles.edges_append next right
+    ok (roles.Edges.Entry r r1 e)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::RoleFacts]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 42:0-48:1
+    Visibility: public -/
+structure roles.RoleFacts where
+  nodes : roles.Roles
+  edges : roles.Edges
+  composite : roles.Roles
+  simple_required : roles.Roles
+  chains : roles.Chains
+
+/-- [rowl_kernel::roles::append_facts]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 390:0-398:1 -/
+def roles.append_facts
+  (left : roles.RoleFacts) (right : roles.RoleFacts) :
+  Result roles.RoleFacts
+  := do
+  let r ← roles.roles_append left.nodes right.nodes
+  let e ← roles.edges_append left.edges right.edges
+  let r1 ← roles.roles_append left.composite right.composite
+  let r2 ← roles.roles_append left.simple_required right.simple_required
+  let c ← roles.chains_append left.chains right.chains
+  ok
+    {
+      nodes := r,
+      edges := e,
+      composite := r1,
+      simple_required := r2,
+      chains := c
+    }
+
+/-- [rowl_kernel::roles::expression_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 51:0-62:1
+    Visibility: public -/
+def roles.expression_role
+  (expression : model.ObjectPropertyExpression) : Result roles.Role := do
+  match expression with
+  | model.ObjectPropertyExpression.Property p =>
+    ok { iri := p.iri, inverse := false }
+  | model.ObjectPropertyExpression.Inverse p =>
+    ok { iri := p.iri, inverse := true }
+
+mutual
+
+/-- [rowl_kernel::roles::classes_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 250:0-259:1 -/
+def roles.classes_from
+  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result roles.Roles
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let r ← roles.class_requirements ce
+    let i1 ← index + 1#usize
+    let r1 ← roles.classes_from values i1
+    roles.roles_append r r1
+  else ok roles.Roles.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::roles::optional_class]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 260:0-265:1 -/
+def roles.optional_class
+  (value : Option model.ClassExpression) : Result roles.Roles := do
+  match value with
+  | none => ok roles.Roles.Empty
+  | some value1 => roles.class_requirements value1
+partial_fixpoint
+
+/-- [rowl_kernel::roles::class_requirements]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 269:0-295:1
+    Visibility: public -/
+def roles.class_requirements
+  (expression : model.ClassExpression) : Result roles.Roles := do
+  match expression with
+  | model.ClassExpression.Class _ => ok roles.Roles.Empty
+  | model.ClassExpression.ObjectIntersectionOf values =>
+    let r ← roles.class_requirements values.first
+    let r1 ← roles.class_requirements values.second
+    let r2 ← roles.classes_from values.rest 0#usize
+    let r3 ← roles.roles_append r1 r2
+    roles.roles_append r r3
+  | model.ClassExpression.ObjectUnionOf values =>
+    let r ← roles.class_requirements values.first
+    let r1 ← roles.class_requirements values.second
+    let r2 ← roles.classes_from values.rest 0#usize
+    let r3 ← roles.roles_append r1 r2
+    roles.roles_append r r3
+  | model.ClassExpression.ObjectComplementOf inner =>
+    roles.class_requirements inner
+  | model.ClassExpression.ObjectOneOf _ => ok roles.Roles.Empty
+  | model.ClassExpression.ObjectSomeValuesFrom _ inner =>
+    roles.class_requirements inner
+  | model.ClassExpression.ObjectAllValuesFrom _ inner =>
+    roles.class_requirements inner
+  | model.ClassExpression.ObjectHasValue _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.ObjectHasSelf property =>
+    let r ← roles.expression_role property
+    ok (roles.Roles.Entry r roles.Roles.Empty)
+  | model.ClassExpression.ObjectMinCardinality _ property filler =>
+    let r ← roles.expression_role property
+    let r1 ← roles.optional_class filler
+    ok (roles.Roles.Entry r r1)
+  | model.ClassExpression.ObjectMaxCardinality _ property filler =>
+    let r ← roles.expression_role property
+    let r1 ← roles.optional_class filler
+    ok (roles.Roles.Entry r r1)
+  | model.ClassExpression.ObjectExactCardinality _ property filler =>
+    let r ← roles.expression_role property
+    let r1 ← roles.optional_class filler
+    ok (roles.Roles.Entry r r1)
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.DataHasValue _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok roles.Roles.Empty
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok roles.Roles.Empty
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::roles::property_roles_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 192:0-201:1 -/
+def roles.property_roles_from
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result roles.Roles
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let r ← roles.expression_role ope
+    let i1 ← index + 1#usize
+    let r1 ← roles.property_roles_from values i1
+    ok (roles.Roles.Entry r r1)
+  else ok roles.Roles.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::roles::property_roles]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 202:0-210:1 -/
+def roles.property_roles
+  (values : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result roles.Roles
+  := do
+  let r ← roles.expression_role values.first
+  let r1 ← roles.expression_role values.second
+  let r2 ← roles.property_roles_from values.rest 0#usize
+  ok (roles.Roles.Entry r (roles.Roles.Entry r1 r2))
+
+/-- [rowl_kernel::roles::axiom_requirements]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 296:0-323:1 -/
+def roles.axiom_requirements
+  («axiom» : model.Axiom) : Result roles.Roles := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok roles.Roles.Empty
+  | model.Axiom.SubClassOf a b =>
+    let r ← roles.class_requirements a
+    let r1 ← roles.class_requirements b
+    roles.roles_append r r1
+  | model.Axiom.EquivalentClasses values =>
+    let r ← roles.class_requirements values.first
+    let r1 ← roles.class_requirements values.second
+    let r2 ← roles.classes_from values.rest 0#usize
+    let r3 ← roles.roles_append r1 r2
+    roles.roles_append r r3
+  | model.Axiom.DisjointClasses values =>
+    let r ← roles.class_requirements values.first
+    let r1 ← roles.class_requirements values.second
+    let r2 ← roles.classes_from values.rest 0#usize
+    let r3 ← roles.roles_append r1 r2
+    roles.roles_append r r3
+  | model.Axiom.DisjointUnion _ values =>
+    let r ← roles.class_requirements values.first
+    let r1 ← roles.class_requirements values.second
+    let r2 ← roles.classes_from values.rest 0#usize
+    let r3 ← roles.roles_append r1 r2
+    roles.roles_append r r3
+  | model.Axiom.SubObjectPropertyOf _ _ => ok roles.Roles.Empty
+  | model.Axiom.EquivalentObjectProperties _ => ok roles.Roles.Empty
+  | model.Axiom.DisjointObjectProperties values => roles.property_roles values
+  | model.Axiom.InverseObjectProperties _ _ => ok roles.Roles.Empty
+  | model.Axiom.ObjectPropertyDomain _ «class» =>
+    roles.class_requirements «class»
+  | model.Axiom.ObjectPropertyRange _ «class» =>
+    roles.class_requirements «class»
+  | model.Axiom.FunctionalObjectProperty property =>
+    let r ← roles.expression_role property
+    ok (roles.Roles.Entry r roles.Roles.Empty)
+  | model.Axiom.InverseFunctionalObjectProperty property =>
+    let r ← roles.expression_role property
+    ok (roles.Roles.Entry r roles.Roles.Empty)
+  | model.Axiom.ReflexiveObjectProperty _ => ok roles.Roles.Empty
+  | model.Axiom.IrreflexiveObjectProperty property =>
+    let r ← roles.expression_role property
+    ok (roles.Roles.Entry r roles.Roles.Empty)
+  | model.Axiom.SymmetricObjectProperty _ => ok roles.Roles.Empty
+  | model.Axiom.AsymmetricObjectProperty property =>
+    let r ← roles.expression_role property
+    ok (roles.Roles.Entry r roles.Roles.Empty)
+  | model.Axiom.TransitiveObjectProperty _ => ok roles.Roles.Empty
+  | model.Axiom.SubDataPropertyOf _ _ => ok roles.Roles.Empty
+  | model.Axiom.EquivalentDataProperties _ => ok roles.Roles.Empty
+  | model.Axiom.DisjointDataProperties _ => ok roles.Roles.Empty
+  | model.Axiom.DataPropertyDomain _ «class» =>
+    roles.class_requirements «class»
+  | model.Axiom.DataPropertyRange _ _ => ok roles.Roles.Empty
+  | model.Axiom.FunctionalDataProperty _ => ok roles.Roles.Empty
+  | model.Axiom.DatatypeDefinition _ _ => ok roles.Roles.Empty
+  | model.Axiom.HasKey «class» _ _ => roles.class_requirements «class»
+  | model.Axiom.SameIndividual _ => ok roles.Roles.Empty
+  | model.Axiom.DifferentIndividuals _ => ok roles.Roles.Empty
+  | model.Axiom.ClassAssertion «class» _ =>
+    roles.class_requirements «class»
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok roles.Roles.Empty
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok roles.Roles.Empty
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok roles.Roles.Empty
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok roles.Roles.Empty
+  | model.Axiom.AnnotationAssertion _ _ _ => ok roles.Roles.Empty
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok roles.Roles.Empty
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok roles.Roles.Empty
+  | model.Axiom.AnnotationPropertyRange _ _ => ok roles.Roles.Empty
+
+/-- [rowl_kernel::roles::inverse_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 69:0-74:1
+    Visibility: public -/
+def roles.inverse_role (role : roles.Role) : Result roles.Role := do
+  ok { role with inverse := (¬ role.inverse) }
+
+/-- [rowl_kernel::roles::copy_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 63:0-68:1 -/
+def roles.copy_role (role : roles.Role) : Result roles.Role := do
+  ok role
+
+/-- [rowl_kernel::roles::edge_pair]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 114:0-126:1 -/
+def roles.edge_pair
+  (sub : roles.Role) (sup : roles.Role) : Result roles.Edges := do
+  let r ← roles.copy_role sub
+  let inverse_sub ← roles.inverse_role r
+  let r1 ← roles.copy_role sup
+  let inverse_sup ← roles.inverse_role r1
+  ok (roles.Edges.Entry sub sup (roles.Edges.Entry inverse_sub inverse_sup
+    roles.Edges.Empty))
+
+/-- [rowl_kernel::roles::both_edges]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 127:0-130:1 -/
+def roles.both_edges
+  (left : roles.Role) (right : roles.Role) : Result roles.Edges := do
+  let r ← roles.copy_role right
+  let r1 ← roles.copy_role left
+  let backward ← roles.edge_pair r r1
+  let e ← roles.edge_pair left right
+  roles.edges_append e backward
+
+/-- [rowl_kernel::roles::equivalent_rest]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 211:0-224:1 -/
+def roles.equivalent_rest
+  (first : model.ObjectPropertyExpression)
+  (rest : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result roles.Edges
+  := do
+  let i := alloc.vec.Vec.len rest
+  if index < i
+  then
+    let r ← roles.expression_role first
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) rest index
+    let r1 ← roles.expression_role ope
+    let e ← roles.both_edges r r1
+    let i1 ← index + 1#usize
+    let e1 ← roles.equivalent_rest first rest i1
+    roles.edges_append e e1
+  else ok roles.Edges.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::roles::equivalent_pairs_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 225:0-234:1 -/
+def roles.equivalent_pairs_from
+  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result roles.Edges
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) values index
+    let i1 ← index + 1#usize
+    let e ← roles.equivalent_rest ope values i1
+    let e1 ← roles.equivalent_pairs_from values i1
+    roles.edges_append e e1
+  else ok roles.Edges.Empty
+partial_fixpoint
+
+/-- [rowl_kernel::roles::equivalent_edges]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 235:0-249:1 -/
+def roles.equivalent_edges
+  (values : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result roles.Edges
+  := do
+  let r ← roles.expression_role values.first
+  let r1 ← roles.expression_role values.second
+  let e ← roles.both_edges r r1
+  let e1 ← roles.equivalent_rest values.first values.rest 0#usize
+  let e2 ← roles.equivalent_rest values.second values.rest 0#usize
+  let e3 ← roles.equivalent_pairs_from values.rest 0#usize
+  let e4 ← roles.edges_append e2 e3
+  let e5 ← roles.edges_append e1 e4
+  roles.edges_append e e5
+
+/-- [rowl_kernel::roles::same_pattern_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 131:0-137:1 -/
+def roles.same_pattern_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         roles.same_pattern_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::roles::same_pattern]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 138:0-140:1 -/
+def roles.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then roles.same_pattern_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::roles::builtin_composite]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 141:0-149:1 -/
+def roles.builtin_composite (iri : model.Iri) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
+        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
+        121#u8
+        ]))
+  let b ← roles.same_pattern iri.spelling s
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 50#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8,
+          79#u8, 98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8,
+          112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+          ]))
+    roles.same_pattern iri.spelling s1
+
+/-- [rowl_kernel::roles::composites_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 168:0-191:1 -/
+def roles.composites_from
+  (uses : collection.EntityUses) : Result roles.Roles := do
+  match uses with
+  | collection.EntityUses.Empty => ok roles.Roles.Empty
+  | collection.EntityUses.Entry iri kind next =>
+    let tail ← roles.composites_from next
+    match kind with
+    | typing.EntityKind.Class => ok tail
+    | typing.EntityKind.Datatype => ok tail
+    | typing.EntityKind.ObjectProperty =>
+      let b ← roles.builtin_composite iri
+      if b
+      then ok (roles.Roles.Entry { iri, inverse := false } tail)
+      else ok tail
+    | typing.EntityKind.DataProperty => ok tail
+    | typing.EntityKind.AnnotationProperty => ok tail
+    | typing.EntityKind.NamedIndividual => ok tail
+partial_fixpoint
+
+/-- [rowl_kernel::roles::pair_roles]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 104:0-113:1 -/
+def roles.pair_roles (role : roles.Role) : Result roles.Roles := do
+  let r ← roles.copy_role role
+  let other ← roles.inverse_role r
+  ok (roles.Roles.Entry role (roles.Roles.Entry other roles.Roles.Empty))
+
+/-- [rowl_kernel::roles::nodes_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 150:0-167:1 -/
+def roles.nodes_from (uses : collection.EntityUses) : Result roles.Roles := do
+  match uses with
+  | collection.EntityUses.Empty => ok roles.Roles.Empty
+  | collection.EntityUses.Entry iri kind next =>
+    let tail ← roles.nodes_from next
+    match kind with
+    | typing.EntityKind.Class => ok tail
+    | typing.EntityKind.Datatype => ok tail
+    | typing.EntityKind.ObjectProperty =>
+      let r ← roles.pair_roles { iri, inverse := false }
+      roles.roles_append r tail
+    | typing.EntityKind.DataProperty => ok tail
+    | typing.EntityKind.AnnotationProperty => ok tail
+    | typing.EntityKind.NamedIndividual => ok tail
+partial_fixpoint
+
+/-- [rowl_kernel::roles::axiom_facts]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 327:0-389:1
+    Visibility: public -/
+def roles.axiom_facts
+  (item : model.AnnotatedAxiom) : Result roles.RoleFacts := do
+  let eu ← collection.axiom_entities item
+  let nodes ← roles.nodes_from eu
+  let builtin ← roles.composites_from eu
+  let simple_required ← roles.axiom_requirements item.axiom
+  match item.axiom with
+  | model.Axiom.Declaration _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SubClassOf _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.EquivalentClasses _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DisjointClasses _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DisjointUnion _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SubObjectPropertyOf sope sup =>
+    match sope with
+    | model.SubObjectPropertyExpression.Single sub =>
+      let r ← roles.expression_role sub
+      let r1 ← roles.expression_role sup
+      let e ← roles.edge_pair r r1
+      ok
+        {
+          nodes,
+          edges := e,
+          composite := builtin,
+          simple_required,
+          chains := roles.Chains.Empty
+        }
+    | model.SubObjectPropertyExpression.Chain chain =>
+      let r ← roles.expression_role sup
+      let r1 ← roles.pair_roles r
+      let r2 ← roles.roles_append builtin r1
+      ok
+        {
+          nodes,
+          edges := roles.Edges.Empty,
+          composite := r2,
+          simple_required,
+          chains := (roles.Chains.Entry chain sup roles.Chains.Empty)
+        }
+  | model.Axiom.EquivalentObjectProperties values =>
+    let e ← roles.equivalent_edges values
+    ok
+      {
+        nodes,
+        edges := e,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DisjointObjectProperties _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.InverseObjectProperties a b =>
+    let r ← roles.expression_role a
+    let r1 ← roles.expression_role b
+    let r2 ← roles.inverse_role r1
+    let e ← roles.both_edges r r2
+    ok
+      {
+        nodes,
+        edges := e,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.ObjectPropertyDomain _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.ObjectPropertyRange _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.FunctionalObjectProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.InverseFunctionalObjectProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.ReflexiveObjectProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.IrreflexiveObjectProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SymmetricObjectProperty property =>
+    let r ← roles.expression_role property
+    let r1 ← roles.inverse_role r
+    let e ← roles.edge_pair r r1
+    ok
+      {
+        nodes,
+        edges := e,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.AsymmetricObjectProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.TransitiveObjectProperty property =>
+    let r ← roles.expression_role property
+    let r1 ← roles.pair_roles r
+    let r2 ← roles.roles_append builtin r1
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := r2,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SubDataPropertyOf _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.EquivalentDataProperties _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DisjointDataProperties _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DataPropertyDomain _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DataPropertyRange _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.FunctionalDataProperty _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DatatypeDefinition _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.HasKey _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SameIndividual _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DifferentIndividuals _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.ClassAssertion _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.DataPropertyAssertion _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.AnnotationAssertion _ _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.SubAnnotationPropertyOf _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.AnnotationPropertyDomain _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+  | model.Axiom.AnnotationPropertyRange _ _ =>
+    ok
+      {
+        nodes,
+        edges := roles.Edges.Empty,
+        composite := builtin,
+        simple_required,
+        chains := roles.Chains.Empty
+      }
+
+/-- [rowl_kernel::roles::facts_from]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 399:0-411:1 -/
+def roles.facts_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result roles.RoleFacts
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let rf ← roles.axiom_facts aa
+    let i1 ← index + 1#usize
+    let rf1 ← roles.facts_from items i1
+    roles.append_facts rf rf1
+  else
+    ok
+      {
+        nodes := roles.Roles.Empty,
+        edges := roles.Edges.Empty,
+        composite := roles.Roles.Empty,
+        simple_required := roles.Roles.Empty,
+        chains := roles.Chains.Empty
+      }
+partial_fixpoint
+
+/-- [rowl_kernel::roles::collect_facts]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 414:0-416:1
+    Visibility: public -/
+def roles.collect_facts
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result roles.RoleFacts := do
+  roles.facts_from items 0#usize
+
+/-- [rowl_kernel::role_order::RegularityCheck]
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 375:0-388:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_order.RegularityCheck where
+| Regular : roles.Edges → role_order.RegularityCheck
+| HierarchyConflict : roles.Role → roles.Role → role_order.RegularityCheck
+| MissingPair : roles.Role → roles.Role → role_order.RegularityCheck
+| MissingHierarchyNode : roles.Role → role_order.RegularityCheck
+
+/-- [rowl_kernel::role_order::check_pairs]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 389:0-428:1 -/
+def role_order.check_pairs
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (order : roles.Edges) :
+  Result role_order.RegularityCheck
+  := do
+  match order with
+  | roles.Edges.Empty =>
+    ok (role_order.RegularityCheck.Regular roles.Edges.Empty)
+  | roles.Edges.Entry r r1 next =>
+    let facts ← roles.collect_facts axioms
+    let rc ←
+      roles.non_simple_closure facts.nodes (roles.Roles.Entry r1
+        roles.Roles.Empty) facts.edges
+    match rc with
+    | roles.RoleClosure.Complete reached =>
+      let (conflict, _) ← roles.contains_role reached r
+      if conflict
+      then ok (role_order.RegularityCheck.HierarchyConflict r r1)
+      else
+        let rc1 ← role_order.check_pairs axioms next
+        match rc1 with
+        | role_order.RegularityCheck.Regular tail =>
+          ok (role_order.RegularityCheck.Regular (roles.Edges.Entry r r1 tail))
+        | role_order.RegularityCheck.HierarchyConflict _ _ => ok rc1
+        | role_order.RegularityCheck.MissingPair _ _ => ok rc1
+        | role_order.RegularityCheck.MissingHierarchyNode _ => ok rc1
+    | roles.RoleClosure.MissingNode r2 =>
+      ok (role_order.RegularityCheck.MissingHierarchyNode r2)
+partial_fixpoint
+
+/-- [rowl_kernel::roles::is_top_role]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 594:0-600:1 -/
+def roles.is_top_role (role : roles.Role) : Result Bool := do
+  if role.inverse
+  then ok false
+  else
+    let s ←
+      lift (Array.to_slice
+        (Array.make 47#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
+          119#u8, 108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8,
+          101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
+          116#u8, 121#u8
+          ]))
+    roles.same_pattern role.iri.spelling s
+
+/-- [rowl_kernel::role_order::roles_empty]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 315:0-317:1 -/
+def role_order.roles_empty (values : roles.Roles) : Result Bool := do
+  match values with
+  | roles.Roles.Empty => ok true
+  | roles.Roles.Entry _ _ => ok false
+
+/-- [rowl_kernel::role_order::trim_last]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 286:0-314:1 -/
+def role_order.trim_last
+  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
+  match values with
+  | roles.Roles.Empty => ok roles.Edges.Empty
+  | roles.Roles.Entry r next =>
+    match next with
+    | roles.Roles.Empty =>
+      let b ← roles.same_role r sup
+      if b
+      then ok roles.Edges.Empty
+      else ok (roles.Edges.Entry r sup roles.Edges.Empty)
+    | roles.Roles.Entry _ _ =>
+      let e ← role_order.trim_last next sup
+      ok (roles.Edges.Entry r sup e)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::to_super]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 273:0-285:1 -/
+def role_order.to_super
+  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
+  match values with
+  | roles.Roles.Empty => ok roles.Edges.Empty
+  | roles.Roles.Entry r next =>
+    let e ← role_order.to_super next sup
+    ok (roles.Edges.Entry r sup e)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::non_top_seeds]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 318:0-347:1 -/
+def role_order.non_top_seeds
+  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
+  match values with
+  | roles.Roles.Empty => ok roles.Edges.Empty
+  | roles.Roles.Entry r next =>
+    let b ← roles.same_role r sup
+    if b
+    then
+      match next with
+      | roles.Roles.Empty => ok roles.Edges.Empty
+      | roles.Roles.Entry r1 rest =>
+        let b1 ← role_order.roles_empty rest
+        if b1
+        then
+          let b2 ← roles.same_role r1 sup
+          if b2
+          then ok roles.Edges.Empty
+          else role_order.to_super next sup
+        else role_order.to_super next sup
+    else role_order.trim_last values sup
+
+/-- [rowl_kernel::role_order::chain_seeds]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 348:0-358:1 -/
+def role_order.chain_seeds
+  (chain : model.AtLeastTwo model.ObjectPropertyExpression)
+  (sup : model.ObjectPropertyExpression) :
+  Result roles.Edges
+  := do
+  let sup1 ← roles.expression_role sup
+  let b ← roles.is_top_role sup1
+  if b
+  then ok roles.Edges.Empty
+  else let r ← roles.property_roles chain
+       role_order.non_top_seeds r sup1
+
+/-- [rowl_kernel::role_order::append]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 17:0-26:1 -/
+def role_order.append
+  (left : roles.Edges) (right : roles.Edges) : Result roles.Edges := do
+  match left with
+  | roles.Edges.Empty => ok right
+  | roles.Edges.Entry r r1 next =>
+    let e ← role_order.append next right
+    ok (roles.Edges.Entry r r1 e)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::all_chain_seeds]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 359:0-366:1 -/
+def role_order.all_chain_seeds
+  (chains : roles.Chains) : Result roles.Edges := do
+  match chains with
+  | roles.Chains.Empty => ok roles.Edges.Empty
+  | roles.Chains.Entry chain sup next =>
+    let e ← role_order.chain_seeds chain sup
+    let e1 ← role_order.all_chain_seeds next
+    role_order.append e e1
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::inverse_source]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 218:0-234:1 -/
+def role_order.inverse_source
+  (sub : roles.Role) (sup : roles.Role) : Result roles.Edges := do
+  if sup.inverse
+  then ok roles.Edges.Empty
+  else
+    ok (roles.Edges.Entry { sub with inverse := (¬ sub.inverse) } sup
+      roles.Edges.Empty)
+
+/-- [rowl_kernel::role_order::successors]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 177:0-217:1 -/
+def role_order.successors
+  (sub : roles.Role) (sup : roles.Role) (values : roles.Edges) :
+  Result (roles.Edges × roles.Edges)
+  := do
+  match values with
+  | roles.Edges.Empty => ok (roles.Edges.Empty, roles.Edges.Empty)
+  | roles.Edges.Entry r r1 next =>
+    let (tail, restored) ← role_order.successors sub sup next
+    let b ← roles.same_role r sup
+    if b
+    then ok (roles.Edges.Entry sub r1 tail, roles.Edges.Entry r r1 restored)
+    else ok (tail, roles.Edges.Entry r r1 restored)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::predecessors]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 136:0-176:1 -/
+def role_order.predecessors
+  (sub : roles.Role) (sup : roles.Role) (values : roles.Edges) :
+  Result (roles.Edges × roles.Edges)
+  := do
+  match values with
+  | roles.Edges.Empty => ok (roles.Edges.Empty, roles.Edges.Empty)
+  | roles.Edges.Entry r r1 next =>
+    let (tail, restored) ← role_order.predecessors sub sup next
+    let b ← roles.same_role r1 sub
+    if b
+    then ok (roles.Edges.Entry r sup tail, roles.Edges.Entry r r1 restored)
+    else ok (tail, roles.Edges.Entry r r1 restored)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::TakenPair]
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 12:0-15:1 -/
+@[discriminant isize]
+inductive role_order.TakenPair where
+| Missing : role_order.TakenPair
+| Found : roles.Edges → role_order.TakenPair
+
+/-- [rowl_kernel::role_order::take]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 113:0-135:1 -/
+def role_order.take
+  (values : roles.Edges) (sub : roles.Role) (sup : roles.Role) :
+  Result role_order.TakenPair
+  := do
+  match values with
+  | roles.Edges.Empty => ok role_order.TakenPair.Missing
+  | roles.Edges.Entry r r1 next =>
+    let b ← roles.same_role r sub
+    if b
+    then
+      let b1 ← roles.same_role r1 sup
+      if b1
+      then ok (role_order.TakenPair.Found next)
+      else
+        let tp ← role_order.take next sub sup
+        match tp with
+        | role_order.TakenPair.Missing => ok role_order.TakenPair.Missing
+        | role_order.TakenPair.Found remaining =>
+          ok (role_order.TakenPair.Found (roles.Edges.Entry r r1 remaining))
+    else
+      let tp ← role_order.take next sub sup
+      match tp with
+      | role_order.TakenPair.Missing => ok role_order.TakenPair.Missing
+      | role_order.TakenPair.Found remaining =>
+        ok (role_order.TakenPair.Found (roles.Edges.Entry r r1 remaining))
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::contains]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 82:0-112:1 -/
+def role_order.contains
+  (values : roles.Edges) (sub : roles.Role) (sup : roles.Role) :
+  Result (Bool × roles.Edges)
+  := do
+  match values with
+  | roles.Edges.Empty => ok (false, roles.Edges.Empty)
+  | roles.Edges.Entry r r1 next =>
+    let b ← roles.same_role r sub
+    if b
+    then
+      let b1 ← roles.same_role r1 sup
+      if b1
+      then ok (true, values)
+      else
+        let (found, restored) ← role_order.contains next sub sup
+        ok (found, roles.Edges.Entry r r1 restored)
+    else
+      let (found, restored) ← role_order.contains next sub sup
+      ok (found, roles.Edges.Entry r r1 restored)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::OrderClosure]
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 8:0-11:1
+    Visibility: public -/
+@[discriminant isize]
+inductive role_order.OrderClosure where
+| Complete : roles.Edges → role_order.OrderClosure
+| MissingPair : roles.Role → roles.Role → role_order.OrderClosure
+
+/-- [rowl_kernel::role_order::discover]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 235:0-263:1 -/
+def role_order.discover
+  (pending : roles.Edges) (available : roles.Edges) (resolved : roles.Edges) :
+  Result role_order.OrderClosure
+  := do
+  match pending with
+  | roles.Edges.Empty => ok (role_order.OrderClosure.Complete resolved)
+  | roles.Edges.Entry r r1 next =>
+    let (seen, resolved1) ← role_order.contains resolved r r1
+    if seen
+    then role_order.discover next available resolved1
+    else
+      let tp ← role_order.take available r r1
+      match tp with
+      | role_order.TakenPair.Missing =>
+        ok (role_order.OrderClosure.MissingPair r r1)
+      | role_order.TakenPair.Found remaining =>
+        let (before, resolved2) ← role_order.predecessors r r1 resolved1
+        let (after, resolved3) ← role_order.successors r r1 resolved2
+        let e ← role_order.inverse_source r r1
+        let e1 ← role_order.append after next
+        let e2 ← role_order.append before e1
+        let pending1 ← role_order.append e e2
+        role_order.discover pending1 remaining (roles.Edges.Entry r r1
+          resolved3)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::pairs_with]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 48:0-72:1 -/
+def role_order.pairs_with
+  (source : roles.Role) (targets : roles.Roles) :
+  Result (roles.Edges × roles.Roles)
+  := do
+  match targets with
+  | roles.Roles.Empty => ok (roles.Edges.Empty, roles.Roles.Empty)
+  | roles.Roles.Entry r next =>
+    let (pairs, restored) ← role_order.pairs_with source next
+    ok (roles.Edges.Entry source r pairs, roles.Roles.Entry r restored)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::all_pairs]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 73:0-81:1 -/
+def role_order.all_pairs
+  (sources : roles.Roles) (targets : roles.Roles) : Result roles.Edges := do
+  match sources with
+  | roles.Roles.Empty => ok roles.Edges.Empty
+  | roles.Roles.Entry r next =>
+    let (head, targets1) ← role_order.pairs_with r targets
+    let e ← role_order.all_pairs next targets1
+    role_order.append head e
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::split_roles]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 27:0-47:1 -/
+def role_order.split_roles
+  (values : roles.Roles) : Result (roles.Roles × roles.Roles) := do
+  match values with
+  | roles.Roles.Empty => ok (roles.Roles.Empty, roles.Roles.Empty)
+  | roles.Roles.Entry r next =>
+    let (left, right) ← role_order.split_roles next
+    ok (roles.Roles.Entry r left, roles.Roles.Entry r right)
+partial_fixpoint
+
+/-- [rowl_kernel::role_order::close_order]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 268:0-271:1
+    Visibility: public -/
+def role_order.close_order
+  (nodes : roles.Roles) (seeds : roles.Edges) :
+  Result role_order.OrderClosure
+  := do
+  let (sources, targets) ← role_order.split_roles nodes
+  let e ← role_order.all_pairs sources targets
+  role_order.discover seeds e roles.Edges.Empty
+
+/-- [rowl_kernel::role_order::least_chain_order]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 370:0-373:1
+    Visibility: public -/
+def role_order.least_chain_order
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result role_order.OrderClosure
+  := do
+  let facts ← roles.collect_facts axioms
+  let e ← role_order.all_chain_seeds facts.chains
+  role_order.close_order facts.nodes e
+
+/-- [rowl_kernel::role_order::check_regularity]:
+    Source: 'crates/rowl-kernel/src/role_order.rs', lines 434:0-439:1
+    Visibility: public -/
+def role_order.check_regularity
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result role_order.RegularityCheck
+  := do
+  let oc ← role_order.least_chain_order axioms
+  match oc with
+  | role_order.OrderClosure.Complete order =>
+    role_order.check_pairs axioms order
+  | role_order.OrderClosure.MissingPair r r1 =>
+    ok (role_order.RegularityCheck.MissingPair r r1)
+
+/-- [rowl_kernel::dl_validity::hierarchy_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 681:0-701:1 -/
+def dl_validity.hierarchy_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let b ← dl_validity.has_chain ontology.axioms
+  if b
+  then
+    let rc ← role_order.check_regularity ontology.axioms
+    match rc with
+    | role_order.RegularityCheck.Regular _ =>
+      dl_validity.anonymous_stage ontology
+    | role_order.RegularityCheck.HierarchyConflict r r1 =>
+      ok (dl_validity.DlCheck.IrregularHierarchy r r1)
+    | role_order.RegularityCheck.MissingPair r r1 =>
+      ok (dl_validity.DlCheck.IrregularHierarchy r r1)
+    | role_order.RegularityCheck.MissingHierarchyNode r =>
+      ok (dl_validity.DlCheck.IrregularHierarchy r r)
+  else dl_validity.anonymous_stage ontology
+
+/-- [rowl_kernel::roles::SimplicityCheck]
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 562:0-567:1
+    Visibility: public -/
+@[discriminant isize]
+inductive roles.SimplicityCheck where
+| Allowed : roles.SimplicityCheck
+| ForbiddenRole : roles.Role → roles.SimplicityCheck
+| MissingNode : roles.Role → roles.SimplicityCheck
+
+/-- [rowl_kernel::roles::check_required]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 569:0-581:1 -/
+def roles.check_required
+  (required : roles.Roles) (non_simple : roles.Roles) :
+  Result roles.SimplicityCheck
+  := do
+  match required with
+  | roles.Roles.Empty => ok roles.SimplicityCheck.Allowed
+  | roles.Roles.Entry r next =>
+    let (found, non_simple1) ← roles.contains_role non_simple r
+    if found
+    then ok (roles.SimplicityCheck.ForbiddenRole r)
+    else roles.check_required next non_simple1
+partial_fixpoint
+
+/-- [rowl_kernel::roles::check_simplicity]:
+    Source: 'crates/rowl-kernel/src/roles.rs', lines 586:0-592:1
+    Visibility: public -/
+def roles.check_simplicity
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result roles.SimplicityCheck
+  := do
+  let facts ← roles.collect_facts axioms
+  let rc ← roles.non_simple_closure facts.nodes facts.composite facts.edges
+  match rc with
+  | roles.RoleClosure.Complete non_simple =>
+    roles.check_required facts.simple_required non_simple
+  | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
+
+/-- [rowl_kernel::dl_validity::role_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 703:0-710:1 -/
+def dl_validity.role_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let sc ← roles.check_simplicity ontology.axioms
+  match sc with
+  | roles.SimplicityCheck.Allowed => dl_validity.hierarchy_stage ontology
+  | roles.SimplicityCheck.ForbiddenRole r =>
+    ok (dl_validity.DlCheck.NonSimpleRole r)
+  | roles.SimplicityCheck.MissingNode r =>
+    ok (dl_validity.DlCheck.NonSimpleRole r)
+
+/-- [rowl_kernel::dl_validity::datatype_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 712:0-732:1 -/
+def dl_validity.datatype_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let sdc ← datatype_restrictions.check_structural_datatypes ontology
+  match sdc with
+  | datatype_restrictions.StructuralDatatypeCheck.Allowed =>
+    dl_validity.role_stage ontology
+  | datatype_restrictions.StructuralDatatypeCheck.MissingDefinition iri =>
+    ok (dl_validity.DlCheck.MissingDatatypeDefinition iri)
+  | datatype_restrictions.StructuralDatatypeCheck.PredefinedRedefined item =>
+    ok (dl_validity.DlCheck.PredefinedDatatypeRedefined item)
+  | datatype_restrictions.StructuralDatatypeCheck.MultipleDefinitions first
+    second =>
+    ok (dl_validity.DlCheck.MultipleDatatypeDefinitions first second)
+  | datatype_restrictions.StructuralDatatypeCheck.Cycle smaller larger =>
+    ok (dl_validity.DlCheck.DatatypeCycle smaller larger)
+  | datatype_restrictions.StructuralDatatypeCheck.ForbiddenOntologyAnnotation
+    item =>
+    ok (dl_validity.DlCheck.DefinedDatatypeInOntologyAnnotation item)
+  | datatype_restrictions.StructuralDatatypeCheck.ForbiddenAxiomPosition item
+    =>
+    ok (dl_validity.DlCheck.DefinedDatatypePosition item)
+
+/-- [rowl_kernel::topdata::equal_from]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 12:0-18:1 -/
+def topdata.equal_from
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         topdata.equal_from key pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::topdata::same_pattern]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 19:0-21:1 -/
+def topdata.same_pattern
+  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len key
+  let i1 := Slice.len pattern
+  if i = i1
+  then topdata.equal_from key pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::topdata::is_top]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 22:0-24:1 -/
+def topdata.is_top (key : alloc.vec.Vec Std.U8) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 45#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
+        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 68#u8, 97#u8, 116#u8, 97#u8,
+        80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
+        ]))
+  topdata.same_pattern key s
+
+/-- [rowl_kernel::topdata::uses_allowed]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 25:0-33:1 -/
+def topdata.uses_allowed (values : collection.EntityUses) : Result Bool := do
+  match values with
+  | collection.EntityUses.Empty => ok true
+  | collection.EntityUses.Entry iri kind next =>
+    match kind with
+    | typing.EntityKind.Class => topdata.uses_allowed next
+    | typing.EntityKind.Datatype => topdata.uses_allowed next
+    | typing.EntityKind.ObjectProperty => topdata.uses_allowed next
+    | typing.EntityKind.DataProperty =>
+      let b ← topdata.is_top iri.spelling
+      if b
+      then ok false
+      else topdata.uses_allowed next
+    | typing.EntityKind.AnnotationProperty => topdata.uses_allowed next
+    | typing.EntityKind.NamedIndividual => topdata.uses_allowed next
+partial_fixpoint
+
+/-- [rowl_kernel::topdata::axiom_allowed]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 37:0-42:1
+    Visibility: public -/
+def topdata.axiom_allowed (item : model.AnnotatedAxiom) : Result Bool := do
+  match item.axiom with
+  | model.Axiom.Declaration _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SubClassOf _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.EquivalentClasses _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DisjointClasses _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DisjointUnion _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SubObjectPropertyOf _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.EquivalentObjectProperties _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DisjointObjectProperties _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.InverseObjectProperties _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.ObjectPropertyDomain _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.ObjectPropertyRange _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.FunctionalObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.InverseFunctionalObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.ReflexiveObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.IrreflexiveObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SymmetricObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.AsymmetricObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.TransitiveObjectProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SubDataPropertyOf sub _ =>
+    let b ← topdata.is_top sub.iri.spelling
+    ok (¬ b)
+  | model.Axiom.EquivalentDataProperties _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DisjointDataProperties _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DataPropertyDomain _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DataPropertyRange _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.FunctionalDataProperty _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DatatypeDefinition _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.HasKey _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SameIndividual _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DifferentIndividuals _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.ClassAssertion _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.ObjectPropertyAssertion _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.DataPropertyAssertion _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.AnnotationAssertion _ _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.SubAnnotationPropertyOf _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.AnnotationPropertyDomain _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+  | model.Axiom.AnnotationPropertyRange _ _ =>
+    let eu ← collection.axiom_entities item
+    topdata.uses_allowed eu
+
+/-- [rowl_kernel::topdata::axioms_from]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 43:0-54:1 -/
+def topdata.axioms_from
+  (values : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result (Option model.AnnotatedAxiom)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let item ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) values index
+    let b ← topdata.axiom_allowed item
+    if b
+    then let i1 ← index + 1#usize
+         topdata.axioms_from values i1
+    else ok (some item)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::topdata::check_axioms]:
+    Source: 'crates/rowl-kernel/src/topdata.rs', lines 58:0-60:1
+    Visibility: public -/
+def topdata.check_axioms
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option model.AnnotatedAxiom)
+  := do
+  topdata.axioms_from axioms 0#usize
+
+/-- [rowl_kernel::dl_validity::global_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 734:0-739:1 -/
+def dl_validity.global_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let o ← topdata.check_axioms ontology.axioms
+  match o with
+  | none => dl_validity.datatype_stage ontology
+  | some item => ok (dl_validity.DlCheck.TopDataProperty item)
+
+/-- [rowl_kernel::dl_validity::typing_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 741:0-749:1 -/
+def dl_validity.typing_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let tc ← dl_validity.check_typing ontology
+  match tc with
+  | dl_validity.TypingCheck.Valid => dl_validity.global_stage ontology
+  | dl_validity.TypingCheck.ConflictingDeclarations iri kind other =>
+    ok (dl_validity.DlCheck.ConflictingDeclarations iri kind other)
+  | dl_validity.TypingCheck.MissingDeclaration iri kind =>
+    ok (dl_validity.DlCheck.MissingDeclaration iri kind)
+
+/-- [rowl_kernel::vocabulary::prefix_from]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 22:0-32:1 -/
+def vocabulary.prefix_from
+  (key : alloc.vec.Vec Std.U8) («prefix» : Slice Std.U8) (index : Std.Usize)
+  :
+  Result Bool
+  := do
+  let i := Slice.len «prefix»
+  if index >= i
+  then ok true
+  else
+    let i1 := alloc.vec.Vec.len key
+    if index >= i1
+    then ok false
+    else
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+          index
+      let i3 ← Slice.index_usize «prefix» index
+      if i2 = i3
+      then let i4 ← index + 1#usize
+           vocabulary.prefix_from key «prefix» i4
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::vocabulary::reserved_iri]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 35:0-40:1
+    Visibility: public -/
+def vocabulary.reserved_iri (key : alloc.vec.Vec Std.U8) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 43#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8
+        ]))
+  let b ← vocabulary.prefix_from key s 0#usize
+  if b
+  then ok true
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 37#usize [
+          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
+          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
+          35#u8
+          ]))
+    let b1 ← vocabulary.prefix_from key s1 0#usize
+    if b1
+    then ok true
+    else
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 33#usize [
+            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8
+            ]))
+      let b2 ← vocabulary.prefix_from key s2 0#usize
+      if b2
+      then ok true
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 30#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
+              47#u8, 111#u8, 119#u8, 108#u8, 35#u8
+              ]))
+        vocabulary.prefix_from key s3 0#usize
+
+/-- [rowl_kernel::vocabulary::entity_iri_allowed]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 44:0-63:1
+    Visibility: public -/
+def vocabulary.entity_iri_allowed
+  (iri : model.Iri) (kind : typing.EntityKind) : Result Bool := do
+  let b ← vocabulary.reserved_iri iri.spelling
+  if b
+  then
+    let o ← builtins.builtin_kind iri.spelling
+    match o with
+    | none => ok false
+    | some role =>
+      match role with
+      | typing.EntityKind.Class =>
+        match kind with
+        | typing.EntityKind.Class => ok true
+        | typing.EntityKind.Datatype => ok false
+        | typing.EntityKind.ObjectProperty => ok false
+        | typing.EntityKind.DataProperty => ok false
+        | typing.EntityKind.AnnotationProperty => ok false
+        | typing.EntityKind.NamedIndividual => ok false
+      | typing.EntityKind.Datatype =>
+        match kind with
+        | typing.EntityKind.Class => ok false
+        | typing.EntityKind.Datatype => ok true
+        | typing.EntityKind.ObjectProperty => ok false
+        | typing.EntityKind.DataProperty => ok false
+        | typing.EntityKind.AnnotationProperty => ok false
+        | typing.EntityKind.NamedIndividual => ok false
+      | typing.EntityKind.ObjectProperty =>
+        match kind with
+        | typing.EntityKind.Class => ok false
+        | typing.EntityKind.Datatype => ok false
+        | typing.EntityKind.ObjectProperty => ok true
+        | typing.EntityKind.DataProperty => ok false
+        | typing.EntityKind.AnnotationProperty => ok false
+        | typing.EntityKind.NamedIndividual => ok false
+      | typing.EntityKind.DataProperty =>
+        match kind with
+        | typing.EntityKind.Class => ok false
+        | typing.EntityKind.Datatype => ok false
+        | typing.EntityKind.ObjectProperty => ok false
+        | typing.EntityKind.DataProperty => ok true
+        | typing.EntityKind.AnnotationProperty => ok false
+        | typing.EntityKind.NamedIndividual => ok false
+      | typing.EntityKind.AnnotationProperty =>
+        match kind with
+        | typing.EntityKind.Class => ok false
+        | typing.EntityKind.Datatype => ok false
+        | typing.EntityKind.ObjectProperty => ok false
+        | typing.EntityKind.DataProperty => ok false
+        | typing.EntityKind.AnnotationProperty => ok true
+        | typing.EntityKind.NamedIndividual => ok false
+      | typing.EntityKind.NamedIndividual =>
+        match kind with
+        | typing.EntityKind.Class => ok false
+        | typing.EntityKind.Datatype => ok false
+        | typing.EntityKind.ObjectProperty => ok false
+        | typing.EntityKind.DataProperty => ok false
+        | typing.EntityKind.AnnotationProperty => ok false
+        | typing.EntityKind.NamedIndividual => ok true
+  else ok true
+
+/-- [rowl_kernel::vocabulary::VocabularyResult]
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 15:0-20:1
+    Visibility: public -/
+@[discriminant isize]
+inductive vocabulary.VocabularyResult where
+| Valid : vocabulary.VocabularyResult
+| ReservedOntologyIri : model.Iri → vocabulary.VocabularyResult
+| ReservedVersionIri : model.Iri → vocabulary.VocabularyResult
+| ForbiddenEntity :
+  model.Iri →
+  typing.EntityKind →
+  vocabulary.VocabularyResult
+
+/-- [rowl_kernel::vocabulary::check_uses]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 65:0-76:1 -/
+def vocabulary.check_uses
+  (uses : collection.EntityUses) : Result vocabulary.VocabularyResult := do
+  match uses with
+  | collection.EntityUses.Empty => ok vocabulary.VocabularyResult.Valid
+  | collection.EntityUses.Entry iri kind next =>
+    let b ← vocabulary.entity_iri_allowed iri kind
+    if b
+    then vocabulary.check_uses next
+    else ok (vocabulary.VocabularyResult.ForbiddenEntity iri kind)
+partial_fixpoint
+
+/-- [rowl_kernel::vocabulary::check_reserved_vocabulary]:
+    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 81:0-94:1
+    Visibility: public -/
+def vocabulary.check_reserved_vocabulary
+  (ontology : model.RawOntology) : Result vocabulary.VocabularyResult := do
+  match ontology.identity with
+  | model.OntologyIdentity.Anonymous =>
+    let collected ← collection.ontology_entities ontology
+    vocabulary.check_uses collected.uses
+  | model.OntologyIdentity.Named ontology1 version =>
+    let b ← vocabulary.reserved_iri ontology1.spelling
+    if b
+    then ok (vocabulary.VocabularyResult.ReservedOntologyIri ontology1)
+    else
+      match version with
+      | none =>
+        let collected ← collection.ontology_entities ontology
+        vocabulary.check_uses collected.uses
+      | some version1 =>
+        let b1 ← vocabulary.reserved_iri version1.spelling
+        if b1
+        then ok (vocabulary.VocabularyResult.ReservedVersionIri version1)
+        else
+          let collected ← collection.ontology_entities ontology
+          vocabulary.check_uses collected.uses
+
+/-- [rowl_kernel::dl_validity::vocabulary_stage]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 751:0-758:1 -/
+def dl_validity.vocabulary_stage
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let vr ← vocabulary.check_reserved_vocabulary ontology
+  match vr with
+  | vocabulary.VocabularyResult.Valid => dl_validity.typing_stage ontology
+  | vocabulary.VocabularyResult.ReservedOntologyIri iri =>
+    ok (dl_validity.DlCheck.ReservedOntologyIri iri)
+  | vocabulary.VocabularyResult.ReservedVersionIri iri =>
+    ok (dl_validity.DlCheck.ReservedVersionIri iri)
+  | vocabulary.VocabularyResult.ForbiddenEntity iri kind =>
+    ok (dl_validity.DlCheck.ReservedEntity iri kind)
+
+/-- [rowl_kernel::keys::axioms_from]:
+    Source: 'crates/rowl-kernel/src/keys.rs', lines 15:0-26:1 -/
+def keys.axioms_from
+  (values : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result (Option model.AnnotatedAxiom)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let item ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) values index
+    let b ← keys.axiom_allowed item
+    if b
+    then let i1 ← index + 1#usize
+         keys.axioms_from values i1
+    else ok (some item)
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::keys::check_keys]:
+    Source: 'crates/rowl-kernel/src/keys.rs', lines 29:0-31:1
+    Visibility: public -/
+def keys.check_keys
+  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option model.AnnotatedAxiom)
+  := do
+  keys.axioms_from axioms 0#usize
+
+/-- [rowl_kernel::dl_validity::check_ontology]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 764:0-772:1
+    Visibility: public -/
+def dl_validity.check_ontology
+  (ontology : model.RawOntology) : Result dl_validity.DlCheck := do
+  let o ← keys.check_keys ontology.axioms
+  match o with
+  | none =>
+    let o1 ← arity.check_arities ontology.axioms
+    match o1 with
+    | none => dl_validity.vocabulary_stage ontology
+    | some item => ok (dl_validity.DlCheck.Arity item)
+  | some item => ok (dl_validity.DlCheck.EmptyKey item)
+
 /-- [rowl_kernel::encoding::Encoded]
     Source: 'crates/rowl-kernel/src/encoding.rs', lines 6:0-11:1
     Visibility: public -/
@@ -46258,35 +49244,6 @@ def iri.validate_reference
   let e ← iri.iri_reference
   iri.validate e bytes
 
-/-- [rowl_kernel::keys::axioms_from]:
-    Source: 'crates/rowl-kernel/src/keys.rs', lines 15:0-26:1 -/
-def keys.axioms_from
-  (values : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
-  Result (Option model.AnnotatedAxiom)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let item ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) values index
-    let b ← keys.axiom_allowed item
-    if b
-    then let i1 ← index + 1#usize
-         keys.axioms_from values i1
-    else ok (some item)
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::keys::check_keys]:
-    Source: 'crates/rowl-kernel/src/keys.rs', lines 29:0-31:1
-    Visibility: public -/
-def keys.check_keys
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option model.AnnotatedAxiom)
-  := do
-  keys.axioms_from axioms 0#usize
-
 /-- [rowl_kernel::model::invert]:
     Source: 'crates/rowl-kernel/src/model.rs', lines 84:0-89:1
     Visibility: public -/
@@ -52010,83 +54967,6 @@ def rdf_mapping.blank_subject (triple : rdf.Triple) : Result Bool := do
   | rdf.Subject.Iri _ => ok false
   | rdf.Subject.Blank _ => ok true
 
-/-- [rowl_kernel::vocabulary::prefix_from]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 22:0-32:1 -/
-def vocabulary.prefix_from
-  (key : alloc.vec.Vec Std.U8) («prefix» : Slice Std.U8) (index : Std.Usize)
-  :
-  Result Bool
-  := do
-  let i := Slice.len «prefix»
-  if index >= i
-  then ok true
-  else
-    let i1 := alloc.vec.Vec.len key
-    if index >= i1
-    then ok false
-    else
-      let i2 ←
-        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-          index
-      let i3 ← Slice.index_usize «prefix» index
-      if i2 = i3
-      then let i4 ← index + 1#usize
-           vocabulary.prefix_from key «prefix» i4
-      else ok false
-partial_fixpoint
-
-/-- [rowl_kernel::vocabulary::reserved_iri]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 35:0-40:1
-    Visibility: public -/
-def vocabulary.reserved_iri (key : alloc.vec.Vec Std.U8) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 43#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
-        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
-        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8
-        ]))
-  let b ← vocabulary.prefix_from key s 0#usize
-  if b
-  then ok true
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 37#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 48#u8, 49#u8, 47#u8, 114#u8,
-          100#u8, 102#u8, 45#u8, 115#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8,
-          35#u8
-          ]))
-    let b1 ← vocabulary.prefix_from key s1 0#usize
-    if b1
-    then ok true
-    else
-      let s2 ←
-        lift (Array.to_slice
-          (Array.make 33#usize [
-            104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-            119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-            103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
-            76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8
-            ]))
-      let b2 ← vocabulary.prefix_from key s2 0#usize
-      if b2
-      then ok true
-      else
-        let s3 ←
-          lift (Array.to_slice
-            (Array.make 30#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8,
-              47#u8, 111#u8, 119#u8, 108#u8, 35#u8
-              ]))
-        vocabulary.prefix_from key s3 0#usize
-
 /-- [rowl_kernel::rdf_mapping::reserved_object]:
     Source: 'crates/rowl-kernel/src/rdf_mapping.rs', lines 2848:0-2863:1 -/
 def rdf_mapping.reserved_object (node : rdf.Object) : Result Bool := do
@@ -53277,1372 +56157,6 @@ def rdf_mapping.map_graph
             else ok none
       | rdf.Subject.Blank _ => ok none
 
-/-- [rowl_kernel::roles::Role]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 15:0-18:1
-    Visibility: public -/
-structure roles.Role where
-  iri : model.Iri
-  inverse : Bool
-
-/-- [rowl_kernel::roles::Edges]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 26:0-33:1
-    Visibility: public -/
-@[discriminant isize]
-inductive roles.Edges where
-| Empty : roles.Edges
-| Entry : roles.Role → roles.Role → roles.Edges → roles.Edges
-
-/-- [rowl_kernel::role_order::OrderClosure]
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 8:0-11:1
-    Visibility: public -/
-@[discriminant isize]
-inductive role_order.OrderClosure where
-| Complete : roles.Edges → role_order.OrderClosure
-| MissingPair : roles.Role → roles.Role → role_order.OrderClosure
-
-/-- [rowl_kernel::role_order::TakenPair]
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 12:0-15:1 -/
-@[discriminant isize]
-inductive role_order.TakenPair where
-| Missing : role_order.TakenPair
-| Found : roles.Edges → role_order.TakenPair
-
-/-- [rowl_kernel::role_order::append]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 17:0-26:1 -/
-def role_order.append
-  (left : roles.Edges) (right : roles.Edges) : Result roles.Edges := do
-  match left with
-  | roles.Edges.Empty => ok right
-  | roles.Edges.Entry r r1 next =>
-    let e ← role_order.append next right
-    ok (roles.Edges.Entry r r1 e)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::Roles]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 19:0-25:1
-    Visibility: public -/
-@[discriminant isize]
-inductive roles.Roles where
-| Empty : roles.Roles
-| Entry : roles.Role → roles.Roles → roles.Roles
-
-/-- [rowl_kernel::role_order::split_roles]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 27:0-47:1 -/
-def role_order.split_roles
-  (values : roles.Roles) : Result (roles.Roles × roles.Roles) := do
-  match values with
-  | roles.Roles.Empty => ok (roles.Roles.Empty, roles.Roles.Empty)
-  | roles.Roles.Entry r next =>
-    let (left, right) ← role_order.split_roles next
-    ok (roles.Roles.Entry r left, roles.Roles.Entry r right)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::pairs_with]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 48:0-72:1 -/
-def role_order.pairs_with
-  (source : roles.Role) (targets : roles.Roles) :
-  Result (roles.Edges × roles.Roles)
-  := do
-  match targets with
-  | roles.Roles.Empty => ok (roles.Edges.Empty, roles.Roles.Empty)
-  | roles.Roles.Entry r next =>
-    let (pairs, restored) ← role_order.pairs_with source next
-    ok (roles.Edges.Entry source r pairs, roles.Roles.Entry r restored)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::all_pairs]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 73:0-81:1 -/
-def role_order.all_pairs
-  (sources : roles.Roles) (targets : roles.Roles) : Result roles.Edges := do
-  match sources with
-  | roles.Roles.Empty => ok roles.Edges.Empty
-  | roles.Roles.Entry r next =>
-    let (head, targets1) ← role_order.pairs_with r targets
-    let e ← role_order.all_pairs next targets1
-    role_order.append head e
-partial_fixpoint
-
-/-- [rowl_kernel::roles::same_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 431:0-434:1
-    Visibility: public -/
-def roles.same_role
-  (left : roles.Role) (right : roles.Role) : Result Bool := do
-  if left.inverse = right.inverse
-  then symbols.same_spelling left.iri.spelling right.iri.spelling
-  else ok false
-
-/-- [rowl_kernel::role_order::contains]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 82:0-112:1 -/
-def role_order.contains
-  (values : roles.Edges) (sub : roles.Role) (sup : roles.Role) :
-  Result (Bool × roles.Edges)
-  := do
-  match values with
-  | roles.Edges.Empty => ok (false, roles.Edges.Empty)
-  | roles.Edges.Entry r r1 next =>
-    let b ← roles.same_role r sub
-    if b
-    then
-      let b1 ← roles.same_role r1 sup
-      if b1
-      then ok (true, values)
-      else
-        let (found, restored) ← role_order.contains next sub sup
-        ok (found, roles.Edges.Entry r r1 restored)
-    else
-      let (found, restored) ← role_order.contains next sub sup
-      ok (found, roles.Edges.Entry r r1 restored)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::take]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 113:0-135:1 -/
-def role_order.take
-  (values : roles.Edges) (sub : roles.Role) (sup : roles.Role) :
-  Result role_order.TakenPair
-  := do
-  match values with
-  | roles.Edges.Empty => ok role_order.TakenPair.Missing
-  | roles.Edges.Entry r r1 next =>
-    let b ← roles.same_role r sub
-    if b
-    then
-      let b1 ← roles.same_role r1 sup
-      if b1
-      then ok (role_order.TakenPair.Found next)
-      else
-        let tp ← role_order.take next sub sup
-        match tp with
-        | role_order.TakenPair.Missing => ok role_order.TakenPair.Missing
-        | role_order.TakenPair.Found remaining =>
-          ok (role_order.TakenPair.Found (roles.Edges.Entry r r1 remaining))
-    else
-      let tp ← role_order.take next sub sup
-      match tp with
-      | role_order.TakenPair.Missing => ok role_order.TakenPair.Missing
-      | role_order.TakenPair.Found remaining =>
-        ok (role_order.TakenPair.Found (roles.Edges.Entry r r1 remaining))
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::predecessors]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 136:0-176:1 -/
-def role_order.predecessors
-  (sub : roles.Role) (sup : roles.Role) (values : roles.Edges) :
-  Result (roles.Edges × roles.Edges)
-  := do
-  match values with
-  | roles.Edges.Empty => ok (roles.Edges.Empty, roles.Edges.Empty)
-  | roles.Edges.Entry r r1 next =>
-    let (tail, restored) ← role_order.predecessors sub sup next
-    let b ← roles.same_role r1 sub
-    if b
-    then ok (roles.Edges.Entry r sup tail, roles.Edges.Entry r r1 restored)
-    else ok (tail, roles.Edges.Entry r r1 restored)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::successors]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 177:0-217:1 -/
-def role_order.successors
-  (sub : roles.Role) (sup : roles.Role) (values : roles.Edges) :
-  Result (roles.Edges × roles.Edges)
-  := do
-  match values with
-  | roles.Edges.Empty => ok (roles.Edges.Empty, roles.Edges.Empty)
-  | roles.Edges.Entry r r1 next =>
-    let (tail, restored) ← role_order.successors sub sup next
-    let b ← roles.same_role r sup
-    if b
-    then ok (roles.Edges.Entry sub r1 tail, roles.Edges.Entry r r1 restored)
-    else ok (tail, roles.Edges.Entry r r1 restored)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::inverse_source]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 218:0-234:1 -/
-def role_order.inverse_source
-  (sub : roles.Role) (sup : roles.Role) : Result roles.Edges := do
-  if sup.inverse
-  then ok roles.Edges.Empty
-  else
-    ok (roles.Edges.Entry { sub with inverse := (¬ sub.inverse) } sup
-      roles.Edges.Empty)
-
-/-- [rowl_kernel::role_order::discover]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 235:0-263:1 -/
-def role_order.discover
-  (pending : roles.Edges) (available : roles.Edges) (resolved : roles.Edges) :
-  Result role_order.OrderClosure
-  := do
-  match pending with
-  | roles.Edges.Empty => ok (role_order.OrderClosure.Complete resolved)
-  | roles.Edges.Entry r r1 next =>
-    let (seen, resolved1) ← role_order.contains resolved r r1
-    if seen
-    then role_order.discover next available resolved1
-    else
-      let tp ← role_order.take available r r1
-      match tp with
-      | role_order.TakenPair.Missing =>
-        ok (role_order.OrderClosure.MissingPair r r1)
-      | role_order.TakenPair.Found remaining =>
-        let (before, resolved2) ← role_order.predecessors r r1 resolved1
-        let (after, resolved3) ← role_order.successors r r1 resolved2
-        let e ← role_order.inverse_source r r1
-        let e1 ← role_order.append after next
-        let e2 ← role_order.append before e1
-        let pending1 ← role_order.append e e2
-        role_order.discover pending1 remaining (roles.Edges.Entry r r1
-          resolved3)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::close_order]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 268:0-271:1
-    Visibility: public -/
-def role_order.close_order
-  (nodes : roles.Roles) (seeds : roles.Edges) :
-  Result role_order.OrderClosure
-  := do
-  let (sources, targets) ← role_order.split_roles nodes
-  let e ← role_order.all_pairs sources targets
-  role_order.discover seeds e roles.Edges.Empty
-
-/-- [rowl_kernel::role_order::to_super]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 273:0-285:1 -/
-def role_order.to_super
-  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
-  match values with
-  | roles.Roles.Empty => ok roles.Edges.Empty
-  | roles.Roles.Entry r next =>
-    let e ← role_order.to_super next sup
-    ok (roles.Edges.Entry r sup e)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::trim_last]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 286:0-314:1 -/
-def role_order.trim_last
-  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
-  match values with
-  | roles.Roles.Empty => ok roles.Edges.Empty
-  | roles.Roles.Entry r next =>
-    match next with
-    | roles.Roles.Empty =>
-      let b ← roles.same_role r sup
-      if b
-      then ok roles.Edges.Empty
-      else ok (roles.Edges.Entry r sup roles.Edges.Empty)
-    | roles.Roles.Entry _ _ =>
-      let e ← role_order.trim_last next sup
-      ok (roles.Edges.Entry r sup e)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::roles_empty]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 315:0-317:1 -/
-def role_order.roles_empty (values : roles.Roles) : Result Bool := do
-  match values with
-  | roles.Roles.Empty => ok true
-  | roles.Roles.Entry _ _ => ok false
-
-/-- [rowl_kernel::role_order::non_top_seeds]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 318:0-347:1 -/
-def role_order.non_top_seeds
-  (values : roles.Roles) (sup : roles.Role) : Result roles.Edges := do
-  match values with
-  | roles.Roles.Empty => ok roles.Edges.Empty
-  | roles.Roles.Entry r next =>
-    let b ← roles.same_role r sup
-    if b
-    then
-      match next with
-      | roles.Roles.Empty => ok roles.Edges.Empty
-      | roles.Roles.Entry r1 rest =>
-        let b1 ← role_order.roles_empty rest
-        if b1
-        then
-          let b2 ← roles.same_role r1 sup
-          if b2
-          then ok roles.Edges.Empty
-          else role_order.to_super next sup
-        else role_order.to_super next sup
-    else role_order.trim_last values sup
-
-/-- [rowl_kernel::roles::same_pattern_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 131:0-137:1 -/
-def roles.same_pattern_from
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len key
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-        index
-    let i2 ← Slice.index_usize pattern index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         roles.same_pattern_from key pattern i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::roles::same_pattern]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 138:0-140:1 -/
-def roles.same_pattern
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len key
-  let i1 := Slice.len pattern
-  if i = i1
-  then roles.same_pattern_from key pattern 0#usize
-  else ok false
-
-/-- [rowl_kernel::roles::is_top_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 594:0-600:1 -/
-def roles.is_top_role (role : roles.Role) : Result Bool := do
-  if role.inverse
-  then ok false
-  else
-    let s ←
-      lift (Array.to_slice
-        (Array.make 47#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8,
-          101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8,
-          116#u8, 121#u8
-          ]))
-    roles.same_pattern role.iri.spelling s
-
-/-- [rowl_kernel::roles::expression_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 51:0-62:1
-    Visibility: public -/
-def roles.expression_role
-  (expression : model.ObjectPropertyExpression) : Result roles.Role := do
-  match expression with
-  | model.ObjectPropertyExpression.Property p =>
-    ok { iri := p.iri, inverse := false }
-  | model.ObjectPropertyExpression.Inverse p =>
-    ok { iri := p.iri, inverse := true }
-
-/-- [rowl_kernel::roles::property_roles_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 192:0-201:1 -/
-def roles.property_roles_from
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result roles.Roles
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) values index
-    let r ← roles.expression_role ope
-    let i1 ← index + 1#usize
-    let r1 ← roles.property_roles_from values i1
-    ok (roles.Roles.Entry r r1)
-  else ok roles.Roles.Empty
-partial_fixpoint
-
-/-- [rowl_kernel::roles::property_roles]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 202:0-210:1 -/
-def roles.property_roles
-  (values : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result roles.Roles
-  := do
-  let r ← roles.expression_role values.first
-  let r1 ← roles.expression_role values.second
-  let r2 ← roles.property_roles_from values.rest 0#usize
-  ok (roles.Roles.Entry r (roles.Roles.Entry r1 r2))
-
-/-- [rowl_kernel::role_order::chain_seeds]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 348:0-358:1 -/
-def role_order.chain_seeds
-  (chain : model.AtLeastTwo model.ObjectPropertyExpression)
-  (sup : model.ObjectPropertyExpression) :
-  Result roles.Edges
-  := do
-  let sup1 ← roles.expression_role sup
-  let b ← roles.is_top_role sup1
-  if b
-  then ok roles.Edges.Empty
-  else let r ← roles.property_roles chain
-       role_order.non_top_seeds r sup1
-
-/-- [rowl_kernel::roles::Chains]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 34:0-41:1
-    Visibility: public -/
-@[discriminant isize]
-inductive roles.Chains where
-| Empty : roles.Chains
-| Entry :
-  model.AtLeastTwo model.ObjectPropertyExpression →
-  model.ObjectPropertyExpression →
-  roles.Chains →
-  roles.Chains
-
-/-- [rowl_kernel::role_order::all_chain_seeds]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 359:0-366:1 -/
-def role_order.all_chain_seeds
-  (chains : roles.Chains) : Result roles.Edges := do
-  match chains with
-  | roles.Chains.Empty => ok roles.Edges.Empty
-  | roles.Chains.Entry chain sup next =>
-    let e ← role_order.chain_seeds chain sup
-    let e1 ← role_order.all_chain_seeds next
-    role_order.append e e1
-partial_fixpoint
-
-/-- [rowl_kernel::roles::chains_append]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 94:0-103:1 -/
-def roles.chains_append
-  (left : roles.Chains) (right : roles.Chains) : Result roles.Chains := do
-  match left with
-  | roles.Chains.Empty => ok right
-  | roles.Chains.Entry chain sup next =>
-    let c ← roles.chains_append next right
-    ok (roles.Chains.Entry chain sup c)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::edges_append]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 84:0-93:1 -/
-def roles.edges_append
-  (left : roles.Edges) (right : roles.Edges) : Result roles.Edges := do
-  match left with
-  | roles.Edges.Empty => ok right
-  | roles.Edges.Entry r r1 next =>
-    let e ← roles.edges_append next right
-    ok (roles.Edges.Entry r r1 e)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::roles_append]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 75:0-83:1 -/
-def roles.roles_append
-  (left : roles.Roles) (right : roles.Roles) : Result roles.Roles := do
-  match left with
-  | roles.Roles.Empty => ok right
-  | roles.Roles.Entry r next =>
-    let r1 ← roles.roles_append next right
-    ok (roles.Roles.Entry r r1)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::RoleFacts]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 42:0-48:1
-    Visibility: public -/
-structure roles.RoleFacts where
-  nodes : roles.Roles
-  edges : roles.Edges
-  composite : roles.Roles
-  simple_required : roles.Roles
-  chains : roles.Chains
-
-/-- [rowl_kernel::roles::append_facts]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 390:0-398:1 -/
-def roles.append_facts
-  (left : roles.RoleFacts) (right : roles.RoleFacts) :
-  Result roles.RoleFacts
-  := do
-  let r ← roles.roles_append left.nodes right.nodes
-  let e ← roles.edges_append left.edges right.edges
-  let r1 ← roles.roles_append left.composite right.composite
-  let r2 ← roles.roles_append left.simple_required right.simple_required
-  let c ← roles.chains_append left.chains right.chains
-  ok
-    {
-      nodes := r,
-      edges := e,
-      composite := r1,
-      simple_required := r2,
-      chains := c
-    }
-
-mutual
-
-/-- [rowl_kernel::roles::classes_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 250:0-259:1 -/
-def roles.classes_from
-  (values : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
-  Result roles.Roles
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) values index
-    let r ← roles.class_requirements ce
-    let i1 ← index + 1#usize
-    let r1 ← roles.classes_from values i1
-    roles.roles_append r r1
-  else ok roles.Roles.Empty
-partial_fixpoint
-
-/-- [rowl_kernel::roles::optional_class]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 260:0-265:1 -/
-def roles.optional_class
-  (value : Option model.ClassExpression) : Result roles.Roles := do
-  match value with
-  | none => ok roles.Roles.Empty
-  | some value1 => roles.class_requirements value1
-partial_fixpoint
-
-/-- [rowl_kernel::roles::class_requirements]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 269:0-295:1
-    Visibility: public -/
-def roles.class_requirements
-  (expression : model.ClassExpression) : Result roles.Roles := do
-  match expression with
-  | model.ClassExpression.Class _ => ok roles.Roles.Empty
-  | model.ClassExpression.ObjectIntersectionOf values =>
-    let r ← roles.class_requirements values.first
-    let r1 ← roles.class_requirements values.second
-    let r2 ← roles.classes_from values.rest 0#usize
-    let r3 ← roles.roles_append r1 r2
-    roles.roles_append r r3
-  | model.ClassExpression.ObjectUnionOf values =>
-    let r ← roles.class_requirements values.first
-    let r1 ← roles.class_requirements values.second
-    let r2 ← roles.classes_from values.rest 0#usize
-    let r3 ← roles.roles_append r1 r2
-    roles.roles_append r r3
-  | model.ClassExpression.ObjectComplementOf inner =>
-    roles.class_requirements inner
-  | model.ClassExpression.ObjectOneOf _ => ok roles.Roles.Empty
-  | model.ClassExpression.ObjectSomeValuesFrom _ inner =>
-    roles.class_requirements inner
-  | model.ClassExpression.ObjectAllValuesFrom _ inner =>
-    roles.class_requirements inner
-  | model.ClassExpression.ObjectHasValue _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.ObjectHasSelf property =>
-    let r ← roles.expression_role property
-    ok (roles.Roles.Entry r roles.Roles.Empty)
-  | model.ClassExpression.ObjectMinCardinality _ property filler =>
-    let r ← roles.expression_role property
-    let r1 ← roles.optional_class filler
-    ok (roles.Roles.Entry r r1)
-  | model.ClassExpression.ObjectMaxCardinality _ property filler =>
-    let r ← roles.expression_role property
-    let r1 ← roles.optional_class filler
-    ok (roles.Roles.Entry r r1)
-  | model.ClassExpression.ObjectExactCardinality _ property filler =>
-    let r ← roles.expression_role property
-    let r1 ← roles.optional_class filler
-    ok (roles.Roles.Entry r r1)
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.DataHasValue _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok roles.Roles.Empty
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok roles.Roles.Empty
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::roles::axiom_requirements]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 296:0-323:1 -/
-def roles.axiom_requirements
-  («axiom» : model.Axiom) : Result roles.Roles := do
-  match «axiom» with
-  | model.Axiom.Declaration _ => ok roles.Roles.Empty
-  | model.Axiom.SubClassOf a b =>
-    let r ← roles.class_requirements a
-    let r1 ← roles.class_requirements b
-    roles.roles_append r r1
-  | model.Axiom.EquivalentClasses values =>
-    let r ← roles.class_requirements values.first
-    let r1 ← roles.class_requirements values.second
-    let r2 ← roles.classes_from values.rest 0#usize
-    let r3 ← roles.roles_append r1 r2
-    roles.roles_append r r3
-  | model.Axiom.DisjointClasses values =>
-    let r ← roles.class_requirements values.first
-    let r1 ← roles.class_requirements values.second
-    let r2 ← roles.classes_from values.rest 0#usize
-    let r3 ← roles.roles_append r1 r2
-    roles.roles_append r r3
-  | model.Axiom.DisjointUnion _ values =>
-    let r ← roles.class_requirements values.first
-    let r1 ← roles.class_requirements values.second
-    let r2 ← roles.classes_from values.rest 0#usize
-    let r3 ← roles.roles_append r1 r2
-    roles.roles_append r r3
-  | model.Axiom.SubObjectPropertyOf _ _ => ok roles.Roles.Empty
-  | model.Axiom.EquivalentObjectProperties _ => ok roles.Roles.Empty
-  | model.Axiom.DisjointObjectProperties values => roles.property_roles values
-  | model.Axiom.InverseObjectProperties _ _ => ok roles.Roles.Empty
-  | model.Axiom.ObjectPropertyDomain _ «class» =>
-    roles.class_requirements «class»
-  | model.Axiom.ObjectPropertyRange _ «class» =>
-    roles.class_requirements «class»
-  | model.Axiom.FunctionalObjectProperty property =>
-    let r ← roles.expression_role property
-    ok (roles.Roles.Entry r roles.Roles.Empty)
-  | model.Axiom.InverseFunctionalObjectProperty property =>
-    let r ← roles.expression_role property
-    ok (roles.Roles.Entry r roles.Roles.Empty)
-  | model.Axiom.ReflexiveObjectProperty _ => ok roles.Roles.Empty
-  | model.Axiom.IrreflexiveObjectProperty property =>
-    let r ← roles.expression_role property
-    ok (roles.Roles.Entry r roles.Roles.Empty)
-  | model.Axiom.SymmetricObjectProperty _ => ok roles.Roles.Empty
-  | model.Axiom.AsymmetricObjectProperty property =>
-    let r ← roles.expression_role property
-    ok (roles.Roles.Entry r roles.Roles.Empty)
-  | model.Axiom.TransitiveObjectProperty _ => ok roles.Roles.Empty
-  | model.Axiom.SubDataPropertyOf _ _ => ok roles.Roles.Empty
-  | model.Axiom.EquivalentDataProperties _ => ok roles.Roles.Empty
-  | model.Axiom.DisjointDataProperties _ => ok roles.Roles.Empty
-  | model.Axiom.DataPropertyDomain _ «class» =>
-    roles.class_requirements «class»
-  | model.Axiom.DataPropertyRange _ _ => ok roles.Roles.Empty
-  | model.Axiom.FunctionalDataProperty _ => ok roles.Roles.Empty
-  | model.Axiom.DatatypeDefinition _ _ => ok roles.Roles.Empty
-  | model.Axiom.HasKey «class» _ _ => roles.class_requirements «class»
-  | model.Axiom.SameIndividual _ => ok roles.Roles.Empty
-  | model.Axiom.DifferentIndividuals _ => ok roles.Roles.Empty
-  | model.Axiom.ClassAssertion «class» _ =>
-    roles.class_requirements «class»
-  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok roles.Roles.Empty
-  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok roles.Roles.Empty
-  | model.Axiom.DataPropertyAssertion _ _ _ => ok roles.Roles.Empty
-  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok roles.Roles.Empty
-  | model.Axiom.AnnotationAssertion _ _ _ => ok roles.Roles.Empty
-  | model.Axiom.SubAnnotationPropertyOf _ _ => ok roles.Roles.Empty
-  | model.Axiom.AnnotationPropertyDomain _ _ => ok roles.Roles.Empty
-  | model.Axiom.AnnotationPropertyRange _ _ => ok roles.Roles.Empty
-
-/-- [rowl_kernel::roles::inverse_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 69:0-74:1
-    Visibility: public -/
-def roles.inverse_role (role : roles.Role) : Result roles.Role := do
-  ok { role with inverse := (¬ role.inverse) }
-
-/-- [rowl_kernel::roles::copy_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 63:0-68:1 -/
-def roles.copy_role (role : roles.Role) : Result roles.Role := do
-  ok role
-
-/-- [rowl_kernel::roles::edge_pair]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 114:0-126:1 -/
-def roles.edge_pair
-  (sub : roles.Role) (sup : roles.Role) : Result roles.Edges := do
-  let r ← roles.copy_role sub
-  let inverse_sub ← roles.inverse_role r
-  let r1 ← roles.copy_role sup
-  let inverse_sup ← roles.inverse_role r1
-  ok (roles.Edges.Entry sub sup (roles.Edges.Entry inverse_sub inverse_sup
-    roles.Edges.Empty))
-
-/-- [rowl_kernel::roles::both_edges]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 127:0-130:1 -/
-def roles.both_edges
-  (left : roles.Role) (right : roles.Role) : Result roles.Edges := do
-  let r ← roles.copy_role right
-  let r1 ← roles.copy_role left
-  let backward ← roles.edge_pair r r1
-  let e ← roles.edge_pair left right
-  roles.edges_append e backward
-
-/-- [rowl_kernel::roles::equivalent_rest]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 211:0-224:1 -/
-def roles.equivalent_rest
-  (first : model.ObjectPropertyExpression)
-  (rest : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result roles.Edges
-  := do
-  let i := alloc.vec.Vec.len rest
-  if index < i
-  then
-    let r ← roles.expression_role first
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) rest index
-    let r1 ← roles.expression_role ope
-    let e ← roles.both_edges r r1
-    let i1 ← index + 1#usize
-    let e1 ← roles.equivalent_rest first rest i1
-    roles.edges_append e e1
-  else ok roles.Edges.Empty
-partial_fixpoint
-
-/-- [rowl_kernel::roles::equivalent_pairs_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 225:0-234:1 -/
-def roles.equivalent_pairs_from
-  (values : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
-  Result roles.Edges
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let ope ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ObjectPropertyExpression) values index
-    let i1 ← index + 1#usize
-    let e ← roles.equivalent_rest ope values i1
-    let e1 ← roles.equivalent_pairs_from values i1
-    roles.edges_append e e1
-  else ok roles.Edges.Empty
-partial_fixpoint
-
-/-- [rowl_kernel::roles::equivalent_edges]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 235:0-249:1 -/
-def roles.equivalent_edges
-  (values : model.AtLeastTwo model.ObjectPropertyExpression) :
-  Result roles.Edges
-  := do
-  let r ← roles.expression_role values.first
-  let r1 ← roles.expression_role values.second
-  let e ← roles.both_edges r r1
-  let e1 ← roles.equivalent_rest values.first values.rest 0#usize
-  let e2 ← roles.equivalent_rest values.second values.rest 0#usize
-  let e3 ← roles.equivalent_pairs_from values.rest 0#usize
-  let e4 ← roles.edges_append e2 e3
-  let e5 ← roles.edges_append e1 e4
-  roles.edges_append e e5
-
-/-- [rowl_kernel::roles::builtin_composite]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 141:0-149:1 -/
-def roles.builtin_composite (iri : model.Iri) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 47#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 79#u8, 98#u8, 106#u8, 101#u8,
-        99#u8, 116#u8, 80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8,
-        121#u8
-        ]))
-  let b ← roles.same_pattern iri.spelling s
-  if b
-  then ok true
-  else
-    let s1 ←
-      lift (Array.to_slice
-        (Array.make 50#usize [
-          104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-          119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-          50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8,
-          119#u8, 108#u8, 35#u8, 98#u8, 111#u8, 116#u8, 116#u8, 111#u8, 109#u8,
-          79#u8, 98#u8, 106#u8, 101#u8, 99#u8, 116#u8, 80#u8, 114#u8, 111#u8,
-          112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-          ]))
-    roles.same_pattern iri.spelling s1
-
-/-- [rowl_kernel::roles::composites_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 168:0-191:1 -/
-def roles.composites_from
-  (uses : collection.EntityUses) : Result roles.Roles := do
-  match uses with
-  | collection.EntityUses.Empty => ok roles.Roles.Empty
-  | collection.EntityUses.Entry iri kind next =>
-    let tail ← roles.composites_from next
-    match kind with
-    | typing.EntityKind.Class => ok tail
-    | typing.EntityKind.Datatype => ok tail
-    | typing.EntityKind.ObjectProperty =>
-      let b ← roles.builtin_composite iri
-      if b
-      then ok (roles.Roles.Entry { iri, inverse := false } tail)
-      else ok tail
-    | typing.EntityKind.DataProperty => ok tail
-    | typing.EntityKind.AnnotationProperty => ok tail
-    | typing.EntityKind.NamedIndividual => ok tail
-partial_fixpoint
-
-/-- [rowl_kernel::roles::pair_roles]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 104:0-113:1 -/
-def roles.pair_roles (role : roles.Role) : Result roles.Roles := do
-  let r ← roles.copy_role role
-  let other ← roles.inverse_role r
-  ok (roles.Roles.Entry role (roles.Roles.Entry other roles.Roles.Empty))
-
-/-- [rowl_kernel::roles::nodes_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 150:0-167:1 -/
-def roles.nodes_from (uses : collection.EntityUses) : Result roles.Roles := do
-  match uses with
-  | collection.EntityUses.Empty => ok roles.Roles.Empty
-  | collection.EntityUses.Entry iri kind next =>
-    let tail ← roles.nodes_from next
-    match kind with
-    | typing.EntityKind.Class => ok tail
-    | typing.EntityKind.Datatype => ok tail
-    | typing.EntityKind.ObjectProperty =>
-      let r ← roles.pair_roles { iri, inverse := false }
-      roles.roles_append r tail
-    | typing.EntityKind.DataProperty => ok tail
-    | typing.EntityKind.AnnotationProperty => ok tail
-    | typing.EntityKind.NamedIndividual => ok tail
-partial_fixpoint
-
-/-- [rowl_kernel::roles::axiom_facts]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 327:0-389:1
-    Visibility: public -/
-def roles.axiom_facts
-  (item : model.AnnotatedAxiom) : Result roles.RoleFacts := do
-  let eu ← collection.axiom_entities item
-  let nodes ← roles.nodes_from eu
-  let builtin ← roles.composites_from eu
-  let simple_required ← roles.axiom_requirements item.axiom
-  match item.axiom with
-  | model.Axiom.Declaration _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SubClassOf _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.EquivalentClasses _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DisjointClasses _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DisjointUnion _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SubObjectPropertyOf sope sup =>
-    match sope with
-    | model.SubObjectPropertyExpression.Single sub =>
-      let r ← roles.expression_role sub
-      let r1 ← roles.expression_role sup
-      let e ← roles.edge_pair r r1
-      ok
-        {
-          nodes,
-          edges := e,
-          composite := builtin,
-          simple_required,
-          chains := roles.Chains.Empty
-        }
-    | model.SubObjectPropertyExpression.Chain chain =>
-      let r ← roles.expression_role sup
-      let r1 ← roles.pair_roles r
-      let r2 ← roles.roles_append builtin r1
-      ok
-        {
-          nodes,
-          edges := roles.Edges.Empty,
-          composite := r2,
-          simple_required,
-          chains := (roles.Chains.Entry chain sup roles.Chains.Empty)
-        }
-  | model.Axiom.EquivalentObjectProperties values =>
-    let e ← roles.equivalent_edges values
-    ok
-      {
-        nodes,
-        edges := e,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DisjointObjectProperties _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.InverseObjectProperties a b =>
-    let r ← roles.expression_role a
-    let r1 ← roles.expression_role b
-    let r2 ← roles.inverse_role r1
-    let e ← roles.both_edges r r2
-    ok
-      {
-        nodes,
-        edges := e,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.ObjectPropertyDomain _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.ObjectPropertyRange _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.FunctionalObjectProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.InverseFunctionalObjectProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.ReflexiveObjectProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.IrreflexiveObjectProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SymmetricObjectProperty property =>
-    let r ← roles.expression_role property
-    let r1 ← roles.inverse_role r
-    let e ← roles.edge_pair r r1
-    ok
-      {
-        nodes,
-        edges := e,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.AsymmetricObjectProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.TransitiveObjectProperty property =>
-    let r ← roles.expression_role property
-    let r1 ← roles.pair_roles r
-    let r2 ← roles.roles_append builtin r1
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := r2,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SubDataPropertyOf _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.EquivalentDataProperties _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DisjointDataProperties _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DataPropertyDomain _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DataPropertyRange _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.FunctionalDataProperty _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DatatypeDefinition _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.HasKey _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SameIndividual _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DifferentIndividuals _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.ClassAssertion _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.DataPropertyAssertion _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.AnnotationAssertion _ _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.SubAnnotationPropertyOf _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.AnnotationPropertyDomain _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-  | model.Axiom.AnnotationPropertyRange _ _ =>
-    ok
-      {
-        nodes,
-        edges := roles.Edges.Empty,
-        composite := builtin,
-        simple_required,
-        chains := roles.Chains.Empty
-      }
-
-/-- [rowl_kernel::roles::facts_from]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 399:0-411:1 -/
-def roles.facts_from
-  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
-  Result roles.RoleFacts
-  := do
-  let i := alloc.vec.Vec.len items
-  if index < i
-  then
-    let aa ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) items index
-    let rf ← roles.axiom_facts aa
-    let i1 ← index + 1#usize
-    let rf1 ← roles.facts_from items i1
-    roles.append_facts rf rf1
-  else
-    ok
-      {
-        nodes := roles.Roles.Empty,
-        edges := roles.Edges.Empty,
-        composite := roles.Roles.Empty,
-        simple_required := roles.Roles.Empty,
-        chains := roles.Chains.Empty
-      }
-partial_fixpoint
-
-/-- [rowl_kernel::roles::collect_facts]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 414:0-416:1
-    Visibility: public -/
-def roles.collect_facts
-  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result roles.RoleFacts := do
-  roles.facts_from items 0#usize
-
-/-- [rowl_kernel::role_order::least_chain_order]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 370:0-373:1
-    Visibility: public -/
-def role_order.least_chain_order
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result role_order.OrderClosure
-  := do
-  let facts ← roles.collect_facts axioms
-  let e ← role_order.all_chain_seeds facts.chains
-  role_order.close_order facts.nodes e
-
-/-- [rowl_kernel::role_order::RegularityCheck]
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 375:0-388:1
-    Visibility: public -/
-@[discriminant isize]
-inductive role_order.RegularityCheck where
-| Regular : roles.Edges → role_order.RegularityCheck
-| HierarchyConflict : roles.Role → roles.Role → role_order.RegularityCheck
-| MissingPair : roles.Role → roles.Role → role_order.RegularityCheck
-| MissingHierarchyNode : roles.Role → role_order.RegularityCheck
-
-/-- [rowl_kernel::roles::successors]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 477:0-509:1 -/
-def roles.successors
-  (edges : roles.Edges) (source : roles.Role) :
-  Result (roles.Roles × roles.Edges)
-  := do
-  match edges with
-  | roles.Edges.Empty => ok (roles.Roles.Empty, roles.Edges.Empty)
-  | roles.Edges.Entry r r1 next =>
-    let (tail, restored) ← roles.successors next source
-    let b ← roles.same_role r source
-    if b
-    then ok (roles.Roles.Entry r1 tail, roles.Edges.Entry r r1 restored)
-    else ok (tail, roles.Edges.Entry r r1 restored)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::TakenRole]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 425:0-428:1 -/
-@[discriminant isize]
-inductive roles.TakenRole where
-| Missing : roles.TakenRole
-| Found : roles.Roles → roles.TakenRole
-
-/-- [rowl_kernel::roles::take_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 456:0-475:1 -/
-def roles.take_role
-  (values : roles.Roles) (sought : roles.Role) : Result roles.TakenRole := do
-  match values with
-  | roles.Roles.Empty => ok roles.TakenRole.Missing
-  | roles.Roles.Entry r next =>
-    let b ← roles.same_role r sought
-    if b
-    then ok (roles.TakenRole.Found next)
-    else
-      let tr ← roles.take_role next sought
-      match tr with
-      | roles.TakenRole.Missing => ok roles.TakenRole.Missing
-      | roles.TakenRole.Found remaining =>
-        ok (roles.TakenRole.Found (roles.Roles.Entry r remaining))
-partial_fixpoint
-
-/-- [rowl_kernel::roles::contains_role]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 436:0-454:1 -/
-def roles.contains_role
-  (values : roles.Roles) (sought : roles.Role) :
-  Result (Bool × roles.Roles)
-  := do
-  match values with
-  | roles.Roles.Empty => ok (false, roles.Roles.Empty)
-  | roles.Roles.Entry r next =>
-    let b ← roles.same_role r sought
-    if b
-    then ok (true, values)
-    else
-      let (found, tail) ← roles.contains_role next sought
-      ok (found, roles.Roles.Entry r tail)
-partial_fixpoint
-
-/-- [rowl_kernel::roles::RoleClosure]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 420:0-423:1
-    Visibility: public -/
-@[discriminant isize]
-inductive roles.RoleClosure where
-| Complete : roles.Roles → roles.RoleClosure
-| MissingNode : roles.Role → roles.RoleClosure
-
-/-- [rowl_kernel::roles::discover_roles]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 511:0-539:1 -/
-def roles.discover_roles
-  (pending : roles.Roles) (available : roles.Roles) (resolved : roles.Roles)
-  (edges : roles.Edges) :
-  Result roles.RoleClosure
-  := do
-  match pending with
-  | roles.Roles.Empty => ok (roles.RoleClosure.Complete resolved)
-  | roles.Roles.Entry r next =>
-    let (seen, resolved1) ← roles.contains_role resolved r
-    if seen
-    then roles.discover_roles next available resolved1 edges
-    else
-      let tr ← roles.take_role available r
-      match tr with
-      | roles.TakenRole.Missing => ok (roles.RoleClosure.MissingNode r)
-      | roles.TakenRole.Found remaining =>
-        let (neighbors, edges1) ← roles.successors edges r
-        let pending1 ← roles.roles_append neighbors next
-        roles.discover_roles pending1 remaining (roles.Roles.Entry r resolved1)
-          edges1
-partial_fixpoint
-
-/-- [rowl_kernel::roles::non_simple_closure]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 544:0-550:1
-    Visibility: public -/
-def roles.non_simple_closure
-  (nodes : roles.Roles) (roots : roles.Roles) (edges : roles.Edges) :
-  Result roles.RoleClosure
-  := do
-  roles.discover_roles roots nodes roles.Roles.Empty edges
-
-/-- [rowl_kernel::role_order::check_pairs]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 389:0-428:1 -/
-def role_order.check_pairs
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) (order : roles.Edges) :
-  Result role_order.RegularityCheck
-  := do
-  match order with
-  | roles.Edges.Empty =>
-    ok (role_order.RegularityCheck.Regular roles.Edges.Empty)
-  | roles.Edges.Entry r r1 next =>
-    let facts ← roles.collect_facts axioms
-    let rc ←
-      roles.non_simple_closure facts.nodes (roles.Roles.Entry r1
-        roles.Roles.Empty) facts.edges
-    match rc with
-    | roles.RoleClosure.Complete reached =>
-      let (conflict, _) ← roles.contains_role reached r
-      if conflict
-      then ok (role_order.RegularityCheck.HierarchyConflict r r1)
-      else
-        let rc1 ← role_order.check_pairs axioms next
-        match rc1 with
-        | role_order.RegularityCheck.Regular tail =>
-          ok (role_order.RegularityCheck.Regular (roles.Edges.Entry r r1 tail))
-        | role_order.RegularityCheck.HierarchyConflict _ _ => ok rc1
-        | role_order.RegularityCheck.MissingPair _ _ => ok rc1
-        | role_order.RegularityCheck.MissingHierarchyNode _ => ok rc1
-    | roles.RoleClosure.MissingNode r2 =>
-      ok (role_order.RegularityCheck.MissingHierarchyNode r2)
-partial_fixpoint
-
-/-- [rowl_kernel::role_order::check_regularity]:
-    Source: 'crates/rowl-kernel/src/role_order.rs', lines 434:0-439:1
-    Visibility: public -/
-def role_order.check_regularity
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result role_order.RegularityCheck
-  := do
-  let oc ← role_order.least_chain_order axioms
-  match oc with
-  | role_order.OrderClosure.Complete order =>
-    role_order.check_pairs axioms order
-  | role_order.OrderClosure.MissingPair r r1 =>
-    ok (role_order.RegularityCheck.MissingPair r r1)
-
 /-- [rowl_kernel::roles::classify_non_simple]:
     Source: 'crates/rowl-kernel/src/roles.rs', lines 555:0-558:1
     Visibility: public -/
@@ -54652,44 +56166,6 @@ def roles.classify_non_simple
   := do
   let facts ← roles.collect_facts axioms
   roles.non_simple_closure facts.nodes facts.composite facts.edges
-
-/-- [rowl_kernel::roles::SimplicityCheck]
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 562:0-567:1
-    Visibility: public -/
-@[discriminant isize]
-inductive roles.SimplicityCheck where
-| Allowed : roles.SimplicityCheck
-| ForbiddenRole : roles.Role → roles.SimplicityCheck
-| MissingNode : roles.Role → roles.SimplicityCheck
-
-/-- [rowl_kernel::roles::check_required]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 569:0-581:1 -/
-def roles.check_required
-  (required : roles.Roles) (non_simple : roles.Roles) :
-  Result roles.SimplicityCheck
-  := do
-  match required with
-  | roles.Roles.Empty => ok roles.SimplicityCheck.Allowed
-  | roles.Roles.Entry r next =>
-    let (found, non_simple1) ← roles.contains_role non_simple r
-    if found
-    then ok (roles.SimplicityCheck.ForbiddenRole r)
-    else roles.check_required next non_simple1
-partial_fixpoint
-
-/-- [rowl_kernel::roles::check_simplicity]:
-    Source: 'crates/rowl-kernel/src/roles.rs', lines 586:0-592:1
-    Visibility: public -/
-def roles.check_simplicity
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result roles.SimplicityCheck
-  := do
-  let facts ← roles.collect_facts axioms
-  let rc ← roles.non_simple_closure facts.nodes facts.composite facts.edges
-  match rc with
-  | roles.RoleClosure.Complete non_simple =>
-    roles.check_required facts.simple_required non_simple
-  | roles.RoleClosure.MissingNode r => ok (roles.SimplicityCheck.MissingNode r)
 
 /-- [rowl_kernel::saturation::BUCKETS]
     Source: 'crates/rowl-kernel/src/saturation.rs', lines 48:0-48:28 -/
@@ -57843,342 +59319,5 @@ def tbox.satisfiable_in
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
   let rb ← tbox.no_roles
   tbox.satisfiable_with concept axioms rb
-
-/-- [rowl_kernel::topdata::equal_from]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 12:0-18:1 -/
-def topdata.equal_from
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len key
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
-        index
-    let i2 ← Slice.index_usize pattern index
-    if i1 = i2
-    then let i3 ← index + 1#usize
-         topdata.equal_from key pattern i3
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::topdata::same_pattern]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 19:0-21:1 -/
-def topdata.same_pattern
-  (key : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len key
-  let i1 := Slice.len pattern
-  if i = i1
-  then topdata.equal_from key pattern 0#usize
-  else ok false
-
-/-- [rowl_kernel::topdata::is_top]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 22:0-24:1 -/
-def topdata.is_top (key : alloc.vec.Vec Std.U8) : Result Bool := do
-  let s ←
-    lift (Array.to_slice
-      (Array.make 45#usize [
-        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
-        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
-        50#u8, 48#u8, 48#u8, 50#u8, 47#u8, 48#u8, 55#u8, 47#u8, 111#u8, 119#u8,
-        108#u8, 35#u8, 116#u8, 111#u8, 112#u8, 68#u8, 97#u8, 116#u8, 97#u8,
-        80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
-        ]))
-  topdata.same_pattern key s
-
-/-- [rowl_kernel::topdata::uses_allowed]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 25:0-33:1 -/
-def topdata.uses_allowed (values : collection.EntityUses) : Result Bool := do
-  match values with
-  | collection.EntityUses.Empty => ok true
-  | collection.EntityUses.Entry iri kind next =>
-    match kind with
-    | typing.EntityKind.Class => topdata.uses_allowed next
-    | typing.EntityKind.Datatype => topdata.uses_allowed next
-    | typing.EntityKind.ObjectProperty => topdata.uses_allowed next
-    | typing.EntityKind.DataProperty =>
-      let b ← topdata.is_top iri.spelling
-      if b
-      then ok false
-      else topdata.uses_allowed next
-    | typing.EntityKind.AnnotationProperty => topdata.uses_allowed next
-    | typing.EntityKind.NamedIndividual => topdata.uses_allowed next
-partial_fixpoint
-
-/-- [rowl_kernel::topdata::axiom_allowed]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 37:0-42:1
-    Visibility: public -/
-def topdata.axiom_allowed (item : model.AnnotatedAxiom) : Result Bool := do
-  match item.axiom with
-  | model.Axiom.Declaration _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SubClassOf _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.EquivalentClasses _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DisjointClasses _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DisjointUnion _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SubObjectPropertyOf _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.EquivalentObjectProperties _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DisjointObjectProperties _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.InverseObjectProperties _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.ObjectPropertyDomain _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.ObjectPropertyRange _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.FunctionalObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.InverseFunctionalObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.ReflexiveObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.IrreflexiveObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SymmetricObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.AsymmetricObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.TransitiveObjectProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SubDataPropertyOf sub _ =>
-    let b ← topdata.is_top sub.iri.spelling
-    ok (¬ b)
-  | model.Axiom.EquivalentDataProperties _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DisjointDataProperties _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DataPropertyDomain _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DataPropertyRange _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.FunctionalDataProperty _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DatatypeDefinition _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.HasKey _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SameIndividual _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DifferentIndividuals _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.ClassAssertion _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.ObjectPropertyAssertion _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.DataPropertyAssertion _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.NegativeDataPropertyAssertion _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.AnnotationAssertion _ _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.SubAnnotationPropertyOf _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.AnnotationPropertyDomain _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-  | model.Axiom.AnnotationPropertyRange _ _ =>
-    let eu ← collection.axiom_entities item
-    topdata.uses_allowed eu
-
-/-- [rowl_kernel::topdata::axioms_from]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 43:0-54:1 -/
-def topdata.axioms_from
-  (values : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
-  Result (Option model.AnnotatedAxiom)
-  := do
-  let i := alloc.vec.Vec.len values
-  if index < i
-  then
-    let item ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.AnnotatedAxiom) values index
-    let b ← topdata.axiom_allowed item
-    if b
-    then let i1 ← index + 1#usize
-         topdata.axioms_from values i1
-    else ok (some item)
-  else ok none
-partial_fixpoint
-
-/-- [rowl_kernel::topdata::check_axioms]:
-    Source: 'crates/rowl-kernel/src/topdata.rs', lines 58:0-60:1
-    Visibility: public -/
-def topdata.check_axioms
-  (axioms : alloc.vec.Vec model.AnnotatedAxiom) :
-  Result (Option model.AnnotatedAxiom)
-  := do
-  topdata.axioms_from axioms 0#usize
-
-/-- [rowl_kernel::typing::entity_kind]:
-    Source: 'crates/rowl-kernel/src/typing.rs', lines 35:0-44:1
-    Visibility: public -/
-def typing.entity_kind (entity : model.Entity) : Result typing.EntityKind := do
-  match entity with
-  | model.Entity.Class _ => ok typing.EntityKind.Class
-  | model.Entity.Datatype _ => ok typing.EntityKind.Datatype
-  | model.Entity.ObjectProperty _ => ok typing.EntityKind.ObjectProperty
-  | model.Entity.DataProperty _ => ok typing.EntityKind.DataProperty
-  | model.Entity.AnnotationProperty _ =>
-    ok typing.EntityKind.AnnotationProperty
-  | model.Entity.NamedIndividual _ => ok typing.EntityKind.NamedIndividual
-
-/-- [rowl_kernel::vocabulary::VocabularyResult]
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 15:0-20:1
-    Visibility: public -/
-@[discriminant isize]
-inductive vocabulary.VocabularyResult where
-| Valid : vocabulary.VocabularyResult
-| ReservedOntologyIri : model.Iri → vocabulary.VocabularyResult
-| ReservedVersionIri : model.Iri → vocabulary.VocabularyResult
-| ForbiddenEntity :
-  model.Iri →
-  typing.EntityKind →
-  vocabulary.VocabularyResult
-
-/-- [rowl_kernel::vocabulary::entity_iri_allowed]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 44:0-63:1
-    Visibility: public -/
-def vocabulary.entity_iri_allowed
-  (iri : model.Iri) (kind : typing.EntityKind) : Result Bool := do
-  let b ← vocabulary.reserved_iri iri.spelling
-  if b
-  then
-    let o ← builtins.builtin_kind iri.spelling
-    match o with
-    | none => ok false
-    | some role =>
-      match role with
-      | typing.EntityKind.Class =>
-        match kind with
-        | typing.EntityKind.Class => ok true
-        | typing.EntityKind.Datatype => ok false
-        | typing.EntityKind.ObjectProperty => ok false
-        | typing.EntityKind.DataProperty => ok false
-        | typing.EntityKind.AnnotationProperty => ok false
-        | typing.EntityKind.NamedIndividual => ok false
-      | typing.EntityKind.Datatype =>
-        match kind with
-        | typing.EntityKind.Class => ok false
-        | typing.EntityKind.Datatype => ok true
-        | typing.EntityKind.ObjectProperty => ok false
-        | typing.EntityKind.DataProperty => ok false
-        | typing.EntityKind.AnnotationProperty => ok false
-        | typing.EntityKind.NamedIndividual => ok false
-      | typing.EntityKind.ObjectProperty =>
-        match kind with
-        | typing.EntityKind.Class => ok false
-        | typing.EntityKind.Datatype => ok false
-        | typing.EntityKind.ObjectProperty => ok true
-        | typing.EntityKind.DataProperty => ok false
-        | typing.EntityKind.AnnotationProperty => ok false
-        | typing.EntityKind.NamedIndividual => ok false
-      | typing.EntityKind.DataProperty =>
-        match kind with
-        | typing.EntityKind.Class => ok false
-        | typing.EntityKind.Datatype => ok false
-        | typing.EntityKind.ObjectProperty => ok false
-        | typing.EntityKind.DataProperty => ok true
-        | typing.EntityKind.AnnotationProperty => ok false
-        | typing.EntityKind.NamedIndividual => ok false
-      | typing.EntityKind.AnnotationProperty =>
-        match kind with
-        | typing.EntityKind.Class => ok false
-        | typing.EntityKind.Datatype => ok false
-        | typing.EntityKind.ObjectProperty => ok false
-        | typing.EntityKind.DataProperty => ok false
-        | typing.EntityKind.AnnotationProperty => ok true
-        | typing.EntityKind.NamedIndividual => ok false
-      | typing.EntityKind.NamedIndividual =>
-        match kind with
-        | typing.EntityKind.Class => ok false
-        | typing.EntityKind.Datatype => ok false
-        | typing.EntityKind.ObjectProperty => ok false
-        | typing.EntityKind.DataProperty => ok false
-        | typing.EntityKind.AnnotationProperty => ok false
-        | typing.EntityKind.NamedIndividual => ok true
-  else ok true
-
-/-- [rowl_kernel::vocabulary::check_uses]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 65:0-76:1 -/
-def vocabulary.check_uses
-  (uses : collection.EntityUses) : Result vocabulary.VocabularyResult := do
-  match uses with
-  | collection.EntityUses.Empty => ok vocabulary.VocabularyResult.Valid
-  | collection.EntityUses.Entry iri kind next =>
-    let b ← vocabulary.entity_iri_allowed iri kind
-    if b
-    then vocabulary.check_uses next
-    else ok (vocabulary.VocabularyResult.ForbiddenEntity iri kind)
-partial_fixpoint
-
-/-- [rowl_kernel::vocabulary::check_reserved_vocabulary]:
-    Source: 'crates/rowl-kernel/src/vocabulary.rs', lines 81:0-94:1
-    Visibility: public -/
-def vocabulary.check_reserved_vocabulary
-  (ontology : model.RawOntology) : Result vocabulary.VocabularyResult := do
-  match ontology.identity with
-  | model.OntologyIdentity.Anonymous =>
-    let collected ← collection.ontology_entities ontology
-    vocabulary.check_uses collected.uses
-  | model.OntologyIdentity.Named ontology1 version =>
-    let b ← vocabulary.reserved_iri ontology1.spelling
-    if b
-    then ok (vocabulary.VocabularyResult.ReservedOntologyIri ontology1)
-    else
-      match version with
-      | none =>
-        let collected ← collection.ontology_entities ontology
-        vocabulary.check_uses collected.uses
-      | some version1 =>
-        let b1 ← vocabulary.reserved_iri version1.spelling
-        if b1
-        then ok (vocabulary.VocabularyResult.ReservedVersionIri version1)
-        else
-          let collected ← collection.ontology_entities ontology
-          vocabulary.check_uses collected.uses
 
 end RowlRust
