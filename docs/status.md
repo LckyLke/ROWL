@@ -43,14 +43,24 @@ progress. Full OWL parsing and executable reasoning are still future work.
   including IPv6/IPvFuture, all Unicode ranges, percent escapes and query-only
   private characters. The actual compiled grammar is proved equivalent to the
   independent ABNF language; bounded repetition is proved exact. IRI includes
-  fragments. Base resolution and ontology integration remain pending; Functional Syntax
-  prefix expansion is separately proved below. Since the compiled-grammar stage
+  fragments. RFC 3986 reference resolution is proved below; ontology integration
+  remains pending. Functional Syntax prefix expansion is separately proved below. Since the compiled-grammar stage
   the validators compile the grammar into a node table and match by partial
   derivatives over continuation stacks; that matcher is proved to return the
   derivative matcher's result, so the statements above are unchanged. IRIs of
   the plain form `scheme://host/segment…#fragment` with ASCII letters, digits,
   `-`, `.`, `_` and `~` are accepted by a byte scan without building the
   grammar, proved to accept only well-encoded IRIs.
+- M3 RFC 3986 section 5.2 reference resolution on the UTF-8 bytes of IRIs:
+  Appendix B splitting, the strict transformation with path merging and
+  dot-segment removal, and recomposition. `references::resolve` is proved to
+  compute exactly the algorithm as written from the RFC in `IriResolution.lean`
+  on inputs shorter than `usize::MAX / 8` bytes, and the algorithm to commute
+  with UTF-8. Resolving an IRI reference against an IRI is proved to give an IRI
+  with the RFC target components whenever the target has an authority or a path
+  not beginning with `//`; a proved counterexample shows that the RFC algorithm
+  can leave the IRI grammar otherwise. `references::is_reference` is proved to
+  accept exactly the UTF-8 spellings of RFC 3987 IRI references.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against
@@ -1017,7 +1027,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2590 audited public theorems and 1171 audited semantic definitions. Consistency,
+- 2670 audited public theorems and 1211 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1034,7 +1044,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 516 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 521 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1051,7 +1061,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2783-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2863-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
