@@ -338,8 +338,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   parsing, other payload construction, import scopes and operational M8 limits
   remain pending. Since the lexer performance stage, each token is selected on
   the validated text by matchers that stop once no longer match is possible,
-  and only for terminals whose words can begin with the next code point; both
-  shortcuts are proved equal to the standard greatest selection.
+  and only for terminals whose words can begin with the next code point
+  (prefix names and abbreviated IRIs only at `:`, ASCII letters and code points
+  outside ASCII); both shortcuts are proved equal to the standard greatest
+  selection.
 - M3 complete terminal-language disjointness and priority-free standard selection.
   All 71 keyword spellings are injective, and no two distinct terminal kinds
   accept the same arbitrary Unicode word. Canonical UTF-8 spans with equal byte

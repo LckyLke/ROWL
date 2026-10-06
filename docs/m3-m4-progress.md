@@ -4489,3 +4489,29 @@ EL ontologies.
 
 This block adds 13 public theorems and 3 definitions. Totals are 2590 audited
 theorems, 1171 definitions, 516 Rust regressions and 2783 ledger obligations.
+
+## Performance: a tighter start test for prefixed names
+
+On the generated EL ontologies lexing was most of the time of reading
+Functional Syntax. The first-code-point dispatch `functional::may_start` let the
+prefix-name and abbreviated-IRI terminals through for every code point, so every
+token, parentheses and whitespace included, built both name grammars, large
+alternations of Unicode ranges, and derived them code point by code point.
+
+`may_start` now admits the two terminals only for `:`, the ASCII letters and the
+code points outside ASCII (`functional::name_start`). Every word of PNAME_NS
+begins with `:` or a PN_CHARS_BASE code point, whose ASCII members are the
+letters, and every word of PNAME_LN begins with a word of PNAME_NS.
+`FunctionalFast.lean` proves this from the independent languages
+(`prefix_start`), so `may_start_sound` holds for the two terminals as for the
+others; `longest_skip` and `next_terminal_fast_eq` keep their statements, and so
+does every lexer theorem. The dispatch regression test now also covers names
+that begin with letters outside ASCII, digits, `_`, `-` and `.`.
+
+Classifying the generated 20 000-class EL ontology from Functional Syntax takes
+11.1 s instead of 13.7 s and the 5000-class one 2.7 s instead of 3.3 s; lexing
+the larger one takes 8.3 s instead of 10.9 s. Keywords and names still build
+their grammars.
+
+This block adds no public theorems or definitions. Totals are 2590 audited
+theorems, 1171 definitions, 516 Rust regressions and 2783 ledger obligations.

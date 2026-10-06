@@ -1258,9 +1258,18 @@ fn keyword_first(keyword: Keyword) -> u32 {
         Keyword::NegativeDataPropertyAssertion => 78,
     }
 }
+/// Whether a prefixed name can start with the code point: every PNAME_NS and
+/// PNAME_LN begins with `:` or a PN_CHARS_BASE code point, whose ASCII members
+/// are the letters.
+#[allow(clippy::manual_range_contains)] // Keep comparisons explicit for extraction.
+fn name_start(codepoint: u32) -> bool {
+    codepoint == 58
+        || (65 <= codepoint && codepoint <= 90)
+        || (97 <= codepoint && codepoint <= 122)
+        || 128 <= codepoint
+}
 /// Whether a token of the terminal can start with the code point: every token
-/// of the fixed-start terminals begins with its one code point or set, and the
-/// two prefixed-name terminals are always tried.
+/// of each terminal begins with its one code point or set.
 #[allow(clippy::manual_range_contains)] // Keep comparisons explicit for extraction.
 fn may_start(terminal: Terminal, codepoint: u32) -> bool {
     match terminal {
@@ -1274,8 +1283,8 @@ fn may_start(terminal: Terminal, codepoint: u32) -> bool {
         Terminal::LanguageTag => codepoint == 64,
         Terminal::NodeId => codepoint == 95,
         Terminal::FullIri => codepoint == 60,
-        Terminal::PrefixName => true,
-        Terminal::AbbreviatedIri => true,
+        Terminal::PrefixName => name_start(codepoint),
+        Terminal::AbbreviatedIri => name_start(codepoint),
         Terminal::Whitespace => {
             codepoint == 32 || codepoint == 9 || codepoint == 10 || codepoint == 13
         }

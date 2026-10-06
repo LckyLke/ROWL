@@ -77,6 +77,44 @@ private theorem keyword_head (key : functional.Keyword) :
       (Rowl.Functional.KeywordWord key).head? = some first.val := by
   cases key <;> simp [functional.keyword_first, Rowl.Functional.KeywordWord]
 
+/-- The code points the dispatch admits for the two prefixed-name terminals:
+    `:`, the ASCII letters and every code point outside ASCII. -/
+private def NameStart (cp : Nat) : Prop :=
+  cp = 58 ∨ (65 ≤ cp ∧ cp ≤ 90) ∨ (97 ≤ cp ∧ cp ≤ 122) ∨ 128 ≤ cp
+private instance (cp : Nat) : Decidable (NameStart cp) := by unfold NameStart; infer_instance
+
+private theorem name_start_spec (cp : U32) :
+    functional.name_start cp = .ok (decide (NameStart cp.val)) := by
+  unfold functional.name_start NameStart
+  by_cases colon : cp.val = 58
+  · have equal : cp = 58#u32 := UScalar.eq_of_val_eq colon
+    simp [equal]
+  · have different : ¬ cp = 58#u32 := fun equal => colon (by simp [equal])
+    simp only [different, ↓reduceIte, UScalar.le_equiv]
+    split_ifs <;> simp at * <;> (try rw [Bool.eq_iff_iff]) <;> (try simp) <;> omega
+
+/-- Every word of PNAME_NS begins with `:` or a PN_CHARS_BASE code point. -/
+private theorem prefix_start {c : Nat} {tail : List Nat} (accepted : c :: tail ∈ Rowl.Names.Prefix) :
+    NameStart c := by
+  obtain ⟨left, inLeft, right, inRight, equal⟩ := Language.mem_mul.mp accepted
+  cases left with
+  | nil =>
+    rw [List.nil_append] at equal
+    subst equal
+    have := range_head inRight
+    exact Or.inl (by omega)
+  | cons x rest =>
+    rw [List.cons_append, List.cons_eq_cons] at equal
+    obtain ⟨rfl, -⟩ := equal
+    rcases (Language.mem_add _ _ _).mp inLeft with empty | word
+    · cases (Language.mem_one _).mp empty
+    · obtain ⟨more, ⟨cp, single, base⟩⟩ := mul_head (b := Rowl.Names.Ending) word
+        (by rintro ⟨cp, single, -⟩; cases single)
+      obtain ⟨rfl, -⟩ := List.cons_eq_cons.mp single
+      unfold Rowl.Names.BaseCode at base
+      unfold NameStart
+      omega
+
 private theorem may_start_total (terminal : Terminal) (cp : U32) :
     ∃ b, functional.may_start terminal cp = .ok b := by
   cases terminal with
@@ -89,6 +127,8 @@ private theorem may_start_total (terminal : Terminal) (cp : U32) :
   | Whitespace =>
     rw [functional.may_start]
     split_ifs <;> exact ⟨_, rfl⟩
+  | PrefixName => exact ⟨_, by rw [functional.may_start, name_start_spec]⟩
+  | AbbreviatedIri => exact ⟨_, by rw [functional.may_start, name_start_spec]⟩
   | _ => exact ⟨_, rfl⟩
 
 /-- Every word of a terminal language begins with a code point that passes
@@ -143,8 +183,14 @@ theorem may_start_sound (terminal : Terminal) (cp : U32) (tail : List Nat)
     have := range_mul_head (lower := 60) (upper := 60) accepted
     have equal : cp = 60#u32 := by scalar_tac
     simp [functional.may_start, equal]
-  | PrefixName => rfl
-  | AbbreviatedIri => rfl
+  | PrefixName =>
+    rw [functional.may_start, name_start_spec]
+    simp [prefix_start accepted]
+  | AbbreviatedIri =>
+    obtain ⟨rest, first⟩ := mul_head (b := Rowl.Names.Local) accepted
+      (Rowl.Functional.grammar_nonempty .PrefixName)
+    rw [functional.may_start, name_start_spec]
+    simp [prefix_start first]
   | Whitespace =>
     obtain ⟨rest, first⟩ := mul_head (a := Rowl.Functional.Space) accepted
       (by simp [Rowl.Functional.Space])

@@ -33545,7 +33545,7 @@ def functional.next_terminal
   functional.extend functional.Terminal.Comment bytes position choice82
 
 /-- [rowl_kernel::functional::seed_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1820:0-1830:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1829:0-1839:1 -/
 def functional.seed_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -33562,7 +33562,7 @@ def functional.seed_valid
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1831:0-1856:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1840:0-1865:1 -/
 def functional.extend_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -33918,8 +33918,32 @@ def functional.keyword_first
   | functional.Keyword.DataPropertyAssertion => ok 68#u32
   | functional.Keyword.NegativeDataPropertyAssertion => ok 78#u32
 
+/-- [rowl_kernel::functional::name_start]:
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1265:0-1270:1 -/
+def functional.name_start (codepoint : Std.U32) : Result Bool := do
+  if codepoint = 58#u32
+  then ok true
+  else
+    if 65#u32 <= codepoint
+    then
+      if codepoint <= 90#u32
+      then ok true
+      else
+        if 97#u32 <= codepoint
+        then
+          if codepoint <= 122#u32
+          then ok true
+          else ok (128#u32 <= codepoint)
+        else ok (128#u32 <= codepoint)
+    else
+      if 97#u32 <= codepoint
+      then if codepoint <= 122#u32
+           then ok true
+           else ok (128#u32 <= codepoint)
+      else ok (128#u32 <= codepoint)
+
 /-- [rowl_kernel::functional::may_start]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1265:0-1284:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1274:0-1293:1 -/
 def functional.may_start
   (terminal : functional.Terminal) (codepoint : Std.U32) : Result Bool := do
   match terminal with
@@ -33938,8 +33962,8 @@ def functional.may_start
   | functional.Terminal.LanguageTag => ok (codepoint = 64#u32)
   | functional.Terminal.NodeId => ok (codepoint = 95#u32)
   | functional.Terminal.FullIri => ok (codepoint = 60#u32)
-  | functional.Terminal.PrefixName => ok true
-  | functional.Terminal.AbbreviatedIri => ok true
+  | functional.Terminal.PrefixName => functional.name_start codepoint
+  | functional.Terminal.AbbreviatedIri => functional.name_start codepoint
   | functional.Terminal.Whitespace =>
     if codepoint = 32#u32
     then ok true
@@ -33952,7 +33976,7 @@ def functional.may_start
   | functional.Terminal.Comment => ok (codepoint = 35#u32)
 
 /-- [rowl_kernel::functional::seed_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1285:0-1291:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1294:0-1300:1 -/
 def functional.seed_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) :
@@ -33964,7 +33988,7 @@ def functional.seed_from
   else ok functional.Selection.NoMatch
 
 /-- [rowl_kernel::functional::extend_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1292:0-1304:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1301:0-1313:1 -/
 def functional.extend_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) (previous : functional.Selection) :
@@ -33976,7 +34000,7 @@ def functional.extend_from
   else ok previous
 
 /-- [rowl_kernel::functional::next_terminal_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1305:0-1810:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1314:0-1819:1 -/
 def functional.next_terminal_from
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (first : Std.U32) :
   Result functional.Selection
@@ -34245,7 +34269,7 @@ def functional.next_terminal_from
     choice82
 
 /-- [rowl_kernel::functional::next_terminal_fast]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1814:0-1819:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1823:0-1828:1
     Visibility: public -/
 def functional.next_terminal_fast
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :

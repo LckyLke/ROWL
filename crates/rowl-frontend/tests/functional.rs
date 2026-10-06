@@ -380,6 +380,8 @@ fn first_code_point_dispatch_selects_exactly_the_standard_terminal() {
         "ObjectMinCardinality(10 :p) DatatypeDefinition(:d DataOneOf(\"é𐀀\"))",
         "unknownWord 123abc ^^ = ( ) <> :",
         "AnnotationAssertion(rdfs:label :Pump \"Pumpe\"@de)\t\t",
+        "Größe:Maß ÄÖ: é:x ·:y _:z 1a:b -a:b .a:b a.b:c.d. 𐀀:𐀀 :é a:\u{300}",
+        "SubClassOf(übel:Ä über:Öl) zé:9 Z:_ Q: :: a::b",
     ] {
         let bytes = text.as_bytes().to_vec();
         for start in text
