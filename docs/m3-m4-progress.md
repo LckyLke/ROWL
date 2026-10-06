@@ -4515,3 +4515,41 @@ their grammars.
 
 This block adds no public theorems or definitions. Totals are 2590 audited
 theorems, 1171 definitions, 516 Rust regressions and 2783 ledger obligations.
+
+## Performance: prefixed names scanned over ASCII bytes
+
+After the tighter start test, every prefixed name and every keyword still built
+both name grammars and derived them code point by code point.
+`names::ascii_prefix` and `names::ascii_abbreviated` now find the longest
+PNAME_NS and PNAME_LN at a position by reading bytes. A prefix name is the run
+of label bytes from the position (ASCII letters, digits, `_`, `-` and `.`)
+followed by a colon, where the run is empty or begins with a letter and does
+not end with a dot; an abbreviated IRI continues after the colon with the run of
+label bytes there, which must begin with a letter, `_` or a digit, up to its
+last byte other than a dot. The scanners decline when a byte outside ASCII ends
+a run, since such a byte may continue the name, and `functional::longest_valid`
+then matches the grammar as before.
+
+`Names.lean` now also proves the answers against its independent languages.
+ASCII bytes decode to one code point each; every code point of a label or
+local name is a PN_CHARS code point or a dot, whose ASCII members are exactly
+the label bytes; and a prefix name has one colon, at its end. So every
+candidate span reads the whole label run and then the colon after it, and for
+PNAME_LN a prefix of the run after the colon. Whenever the scanners answer, the
+answer is the greatest candidate endpoint, or no endpoint when there is no
+candidate (`ascii_prefix_correct`, `ascii_abbreviated_correct`). With
+`longest_matched_iff` this gives `longest_valid_eq` again, which the stream
+proofs in `FunctionalLexer.lean` use, so every lexer theorem keeps its
+statement. A regression test compares the scanners and `longest_valid` with the
+grammar matcher at every position of 3000 random strings of ASCII name
+characters, dots, colons, delimiters and characters outside ASCII.
+
+Classifying the generated 20 000-class EL ontology from Functional Syntax takes
+4.3 s instead of 11.1 s and the 5000-class one 0.9 s instead of 2.7 s, with the
+same answers; lexing the larger one takes 0.9 s instead of 8.3 s. Of the 4.0 s
+that reading it takes, the largest part is now the reader's own grammar
+matching for every abbreviated IRI; keywords still derive their literal
+grammars.
+
+This block adds 2 public theorems and no definitions. Totals are 2592 audited
+theorems, 1171 definitions, 518 Rust regressions and 2785 ledger obligations.

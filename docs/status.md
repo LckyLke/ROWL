@@ -341,7 +341,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   and only for terminals whose words can begin with the next code point
   (prefix names and abbreviated IRIs only at `:`, ASCII letters and code points
   outside ASCII); both shortcuts are proved equal to the standard greatest
-  selection.
+  selection. Prefix names and abbreviated IRIs are first scanned over ASCII
+  bytes without their grammars; whenever the scanners answer, the answer is
+  proved to be the greatest candidate endpoint of the independent languages.
 - M3 complete terminal-language disjointness and priority-free standard selection.
   All 71 keyword spellings are injective, and no two distinct terminal kinds
   accept the same arbitrary Unicode word. Canonical UTF-8 spans with equal byte
@@ -1019,7 +1021,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2590 audited public theorems and 1171 audited semantic definitions. Consistency,
+- 2592 audited public theorems and 1171 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1036,7 +1038,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 516 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 518 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1053,7 +1055,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2783-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2785-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

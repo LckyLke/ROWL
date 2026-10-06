@@ -283,10 +283,25 @@ pub fn recognize(terminal: Terminal, bytes: &Vec<u8>) -> MatchResult {
 pub fn longest(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> PrefixResult {
     longest_prefix(grammar(terminal), bytes, position)
 }
+/// The longest prefix name or abbreviated IRI from `position` when the bytes
+/// that decide it are ASCII; `None` for the other terminals and when a byte
+/// outside ASCII must be decoded first.
+#[allow(clippy::ptr_arg)]
+fn ascii_name(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> Option<PrefixResult> {
+    match terminal {
+        Terminal::PrefixName => names::ascii_prefix(bytes, position),
+        Terminal::AbbreviatedIri => names::ascii_abbreviated(bytes, position),
+        _ => None,
+    }
+}
 /// `longest` for text already validated as UTF-8 from `position`; the same
-/// result there, without rescanning the rest of the text.
+/// result there, without rescanning the rest of the text. Prefix names and
+/// abbreviated IRIs that ASCII bytes decide are scanned without the grammars.
 pub fn longest_valid(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> PrefixResult {
-    longest_valid_prefix(grammar(terminal), bytes, position)
+    match ascii_name(terminal, bytes, position) {
+        Some(result) => result,
+        None => longest_valid_prefix(grammar(terminal), bytes, position),
+    }
 }
 
 /// A selected source span; payload decoding remains the parser's responsibility.

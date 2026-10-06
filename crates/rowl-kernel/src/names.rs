@@ -3,6 +3,9 @@
 //! These whole-buffer recognizers cover PNAME_NS, PN_LOCAL, PNAME_LN and
 //! BLANK_NODE_LABEL. They preserve strict UTF-8 diagnostics. They do not apply
 //! the broader Turtle/SPARQL 1.1 local-name escape grammar or tokenize a document.
+//! The ASCII scanners find the longest PNAME_NS and PNAME_LN at a position
+//! without the grammars when the bytes that decide it are ASCII.
+use crate::longest::PrefixResult;
 use crate::regular::{matches_utf8, Expression, MatchResult};
 
 fn range(lower: u32, upper: u32) -> Expression {
@@ -110,4 +113,129 @@ pub fn validate_abbreviated(bytes: &Vec<u8>) -> MatchResult {
 }
 pub fn validate_node(bytes: &Vec<u8>) -> MatchResult {
     matches_utf8(node_grammar(), bytes)
+}
+
+/// An ASCII letter: the ASCII members of PN_CHARS_BASE.
+#[allow(clippy::manual_range_contains)] // Keep comparisons explicit for extraction.
+fn ascii_letter(byte: u8) -> bool {
+    (65 <= byte && byte <= 90) || (97 <= byte && byte <= 122)
+}
+/// A byte that can begin a local name: an ASCII letter, `_` or a digit.
+#[allow(clippy::manual_range_contains)]
+fn local_start(byte: u8) -> bool {
+    ascii_letter(byte) || byte == 95 || (48 <= byte && byte <= 57)
+}
+/// An ASCII byte of a label: a PN_CHARS member (a letter, a digit, `_` or
+/// `-`) or a dot.
+fn label_byte(byte: u8) -> bool {
+    local_start(byte) || byte == 45 || byte == 46
+}
+/// The end of the run of label bytes from `index`.
+#[allow(clippy::ptr_arg)]
+fn label_end(bytes: &Vec<u8>, index: usize) -> usize {
+    if index < bytes.len() {
+        if label_byte(bytes[index]) {
+            label_end(bytes, index + 1)
+        } else {
+            index
+        }
+    } else {
+        index
+    }
+}
+/// Whether the label run from `position` to `colon` is empty or a PN_PREFIX:
+/// a letter first and no dot last.
+#[allow(clippy::ptr_arg)]
+fn prefix_label(bytes: &Vec<u8>, position: usize, colon: usize) -> bool {
+    colon == position || (ascii_letter(bytes[position]) && bytes[colon - 1] != 46)
+}
+/// Where a PNAME_NS from `position` ends when ASCII bytes decide it:
+/// `Some(Some(end))` for the prefix name ending at `end`, `Some(None)` when no
+/// prefix name starts there, and `None` when a byte outside ASCII follows the
+/// label run. A prefix name has exactly one colon, right after its label.
+#[allow(clippy::ptr_arg)]
+fn ascii_prefix_end(bytes: &Vec<u8>, position: usize) -> Option<Option<usize>> {
+    let colon = label_end(bytes, position);
+    if colon < bytes.len() {
+        if bytes[colon] == 58 {
+            if prefix_label(bytes, position, colon) {
+                Some(Some(colon + 1))
+            } else {
+                Some(None)
+            }
+        } else if bytes[colon] < 128 {
+            Some(None)
+        } else {
+            None
+        }
+    } else {
+        Some(None)
+    }
+}
+/// The greatest endpoint in `(start, end]` that does not follow a dot, for a
+/// label run from `start` to `end` that does not begin with a dot.
+#[allow(clippy::ptr_arg)]
+fn trim_dots(bytes: &Vec<u8>, start: usize, end: usize) -> usize {
+    if start + 1 < end {
+        if bytes[end - 1] == 46 {
+            trim_dots(bytes, start, end - 1)
+        } else {
+            end
+        }
+    } else {
+        end
+    }
+}
+/// The longest local name in the label run from `start` to `end`: up to its
+/// last byte other than a dot, when the run begins with a letter, `_` or a
+/// digit.
+#[allow(clippy::ptr_arg)]
+fn local_end(bytes: &Vec<u8>, start: usize, end: usize) -> Option<usize> {
+    if start < end {
+        if local_start(bytes[start]) {
+            Some(trim_dots(bytes, start, end))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+/// Whether the byte at `index`, if any, is ASCII.
+#[allow(clippy::ptr_arg)]
+fn ascii_at(bytes: &Vec<u8>, index: usize) -> bool {
+    if index < bytes.len() {
+        bytes[index] < 128
+    } else {
+        true
+    }
+}
+/// The longest local name from `start` when ASCII bytes decide it.
+#[allow(clippy::ptr_arg)]
+fn ascii_local(bytes: &Vec<u8>, start: usize) -> Option<PrefixResult> {
+    let end = label_end(bytes, start);
+    if ascii_at(bytes, end) {
+        Some(PrefixResult::Matched(local_end(bytes, start, end)))
+    } else {
+        None
+    }
+}
+/// The longest PNAME_NS from `position` when the bytes that decide it are
+/// ASCII, or `None` when a byte outside ASCII must be decoded first.
+#[allow(clippy::ptr_arg, clippy::manual_map)] // Explicit match for the pinned extraction.
+pub fn ascii_prefix(bytes: &Vec<u8>, position: usize) -> Option<PrefixResult> {
+    match ascii_prefix_end(bytes, position) {
+        Some(end) => Some(PrefixResult::Matched(end)),
+        None => None,
+    }
+}
+/// The longest PNAME_LN from `position` when the bytes that decide it are
+/// ASCII, or `None` when a byte outside ASCII must be decoded first.
+#[allow(clippy::ptr_arg)]
+pub fn ascii_abbreviated(bytes: &Vec<u8>, position: usize) -> Option<PrefixResult> {
+    match ascii_prefix_end(bytes, position) {
+        Some(Some(start)) => ascii_local(bytes, start),
+        Some(None) => Some(PrefixResult::Matched(None)),
+        None => None,
+    }
 }

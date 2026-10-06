@@ -4,10 +4,12 @@ import Rowl.Functional
 Terminal selection on text already known to be valid UTF-8. The lexer checks
 the whole text once, and then selects each token with matchers that stop as
 soon as a terminal can match no longer prefix; on a valid suffix they select
-exactly what the full matchers select. The lexer also skips every terminal
-whose words cannot begin with the next code point: each terminal language's
-first code points pass the dispatch test, so a skipped terminal has no
-candidate endpoint and the selection is unchanged.
+exactly what the full matchers select. Prefix names and abbreviated IRIs are
+first scanned over ASCII bytes (`Names.lean`), whose answers are the
+greatest candidate endpoints. The lexer also skips every terminal whose words
+cannot begin with the next code point: each terminal language's first code
+points pass the dispatch test, so a skipped terminal has no candidate endpoint
+and the selection is unchanged.
 -/
 namespace Rowl.FunctionalFast
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust
@@ -15,12 +17,36 @@ open RowlRust.functional (Terminal Token Selection)
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 3000000
 
+/-- Whenever the ASCII name scanners answer, the answer is the greatest
+    candidate endpoint of the terminal's language. -/
+private theorem ascii_name_spec (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize) :
+    ∃ r, functional.ascii_name terminal bytes position = .ok r ∧
+      ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
+        Rowl.Longest.Maximal
+          (Rowl.Longest.Candidate bytes.val position.val (Rowl.Functional.TerminalLanguage terminal)) endpoint := by
+  cases terminal with
+  | PrefixName =>
+    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_prefix_correct bytes position
+    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
+  | AbbreviatedIri =>
+    obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_abbreviated_correct bytes position
+    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
+  | _ => exact ⟨none, by rw [functional.ascii_name], by simp⟩
+
 theorem longest_valid_eq (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize)
     (valid : ∃ word, Rowl.Regular.Utf8From bytes.val position.val word) :
     functional.longest_valid terminal bytes position = functional.longest terminal bytes position := by
-  obtain ⟨grammar,read,_⟩ := Rowl.Functional.grammar_total_correct terminal
-  rw [functional.longest_valid,functional.longest,read,bind_ok,bind_ok,
-    Rowl.Longest.longest_valid_prefix_eq grammar bytes position valid]
+  obtain ⟨fast, scanned, decided⟩ := ascii_name_spec terminal bytes position
+  rw [functional.longest_valid, scanned, bind_ok]
+  cases fast with
+  | none =>
+    obtain ⟨grammar,read,_⟩ := Rowl.Functional.grammar_total_correct terminal
+    simp only
+    rw [functional.longest,read,bind_ok,bind_ok,
+      Rowl.Longest.longest_valid_prefix_eq grammar bytes position valid]
+  | some result =>
+    obtain ⟨endpoint, rfl, maximal⟩ := decided result rfl
+    exact ((Rowl.Functional.longest_matched_iff terminal bytes position endpoint).mpr ⟨valid, maximal⟩).symm
 
 theorem seed_valid_eq (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize)
     (valid : ∃ word, Rowl.Regular.Utf8From bytes.val position.val word) :

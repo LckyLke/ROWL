@@ -657,7 +657,9 @@
         "Rowl.Names.validate_prefix_accepted_iff",
         "Rowl.Names.validate_local_accepted_iff",
         "Rowl.Names.validate_abbreviated_accepted_iff",
-        "Rowl.Names.validate_node_accepted_iff"
+        "Rowl.Names.validate_node_accepted_iff",
+        "Rowl.Names.ascii_prefix_correct",
+        "Rowl.Names.ascii_abbreviated_correct"
       ]
     },
     {

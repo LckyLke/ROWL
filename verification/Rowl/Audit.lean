@@ -527,6 +527,8 @@ import Rowl.Saturation
 #print axioms Rowl.Names.validate_local_accepted_iff
 #print axioms Rowl.Names.validate_abbreviated_accepted_iff
 #print axioms Rowl.Names.validate_node_accepted_iff
+#print axioms Rowl.Names.ascii_prefix_correct
+#print axioms Rowl.Names.ascii_abbreviated_correct
 #print axioms Rowl.Prefixes.standard_total_correct
 #print axioms Rowl.Prefixes.namespace_total_correct
 #print axioms Rowl.Prefixes.lookup_total_correct

@@ -6346,6 +6346,28 @@
       "implementation_scope": "The four complete OWL Functional Syntax name languages (PNAME_NS, PN_LOCAL, PNAME_LN and BLANK_NODE_LABEL) use the referenced SPARQL 2008 character grammar. The actual compiled grammars equal independent Unicode-codepoint languages; whole-byte recognition terminates, accepts exactly each language and preserves exact malformed UTF-8 diagnostics even after grammar mismatch. These are lexical recognizers, not a document lexer, parser or anonymous-scope allocator. Turtle/SPARQL 1.1 escape additions are separate grammars."
     },
     {
+      "id": "m3.Names.ascii_prefix_correct",
+      "requirement": "Prefixed names scanned over ASCII bytes: ascii_prefix_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#IRIs",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::names::ascii_prefix",
+      "theorem": "Rowl.Names.ascii_prefix_correct",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::ascii_name_scanners_agree_with_the_grammars",
+      "implementation_scope": "Prefixed names scanned over ASCII bytes: names::ascii_prefix and names::ascii_abbreviated find the greatest PNAME_NS and PNAME_LN endpoint at a position without the grammars, by reading the run of ASCII label bytes (letters, digits, _, - and .), the colon right after it and, for PNAME_LN, the run after the colon up to its last byte other than a dot; they decline when a byte outside ASCII ends a run. Whenever they answer, the answer is proved to be the greatest candidate endpoint, or no endpoint, of the independent SPARQL 2008 languages (ascii_prefix_correct, ascii_abbreviated_correct). functional::longest_valid asks them before the grammar matcher, and longest_valid_eq keeps its statement, so the lexer's correctness theorems are unchanged."
+    },
+    {
+      "id": "m3.Names.ascii_abbreviated_correct",
+      "requirement": "Prefixed names scanned over ASCII bytes: ascii_abbreviated_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#IRIs",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::names::ascii_abbreviated",
+      "theorem": "Rowl.Names.ascii_abbreviated_correct",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::ascii_name_scanners_agree_with_the_grammars",
+      "implementation_scope": "Prefixed names scanned over ASCII bytes: names::ascii_prefix and names::ascii_abbreviated find the greatest PNAME_NS and PNAME_LN endpoint at a position without the grammars, by reading the run of ASCII label bytes (letters, digits, _, - and .), the colon right after it and, for PNAME_LN, the run after the colon up to its last byte other than a dot; they decline when a byte outside ASCII ends a run. Whenever they answer, the answer is proved to be the greatest candidate endpoint, or no endpoint, of the independent SPARQL 2008 languages (ascii_prefix_correct, ascii_abbreviated_correct). functional::longest_valid asks them before the grammar matcher, and longest_valid_eq keeps its statement, so the lexer's correctness theorems are unchanged."
+    },
+    {
       "id": "m3.Prefixes.standard_total_correct",
       "requirement": "Verified Functional Syntax lexical component: standard_total_correct",
       "owner": "rowl-frontend/verification",
