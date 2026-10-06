@@ -4767,3 +4767,176 @@ endpoint.
 
 This block adds no public theorem or definition. Totals are 2616 audited
 theorems, 1187 definitions, 538 Rust regressions and 2809 ledger obligations.
+
+## Performance: indexed lookups in the RDF mapping
+
+Reading a generated EL ontology with 20 000 classes from N-Triples spent 2.5 s
+in `rdf_mapping::map_graph`, nearly all of it in lookups that scanned: `find`,
+`find_type` and `find_any`, which look for an unused triple about a blank node,
+went through every triple of the graph for each lookup, and `declared`, behind
+`property_kind` and `node_kind`, went through every declaration for each
+property it classified. Both made the mapping quadratic in the size of the
+graph.
+
+`map_graph` now builds two indexes once. The positions of the triples whose
+subject is a blank node are bucketed by a hash of the node's scope and label in
+ascending order (`subjects_from`), kept in the reader's `State`, and the
+declarations are bucketed by a hash of their IRI (`Kinds`, filled by
+`add_kind`). There is one bucket more than there are triples, at most 2^20. The
+lookups go through the bucket of their node (`find_in`, `find_type_in`,
+`find_any_in`) or IRI (`declared_in`) and check every candidate with the same
+tests as before: unused, about the node, the predicate and the type. When the
+bucket holds every triple of its node they therefore return the triple a scan
+returned.
+
+The lookup lemmas describe only what a lookup returns, so they hold whatever
+the buckets contain. `fits_spec`, `fits_type_spec` and `fits_any_spec` prove
+that an accepted candidate is an unused triple about the node with the
+predicate (and type), `find_in_spec`, `find_type_in_spec` and `find_any_in_spec`
+extend this to a bucket, and `find_spec`, `find_type_spec` and `find_any_spec`
+keep their statements, now over the state. No lemma gives meaning to a lookup
+that finds nothing, and the declaration lookups were never given one, so
+`map_graph_correct` keeps its statement. That the buckets hold every triple of
+their node, and so that the readers return what they returned before, is not
+proved; the regression tests and the benchmark outputs show it.
+
+On el20000.nt the mapping takes 0.063 s instead of 2.49 s and on el5000.nt
+0.013 s instead of 0.142 s. On the same loaded machine `rowl classify` takes
+0.76 s instead of 3.21 s on el20000.nt (2.2 s on an idle machine before) and
+0.13 s instead of 0.32 s on el5000.nt, with the same output. A regression test
+reads a graph of 1000 restrictions whose triples are far apart.
+
+This block adds 6 public theorems and no definitions, and removes
+`copy_kind_identity` with the function it described. Totals are 2621 audited
+theorems, 1187 definitions, 539 Rust regressions and 2814 ledger obligations.
+
+## M3: annotated axioms in the RDF mapping
+
+`rdf_mapping::map_graph` read only axioms, headers and ontology annotations
+without annotations of their own. It now reads them with their annotations, as
+the OWL 2 mapping to RDF graphs writes them (§2.2, §2.3). An annotation whose
+own annotations are not empty is reified by a blank node typed
+`owl:Annotation`, with `owl:annotatedSource`, `owl:annotatedProperty` and
+`owl:annotatedTarget` triples naming its triple, and that node carries the
+annotations (Table 2). An axiom with annotations keeps its main triple, which a
+blank node typed `owl:Axiom` reifies in the same way and which carries the
+annotations (§2.3.1). The annotations of an axiom that a blank node represents,
+an `owl:AllDisjointClasses`, `owl:AllDisjointProperties`, `owl:AllDifferent` or
+`owl:NegativePropertyAssertion` node, are on that node (§2.3.3).
+
+The reader first only collects which IRIs are declared with which kind; the
+declaration triples are then read in graph order like the other axioms, so that
+annotated declarations are read with their reifications. After reading an
+axiom from its main triple it looks for an unused blank node of the right type
+that reifies that triple, through a third index: the positions of the
+`owl:annotatedSource` triples bucketed by a hash of their object (`reifier`). It
+takes the four triples of the reification and every unused triple of its node
+whose predicate is an annotation property, each with the annotations of its own
+reification (`reified`, `node_annotations`); a reification without annotations
+is refused. Axioms represented by a blank node read the annotations of that node
+(`annotate`, `main_triples`). The main loop leaves the annotation triples of
+reification nodes and of axiom nodes, which it recognizes by their types
+(§3.1.2, Table 8), to the axiom that reads them, so the triples of a graph may
+come in any order.
+
+`RdfMapping.lean` states the forward mapping of annotations and annotated
+axioms independently of the Rust code: `TAnn` and `TAnns` translate annotations
+of a node (Table 2), `TReified` reifies main triples, `mainTriples` says how
+many main triples the row of Table 1 of an axiom has (one, one per consecutive
+pair of members for equivalences and equalities, §2.3.2, or none for axioms
+represented by blank nodes), and `TAnnotatedAxiom` maps an axiom with its
+annotations. `TAxiom` lists the main triples of each row of Table 1 first, as
+the table writes them. `THeader` maps ontology annotations with theirs, and
+`TOntology` allocates the blank nodes of the header before those of the axioms.
+The readers' contract `ReadOk` now also says that the triples of an axiom start
+with the pattern of the triple the reader started from (`matches_mk`), and
+`declaration_spec` and `annotation_assertion_spec` cover the two new readers.
+`reifier_spec` and `take_reifier` prove that a found reification is four unused
+triples that reify the main triple, `annotations_right` proves the annotation
+readers right by induction on their fuel, `main_triples_spec` relates the
+reader's classification to `mainTriples`, and `annotate_spec` gives the
+annotated axiom. `map_graph_correct` keeps its statement over the extended
+relations: whenever `map_graph` returns an ontology and its blank nodes, the
+forward mapping of that ontology, annotations included, allocating exactly
+those blank nodes, gives the input graph.
+
+The forward mapping reifies an annotated annotation assertion with a node
+typed `owl:Axiom` (§2.3.1), and the reader reads it so; the reverse mapping of
+§3.2.2 would instead take it from a node typed `owl:Annotation`, which the
+forward mapping never writes, and such graphs are refused. Reading several
+reifications of one main triple, for structurally different axioms with the
+same main triple, is not supported, and neither is an annotated annotation
+assertion about the ontology IRI, whose triple the header reads as an ontology
+annotation. Not proved: that the forward mapping of every ontology is read
+back, `owl:imports` closure, that the returned blank nodes are distinct, and RDF
+datasets.
+
+`examples/medication-safety-annotated.nt` is the mapping of
+`medication-safety.ofn` with its two axiom annotations; the CLI and the
+reasoner load it with the same answers as the unannotated graph. Regression
+tests read it, a graph with annotations of every kind (nested, on declarations,
+on axioms represented by blank nodes, on annotation assertions and on the
+header, with reifications before their main triples) with its exact blank-node
+order, and refuse reifications without annotations, of missing triples or of
+the wrong type.
+
+Looking for reifications costs little: el20000.nt now maps in 0.072 s (0.063 s
+after the indexed lookups), and `rowl classify` on it takes 0.40 s with the same
+output.
+
+This block adds 24 public theorems and 6 definitions, and removes
+`declarations_spec` and `TAnnotation`. Totals are 2644 audited theorems, 1192
+definitions, 542 Rust regressions and 2837 ledger obligations.
+
+## M3: reading EL graphs back completely
+
+`map_graph_correct` says that whatever `rdf_mapping::map_graph` reads is right;
+the new module `RdfMappingComplete.lean` proves the converse for the EL
+fragment. `map_graph_complete`: for every ontology of `ElOntology`, a graph that
+lists the triples of the forward mapping of the ontology (`TOntology` of
+`RdfMapping.lean`) in its order, as `List.Forall₂ Matches`, with pairwise
+distinct blank nodes, is mapped to exactly that ontology, and the returned blank
+nodes are exactly those of the forward mapping. `ElOntology` takes ontologies
+that are anonymous or named without a version IRI, have no imports or ontology
+annotations, and whose axioms are unannotated declarations of any entity and
+subclass axioms between `ElClass` expressions: named classes and existential
+restrictions of object properties that are `ObjectTyped`, that is declared as
+object properties by the axioms and neither declared nor built in as data or
+annotation properties. No main triple of an axiom may be about the ontology IRI
+(`subjectIri`), because the header reader takes every triple about that IRI with
+an annotation property as an ontology annotation. The Rust code is unchanged.
+
+The proof follows the reader. The indexes are complete: `subjects_from_spec`
+puts every triple with a blank subject in the bucket of its node, and
+`declared_kinds_spec` keeps exactly the declarations of the graph, each in the
+bucket of its IRI, so `declared_correct` and `has_kind_correct` decide whether
+the graph declares an IRI with a kind, and `object_typed_kind` classifies every
+`ObjectTyped` property as an object property. Given all triples about a blank
+node at known positions (`Heads`), the lookups find exactly those triples
+(`find_hit`, `find_type_hit`). The blank nodes of a construct have all their
+unused triples inside its block of the graph (`Owned`, `owned_split`), which
+follows from the order and the distinct blank nodes. Each construct is then read
+whole and in order, using exactly the positions of its block (`Marked`):
+existential restrictions (`existential_complete`), subclass axioms
+(`sub_class_complete`), declarations (`read_axiom_declaration`), without
+annotations since the graph has no reification (`sources_from_none`,
+`annotate_plain`). `axioms_complete` runs the loop of the reader over the blocks
+of the axioms, `find_header_at`, `find_header_none` and `header_parts_skip` read
+the header, and `all_read_used` checks that nothing is left over.
+
+Not proved: other axioms and class expressions (intersections, inverse
+properties and the rest of Table 1), annotations and annotated axioms, version
+IRIs, imports and ontology annotations, ontology IRIs punned in subject
+position, and graphs in another order; the reader accepts such graphs, as the
+regression tests show, but this theorem does not cover them. That the forward
+mapping is a function of the ontology up to its blank nodes, and that the
+returned blank nodes are distinct, are not proved either.
+
+A regression test builds the forward mapping of an EL ontology with a
+restriction on the left of a subclass axiom and nested restrictions, and checks
+that it reads back to its axioms in order with its blank nodes in allocation
+order. The generated EL benchmark graphs used for the measurements of the last
+blocks list their forward mappings in this order.
+
+This block adds 110 public theorems and 5 definitions. Totals are 2754 audited
+theorems, 1197 definitions, 543 Rust regressions and 2947 ledger obligations.

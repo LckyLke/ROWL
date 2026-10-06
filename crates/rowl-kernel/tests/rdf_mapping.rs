@@ -8,6 +8,8 @@ use rowl_kernel::rdf::RawGraph;
 use rowl_kernel::rdf_mapping::map_graph;
 
 const MEDICATION: &[u8] = include_bytes!("../../../examples/medication-safety.nt");
+const ANNOTATED_MEDICATION: &[u8] =
+    include_bytes!("../../../examples/medication-safety-annotated.nt");
 const EX: &str = "https://example.org/medication/";
 
 fn graph(source: &[u8]) -> RawGraph {
@@ -190,4 +192,465 @@ fn every_construct_of_the_mapping_is_read() {
     // assertion node.
     assert_eq!(mapped.blanks.len(), 12);
     assert_eq!(mapped.ontology.imports.len(), 1);
+}
+
+/// Runs `body` on a thread with a large stack: the readers recurse over the
+/// triples of the graph.
+fn on_large_stack(body: impl FnOnce() + Send + 'static) {
+    std::thread::Builder::new()
+        .stack_size(256 << 20)
+        .spawn(body)
+        .expect("thread")
+        .join()
+        .expect("no panic");
+}
+
+#[test]
+fn scattered_blank_nodes_of_a_large_graph_are_read() {
+    on_large_stack(|| {
+        // Every class is below a restriction on p with the next class. The
+        // four triples of each restriction are far apart: first every typing,
+        // then every property, every filler and every subclass triple, the
+        // property triples in reverse order.
+        let count = 1000;
+        let rdf_type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";
+        let owl = "http://www.w3.org/2002/07/owl#";
+        let mut lines = Vec::new();
+        for i in 0..=count {
+            lines.push(format!("<urn:C{i}> {rdf_type} <{owl}Class> ."));
+        }
+        for i in 0..count {
+            lines.push(format!("_:r{i} {rdf_type} <{owl}Restriction> ."));
+        }
+        for i in (0..count).rev() {
+            lines.push(format!("_:r{i} <{owl}onProperty> <urn:p> ."));
+        }
+        for i in 0..count {
+            lines.push(format!("_:r{i} <{owl}someValuesFrom> <urn:C{}> .", i + 1));
+        }
+        for i in 0..count {
+            lines.push(format!(
+                "<urn:C{i}> <http://www.w3.org/2000/01/rdf-schema#subClassOf> _:r{i} ."
+            ));
+        }
+        lines.push(format!("<urn:p> {rdf_type} <{owl}ObjectProperty> ."));
+        let source = lines.join("\n") + "\n";
+        let mapped = map_graph(&graph(source.as_bytes())).expect("the graph is read");
+        let axioms = &mapped.ontology.axioms;
+        assert_eq!(axioms.len(), (count + 2) + count);
+        assert_eq!(mapped.blanks.len(), count);
+        let mut subclasses = 0;
+        for item in axioms {
+            if let Axiom::SubClassOf(ClassExpression::Class(sub), sup) = &item.axiom {
+                let index: usize = String::from_utf8(sub.iri.spelling[5..].to_vec())
+                    .expect("utf-8")
+                    .parse()
+                    .expect("a number");
+                match sup {
+                    ClassExpression::ObjectSomeValuesFrom(
+                        ObjectPropertyExpression::Property(property),
+                        filler,
+                    ) => {
+                        assert_eq!(property.iri.spelling, b"urn:p".to_vec());
+                        assert!(matches!(
+                            filler.as_ref(),
+                            ClassExpression::Class(next)
+                                if next.iri.spelling == format!("urn:C{}", index + 1).into_bytes()
+                        ));
+                    }
+                    _ => panic!("a restriction"),
+                }
+                assert_eq!(
+                    mapped.blanks[subclasses].label,
+                    format!("r{index}").into_bytes()
+                );
+                subclasses += 1;
+            }
+        }
+        assert_eq!(subclasses, count);
+    });
+}
+
+const RDFS_COMMENT: &[u8] = b"http://www.w3.org/2000/01/rdf-schema#comment";
+const RDFS_LABEL: &[u8] = b"http://www.w3.org/2000/01/rdf-schema#label";
+
+#[test]
+fn the_annotated_medication_graph_keeps_its_axiom_annotations() {
+    let mapped =
+        map_graph(&graph(ANNOTATED_MEDICATION)).expect("the graph is the image of an ontology");
+    let ontology = &mapped.ontology;
+    assert_eq!(ontology.annotations.len(), 2);
+    assert_eq!(ontology.axioms.len(), 30);
+    // The ten blank nodes of the expressions and the two reifications.
+    assert_eq!(mapped.blanks.len(), 12);
+    let annotated: Vec<&AnnotatedAxiom> = ontology
+        .axioms
+        .iter()
+        .filter(|item| !item.annotations.is_empty())
+        .collect();
+    assert_eq!(annotated.len(), 2);
+    assert!(matches!(
+        annotated[0].axiom,
+        Axiom::TransitiveObjectProperty(_)
+    ));
+    assert!(matches!(
+        annotated[1].axiom,
+        Axiom::SubClassOf(ClassExpression::ObjectIntersectionOf(_), _)
+    ));
+    for item in annotated {
+        assert_eq!(item.annotations.len(), 1);
+        assert_eq!(
+            item.annotations[0].property.iri.spelling,
+            RDFS_COMMENT.to_vec()
+        );
+        assert!(item.annotations[0].annotations.is_empty());
+    }
+    let prepared = prepare(&ontology.axioms).expect("the axioms are in the supported fragment");
+    assert_eq!(prepared_consistent(&prepared), Some(true));
+    for (patient, expected) in [("alice", true), ("bob", false), ("carol", false)] {
+        assert_eq!(
+            prepared_instance_of(&prepared, &individual(patient), &class("AllergyAlert")),
+            Some(expected)
+        );
+    }
+}
+
+fn literal_value(value: &AnnotationValue) -> Vec<u8> {
+    match value {
+        AnnotationValue::Literal(literal) => literal.lexical.clone(),
+        _ => panic!("a literal"),
+    }
+}
+
+#[test]
+fn annotations_of_axioms_and_annotations_are_read() {
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let rdfs = "http://www.w3.org/2000/01/rdf-schema#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    let reify = |node: &str, kind: &str, source: &str, property: &str, target: &str| {
+        format!(
+            "{node} <{rdf}type> <{owl}{kind}> .\n\
+             {node} <{owl}annotatedSource> {source} .\n\
+             {node} <{owl}annotatedProperty> <{property}> .\n\
+             {node} <{owl}annotatedTarget> {target} .\n"
+        )
+    };
+    let mut source = String::new();
+    // An ontology annotation with an annotation of its own.
+    source += &format!("<urn:o> <{rdf}type> <{owl}Ontology> .\n");
+    source += &format!("<urn:o> <{rdfs}label> \"O\" .\n");
+    source += &reify(
+        "_:w0",
+        "Annotation",
+        "<urn:o>",
+        &format!("{rdfs}label"),
+        "\"O\"",
+    );
+    source += &format!("_:w0 <{rdfs}comment> \"about the label\" .\n");
+    // A reification before its main triple, with an annotated annotation.
+    source += &reify(
+        "_:x1",
+        "Axiom",
+        "<urn:A>",
+        &format!("{rdfs}subClassOf"),
+        "<urn:B>",
+    );
+    source += &format!("_:x1 <{rdfs}comment> \"As are Bs\" .\n");
+    source += &reify(
+        "_:w1",
+        "Annotation",
+        "_:x1",
+        &format!("{rdfs}comment"),
+        "\"As are Bs\"",
+    );
+    source += "_:w1 <urn:source> <urn:book> .\n";
+    source += &format!("<urn:A> <{rdfs}subClassOf> <urn:B> .\n");
+    for name in ["A", "B", "C"] {
+        source += &format!("<urn:{name}> <{rdf}type> <{owl}Class> .\n");
+    }
+    source += &format!("<urn:p> <{rdf}type> <{owl}ObjectProperty> .\n");
+    source += &format!("<urn:source> <{rdf}type> <{owl}AnnotationProperty> .\n");
+    // An annotated declaration.
+    source += &format!("<urn:D> <{rdf}type> <{owl}Class> .\n");
+    source += &reify(
+        "_:x2",
+        "Axiom",
+        "<urn:D>",
+        &format!("{rdf}type"),
+        &format!("<{owl}Class>"),
+    );
+    source += &format!("_:x2 <{rdfs}label> \"D\" .\n_:x2 <{rdfs}comment> \"declared\" .\n");
+    // An annotated subclass axiom whose source is a blank node.
+    source += &format!("_:r <{rdf}type> <{owl}Restriction> .\n");
+    source += &format!("_:r <{owl}onProperty> <urn:p> .\n_:r <{owl}someValuesFrom> <urn:C> .\n");
+    source += &format!("_:r <{rdfs}subClassOf> <urn:D> .\n");
+    source += &reify(
+        "_:x3",
+        "Axiom",
+        "_:r",
+        &format!("{rdfs}subClassOf"),
+        "<urn:D>",
+    );
+    source += &format!("_:x3 <{rdfs}label> \"restriction\" .\n");
+    // An axiom represented by a blank node, its annotation first.
+    source += &format!("_:d <{rdfs}comment> \"pairwise disjoint\" .\n");
+    source += &format!("_:d <{rdf}type> <{owl}AllDisjointClasses> .\n_:d <{owl}members> _:m1 .\n");
+    source += &format!("_:m1 <{rdf}first> <urn:A> .\n_:m1 <{rdf}rest> _:m2 .\n");
+    source += &format!("_:m2 <{rdf}first> <urn:C> .\n_:m2 <{rdf}rest> _:m3 .\n");
+    source += &format!("_:m3 <{rdf}first> <urn:D> .\n_:m3 <{rdf}rest> <{rdf}nil> .\n");
+    source += &format!("_:n <{rdf}type> <{owl}NegativePropertyAssertion> .\n");
+    source +=
+        &format!("_:n <{owl}sourceIndividual> <urn:a> .\n_:n <{owl}assertionProperty> <urn:p> .\n");
+    source += &format!("_:n <{owl}targetIndividual> <urn:b> .\n_:n <urn:source> \"observed\" .\n");
+    // An annotated annotation assertion.
+    source += &format!("<urn:a> <{rdfs}label> \"a\" .\n");
+    source += &reify("_:x4", "Axiom", "<urn:a>", &format!("{rdfs}label"), "\"a\"");
+    source += "_:x4 <urn:source> <urn:registry> .\n";
+
+    let mapped = map_graph(&graph(source.as_bytes())).expect("every annotation is read");
+    let ontology = &mapped.ontology;
+    assert_eq!(ontology.annotations.len(), 1);
+    assert_eq!(ontology.annotations[0].annotations.len(), 1);
+    assert_eq!(
+        literal_value(&ontology.annotations[0].annotations[0].value),
+        b"about the label".to_vec()
+    );
+    let axioms = &ontology.axioms;
+    assert_eq!(axioms.len(), 11);
+    // SubClassOf(A B), its comment annotated with a source.
+    assert!(matches!(axioms[0].axiom, Axiom::SubClassOf(_, _)));
+    assert_eq!(axioms[0].annotations.len(), 1);
+    assert_eq!(
+        axioms[0].annotations[0].property.iri.spelling,
+        RDFS_COMMENT.to_vec()
+    );
+    assert_eq!(axioms[0].annotations[0].annotations.len(), 1);
+    assert_eq!(
+        axioms[0].annotations[0].annotations[0]
+            .property
+            .iri
+            .spelling,
+        b"urn:source".to_vec()
+    );
+    // Five plain declarations, then the annotated one of D.
+    for item in &axioms[1..6] {
+        assert!(matches!(item.axiom, Axiom::Declaration(_)));
+        assert!(item.annotations.is_empty());
+    }
+    assert!(matches!(
+        axioms[6].axiom,
+        Axiom::Declaration(Entity::Class(_))
+    ));
+    assert_eq!(axioms[6].annotations.len(), 2);
+    assert_eq!(
+        axioms[6].annotations[0].property.iri.spelling,
+        RDFS_LABEL.to_vec()
+    );
+    assert!(matches!(
+        axioms[7].axiom,
+        Axiom::SubClassOf(ClassExpression::ObjectSomeValuesFrom(_, _), _)
+    ));
+    assert_eq!(
+        literal_value(&axioms[7].annotations[0].value),
+        b"restriction".to_vec()
+    );
+    assert!(matches!(&axioms[8].axiom, Axiom::DisjointClasses(members) if members.rest.len() == 1));
+    assert_eq!(
+        literal_value(&axioms[8].annotations[0].value),
+        b"pairwise disjoint".to_vec()
+    );
+    assert!(matches!(
+        axioms[9].axiom,
+        Axiom::NegativeObjectPropertyAssertion(_, _, _)
+    ));
+    assert_eq!(
+        literal_value(&axioms[9].annotations[0].value),
+        b"observed".to_vec()
+    );
+    assert!(matches!(
+        axioms[10].axiom,
+        Axiom::AnnotationAssertion(_, _, _)
+    ));
+    assert_eq!(axioms[10].annotations.len(), 1);
+    // The header's reification, then the blank nodes of the axioms in order.
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let expected: Vec<Vec<u8>> = [
+        "w0", "x1", "w1", "x2", "r", "x3", "d", "m1", "m2", "m3", "n", "x4",
+    ]
+    .iter()
+    .map(|label| label.as_bytes().to_vec())
+    .collect();
+    assert_eq!(labels, expected);
+}
+
+#[test]
+fn incomplete_or_foreign_reifications_are_refused() {
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let rdfs = "http://www.w3.org/2000/01/rdf-schema#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    let declarations =
+        format!("<urn:A> <{rdf}type> <{owl}Class> .\n<urn:B> <{rdf}type> <{owl}Class> .\n");
+    let main = format!("<urn:A> <{rdfs}subClassOf> <urn:B> .\n");
+    let reification = |kind: &str, target: &str| {
+        format!(
+            "_:x <{rdf}type> <{owl}{kind}> .\n_:x <{owl}annotatedSource> <urn:A> .\n\
+             _:x <{owl}annotatedProperty> <{rdfs}subClassOf> .\n_:x <{owl}annotatedTarget> {target} .\n"
+        )
+    };
+    let comment = format!("_:x <{rdfs}comment> \"c\" .\n");
+    // The plain graph and the annotated one are read.
+    assert!(map_graph(&graph((declarations.clone() + &main).as_bytes())).is_some());
+    let annotated = declarations.clone() + &main + &reification("Axiom", "<urn:B>") + &comment;
+    assert!(map_graph(&graph(annotated.as_bytes())).is_some());
+    // A reification without annotations is no image.
+    let bare = declarations.clone() + &main + &reification("Axiom", "<urn:B>");
+    assert!(map_graph(&graph(bare.as_bytes())).is_none());
+    // A reification of a triple the graph lacks is left over.
+    let other = declarations.clone() + &main + &reification("Axiom", "<urn:A>") + &comment;
+    assert!(map_graph(&graph(other.as_bytes())).is_none());
+    let missing = declarations.clone() + &reification("Axiom", "<urn:B>") + &comment;
+    assert!(map_graph(&graph(missing.as_bytes())).is_none());
+    // The forward mapping reifies an axiom with owl:Axiom, not owl:Annotation.
+    let foreign = declarations.clone() + &main + &reification("Annotation", "<urn:B>") + &comment;
+    assert!(map_graph(&graph(foreign.as_bytes())).is_none());
+}
+
+/// A class expression of the EL fragment: a named class `C{n}`, or an
+/// existential restriction on the object property `r{n}`.
+enum El {
+    Named(usize),
+    Some(usize, Box<El>),
+}
+
+/// The node, the triples in the order of the forward mapping, and the blank
+/// nodes allocated, of an EL class expression.
+fn el_triples(expression: &El, next: &mut usize) -> (String, Vec<String>, Vec<String>) {
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    match expression {
+        El::Named(n) => (format!("<urn:el:C{n}>"), Vec::new(), Vec::new()),
+        El::Some(role, filler) => {
+            let label = format!("e{next}");
+            *next += 1;
+            let (node, rest, blanks) = el_triples(filler, next);
+            let mut lines = vec![
+                format!("_:{label} <{rdf}type> <{owl}Restriction> ."),
+                format!("_:{label} <{owl}onProperty> <urn:el:r{role}> ."),
+                format!("_:{label} <{owl}someValuesFrom> {node} ."),
+            ];
+            lines.extend(rest);
+            let mut all = vec![label.clone()];
+            all.extend(blanks);
+            (format!("_:{label}"), lines, all)
+        }
+    }
+}
+
+fn is_el(expression: &ClassExpression, expected: &El) -> bool {
+    match (expression, expected) {
+        (ClassExpression::Class(class), El::Named(n)) => {
+            class.iri.spelling == format!("urn:el:C{n}").into_bytes()
+        }
+        (
+            ClassExpression::ObjectSomeValuesFrom(
+                ObjectPropertyExpression::Property(property),
+                filler,
+            ),
+            El::Some(role, inner),
+        ) => {
+            property.iri.spelling == format!("urn:el:r{role}").into_bytes() && is_el(filler, inner)
+        }
+        _ => false,
+    }
+}
+
+#[test]
+fn el_graphs_in_forward_order_read_back_exactly() {
+    // The forward mapping of an EL ontology (the fragment of map_graph_complete):
+    // its header, its declarations and its subclass axioms with the triples of
+    // their restrictions, in that order, including a restriction on the left and
+    // nested restrictions.
+    let rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+    let rdfs = "http://www.w3.org/2000/01/rdf-schema#";
+    let owl = "http://www.w3.org/2002/07/owl#";
+    let subclasses = vec![
+        (El::Named(1), El::Named(0)),
+        (El::Named(2), El::Some(0, Box::new(El::Named(3)))),
+        (
+            El::Some(1, Box::new(El::Some(0, Box::new(El::Named(4))))),
+            El::Named(5),
+        ),
+        (
+            El::Some(0, Box::new(El::Named(6))),
+            El::Some(1, Box::new(El::Named(7))),
+        ),
+    ];
+    let mut lines = vec![format!("<urn:el> <{rdf}type> <{owl}Ontology> .")];
+    for n in 0..8 {
+        lines.push(format!("<urn:el:C{n}> <{rdf}type> <{owl}Class> ."));
+    }
+    for role in 0..2 {
+        lines.push(format!(
+            "<urn:el:r{role}> <{rdf}type> <{owl}ObjectProperty> ."
+        ));
+    }
+    let mut next = 0;
+    let mut expected_blanks = Vec::new();
+    for (sub, sup) in &subclasses {
+        let (left, left_lines, left_blanks) = el_triples(sub, &mut next);
+        let (right, right_lines, right_blanks) = el_triples(sup, &mut next);
+        lines.push(format!("{left} <{rdfs}subClassOf> {right} ."));
+        lines.extend(left_lines);
+        lines.extend(right_lines);
+        expected_blanks.extend(left_blanks);
+        expected_blanks.extend(right_blanks);
+    }
+    let source = lines.join("\n") + "\n";
+    let mapped =
+        map_graph(&graph(source.as_bytes())).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    match &ontology.identity {
+        OntologyIdentity::Named { ontology, version } => {
+            assert_eq!(ontology.spelling, b"urn:el".to_vec());
+            assert!(version.is_none());
+        }
+        OntologyIdentity::Anonymous => panic!("the header names the ontology"),
+    }
+    assert!(ontology.imports.is_empty());
+    assert!(ontology.annotations.is_empty());
+    assert_eq!(ontology.axioms.len(), 8 + 2 + subclasses.len());
+    for (index, item) in ontology.axioms.iter().enumerate() {
+        assert!(item.annotations.is_empty());
+        if index < 8 {
+            assert!(
+                matches!(&item.axiom, Axiom::Declaration(Entity::Class(class))
+                if class.iri.spelling == format!("urn:el:C{index}").into_bytes())
+            );
+        } else if index < 10 {
+            assert!(
+                matches!(&item.axiom, Axiom::Declaration(Entity::ObjectProperty(property))
+                if property.iri.spelling == format!("urn:el:r{}", index - 8).into_bytes())
+            );
+        } else {
+            let (sub, sup) = &subclasses[index - 10];
+            match &item.axiom {
+                Axiom::SubClassOf(left, right) => assert!(is_el(left, sub) && is_el(right, sup)),
+                _ => panic!("a subclass axiom"),
+            }
+        }
+    }
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let expected: Vec<Vec<u8>> = expected_blanks
+        .iter()
+        .map(|label| label.as_bytes().to_vec())
+        .collect();
+    assert_eq!(labels, expected);
 }

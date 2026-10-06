@@ -1020,8 +1020,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   ontology is EL and the tableau otherwise, and the reasoner prepares the
   tableau queries only when a question needs them. A generated EL ontology with
   1000 classes classifies in 0.6 s instead of 19.5 s with the same answers, and
-  one with 20 000 classes in 2.2 s from N-Triples and 12 s from Functional
-  Syntax, where lexing takes most of the time.
+  one with 20 000 classes in under a second from N-Triples (2.2 s before the RDF
+  mapping's lookups were indexed) and 12 s from Functional Syntax, where lexing
+  takes most of the time.
 - Python bindings: the `rowl` package in `bindings/python` reads a
   Functional Syntax or N-Triples document once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
@@ -1032,18 +1033,33 @@ progress. Full OWL parsing and executable reasoning are still future work.
   reasoning; the crate is the only one outside the kernel with `unsafe` code,
   confined to reading the caller's buffers and releasing handles.
 - Reading OWL from RDF graphs: `rdf_mapping::map_graph` reads an ontology from
-  a raw RDF graph by the reverse of the OWL 2 mapping to RDF graphs, for axioms
-  and headers without annotations of their own and graphs that declare every
-  class, datatype and property they use. `map_graph_correct` proves that
+  a raw RDF graph by the reverse of the OWL 2 mapping to RDF graphs, for graphs
+  that declare every class, datatype and property they use. Annotated axioms
+  are read from the blank node typed `owl:Axiom` that reifies their main
+  triple, or from the blank node that represents them, and annotations with
+  annotations of their own from the blank node typed `owl:Annotation` that
+  reifies them (§2.2, §2.3), in headers and axioms alike. `map_graph_correct` proves that
   whenever it returns an ontology and its blank nodes, the forward mapping of
   that ontology, stated independently in `RdfMapping.lean` and allocating
   exactly those blank nodes, gives the input graph: every triple instantiates
   one of its triple patterns and every pattern is instantiated by a triple.
-  That every such ontology is read back, annotated axioms, imports and distinct
-  blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
+  The forward mapping includes the annotations and their reifications. For the
+  EL fragment the converse is proved too: `map_graph_complete` reads a graph
+  that lists the forward mapping of an ontology in its order, with distinct
+  blank nodes, back to exactly that ontology and those blank nodes, for
+  ontologies that are anonymous or named without a version IRI, without imports
+  or ontology annotations, whose axioms are unannotated declarations and
+  subclass axioms between named classes and existential restrictions of
+  declared object properties. That every other ontology is read back, several
+  reifications of one main triple, imports and distinct blank nodes are not
+  proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
-  read N-Triples documents through the verified reader and this mapping.
-- 2616 audited public theorems and 1187 audited semantic definitions. Consistency,
+  read N-Triples documents through the verified reader and this mapping. Its
+  lookups of the triples about a blank node and of declarations go through
+  buckets by hash, built once, and check every candidate, so the proofs hold
+  whatever the buckets contain; a generated 20 000-class ontology now maps in
+  0.06 s instead of 2.5 s.
+- 2754 audited public theorems and 1197 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1060,7 +1076,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 538 Rust regression tests and 13 Python binding tests, plus a separately fetched
+- 543 Rust regression tests and 13 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1077,7 +1093,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2809-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2947-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1111,10 +1127,10 @@ The N-Triples token subpipeline now includes composed byte-to-blank-token
 correctness and complete acceptance, exact trivia/span-copy proofs and full
 quoted-token, IRIREF, language/literal/object/triple and bounded whole-document
 composition. Public reading is proved from bytes to exact raw graph occurrences
-under its stated term/count limits. The RDF-to-OWL mapping is proved sound for
-axioms without annotations of their own; the writer, canonical import scope
-assignment, the completeness of that mapping and the full byte-to-ontology
-pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
+under its stated term/count limits. The RDF-to-OWL mapping is proved sound,
+annotated axioms included, and complete for the EL fragment; the writer,
+canonical import scope assignment, the completeness of that mapping beyond the
+EL fragment and the full byte-to-ontology pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
 a reviewed specification choice, not a mechanical proof of English. See
 m2-semantics.md for the mapping.
 

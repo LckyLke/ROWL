@@ -1,0 +1,73 @@
+# The medication-safety example as N-Triples: the OWL 2 RDF mapping of
+# examples/medication-safety.ofn with its two axiom annotations, each on a
+# blank node typed owl:Axiom that reifies the main triple of its axiom.
+<https://example.org/medication/records> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Ontology> .
+<https://example.org/medication/records> <http://www.w3.org/2000/01/rdf-schema#label> "Medication safety" .
+<https://example.org/medication/records> <http://www.w3.org/2000/01/rdf-schema#comment> "An illustration of allergy checking, not clinical guidance." .
+<https://example.org/medication/Penicillin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/Amoxicillin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/Macrolide> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/Azithromycin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/PenicillinAllergy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/AllergyAlert> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+<https://example.org/medication/contains> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<https://example.org/medication/hasActiveIngredient> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<https://example.org/medication/receives> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<https://example.org/medication/hasAllergy> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#ObjectProperty> .
+<https://example.org/medication/alice> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/bob> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/carol> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/comboPack> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/capsule> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/tablet> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#NamedIndividual> .
+<https://example.org/medication/contains> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#TransitiveProperty> .
+_:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Axiom> .
+_:a1 <http://www.w3.org/2002/07/owl#annotatedSource> <https://example.org/medication/contains> .
+_:a1 <http://www.w3.org/2002/07/owl#annotatedProperty> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> .
+_:a1 <http://www.w3.org/2002/07/owl#annotatedTarget> <http://www.w3.org/2002/07/owl#TransitiveProperty> .
+_:a1 <http://www.w3.org/2000/01/rdf-schema#comment> "Whatever a part contains, the whole contains" .
+<https://example.org/medication/hasActiveIngredient> <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <https://example.org/medication/contains> .
+<https://example.org/medication/Amoxicillin> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <https://example.org/medication/Penicillin> .
+<https://example.org/medication/Azithromycin> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <https://example.org/medication/Macrolide> .
+<https://example.org/medication/Penicillin> <http://www.w3.org/2002/07/owl#disjointWith> <https://example.org/medication/Macrolide> .
+_:b1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b1 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/hasAllergy> .
+_:b1 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/PenicillinAllergy> .
+_:b2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b2 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/contains> .
+_:b2 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/Penicillin> .
+_:b3 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b3 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/receives> .
+_:b3 <http://www.w3.org/2002/07/owl#someValuesFrom> _:b2 .
+_:b4 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .
+_:b5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b1 .
+_:b5 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:b6 .
+_:b6 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b3 .
+_:b6 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .
+_:b4 <http://www.w3.org/2002/07/owl#intersectionOf> _:b5 .
+_:b4 <http://www.w3.org/2000/01/rdf-schema#subClassOf> <https://example.org/medication/AllergyAlert> .
+_:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Axiom> .
+_:a2 <http://www.w3.org/2002/07/owl#annotatedSource> _:b4 .
+_:a2 <http://www.w3.org/2002/07/owl#annotatedProperty> <http://www.w3.org/2000/01/rdf-schema#subClassOf> .
+_:a2 <http://www.w3.org/2002/07/owl#annotatedTarget> <https://example.org/medication/AllergyAlert> .
+_:a2 <http://www.w3.org/2000/01/rdf-schema#comment> "A penicillin allergy and a medication containing a penicillin need an alert" .
+_:b7 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b7 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/hasAllergy> .
+_:b7 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/PenicillinAllergy> .
+<https://example.org/medication/alice> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:b7 .
+<https://example.org/medication/alice> <https://example.org/medication/receives> <https://example.org/medication/comboPack> .
+<https://example.org/medication/bob> <https://example.org/medication/receives> <https://example.org/medication/comboPack> .
+<https://example.org/medication/comboPack> <https://example.org/medication/contains> <https://example.org/medication/capsule> .
+_:b8 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b8 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/hasActiveIngredient> .
+_:b8 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/Amoxicillin> .
+<https://example.org/medication/capsule> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:b8 .
+_:b9 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b9 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/hasAllergy> .
+_:b9 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/PenicillinAllergy> .
+<https://example.org/medication/carol> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:b9 .
+<https://example.org/medication/carol> <https://example.org/medication/receives> <https://example.org/medication/tablet> .
+_:b10 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Restriction> .
+_:b10 <http://www.w3.org/2002/07/owl#onProperty> <https://example.org/medication/hasActiveIngredient> .
+_:b10 <http://www.w3.org/2002/07/owl#someValuesFrom> <https://example.org/medication/Azithromycin> .
+<https://example.org/medication/tablet> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:b10 .
