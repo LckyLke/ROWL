@@ -57191,6 +57191,873 @@ def rdf_mapping.map_graph
             else ok none
       | rdf.Subject.Blank _ => ok none
 
+/-- [rowl_kernel::references::Span]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 24:0-27:1
+    Visibility: public -/
+structure references.Span where
+  start : Std.Usize
+  «end» : Std.Usize
+
+/-- [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Span}::clone]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 23:9-23:14
+    Visibility: public -/
+def references.Span.Insts.CoreCloneClone.clone
+  (self : references.Span) : Result references.Span := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Span}]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 23:9-23:14 -/
+@[reducible]
+def references.Span.Insts.CoreCloneClone : core.clone.Clone references.Span
+  := {
+  clone := references.Span.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::references::{impl core::marker::Copy for rowl_kernel::references::Span}]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 23:16-23:20 -/
+@[reducible]
+def references.Span.Insts.CoreMarkerCopy : core.marker.Copy references.Span
+  := {
+  cloneInst := references.Span.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::references::Parts]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 32:0-38:1
+    Visibility: public -/
+structure references.Parts where
+  scheme : Option references.Span
+  authority : Option references.Span
+  path : references.Span
+  query : Option references.Span
+  fragment : Option references.Span
+
+/-- [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Parts}::clone]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 31:9-31:14
+    Visibility: public -/
+def references.Parts.Insts.CoreCloneClone.clone
+  (self : references.Parts) : Result references.Parts := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::references::{impl core::clone::Clone for rowl_kernel::references::Parts}]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 31:9-31:14 -/
+@[reducible]
+def references.Parts.Insts.CoreCloneClone : core.clone.Clone references.Parts
+  := {
+  clone := references.Parts.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::references::{impl core::marker::Copy for rowl_kernel::references::Parts}]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 31:16-31:20 -/
+@[reducible]
+def references.Parts.Insts.CoreMarkerCopy : core.marker.Copy references.Parts
+  := {
+  cloneInst := references.Parts.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::references::stops]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 43:0-48:1 -/
+def references.stops (level : Std.U8) (byte : Std.U8) : Result Bool := do
+  if byte = 35#u8
+  then ok true
+  else
+    if 0#u8 < level
+    then
+      if byte = 63#u8
+      then ok true
+      else
+        if 1#u8 < level
+        then
+          if byte = 47#u8
+          then ok true
+          else if 2#u8 < level
+               then ok (byte = 58#u8)
+               else ok false
+        else if 2#u8 < level
+             then ok (byte = 58#u8)
+             else ok false
+    else
+      if 1#u8 < level
+      then
+        if byte = 47#u8
+        then ok true
+        else if 2#u8 < level
+             then ok (byte = 58#u8)
+             else ok false
+      else if 2#u8 < level
+           then ok (byte = 58#u8)
+           else ok false
+
+/-- [rowl_kernel::references::scan]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 52:0-62:1 -/
+def references.scan
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (level : Std.U8) :
+  Result Std.Usize
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← references.stops level i1
+    if b
+    then ok index
+    else let i2 ← index + 1#usize
+         references.scan bytes i2 level
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::byte_is]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 65:0-67:1 -/
+def references.byte_is
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i1 = value)
+  else ok false
+
+/-- [rowl_kernel::references::scheme_ends]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 70:0-72:1 -/
+def references.scheme_ends
+  (bytes : alloc.vec.Vec Std.U8) (colon : Std.Usize) : Result Bool := do
+  if 0#usize < colon
+  then references.byte_is bytes colon 58#u8
+  else ok false
+
+/-- [rowl_kernel::references::double_slash]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 75:0-77:1 -/
+def references.double_slash
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← references.byte_is bytes index 47#u8
+  if b
+  then let i ← index + 1#usize
+       references.byte_is bytes i 47#u8
+  else ok false
+
+/-- [rowl_kernel::references::split]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 81:0-137:1
+    Visibility: public -/
+def references.split
+  (bytes : alloc.vec.Vec Std.U8) : Result references.Parts := do
+  let colon ← references.scan bytes 0#usize 3#u8
+  let has_scheme ← references.scheme_ends bytes colon
+  let start ← if has_scheme
+                then colon + 1#usize
+                else ok 0#usize
+  let has_authority ← references.double_slash bytes start
+  let path_start ←
+    if has_authority
+    then do
+         let i ← start + 2#usize
+         references.scan bytes i 2#u8
+    else ok start
+  let path_end ← references.scan bytes path_start 1#u8
+  let has_query ← references.byte_is bytes path_end 63#u8
+  let query_end ←
+    if has_query
+    then do
+         let i ← path_end + 1#usize
+         references.scan bytes i 0#u8
+    else ok path_end
+  let i := alloc.vec.Vec.len bytes
+  let o ←
+    if has_scheme
+    then ok (some ({ start := 0#usize, «end» := colon } : references.Span))
+    else ok none
+  let o1 ←
+    if has_authority
+    then
+      do
+      let i1 ← start + 2#usize
+      ok (some ({ start := i1, «end» := path_start } : references.Span))
+    else ok none
+  let o2 ←
+    if has_query
+    then
+      do
+      let i1 ← path_end + 1#usize
+      ok (some ({ start := i1, «end» := query_end } : references.Span))
+    else ok none
+  if query_end < i
+  then
+    let i1 ← query_end + 1#usize
+    let i2 := alloc.vec.Vec.len bytes
+    ok
+      {
+        scheme := o,
+        authority := o1,
+        path := { start := path_start, «end» := path_end },
+        query := o2,
+        fragment := (some { start := i1, «end» := i2 })
+      }
+  else
+    ok
+      {
+        scheme := o,
+        authority := o1,
+        path := { start := path_start, «end» := path_end },
+        query := o2,
+        fragment := none
+      }
+
+/-- [rowl_kernel::references::before]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 140:0-142:1 -/
+def references.before
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then let i := alloc.vec.Vec.len bytes
+       ok (index < i)
+  else ok false
+
+/-- [rowl_kernel::references::append]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 145:0-152:1 -/
+def references.append
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let b ← references.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let out1 ← alloc.vec.Vec.push out i
+    let i1 ← index + 1#usize
+    references.append bytes i1 «end» out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::references::put]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 155:0-158:1 -/
+def references.put
+  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  alloc.vec.Vec.push out byte
+
+/-- [rowl_kernel::references::at]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 161:0-163:1 -/
+def references.at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (value : Std.U8) :
+  Result Bool
+  := do
+  if index < «end»
+  then references.byte_is bytes index value
+  else ok false
+
+/-- [rowl_kernel::references::starts2]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 166:0-168:1 -/
+def references.starts2
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.at bytes index «end» a
+  if b1
+  then let i ← index + 1#usize
+       references.at bytes i «end» b
+  else ok false
+
+/-- [rowl_kernel::references::starts3]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 171:0-173:1 -/
+def references.starts3
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts2 bytes index «end» a b
+  if b1
+  then let i ← index + 2#usize
+       references.at bytes i «end» c
+  else ok false
+
+/-- [rowl_kernel::references::starts4]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 176:0-178:1 -/
+def references.starts4
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) (d : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts3 bytes index «end» a b c
+  if b1
+  then let i ← index + 3#usize
+       references.at bytes i «end» d
+  else ok false
+
+/-- [rowl_kernel::references::is1]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 181:0-183:1 -/
+def references.is1
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) :
+  Result Bool
+  := do
+  let b ← references.at bytes index «end» a
+  if b
+  then let i ← index + 1#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::is2]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 186:0-188:1 -/
+def references.is2
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts2 bytes index «end» a b
+  if b1
+  then let i ← index + 2#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::is3]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 191:0-193:1 -/
+def references.is3
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (a : Std.U8) (b : Std.U8) (c : Std.U8) :
+  Result Bool
+  := do
+  let b1 ← references.starts3 bytes index «end» a b c
+  if b1
+  then let i ← index + 3#usize
+       ok (i = «end»)
+  else ok false
+
+/-- [rowl_kernel::references::exhausted]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 196:0-198:1 -/
+def references.exhausted
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if «end» <= index
+  then ok true
+  else let i := alloc.vec.Vec.len bytes
+       ok (i < «end»)
+
+/-- [rowl_kernel::references::inside_segment]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 201:0-203:1 -/
+def references.inside_segment
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let b ← references.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i != 47#u8)
+  else ok false
+
+/-- [rowl_kernel::references::segment_end]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 206:0-212:1 -/
+def references.segment_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  let b ← references.inside_segment bytes index «end»
+  if b
+  then let i ← index + 1#usize
+       references.segment_end bytes i «end»
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::searching]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 215:0-217:1 -/
+def references.searching
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  if start < index
+  then let i := alloc.vec.Vec.len bytes
+       ok (index <= i)
+  else ok false
+
+/-- [rowl_kernel::references::last_slash]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 220:0-230:1 -/
+def references.last_slash
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let b ← references.searching bytes start index
+  if b
+  then
+    let i ← index - 1#usize
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i
+    if i1 = 47#u8
+    then ok (some i)
+    else references.last_slash bytes start i
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::references::pop_segment]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 234:0-239:1 -/
+def references.pop_segment
+  (out : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  let i := alloc.vec.Vec.len out
+  let o ← references.last_slash out 0#usize i
+  match o with
+  | none => ok (alloc.vec.Vec.new Std.U8)
+  | some slash =>
+    references.append out 0#usize slash (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::references::Step]
+    Source: 'crates/rowl-kernel/src/references.rs', lines 242:0-261:1 -/
+@[discriminant isize]
+inductive references.Step where
+| Finish : references.Step
+| RemoveParent : references.Step
+| RemoveCurrent : references.Step
+| SkipCurrent : references.Step
+| FinalCurrent : references.Step
+| SkipParent : references.Step
+| FinalParent : references.Step
+| DropDots : references.Step
+| MoveSegment : references.Step
+
+/-- [rowl_kernel::references::step]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 264:0-286:1 -/
+def references.step
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result references.Step
+  := do
+  let b ← references.exhausted bytes index «end»
+  if b
+  then ok references.Step.Finish
+  else
+    let b1 ← references.starts3 bytes index «end» 46#u8 46#u8 47#u8
+    if b1
+    then ok references.Step.RemoveParent
+    else
+      let b2 ← references.starts2 bytes index «end» 46#u8 47#u8
+      if b2
+      then ok references.Step.RemoveCurrent
+      else
+        let b3 ← references.starts3 bytes index «end» 47#u8 46#u8 47#u8
+        if b3
+        then ok references.Step.SkipCurrent
+        else
+          let b4 ← references.is2 bytes index «end» 47#u8 46#u8
+          if b4
+          then ok references.Step.FinalCurrent
+          else
+            let b5 ←
+              references.starts4 bytes index «end» 47#u8 46#u8 46#u8 47#u8
+            if b5
+            then ok references.Step.SkipParent
+            else
+              let b6 ← references.is3 bytes index «end» 47#u8 46#u8 46#u8
+              if b6
+              then ok references.Step.FinalParent
+              else
+                let b7 ← references.is1 bytes index «end» 46#u8
+                if b7
+                then ok references.Step.DropDots
+                else
+                  let b8 ← references.is2 bytes index «end» 46#u8 46#u8
+                  if b8
+                  then ok references.Step.DropDots
+                  else ok references.Step.MoveSegment
+
+/-- [rowl_kernel::references::remove_dots]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 293:0-308:1 -/
+def references.remove_dots
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let s ← references.step bytes index «end»
+  match s with
+  | references.Step.Finish => ok out
+  | references.Step.RemoveParent =>
+    let i ← index + 3#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.RemoveCurrent =>
+    let i ← index + 2#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.SkipCurrent =>
+    let i ← index + 2#usize
+    references.remove_dots bytes i «end» out
+  | references.Step.FinalCurrent => references.put out 47#u8
+  | references.Step.SkipParent =>
+    let i ← index + 3#usize
+    let v ← references.pop_segment out
+    references.remove_dots bytes i «end» v
+  | references.Step.FinalParent =>
+    let v ← references.pop_segment out
+    references.put v 47#u8
+  | references.Step.DropDots => ok out
+  | references.Step.MoveSegment =>
+    let i ← index + 1#usize
+    let stop ← references.segment_end bytes i «end»
+    let v ← references.append bytes index stop out
+    references.remove_dots bytes stop «end» v
+partial_fixpoint
+
+/-- [rowl_kernel::references::component]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 311:0-316:1 -/
+def references.component
+  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
+  (before : Std.U8) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  match span with
+  | none => ok out
+  | some span1 =>
+    let v ← references.put out before
+    references.append bytes span1.start span1.end v
+
+/-- [rowl_kernel::references::authority]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 319:0-324:1 -/
+def references.authority
+  (bytes : alloc.vec.Vec Std.U8) (span : Option references.Span)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  match span with
+  | none => ok out
+  | some span1 =>
+    let v ← references.put out 47#u8
+    let v1 ← references.put v 47#u8
+    references.append bytes span1.start span1.end v1
+
+/-- [rowl_kernel::references::bare_authority]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 327:0-329:1 -/
+def references.bare_authority (b : references.Parts) : Result Bool := do
+  let b1 := core.option.Option.is_some b.authority
+  if b1
+  then ok (b.path.end <= b.path.start)
+  else ok false
+
+/-- [rowl_kernel::references::merge]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 334:0-344:1 -/
+def references.merge
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (reference : alloc.vec.Vec Std.U8) (path : references.Span) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let b1 ← references.bare_authority b
+  let directory ←
+    if b1
+    then references.put (alloc.vec.Vec.new Std.U8) 47#u8
+    else
+      do
+      let o ← references.last_slash base b.path.start b.path.end
+      match o with
+      | none => ok (alloc.vec.Vec.new Std.U8)
+      | some slash =>
+        let i ← slash + 1#usize
+        references.append base b.path.start i (alloc.vec.Vec.new Std.U8)
+  references.append reference path.start path.end directory
+
+/-- [rowl_kernel::references::clean_path]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 347:0-350:1 -/
+def references.clean_path
+  (bytes : alloc.vec.Vec Std.U8) (span : references.Span)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let path ←
+    references.remove_dots bytes span.start span.end (alloc.vec.Vec.new Std.U8)
+  let i := alloc.vec.Vec.len path
+  references.append path 0#usize i out
+
+/-- [rowl_kernel::references::relative_path]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 354:0-378:1 -/
+def references.relative_path
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (reference : alloc.vec.Vec Std.U8) (r : references.Parts)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let out1 ← references.authority base b.authority out
+  if r.path.end <= r.path.start
+  then
+    let out2 ← references.append base b.path.start b.path.end out1
+    let b1 := core.option.Option.is_some r.query
+    if b1
+    then references.component reference r.query 63#u8 out2
+    else references.component base b.query 63#u8 out2
+  else
+    let b1 ← references.byte_is reference r.path.start 47#u8
+    if b1
+    then
+      let out2 ← references.clean_path reference r.path out1
+      references.component reference r.query 63#u8 out2
+    else
+      let merged ← references.merge base b reference r.path
+      let i := alloc.vec.Vec.len merged
+      let out2 ←
+        references.clean_path merged { start := 0#usize, «end» := i } out1
+      references.component reference r.query 63#u8 out2
+
+/-- [rowl_kernel::references::absolute]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 382:0-388:1 -/
+def references.absolute
+  (reference : alloc.vec.Vec Std.U8) (own : references.Span)
+  (r : references.Parts) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let v ←
+    references.append reference own.start own.end (alloc.vec.Vec.new Std.U8)
+  let out ← references.put v 58#u8
+  let out1 ← references.authority reference r.authority out
+  let out2 ← references.clean_path reference r.path out1
+  let out3 ← references.component reference r.query 63#u8 out2
+  references.component reference r.fragment 35#u8 out3
+
+/-- [rowl_kernel::references::relative]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 392:0-402:1 -/
+def references.relative
+  (base : alloc.vec.Vec Std.U8) (b : references.Parts)
+  (scheme : references.Span) (reference : alloc.vec.Vec Std.U8)
+  (r : references.Parts) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let v ←
+    references.append base scheme.start scheme.end (alloc.vec.Vec.new Std.U8)
+  let out ← references.put v 58#u8
+  let b1 := core.option.Option.is_some r.authority
+  let out1 ←
+    if b1
+    then
+      do
+      let out2 ← references.authority reference r.authority out
+      let out3 ← references.clean_path reference r.path out2
+      references.component reference r.query 63#u8 out3
+    else references.relative_path base b reference r out
+  references.component reference r.fragment 35#u8 out1
+
+/-- [rowl_kernel::references::small]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 406:0-408:1 -/
+def references.small
+  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len base
+  let i1 ← core.num.Usize.MAX / 8#usize
+  if i < i1
+  then let i2 := alloc.vec.Vec.len reference
+       ok (i2 < i1)
+  else ok false
+
+/-- [rowl_kernel::references::resolve]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 413:0-429:1
+    Visibility: public -/
+def references.resolve
+  (base : alloc.vec.Vec Std.U8) (reference : alloc.vec.Vec Std.U8) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let b ← references.small base reference
+  if b
+  then
+    let r ← references.split reference
+    match r.scheme with
+    | none =>
+      let b1 ← references.split base
+      match b1.scheme with
+      | none => ok none
+      | some scheme =>
+        let v ← references.relative base b1 scheme reference r
+        ok (some v)
+    | some own => let v ← references.absolute reference own r
+                  ok (some v)
+  else ok none
+
+/-- [rowl_kernel::references::plain]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 433:0-441:1 -/
+def references.plain (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else
+      if 97#u8 <= byte
+      then
+        if byte <= 122#u8
+        then ok true
+        else
+          if 48#u8 <= byte
+          then
+            if byte <= 57#u8
+            then ok true
+            else
+              if byte = 45#u8
+              then ok true
+              else
+                if byte = 46#u8
+                then ok true
+                else if byte = 95#u8
+                     then ok true
+                     else ok (byte = 126#u8)
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+      else
+        if 48#u8 <= byte
+        then
+          if byte <= 57#u8
+          then ok true
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+  else
+    if 97#u8 <= byte
+    then
+      if byte <= 122#u8
+      then ok true
+      else
+        if 48#u8 <= byte
+        then
+          if byte <= 57#u8
+          then ok true
+          else
+            if byte = 45#u8
+            then ok true
+            else
+              if byte = 46#u8
+              then ok true
+              else if byte = 95#u8
+                   then ok true
+                   else ok (byte = 126#u8)
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+    else
+      if 48#u8 <= byte
+      then
+        if byte <= 57#u8
+        then ok true
+        else
+          if byte = 45#u8
+          then ok true
+          else
+            if byte = 46#u8
+            then ok true
+            else if byte = 95#u8
+                 then ok true
+                 else ok (byte = 126#u8)
+      else
+        if byte = 45#u8
+        then ok true
+        else
+          if byte = 46#u8
+          then ok true
+          else if byte = 95#u8
+               then ok true
+               else ok (byte = 126#u8)
+
+/-- [rowl_kernel::references::path_byte]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 444:0-446:1 -/
+def references.path_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← references.plain i1
+    if b
+    then ok true
+    else ok (i1 = 47#u8)
+  else ok false
+
+/-- [rowl_kernel::references::plain_end]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 449:0-455:1 -/
+def references.plain_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← references.path_byte bytes index
+  if b
+  then let i ← index + 1#usize
+       references.plain_end bytes i
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::references::plain_relative]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 459:0-466:1 -/
+def references.plain_relative
+  (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let «end» ← references.plain_end bytes 0#usize
+  let i := alloc.vec.Vec.len bytes
+  if «end» < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        «end»
+    if i1 = 35#u8
+    then
+      let i2 ← «end» + 1#usize
+      let i3 ← references.plain_end bytes i2
+      let i4 := alloc.vec.Vec.len bytes
+      ok (i3 = i4)
+    else ok false
+  else ok true
+
+/-- [rowl_kernel::references::is_reference]:
+    Source: 'crates/rowl-kernel/src/references.rs', lines 470:0-474:1
+    Visibility: public -/
+def references.is_reference (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let b ← references.plain_relative bytes
+  if b
+  then ok true
+  else
+    let mr ← iri.validate_iri bytes
+    let b1 ←
+      match mr with
+      | regular.MatchResult.Matched b2 => if b2
+                                          then ok true
+                                          else ok false
+      | regular.MatchResult.MalformedUtf8 _ => ok false
+    if b1
+    then ok true
+    else
+      let mr1 ← iri.validate_reference bytes
+      match mr1 with
+      | regular.MatchResult.Matched b2 => if b2
+                                          then ok true
+                                          else ok false
+      | regular.MatchResult.MalformedUtf8 _ => ok false
+
 /-- [rowl_kernel::roles::classify_non_simple]:
     Source: 'crates/rowl-kernel/src/roles.rs', lines 555:0-558:1
     Visibility: public -/

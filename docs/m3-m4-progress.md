@@ -4940,3 +4940,58 @@ blocks list their forward mappings in this order.
 
 This block adds 110 public theorems and 5 definitions. Totals are 2754 audited
 theorems, 1197 definitions, 543 Rust regressions and 2947 ledger obligations.
+
+## RFC 3986 reference resolution
+
+Turtle resolves relative IRIs against a base, so the kernel now resolves IRI
+references by RFC 3986 section 5.2. `references::resolve` splits the reference
+and the base into scheme, authority, path, query and fragment by the regular
+expression of Appendix B, transforms the reference by the strict algorithm of
+section 5.2.2, merging paths as in section 5.2.3 and removing dot segments as in
+section 5.2.4, and recomposes the target as in section 5.3. It works on bytes and
+looks only at the ASCII delimiters, which is how RFC 3987 section 6.5 resolves
+IRIs. `references::is_reference` recognizes RFC 3987 IRI references: plain
+relative references by a byte scan, anything else through the validators of
+`iri.rs`.
+
+`IriResolution.lean` states the algorithm as functions on words of characters,
+written from the RFC: `split`, `transform`, `merge`, `removeDots`, `compose`
+and `resolve`, which resolves when the reference or the base has a scheme.
+`compose_split` proves that recomposing the Appendix B components gives the
+word back. `resolve_opaque` proves that the algorithm commutes with every
+spelling that keeps the delimiters `#`, `.`, `/`, `:` and `?` and spells every
+other character as a nonempty word without them; UTF-8 is such a spelling
+(`utf8_opaque`), so resolving the UTF-8 bytes of IRIs resolves their characters
+(`resolve_bytes`, `resolve_scalars`). Against the grammar of `Iri.lean`, whose
+language definitions are now public, `iri_parts_iff` and `reference_parts_iff`
+characterize IRIs and IRI references by their components, and `split_iri` and
+`split_relative` show that the Appendix B split returns exactly those
+components. `resolve_iri` proves that resolving an IRI reference against an IRI
+gives an IRI whose components are the section 5.2.2 target components whenever
+the target has an authority or a path that does not begin with `//`. The
+proviso cannot be dropped: `resolve_leaves_iri` shows that the RFC algorithm
+resolves `/.//:a` against `a:b` to `a://:a`, which is not an IRI, because
+removing the dot segment leaves a path that reads as an authority.
+
+`References.lean` proves the Rust functions against these definitions.
+`split_total_correct` proves that `split` returns spans of exactly the Appendix
+B components; `remove_dots_total_correct` and `merge_spec` prove the actual
+dot-segment removal and merging exact, and `absolute_spec` and `relative_spec`
+prove that the two branches of the transformation build exactly the recomposed
+target. `resolve_total_correct` proves that on inputs shorter than
+`usize::MAX / 8` bytes `resolve` returns exactly `IriResolution.resolve` of
+their bytes, and nothing otherwise; the bound leaves room for the output buffer.
+`resolve_utf8_iri` composes this with `resolve_iri` for the UTF-8 spellings of
+an IRI and an IRI reference. `is_reference_total_correct` proves that
+`is_reference` accepts exactly the UTF-8 spellings of RFC 3987 IRI references.
+The regression test checks every normal and abnormal example of RFC 3986
+section 5.4, the strict reading of `http:g`, the counterexample, absolute
+references against a base without a scheme and non-ASCII references.
+
+`remove_dots` dispatches through a classifier whose rungs each have one
+condition and ends in one `match`; its extracted body is about 90 kB. Nothing
+on the existing reading paths calls the new functions yet, so reading times are
+unchanged.
+
+This block adds 80 public theorems and 40 definitions. Totals are 2834 audited
+theorems, 1237 definitions, 548 Rust regressions and 3027 ledger obligations.

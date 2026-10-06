@@ -22,6 +22,8 @@ import Rowl.Anonymous
 import Rowl.Encoding
 import Rowl.LangTag
 import Rowl.NTriples
+import Rowl.IriResolution
+import Rowl.References
 import Rowl.RdfMapping
 import Rowl.RdfMappingComplete
 import Rowl.TopData

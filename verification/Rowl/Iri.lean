@@ -12,9 +12,9 @@ attribute [local instance] Classical.propDecidable
 /-- Single code-point ABNF interval. -/
 def Range (lower upper : Nat) : Language Nat :=
   {word | ∃ cp, word = [cp] ∧ lower ≤ cp ∧ cp ≤ upper}
-private def Ch (cp : Nat) : Language Nat := Range cp cp
-private def Optional (a : Language Nat) : Language Nat := 1 + a
-private def Positive (a : Language Nat) : Language Nat := a * a∗
+def Ch (cp : Nat) : Language Nat := Range cp cp
+def Optional (a : Language Nat) : Language Nat := 1 + a
+def Positive (a : Language Nat) : Language Nat := a * a∗
 /-- ABNF bounded repetition, independent of the Rust bounded counter. -/
 def AtMost (a : Language Nat) : Nat → Language Nat
   | 0 => 1
@@ -77,7 +77,7 @@ termination_by count.val
 decreasing_by scalar_tac
 
 
-private def Alpha : Language Nat :=
+def Alpha : Language Nat :=
   Range 65 90 + Range 97 122
 
 @[local step] private theorem alpha_spec :
@@ -86,7 +86,7 @@ private def Alpha : Language Nat :=
   step*
   simp_all [Alpha]
 
-private def Digit : Language Nat :=
+def Digit : Language Nat :=
   Range 48 57
 
 @[local step] private theorem digit_spec :
@@ -95,7 +95,7 @@ private def Digit : Language Nat :=
   step*
   simp_all [Digit]
 
-private def Hex : Language Nat :=
+def Hex : Language Nat :=
   Digit + (Range 65 70 + Range 97 102)
 
 @[local step] private theorem hex_spec :
@@ -104,7 +104,7 @@ private def Hex : Language Nat :=
   step*
   simp_all [Hex]
 
-private def Unreserved : Language Nat :=
+def Unreserved : Language Nat :=
   Alpha + (Digit + (Ch 45 + (Ch 46 + (Ch 95 + Ch 126))))
 
 @[local step] private theorem unreserved_spec :
@@ -113,7 +113,7 @@ private def Unreserved : Language Nat :=
   step*
   simp_all [Unreserved]
 
-private def SubDelims : Language Nat :=
+def SubDelims : Language Nat :=
   Ch 33 + (Ch 36 + (Ch 38 + (Ch 39 + (Ch 40 + (Ch 41 + (Ch 42 + (Ch 43 + (Ch 44 + (Ch 59 + Ch 61)))))))))
 
 @[local step] private theorem sub_delims_spec :
@@ -122,7 +122,7 @@ private def SubDelims : Language Nat :=
   step*
   simp_all [SubDelims]
 
-private def PctEncoded : Language Nat :=
+def PctEncoded : Language Nat :=
   Ch 37 * Hex ^ 2
 
 @[local step] private theorem pct_encoded_spec :
@@ -131,7 +131,7 @@ private def PctEncoded : Language Nat :=
   step*
   simp_all [PctEncoded]
 
-private def Ucschar : Language Nat :=
+def Ucschar : Language Nat :=
   Range 0xa0 0xd7ff + (Range 0xf900 0xfdcf + (Range 0xfdf0 0xffef +
   (Range 0x10000 0x1fffd + (Range 0x20000 0x2fffd + (Range 0x30000 0x3fffd +
   (Range 0x40000 0x4fffd + (Range 0x50000 0x5fffd + (Range 0x60000 0x6fffd +
@@ -145,7 +145,7 @@ private def Ucschar : Language Nat :=
   step*
   simp_all [Ucschar]
 
-private def Iprivate : Language Nat :=
+def Iprivate : Language Nat :=
   Range 0xe000 0xf8ff + (Range 0xf0000 0xffffd + Range 0x100000 0x10fffd)
 
 @[local step] private theorem iprivate_spec :
@@ -154,7 +154,7 @@ private def Iprivate : Language Nat :=
   step*
   simp_all [Iprivate]
 
-private def Iunreserved : Language Nat :=
+def Iunreserved : Language Nat :=
   Unreserved + Ucschar
 
 @[local step] private theorem iunreserved_spec :
@@ -163,7 +163,7 @@ private def Iunreserved : Language Nat :=
   step*
   simp_all [Iunreserved]
 
-private def Ipchar : Language Nat :=
+def Ipchar : Language Nat :=
   Iunreserved + (PctEncoded + (SubDelims + (Ch 58 + Ch 64)))
 
 @[local step] private theorem ipchar_spec :
@@ -172,7 +172,7 @@ private def Ipchar : Language Nat :=
   step*
   simp_all [Ipchar]
 
-private def Segment : Language Nat :=
+def Segment : Language Nat :=
   Ipchar∗
 
 @[local step] private theorem segment_spec :
@@ -181,7 +181,7 @@ private def Segment : Language Nat :=
   step*
   simp_all [Segment]
 
-private def SegmentNz : Language Nat :=
+def SegmentNz : Language Nat :=
   Positive Ipchar
 
 @[local step] private theorem segment_nz_spec :
@@ -190,7 +190,7 @@ private def SegmentNz : Language Nat :=
   step*
   simp_all [SegmentNz]
 
-private def SegmentNzNc : Language Nat :=
+def SegmentNzNc : Language Nat :=
   Positive (Iunreserved + (PctEncoded + (SubDelims + Ch 64)))
 
 @[local step] private theorem segment_nz_nc_spec :
@@ -199,7 +199,7 @@ private def SegmentNzNc : Language Nat :=
   step*
   simp_all [SegmentNzNc]
 
-private def PathTail : Language Nat :=
+def PathTail : Language Nat :=
   (Ch 47 * Segment)∗
 
 @[local step] private theorem path_tail_spec :
@@ -208,7 +208,7 @@ private def PathTail : Language Nat :=
   step*
   simp_all [PathTail]
 
-private def PathAbsolute : Language Nat :=
+def PathAbsolute : Language Nat :=
   Ch 47 * Optional (SegmentNz * PathTail)
 
 @[local step] private theorem path_absolute_spec :
@@ -217,7 +217,7 @@ private def PathAbsolute : Language Nat :=
   step*
   simp_all [PathAbsolute]
 
-private def PathRootless : Language Nat :=
+def PathRootless : Language Nat :=
   SegmentNz * PathTail
 
 @[local step] private theorem path_rootless_spec :
@@ -226,7 +226,7 @@ private def PathRootless : Language Nat :=
   step*
   simp_all [PathRootless]
 
-private def PathNoscheme : Language Nat :=
+def PathNoscheme : Language Nat :=
   SegmentNzNc * PathTail
 
 @[local step] private theorem path_noscheme_spec :
@@ -235,7 +235,7 @@ private def PathNoscheme : Language Nat :=
   step*
   simp_all [PathNoscheme]
 
-private def Query : Language Nat :=
+def Query : Language Nat :=
   (Ipchar + (Iprivate + (Ch 47 + Ch 63)))∗
 
 @[local step] private theorem query_spec :
@@ -244,7 +244,7 @@ private def Query : Language Nat :=
   step*
   simp_all [Query]
 
-private def Fragment : Language Nat :=
+def Fragment : Language Nat :=
   (Ipchar + (Ch 47 + Ch 63))∗
 
 @[local step] private theorem fragment_spec :
@@ -253,7 +253,7 @@ private def Fragment : Language Nat :=
   step*
   simp_all [Fragment]
 
-private def Scheme : Language Nat :=
+def Scheme : Language Nat :=
   Alpha * (Alpha + (Digit + (Ch 43 + (Ch 45 + Ch 46))))∗
 
 @[local step] private theorem scheme_spec :
@@ -262,7 +262,7 @@ private def Scheme : Language Nat :=
   step*
   simp_all [Scheme]
 
-private def Userinfo : Language Nat :=
+def Userinfo : Language Nat :=
   (Iunreserved + (PctEncoded + (SubDelims + Ch 58)))∗
 
 @[local step] private theorem userinfo_spec :
@@ -271,7 +271,7 @@ private def Userinfo : Language Nat :=
   step*
   simp_all [Userinfo]
 
-private def RegName : Language Nat :=
+def RegName : Language Nat :=
   (Iunreserved + (PctEncoded + SubDelims))∗
 
 @[local step] private theorem reg_name_spec :
@@ -280,7 +280,7 @@ private def RegName : Language Nat :=
   step*
   simp_all [RegName]
 
-private def DecOctet : Language Nat :=
+def DecOctet : Language Nat :=
   Digit + (Range 49 57 * Digit + (Ch 49 * Digit ^ 2 +
   (Ch 50 * (Range 48 52 * Digit) + Ch 50 * (Ch 53 * Range 48 53))))
 
@@ -290,7 +290,7 @@ private def DecOctet : Language Nat :=
   step*
   simp_all [DecOctet]
 
-private def Ipv4 : Language Nat :=
+def Ipv4 : Language Nat :=
   (DecOctet * Ch 46) ^ 3 * DecOctet
 
 @[local step] private theorem ipv4_spec :
@@ -299,7 +299,7 @@ private def Ipv4 : Language Nat :=
   step*
   simp_all [Ipv4]
 
-private def H16 : Language Nat :=
+def H16 : Language Nat :=
   Hex * AtMost Hex 3
 
 @[local step] private theorem h16_spec :
@@ -308,7 +308,7 @@ private def H16 : Language Nat :=
   step*
   simp_all [H16]
 
-private def Ls32 : Language Nat :=
+def Ls32 : Language Nat :=
   H16 * (Ch 58 * H16) + Ipv4
 
 @[local step] private theorem ls32_spec :
@@ -317,7 +317,7 @@ private def Ls32 : Language Nat :=
   step*
   simp_all [Ls32]
 
-private def ColonPair : Language Nat :=
+def ColonPair : Language Nat :=
   Ch 58 * Ch 58
 
 @[local step] private theorem colon_pair_spec :
@@ -326,7 +326,7 @@ private def ColonPair : Language Nat :=
   step*
   simp_all [ColonPair]
 
-private def H16Colon : Language Nat :=
+def H16Colon : Language Nat :=
   H16 * Ch 58
 
 @[local step] private theorem h16_colon_spec :
@@ -335,7 +335,7 @@ private def H16Colon : Language Nat :=
   step*
   simp_all [H16Colon]
 
-private def CompressedPrefix (n : Nat) : Language Nat :=
+def CompressedPrefix (n : Nat) : Language Nat :=
   Optional (AtMost H16Colon n * H16)
 
 @[local step] private theorem compressed_prefix_spec (n : U8) :
@@ -344,7 +344,7 @@ private def CompressedPrefix (n : Nat) : Language Nat :=
   step*
   simp_all [CompressedPrefix]
 
-private def Ipv6 : Language Nat :=
+def Ipv6 : Language Nat :=
   H16Colon ^ 6 * Ls32 +
   (ColonPair * (H16Colon ^ 5 * Ls32) +
   (Optional H16 * (ColonPair * (H16Colon ^ 4 * Ls32)) +
@@ -361,7 +361,7 @@ private def Ipv6 : Language Nat :=
   step*
   simp_all [Ipv6]
 
-private def IpvFuture : Language Nat :=
+def IpvFuture : Language Nat :=
   (Ch 118 + Ch 86) * (Positive Hex * (Ch 46 * Positive (Unreserved + (SubDelims + Ch 58))))
 
 @[local step] private theorem ipv_future_spec :
@@ -370,7 +370,7 @@ private def IpvFuture : Language Nat :=
   step*
   simp_all [IpvFuture]
 
-private def IpLiteral : Language Nat :=
+def IpLiteral : Language Nat :=
   Ch 91 * ((Ipv6 + IpvFuture) * Ch 93)
 
 @[local step] private theorem ip_literal_spec :
@@ -379,7 +379,7 @@ private def IpLiteral : Language Nat :=
   step*
   simp_all [IpLiteral]
 
-private def Host : Language Nat :=
+def Host : Language Nat :=
   IpLiteral + (Ipv4 + RegName)
 
 @[local step] private theorem host_spec :
@@ -388,7 +388,7 @@ private def Host : Language Nat :=
   step*
   simp_all [Host]
 
-private def Authority : Language Nat :=
+def Authority : Language Nat :=
   Optional (Userinfo * Ch 64) * (Host * Optional (Ch 58 * Digit∗))
 
 @[local step] private theorem authority_spec :
@@ -397,7 +397,7 @@ private def Authority : Language Nat :=
   step*
   simp_all [Authority]
 
-private def DoubleSlash : Language Nat :=
+def DoubleSlash : Language Nat :=
   Ch 47 * Ch 47
 
 @[local step] private theorem double_slash_spec :
@@ -406,7 +406,7 @@ private def DoubleSlash : Language Nat :=
   step*
   simp_all [DoubleSlash]
 
-private def AuthorityPath : Language Nat :=
+def AuthorityPath : Language Nat :=
   DoubleSlash * (Authority * PathTail)
 
 @[local step] private theorem authority_path_spec :
@@ -415,7 +415,7 @@ private def AuthorityPath : Language Nat :=
   step*
   simp_all [AuthorityPath]
 
-private def HierPart : Language Nat :=
+def HierPart : Language Nat :=
   AuthorityPath + (PathAbsolute + (PathRootless + 1))
 
 @[local step] private theorem hier_part_spec :
@@ -424,7 +424,7 @@ private def HierPart : Language Nat :=
   step*
   simp_all [HierPart, Denotes]
 
-private def RelativePart : Language Nat :=
+def RelativePart : Language Nat :=
   AuthorityPath + (PathAbsolute + (PathNoscheme + 1))
 
 @[local step] private theorem relative_part_spec :
@@ -433,7 +433,7 @@ private def RelativePart : Language Nat :=
   step*
   simp_all [RelativePart, Denotes]
 
-private def Suffix : Language Nat :=
+def Suffix : Language Nat :=
   Optional (Ch 63 * Query) * Optional (Ch 35 * Fragment)
 
 @[local step] private theorem suffix_spec :
@@ -451,7 +451,7 @@ def IriLanguage : Language Nat :=
   step*
   simp_all [IriLanguage]
 
-private def RelativeRef : Language Nat :=
+def RelativeRef : Language Nat :=
   RelativePart * Suffix
 
 @[local step] private theorem relative_ref_spec :
