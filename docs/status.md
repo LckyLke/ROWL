@@ -1272,7 +1272,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5445 audited public theorems and 1815 audited semantic definitions. Consistency,
+- 5448 audited public theorems and 1817 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1291,7 +1291,7 @@ formats are future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 661 Rust regression tests and 21 Python binding tests, plus separately fetched
+- 662 Rust regression tests and 21 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1304,8 +1304,8 @@ formats are future work.
   choice that clashes with a neighbour fails before other nodes branch; an
   instance question about an individual of a consistent closure whose other
   axioms name no individual asks only the part with the individual's component
-  of assertions (`components::component_closure`, proved to give the same
-  answer by `Rowl.Components.part_instance_correct`), and its satisfiability,
+  of assertions (`components::closure_parts` finds all components once, proved
+  to give the same answer by `Rowl.Components.parts_instance_correct`), and its satisfiability,
   subsumption and classification questions ask only the axioms other than
   assertions (`components::tbox_closure`, `part_satisfiable_correct`,
   `part_subsumed_correct`); such a closure's consistency is decided part by
@@ -1319,7 +1319,7 @@ formats are future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 5638-obligation release ledger and separate checked constructor and built-in inventories.
+- A 5641-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

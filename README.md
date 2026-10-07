@@ -227,7 +227,7 @@ they say:
   RDF/XML). Whenever it finishes, its result is proved correct. These are facts
   about the mathematics of the code; they do not bound time or memory.
 - **No gaps in the proofs.** No `sorry`, no admitted lemma, no custom axiom.
-  `scripts/verify.py` checks that each of the 5445 public theorems and 1815
+  `scripts/verify.py` checks that each of the 5448 public theorems and 1817
   semantic definitions depends only on Lean's three standard axioms
   (`propext`, `Classical.choice` and `Quot.sound`).
 
@@ -362,7 +362,7 @@ remaining formats (reading N-Quads, TriG, JSON-LD and RDFa; writing RDF/XML,
 N-Quads, TriG and JSON-LD), entailment of named facts, typed outcomes for
 cancellation and exhausted resources, and one proved composition from the
 input bytes to the answers that covers all of it. The release ledger,
-[`docs/coverage.json`](docs/coverage.json), tracks 5638 obligations; 215 of
+[`docs/coverage.json`](docs/coverage.json), tracks 5641 obligations; 215 of
 them are still open. The next steps are in
 [docs/status.md](docs/status.md#next-milestones), and the milestones and
 release gates in [docs/architecture.md](docs/architecture.md#milestones).
@@ -417,7 +417,7 @@ Measured on a shared development machine; the
   ontologies of independent records, consistency is checked record by record,
   instance questions ask only the record's part and class questions only the
   axioms other than assertions: for 300 medication-dose prescriptions, the
-  consistency check takes 0.2 s, listing the overdoses 1.1 s and classifying
+  consistency check takes 0.2 s, listing the overdoses 0.5 s and classifying
   the classes 0.2 s. Other performance work is in progress.
 
 ## Check the proofs yourself
@@ -425,7 +425,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 661 Rust regression tests
+cargo test --workspace         # 662 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

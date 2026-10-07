@@ -27160,17 +27160,17 @@ def completion.base
               })
 
 /-- [rowl_kernel::components::ROUNDS]
-    Source: 'crates/rowl-kernel/src/components.rs', lines 58:0-58:29
+    Source: 'crates/rowl-kernel/src/components.rs', lines 61:0-61:29
     Visibility: public -/
 @[global_simps, irreducible] def components.ROUNDS : Std.Usize := 64#usize
 
 /-- [rowl_kernel::components::MEMBERS]
-    Source: 'crates/rowl-kernel/src/components.rs', lines 60:0-60:32
+    Source: 'crates/rowl-kernel/src/components.rs', lines 63:0-63:32
     Visibility: public -/
 @[global_simps, irreducible] def components.MEMBERS : Std.Usize := 4096#usize
 
 /-- [rowl_kernel::components::assertion]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 67:0-78:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 70:0-81:1 -/
 def components.assertion («axiom» : model.Axiom) : Result Bool := do
   match «axiom» with
   | model.Axiom.Declaration _ => ok false
@@ -27212,7 +27212,7 @@ def components.assertion («axiom» : model.Axiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
 /-- [rowl_kernel::components::meaningless]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 81:0-90:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 84:0-93:1 -/
 def components.meaningless («axiom» : model.Axiom) : Result Bool := do
   match «axiom» with
   | model.Axiom.Declaration _ => ok true
@@ -27254,14 +27254,14 @@ def components.meaningless («axiom» : model.Axiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok true
 
 /-- [rowl_kernel::components::plain_role]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 92:0-94:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 95:0-97:1 -/
 def components.plain_role
   (role : model.ObjectPropertyExpression) : Result Bool := do
   let b ← data_ontology.universal role
   ok (¬ b)
 
 /-- [rowl_kernel::components::plain_roles]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 95:0-105:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 98:0-108:1 -/
 def components.plain_roles
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
   Result Bool
@@ -27281,7 +27281,7 @@ def components.plain_roles
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_role_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 106:0-116:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 109:0-119:1 -/
 def components.plain_role_members
   (roles : model.AtLeastTwo model.ObjectPropertyExpression) : Result Bool := do
   let b ← components.plain_role roles.first
@@ -27309,13 +27309,13 @@ def data_ontology.is_top_data
   data_ontology.same_pattern property.iri.spelling s
 
 /-- [rowl_kernel::components::plain_data]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 118:0-120:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 121:0-123:1 -/
 def components.plain_data (property : model.DataProperty) : Result Bool := do
   let b ← data_ontology.is_top_data property
   ok (¬ b)
 
 /-- [rowl_kernel::components::plain_data_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 121:0-131:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 124:0-134:1 -/
 def components.plain_data_list
   (properties : alloc.vec.Vec model.DataProperty) (index : Std.Usize) :
   Result Bool
@@ -27335,7 +27335,7 @@ def components.plain_data_list
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_data_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 132:0-142:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 135:0-145:1 -/
 def components.plain_data_members
   (properties : model.AtLeastTwo model.DataProperty) : Result Bool := do
   let b ← components.plain_data properties.first
@@ -27348,7 +27348,7 @@ def components.plain_data_members
   else ok false
 
 /-- [rowl_kernel::components::known_datatype]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 144:0-149:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 147:0-152:1 -/
 def components.known_datatype (datatype : model.Datatype) : Result Bool := do
   let o ← datatypes.kind_of datatype
   match o with
@@ -27356,7 +27356,7 @@ def components.known_datatype (datatype : model.Datatype) : Result Bool := do
   | some _ => ok true
 
 /-- [rowl_kernel::components::known_literal]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 152:0-157:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 155:0-160:1 -/
 def components.known_literal (literal : model.Literal) : Result Bool := do
   let o ← datatypes.literal_value literal
   match o with
@@ -27364,7 +27364,7 @@ def components.known_literal (literal : model.Literal) : Result Bool := do
   | some _ => ok true
 
 /-- [rowl_kernel::components::known_literals]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 158:0-168:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 161:0-171:1 -/
 def components.known_literals
   (literals : alloc.vec.Vec model.Literal) (index : Std.Usize) :
   Result Bool
@@ -27384,7 +27384,7 @@ def components.known_literals
 partial_fixpoint
 
 /-- [rowl_kernel::components::range_facet]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 170:0-178:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 173:0-181:1 -/
 def components.range_facet (facet : model.FacetRestriction) : Result Bool := do
   let o ← datatypes.facet_of facet.facet
   match o with
@@ -27396,7 +27396,7 @@ def components.range_facet (facet : model.FacetRestriction) : Result Bool := do
     | some value => datatypes.numeric value
 
 /-- [rowl_kernel::components::range_facets]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 179:0-189:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 182:0-192:1 -/
 def components.range_facets
   (facets : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize) :
   Result Bool
@@ -27418,7 +27418,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::components::standard_range]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 192:0-216:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 195:0-219:1 -/
 def components.standard_range (range : model.DataRange) : Result Bool := do
   match range with
   | model.DataRange.Datatype datatype => components.known_datatype datatype
@@ -27442,7 +27442,7 @@ def components.standard_range (range : model.DataRange) : Result Bool := do
 partial_fixpoint
 
 /-- [rowl_kernel::components::standard_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 217:0-227:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 220:0-230:1 -/
 def components.standard_list
   (ranges : alloc.vec.Vec model.DataRange) (index : Std.Usize) :
   Result Bool
@@ -27462,7 +27462,7 @@ def components.standard_list
 partial_fixpoint
 
 /-- [rowl_kernel::components::standard_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 228:0-238:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 231:0-241:1 -/
 def components.standard_members
   (members : model.AtLeastTwo model.DataRange) : Result Bool := do
   let b ← components.standard_range members.first
@@ -27478,7 +27478,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::components::standard_filler]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 239:0-244:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 242:0-247:1 -/
 def components.standard_filler
   (filler : Option model.DataRange) : Result Bool := do
   match filler with
@@ -27488,7 +27488,7 @@ def components.standard_filler
 mutual
 
 /-- [rowl_kernel::components::plain_class]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 247:0-328:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 250:0-331:1 -/
 def components.plain_class
   (expression : model.ClassExpression) (nominals : Bool) : Result Bool := do
   match expression with
@@ -27555,7 +27555,7 @@ def components.plain_class
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_counted]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 329:0-342:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 332:0-345:1 -/
 def components.plain_counted
   (role : model.ObjectPropertyExpression)
   (filler : Option model.ClassExpression) (nominals : Bool) :
@@ -27571,7 +27571,7 @@ def components.plain_counted
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 343:0-353:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 346:0-356:1 -/
 def components.plain_list
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (nominals : Bool) :
@@ -27592,7 +27592,7 @@ def components.plain_list
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 354:0-364:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 357:0-367:1 -/
 def components.plain_members
   (members : model.AtLeastTwo model.ClassExpression) (nominals : Bool) :
   Result Bool
@@ -27610,7 +27610,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::components::plain_sub_role]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 365:0-370:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 368:0-373:1 -/
 def components.plain_sub_role
   (sub : model.SubObjectPropertyExpression) : Result Bool := do
   match sub with
@@ -27619,7 +27619,7 @@ def components.plain_sub_role
     components.plain_role_members roles
 
 /-- [rowl_kernel::components::plain_axiom]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 372:0-462:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 375:0-465:1 -/
 def components.plain_axiom («axiom» : model.Axiom) : Result Bool := do
   match «axiom» with
   | model.Axiom.Declaration _ => ok false
@@ -27714,7 +27714,7 @@ def components.plain_axiom («axiom» : model.Axiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok false
 
 /-- [rowl_kernel::components::plain_assertion]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 464:0-471:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 467:0-474:1 -/
 def components.plain_assertion («axiom» : model.Axiom) : Result Bool := do
   match «axiom» with
   | model.Axiom.Declaration _ => ok true
@@ -27759,7 +27759,7 @@ def components.plain_assertion («axiom» : model.Axiom) : Result Bool := do
   | model.Axiom.AnnotationPropertyRange _ _ => ok true
 
 /-- [rowl_kernel::components::plain_items]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 474:0-492:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 477:0-495:1 -/
 def components.plain_items
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
   Result Bool
@@ -27788,14 +27788,14 @@ def components.plain_items
 partial_fixpoint
 
 /-- [rowl_kernel::components::plain_question]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 495:0-497:1
+    Source: 'crates/rowl-kernel/src/components.rs', lines 498:0-500:1
     Visibility: public -/
 def components.plain_question
   (expression : model.ClassExpression) : Result Bool := do
   components.plain_class expression false
 
 /-- [rowl_kernel::components::any_member]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 504:0-514:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 507:0-517:1 -/
 def components.any_member
   (members : alloc.vec.Vec model.Individual)
   (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -27816,7 +27816,7 @@ def components.any_member
 partial_fixpoint
 
 /-- [rowl_kernel::components::add_all]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 517:0-530:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 520:0-533:1 -/
 def components.add_all
   (members : alloc.vec.Vec model.Individual)
   (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -28039,7 +28039,7 @@ def data_ontology.axiom_individuals
   | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
 
 /-- [rowl_kernel::components::individual_table]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 534:0-557:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 537:0-560:1 -/
 def components.individual_table
   (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
   (out : alloc.vec.Vec (alloc.vec.Vec model.Individual)) :
@@ -28080,7 +28080,7 @@ def components.individual_table
 partial_fixpoint
 
 /-- [rowl_kernel::components::names_member]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 559:0-565:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 562:0-568:1 -/
 def components.names_member
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
   (members : alloc.vec.Vec model.Individual) :
@@ -28096,7 +28096,7 @@ def components.names_member
   else ok false
 
 /-- [rowl_kernel::components::grow]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 568:0-585:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 571:0-588:1 -/
 def components.grow
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
   (members : alloc.vec.Vec model.Individual) :
@@ -28123,7 +28123,7 @@ def components.grow
 partial_fixpoint
 
 /-- [rowl_kernel::components::component]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 588:0-608:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 591:0-611:1 -/
 def components.component
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual))
   (members : alloc.vec.Vec model.Individual) (rounds : Std.Usize) :
@@ -28149,7 +28149,7 @@ def components.component
 partial_fixpoint
 
 /-- [rowl_kernel::components::all_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 610:0-620:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 613:0-623:1 -/
 def components.all_members
   (members : alloc.vec.Vec model.Individual)
   (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
@@ -28170,7 +28170,7 @@ def components.all_members
 partial_fixpoint
 
 /-- [rowl_kernel::components::closed]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 623:0-637:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 626:0-640:1 -/
 def components.closed
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
   (members : alloc.vec.Vec model.Individual) :
@@ -28196,7 +28196,7 @@ def components.closed
 partial_fixpoint
 
 /-- [rowl_kernel::components::members_of]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 640:0-657:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 643:0-660:1 -/
 def components.members_of
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual))
   (start : model.Individual) :
@@ -28218,7 +28218,7 @@ def components.members_of
     else ok none
 
 /-- [rowl_kernel::components::copy_natural]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 663:0-668:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 666:0-671:1 -/
 def components.copy_natural
   (value : probes.Natural) : Result probes.Natural := do
   match value with
@@ -28229,28 +28229,28 @@ def components.copy_natural
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_class_name]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 669:0-673:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 672:0-676:1 -/
 def components.copy_class_name
   (expression : model.Class) : Result model.Class := do
   let i ← nnf.copy_iri expression.iri
   ok { iri := i }
 
 /-- [rowl_kernel::components::copy_datatype]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 674:0-678:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 677:0-681:1 -/
 def components.copy_datatype
   (datatype : model.Datatype) : Result model.Datatype := do
   let i ← nnf.copy_iri datatype.iri
   ok { iri := i }
 
 /-- [rowl_kernel::components::copy_data_property]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 679:0-683:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 682:0-686:1 -/
 def components.copy_data_property
   (property : model.DataProperty) : Result model.DataProperty := do
   let i ← nnf.copy_iri property.iri
   ok { iri := i }
 
 /-- [rowl_kernel::components::copy_literal]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 684:0-689:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 687:0-692:1 -/
 def components.copy_literal
   (literal : model.Literal) : Result model.Literal := do
   let v ← nnf.copy_bytes literal.lexical
@@ -28258,7 +28258,7 @@ def components.copy_literal
   ok { lexical := v, datatype := d }
 
 /-- [rowl_kernel::components::copy_facet]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 690:0-695:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 693:0-698:1 -/
 def components.copy_facet
   (facet : model.FacetRestriction) : Result model.FacetRestriction := do
   let i ← nnf.copy_iri facet.facet
@@ -28266,7 +28266,7 @@ def components.copy_facet
   ok { facet := i, value := l }
 
 /-- [rowl_kernel::components::copy_literals]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 696:0-707:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 699:0-710:1 -/
 def components.copy_literals
   (literals : alloc.vec.Vec model.Literal) (index : Std.Usize)
   (out : alloc.vec.Vec model.Literal) :
@@ -28290,7 +28290,7 @@ def components.copy_literals
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_facets]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 708:0-723:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 711:0-726:1 -/
 def components.copy_facets
   (facets : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize)
   (out : alloc.vec.Vec model.FacetRestriction) :
@@ -28314,7 +28314,7 @@ def components.copy_facets
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_individuals]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 724:0-739:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 727:0-742:1 -/
 def components.copy_individuals
   (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
   (out : alloc.vec.Vec model.Individual) :
@@ -28338,7 +28338,7 @@ def components.copy_individuals
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_roles]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 740:0-755:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 743:0-758:1 -/
 def components.copy_roles
   (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.ObjectPropertyExpression) :
@@ -28362,7 +28362,7 @@ def components.copy_roles
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_data_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 756:0-771:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 759:0-774:1 -/
 def components.copy_data_list
   (properties : alloc.vec.Vec model.DataProperty) (index : Std.Usize)
   (out : alloc.vec.Vec model.DataProperty) :
@@ -28388,7 +28388,7 @@ partial_fixpoint
 mutual
 
 /-- [rowl_kernel::components::copy_range]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 772:0-792:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 775:0-795:1 -/
 def components.copy_range
   (range : model.DataRange) : Result model.DataRange := do
   match range with
@@ -28420,7 +28420,7 @@ def components.copy_range
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_range_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 793:0-808:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 796:0-811:1 -/
 def components.copy_range_list
   (ranges : alloc.vec.Vec model.DataRange) (index : Std.Usize)
   (out : alloc.vec.Vec model.DataRange) :
@@ -28444,7 +28444,7 @@ def components.copy_range_list
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_range_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 809:0-815:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 812:0-818:1 -/
 def components.copy_range_members
   (members : model.AtLeastTwo model.DataRange) :
   Result (model.AtLeastTwo model.DataRange)
@@ -28460,7 +28460,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::components::copy_range_filler]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 816:0-821:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 819:0-824:1 -/
 def components.copy_range_filler
   (filler : Option model.DataRange) : Result (Option model.DataRange) := do
   match filler with
@@ -28471,7 +28471,7 @@ def components.copy_range_filler
 mutual
 
 /-- [rowl_kernel::components::copy_class]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 822:0-900:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 825:0-903:1 -/
 def components.copy_class
   (expression : model.ClassExpression) : Result model.ClassExpression := do
   match expression with
@@ -28553,7 +28553,7 @@ def components.copy_class
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_class_filler]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 901:0-906:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 904:0-909:1 -/
 def components.copy_class_filler
   (filler : Option model.ClassExpression) :
   Result (Option model.ClassExpression)
@@ -28565,7 +28565,7 @@ def components.copy_class_filler
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_class_list]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 907:0-922:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 910:0-925:1 -/
 def components.copy_class_list
   (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
   (out : alloc.vec.Vec model.ClassExpression) :
@@ -28589,7 +28589,7 @@ def components.copy_class_list
 partial_fixpoint
 
 /-- [rowl_kernel::components::copy_class_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 923:0-929:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 926:0-932:1 -/
 def components.copy_class_members
   (members : model.AtLeastTwo model.ClassExpression) :
   Result (model.AtLeastTwo model.ClassExpression)
@@ -28605,7 +28605,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::components::copy_role_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 930:0-938:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 933:0-941:1 -/
 def components.copy_role_members
   (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
   Result (model.AtLeastTwo model.ObjectPropertyExpression)
@@ -28618,7 +28618,7 @@ def components.copy_role_members
   ok { first := ope, second := ope1, rest := v }
 
 /-- [rowl_kernel::components::copy_data_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 939:0-945:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 942:0-948:1 -/
 def components.copy_data_members
   (properties : model.AtLeastTwo model.DataProperty) :
   Result (model.AtLeastTwo model.DataProperty)
@@ -28631,7 +28631,7 @@ def components.copy_data_members
   ok { first := dp, second := dp1, rest := v }
 
 /-- [rowl_kernel::components::copy_individual_members]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 946:0-952:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 949:0-955:1 -/
 def components.copy_individual_members
   (individuals : model.AtLeastTwo model.Individual) :
   Result (model.AtLeastTwo model.Individual)
@@ -28644,7 +28644,7 @@ def components.copy_individual_members
   ok { first := i, second := i1, rest := v }
 
 /-- [rowl_kernel::components::copy_sub_role]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 953:0-962:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 956:0-965:1 -/
 def components.copy_sub_role
   (sub : model.SubObjectPropertyExpression) :
   Result model.SubObjectPropertyExpression
@@ -28658,7 +28658,7 @@ def components.copy_sub_role
     ok (model.SubObjectPropertyExpression.Chain alt)
 
 /-- [rowl_kernel::components::copy_axiom]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 965:0-1087:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 968:0-1090:1 -/
 def components.copy_axiom
   («axiom» : model.Axiom) : Result (Option model.Axiom) := do
   match «axiom» with
@@ -28787,7 +28787,7 @@ def components.copy_axiom
   | model.Axiom.AnnotationPropertyRange _ _ => ok none
 
 /-- [rowl_kernel::components::kept]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1095:0-1106:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1098:0-1109:1 -/
 def components.kept
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
@@ -28804,7 +28804,7 @@ def components.kept
        ok (¬ b1)
 
 /-- [rowl_kernel::components::select]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1108:0-1137:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1111:0-1140:1 -/
 def components.select
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
@@ -28844,7 +28844,7 @@ def components.select
 partial_fixpoint
 
 /-- [rowl_kernel::components::component_closure]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1141:0-1161:1
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1144:0-1164:1
     Visibility: public -/
 def components.component_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom)
@@ -28871,7 +28871,7 @@ def components.component_closure
   else ok none
 
 /-- [rowl_kernel::components::tbox_closure]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1167:0-1179:1
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1170:0-1182:1
     Visibility: public -/
 def components.tbox_closure
   (items : alloc.vec.Vec model.AnnotatedAxiom) :
@@ -28891,7 +28891,7 @@ def components.tbox_closure
   else ok none
 
 /-- [rowl_kernel::components::falses]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1186:0-1197:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1189:0-1200:1 -/
 def components.falses
   (count : Std.Usize) (out : alloc.vec.Vec Bool) :
   Result (alloc.vec.Vec Bool)
@@ -28909,7 +28909,7 @@ def components.falses
 partial_fixpoint
 
 /-- [rowl_kernel::components::open_from]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1200:0-1218:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1203:0-1221:1 -/
 def components.open_from
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
   (done1 : alloc.vec.Vec Bool) :
@@ -28941,7 +28941,7 @@ def components.open_from
 partial_fixpoint
 
 /-- [rowl_kernel::components::mark]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1221:0-1245:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1224:0-1248:1 -/
 def components.mark
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual)) (index : Std.Usize)
   (members : alloc.vec.Vec model.Individual) (done1 : alloc.vec.Vec Bool) :
@@ -36182,7 +36182,7 @@ def data_ontology.consistent
   | some prepared => data_ontology.prepared_consistent prepared
 
 /-- [rowl_kernel::components::parts_from]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1251:0-1280:1 -/
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1254:0-1283:1 -/
 def components.parts_from
   (items : alloc.vec.Vec model.AnnotatedAxiom)
   (table : alloc.vec.Vec (alloc.vec.Vec model.Individual))
@@ -36228,7 +36228,7 @@ def components.parts_from
 partial_fixpoint
 
 /-- [rowl_kernel::components::consistent_by_parts]:
-    Source: 'crates/rowl-kernel/src/components.rs', lines 1285:0-1306:1
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1288:0-1309:1
     Visibility: public -/
 def components.consistent_by_parts
   (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
@@ -36258,6 +36258,100 @@ def components.consistent_by_parts
             let i1 := alloc.vec.Vec.len items
             components.parts_from items table v i1
           else ok o2
+  else ok none
+
+/-- [rowl_kernel::components::Component]
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1317:0-1320:1
+    Visibility: public -/
+structure components.Component where
+  members : alloc.vec.Vec model.Individual
+  part : alloc.vec.Vec model.AnnotatedAxiom
+
+/-- [rowl_kernel::components::Parts]
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1322:0-1328:1
+    Visibility: public -/
+structure components.Parts where
+  tbox : alloc.vec.Vec model.AnnotatedAxiom
+  components : alloc.vec.Vec components.Component
+
+/-- [rowl_kernel::components::components_from]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1331:0-1364:1 -/
+def components.components_from
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (table : alloc.vec.Vec (alloc.vec.Vec model.Individual))
+  (done1 : alloc.vec.Vec Bool) (rounds : Std.Usize)
+  (out : alloc.vec.Vec components.Component) :
+  Result (Option (alloc.vec.Vec components.Component))
+  := do
+  let o ← components.open_from table 0#usize done1
+  match o with
+  | none => ok (some out)
+  | some «open» =>
+    if 0#usize < rounds
+    then
+      let v ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          (alloc.vec.Vec model.Individual)) table «open»
+      let i ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.Individual) v 0#usize
+      let o1 ← components.members_of table i
+      match o1 with
+      | none => ok none
+      | some members =>
+        let o2 ←
+          components.select items table 0#usize members (alloc.vec.Vec.new
+            model.AnnotatedAxiom)
+        match o2 with
+        | none => ok none
+        | some part =>
+          let o3 ← components.mark table 0#usize members done1
+          match o3 with
+          | none => ok none
+          | some done2 =>
+            let i1 := alloc.vec.Vec.len out
+            if i1 < core.num.Usize.MAX
+            then
+              let out1 ←
+                alloc.vec.Vec.push out ({ members, part } :
+                  components.Component)
+              let i2 ← rounds - 1#usize
+              components.components_from items table done2 i2 out1
+            else ok none
+    else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::components::closure_parts]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1373:0-1397:1
+    Visibility: public -/
+def components.closure_parts
+  (items : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option components.Parts)
+  := do
+  let b ← components.plain_items items 0#usize
+  if b
+  then
+    let o ←
+      components.individual_table items 0#usize (alloc.vec.Vec.new
+        (alloc.vec.Vec model.Individual))
+    match o with
+    | none => ok none
+    | some table =>
+      let o1 ←
+        components.select items table 0#usize (alloc.vec.Vec.new
+          model.Individual) (alloc.vec.Vec.new model.AnnotatedAxiom)
+      match o1 with
+      | none => ok none
+      | some tbox =>
+        let i := alloc.vec.Vec.len items
+        let v ← components.falses i (alloc.vec.Vec.new Bool)
+        let i1 := alloc.vec.Vec.len items
+        let o2 ←
+          components.components_from items table v i1 (alloc.vec.Vec.new
+            components.Component)
+        match o2 with
+        | none => ok none
+        | some components => ok (some { tbox, components })
   else ok none
 
 /-- [rowl_kernel::data_ontology::named_known]:

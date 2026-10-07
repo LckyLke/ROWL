@@ -6556,7 +6556,10 @@
         "Rowl.Components.open_from_spec",
         "Rowl.Components.mark_spec",
         "Rowl.Components.parts_from_correct",
-        "Rowl.Components.consistent_by_parts_correct"
+        "Rowl.Components.consistent_by_parts_correct",
+        "Rowl.Components.components_from_spec",
+        "Rowl.Components.closure_parts_correct",
+        "Rowl.Components.parts_instance_correct"
       ]
     }
   ],
@@ -8375,6 +8378,8 @@
     "Rowl.Components.Names",
     "Rowl.Components.Checked",
     "Rowl.Components.checked",
-    "Rowl.Prefixes.Reserved"
+    "Rowl.Prefixes.Reserved",
+    "Rowl.Components.PartFor",
+    "Rowl.Components.ComponentOk"
   ]
 }

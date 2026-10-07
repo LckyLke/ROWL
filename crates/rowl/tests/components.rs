@@ -1,10 +1,10 @@
 use rowl::experimental::components::{
-    component_closure, consistent_by_parts, plain_question, tbox_closure,
+    closure_parts, component_closure, consistent_by_parts, plain_question, tbox_closure,
 };
 use rowl::experimental::data_ontology::{
     consistent, prepare, prepared_class_satisfiable, prepared_instance_of, prepared_subsumed,
 };
-use rowl::experimental::model::{Iri, NamedIndividual};
+use rowl::experimental::model::{Individual, Iri, NamedIndividual};
 use rowl::reasoner::{default_limits, named, Reasoner};
 
 /// Records of independent prescriptions, linked to their own age and dose
@@ -206,5 +206,77 @@ fn consistency_part_by_part_is_consistency() {
             Some(false),
             Some(true)
         ]
+    );
+}
+
+#[test]
+fn the_parts_computed_once_answer_like_the_whole_closure() {
+    let generated = records(6);
+    // An individual that only a declaration names belongs to no component.
+    let declared = generated.replacen("\n)\n", "\nDeclaration(NamedIndividual(:lonely))\n)\n", 1);
+    assert_ne!(declared, generated);
+    let sources: [&[u8]; 4] = [
+        include_bytes!("../../../examples/medication-dose.ofn"),
+        include_bytes!("../../../examples/medication-safety.ofn"),
+        include_bytes!("../../../examples/maintenance-individuals.ofn"),
+        declared.as_bytes(),
+    ];
+    let mut compared = 0;
+    let mut held = 0;
+    let mut lonely = 0;
+    for source in sources {
+        let Ok(reasoner) = Reasoner::from_functional(source, &default_limits()) else {
+            panic!("the example must load");
+        };
+        assert_eq!(reasoner.consistent(), Some(true));
+        let axioms = &reasoner.ontology().axioms;
+        let whole = prepare(axioms).expect("the example must be prepared");
+        let parts = closure_parts(axioms).expect("the closure falls apart");
+        let tbox = prepare(&parts.tbox).expect("the axioms other than assertions must be prepared");
+        let prepared: Vec<_> = parts
+            .components
+            .iter()
+            .map(|component| prepare(&component.part).expect("a part must be prepared"))
+            .collect();
+        for individual in reasoner.individuals() {
+            let individual = NamedIndividual {
+                iri: Iri {
+                    spelling: individual.into_bytes(),
+                },
+            };
+            let component = parts.components.iter().position(|component| {
+                component.members.iter().any(|member| {
+                    matches!(member, Individual::Named(named) if named.iri.spelling == individual.iri.spelling)
+                })
+            });
+            let part = match component {
+                Some(index) => {
+                    held += 1;
+                    // The same part as the one asked for the individual alone.
+                    let alone =
+                        component_closure(axioms, &individual).expect("the individual has a part");
+                    assert_eq!(alone.len(), parts.components[index].part.len());
+                    &prepared[index]
+                }
+                None => {
+                    lonely += 1;
+                    &tbox
+                }
+            };
+            for class in reasoner.classes() {
+                let class = named(&class);
+                assert_eq!(
+                    prepared_instance_of(part, &individual, &class),
+                    prepared_instance_of(&whole, &individual, &class)
+                );
+                compared += 1;
+            }
+        }
+    }
+    assert!(held > 20, "the examples must have components");
+    assert!(lonely >= 1, "an individual must belong to no component");
+    assert!(
+        compared > 200,
+        "the examples must have questions to compare"
     );
 }

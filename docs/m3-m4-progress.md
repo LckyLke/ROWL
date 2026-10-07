@@ -6542,3 +6542,44 @@ declaration`. The CLI uses it, and so do the Python bindings for catalog loads
 This block adds 1 public theorem and 1 definition. Totals are 5445 audited
 theorems, 1815 definitions, 661 Rust regressions and 5638 ledger obligations.
 
+## Performance: the parts of a closure, found once
+
+Each instance question found the component of its individual anew, with
+rounds over all assertions, so listing the instances of a class over n records
+took n searches over the whole closure. `components::closure_parts` now finds
+every component once, in the same pass over the open assertions as
+`consistent_by_parts`, and returns each with its part, together with the
+axioms other than assertions. `closure_parts_correct` proves that the part of
+a component meets the conditions of `Rowl.Partition.instance_part` for each of
+its members (`PartFor`), and that the axioms other than assertions meet them
+for an individual that no component holds, because every assertion then names
+only members of some component. `parts_instance_correct` composes this with
+`instance_part`: when the closure has a model, an instance question with a
+class expression that `plain_question` accepts has the same answer for the
+part of the individual's component, or for the axioms other than assertions,
+as for the closure. `Reasoner::instance_of` finds the parts on the first
+instance question, keeps an index from each named member to its component,
+and prepares each part when it is first asked; a part that holds half of the
+closure or more is not split off.
+
+| Listing instances | before | after |
+| --- | --- | --- |
+| 43 overdoses among 300 medication-dose prescriptions | 0.66 s | 0.48 s |
+| 134 overdoses among 1000 prescriptions | 4.1 s | 1.8 s |
+| 297 overdoses among 800 records with age and dose groups | 10.4 s | 1.55 s |
+
+The regression `the_parts_computed_once_answer_like_the_whole_closure`
+compares, for every individual and named class of four ontologies (one with
+an individual that only a declaration names), the answer of its part with the
+answer of the whole closure, and checks that the part of a component is the
+one `component_closure` finds for the individual alone.
+
+Finding the components still scans the closure once per component, so the
+time grows faster than the number of records: listing the instances among
+3000 prescriptions takes 7.9 s and the consistency check 3.2 s.
+
+This block adds 3 public theorems (`components_from_spec`,
+`closure_parts_correct` and `parts_instance_correct`) and 2 definitions
+(`PartFor`, `ComponentOk`). Totals are 5448 audited theorems, 1817
+definitions, 662 Rust regressions and 5641 ledger obligations.
+

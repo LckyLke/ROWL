@@ -26,6 +26,9 @@
 //! assertion, the part answers satisfiability and subsumption questions with
 //! such class expressions as the closure does (`tbox_closure`).
 //!
+//! `closure_parts` finds all components once, each with its part, for a
+//! reasoner that asks many instance questions.
+//!
 //! `None` means that the closure has an axiom or an assertion that is not
 //! plain, that the component takes more than `ROUNDS` rounds or grows beyond
 //! `MEMBERS` individuals, or that a structure would exceed the `usize` range.
@@ -1293,6 +1296,94 @@ pub fn consistent_by_parts(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
                             parts_from(items, &table, falses(items.len(), Vec::new()), items.len())
                         }
                         Some(false) => Some(false),
+                        None => None,
+                    },
+                    None => None,
+                }
+            }
+            None => None,
+        }
+    } else {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The parts of a closure
+// ---------------------------------------------------------------------------
+
+/// A component of assertions: its individuals, and the part of the closure for
+/// an instance question about any of them.
+pub struct Component {
+    pub members: Vec<Individual>,
+    pub part: Vec<AnnotatedAxiom>,
+}
+/// The parts of a closure for instance questions.
+pub struct Parts {
+    /// The axioms that mean something and are no assertion, copied without
+    /// annotations: the part for an individual that no assertion names.
+    pub tbox: Vec<AnnotatedAxiom>,
+    /// The components of assertions, each with its part.
+    pub components: Vec<Component>,
+}
+/// `out` with the component of the first assertion that is not done and its
+/// part, then the next, within `rounds` components.
+fn components_from(
+    items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
+    done: Vec<bool>,
+    rounds: usize,
+    mut out: Vec<Component>,
+) -> Option<Vec<Component>> {
+    match open_from(table, 0, &done) {
+        Some(open) => {
+            if 0 < rounds {
+                match members_of(table, &table[open][0]) {
+                    Some(members) => match select(items, table, 0, &members, Vec::new()) {
+                        Some(part) => match mark(table, 0, &members, done) {
+                            Some(done) => {
+                                if out.len() < usize::MAX {
+                                    out.push(Component { members, part });
+                                    components_from(items, table, done, rounds - 1, out)
+                                } else {
+                                    None
+                                }
+                            }
+                            None => None,
+                        },
+                        None => None,
+                    },
+                    None => None,
+                }
+            } else {
+                None
+            }
+        }
+        None => Some(out),
+    }
+}
+/// The parts of the closure for instance questions, when every axiom is
+/// plain, a plain assertion or without meaning: the axioms other than
+/// assertions, and each component of assertions with its part. When the
+/// closure has a model, an instance question about a member of a component,
+/// with a class expression that `plain_question` accepts, has the same answer
+/// for the part of the component as for the closure, and one about an
+/// individual that no component holds has the same answer for the axioms other
+/// than assertions (`Rowl.Components.parts_instance_correct`).
+pub fn closure_parts(items: &Vec<AnnotatedAxiom>) -> Option<Parts> {
+    if plain_items(items, 0) {
+        match individual_table(items, 0, Vec::new()) {
+            Some(table) => {
+                let members = Vec::new();
+                match select(items, &table, 0, &members, Vec::new()) {
+                    Some(tbox) => match components_from(
+                        items,
+                        &table,
+                        falses(items.len(), Vec::new()),
+                        items.len(),
+                        Vec::new(),
+                    ) {
+                        Some(components) => Some(Parts { tbox, components }),
                         None => None,
                     },
                     None => None,

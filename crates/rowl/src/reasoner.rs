@@ -14,7 +14,7 @@
 //! words, the verdict of the verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
 use rowl_kernel::components::{
-    component_closure, consistent_by_parts, plain_question, tbox_closure,
+    closure_parts, consistent_by_parts, plain_question, tbox_closure, Parts,
 };
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
@@ -39,7 +39,7 @@ use rowl_kernel::source_reasoning::source_ontology;
 use rowl_kernel::turtle;
 use rowl_kernel::typing::EntityKind;
 use rowl_kernel::xml::XmlError;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 /// The stack the verified kernel runs on. Its readers, mapping and queries
@@ -175,10 +175,20 @@ pub struct Reasoner {
     /// The axioms other than assertions and their prepared queries, which
     /// answer class questions when the closure is consistent.
     tbox: OnceLock<Option<(Vec<AnnotatedAxiom>, Prepared)>>,
-    /// Whether instance questions go to the parts of the closure: decided by
-    /// the first question that has a part, true when that part is less than
-    /// half of the closure.
-    split: OnceLock<bool>,
+    /// The parts of the closure for instance questions, computed by the first
+    /// instance question of a consistent closure.
+    split: OnceLock<Option<Split>>,
+}
+
+/// The parts of a closure for instance questions (`components::closure_parts`):
+/// the component of each named individual that an assertion names, and the
+/// prepared queries of each part and of the axioms other than assertions,
+/// prepared on first use.
+struct Split {
+    parts: Parts,
+    component_of: HashMap<Vec<u8>, usize>,
+    prepared: Vec<OnceLock<Option<Prepared>>>,
+    tbox: OnceLock<Option<Prepared>>,
 }
 
 fn class_expression(iri: &str) -> ClassExpression {
@@ -1090,10 +1100,11 @@ impl Reasoner {
     }
     /// Whether the named individual is an instance of `class` in every model.
     /// When the axioms have a model, the question is first asked of the part
-    /// of the closure for the individual (`components::component_closure`):
-    /// the axioms other than assertions and the assertions connected to the
-    /// individual, which has the same answer (`part_instance_correct`), so
-    /// that independent records are answered one at a time.
+    /// of the closure for the individual (`components::closure_parts`): the
+    /// axioms other than assertions and the component of assertions connected
+    /// to the individual, which has the same answer (`parts_instance_correct`),
+    /// so that independent records are answered one at a time. The parts are
+    /// found once, and each is prepared when first asked.
     pub fn instance_of(&self, individual: &str, class: &ClassExpression) -> Option<bool> {
         let individual = NamedIndividual {
             iri: Iri {
@@ -1108,30 +1119,54 @@ impl Reasoner {
         let prepared = self.queries()?;
         on_kernel_stack(|| prepared_instance_of(prepared, &individual, class))
     }
-    /// The answer of the part of the closure for the individual, when the
-    /// closure has one and splitting pays off.
+    /// The parts of the closure for instance questions, found on first use;
+    /// `None` when the closure does not fall apart into them.
+    fn split(&self) -> Option<&Split> {
+        self.split
+            .get_or_init(|| {
+                let parts = on_kernel_stack(|| closure_parts(&self.ontology.axioms))?;
+                let mut component_of = HashMap::new();
+                for (index, component) in parts.components.iter().enumerate() {
+                    for member in &component.members {
+                        if let Individual::Named(named) = member {
+                            component_of.insert(named.iri.spelling.clone(), index);
+                        }
+                    }
+                }
+                let prepared = parts.components.iter().map(|_| OnceLock::new()).collect();
+                Some(Split {
+                    parts,
+                    component_of,
+                    prepared,
+                    tbox: OnceLock::new(),
+                })
+            })
+            .as_ref()
+    }
+    /// The answer of the part of the closure for the individual: the part of
+    /// its component, or the axioms other than assertions when no assertion
+    /// names it. A part that holds half of the closure or more is not split
+    /// off; the whole closure answers instead.
     fn part_instance_of(
         &self,
         individual: &NamedIndividual,
         class: &ClassExpression,
     ) -> Option<bool> {
-        if self.split.get() == Some(&false) {
+        if !on_kernel_stack(|| plain_question(class)) {
             return None;
         }
-        on_kernel_stack(|| {
-            if !plain_question(class) {
-                return None;
-            }
-            let part = component_closure(&self.ontology.axioms, individual)?;
-            let pays = *self
-                .split
-                .get_or_init(|| 2 * part.len() < self.ontology.axioms.len());
-            if !pays {
-                return None;
-            }
-            let prepared = prepare(&part)?;
-            prepared_instance_of(&prepared, individual, class)
-        })
+        let split = self.split()?;
+        let (part, prepared) = match split.component_of.get(&individual.iri.spelling) {
+            Some(&index) => (&split.parts.components[index].part, &split.prepared[index]),
+            None => (&split.parts.tbox, &split.tbox),
+        };
+        if 2 * part.len() >= self.ontology.axioms.len() {
+            return None;
+        }
+        let prepared = prepared
+            .get_or_init(|| on_kernel_stack(|| prepare(part)))
+            .as_ref()?;
+        on_kernel_stack(|| prepared_instance_of(prepared, individual, class))
     }
     /// The first OWL 2 DL restriction the document's axioms violate, in words,
     /// or `None` when they satisfy all of them. It is computed on demand by

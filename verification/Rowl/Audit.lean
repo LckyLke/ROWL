@@ -5630,6 +5630,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.mark_spec
 #print axioms Rowl.Components.parts_from_correct
 #print axioms Rowl.Components.consistent_by_parts_correct
+#print axioms Rowl.Components.components_from_spec
+#print axioms Rowl.Components.closure_parts_correct
+#print axioms Rowl.Components.parts_instance_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7445,3 +7448,5 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.Checked
 #print axioms Rowl.Components.checked
 #print axioms Rowl.Prefixes.Reserved
+#print axioms Rowl.Components.PartFor
+#print axioms Rowl.Components.ComponentOk
