@@ -4850,3 +4850,23 @@ build, most of it for the 256 and 300 values of `xsd:byte`.
 This block adds 25 public theorems and 9 definitions and removes 4 theorems and
 1 definition. Totals are 2983 audited theorems, 1284 definitions, 541 Rust
 regressions and 3176 ledger obligations.
+
+## M5: numeric data in the examples, the CLI and the README
+
+`examples/medication-dose.ofn` checks paracetamol prescriptions against a
+daily maximum: a dose above 4000 mg, or above 2000 mg for a child under 12
+(`DataSomeValuesFrom(:patientAgeYears xsd:integer[< 12])`), is a dose alert,
+and one dose is written `"8001/2"^^owl:rational`. The README shows the alerts
+that `rowl instances` lists from the file's bytes, and
+`crates/rowl/tests/reasoner.rs` checks them, the child, the classification of
+the example and that a hard maximum `DataAllValuesFrom(:dailyDoseMg
+xsd:decimal[<= 4000])` makes the records inconsistent. The README's table and
+`rowl status` now name the numeric datatypes and the four range facets. The
+`Reasoner`, the command-line tool and the Python package needed no change:
+they pass the data ranges of the read document to the same verified queries.
+The medication-dose ontologies of the previous block's measurements come from
+the benchmark generator `gen_numeric.py` of the shared `tools/bench`
+(`python3 gen_numeric.py N OUT` writes `OUT.ofn`).
+
+This block adds no theorems. Totals are 2983 audited theorems, 1284
+definitions, 542 Rust regressions and 3176 ledger obligations.

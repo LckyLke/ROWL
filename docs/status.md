@@ -963,7 +963,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   run or by the capacity (`run_count`, `peers_bound`, `sound_satisfies`). The query theorems keep their statements;
   `encode` now takes the capacity and a prepared closure leaves room for
   questions that count 64 values. The other facets, facets on strings and data
-  ranges of the other datatypes get no answer.
+  ranges of the other datatypes get no answer. `examples/medication-dose.ofn`
+  checks paracetamol doses against daily maximums from its bytes.
 - M5 data properties and literals in the ontology queries: consistency, class
   satisfiability, subsumption and instance checking (`data_ontology`) take data
   properties with their domains, ranges, inclusions, equivalences,
@@ -1082,7 +1083,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 541 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 542 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
