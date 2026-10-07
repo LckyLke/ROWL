@@ -4801,3 +4801,52 @@ ontology.
 This block adds 219 public theorems and 51 definitions and removes 8 theorems
 and 1 definition of the former regions. Totals are 2962 audited theorems, 1276
 definitions, 540 Rust regressions and 3155 ledger obligations.
+
+## Performance: cuts only at the bounds of facets and subtypes
+
+The region encoding of the previous block gave every numeric literal value
+its two cuts. With n distinct numeric values a closure had about 2n cuts, each
+value's individual was in the classes of all cuts below it, every value added
+an axiom with a nominal, and the kernel ordered the cuts by repeated selection,
+so reasoning grew much faster than n. Now only the bounds of facets and of
+integer subtypes are cuts: literals add none (`add_literal_good`). Each
+numeric literal value's individual is asserted in the class of every cut that
+contains its number and outside the others (`cut_memberships_spec`,
+`CutFact`), with the membership decided exactly by the new `regions::in_cut`
+(`in_cut_correct`). A literal value can therefore lie inside a run of integers
+between two cuts, and the axiom on the run counts the integers that are no
+literal values (`freeCount`, from `run_count_spec` and `run_literals_spec`):
+when there are none, every integer node of the run is one of the run's
+literal values' individuals, and when there are fewer than the capacity, at
+most that many other integer nodes are at any element along `U` (`GapFact`,
+`gap_axiom_spec`; the kernel declines when the literal values of a run and the
+capacity together reach `usize::MAX / 16`). The lifted model of an OWL model
+satisfies these axioms because the literal values of a run are distinct
+integers of the run (`named_card`, `all_named`, `lifted_regions`), and the
+model made from a model of the encoding takes the values of its number regions
+outside the numbers of the literal values (`literalReals`, `regionSet`), which
+leaves exactly the free integers of a bounded run (`free_reals`, `free_card`,
+`run_count`) and infinitely many values in every other region (`region_cases`).
+Points of facets keep their literal values, as before. Statements that
+changed: `CutFact`, `GapFact`, `encode_meaning`'s `ValuesFit` (every numeric
+literal value short enough to compare) in place of `ValuesCut`, and the
+DataSound region definitions, which now take the set of literal reals. The
+regression `literal_values_take_integers_of_a_run` checks runs whose integers
+are partly or wholly literal values.
+
+On the medication-dose ontology of `tools/bench/gen_numeric.py` (n
+prescriptions of five drugs, each with an `xsd:decimal` daily dose and an
+`xsd:integer` age, against maximum doses, age groups and dose bands defined by
+range facets; release builds), deciding consistency (`rowl check`) took 23.0 s
+for 10 prescriptions before and 0.04 s now, more than 120 s for 20 before and
+0.14 s now, and now 1.1 s for 50 and 7.9 s for 100. Listing the overdoses
+(`rowl instances`, one instance query per prescription) took 224.6 s for 10
+before and 0.27 s now, and now 2.6 s for 20 and 61.5 s for 50; for 100 it
+takes more than 300 s, because every instance query runs the completion forest
+over all prescriptions again, and copying the forest at its branch points
+dominates. The regressions of `tests/numeric_ranges.rs` take 11.7 s in a debug
+build, most of it for the 256 and 300 values of `xsd:byte`.
+
+This block adds 25 public theorems and 9 definitions and removes 4 theorems and
+1 definition. Totals are 2983 audited theorems, 1284 definitions, 541 Rust
+regressions and 3176 ledger obligations.

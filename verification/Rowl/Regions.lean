@@ -677,6 +677,45 @@ theorem is_greater_correct (l r : datatypes.DataValue) (cl : CanonicalNumeric l)
       have : o ≠ 2#u8 := fun h => ne (by rw [← oValue, h]; rfl)
       rw [decide_eq_false this, decide_eq_false gt]
 
+/-- The kernel compares any two values whose numbers are canonical. -/
+theorem is_greater_ok (l r : datatypes.DataValue) (cl : IsNumber l → CanonicalNumeric l)
+    (cr : IsNumber r → CanonicalNumeric r) : ∃ b, regions.is_greater l r = .ok b := by
+  rw [regions.is_greater]
+  obtain ⟨res, run, _, _⟩ := Rowl.Datatypes.compare_values_correct l r cl cr
+  cases res with
+  | none => exact ⟨false, by simp [run]⟩
+  | some o => exact ⟨decide (o = 2#u8), by simp [run]⟩
+
+/-- The kernel's membership of a number in a cut. -/
+theorem in_cut_correct (c : regions.Cut) (fc : Fit c) (v : datatypes.DataValue) (cv : CanonicalNumeric v)
+    (wv : digitWidth v < Usize.max / 8) : regions.in_cut c v = .ok (decide (InCut c (numValue v))) := by
+  rw [regions.in_cut]
+  cases ho : c.open
+  · rw [is_greater_correct c.value v fc.1 fc.2 cv wv]
+    simp only [Bool.false_eq_true, ↓reduceIte, bind_ok, InCut, ho]
+    by_cases h : numValue v < numValue c.value
+    · have : ¬ ((numValue c.value : ℚ) : ℝ) ≤ ((numValue v : ℚ) : ℝ) := by exact_mod_cast not_le.mpr h
+      simp [h, this]
+    · have : ((numValue c.value : ℚ) : ℝ) ≤ ((numValue v : ℚ) : ℝ) := by exact_mod_cast not_lt.mp h
+      simp [h, this]
+  · rw [is_greater_correct v c.value cv wv fc.1 fc.2]
+    simp only [↓reduceIte, InCut, ho]
+    by_cases h : numValue c.value < numValue v
+    · have : ((numValue c.value : ℚ) : ℝ) < ((numValue v : ℚ) : ℝ) := by exact_mod_cast h
+      simp [h, this]
+    · have : ¬ ((numValue c.value : ℚ) : ℝ) < ((numValue v : ℚ) : ℝ) := by exact_mod_cast h
+      simp [h, this]
+
+/-- The kernel's membership in a cut runs on every value. -/
+theorem in_cut_ok (c : regions.Cut) (fc : Fit c) (v : datatypes.DataValue) (cv : IsNumber v → CanonicalNumeric v) :
+    ∃ b, regions.in_cut c v = .ok b := by
+  rw [regions.in_cut]
+  obtain ⟨b1, run1⟩ := is_greater_ok v c.value cv (fun _ => fc.1)
+  obtain ⟨b2, run2⟩ := is_greater_ok c.value v (fun _ => fc.1) cv
+  cases ho : c.open
+  · exact ⟨!b2, by simp [ho, run2]⟩
+  · exact ⟨b1, by simp [ho, run1]⟩
+
 /-- The kernel's order of cuts. -/
 theorem after_correct (left right : regions.Cut) (fl : Fit left) (fr : Fit right) :
     regions.after left right = .ok (decide (CutBefore right left)) := by

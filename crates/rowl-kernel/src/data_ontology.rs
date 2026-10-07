@@ -84,7 +84,9 @@ use crate::model::{
 };
 use crate::nnf::copy_bytes;
 use crate::probes::Natural;
-use crate::regions::{add_cut, copy_value, cut_index, cut_order, cuts_fit, run_size, Cut};
+use crate::regions::{
+    add_cut, copy_value, cut_index, cut_order, cuts_fit, fits, in_cut, run_size, Cut,
+};
 use crate::shi_ontology;
 
 /// The datatypes in use, and whether numbers are ordered: a datatype
@@ -505,10 +507,6 @@ fn add_data(mut context: Context, property: &DataProperty) -> Context {
 fn add_literal(mut context: Context, literal: &Literal) -> Context {
     match literal_value(literal) {
         Some(value) => {
-            if numeric(&value) {
-                context.cuts = add_cut(context.cuts, &value, false);
-                context.cuts = add_cut(context.cuts, &value, true);
-            }
             context.values = add_value(context.values, value);
             context
         }
@@ -2354,6 +2352,28 @@ fn bit_members(
 }
 /// `out` with a numeric literal value at `index` in its own closed cut and
 /// outside its own open cut, when numbers are ordered.
+/// `out` with the literal value at `index` in the class of every cut of
+/// `context.cuts[cut..]` that contains its number, and outside the others.
+fn cut_memberships(
+    context: &Context,
+    index: usize,
+    cut: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (index < context.values.len()) & (cut < context.cuts.len()) {
+        match member(
+            cut_class(cut),
+            in_cut(&context.cuts[cut], &context.values[index]),
+            value_individual(index),
+            out,
+        ) {
+            Some(out) => cut_memberships(context, index, cut + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
 fn cut_members(
     context: &Context,
     index: usize,
@@ -2361,18 +2381,7 @@ fn cut_members(
 ) -> Option<Vec<AnnotatedAxiom>> {
     if context.kinds.ordered & (index < context.values.len()) {
         if numeric(&context.values[index]) {
-            match (
-                cut_index(&context.cuts, &context.values[index], false, 0),
-                cut_index(&context.cuts, &context.values[index], true, 0),
-            ) {
-                (Some(closed), Some(open)) => {
-                    match member(cut_class(closed), true, value_individual(index), out) {
-                        Some(out) => member(cut_class(open), false, value_individual(index), out),
-                        None => None,
-                    }
-                }
-                _ => None,
-            }
+            cut_memberships(context, index, 0, out)
         } else {
             Some(out)
         }
@@ -2380,8 +2389,6 @@ fn cut_members(
         Some(out)
     }
 }
-/// `out` with the literal value at `index` in the classes of the numeric
-/// kinds in use beyond the integers and decimals, or their complements.
 fn number_members(
     context: &Context,
     index: usize,
@@ -2457,6 +2464,109 @@ fn natural_of(count: usize) -> Natural {
 /// none when there are none, and at most their number at any element along
 /// `U` when there are fewer than `capacity`; they are counted up to one more
 /// than the capacity.
+/// Whether a literal value is an integer in the cut `low` and outside the cut
+/// `high`.
+fn in_run(low: &Cut, high: &Cut, value: &DataValue) -> bool {
+    in_kind(value, Kind::Integer) & in_cut(low, value) & !in_cut(high, value)
+}
+/// `found` with `individual` added.
+fn add_named(
+    found: Option<NonEmpty<Individual>>,
+    individual: Individual,
+) -> Option<NonEmpty<Individual>> {
+    match found {
+        None => Some(NonEmpty {
+            first: individual,
+            rest: Vec::new(),
+        }),
+        Some(mut list) => {
+            if list.rest.len() < usize::MAX {
+                list.rest.push(individual);
+            }
+            Some(list)
+        }
+    }
+}
+/// `found` with the individuals of the literal values of `values[index..]`
+/// that are integers between the cuts `low` and `high`.
+fn run_literals(
+    context: &Context,
+    low: &Cut,
+    high: &Cut,
+    index: usize,
+    found: Option<NonEmpty<Individual>>,
+) -> Option<NonEmpty<Individual>> {
+    if index < context.values.len() {
+        if in_run(low, high, &context.values[index]) {
+            run_literals(
+                context,
+                low,
+                high,
+                index + 1,
+                add_named(found, value_individual(index)),
+            )
+        } else {
+            run_literals(context, low, high, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// `count` plus the number of literal values of `values[index..]` that are
+/// integers between the cuts `low` and `high`.
+fn run_count(context: &Context, low: &Cut, high: &Cut, index: usize, count: usize) -> usize {
+    if index < context.values.len() {
+        if in_run(low, high, &context.values[index]) & (count < usize::MAX) {
+            run_count(context, low, high, index + 1, count + 1)
+        } else {
+            run_count(context, low, high, index + 1, count)
+        }
+    } else {
+        count
+    }
+}
+/// The integers between `low` and `high` that are no literal values: none
+/// when there are none, a class of the literal values when every integer
+/// there is one.
+fn no_free_integers(low: usize, high: usize, named: Option<NonEmpty<Individual>>) -> Axiom {
+    match named {
+        None => Axiom::SubClassOf(
+            and(kind_class(Kind::Integer), cut_class(low)),
+            cut_class(high),
+        ),
+        Some(list) => Axiom::SubClassOf(
+            and3(
+                kind_class(Kind::Integer),
+                cut_class(low),
+                not(cut_class(high)),
+            ),
+            ClassExpression::ObjectOneOf(list),
+        ),
+    }
+}
+/// The integers between `low` and `high` that are no literal values.
+fn free_integers(low: usize, high: usize, named: Option<NonEmpty<Individual>>) -> ClassExpression {
+    match named {
+        None => and3(
+            kind_class(Kind::Integer),
+            cut_class(low),
+            not(cut_class(high)),
+        ),
+        Some(list) => and(
+            and3(
+                kind_class(Kind::Integer),
+                cut_class(low),
+                not(cut_class(high)),
+            ),
+            not(ClassExpression::ObjectOneOf(list)),
+        ),
+    }
+}
+/// `out` with the axiom on the integers between the neighbouring cuts `low`
+/// and `high` of different numbers that are no literal values: none of them
+/// when there are none, and at most their number at any element along `U`
+/// when there are fewer than `capacity`; they are counted up to one more than
+/// the capacity.
 fn gap_axiom(
     context: &Context,
     low: usize,
@@ -2465,42 +2575,43 @@ fn gap_axiom(
     out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
     if (low < context.cuts.len()) & (high < context.cuts.len()) & (capacity < usize::MAX / 16) {
-        let size = run_size(&context.cuts[low], &context.cuts[high], capacity + 1);
-        if size == 0 {
-            push(
-                out,
-                Axiom::SubClassOf(
-                    and(kind_class(Kind::Integer), cut_class(low)),
-                    cut_class(high),
-                ),
-            )
-        } else if size < capacity {
-            push(
-                out,
-                Axiom::SubClassOf(
-                    thing(),
-                    ClassExpression::ObjectMaxCardinality(
-                        natural_of(size),
-                        data_super(),
-                        Some(Box::new(and3(
-                            kind_class(Kind::Integer),
-                            cut_class(low),
-                            not(cut_class(high)),
-                        ))),
-                    ),
-                ),
-            )
+        let named = run_count(context, &context.cuts[low], &context.cuts[high], 0, 0);
+        if named < usize::MAX / 16 - capacity {
+            let size = run_size(
+                &context.cuts[low],
+                &context.cuts[high],
+                capacity + 1 + named,
+            );
+            if named <= size {
+                let free = size - named;
+                let found = run_literals(context, &context.cuts[low], &context.cuts[high], 0, None);
+                if free == 0 {
+                    push(out, no_free_integers(low, high, found))
+                } else if free < capacity {
+                    push(
+                        out,
+                        Axiom::SubClassOf(
+                            thing(),
+                            ClassExpression::ObjectMaxCardinality(
+                                natural_of(free),
+                                data_super(),
+                                Some(Box::new(free_integers(low, high, found))),
+                            ),
+                        ),
+                    )
+                } else {
+                    Some(out)
+                }
+            } else {
+                None
+            }
         } else {
-            Some(out)
+            None
         }
     } else {
         None
     }
 }
-/// `out` with the axiom between the cuts at `low` and `high`, neighbours in
-/// the order of the cuts: the two cuts of a number leave only its individual,
-/// and the integers between cuts of different numbers get their axiom when
-/// the integers are in use.
 fn between_axiom(
     context: &Context,
     low: usize,
@@ -2588,20 +2699,22 @@ fn least_axiom(order: &Vec<usize>, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annot
         Some(out)
     }
 }
-/// Whether every number among the literal values of `values[index..]` has
-/// both its cuts.
-fn values_cut(context: &Context, index: usize) -> bool {
+/// Whether a literal value is no number or a number short enough to compare.
+fn value_fits(value: &DataValue) -> bool {
+    if numeric(value) {
+        fits(value)
+    } else {
+        true
+    }
+}
+/// Whether every literal value of `values[index..]` is no number or a number
+/// short enough to compare.
+fn values_fit(context: &Context, index: usize) -> bool {
     if index < context.values.len() {
-        if numeric(&context.values[index]) {
-            match (
-                cut_index(&context.cuts, &context.values[index], false, 0),
-                cut_index(&context.cuts, &context.values[index], true, 0),
-            ) {
-                (Some(_), Some(_)) => values_cut(context, index + 1),
-                _ => false,
-            }
+        if value_fits(&context.values[index]) {
+            values_fit(context, index + 1)
         } else {
-            values_cut(context, index + 1)
+            false
         }
     } else {
         true
@@ -2610,7 +2723,7 @@ fn values_cut(context: &Context, index: usize) -> bool {
 /// Whether the cuts are of numbers short enough to compare, and every number
 /// among the literal values has both its cuts.
 fn encodable(context: &Context) -> bool {
-    cuts_fit(&context.cuts, 0) & values_cut(context, 0)
+    cuts_fit(&context.cuts, 0) & values_fit(context, 0)
 }
 /// `out` with the axioms of the ordered numbers, when numbers are ordered: the
 /// first cut inside the reals and the chain of the cuts, and when the integers

@@ -10,10 +10,11 @@ and each data node that witnesses a data restriction gets a value of its own
 region. A numeric data node's region is the interval between neighbouring cuts
 that its cut classes place it in, at the level its numeric datatypes say:
 integers, decimals that are no integers, rationals that are no decimals, or
-irrational numbers (`regionOf`). Every such region but a bounded run of
-integers is infinite; a bounded run has room for the node's distinct
-neighbours, by the bound on the run or because the counts of the data
-restrictions are at most its size. Strings of the letter a, tagged strings
+irrational numbers (`regionOf`), without the numbers of the literal values.
+Every such region but a bounded run of integers is infinite; a bounded run's
+integers that are no literal values have room for the node's distinct
+neighbours, by the axiom on the run or because the counts of the data
+restrictions are at most their number. Strings of the letter a, tagged strings
 and values outside every datatype serve the other data nodes. When the
 interpretation of the encoding satisfies a closure's encoding, the OWL
 interpretation satisfies the closure (`sound_satisfies`), and every class
@@ -104,8 +105,9 @@ theorem enTag_value : TagValue enTag := by
 def InInterval (cs : List regions.Cut) (p : Nat) (r : ℝ) : Prop :=
   (0 < p → InCut (cutAt cs (p - 1)) r) ∧ (p < cs.length → ¬ InCut (cutAt cs p) r)
 
-/-- The reals of a level in the interval at a position. -/
-def regionSet (cs : List regions.Cut) (p ℓ : Nat) : Set ℝ := {r | InInterval cs p r ∧ AtLevel ℓ r}
+/-- The reals of a level in the interval at a position that are not in `lits`. -/
+def regionSet (cs : List regions.Cut) (lits : Set ℝ) (p ℓ : Nat) : Set ℝ :=
+  {r | InInterval cs p r ∧ AtLevel ℓ r ∧ r ∉ lits}
 
 /-- The members of a set of reals one after the other: one to one for every
     index while the set has members left. -/
@@ -148,24 +150,26 @@ inductive Region where
   | number (position level : Nat) | string | tagged | other
 
 /-- Which indices of a region have values of their own. -/
-def Valid (cs : List regions.Cut) : Region → ℕ → Prop
-  | .number p ℓ, n => ℓ ≤ 3 ∧ ((regionSet cs p ℓ).Infinite ∨ n < (regionSet cs p ℓ).ncard)
+def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
+  | .number p ℓ, n => ℓ ≤ 3 ∧ ((regionSet cs lits p ℓ).Infinite ∨ n < (regionSet cs lits p ℓ).ncard)
   | _, _ => True
 
 /-- Whether a region has a value for every index. -/
-def RegionInfinite (cs : List regions.Cut) : Region → Prop
-  | .number p ℓ => ℓ ≤ 3 ∧ (regionSet cs p ℓ).Infinite
+def RegionInfinite (cs : List regions.Cut) (lits : Set ℝ) : Region → Prop
+  | .number p ℓ => ℓ ≤ 3 ∧ (regionSet cs lits p ℓ).Infinite
   | _ => True
 
-theorem valid_of_infinite {cs : List regions.Cut} {r : Region} (h : RegionInfinite cs r) (n : ℕ) : Valid cs r n := by
+theorem valid_of_infinite {cs : List regions.Cut} {lits : Set ℝ} {r : Region} (h : RegionInfinite cs lits r) (n : ℕ) :
+    Valid cs lits r n := by
   cases r <;> simp_all [RegionInfinite, Valid]
 
 section Regions
 variable {Native : Type w} {D : DatatypeMap Native}
 
 /-- The values of a region. -/
-noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) : Region → ℕ → Values.{v,w} Native
-  | .number p ℓ, n => embedValue (N.real (enumerate (regionSet cs p ℓ) n))
+noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) :
+    Region → ℕ → Values.{v,w} Native
+  | .number p ℓ, n => embedValue (N.real (enumerate (regionSet cs lits p ℓ) n))
   | .string, n => embedValue (N.text (aText n))
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
   | .other, n => ULift.up (.inr n)
@@ -195,10 +199,10 @@ theorem interval_unique {cs : List regions.Cut} (sorted : cs.Pairwise CutBefore)
   · exact key gt hp a' a
 
 /-- Values of regions are apart, and one to one within a region. -/
-theorem region_value_injective (N : Normative D) {cs : List regions.Cut} (sorted : cs.Pairwise CutBefore)
-    {r r' : Region} {n n' : ℕ} (vr : Valid cs r n) (vr' : Valid cs r' n')
+theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits : Set ℝ}
+    (sorted : cs.Pairwise CutBefore) {r r' : Region} {n n' : ℕ} (vr : Valid cs lits r n) (vr' : Valid cs lits r' n')
     (bounded : ∀ p ℓ, r = .number p ℓ → p ≤ cs.length) (bounded' : ∀ p ℓ, r' = .number p ℓ → p ≤ cs.length)
-    (same : regionValue.{v,w} N cs r n = regionValue N cs r' n') : r = r' ∧ n = n' := by
+    (same : regionValue.{v,w} N cs lits r n = regionValue N cs lits r' n') : r = r' ∧ n = n' := by
   have tag := enTag_value
   cases r with
   | number p ℓ =>
@@ -209,7 +213,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} (sorted
       have m := enumerate_mem _ _ vr.2
       have m' := enumerate_mem _ _ vr'.2
       rw [values] at m
-      have levels := level_unique vr.1 vr'.1 m.2 m'.2
+      have levels := level_unique vr.1 vr'.1 m.2.1 m'.2.1
       have positions := interval_unique sorted (bounded p ℓ rfl) (bounded' p' ℓ' rfl) m.1 m'.1
       subst levels positions
       exact ⟨rfl, enumerate_injective _ vr.2 vr'.2 values⟩
@@ -254,8 +258,8 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} (sorted
       exact ⟨rfl, same⟩
 
 /-- The values of a region with a value for every index are one to one. -/
-theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {r : Region} (infinite : RegionInfinite cs r) :
-    Function.Injective (regionValue.{v,w} N cs r) := by
+theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set ℝ} {r : Region}
+    (infinite : RegionInfinite cs lits r) : Function.Injective (regionValue.{v,w} N cs lits r) := by
   intro a b same
   cases r with
   | number p ℓ =>
@@ -272,9 +276,9 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {r : Region} 
 
 /-- Beyond some point, the values of a region with a value for every index
     avoid a finite set. -/
-theorem region_avoids (N : Normative D) {cs : List regions.Cut}
-    (F : Set (Values.{v,w} Native)) (finite : F.Finite) (r : Region) (infinite : RegionInfinite cs r) :
-    ∃ M, ∀ n, M ≤ n → regionValue N cs r n ∉ F := by
+theorem region_avoids (N : Normative D) {cs : List regions.Cut} {lits : Set ℝ}
+    (F : Set (Values.{v,w} Native)) (finite : F.Finite) (r : Region) (infinite : RegionInfinite cs lits r) :
+    ∃ M, ∀ n, M ≤ n → regionValue N cs lits r n ∉ F := by
   have injective := region_value_inj N infinite
   obtain ⟨B, bound⟩ := (finite.preimage (injective.injOn)).bddAbove
   exact ⟨B + 1, fun n hn inside => by have := bound inside; omega⟩
@@ -287,8 +291,8 @@ section Spaces
 variable {Native : Type w} {D : DatatypeMap Native}
 
 /-- The kinds whose datatypes a region's value at an index is in. -/
-def RegionIn (cs : List regions.Cut) : Region → ℕ → datatypes.Kind → Prop
-  | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs p ℓ) n)
+def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datatypes.Kind → Prop
+  | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs lits p ℓ) n)
   | .string, _, k => k = .String ∨ k = .Plain
   | .tagged, _, k => k = .Plain
   | .other, _, _ => False
@@ -348,8 +352,9 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
       exact fun b e => N.tagged_truth t l b xs tl e
 
 /-- A region's values are in the datatypes of the kinds `RegionIn` names. -/
-theorem region_space (N : Normative D) (cs : List regions.Cut) (r : Region) (n : ℕ) (k : datatypes.Kind) :
-    (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = regionValue N cs r n) ↔ RegionIn cs r n k := by
+theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) (r : Region) (n : ℕ)
+    (k : datatypes.Kind) :
+    (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = regionValue N cs lits r n) ↔ RegionIn cs lits r n k := by
   cases r with
   | number p ℓ => rw [regionValue, embedded_space, real_space N]; rfl
   | string => rw [regionValue, embedded_space, text_space N _ (aText_xml n)]; rfl
@@ -482,9 +487,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
 /-- A node that is no number has the classes of the strings, the plain
     literals and the values outside every datatype as its region says. -/
 theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : ¬ NumericNode context J d)
-    (notBool : ¬ InUse context J .Boolean d) (cs : List regions.Cut) (n : ℕ) (k : datatypes.Kind)
+    (notBool : ¬ InUse context J .Boolean d) (cs : List regions.Cut) (lits : Set ℝ) (n : ℕ) (k : datatypes.Kind)
     (used : Used context.kinds k = true) :
-    J.classes (kindClass k) d ↔ RegionIn cs (regionOf context J order d) n k := by
+    J.classes (kindClass k) d ↔ RegionIn cs lits (regionOf context J order d) n k := by
   have notIn : ∀ k', ¬ InUse context J k' d → Used context.kinds k' = true → ¬ J.classes (kindClass k') d :=
     fun k' h u c => h ⟨u, c⟩
   have ni : ¬ InUse context J .Integer d := fun h => notNumeric (.inl h)
@@ -544,7 +549,7 @@ structure Setting (context : data_ontology.Context) (capacity : Nat) (bits : Usi
   enough : context.values.val.length ≤ 2 ^ bits.val
   sorted : context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1
   fine : FineCuts context.cuts.val
-  valuesCut : ValuesCut context
+  valuesFit : ValuesFit context
   thing : ∀ d, J.classes thing d
   top : ∀ y y', J.objectProperties topObject y y'
   bottom : ∀ y y', ¬ J.objectProperties bottomObject y y'
@@ -663,73 +668,6 @@ theorem cut_place (setting : Setting context capacity bits order J) (ordered : c
   obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem inOrder
   exact ⟨k, hk, rfl⟩
 
-/-- Where the two cuts of a numeric literal value sit in the order: next to
-    each other, and the cuts at and before the first are exactly those that
-    contain the value. -/
-theorem literal_places (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
-    {v : datatypes.DataValue} (member : v ∈ context.values.val) (number : Rowl.Datatypes.IsNumber v) :
-    ∃ (k : Nat) (hk : k + 1 < order.length),
-      context.cuts.val[order[k].val]'(order_in setting ordered (by omega)) = ⟨v, false⟩ ∧
-      context.cuts.val[order[k + 1].val]'(order_in setting ordered hk) = ⟨v, true⟩ ∧
-      ∀ (j : Nat), j < order.length →
-        (InCut (cutAt (orderedCuts context order) j) (Rowl.Datatypes.numValue v) ↔ j ≤ k) := by
-  have len := cuts_length (context := context) (order := order) ordered
-  obtain ⟨closed, openCut⟩ := setting.valuesCut v member number
-  obtain ⟨a, ha, aIs⟩ := List.getElem_of_mem closed
-  obtain ⟨b, hb, bIs⟩ := List.getElem_of_mem openCut
-  obtain ⟨ka, hka, kaIs⟩ := cut_place setting ordered a ha
-  obtain ⟨kb, hkb, kbIs⟩ := cut_place setting ordered b hb
-  have atA : cutAt (orderedCuts context order) ka = ⟨v, false⟩ := by
-    rw [cuts_at setting ordered hka]; simp only [kaIs]; exact aIs
-  have atB : cutAt (orderedCuts context order) kb = ⟨v, true⟩ := by
-    rw [cuts_at setting ordered hkb]; simp only [kbIs]; exact bIs
-  have hka' : ka < (orderedCuts context order).length := by rw [len]; exact hka
-  have hkb' : kb < (orderedCuts context order).length := by rw [len]; exact hkb
-  have lt : ka < kb := (before_iff setting hka' hkb').mp (by rw [atA, atB]; exact .inr ⟨rfl, rfl, rfl⟩)
-  have next : kb = ka + 1 := by
-    by_contra far
-    have hm : ka + 1 < (orderedCuts context order).length := by omega
-    have b1 := (before_iff setting hka' hm).mpr (by omega)
-    have b2 := (before_iff setting hm hkb').mpr (by omega)
-    rw [atA] at b1
-    rw [atB] at b2
-    have le1 := cutBefore_le b1
-    have le2 := cutBefore_le b2
-    have fit := cuts_fit setting hm
-    have fv : Rowl.Datatypes.CanonicalNumeric v := setting.good.2.2.2.1.1 _ closed
-    have sameValue : (cutAt (orderedCuts context order) (ka + 1)).value = v :=
-      Rowl.Regions.numValue_injective fit.1 fv (le_antisymm le2 le1)
-    cases hOpen : (cutAt (orderedCuts context order) (ka + 1)).open
-    · have : cutAt (orderedCuts context order) (ka + 1) = ⟨v, false⟩ :=
-        (Rowl.Regions.cut_eq_iff _ _).mpr ⟨sameValue, hOpen⟩
-      rw [this] at b1
-      exact Rowl.Regions.cutBefore_irrefl _ b1
-    · have : cutAt (orderedCuts context order) (ka + 1) = ⟨v, true⟩ :=
-        (Rowl.Regions.cut_eq_iff _ _).mpr ⟨sameValue, hOpen⟩
-      rw [this] at b2
-      exact Rowl.Regions.cutBefore_irrefl _ b2
-  subst next
-  refine ⟨ka, hkb, by simp only [kaIs]; exact aIs, by simp only [kbIs]; exact bIs, fun j hj => ?_⟩
-  have hj' : j < (orderedCuts context order).length := by rw [len]; exact hj
-  constructor
-  · intro inCut
-    by_contra after
-    have : ka + 1 ≤ j := by omega
-    rcases Nat.lt_or_eq_of_le this with gt | eq
-    · have before := (before_iff setting hkb' hj').mpr gt
-      have := Rowl.Regions.in_cut_mono before _ inCut
-      rw [atB] at this
-      simp [InCut] at this
-    · subst eq
-      rw [atB] at inCut
-      simp [InCut] at inCut
-  · intro le
-    rcases Nat.lt_or_eq_of_le le with lt' | eq
-    · have before := (before_iff setting hj' hka').mpr lt'
-      exact Rowl.Regions.in_cut_mono before _ (by rw [atA]; simp [InCut])
-    · subst eq
-      rw [atA]; simp [InCut]
-
 /-- A data node that is a literal value's individual. -/
 def LiteralNode (context : data_ontology.Context) (J : Interpretation Object' Value') (d : Object') : Prop :=
   ∃ i : Usize, i.val < context.values.val.length ∧ J.namedIndividuals (valueIndividual i) = d
@@ -741,14 +679,8 @@ theorem literal_cut (setting : Setting context capacity bits order J) (ordered :
     {k : Nat} (hk : k < order.length) :
     J.classes (cutClass order[k]) (J.namedIndividuals (valueIndividual i)) ↔
       InCut (cutAt (orderedCuts context order) k) (Rowl.Datatypes.numValue context.values.val[i.val]) := by
-  obtain ⟨ka, hka, atA, atB, inCutIff⟩ := literal_places setting ordered (List.getElem_mem hi) number
-  have cutFact := (setting.frame.values i hi).2.2.2 ordered number order[ka] order[ka + 1]
-    (order_in setting ordered (by omega)) (order_in setting ordered hka) atA atB
-  rw [inCutIff k hk, position_cut setting ordered _ hk]
-  have p1 := (position_cut setting ordered _ (by omega : ka < order.length)).mp cutFact.1
-  have p2 : ¬ (ka + 1 < positionOf context J order (J.namedIndividuals (valueIndividual i))) := fun h =>
-    cutFact.2 ((position_cut setting ordered _ hka).mpr h)
-  omega
+  rw [cuts_at setting ordered hk]
+  exact (setting.frame.values i hi).2.2.2 ordered number order[k] (order_in setting ordered hk)
 
 theorem real_used (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true) :
     Used context.kinds .Real = true :=
@@ -805,29 +737,6 @@ theorem not_point (setting : Setting context capacity bits order J) (ordered : c
       have := (position_cut setting ordered d inside).mp h; omega)
   exact notLiteral ⟨i, hj, between⟩
 
-/-- The value of a numeric literal is outside every interval that is no
-    point. -/
-theorem literal_outside (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
-    {p : Nat} (hp : p ≤ order.length)
-    (notPoint : 0 < p → p < order.length →
-      (cutAt (orderedCuts context order) (p - 1)).value ≠ (cutAt (orderedCuts context order) p).value)
-    {v : datatypes.DataValue} (member : v ∈ context.values.val) (number : Rowl.Datatypes.IsNumber v) :
-    ¬ InInterval (orderedCuts context order) p (Rowl.Datatypes.numValue v) := by
-  obtain ⟨ka, hka, atA, atB, inCutIff⟩ := literal_places setting ordered member number
-  have len := cuts_length (context := context) (order := order) ordered
-  rintro ⟨low, high⟩
-  by_cases zero : p = 0
-  · subst zero
-    exact high (by rw [len]; omega) ((inCutIff 0 (by omega)).mpr (by omega))
-  · have lowIn := (inCutIff (p - 1) (by omega)).mp (low (by omega))
-    by_cases top : p < order.length
-    · have notIn : ¬ (p ≤ ka) := fun le => high (by rw [len]; exact top) ((inCutIff p top).mpr le)
-      have eqp : p = ka + 1 := by omega
-      apply notPoint (by omega) top
-      subst eqp
-      rw [show ka + 1 - 1 = ka by omega, cuts_at setting ordered (by omega), cuts_at setting ordered hka, atA, atB]
-    · omega
-
 end Order
 
 /-! ### Which regions are infinite -/
@@ -855,17 +764,18 @@ theorem interval_between {p : Nat} (r : ℝ) (lo : (Rowl.Datatypes.numValue (cut
   · unfold InCut; split_ifs <;> linarith
   · unfold InCut at inCut; split_ifs at inCut <;> linarith
 
-theorem dense_region {p ℓ : Nat} (level : 1 ≤ ℓ) {a b : ℝ} (lt : a < b)
-    (sub : ∀ r, a < r → r < b → InInterval cs p r) : (regionSet cs p ℓ).Infinite := by
-  refine Set.Infinite.mono ?_ (Rowl.DataReals.level_infinite lt ℓ level)
-  rintro r ⟨atL, lo, hi⟩
-  exact ⟨sub r lo hi, atL⟩
+theorem dense_region {lits : Set ℝ} (hl : lits.Finite) {p ℓ : Nat} (level : 1 ≤ ℓ) {a b : ℝ} (lt : a < b)
+    (sub : ∀ r, a < r → r < b → InInterval cs p r) : (regionSet cs lits p ℓ).Infinite := by
+  refine Set.Infinite.mono ?_ ((Rowl.DataReals.level_infinite lt ℓ level).sdiff hl)
+  rintro r ⟨⟨atL, lo, hi⟩, notLit⟩
+  exact ⟨sub r lo hi, atL, notLit⟩
 
 /-- Every region of a node that is no literal value's individual is
     infinite but a bounded run of integers. -/
-theorem region_cases (sorted : cs.Pairwise CutBefore) {p ℓ : Nat} (hp : p ≤ cs.length)
+theorem region_cases (sorted : cs.Pairwise CutBefore) {lits : Set ℝ} (hl : lits.Finite) {p ℓ : Nat}
+    (hp : p ≤ cs.length)
     (notPoint : 0 < p → p < cs.length → (cutAt cs (p - 1)).value ≠ (cutAt cs p).value) :
-    (regionSet cs p ℓ).Infinite ∨ (ℓ = 0 ∧ 0 < p ∧ p < cs.length) := by
+    (regionSet cs lits p ℓ).Infinite ∨ (ℓ = 0 ∧ 0 < p ∧ p < cs.length) := by
   by_cases zero : ℓ = 0
   · subst zero
     by_cases bounded : 0 < p ∧ p < cs.length
@@ -874,36 +784,37 @@ theorem region_cases (sorted : cs.Pairwise CutBefore) {p ℓ : Nat} (hp : p ≤ 
       by_cases empty : cs.length = 0
       · have : p = 0 := by omega
         subst this
-        refine Set.Infinite.mono ?_ (Rowl.DataReals.integers_above 0)
-        rintro r ⟨atL, _⟩
-        refine ⟨?_, atL⟩
+        refine Set.Infinite.mono ?_ ((Rowl.DataReals.integers_above 0).sdiff hl)
+        rintro r ⟨⟨atL, _⟩, notLit⟩
+        refine ⟨?_, atL, notLit⟩
         rw [List.eq_nil_of_length_eq_zero empty]; exact interval_empty r
       · by_cases low : p = 0
         · subst low
-          refine Set.Infinite.mono ?_ (Rowl.DataReals.integers_below (Rowl.Datatypes.numValue (cutAt cs 0).value))
-          rintro r ⟨atL, lt⟩
-          exact ⟨interval_below r lt, atL⟩
+          refine Set.Infinite.mono ?_
+            ((Rowl.DataReals.integers_below (Rowl.Datatypes.numValue (cutAt cs 0).value)).sdiff hl)
+          rintro r ⟨⟨atL, lt⟩, notLit⟩
+          exact ⟨interval_below r lt, atL, notLit⟩
         · have top : p = cs.length := by omega
           subst top
           refine Set.Infinite.mono ?_
-            (Rowl.DataReals.integers_above (Rowl.Datatypes.numValue (cutAt cs (cs.length - 1)).value))
-          rintro r ⟨atL, gt⟩
-          exact ⟨interval_above r gt, atL⟩
+            ((Rowl.DataReals.integers_above (Rowl.Datatypes.numValue (cutAt cs (cs.length - 1)).value)).sdiff hl)
+          rintro r ⟨⟨atL, gt⟩, notLit⟩
+          exact ⟨interval_above r gt, atL, notLit⟩
   · left
     have level : 1 ≤ ℓ := by omega
     by_cases empty : cs.length = 0
     · have : p = 0 := by omega
       subst this
-      exact dense_region level (zero_lt_one' ℝ) (fun r _ _ => by
+      exact dense_region hl level (zero_lt_one' ℝ) (fun r _ _ => by
         rw [List.eq_nil_of_length_eq_zero empty]; exact interval_empty r)
     · by_cases low : p = 0
       · subst low
         set c : ℝ := ((Rowl.Datatypes.numValue (cutAt cs 0).value : ℚ) : ℝ)
-        exact dense_region level (show c - 1 < c by linarith) (fun r _ hi => interval_below r hi)
+        exact dense_region hl level (show c - 1 < c by linarith) (fun r _ hi => interval_below r hi)
       · by_cases top : p = cs.length
         · subst top
           set c : ℝ := ((Rowl.Datatypes.numValue (cutAt cs (cs.length - 1)).value : ℚ) : ℝ)
-          exact dense_region level (show c < c + 1 by linarith) (fun r lo _ => interval_above r lo)
+          exact dense_region hl level (show c < c + 1 by linarith) (fun r lo _ => interval_above r lo)
         · have differ := notPoint (by omega) (by omega)
           have before : CutBefore (cutAt cs (p - 1)) (cutAt cs p) := by
             rw [Rowl.Regions.cutAt_eq _ _ (by omega), Rowl.Regions.cutAt_eq _ _ (by omega)]
@@ -913,28 +824,17 @@ theorem region_cases (sorted : cs.Pairwise CutBefore) {p ℓ : Nat} (hp : p ≤ 
             rcases before with lt | ⟨same, _, _⟩
             · exact_mod_cast lt
             · exact absurd same differ
-          exact dense_region level lt (fun r lo hi => interval_between r lo hi)
+          exact dense_region hl level lt (fun r lo hi => interval_between r lo hi)
 
-/-- The integers of a bounded run, counted. -/
-theorem run_ncard {p : Nat} :
-    (regionSet cs p 0).ncard =
-      runCount (cutAt cs (p - 1)) (cutAt cs p) ∨ ¬ (0 < p ∧ p < cs.length) := by
-  by_cases bounded : 0 < p ∧ p < cs.length
-  · left
-    have eq : regionSet cs p 0 = (fun z : ℤ => (z : ℝ)) ''
-        Set.Icc (Rowl.Regions.firstIn (cutAt cs (p - 1))) (Rowl.Regions.lastOutside (cutAt cs p)) := by
-      ext r
-      constructor
-      · rintro ⟨⟨low, high⟩, z, rfl⟩
-        exact ⟨z, (Rowl.Regions.in_cuts_iff _ _ z).mp ⟨low bounded.1, high bounded.2⟩, rfl⟩
-      · rintro ⟨z, hz, rfl⟩
-        obtain ⟨low, high⟩ := (Rowl.Regions.in_cuts_iff _ _ z).mpr hz
-        exact ⟨⟨fun _ => low, fun _ => high⟩, z, rfl⟩
-    rw [eq, Set.ncard_image_of_injective _ Int.cast_injective, ← Finset.coe_Icc, Set.ncard_coe_finset,
-      Int.card_Icc, runCount]
-    congr 1
-    ring
-  · exact .inr bounded
+/-- The integers of a bounded run that are no literal values. -/
+theorem run_set {values : List datatypes.DataValue}
+    (canonical : ∀ v ∈ values, Rowl.Datatypes.IsNumber v → Rowl.Datatypes.CanonicalNumeric v) {p : Nat}
+    (pos : 0 < p) (inside : p < cs.length) :
+    regionSet cs (literalReals values) p 0 =
+      (fun z : ℤ => (z : ℝ)) '' (freeIntegers values (cutAt cs (p - 1)) (cutAt cs p) : Set ℤ) := by
+  rw [← free_reals canonical]
+  ext r
+  simp only [regionSet, InInterval, AtLevel, RealIn, Set.mem_setOf_eq, pos, inside, true_implies]
 
 end Sizes
 
@@ -979,19 +879,19 @@ theorem literal_values_finite : (literalValues.{v,w} context N).Finite := by
 /-- Where a region with a value for every index leaves the literal values
     behind. -/
 noncomputable def regionStart (r : Region) : ℕ :=
-  if h : RegionInfinite (orderedCuts context order) r then
+  if h : RegionInfinite (orderedCuts context order) (literalReals context.values.val) r then
     Classical.choose (region_avoids.{v,w} N (literalValues.{v,w} context N) (literal_values_finite context N) r h)
   else 0
 
-theorem region_start_spec (r : Region) (h : RegionInfinite (orderedCuts context order) r) (n : ℕ)
+theorem region_start_spec (r : Region) (h : RegionInfinite (orderedCuts context order) (literalReals context.values.val) r) (n : ℕ)
     (beyond : regionStart.{v,w} context N order r ≤ n) :
-    regionValue.{v,w} N (orderedCuts context order) r n ∉ literalValues.{v,w} context N := by
+    regionValue.{v,w} N (orderedCuts context order) (literalReals context.values.val) r n ∉ literalValues.{v,w} context N := by
   unfold regionStart at beyond
   rw [dif_pos h] at beyond
   exact Classical.choose_spec
     (region_avoids.{v,w} N (literalValues.{v,w} context N) (literal_values_finite context N) r h) n beyond
 
-theorem region_start_finite (r : Region) (h : ¬ RegionInfinite (orderedCuts context order) r) :
+theorem region_start_finite (r : Region) (h : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val) r) :
     regionStart.{v,w} context N order r = 0 := by
   unfold regionStart
   rw [dif_neg h]
@@ -1004,7 +904,7 @@ noncomputable def valueAt (d : Object') (n : ℕ) : Values.{v,w} Native :=
     | some val => litValue N val
     | none => ULift.up (.inr 0)
   else
-    regionValue N (orderedCuts context order) (regionOf context J order d)
+    regionValue N (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)
 
 /-- The data nodes of an element that need values of their own in the region
@@ -1089,7 +989,7 @@ theorem literal_value_at (setting : Setting context capacity bits order J) (i : 
   simp only [valueAt, dif_pos literal, chosen, List.getElem?_eq_getElem h]
 
 theorem region_value_at (d : Object') (notLiteral : ¬ LiteralNode context J d) (n : ℕ) :
-    valueAt.{u,v,w,x} context J N order d n = regionValue N (orderedCuts context order) (regionOf context J order d)
+    valueAt.{u,v,w,x} context J N order d n = regionValue N (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n) := by
   simp only [valueAt, dif_neg notLiteral]
 
@@ -1120,23 +1020,25 @@ theorem not_boolean_region (setting : Setting context capacity bits order J) {d 
     numbers. -/
 theorem finite_run (setting : Setting context capacity bits order J) {d : Object'}
     (notLiteral : ¬ LiteralNode context J d)
-    (finite : ¬ RegionInfinite (orderedCuts context order) (regionOf context J order d)) :
+    (finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)) :
     context.kinds.ordered = true ∧ NumericNode context J d ∧ levelOf context J d = 0 ∧
       0 < positionOf context J order d ∧ positionOf context J order d < order.length := by
   by_cases numeric : NumericNode context J d
   · rw [region_numeric numeric] at finite
-    have notInf : ¬ (regionSet (orderedCuts context order) (positionOf context J order d)
+    have notInf : ¬ (regionSet (orderedCuts context order) (literalReals context.values.val) (positionOf context J order d)
         (levelOf context J d)).Infinite := fun h => finite ⟨level_le context J d, h⟩
     by_cases ordered : context.kinds.ordered = true
     · have len := cuts_length (context := context) (order := order) ordered
-      rcases region_cases (cuts_sorted setting) (position_le context J order d)
+      rcases region_cases (cuts_sorted setting) (literal_reals_finite context.values.val)
+          (position_le context J order d)
           (fun pos inside => not_point setting ordered notLiteral pos (by rw [← len]; exact inside)) with
         inf | ⟨l0, pos, inside⟩
       · exact absurd inf notInf
       · exact ⟨ordered, numeric, l0, pos, by rw [← len]; exact inside⟩
     · exfalso
       have empty := cuts_empty (context := context) (order := order) ordered
-      rcases region_cases (cs := orderedCuts context order) (cuts_sorted setting) (position_le context J order d)
+      rcases region_cases (cs := orderedCuts context order) (cuts_sorted setting)
+          (literal_reals_finite context.values.val) (position_le context J order d)
           (fun _ inside => by rw [empty] at inside; simp at inside) with inf | ⟨_, _, inside⟩
       · exact notInf inf
       · rw [empty] at inside; simp at inside
@@ -1167,15 +1069,18 @@ theorem run_gap (setting : Setting context capacity bits order J) (ordered : con
   rw [c1, c2] at differ
   exact (((setting.frame.regions ordered).2.1 p inside (by omega) pos).2).2 differ integer
 
+/-- The integers of a bounded run that are no literal values, counted. -/
 theorem run_count (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
     {p : Nat} (pos : 0 < p) (inside : p < order.length) :
-    (regionSet (orderedCuts context order) p 0).ncard =
-      runCount (cutAt context.cuts.val (order[p - 1]'(by omega)).val) (cutAt context.cuts.val (order[p]'inside).val) := by
+    (regionSet (orderedCuts context order) (literalReals context.values.val) p 0).ncard =
+      freeCount context (order[p - 1]'(by omega)) (order[p]'inside) := by
   have len := cuts_length (context := context) (order := order) ordered
-  rcases run_ncard (cs := orderedCuts context order) (p := p) with eq | out
-  · obtain ⟨c1, c2⟩ := run_cuts setting ordered pos inside
-    rw [eq, c1, c2]
-  · exact absurd ⟨pos, by rw [len]; exact inside⟩ out
+  have canonical : ∀ v ∈ context.values.val, Rowl.Datatypes.IsNumber v → Rowl.Datatypes.CanonicalNumeric v :=
+    fun v m number => canonical_numeric (setting.good.1.1 v m) number
+  rw [run_set canonical pos (by rw [len]; exact inside), Set.ncard_image_of_injective _ Int.cast_injective,
+    Set.ncard_coe_finset, free_card setting.good.1.2 canonical, freeCount]
+  obtain ⟨c1, c2⟩ := run_cuts setting ordered pos inside
+  rw [c1, c2]
 
 theorem run_member (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
     {e : Object'} (level : levelOf context J e = 0) {p : Nat} (pos : 0 < p) (inside : p < order.length)
@@ -1239,30 +1144,33 @@ theorem atMost_length {α : Type u} {n : Nat} {P : α → Prop} (most : AtMost n
     otherwise because the witnesses are at most the capacity. -/
 theorem peers_bound (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     {z d : Object'} (notLiteral : ¬ LiteralNode context J d)
-    (finite : ¬ RegionInfinite (orderedCuts context order) (regionOf context J order d)) :
+    (finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)) :
     (peers context J order atoms z d).length ≤
-      (regionSet (orderedCuts context order) (positionOf context J order d) 0).ncard := by
+      (regionSet (orderedCuts context order) (literalReals context.values.val) (positionOf context J order d) 0).ncard := by
   obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral finite
   have integer : Used context.kinds .Integer = true := (level_zero level).1
   have differ := not_point setting ordered notLiteral pos inside
   have gap := run_gap setting ordered pos inside differ integer
   rw [run_count setting ordered pos inside]
   have inRun : ∀ e ∈ peers context J order atoms z d, J.objectProperties dataSuper z e ∧
-      InRun J (order[positionOf context J order d - 1]'(by omega)) (order[positionOf context J order d]'inside) e := by
+      InRun J (order[positionOf context J order d - 1]'(by omega)) (order[positionOf context J order d]'inside) e ∧
+      ¬ RunNamed context J (order[positionOf context J order d - 1]'(by omega))
+        (order[positionOf context J order d]'inside) e := by
     intro e mem
-    obtain ⟨_, succ, _, region⟩ := mem_peers.mp mem
+    obtain ⟨_, succ, notLit, region⟩ := mem_peers.mp mem
     rw [region_numeric numeric, level] at region
     obtain ⟨_, at_p, level_e⟩ := region_number region
-    exact ⟨successor_super setting ordered integer succ, run_member setting ordered level_e pos inside at_p⟩
-  by_cases small : runCount (cutAt context.cuts.val (order[positionOf context J order d - 1]'(by omega)).val)
-      (cutAt context.cuts.val (order[positionOf context J order d]'inside).val) < capacity
-  · by_cases zero : runCount (cutAt context.cuts.val (order[positionOf context J order d - 1]'(by omega)).val)
-        (cutAt context.cuts.val (order[positionOf context J order d]'inside).val) = 0
+    exact ⟨successor_super setting ordered integer succ, run_member setting ordered level_e pos inside at_p,
+      fun ⟨i, hi, _, same⟩ => notLit ⟨i, hi, same⟩⟩
+  by_cases small : freeCount context (order[positionOf context J order d - 1]'(by omega))
+      (order[positionOf context J order d]'inside) < capacity
+  · by_cases zero : freeCount context (order[positionOf context J order d - 1]'(by omega))
+        (order[positionOf context J order d]'inside) = 0
     · have empty : peers context J order atoms z d = [] := by
         rw [List.eq_nil_iff_forall_not_mem]
         intro e mem
-        obtain ⟨_, i, lo, hi⟩ := inRun e mem
-        exact hi (gap.1 zero e i lo)
+        obtain ⟨_, inR, notNamed⟩ := inRun e mem
+        exact notNamed (gap.1 zero e inR)
       rw [empty]
       simp
     · exact atMost_length (gap.2 (by omega) small z (setting.thing z)) (List.nodup_dedup _) inRun
@@ -1275,9 +1183,9 @@ theorem peers_bound (setting : Setting context capacity bits order J) (count : a
 theorem placed_valid (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     {z d : Object'} (notLiteral : ¬ LiteralNode context J d) (inList : d ∈ witnessList context J atoms z)
     (succ : Successor context J z d) :
-    Valid (orderedCuts context order) (regionOf context J order d)
+    Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + (peers context J order atoms z d).idxOf d) := by
-  by_cases infinite : RegionInfinite (orderedCuts context order) (regionOf context J order d)
+  by_cases infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
   · exact valid_of_infinite infinite _
   · rw [region_start_finite context N order _ infinite, zero_add]
     obtain ⟨_, numeric, level, _, _⟩ := finite_run setting notLiteral infinite
@@ -1290,9 +1198,9 @@ theorem placed_valid (setting : Setting context capacity bits order J) (count : 
 /-- The first index of a node's region is one it has a value for. -/
 theorem alone_valid (setting : Setting context capacity bits order J) {d : Object'}
     (notLiteral : ¬ LiteralNode context J d) :
-    Valid (orderedCuts context order) (regionOf context J order d)
+    Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + 0) := by
-  by_cases infinite : RegionInfinite (orderedCuts context order) (regionOf context J order d)
+  by_cases infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
   · exact valid_of_infinite infinite _
   · rw [region_start_finite context N order _ infinite, zero_add]
     obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral infinite
@@ -1303,34 +1211,35 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
     refine ⟨Nat.zero_le _, .inr ?_⟩
     rw [run_count setting ordered pos inside]
     by_contra zero
-    exact member.2.2 (gap.1 (by omega) d member.1 member.2.1)
+    obtain ⟨i, hi, _, same⟩ := gap.1 (by omega) d member
+    exact notLiteral ⟨i, hi, same⟩
 
 /-- The values of a node that is no literal value's individual are no
-    literal values: past the literal values in a region with a value for
-    every index, and in a bounded run of integers, outside the points of the
-    literal values. -/
+    literal values: a number region leaves the numbers of the literal values
+    out, and the other regions start past the literal values. -/
 theorem region_not_literal (setting : Setting context capacity bits order J) {d : Object'}
     (notLiteral : ¬ LiteralNode context J d) {n : ℕ}
-    (valid : Valid (orderedCuts context order) (regionOf context J order d)
+    (valid : Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n))
     {val : datatypes.DataValue} (member : val ∈ context.values.val) :
     valueAt.{u,v,w,x} context J N order d n ≠ litValue N val := by
   rw [region_value_at d notLiteral]
-  by_cases infinite : RegionInfinite (orderedCuts context order) (regionOf context J order d)
-  · intro same
-    exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
-  · obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral infinite
-    rw [region_numeric numeric] at valid ⊢
+  by_cases numeric : NumericNode context J d
+  · rw [region_numeric numeric] at valid ⊢
     intro same
     simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+    have mem := enumerate_mem _ _ valid.2
     by_cases number : Rowl.Datatypes.IsNumber val
     · rw [Rowl.Datatypes.valueOf_number N number] at same
-      have mem := enumerate_mem _ _ valid.2
-      rw [N.real_injective same] at mem
-      have len := cuts_length (context := context) (order := order) ordered
-      exact literal_outside setting ordered (by rw [← len]; exact position_le context J order d)
-        (fun pos' inside' => not_point setting ordered notLiteral pos' inside') member number mem.1
+      exact mem.2.2 ⟨val, member, number, N.real_injective same⟩
     · exact real_ne_value N (setting.good.1.1 val member) number _ same
+  · have infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val)
+        (regionOf context J order d) := by
+      unfold regionOf
+      simp only [numeric, ↓reduceIte]
+      split_ifs <;> trivial
+    intro same
+    exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
 
 /-- Whether a real of an interval is in a cut: exactly for the cuts before the
     interval. -/
@@ -1367,7 +1276,7 @@ theorem realValue_injective (N : Normative D) : Function.Injective (realValue.{v
 /-- A data node's value at an index its region has a value for stands for
     it. -/
 theorem value_node (setting : Setting context capacity bits order J) (o : Element J) {d : Object'} {n : ℕ}
-    (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (regionOf context J order d)
+    (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)) :
     NodeValue context (sound.{u,v,w,x} context J N order atoms o) J (litValue N) (realValue N) d
       (valueAt.{u,v,w,x} context J N order d n) where
@@ -1382,8 +1291,8 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
       rw [region_value_at d ld, region_space N]
       by_cases numeric : NumericNode context J d
       · rw [region_numeric numeric] at v ⊢
-        exact number_profile setting.frame.kinds numeric (enumerate_mem _ _ v.2).2 k used
-      · exact text_profile order setting.frame.kinds numeric (not_boolean_region setting ld) _ _ k used
+        exact number_profile setting.frame.kinds numeric (enumerate_mem _ _ v.2).2.1 k used
+      · exact text_profile order setting.frame.kinds numeric (not_boolean_region setting ld) _ _ _ k used
   values := fun i h => by
     by_cases ld : LiteralNode context J d
     · obtain ⟨i0, h0, rfl⟩ := ld

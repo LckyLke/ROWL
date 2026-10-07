@@ -945,20 +945,22 @@ progress. Full OWL parsing and executable reasoning are still future work.
   of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
   restrictions of every numeric datatype by the four range facets with numeric
   bounds, are answered inside data restrictions, ranges, intersections, unions,
-  complements and enumerations. The bounds become cuts of the real line that
-  the kernel orders and counts exactly (`regions`, Rowl.Regions); each cut gets
-  a class, chained in order, the two cuts of a number leave only its literal
-  value's individual, and between neighbouring cuts of different numbers the
-  integers are none or at most their number at any element along a role `U`
-  above every data property, when they are fewer than a capacity that bounds
-  the counts of the data restrictions of the closure and its questions
+  complements and enumerations. The bounds of facets and subtypes become cuts
+  of the real line that the kernel orders and counts exactly (`regions`,
+  Rowl.Regions); each cut gets a class, chained in order, each numeric literal
+  value's individual is in exactly the classes of the cuts that contain its
+  number, the two cuts of a number leave only its literal value's individual,
+  and between neighbouring cuts of different numbers the integers that are no
+  literal values are none or at most their number at any element along a role
+  `U` above every data property, when they are fewer than a capacity that
+  bounds the counts of the data restrictions of the closure and its questions
   (`region_axioms_spec`, `class_count_spec`, `items_count_spec`). An OWL model
   lifts to a model of the encoding (`lifted_regions`), and a model of the
   encoding gives an OWL model whose data nodes take values from the region
   between their cuts at their level (integers, decimals, rationals or
-  irrational numbers): infinite, or a bounded run of integers that holds an
-  element's values by the axiom on the run or by the capacity (`run_ncard`,
-  `peers_bound`, `sound_satisfies`). The query theorems keep their statements;
+  irrational numbers), without the numbers of the literal values: infinite, or
+  a bounded run of integers that holds an element's values by the axiom on the
+  run or by the capacity (`run_count`, `peers_bound`, `sound_satisfies`). The query theorems keep their statements;
   `encode` now takes the capacity and a prepared closure leaves room for
   questions that count 64 values. The other facets, facets on strings and data
   ranges of the other datatypes get no answer.
@@ -1062,7 +1064,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2962 audited public theorems and 1276 audited semantic definitions. Consistency,
+- 2983 audited public theorems and 1284 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1080,7 +1082,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 540 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 541 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1097,7 +1099,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3155-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3176-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

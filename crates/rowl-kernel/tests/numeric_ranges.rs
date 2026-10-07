@@ -58,6 +58,12 @@ fn both(a: DataRange, b: DataRange) -> DataRange {
 fn not_range(a: DataRange) -> DataRange {
     DataRange::Complement(Box::new(a))
 }
+fn one_of(value: Literal) -> DataRange {
+    DataRange::OneOf(NonEmpty {
+        first: value,
+        rest: Vec::new(),
+    })
+}
 fn and(a: ClassExpression, b: ClassExpression) -> ClassExpression {
     ClassExpression::ObjectIntersectionOf(Box::new(AtLeastTwo {
         first: a,
@@ -433,4 +439,61 @@ fn subtype_bounds() {
             assert_eq!(holds(outside), Some(false), "{name} excludes {outside:?}");
         }
     }
+}
+
+#[test]
+fn literal_values_take_integers_of_a_run() {
+    with_stack(literal_run);
+}
+fn literal_run() {
+    // ex:a has the value 5, one of the integers 4, 5 and 6 of [4, 6].
+    let items = vec![valued(b"ex:q", b"ex:a", int(b"5"))];
+    let run = || {
+        restricted(
+            &xsd("integer"),
+            facet("minInclusive", int(b"4")),
+            vec![facet("maxInclusive", int(b"6"))],
+        )
+    };
+    assert_eq!(
+        class_satisfiable(&items, &at_least(3, b"ex:p", run())),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(&items, &at_least(4, b"ex:p", run())),
+        Some(false)
+    );
+    let others = || both(run(), not_range(one_of(int(b"5"))));
+    assert_eq!(
+        class_satisfiable(&items, &at_least(2, b"ex:p", others())),
+        Some(true)
+    );
+    assert_eq!(
+        class_satisfiable(&items, &at_least(3, b"ex:p", others())),
+        Some(false)
+    );
+    // Every integer of [4, 5] is a literal value.
+    let pair = vec![
+        valued(b"ex:q", b"ex:a", int(b"4")),
+        valued(b"ex:q", b"ex:b", int(b"5")),
+    ];
+    let small = || {
+        restricted(
+            &xsd("integer"),
+            facet("minInclusive", int(b"4")),
+            vec![facet("maxInclusive", int(b"5"))],
+        )
+    };
+    assert_eq!(
+        class_satisfiable(&pair, &at_least(2, b"ex:p", small())),
+        Some(true)
+    );
+    let neither = both(
+        small(),
+        both(not_range(one_of(int(b"4"))), not_range(one_of(int(b"5")))),
+    );
+    assert_eq!(
+        class_satisfiable(&pair, &at_least(1, b"ex:p", neither)),
+        Some(false)
+    );
 }

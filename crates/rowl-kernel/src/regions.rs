@@ -155,8 +155,17 @@ fn order_from(cuts: &Vec<Cut>, last: Option<usize>, mut out: Vec<usize>) -> Vec<
 pub fn cut_order(cuts: &Vec<Cut>) -> Vec<usize> {
     order_from(cuts, None, Vec::new())
 }
+/// Whether a number is in a cut: above its number when the cut is open, and
+/// at or above it when closed.
+pub fn in_cut(cut: &Cut, value: &DataValue) -> bool {
+    if cut.open {
+        is_greater(value, &cut.value)
+    } else {
+        !is_greater(&cut.value, value)
+    }
+}
 /// Whether a value is a number short enough to compare.
-fn fits(value: &DataValue) -> bool {
+pub fn fits(value: &DataValue) -> bool {
     match compare_values(value, value) {
         Some(_) => true,
         None => false,

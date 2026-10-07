@@ -669,16 +669,8 @@ theorem add_literal_good (context : data_ontology.Context) (literal : Literal) :
   | some value =>
     have cv := (some' value rfl).1
     obtain ⟨v, addRun, addGood⟩ := add_value_correct context.values value
-    by_cases number : Rowl.Datatypes.IsNumber value
-    · have cn := canonical_numeric cv number
-      obtain ⟨c1, run1, good1⟩ := add_cut_good context.cuts value false cn
-      obtain ⟨c2, run2, good2⟩ := add_cut_good c1 value true cn
-      refine ⟨{ context with values := v, cuts := c2 }, by
-        simp [Rowl.Datatypes.numeric_correct, number, run1, run2, addRun], fun good => ?_⟩
-      exact ⟨addGood good.1 cv, good.2.1, good.2.2.1, good2 (good1 good.2.2.2.1), good.2.2.2.2⟩
-    · refine ⟨{ context with values := v }, by simp [Rowl.Datatypes.numeric_correct, number, addRun],
-        fun good => ?_⟩
-      exact ⟨addGood good.1 cv, good.2⟩
+    refine ⟨{ context with values := v }, by simp [addRun], fun good => ?_⟩
+    exact ⟨addGood good.1 cv, good.2⟩
 
 /-! ### Sizes of nested expressions -/
 

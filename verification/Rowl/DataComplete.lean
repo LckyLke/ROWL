@@ -723,7 +723,7 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
     have hh := orderIn _ (List.getElem_mem h)
     have before := consecutive p h pos
     rw [cutAt_val hl, cutAt_val hh] at before
-    refine ⟨fun y holds => ?_, ⟨fun same i hi at_i y inLow notHigh => ?_, fun differ integer => ⟨?_, ?_⟩⟩⟩
+    refine ⟨fun y holds => ?_, ⟨fun same i hi at_i y inLow notHigh => ?_, fun differ integer => ?_⟩⟩
     · obtain ⟨r, rfl, inHigh⟩ := lifted_cut_node N x0 hh holds
       exact (node_cut _ hl _).mpr ⟨r, rfl, Rowl.Regions.in_cut_mono before r inHigh⟩
     · rw [cutAt_val hl] at at_i same
@@ -739,51 +739,61 @@ theorem lifted_regions (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
       rw [← same] at notOver
       have eq : r = (Rowl.Datatypes.numValue context.cuts.val[order[p - 1].val].value : ℝ) := le_antisymm notOver inLow'
       rw [lifted_value i hi, at_i, frame.numbers _ (cut_value_number good hl), eq]
-    · intro zero y integerY inLow
-      by_contra notHigh
-      obtain ⟨r, rfl, inLow'⟩ := lifted_cut_node N x0 hl inLow
-      change NodeClass context I (litOf N embed) (numOf N embed) (kindClass .Integer) (numOf N embed r) at integerY
-      rw [node_kind, frame.numeric .Integer (by simp [Rowl.Datatypes.IsNumeric])] at integerY
-      obtain ⟨r', same, z, rfl⟩ := integerY
-      have := frame.injective same
-      subst this
-      have notOver : ¬ InCut context.cuts.val[order[p].val] (z : ℝ) := fun inHigh =>
-        notHigh ((node_cut _ hh _).mpr ⟨z, rfl, inHigh⟩)
-      have between := (Rowl.Regions.in_cuts_iff _ _ z).mp ⟨inLow', notOver⟩
-      rw [cutAt_val hl, cutAt_val hh] at zero
-      simp only [runCount] at zero
-      omega
-    · intro pos' fewer y _ ⟨f, injective, each⟩
-      have count := runCount (cutAt context.cuts.val order[p - 1].val) (cutAt context.cuts.val order[p].val)
-      have members : ∀ i, ∃ z : ℤ, f i = .inr (numOf N embed z) ∧
-          z ∈ Finset.Icc (firstIn context.cuts.val[order[p - 1].val]) (lastOutside context.cuts.val[order[p].val]) := by
-        intro i
-        obtain ⟨_, integerY, inLow, notHigh⟩ := each i
-        obtain ⟨r, same, inLow'⟩ := lifted_cut_node N x0 hl inLow
-        rw [same] at integerY notHigh
+    · have nodup := good.1.2
+      have canonical : ∀ v ∈ context.values.val, Rowl.Datatypes.IsNumber v → Rowl.Datatypes.CanonicalNumeric v :=
+        fun v m number => canonical_numeric (good.1.1 v m) number
+      -- the integer of a node of the run
+      have integerOf : ∀ y, InRun (lifted context I (litOf N embed) (numOf N embed) x0) order[p - 1] order[p] y →
+          ∃ z : ℤ, y = .inr (numOf N embed z) ∧ z ∈ Finset.Icc (firstIn (cutAt context.cuts.val order[p - 1].val))
+            (lastOutside (cutAt context.cuts.val order[p].val)) := by
+        intro y ⟨integerY, inLow, notHigh⟩
+        obtain ⟨r, rfl, inLow'⟩ := lifted_cut_node N x0 hl inLow
         change NodeClass context I (litOf N embed) (numOf N embed) (kindClass .Integer) (numOf N embed r) at integerY
         rw [node_kind, frame.numeric .Integer (by simp [Rowl.Datatypes.IsNumeric])] at integerY
-        obtain ⟨r', same', z, rfl⟩ := integerY
-        have := frame.injective same'
+        obtain ⟨r', same, z, rfl⟩ := integerY
+        have := frame.injective same
         subst this
         have notOver : ¬ InCut context.cuts.val[order[p].val] (z : ℝ) := fun inHigh =>
           notHigh ((node_cut _ hh _).mpr ⟨z, rfl, inHigh⟩)
-        exact ⟨z, same, Finset.mem_Icc.mpr ((Rowl.Regions.in_cuts_iff _ _ z).mp ⟨inLow', notOver⟩)⟩
-      choose g gf gin using members
-      have gInjective : Function.Injective (fun i => (⟨g i, gin i⟩ : Finset.Icc (firstIn context.cuts.val[order[p - 1].val])
-          (lastOutside context.cuts.val[order[p].val]))) := by
-        intro i j same
-        simp only [Subtype.mk.injEq] at same
-        apply injective
-        rw [gf i, gf j, same]
-      have := Fintype.card_le_of_injective _ gInjective
-      simp only [Fintype.card_fin, Finset.coe_sort_coe, Fintype.card_coe, Int.card_Icc] at this
-      rw [cutAt_val hl, cutAt_val hh] at this
-      simp only [runCount] at this
-      have eq : lastOutside context.cuts.val[order[p].val] + 1 - firstIn context.cuts.val[order[p - 1].val] =
-          lastOutside context.cuts.val[order[p].val] - firstIn context.cuts.val[order[p - 1].val] + 1 := by ring
-      rw [eq] at this
-      omega
+        refine ⟨z, rfl, ?_⟩
+        rw [cutAt_val hl, cutAt_val hh]
+        exact Finset.mem_Icc.mpr ((Rowl.Regions.in_cuts_iff _ _ z).mp ⟨inLow', notOver⟩)
+      -- the node of a literal value of the run
+      have namedOf : ∀ z : ℤ, z ∈ namedIntegers context.values.val (cutAt context.cuts.val order[p - 1].val)
+          (cutAt context.cuts.val order[p].val) →
+          RunNamed context (lifted context I (litOf N embed) (numOf N embed) x0) order[p - 1] order[p]
+            (.inr (numOf N embed z)) := by
+        intro z mem
+        obtain ⟨v, vmem, run, same⟩ := (named_in_run canonical).mp mem
+        obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem vmem
+        obtain ⟨j, hj⟩ := usize_of_index context.values i hi
+        subst hj
+        refine ⟨j, hi, run, ?_⟩
+        rw [lifted_value j hi, frame.numbers _ (run_value_number run), same]
+        rfl
+      refine ⟨fun zero y inRun => ?_, fun pos fewer y _ ⟨f, injective, each⟩ => ?_⟩
+      · obtain ⟨z, rfl, inside⟩ := integerOf y inRun
+        exact namedOf z (all_named nodup canonical (by rw [← freeCount]; exact zero) inside)
+      · have members : ∀ i, ∃ z : ℤ, f i = .inr (numOf N embed z) ∧
+            z ∈ freeIntegers context.values.val (cutAt context.cuts.val order[p - 1].val)
+              (cutAt context.cuts.val order[p].val) := by
+          intro i
+          obtain ⟨_, inRun, notNamed⟩ := each i
+          obtain ⟨z, same, inside⟩ := integerOf (f i) inRun
+          refine ⟨z, same, Finset.mem_sdiff.mpr ⟨inside, fun named => notNamed ?_⟩⟩
+          rw [same]
+          exact namedOf z named
+        choose g gf gin using members
+        have gInjective : Function.Injective (fun i => (⟨g i, gin i⟩ : freeIntegers context.values.val
+            (cutAt context.cuts.val order[p - 1].val) (cutAt context.cuts.val order[p].val))) := by
+          intro i j same
+          simp only [Subtype.mk.injEq] at same
+          apply injective
+          rw [gf i, gf j, same]
+        have := Fintype.card_le_of_injective _ gInjective
+        simp only [Fintype.card_fin, Finset.coe_sort_coe, Fintype.card_coe] at this
+        rw [free_card nodup canonical, ← freeCount] at this
+        omega
   · have inData := List.getElem_mem hk
     cases y with
     | inl z =>
@@ -863,7 +873,7 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
   regions := lifted_regions N x0 vocab interp good capacity order sorted
   values := fun i h => by
     have canonical := good.1.1 _ (List.getElem_mem h)
-    refine ⟨?_, fun k _ => ?_, fun j _ => ?_, fun _ number a b ha hb aIs bIs => ?_⟩
+    refine ⟨?_, fun k _ => ?_, fun j _ => ?_, fun _ number a ha => ?_⟩
     · rw [lifted_value i h]
       exact .inr (.inl rfl)
     · rw [lifted_value i h]
@@ -881,13 +891,14 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         exact ⟨i, h, rfl, bitHolds⟩
     · have frame := lifted_range_frame (context := context) N x0 vocab interp
       rw [lifted_value i h]
-      change NodeClass context I (litOf N embed) (numOf N embed) (cutClass a) _ ∧
-        ¬ NodeClass context I (litOf N embed) (numOf N embed) (cutClass b) _
-      rw [node_cut a ha, node_cut b hb, aIs, bIs, frame.numbers _ number]
-      refine ⟨⟨_, rfl, by simp [InCut]⟩, fun ⟨r, same, over⟩ => ?_⟩
-      have := frame.injective same
-      subst this
-      simp [InCut] at over
+      change NodeClass context I (litOf N embed) (numOf N embed) (cutClass a) _ ↔ _
+      rw [node_cut a ha, frame.numbers _ number]
+      constructor
+      · rintro ⟨r, same, inCut⟩
+        rw [frame.injective same]
+        exact inCut
+      · intro inCut
+        exact ⟨_, rfl, inCut⟩
   object := by
     rw [lifted_object]
     exact fun h => absurd reserved_data h.1

@@ -680,24 +680,82 @@ termination_by bits.val - position.val
 decreasing_by omega
 
 /-- What the axioms of a numeric literal value's cuts say: when numbers are
-    ordered, its individual is in its closed cut's class and not in its open
-    cut's class. -/
+    ordered, its individual is in the class of every cut that contains its
+    number and in no other cut's class. -/
 def CutFact (context : data_ontology.Context) (J : Interpretation Object' Value') (i : Usize)
     (h : i.val < context.values.val.length) : Prop :=
   context.kinds.ordered = true → Rowl.Datatypes.IsNumber context.values.val[i.val] →
-    ∀ (a b : Usize) (ha : a.val < context.cuts.val.length) (hb : b.val < context.cuts.val.length),
-      context.cuts.val[a.val] = ⟨context.values.val[i.val], false⟩ →
-      context.cuts.val[b.val] = ⟨context.values.val[i.val], true⟩ →
-      J.classes (cutClass a) (J.namedIndividuals (valueIndividual i)) ∧
-        ¬ J.classes (cutClass b) (J.namedIndividuals (valueIndividual i))
+    ∀ (a : Usize) (ha : a.val < context.cuts.val.length),
+      (J.classes (cutClass a) (J.namedIndividuals (valueIndividual i)) ↔
+        Rowl.Regions.InCut context.cuts.val[a.val] (Rowl.Datatypes.numValue context.values.val[i.val]))
 
 theorem cut_unique {context : data_ontology.Context} (good : Good context) {a b : Usize}
     (ha : a.val < context.cuts.val.length) (hb : b.val < context.cuts.val.length)
     (same : context.cuts.val[a.val] = context.cuts.val[b.val]) : a = b :=
   UScalar.eq_of_val_eq ((List.Nodup.getElem_inj_iff good.2.2.2.1.2).mp same)
 
-theorem cut_members_spec (context : data_ontology.Context) (good : Good context) (index : Usize)
+/-- The memberships of a numeric literal value in the classes of the cuts from
+    `cut` on. -/
+theorem cut_memberships_spec (context : data_ontology.Context) (fine : FineCuts context.cuts.val) (index : Usize)
+    (h : index.val < context.values.val.length) (cv : Rowl.Datatypes.CanonicalNumeric context.values.val[index.val])
+    (wv : Rowl.Datatypes.digitWidth context.values.val[index.val] < Usize.max / 8) (cut : Usize)
     (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.cut_memberships context index cut out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ ∀ (a : Usize) (ha : a.val < context.cuts.val.length), cut.val ≤ a.val →
+          (J.classes (cutClass a) (J.namedIndividuals (valueIndividual index)) ↔
+            Rowl.Regions.InCut context.cuts.val[a.val] (Rowl.Datatypes.numValue context.values.val[index.val]))) := by
+  rw [data_ontology.cut_memberships]
+  by_cases inside : cut.val < context.cuts.val.length
+  · have lookupC : context.cuts.index_usize cut = .ok context.cuts.val[cut.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have lookupV : context.values.index_usize index = .ok context.values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem h]
+    have fc := Rowl.Regions.fine_at fine inside
+    rw [Rowl.Regions.cutAt_eq _ _ inside] at fc
+    have inCut := Rowl.Regions.in_cut_correct context.cuts.val[cut.val] fc context.values.val[index.val] cv wv
+    obtain ⟨r1, run1, c1⟩ := member_spec (.Class (cutClass cut))
+      (decide (Rowl.Regions.InCut context.cuts.val[cut.val] (Rowl.Datatypes.numValue context.values.val[index.val])))
+      (.Named (valueIndividual index)) out
+    cases r1 with
+    | none => exact ⟨none, by simp [UScalar.lt_equiv, h, inside, cut_class_eq, alloc.vec.Vec.index_slice_index,
+        lookupC, lookupV, inCut, value_individual_eq, run1], by simp⟩
+    | some o1 =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := cut) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = cut.val + 1 := by simpa using nextValue
+      obtain ⟨r2, run2, f2⟩ := cut_memberships_spec context fine index h cv wv next o1
+      refine ⟨r2, by simp [UScalar.lt_equiv, h, inside, cut_class_eq, alloc.vec.Vec.index_slice_index,
+        lookupC, lookupV, inCut, value_individual_eq, run1, advance, run2], fun out' hr => ?_⟩
+      obtain ⟨n2, c2, m2⟩ := f2 out' hr
+      refine ⟨bare (.ClassAssertion (if decide (Rowl.Regions.InCut context.cuts.val[cut.val]
+          (Rowl.Datatypes.numValue context.values.val[index.val])) = true then .Class (cutClass cut)
+          else .ObjectComplementOf (.Class (cutClass cut))) (.Named (valueIndividual index))) :: n2,
+        by rw [c2, c1 o1 rfl]; simp, fun J => ?_⟩
+      simp only [List.mem_cons, forall_eq_or_imp, m2 J, nextIndex]
+      have here := member_holds J (cutClass cut)
+        (Rowl.Regions.InCut context.cuts.val[cut.val] (Rowl.Datatypes.numValue context.values.val[index.val]))
+        (.Named (valueIndividual index))
+      simp only [decide_eq_true_eq, bare] at here ⊢
+      rw [here]
+      simp only [individual]
+      constructor
+      · rintro ⟨first, rest⟩ a ha low
+        by_cases same : a = cut
+        · subst same; exact first
+        · have : a.val ≠ cut.val := fun e => same (UScalar.eq_of_val_eq e)
+          exact rest a ha (by omega)
+      · intro all
+        exact ⟨all cut inside le_rfl, fun a ha low => all a ha (by omega)⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, h, inside], fun out' hr => ⟨[], by cases hr; simp, fun J => ?_⟩⟩
+    simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+    intro a ha low
+    omega
+termination_by context.cuts.val.length - cut.val
+decreasing_by omega
+
+theorem cut_members_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.cut_members context index out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
         ((∀ y ∈ new, satisfies J y.axiom) ↔ ∀ (h : index.val < context.values.val.length), CutFact context J index h) := by
@@ -707,43 +765,19 @@ theorem cut_members_spec (context : data_ontology.Context) (good : Good context)
     have lookup : context.values.index_usize index = .ok context.values.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
     by_cases number : Rowl.Datatypes.IsNumber context.values.val[index.val]
-    · obtain ⟨o1, run1, _, found1⟩ := Rowl.Regions.cut_index_correct context.cuts context.values.val[index.val]
-        false 0#usize
-      obtain ⟨o2, run2, _, found2⟩ := Rowl.Regions.cut_index_correct context.cuts context.values.val[index.val]
-        true 0#usize
-      cases o1 with
-      | none => exact ⟨none, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
-          Rowl.Datatypes.numeric_correct, number, run1, run2], by simp⟩
-      | some a =>
-        cases o2 with
-        | none => exact ⟨none, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
-            Rowl.Datatypes.numeric_correct, number, run1, run2], by simp⟩
-        | some b =>
-          obtain ⟨ha, aIs⟩ := found1 a rfl
-          obtain ⟨hb, bIs⟩ := found2 b rfl
-          obtain ⟨r1, mrun1, c1⟩ := member_spec (.Class (cutClass a)) true (.Named (valueIndividual index)) out
-          cases r1 with
-          | none => exact ⟨none, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
-              Rowl.Datatypes.numeric_correct, number, run1, run2, cut_class_eq, value_individual_eq, mrun1], by simp⟩
-          | some o1 =>
-            obtain ⟨r2, mrun2, c2⟩ := member_spec (.Class (cutClass b)) false (.Named (valueIndividual index)) o1
-            refine ⟨r2, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
-              Rowl.Datatypes.numeric_correct, number, run1, run2, cut_class_eq, value_individual_eq, mrun1, mrun2],
-              fun out' h => ⟨[bare (.ClassAssertion (.Class (cutClass a)) (.Named (valueIndividual index))),
-                bare (.ClassAssertion (.ObjectComplementOf (.Class (cutClass b))) (.Named (valueIndividual index)))],
-                by rw [c2 out' h, c1 o1 rfl]; simp, fun J => ?_⟩⟩
-            simp only [List.mem_cons, List.mem_singleton, forall_eq_or_imp, forall_eq, List.not_mem_nil,
-              false_imp_iff, implies_true, and_true, bare, satisfies, classDenote, individual, ↓reduceIte,
-              Bool.false_eq_true]
-            constructor
-            · rintro ⟨inA, notB⟩ h _ _ a' b' ha' hb' aIs' bIs'
-              have : a' = a := cut_unique good ha' ha (aIs'.trans aIs.symm)
-              subst this
-              have : b' = b := cut_unique good hb' hb (bIs'.trans bIs.symm)
-              subst this
-              exact ⟨inA, notB⟩
-            · intro holds
-              exact holds inside ready.1 number a b ha hb aIs bIs
+    · have member := List.getElem_mem inside
+      have cv := canonical_numeric (good.1.1 _ member) number
+      obtain ⟨r, run, f⟩ := cut_memberships_spec context fine index inside cv (fit _ member number) 0#usize out
+      refine ⟨r, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
+        Rowl.Datatypes.numeric_correct, number, run], fun out' hr => ?_⟩
+      obtain ⟨new, c, m⟩ := f out' hr
+      refine ⟨new, c, fun J => ?_⟩
+      rw [m J]
+      constructor
+      · intro all _ _ _ a ha
+        exact all a ha (by simp)
+      · intro holds a ha _
+        exact holds inside ready.1 number a ha
     · refine ⟨some out, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
         Rowl.Datatypes.numeric_correct, number], fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
       simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
@@ -758,8 +792,8 @@ theorem cut_members_spec (context : data_ontology.Context) (good : Good context)
       intro h ordered
       exact absurd ⟨ordered, h⟩ ready
 
-theorem number_members_spec (context : data_ontology.Context) (good : Good context) (index : Usize)
-    (out : alloc.vec.Vec AnnotatedAxiom) :
+theorem number_members_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.number_members context index out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
         ((∀ y ∈ new, satisfies J y.axiom) ↔
@@ -781,7 +815,7 @@ theorem number_members_spec (context : data_ontology.Context) (good : Good conte
   | none => exact ⟨none, by simp [run1, run2], by simp⟩
   | some o2 =>
   obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
-  obtain ⟨r3, run3, f3⟩ := cut_members_spec.{w,x} context good index o2
+  obtain ⟨r3, run3, f3⟩ := cut_members_spec.{w,x} context good fine fit index o2
   refine ⟨r3, by simp [run1, run2, run3], fun out' h => ?_⟩
   obtain ⟨n3, c3, m3⟩ := f3 out' h
   refine ⟨n1 ++ n2 ++ n3, by rw [c3, c2, c1]; simp, fun J => ?_⟩
@@ -800,7 +834,8 @@ def ValueFact (context : data_ontology.Context) (bits : Usize) (J : Interpretati
     (J.classes (bitClass j) (J.namedIndividuals (valueIndividual i)) ↔ i.val.testBit j.val = true)) ∧
   CutFact context J i h
 
-theorem value_axioms_spec (context : data_ontology.Context) (good : Good context) (index bits : Usize)
+theorem value_axioms_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index bits : Usize)
     (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.value_axioms context index bits out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
@@ -838,7 +873,7 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5],
         by simp⟩
     | some o5 =>
-    obtain ⟨r6, run6, f6⟩ := number_members_spec.{w,x} context good index o5
+    obtain ⟨r6, run6, f6⟩ := number_members_spec.{w,x} context good fine fit index o5
     cases r6 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, run6],
@@ -853,7 +888,7 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
-    obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good next bits o7
+    obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good fine fit next bits o7
     refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, run6,
       run7, advance, restRun], fun out' h => ?_⟩
     obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
@@ -921,11 +956,11 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
     encoding's own axioms, with enough bit classes to tell the literal values
     apart, a role for every data property of the context, and, when numbers are
     ordered, the cuts in order; the context's cuts can be ordered and every
-    number among its literal values has both its cuts. -/
+    number among its literal values can be compared with them. -/
 theorem encode_meaning (context : data_ontology.Context) (good : Good context) (capacity : Usize)
     (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.encode context capacity items = .ok res ∧ ∀ enc, res = some enc →
-      FineCuts context.cuts.val ∧ ValuesCut context ∧
+      FineCuts context.cuts.val ∧ ValuesFit context ∧
       ∃ (new : List AnnotatedAxiom) (bits : Usize) (order : List Usize), ItemsMeans.{u,v,w,x} context items.val new ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
         (context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1) ∧
@@ -939,7 +974,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   cases ok with
   | false => exact ⟨none, by simp [okRun], by simp⟩
   | true =>
-  obtain ⟨fine, valuesCut⟩ := okFacts rfl
+  obtain ⟨fine, valuesFit⟩ := okFacts rfl
   obtain ⟨r1, run1, f1⟩ := encode_items_meaning.{u,v,w,x} context items 0#usize (alloc.vec.Vec.new AnnotatedAxiom)
   cases r1 with
   | none => exact ⟨none, by simp [okRun, run1], by simp⟩
@@ -960,13 +995,13 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4], by simp⟩
   | some o4 =>
   obtain ⟨known, n4, c4, m4⟩ := f4 o4 rfl
-  obtain ⟨r5, run5, f5⟩ := region_axioms_spec.{w,x} context good fine capacity capSmall o4
+  obtain ⟨r5, run5, f5⟩ := region_axioms_spec.{w,x} context good fine valuesFit capacity capSmall o4
   cases r5 with
   | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5], by simp⟩
   | some o5 =>
   obtain ⟨order, sorted, n5, c5, m5⟩ := f5 o5 rfl
   obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
-  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good 0#usize bits o5
+  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits o5
   cases r6 with
   | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6], by simp⟩
   | some o6 =>
@@ -976,7 +1011,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6, object_class_eq, object_individual_eq,
     run7], fun enc h => ?_⟩
   simp only [zero_val, List.drop_zero] at m1 roles3 m2 m3
-  refine ⟨fine, valuesCut, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
+  refine ⟨fine, valuesFit, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
   rw [c7 enc h, c6, c5, c4, c3, c2, c1]
   simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, m6 J, zero_val, Nat.zero_le,
     true_implies]
