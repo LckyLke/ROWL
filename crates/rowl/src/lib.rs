@@ -25,6 +25,7 @@ pub mod experimental {
     pub use rowl_frontend::functional_property_axioms;
     pub use rowl_frontend::functional_ranges;
     pub use rowl_frontend::import_catalog;
+    pub use rowl_frontend::import_closure;
     pub use rowl_frontend::imports;
     pub use rowl_frontend::iri;
     pub use rowl_frontend::langtag;
@@ -44,6 +45,7 @@ pub mod experimental {
     pub use rowl_kernel::anonymous_graph;
     pub use rowl_kernel::anonymous_multiplicity;
     pub use rowl_kernel::anonymous_restrictions;
+    pub use rowl_kernel::anonymous_scopes;
     pub use rowl_kernel::arity;
     pub use rowl_kernel::assertion_equality;
     pub use rowl_kernel::axiom_equality;

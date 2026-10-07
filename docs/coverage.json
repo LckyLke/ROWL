@@ -1790,30 +1790,33 @@
       "requirement": "ClosureResolution",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.assemble_correct",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs::a_cyclic_closure_of_three_documents_assembles_once",
+      "implementation_scope": "The import closure of a root document of a supplied catalog (section 3.4): assemble builds the catalog of the read documents, resolves it from the root with the proved imports::resolve and gathers exactly the documents of the import closure (assemble_correct, AssembledFrom, ClosureDocuments, InClosure), in catalog order; source_closure reads the documents with their verified readers first (source_closure_correct). Imports of documents outside the closure do not matter. Nothing is fetched."
     },
     {
       "id": "imports.Cycles",
       "requirement": "Cycles",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.assemble_correct",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs::a_cyclic_closure_of_three_documents_assembles_once",
+      "implementation_scope": "Cyclic imports, a document importing itself included, are resolved without fuel: assemble always returns (assemble_correct), every document of the import closure is gathered once, and the closure from any document of a cycle is the same set of documents."
     },
     {
       "id": "imports.MissingDocumentError",
       "requirement": "MissingDocumentError",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.assemble_correct",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs::a_missing_import_names_its_iri",
+      "implementation_scope": "An import IRI of a document of the import closure that is the ontology or version IRI of no document of the catalog is the typed error MissingImport with the importing document and the IRI, the first in catalog order (FirstUnresolved, UnresolvedError); one that several documents have is AmbiguousImport with the first two. Missing imports of documents outside the closure are no error, and an unreadable document is the error Unread with the reader's first error. Nothing is fetched."
     },
     {
       "id": "imports.OntologyAndVersionIRIs",
@@ -1841,20 +1844,22 @@
       "requirement": "AnonymousIndividualScope",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_ontology",
+      "theorem": "Rowl.ImportClosure.closure_models",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs::colliding_node_ids_stay_apart",
+      "implementation_scope": "Every document is read with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (import_catalog::document_scope, scope_injective); assembly checks, by the exact traversal of anonymous_scopes, that every anonymous individual of every closure document has its document's scope (ClosureScoped), so the anonymous individuals of different documents are different (section 5.6.2). The meaning of a scoped axiom depends only on the anonymous individuals of its scope (axiom_coincide), so the models of the assembled axioms are exactly the interpretations that are models of every closure document's axioms, each with its own anonymous individuals (models_parts, closure_models)."
     },
     {
       "id": "imports.ImportedAxiomProvenance",
       "requirement": "ImportedAxiomProvenance",
       "owner": "rowl-frontend",
       "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/",
-      "status": "planned",
-      "rust_symbol": null,
-      "theorem": null,
-      "regression": null
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_provenance",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs::a_cyclic_closure_of_three_documents_assembles_once",
+      "implementation_scope": "Every axiom of the assembled closure keeps its document and its position among that document's axioms (origins, AssembledFrom); closure_provenance proves that the axiom at each position of the closure is the axiom at its recorded origin, in a document of the import closure."
     },
     {
       "id": "calculus.IndependentInterpretation",
@@ -36771,6 +36776,259 @@
       "theorem": "Rowl.ImportCatalog.catalog_reachable",
       "regression": "crates/rowl-kernel/tests/import_catalog.rs",
       "implementation_scope": "Header discovery and the import catalog of a supplied catalog of documents (import_catalog::read_source, read_sources, names, targets, lookup, catalog; OWL 2 Structural Specification sections 3.2 and 3.4). Every document, Functional Syntax, N-Triples or Turtle bytes, is read by its verified reader (source_ontology, or ntriples::read or turtle::read followed by rdf_mapping::map_graph) with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (scope_injective); read_source_correct and read_sources_correct prove whatever is returned is the reader's result (ReadAs, RejectedAs), and Functional Syntax catalogs are always read (read_sources_functional_total); termination of the reverse RDF mapping is not proved. An import IRI names a document when it is its ontology IRI or version IRI, byte for byte (Names, names_correct); lookup_correct tells none, exactly one or the first two of several. The catalog for imports::resolve lists every document under its position with the documents its import IRIs name (catalog_correct, CatalogOf): its edges are exactly the direct imports (catalog_edges, DirectlyImports) and its reachability is exactly the import closure (catalog_reachable, InClosure). Nothing is fetched."
+    },
+    {
+      "id": "m4.AnonymousScopes.scoped_class_correct",
+      "requirement": "Verified anonymous-individual scopes: scoped_class_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_class",
+      "theorem": "Rowl.AnonymousScopes.scoped_class_correct",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.scoped_annotation_correct",
+      "requirement": "Verified anonymous-individual scopes: scoped_annotation_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_annotation",
+      "theorem": "Rowl.AnonymousScopes.scoped_annotation_correct",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.scoped_axiom_correct",
+      "requirement": "Verified anonymous-individual scopes: scoped_axiom_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_axiom",
+      "theorem": "Rowl.AnonymousScopes.scoped_axiom_correct",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.scoped_annotated_correct",
+      "requirement": "Verified anonymous-individual scopes: scoped_annotated_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_annotated",
+      "theorem": "Rowl.AnonymousScopes.scoped_annotated_correct",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.scoped_ontology_correct",
+      "requirement": "Verified anonymous-individual scopes: scoped_ontology_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_ontology",
+      "theorem": "Rowl.AnonymousScopes.scoped_ontology_correct",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.class_coincide",
+      "requirement": "Verified anonymous-individual scopes: class_coincide",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_class",
+      "theorem": "Rowl.AnonymousScopes.class_coincide",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.axiom_coincide",
+      "requirement": "Verified anonymous-individual scopes: axiom_coincide",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_axiom",
+      "theorem": "Rowl.AnonymousScopes.axiom_coincide",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m4.AnonymousScopes.models_parts",
+      "requirement": "Verified anonymous-individual scopes: models_parts",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_ontology",
+      "theorem": "Rowl.AnonymousScopes.models_parts",
+      "regression": "crates/rowl-kernel/tests/anonymous_scopes.rs",
+      "implementation_scope": "Anonymous individuals of one scope (anonymous_scopes::scoped_class, scoped_axiom, scoped_annotation, scoped_annotated, scoped_ontology; OWL 2 Structural Specification 5.6.2 and 3.4). The checks visit every individual of every class expression, axiom, annotation, nested annotation and ontology annotation and accept exactly when each anonymous individual has the given scope (scoped_class_correct to scoped_ontology_correct, against ScopedClass to ScopedOntology). The meaning of a scoped class expression or axiom under the Direct Semantics depends only on what the anonymous-individual assignment gives the individuals of the scope (class_coincide, axiom_coincide); hence axiom lists whose anonymous individuals have pairwise distinct scopes have as models of their concatenation exactly the interpretations that are models of each list with an assignment of its own (models_parts): the lists are standardized apart."
+    },
+    {
+      "id": "m3.ImportClosure.mem_closure_documents",
+      "requirement": "Verified import closure: mem_closure_documents",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.mem_closure_documents",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_documents_nodup",
+      "requirement": "Verified import closure: closure_documents_nodup",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_documents_nodup",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_inside",
+      "requirement": "Verified import closure: closure_inside",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_inside",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.assemble_correct",
+      "requirement": "Verified import closure: assemble_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.assemble_correct",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.source_closure_correct",
+      "requirement": "Verified import closure: source_closure_correct",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::source_closure",
+      "theorem": "Rowl.ImportClosure.source_closure_correct",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.source_closure_functional_total",
+      "requirement": "Verified import closure: source_closure_functional_total",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::source_closure",
+      "theorem": "Rowl.ImportClosure.source_closure_functional_total",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_models",
+      "requirement": "Verified import closure: closure_models",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_models",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_model_iff",
+      "requirement": "Verified import closure: closure_model_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_model_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_consistent_iff",
+      "requirement": "Verified import closure: closure_consistent_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_consistent_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_entails_iff",
+      "requirement": "Verified import closure: closure_entails_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_entails_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_satisfiable_iff",
+      "requirement": "Verified import closure: closure_satisfiable_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_satisfiable_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_subsumed_iff",
+      "requirement": "Verified import closure: closure_subsumed_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_subsumed_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_instance_iff",
+      "requirement": "Verified import closure: closure_instance_iff",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_instance_iff",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.closure_provenance",
+      "requirement": "Verified import closure: closure_provenance",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::assemble",
+      "theorem": "Rowl.ImportClosure.closure_provenance",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.ImportClosure.source_closure_models",
+      "requirement": "Verified import closure: source_closure_models",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Imports",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::source_closure",
+      "theorem": "Rowl.ImportClosure.source_closure_models",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
     }
   ]
 }

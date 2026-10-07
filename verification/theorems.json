@@ -3995,6 +3995,41 @@
         "Rowl.ImportCatalog.catalog_edges",
         "Rowl.ImportCatalog.catalog_reachable"
       ]
+    },
+    {
+      "module": "Rowl.AnonymousScopes",
+      "namespace": "Rowl.AnonymousScopes",
+      "theorems": [
+        "Rowl.AnonymousScopes.scoped_class_correct",
+        "Rowl.AnonymousScopes.scoped_annotation_correct",
+        "Rowl.AnonymousScopes.scoped_axiom_correct",
+        "Rowl.AnonymousScopes.scoped_annotated_correct",
+        "Rowl.AnonymousScopes.scoped_ontology_correct",
+        "Rowl.AnonymousScopes.class_coincide",
+        "Rowl.AnonymousScopes.axiom_coincide",
+        "Rowl.AnonymousScopes.models_parts"
+      ]
+    },
+    {
+      "module": "Rowl.ImportClosure",
+      "namespace": "Rowl.ImportClosure",
+      "theorems": [
+        "Rowl.ImportClosure.mem_closure_documents",
+        "Rowl.ImportClosure.closure_documents_nodup",
+        "Rowl.ImportClosure.closure_inside",
+        "Rowl.ImportClosure.assemble_correct",
+        "Rowl.ImportClosure.source_closure_correct",
+        "Rowl.ImportClosure.source_closure_functional_total",
+        "Rowl.ImportClosure.closure_models",
+        "Rowl.ImportClosure.closure_model_iff",
+        "Rowl.ImportClosure.closure_consistent_iff",
+        "Rowl.ImportClosure.closure_entails_iff",
+        "Rowl.ImportClosure.closure_satisfiable_iff",
+        "Rowl.ImportClosure.closure_subsumed_iff",
+        "Rowl.ImportClosure.closure_instance_iff",
+        "Rowl.ImportClosure.closure_provenance",
+        "Rowl.ImportClosure.source_closure_models"
+      ]
     }
   ],
   "specifications": [
@@ -5400,6 +5435,33 @@
     "Rowl.ImportCatalog.Dependencies",
     "Rowl.ImportCatalog.CatalogOf",
     "Rowl.ImportCatalog.DirectlyImports",
-    "Rowl.ImportCatalog.InClosure"
+    "Rowl.ImportCatalog.InClosure",
+    "Rowl.AnonymousScopes.ScopedIndividual",
+    "Rowl.AnonymousScopes.ScopedClass",
+    "Rowl.AnonymousScopes.ScopedValue",
+    "Rowl.AnonymousScopes.ScopedSubject",
+    "Rowl.AnonymousScopes.ScopedAnnotation",
+    "Rowl.AnonymousScopes.ScopedAxiom",
+    "Rowl.AnonymousScopes.ScopedAnnotated",
+    "Rowl.AnonymousScopes.ScopedOntology",
+    "Rowl.AnonymousScopes.Agree",
+    "Rowl.AnonymousScopes.ScopedParts",
+    "Rowl.ImportClosure.axiomsAt",
+    "Rowl.ImportClosure.annotationsAt",
+    "Rowl.ImportClosure.importsAt",
+    "Rowl.ImportClosure.ClosureDocuments",
+    "Rowl.ImportClosure.Resolved",
+    "Rowl.ImportClosure.ImportsResolved",
+    "Rowl.ImportClosure.FirstUnresolved",
+    "Rowl.ImportClosure.ClosureScoped",
+    "Rowl.ImportClosure.AssembledFrom",
+    "Rowl.ImportClosure.AssembleCorrect",
+    "Rowl.ImportClosure.Marked",
+    "Rowl.ImportClosure.UnresolvedError",
+    "Rowl.ImportClosure.originPairs",
+    "Rowl.ImportClosure.chosenFrom",
+    "Rowl.ImportClosure.SourceClosureCorrect",
+    "Rowl.ImportClosure.closureParts",
+    "Rowl.ImportClosure.ImportClosureModel"
   ]
 }

@@ -25,6 +25,7 @@ pub mod builtins;
 pub mod vocabulary;
 
 pub mod anonymous;
+pub mod anonymous_scopes;
 pub mod topdata;
 
 pub mod roles;
@@ -121,6 +122,7 @@ pub mod functional_prefixes;
 pub mod functional_property_axioms;
 pub mod functional_ranges;
 pub mod import_catalog;
+pub mod import_closure;
 pub mod imports;
 pub mod iri;
 pub mod langtag;

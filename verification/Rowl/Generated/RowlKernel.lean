@@ -4732,6 +4732,405 @@ def anonymous_restrictions.check_anonymous
   | some item =>
     ok (anonymous_restrictions.AnonymousCheck.ForbiddenPosition item)
 
+/-- [rowl_kernel::dl_validity::same_before]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 192:0-198:1 -/
+def dl_validity.same_before
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
+  («end» : Std.Usize) :
+  Result Bool
+  := do
+  if 0#usize < «end»
+  then
+    let i ← «end» - 1#usize
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left i
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) right
+        i
+    if i1 = i2
+    then dl_validity.same_before left right i
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::dl_validity::same_bytes]:
+    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 202:0-204:1
+    Visibility: public -/
+def dl_validity.same_bytes
+  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len left
+  let i1 := alloc.vec.Vec.len right
+  if i = i1
+  then let i2 := alloc.vec.Vec.len left
+       dl_validity.same_before left right i2
+  else ok false
+
+/-- [rowl_kernel::anonymous_scopes::scoped_anonymous]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 16:0-18:1 -/
+def anonymous_scopes.scoped_anonymous
+  (scope : alloc.vec.Vec Std.U8) (individual : model.AnonymousIndividual) :
+  Result Bool
+  := do
+  dl_validity.same_bytes individual.scope scope
+
+/-- [rowl_kernel::anonymous_scopes::scoped_individual]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 20:0-25:1 -/
+def anonymous_scopes.scoped_individual
+  (scope : alloc.vec.Vec Std.U8) (individual : model.Individual) :
+  Result Bool
+  := do
+  match individual with
+  | model.Individual.Named _ => ok true
+  | model.Individual.Anonymous anonymous =>
+    anonymous_scopes.scoped_anonymous scope anonymous
+
+/-- [rowl_kernel::anonymous_scopes::individuals_from]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 27:0-37:1 -/
+def anonymous_scopes.individuals_from
+  (scope : alloc.vec.Vec Std.U8) (values : alloc.vec.Vec model.Individual)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) values index
+    let b ← anonymous_scopes.scoped_individual scope i1
+    if b
+    then
+      let i2 ← index + 1#usize
+      anonymous_scopes.individuals_from scope values i2
+    else ok false
+  else ok true
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::anonymous_scopes::classes_from]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 39:0-49:1 -/
+def anonymous_scopes.classes_from
+  (scope : alloc.vec.Vec Std.U8) (values : alloc.vec.Vec model.ClassExpression)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) values index
+    let b ← anonymous_scopes.scoped_class scope ce
+    if b
+    then
+      let i1 ← index + 1#usize
+      anonymous_scopes.classes_from scope values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::anonymous_scopes::scoped_class]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 53:0-82:1
+    Visibility: public -/
+def anonymous_scopes.scoped_class
+  (scope : alloc.vec.Vec Std.U8) (expression : model.ClassExpression) :
+  Result Bool
+  := do
+  match expression with
+  | model.ClassExpression.Class _ => ok true
+  | model.ClassExpression.ObjectIntersectionOf values =>
+    let b ← anonymous_scopes.scoped_class scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_class scope values.second
+      if b1
+      then anonymous_scopes.classes_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectUnionOf values =>
+    let b ← anonymous_scopes.scoped_class scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_class scope values.second
+      if b1
+      then anonymous_scopes.classes_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.ClassExpression.ObjectComplementOf inner =>
+    anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.ObjectOneOf values =>
+    let b ← anonymous_scopes.scoped_individual scope values.first
+    if b
+    then anonymous_scopes.individuals_from scope values.rest 0#usize
+    else ok false
+  | model.ClassExpression.ObjectSomeValuesFrom _ inner =>
+    anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.ObjectAllValuesFrom _ inner =>
+    anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    anonymous_scopes.scoped_individual scope individual
+  | model.ClassExpression.ObjectHasSelf _ => ok true
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok true
+    | some inner => anonymous_scopes.scoped_class scope inner
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok true
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok true
+  | model.ClassExpression.DataHasValue _ _ => ok true
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok true
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok true
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok true
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::anonymous_scopes::scoped_value]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 84:0-89:1 -/
+def anonymous_scopes.scoped_value
+  (scope : alloc.vec.Vec Std.U8) (value : model.AnnotationValue) :
+  Result Bool
+  := do
+  match value with
+  | model.AnnotationValue.Iri _ => ok true
+  | model.AnnotationValue.Anonymous anonymous =>
+    anonymous_scopes.scoped_anonymous scope anonymous
+  | model.AnnotationValue.Literal _ => ok true
+
+/-- [rowl_kernel::anonymous_scopes::scoped_subject]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 91:0-96:1 -/
+def anonymous_scopes.scoped_subject
+  (scope : alloc.vec.Vec Std.U8) (subject : model.AnnotationSubject) :
+  Result Bool
+  := do
+  match subject with
+  | model.AnnotationSubject.Iri _ => ok true
+  | model.AnnotationSubject.Anonymous anonymous =>
+    anonymous_scopes.scoped_anonymous scope anonymous
+
+mutual
+
+/-- [rowl_kernel::anonymous_scopes::annotations_from]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 98:0-108:1 -/
+def anonymous_scopes.annotations_from
+  (scope : alloc.vec.Vec Std.U8) (values : alloc.vec.Vec model.Annotation)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Annotation) values index
+    let b ← anonymous_scopes.scoped_annotation scope a
+    if b
+    then
+      let i1 ← index + 1#usize
+      anonymous_scopes.annotations_from scope values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::anonymous_scopes::scoped_annotation]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 112:0-118:1
+    Visibility: public -/
+def anonymous_scopes.scoped_annotation
+  (scope : alloc.vec.Vec Std.U8) (annotation : model.Annotation) :
+  Result Bool
+  := do
+  let b ← anonymous_scopes.scoped_value scope annotation.value
+  if b
+  then anonymous_scopes.annotations_from scope annotation.annotations 0#usize
+  else ok false
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::anonymous_scopes::scoped_axiom]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 121:0-174:1
+    Visibility: public -/
+def anonymous_scopes.scoped_axiom
+  (scope : alloc.vec.Vec Std.U8) («axiom» : model.Axiom) : Result Bool := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok true
+  | model.Axiom.SubClassOf sub sup =>
+    let b ← anonymous_scopes.scoped_class scope sub
+    if b
+    then anonymous_scopes.scoped_class scope sup
+    else ok false
+  | model.Axiom.EquivalentClasses values =>
+    let b ← anonymous_scopes.scoped_class scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_class scope values.second
+      if b1
+      then anonymous_scopes.classes_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.Axiom.DisjointClasses values =>
+    let b ← anonymous_scopes.scoped_class scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_class scope values.second
+      if b1
+      then anonymous_scopes.classes_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.Axiom.DisjointUnion _ values =>
+    let b ← anonymous_scopes.scoped_class scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_class scope values.second
+      if b1
+      then anonymous_scopes.classes_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.Axiom.SubObjectPropertyOf _ _ => ok true
+  | model.Axiom.EquivalentObjectProperties _ => ok true
+  | model.Axiom.DisjointObjectProperties _ => ok true
+  | model.Axiom.InverseObjectProperties _ _ => ok true
+  | model.Axiom.ObjectPropertyDomain _ expression =>
+    anonymous_scopes.scoped_class scope expression
+  | model.Axiom.ObjectPropertyRange _ expression =>
+    anonymous_scopes.scoped_class scope expression
+  | model.Axiom.FunctionalObjectProperty _ => ok true
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok true
+  | model.Axiom.ReflexiveObjectProperty _ => ok true
+  | model.Axiom.IrreflexiveObjectProperty _ => ok true
+  | model.Axiom.SymmetricObjectProperty _ => ok true
+  | model.Axiom.AsymmetricObjectProperty _ => ok true
+  | model.Axiom.TransitiveObjectProperty _ => ok true
+  | model.Axiom.SubDataPropertyOf _ _ => ok true
+  | model.Axiom.EquivalentDataProperties _ => ok true
+  | model.Axiom.DisjointDataProperties _ => ok true
+  | model.Axiom.DataPropertyDomain _ expression =>
+    anonymous_scopes.scoped_class scope expression
+  | model.Axiom.DataPropertyRange _ _ => ok true
+  | model.Axiom.FunctionalDataProperty _ => ok true
+  | model.Axiom.DatatypeDefinition _ _ => ok true
+  | model.Axiom.HasKey expression _ _ =>
+    anonymous_scopes.scoped_class scope expression
+  | model.Axiom.SameIndividual values =>
+    let b ← anonymous_scopes.scoped_individual scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_individual scope values.second
+      if b1
+      then anonymous_scopes.individuals_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.Axiom.DifferentIndividuals values =>
+    let b ← anonymous_scopes.scoped_individual scope values.first
+    if b
+    then
+      let b1 ← anonymous_scopes.scoped_individual scope values.second
+      if b1
+      then anonymous_scopes.individuals_from scope values.rest 0#usize
+      else ok false
+    else ok false
+  | model.Axiom.ClassAssertion expression individual =>
+    let b ← anonymous_scopes.scoped_class scope expression
+    if b
+    then anonymous_scopes.scoped_individual scope individual
+    else ok false
+  | model.Axiom.ObjectPropertyAssertion _ source target =>
+    let b ← anonymous_scopes.scoped_individual scope source
+    if b
+    then anonymous_scopes.scoped_individual scope target
+    else ok false
+  | model.Axiom.NegativeObjectPropertyAssertion _ source target =>
+    let b ← anonymous_scopes.scoped_individual scope source
+    if b
+    then anonymous_scopes.scoped_individual scope target
+    else ok false
+  | model.Axiom.DataPropertyAssertion _ source _ =>
+    anonymous_scopes.scoped_individual scope source
+  | model.Axiom.NegativeDataPropertyAssertion _ source _ =>
+    anonymous_scopes.scoped_individual scope source
+  | model.Axiom.AnnotationAssertion _ subject value =>
+    let b ← anonymous_scopes.scoped_subject scope subject
+    if b
+    then anonymous_scopes.scoped_value scope value
+    else ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok true
+  | model.Axiom.AnnotationPropertyRange _ _ => ok true
+
+/-- [rowl_kernel::anonymous_scopes::scoped_annotated]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 178:0-184:1
+    Visibility: public -/
+def anonymous_scopes.scoped_annotated
+  (scope : alloc.vec.Vec Std.U8) (item : model.AnnotatedAxiom) :
+  Result Bool
+  := do
+  let b ← anonymous_scopes.annotations_from scope item.annotations 0#usize
+  if b
+  then anonymous_scopes.scoped_axiom scope item.axiom
+  else ok false
+
+/-- [rowl_kernel::anonymous_scopes::axioms_from]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 186:0-196:1 -/
+def anonymous_scopes.axioms_from
+  (scope : alloc.vec.Vec Std.U8) (values : alloc.vec.Vec model.AnnotatedAxiom)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) values index
+    let b ← anonymous_scopes.scoped_annotated scope aa
+    if b
+    then
+      let i1 ← index + 1#usize
+      anonymous_scopes.axioms_from scope values i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::model::OntologyIdentity]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 212:0-215:1
+    Visibility: public -/
+@[discriminant isize]
+inductive model.OntologyIdentity where
+| Anonymous : model.OntologyIdentity
+| Named : model.Iri → Option model.Iri → model.OntologyIdentity
+
+/-- [rowl_kernel::model::RawOntology]
+    Source: 'crates/rowl-kernel/src/model.rs', lines 217:0-222:1
+    Visibility: public -/
+structure model.RawOntology where
+  identity : model.OntologyIdentity
+  imports : alloc.vec.Vec model.Iri
+  annotations : alloc.vec.Vec model.Annotation
+  axioms : alloc.vec.Vec model.AnnotatedAxiom
+
+/-- [rowl_kernel::anonymous_scopes::scoped_ontology]:
+    Source: 'crates/rowl-kernel/src/anonymous_scopes.rs', lines 200:0-206:1
+    Visibility: public -/
+def anonymous_scopes.scoped_ontology
+  (scope : alloc.vec.Vec Std.U8) (ontology : model.RawOntology) :
+  Result Bool
+  := do
+  let b ←
+    anonymous_scopes.annotations_from scope ontology.annotations 0#usize
+  if b
+  then anonymous_scopes.axioms_from scope ontology.axioms 0#usize
+  else ok false
+
 /-- [rowl_kernel::arity::same_data_property]:
     Source: 'crates/rowl-kernel/src/arity.rs', lines 16:0-18:1
     Visibility: public -/
@@ -24326,23 +24725,6 @@ def collection.axiom_entities
   («axiom» : model.AnnotatedAxiom) : Result collection.EntityUses := do
   collection.visit_annotated «axiom» collection.EntityUses.Empty
 
-/-- [rowl_kernel::model::OntologyIdentity]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 212:0-215:1
-    Visibility: public -/
-@[discriminant isize]
-inductive model.OntologyIdentity where
-| Anonymous : model.OntologyIdentity
-| Named : model.Iri → Option model.Iri → model.OntologyIdentity
-
-/-- [rowl_kernel::model::RawOntology]
-    Source: 'crates/rowl-kernel/src/model.rs', lines 217:0-222:1
-    Visibility: public -/
-structure model.RawOntology where
-  identity : model.OntologyIdentity
-  imports : alloc.vec.Vec model.Iri
-  annotations : alloc.vec.Vec model.Annotation
-  axioms : alloc.vec.Vec model.AnnotatedAxiom
-
 /-- [rowl_kernel::collection::ontology_entities]:
     Source: 'crates/rowl-kernel/src/collection.rs', lines 430:0-435:1
     Visibility: public -/
@@ -31648,41 +32030,6 @@ def dl_validity.forbidden
     | typing.EntityKind.AnnotationProperty => ok false
     | typing.EntityKind.NamedIndividual => ok false
   | typing.EntityKind.NamedIndividual => ok false
-
-/-- [rowl_kernel::dl_validity::same_before]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 192:0-198:1 -/
-def dl_validity.same_before
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8)
-  («end» : Std.Usize) :
-  Result Bool
-  := do
-  if 0#usize < «end»
-  then
-    let i ← «end» - 1#usize
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) left i
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) right
-        i
-    if i1 = i2
-    then dl_validity.same_before left right i
-    else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::dl_validity::same_bytes]:
-    Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 202:0-204:1
-    Visibility: public -/
-def dl_validity.same_bytes
-  (left : alloc.vec.Vec Std.U8) (right : alloc.vec.Vec Std.U8) :
-  Result Bool
-  := do
-  let i := alloc.vec.Vec.len left
-  let i1 := alloc.vec.Vec.len right
-  if i = i1
-  then let i2 := alloc.vec.Vec.len left
-       dl_validity.same_before left right i2
-  else ok false
 
 /-- [rowl_kernel::dl_validity::entity_iri]:
     Source: 'crates/rowl-kernel/src/dl_validity.rs', lines 207:0-216:1 -/
@@ -60050,6 +60397,390 @@ def import_catalog.catalog
        ok (some dc)
   else ok none
 
+/-- [rowl_kernel::import_closure::Origin]
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 37:0-40:1
+    Visibility: public -/
+structure import_closure.Origin where
+  document : Std.Usize
+  position : Std.Usize
+
+/-- [rowl_kernel::import_closure::Closure]
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 43:0-51:1
+    Visibility: public -/
+structure import_closure.Closure where
+  documents : alloc.vec.Vec Std.Usize
+  ontology : model.RawOntology
+  origins : alloc.vec.Vec import_closure.Origin
+
+/-- [rowl_kernel::import_closure::ClosureError]
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 54:0-79:1
+    Visibility: public -/
+@[discriminant isize]
+inductive import_closure.ClosureError where
+| Unread : import_catalog.Unread → import_closure.ClosureError
+| NoRoot : import_closure.ClosureError
+| TooManyDocuments : import_closure.ClosureError
+| Unresolved : import_closure.ClosureError
+| MissingImport : Std.Usize → model.Iri → import_closure.ClosureError
+| AmbiguousImport :
+  Std.Usize →
+  model.Iri →
+  Std.Usize →
+  Std.Usize →
+  import_closure.ClosureError
+| OutOfScope : Std.Usize → import_closure.ClosureError
+| TooLarge : import_closure.ClosureError
+
+/-- [rowl_kernel::import_closure::falses]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 81:0-88:1 -/
+def import_closure.falses
+  (count : Std.Usize) (out : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < count
+  then
+    let out1 ← alloc.vec.Vec.push out false
+    import_closure.falses count out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::mark]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 91:0-102:1 -/
+def import_closure.mark
+  (closure : imports.DocumentCatalog) (included : alloc.vec.Vec Bool) :
+  Result (alloc.vec.Vec Bool)
+  := do
+  match closure with
+  | imports.DocumentCatalog.Empty => ok included
+  | imports.DocumentCatalog.Document key _ _ next =>
+    let index ← lift (UScalar.cast .Usize key)
+    let i := alloc.vec.Vec.len included
+    let included1 ←
+      if index < i
+      then
+        do
+        let (_, index_mut_back) ←
+          alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice Bool)
+            included index
+        ok (index_mut_back true)
+      else ok included
+    import_closure.mark next included1
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::included_at]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 104:0-110:1 -/
+def import_closure.included_at
+  (included : alloc.vec.Vec Bool) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len included
+  if index < i
+  then
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Bool) included
+      index
+  else ok false
+
+/-- [rowl_kernel::import_closure::unresolved_import]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 114:0-137:1 -/
+def import_closure.unresolved_import
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (iris : alloc.vec.Vec model.Iri) (document : Std.Usize) (index : Std.Usize) :
+  Result (Option import_closure.ClosureError)
+  := do
+  let i := alloc.vec.Vec.len iris
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Iri)
+        iris index
+    let l ← import_catalog.lookup ontologies i1
+    match l with
+    | import_catalog.Lookup.Missing =>
+      let i2 ← nnf.copy_iri i1
+      ok (some (import_closure.ClosureError.MissingImport document i2))
+    | import_catalog.Lookup.Unique _ =>
+      let i2 ← index + 1#usize
+      import_closure.unresolved_import ontologies iris document i2
+    | import_catalog.Lookup.Ambiguous first second =>
+      let i2 ← nnf.copy_iri i1
+      let i3 ← lift (UScalar.cast .Usize first)
+      let i4 ← lift (UScalar.cast .Usize second)
+      ok (some (import_closure.ClosureError.AmbiguousImport document i2 i3 i4))
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::check_imports]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 141:0-158:1 -/
+def import_closure.check_imports
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (included : alloc.vec.Vec Bool) (index : Std.Usize) :
+  Result (Option import_closure.ClosureError)
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if index < i
+  then
+    let b ← import_closure.included_at included index
+    if b
+    then
+      let ro ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.RawOntology) ontologies index
+      let o ←
+        import_closure.unresolved_import ontologies ro.imports index 0#usize
+      match o with
+      | none =>
+        let i1 ← index + 1#usize
+        import_closure.check_imports ontologies included i1
+      | some _ => ok o
+    else
+      let i1 ← index + 1#usize
+      import_closure.check_imports ontologies included i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::check_scopes]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 162:0-180:1 -/
+def import_closure.check_scopes
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (included : alloc.vec.Vec Bool) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if index < i
+  then
+    let b ← import_closure.included_at included index
+    if b
+    then
+      let v ← import_catalog.document_scope index
+      let ro ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.RawOntology) ontologies index
+      let b1 ← anonymous_scopes.scoped_ontology v ro
+      if b1
+      then
+        let i1 ← index + 1#usize
+        import_closure.check_scopes ontologies included i1
+      else ok (some index)
+    else
+      let i1 ← index + 1#usize
+      import_closure.check_scopes ontologies included i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::empty_ontology]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 182:0-189:1 -/
+def import_closure.empty_ontology : Result model.RawOntology := do
+  ok
+    {
+      identity := model.OntologyIdentity.Anonymous,
+      imports := (alloc.vec.Vec.new model.Iri),
+      annotations := (alloc.vec.Vec.new model.Annotation),
+      axioms := (alloc.vec.Vec.new model.AnnotatedAxiom)
+    }
+
+/-- [rowl_kernel::import_closure::placeholder_axiom]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 191:0-200:1 -/
+def import_closure.placeholder_axiom : Result model.AnnotatedAxiom := do
+  ok
+    {
+      annotations := (alloc.vec.Vec.new model.Annotation),
+      «axiom» :=
+        (model.Axiom.Declaration
+          (model.Entity.Class
+          { iri := { spelling := (alloc.vec.Vec.new Std.U8) } }))
+    }
+
+/-- [rowl_kernel::import_closure::placeholder_annotation]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 202:0-214:1 -/
+def import_closure.placeholder_annotation : Result model.Annotation := do
+  ok (model.Annotation.mk (alloc.vec.Vec.new model.Annotation)
+    { iri := { spelling := (alloc.vec.Vec.new Std.U8) } }
+    (model.AnnotationValue.Iri { spelling := (alloc.vec.Vec.new Std.U8) }))
+
+/-- [rowl_kernel::import_closure::move_annotations]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 217:0-233:1 -/
+def import_closure.move_annotations
+  (source : alloc.vec.Vec model.Annotation) (position : Std.Usize)
+  (out : alloc.vec.Vec model.Annotation) :
+  Result (Option (alloc.vec.Vec model.Annotation))
+  := do
+  let i := alloc.vec.Vec.len source
+  if position < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let (a, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          model.Annotation) source position
+      let a1 ← import_closure.placeholder_annotation
+      let (item, a2) := core.mem.replace a a1
+      let out1 ← alloc.vec.Vec.push out item
+      let source1 := index_mut_back a2
+      let i2 ← position + 1#usize
+      import_closure.move_annotations source1 i2 out1
+    else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::move_axioms]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 237:0-256:1 -/
+def import_closure.move_axioms
+  (source : alloc.vec.Vec model.AnnotatedAxiom) (position : Std.Usize)
+  (document : Std.Usize) (out : alloc.vec.Vec model.AnnotatedAxiom)
+  (origins : alloc.vec.Vec import_closure.Origin) :
+  Result (Option ((alloc.vec.Vec model.AnnotatedAxiom) × (alloc.vec.Vec
+    import_closure.Origin)))
+  := do
+  let i := alloc.vec.Vec.len source
+  if position < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let (aa, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          model.AnnotatedAxiom) source position
+      let aa1 ← import_closure.placeholder_axiom
+      let (item, aa2) := core.mem.replace aa aa1
+      let out1 ← alloc.vec.Vec.push out item
+      let origins1 ←
+        alloc.vec.Vec.push origins ({ document, position } :
+          import_closure.Origin)
+      let source1 := index_mut_back aa2
+      let i2 ← position + 1#usize
+      import_closure.move_axioms source1 i2 document out1 origins1
+    else ok none
+  else ok (some (out, origins))
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::Gathered]
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 259:0-264:1 -/
+structure import_closure.Gathered where
+  documents : alloc.vec.Vec Std.Usize
+  annotations : alloc.vec.Vec model.Annotation
+  axioms : alloc.vec.Vec model.AnnotatedAxiom
+  origins : alloc.vec.Vec import_closure.Origin
+
+/-- [rowl_kernel::import_closure::gather_one]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 268:0-284:1 -/
+def import_closure.gather_one
+  (document : model.RawOntology) (index : Std.Usize)
+  (out : import_closure.Gathered) :
+  Result (Option import_closure.Gathered)
+  := do
+  let v ← alloc.vec.Vec.push out.documents index
+  let o ←
+    import_closure.move_annotations document.annotations 0#usize
+      out.annotations
+  match o with
+  | none => ok none
+  | some annotations =>
+    let o1 ←
+      import_closure.move_axioms document.axioms 0#usize index out.axioms
+        out.origins
+    match o1 with
+    | none => ok none
+    | some p =>
+      let (axioms, origins) := p
+      ok (some { documents := v, annotations, axioms, origins })
+
+/-- [rowl_kernel::import_closure::gather]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 287:0-306:1 -/
+def import_closure.gather
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (included : alloc.vec.Vec Bool) (index : Std.Usize)
+  (out : import_closure.Gathered) :
+  Result (Option import_closure.Gathered)
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if index < i
+  then
+    let b ← import_closure.included_at included index
+    if b
+    then
+      let (ro, index_mut_back) ←
+        alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+          model.RawOntology) ontologies index
+      let ro1 ← import_closure.empty_ontology
+      let (document, ro2) := core.mem.replace ro ro1
+      let o ← import_closure.gather_one document index out
+      match o with
+      | none => ok none
+      | some out1 =>
+        let ontologies1 := index_mut_back ro2
+        let i1 ← index + 1#usize
+        import_closure.gather ontologies1 included i1 out1
+    else
+      let i1 ← index + 1#usize
+      import_closure.gather ontologies included i1 out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::import_closure::take_header]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 309:0-316:1 -/
+def import_closure.take_header
+  (ontologies : alloc.vec.Vec model.RawOntology) (root : Std.Usize) :
+  Result ((alloc.vec.Vec model.RawOntology) × model.OntologyIdentity ×
+    (alloc.vec.Vec model.Iri))
+  := do
+  let (ro, index_mut_back) ←
+    alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+      model.RawOntology) ontologies root
+  let (identity, oi) :=
+    core.mem.replace ro.identity model.OntologyIdentity.Anonymous
+  let ontologies1 := index_mut_back { ro with identity := oi }
+  let (ro1, index_mut_back1) ←
+    alloc.vec.Vec.index_mut (core.slice.index.SliceIndexUsizeSlice
+      model.RawOntology) ontologies1 root
+  let (iris, v) := core.mem.replace ro1.imports (alloc.vec.Vec.new model.Iri)
+  let ontologies2 := index_mut_back1 { ro1 with imports := v }
+  ok (ontologies2, identity, iris)
+
+/-- [rowl_kernel::import_closure::finish]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 319:0-352:1 -/
+def import_closure.finish
+  (ontologies : alloc.vec.Vec model.RawOntology)
+  (included : alloc.vec.Vec Bool) (root : Std.Usize) :
+  Result (core.result.Result import_closure.Closure
+    import_closure.ClosureError)
+  := do
+  let o ← import_closure.check_imports ontologies included 0#usize
+  match o with
+  | none =>
+    let o1 ← import_closure.check_scopes ontologies included 0#usize
+    match o1 with
+    | none =>
+      let (ontologies1, identity, iris) ←
+        import_closure.take_header ontologies root
+      let o2 ←
+        import_closure.gather ontologies1 included 0#usize
+          {
+            documents := (alloc.vec.Vec.new Std.Usize),
+            annotations := (alloc.vec.Vec.new model.Annotation),
+            axioms := (alloc.vec.Vec.new model.AnnotatedAxiom),
+            origins := (alloc.vec.Vec.new import_closure.Origin)
+          }
+      match o2 with
+      | none =>
+        ok (core.result.Result.Err import_closure.ClosureError.TooLarge)
+      | some out =>
+        ok (core.result.Result.Ok
+          {
+            documents := out.documents,
+            ontology :=
+              {
+                identity,
+                imports := iris,
+                annotations := out.annotations,
+                axioms := out.axioms
+              },
+            origins := out.origins
+          })
+    | some document =>
+      ok (core.result.Result.Err (import_closure.ClosureError.OutOfScope
+        document))
+  | some error => ok (core.result.Result.Err error)
+
 /-- [rowl_kernel::imports::Taken]
     Source: 'crates/rowl-kernel/src/imports.rs', lines 23:0-30:1 -/
 @[discriminant isize]
@@ -60060,64 +60791,6 @@ inductive imports.Taken where
   imports.DocumentIds →
   imports.DocumentCatalog →
   imports.Taken
-
-/-- [rowl_kernel::imports::Resolution]
-    Source: 'crates/rowl-kernel/src/imports.rs', lines 32:0-36:1
-    Visibility: public -/
-@[discriminant isize]
-inductive imports.Resolution where
-| Complete : imports.DocumentCatalog → imports.Resolution
-| MissingDocument : Std.U32 → imports.Resolution
-| DuplicateDocument : Std.U32 → imports.Resolution
-
-/-- [rowl_kernel::imports::copy_ids]:
-    Source: 'crates/rowl-kernel/src/imports.rs', lines 38:0-43:1 -/
-def imports.copy_ids
-  (ids : imports.DocumentIds) : Result imports.DocumentIds := do
-  match ids with
-  | imports.DocumentIds.Empty => ok imports.DocumentIds.Empty
-  | imports.DocumentIds.Cons key tail =>
-    let di ← imports.copy_ids tail
-    ok (imports.DocumentIds.Cons key di)
-partial_fixpoint
-
-/-- [rowl_kernel::imports::append_ids]:
-    Source: 'crates/rowl-kernel/src/imports.rs', lines 45:0-50:1 -/
-def imports.append_ids
-  (left : imports.DocumentIds) (right : imports.DocumentIds) :
-  Result imports.DocumentIds
-  := do
-  match left with
-  | imports.DocumentIds.Empty => ok right
-  | imports.DocumentIds.Cons key tail =>
-    let di ← imports.append_ids tail right
-    ok (imports.DocumentIds.Cons key di)
-partial_fixpoint
-
-/-- [rowl_kernel::imports::contains]:
-    Source: 'crates/rowl-kernel/src/imports.rs', lines 52:0-57:1 -/
-def imports.contains
-  (catalog : imports.DocumentCatalog) (sought : Std.U32) : Result Bool := do
-  match catalog with
-  | imports.DocumentCatalog.Empty => ok false
-  | imports.DocumentCatalog.Document key _ _ next =>
-    if key = sought
-    then ok true
-    else imports.contains next sought
-partial_fixpoint
-
-/-- [rowl_kernel::imports::duplicate]:
-    Source: 'crates/rowl-kernel/src/imports.rs', lines 59:0-70:1 -/
-def imports.duplicate
-  (catalog : imports.DocumentCatalog) : Result (Option Std.U32) := do
-  match catalog with
-  | imports.DocumentCatalog.Empty => ok none
-  | imports.DocumentCatalog.Document key _ _ next =>
-    let b ← imports.contains next key
-    if b
-    then ok (some key)
-    else imports.duplicate next
-partial_fixpoint
 
 /-- [rowl_kernel::imports::take]:
     Source: 'crates/rowl-kernel/src/imports.rs', lines 73:0-109:1 -/
@@ -60138,6 +60811,51 @@ def imports.take
         ok (imports.Taken.Found found_bytes found_dependencies
           (imports.DocumentCatalog.Document key bytes dependencies remaining))
 partial_fixpoint
+
+/-- [rowl_kernel::imports::contains]:
+    Source: 'crates/rowl-kernel/src/imports.rs', lines 52:0-57:1 -/
+def imports.contains
+  (catalog : imports.DocumentCatalog) (sought : Std.U32) : Result Bool := do
+  match catalog with
+  | imports.DocumentCatalog.Empty => ok false
+  | imports.DocumentCatalog.Document key _ _ next =>
+    if key = sought
+    then ok true
+    else imports.contains next sought
+partial_fixpoint
+
+/-- [rowl_kernel::imports::append_ids]:
+    Source: 'crates/rowl-kernel/src/imports.rs', lines 45:0-50:1 -/
+def imports.append_ids
+  (left : imports.DocumentIds) (right : imports.DocumentIds) :
+  Result imports.DocumentIds
+  := do
+  match left with
+  | imports.DocumentIds.Empty => ok right
+  | imports.DocumentIds.Cons key tail =>
+    let di ← imports.append_ids tail right
+    ok (imports.DocumentIds.Cons key di)
+partial_fixpoint
+
+/-- [rowl_kernel::imports::copy_ids]:
+    Source: 'crates/rowl-kernel/src/imports.rs', lines 38:0-43:1 -/
+def imports.copy_ids
+  (ids : imports.DocumentIds) : Result imports.DocumentIds := do
+  match ids with
+  | imports.DocumentIds.Empty => ok imports.DocumentIds.Empty
+  | imports.DocumentIds.Cons key tail =>
+    let di ← imports.copy_ids tail
+    ok (imports.DocumentIds.Cons key di)
+partial_fixpoint
+
+/-- [rowl_kernel::imports::Resolution]
+    Source: 'crates/rowl-kernel/src/imports.rs', lines 32:0-36:1
+    Visibility: public -/
+@[discriminant isize]
+inductive imports.Resolution where
+| Complete : imports.DocumentCatalog → imports.Resolution
+| MissingDocument : Std.U32 → imports.Resolution
+| DuplicateDocument : Std.U32 → imports.Resolution
 
 /-- [rowl_kernel::imports::discover]:
     Source: 'crates/rowl-kernel/src/imports.rs', lines 111:0-142:1 -/
@@ -60163,6 +60881,19 @@ def imports.discover
           key bytes dependencies resolved)
 partial_fixpoint
 
+/-- [rowl_kernel::imports::duplicate]:
+    Source: 'crates/rowl-kernel/src/imports.rs', lines 59:0-70:1 -/
+def imports.duplicate
+  (catalog : imports.DocumentCatalog) : Result (Option Std.U32) := do
+  match catalog with
+  | imports.DocumentCatalog.Empty => ok none
+  | imports.DocumentCatalog.Document key _ _ next =>
+    let b ← imports.contains next key
+    if b
+    then ok (some key)
+    else imports.duplicate next
+partial_fixpoint
+
 /-- [rowl_kernel::imports::resolve]:
     Source: 'crates/rowl-kernel/src/imports.rs', lines 146:0-155:1
     Visibility: public -/
@@ -60176,6 +60907,51 @@ def imports.resolve
     imports.discover (imports.DocumentIds.Cons root imports.DocumentIds.Empty)
       catalog imports.DocumentCatalog.Empty
   | some key => ok (imports.Resolution.DuplicateDocument key)
+
+/-- [rowl_kernel::import_closure::assemble]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 356:0-371:1
+    Visibility: public -/
+def import_closure.assemble
+  (ontologies : alloc.vec.Vec model.RawOntology) (root : Std.Usize) :
+  Result (core.result.Result import_closure.Closure
+    import_closure.ClosureError)
+  := do
+  let i := alloc.vec.Vec.len ontologies
+  if root < i
+  then
+    let o ← import_catalog.catalog ontologies
+    match o with
+    | none =>
+      ok (core.result.Result.Err import_closure.ClosureError.TooManyDocuments)
+    | some built =>
+      let i1 ← lift (UScalar.cast .U32 root)
+      let r ← imports.resolve i1 built
+      match r with
+      | imports.Resolution.Complete closure =>
+        let i2 := alloc.vec.Vec.len ontologies
+        let v ← import_closure.falses i2 (alloc.vec.Vec.new Bool)
+        let included ← import_closure.mark closure v
+        import_closure.finish ontologies included root
+      | imports.Resolution.MissingDocument _ =>
+        ok (core.result.Result.Err import_closure.ClosureError.Unresolved)
+      | imports.Resolution.DuplicateDocument _ =>
+        ok (core.result.Result.Err import_closure.ClosureError.Unresolved)
+  else ok (core.result.Result.Err import_closure.ClosureError.NoRoot)
+
+/-- [rowl_kernel::import_closure::source_closure]:
+    Source: 'crates/rowl-kernel/src/import_closure.rs', lines 377:0-386:1
+    Visibility: public -/
+def import_closure.source_closure
+  (sources : alloc.vec.Vec import_catalog.Source) (root : Std.Usize)
+  (limits : functional_document.DocumentLimits) :
+  Result (core.result.Result import_closure.Closure
+    import_closure.ClosureError)
+  := do
+  let r ← import_catalog.read_sources sources limits
+  match r with
+  | core.result.Result.Ok ontologies => import_closure.assemble ontologies root
+  | core.result.Result.Err unread =>
+    ok (core.result.Result.Err (import_closure.ClosureError.Unread unread))
 
 /-- [rowl_kernel::typing::Occurrences]
     Source: 'crates/rowl-kernel/src/typing.rs', lines 20:0-27:1

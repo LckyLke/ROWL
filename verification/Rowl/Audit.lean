@@ -138,6 +138,8 @@ import Rowl.Classification
 import Rowl.Saturation
 import Rowl.DlValidity
 import Rowl.ImportCatalog
+import Rowl.AnonymousScopes
+import Rowl.ImportClosure
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -3295,6 +3297,29 @@ import Rowl.ImportCatalog
 #print axioms Rowl.ImportCatalog.catalog_keys_nodup
 #print axioms Rowl.ImportCatalog.catalog_edges
 #print axioms Rowl.ImportCatalog.catalog_reachable
+#print axioms Rowl.AnonymousScopes.scoped_class_correct
+#print axioms Rowl.AnonymousScopes.scoped_annotation_correct
+#print axioms Rowl.AnonymousScopes.scoped_axiom_correct
+#print axioms Rowl.AnonymousScopes.scoped_annotated_correct
+#print axioms Rowl.AnonymousScopes.scoped_ontology_correct
+#print axioms Rowl.AnonymousScopes.class_coincide
+#print axioms Rowl.AnonymousScopes.axiom_coincide
+#print axioms Rowl.AnonymousScopes.models_parts
+#print axioms Rowl.ImportClosure.mem_closure_documents
+#print axioms Rowl.ImportClosure.closure_documents_nodup
+#print axioms Rowl.ImportClosure.closure_inside
+#print axioms Rowl.ImportClosure.assemble_correct
+#print axioms Rowl.ImportClosure.source_closure_correct
+#print axioms Rowl.ImportClosure.source_closure_functional_total
+#print axioms Rowl.ImportClosure.closure_models
+#print axioms Rowl.ImportClosure.closure_model_iff
+#print axioms Rowl.ImportClosure.closure_consistent_iff
+#print axioms Rowl.ImportClosure.closure_entails_iff
+#print axioms Rowl.ImportClosure.closure_satisfiable_iff
+#print axioms Rowl.ImportClosure.closure_subsumed_iff
+#print axioms Rowl.ImportClosure.closure_instance_iff
+#print axioms Rowl.ImportClosure.closure_provenance
+#print axioms Rowl.ImportClosure.source_closure_models
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -4698,3 +4723,30 @@ import Rowl.ImportCatalog
 #print axioms Rowl.ImportCatalog.CatalogOf
 #print axioms Rowl.ImportCatalog.DirectlyImports
 #print axioms Rowl.ImportCatalog.InClosure
+#print axioms Rowl.AnonymousScopes.ScopedIndividual
+#print axioms Rowl.AnonymousScopes.ScopedClass
+#print axioms Rowl.AnonymousScopes.ScopedValue
+#print axioms Rowl.AnonymousScopes.ScopedSubject
+#print axioms Rowl.AnonymousScopes.ScopedAnnotation
+#print axioms Rowl.AnonymousScopes.ScopedAxiom
+#print axioms Rowl.AnonymousScopes.ScopedAnnotated
+#print axioms Rowl.AnonymousScopes.ScopedOntology
+#print axioms Rowl.AnonymousScopes.Agree
+#print axioms Rowl.AnonymousScopes.ScopedParts
+#print axioms Rowl.ImportClosure.axiomsAt
+#print axioms Rowl.ImportClosure.annotationsAt
+#print axioms Rowl.ImportClosure.importsAt
+#print axioms Rowl.ImportClosure.ClosureDocuments
+#print axioms Rowl.ImportClosure.Resolved
+#print axioms Rowl.ImportClosure.ImportsResolved
+#print axioms Rowl.ImportClosure.FirstUnresolved
+#print axioms Rowl.ImportClosure.ClosureScoped
+#print axioms Rowl.ImportClosure.AssembledFrom
+#print axioms Rowl.ImportClosure.AssembleCorrect
+#print axioms Rowl.ImportClosure.Marked
+#print axioms Rowl.ImportClosure.UnresolvedError
+#print axioms Rowl.ImportClosure.originPairs
+#print axioms Rowl.ImportClosure.chosenFrom
+#print axioms Rowl.ImportClosure.SourceClosureCorrect
+#print axioms Rowl.ImportClosure.closureParts
+#print axioms Rowl.ImportClosure.ImportClosureModel

@@ -5170,3 +5170,79 @@ functions extract to 0.33 MB of LLBC; the largest, `read_from`, has 46 kB.
 This block adds 19 public theorems and 17 definitions. Totals are 3156
 audited theorems, 1403 definitions, 572 Rust regressions and 3349 ledger
 obligations.
+
+## M3: import closures and their meaning
+
+The axiom closure of an ontology (Structural Specification §3.4) is the union
+of the axioms of every ontology in its import closure, with the anonymous
+individuals of different ontologies standardized apart (§5.6.2), and the
+Direct Semantics interprets that union (§2.4). The new kernel module
+`import_closure` assembles it from the catalog of the previous section.
+`assemble` takes the ontologies of a catalog, each read in the scope of its
+position, and a root position. It builds the catalog, resolves it from the root
+with the proved `imports::resolve` and marks the documents it reaches. Every
+import IRI of a marked document must name exactly one document; the first that
+names none or several, in catalog order, is the error `MissingImport` or
+`AmbiguousImport`, with the document and the IRI. Imports of documents outside
+the closure do not matter. Every anonymous individual of a marked document must
+have the scope of its position, which the new module `anonymous_scopes` checks
+over every class expression, axiom, annotation, nested annotation and ontology
+annotation (`OutOfScope` otherwise; documents read by `read_sources` never have
+one). The closure then has the marked documents in catalog order, the root's
+ontology IRI, version IRI and imports, and the ontology annotations and axioms
+of the marked documents in that order, every axiom with its document and its
+position among that document's axioms (`origins`). The records are moved out of
+the read ontologies, not copied. `source_closure` reads a catalog with
+`read_sources` and assembles it; nothing is fetched.
+
+`AnonymousScopes.lean` proves the scope checks exact (`scoped_class_correct`,
+`scoped_annotation_correct`, `scoped_axiom_correct`,
+`scoped_annotated_correct`, `scoped_ontology_correct` against `ScopedClass` to
+`ScopedOntology`). Against the Direct Semantics, `class_coincide` and
+`axiom_coincide` prove that the extension of a scoped class expression and the
+satisfaction of a scoped axiom depend only on what the assignment of anonymous
+individuals gives the individuals of the scope, and `models_parts` that for
+axiom lists whose anonymous individuals have pairwise distinct scopes, an
+interpretation is a model of their concatenation exactly when it is a model of
+each list, each with an assignment of its own: they are standardized apart.
+
+`ImportClosure.lean` proves `assemble` total and exact (`assemble_correct`,
+`AssembleCorrect`): `NoRoot` exactly for a root outside the catalog,
+`TooManyDocuments` exactly beyond `u32` keys, never `Unresolved`, the first
+unresolved import of the closure in catalog order (`FirstUnresolved`,
+`UnresolvedError`), the first closure document with an anonymous individual
+outside its scope, `TooLarge` only when the closure has more axioms or ontology
+annotations than a vector holds, and otherwise the closure described above
+(`AssembledFrom`), whose documents are exactly the import closure of §3.4
+(`ClosureDocuments`, `InClosure`), every import of which names exactly one
+document (`ImportsResolved`) and every anonymous individual of which has its
+document's scope (`ClosureScoped`). `closure_models` proves that an
+interpretation is a model of the assembled axioms exactly when it is a model of
+the axioms of every document of the import closure, each document's anonymous
+individuals interpreted on their own; `closure_model_iff`,
+`closure_consistent_iff`, `closure_entails_iff`, `closure_satisfiable_iff`,
+`closure_subsumed_iff` and `closure_instance_iff` restate models, consistency,
+entailment, class satisfiability, subsumption and instance checking of the
+assembled axioms as those of the import closure (`ImportClosureModel`), so the
+reasoner's proved answers on the assembled axioms are answers for the import
+closure. `closure_provenance` proves that every axiom of the closure is the
+axiom at its recorded origin, in a document of the import closure.
+`source_closure_correct` composes the readers and the assembly
+(`SourceClosureCorrect`), `source_closure_functional_total` proves that
+Functional Syntax catalogs always give a result, and `source_closure_models`
+states the meaning of a closure assembled from bytes.
+
+Not done here: reading RDF documents with the declarations of the documents
+they import, and checking that the ontology IRIs of the imported documents are
+outside the reserved vocabulary; the scopes of documents read by the verified
+readers are checked when the closure is assembled rather than proved. Regression
+tests assemble a cyclic closure of Functional Syntax and N-Triples documents,
+find an import by its version IRI, report missing and ambiguous imports and
+foreign scopes, keep colliding node IDs apart, and check the scope traversal on
+nested class expressions and annotations. Nothing on the existing reading paths
+calls the modules yet; the next section wires them into the reasoner. The 13
+functions of `anonymous_scopes` extract to 0.32 MB of LLBC and the 20 of
+`import_closure` to 0.95 MB; the largest body, `finish`, has 0.22 MB.
+
+This block adds 23 public theorems and 27 definitions. Totals are 3179 audited
+theorems, 1430 definitions, 579 Rust regressions and 3372 ledger obligations.

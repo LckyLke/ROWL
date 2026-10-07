@@ -34,6 +34,21 @@ progress. Full OWL parsing and executable reasoning are still future work.
   several. The catalog for `imports::resolve` has exactly the direct imports as
   edges and the §3.4 import closure as reachability. RDF documents are still
   read without the declarations of the documents they import.
+- M3 import closures and their axiom closures (`import_closure`). From the read
+  catalog, `assemble` resolves the import closure of a root document with the
+  proved `imports::resolve`; the first import IRI of a closure document that
+  names no document or several is a typed error with the document and the IRI,
+  and imports of documents outside the closure do not matter. Every anonymous
+  individual of a closure document is checked to have its document's scope
+  (`anonymous_scopes`, decided exactly), and the closure holds the root's
+  identity and imports and the ontology annotations and axioms of the closure
+  documents in catalog order, every axiom with its document and position. The
+  assembly is proved total and exact, the assembled axioms are proved to have
+  exactly the models of the import closure, each document's anonymous
+  individuals interpreted on their own, and hence its consistency, entailment,
+  satisfiability, subsumption and instances, and every axiom is proved to be the
+  one at its recorded origin. The imported documents' ontology and version IRIs
+  are not checked against the reserved vocabulary.
 - M3 strict RFC 3629 UTF-8 decoding with exact byte offsets and XML character
   checking. Complete text acceptance is proved in both directions; malformed
   units and forbidden characters return the first unit offset.
@@ -174,7 +189,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   graph projection and undirected connectivity are proved total; forest acceptance
   is exactly no self edges and no cyclic walks, with checked tree components.
   Duplicate endpoint pairs denote one graph edge.
-  The named-boundary condition is proved separately below; canonical scopes from parsing/imports remain pending.
+  The named-boundary condition is proved separately below; per-document scopes are assigned when an import closure is read (`import_closure`).
 - M4 anonymous edge-multiplicity checking on the actual raw axiom occurrence
   vector, with totality and exact acceptance proofs. Equivalent annotated copies
   count once; distinct properties, inverse forms, orientations and annotations
@@ -196,8 +211,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   checking, forest validity, edge multiplicity and named boundaries. Its totality
   and exact acceptance are proved, including original diagnostic evidence and
   positions/forest/multiplicity/boundary priority. Run it before semantic assertion
-  normalization. It still requires the supplied complete standardized-apart
-  closure; byte-derived imports/scopes and other DL restrictions remain pending.
+  normalization. It takes the supplied complete standardized-apart closure, which
+  `import_closure` now assembles from document bytes.
 - M4 total exact structural comparison of all six data-range constructors,
   recursively unordered range/literal/facet associations and annotated datatype
   definitions. Range equivalence is proved reflexive, symmetric and transitive;
@@ -602,7 +617,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   read, and has an axiom count limit. Errors report the first failing stage
   with original offsets. The loop is proved total by token count from each
   reader's minimum consumption, with exact result/error equivalence to an
-  independent grammar. Canonical imports remain pending.
+  independent grammar. Import closures are assembled by `import_closure`.
 - M3 the raw OWL model of read documents. The actual kernel mapping turns a read
   document into the raw OWL ontology: the identity, import targets, ontology
   annotations and axioms with their annotations, in source order. IRIs and
@@ -621,8 +636,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   individual list with fewer than two members or an enumeration without
   members. Independent grammar invariants prove that every such list in an
   accepted document is long enough, so every read document maps.
-  Anonymous scopes across an import closure and the other axiom forms remain
-  pending.
+  Anonymous scopes across an import closure are assigned by `import_closure`.
 - Reasoner track, first stage: negation normal form for the ALC fragment. The
   actual kernel translation maps named classes, intersections, unions,
   complements and existential/universal restrictions on named object properties
@@ -1095,7 +1109,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3156 audited public theorems and 1403 audited semantic definitions. Consistency,
+- 3179 audited public theorems and 1430 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1112,7 +1126,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 572 Rust regression tests and 15 Python binding tests, plus separately fetched
+- 579 Rust regression tests and 15 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1129,7 +1143,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3349-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3372-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1152,10 +1166,11 @@ the Rust validators, rather than merely describing a semantic consequence.
 
 M1 and the new M3/M4 component proofs connect actual Rust operations to
 mathematical specifications. M2 supplies the full declarative specification and
-checked laws. The UTF-8/XML character component is proved from bytes. Catalog/import
-and typing metadata has not yet been fully derived/assembled from serialized
-OWL/RDF bytes; the new Functional Syntax stage derives identity/import IRI
-references, while full document parsing and catalog composition remain pending. The
+checked laws. The UTF-8/XML character component is proved from bytes. Catalog and
+import metadata are derived from Functional Syntax, N-Triples and Turtle bytes by
+the verified readers, and the import closure is assembled from them with its
+meaning proved (`import_catalog`, `import_closure`); RDF documents are read without
+the declarations of the documents they import. The
 symbol table and raw-ontology checker operate directly on byte-buffer IRIs,
 without an unproved String conversion, but do not invoke lexical validation; a separate IRI byte entry point is now
 proved sound/complete against RFC 3987. The UTF-8 encoder and complete language-tag recognizer are also proved.
@@ -1164,8 +1179,8 @@ correctness and complete acceptance, exact trivia/span-copy proofs and full
 quoted-token, IRIREF, language/literal/object/triple and bounded whole-document
 composition. Public reading is proved from bytes to exact raw graph occurrences
 under its stated term/count limits. The RDF-to-OWL mapping is proved sound,
-annotated axioms included, and complete for the EL fragment; the writer,
-canonical import scope assignment, the completeness of that mapping beyond the
+annotated axioms included, and complete for the EL fragment; the writer, the
+termination of the mapping, the completeness of that mapping beyond the
 EL fragment and the full byte-to-ontology pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
 a reviewed specification choice, not a mechanical proof of English. See
 m2-semantics.md for the mapping.
@@ -1182,8 +1197,9 @@ entity declarations, annotation axioms, all class expressions and data ranges,
 all logical axioms and whole documents with their closing syntax and end of
 source. Read
 documents map into the raw model with a proved exact correspondence, and the ALC
-queries compose with the reader and the mapping from the original bytes;
-canonical catalog/import construction remains pending.
+queries compose with the reader and the mapping from the original bytes; the
+catalog and the import closure are assembled from the bytes of the documents
+(`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. Agreement with the OWL 2 map on five datatypes is specified
@@ -1191,7 +1207,8 @@ external solver. Agreement with the OWL 2 map on five datatypes is specified
 under every such map; the complete normative OWL map, its other datatypes and
 facets are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
-validity, canonical structure and the complete import closure. The structural,
+validity and canonical structure; `import_closure` assembles the complete import
+closure. The structural,
 vocabulary, typing and global DL restrictions are decided by the verified
 `dl_validity::check_ontology` on the supplied axioms.
 No ValidatedOntology or definitive OWL-query entry point exists yet.
