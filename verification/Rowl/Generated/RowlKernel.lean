@@ -61221,4 +61221,4056 @@ def tbox.satisfiable_in
   let rb ← tbox.no_roles
   tbox.satisfiable_with concept axioms rb
 
+/-- [rowl_kernel::xml::ErrorKind]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 40:0-74:1
+    Visibility: public -/
+@[discriminant isize]
+inductive xml.ErrorKind where
+| MalformedUtf8 : xml.ErrorKind
+| NonXmlCharacter : xml.ErrorKind
+| UnsupportedEncoding : xml.ErrorKind
+| UnexpectedEnd : xml.ErrorKind
+| Syntax : xml.ErrorKind
+| InvalidName : xml.ErrorKind
+| MismatchedEndTag : xml.ErrorKind
+| DuplicateAttribute : xml.ErrorKind
+| UndeclaredPrefix : xml.ErrorKind
+| ReservedNamespace : xml.ErrorKind
+| InvalidCharacterReference : xml.ErrorKind
+| UndeclaredEntity : xml.ErrorKind
+| RecursiveEntity : xml.ErrorKind
+| EntityBoundary : xml.ErrorKind
+| UnsupportedDeclaration : xml.ErrorKind
+| ResourceLimit : xml.ErrorKind
+
+/-- [rowl_kernel::xml::{impl core::clone::Clone for rowl_kernel::xml::ErrorKind}::clone]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 39:9-39:14
+    Visibility: public -/
+def xml.ErrorKind.Insts.CoreCloneClone.clone
+  (self : xml.ErrorKind) : Result xml.ErrorKind := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::xml::{impl core::clone::Clone for rowl_kernel::xml::ErrorKind}]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 39:9-39:14 -/
+@[reducible]
+def xml.ErrorKind.Insts.CoreCloneClone : core.clone.Clone xml.ErrorKind := {
+  clone := xml.ErrorKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::xml::{impl core::marker::Copy for rowl_kernel::xml::ErrorKind}]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 39:16-39:20 -/
+@[reducible]
+def xml.ErrorKind.Insts.CoreMarkerCopy : core.marker.Copy xml.ErrorKind := {
+  cloneInst := xml.ErrorKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::xml::XmlError]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 77:0-80:1
+    Visibility: public -/
+structure xml.XmlError where
+  kind : xml.ErrorKind
+  offset : Std.Usize
+
+/-- [rowl_kernel::xml::Attribute]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 84:0-89:1
+    Visibility: public -/
+structure xml.Attribute where
+  ns_prefix : Option (alloc.vec.Vec Std.U32)
+  ns_name : Option (alloc.vec.Vec Std.U32)
+  local_name : alloc.vec.Vec Std.U32
+  value : alloc.vec.Vec Std.U32
+
+/-- [rowl_kernel::xml::Binding]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 93:0-96:1
+    Visibility: public -/
+structure xml.Binding where
+  ns_prefix : Option (alloc.vec.Vec Std.U32)
+  value : alloc.vec.Vec Std.U32
+
+mutual
+
+/-- [rowl_kernel::xml::Node]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 99:0-102:1
+    Visibility: public -/
+@[discriminant isize]
+inductive xml.Node where
+| Element : xml.Element → xml.Node
+| Text : alloc.vec.Vec Std.U32 → xml.Node
+
+/-- [rowl_kernel::xml::Element]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 107:0-114:1
+    Visibility: public -/
+inductive xml.Element where
+| mk :
+  Option (alloc.vec.Vec Std.U32) →
+  Option (alloc.vec.Vec Std.U32) →
+  alloc.vec.Vec Std.U32 →
+  alloc.vec.Vec xml.Attribute →
+  alloc.vec.Vec xml.Binding →
+  alloc.vec.Vec xml.Node →
+  xml.Element
+
+end
+
+def xml.Element.ns_prefix (x : xml.Element) :=
+  match x with | xml.Element.mk x1 _ _ _ _ _ => x1
+
+def xml.Element.ns_name (x : xml.Element) :=
+  match x with | xml.Element.mk _ x1 _ _ _ _ => x1
+
+def xml.Element.local_name (x : xml.Element) :=
+  match x with | xml.Element.mk _ _ x1 _ _ _ => x1
+
+def xml.Element.attributes (x : xml.Element) :=
+  match x with | xml.Element.mk _ _ _ x1 _ _ => x1
+
+def xml.Element.declarations (x : xml.Element) :=
+  match x with | xml.Element.mk _ _ _ _ x1 _ => x1
+
+def xml.Element.children (x : xml.Element) :=
+  match x with | xml.Element.mk _ _ _ _ _ x1 => x1
+
+@[simp]
+theorem xml.Element.ns_prefix._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).ns_prefix
+    =
+    ns_prefix := by rfl
+
+@[simp]
+theorem xml.Element.ns_name._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).ns_name
+    =
+    ns_name := by rfl
+
+@[simp]
+theorem xml.Element.local_name._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).local_name
+    =
+    local_name := by rfl
+
+@[simp]
+theorem xml.Element.attributes._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).attributes
+    =
+    attributes := by rfl
+
+@[simp]
+theorem xml.Element.declarations._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).declarations
+    =
+    declarations := by rfl
+
+@[simp]
+theorem xml.Element.children._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
+  Std.U32)) (ns_name : Option (alloc.vec.Vec Std.U32)) (local_name :
+  alloc.vec.Vec Std.U32) (attributes : alloc.vec.Vec xml.Attribute)
+  (declarations : alloc.vec.Vec xml.Binding) (children : alloc.vec.Vec
+  xml.Node) :
+  (xml.Element.mk
+    ns_prefix
+    ns_name
+    local_name
+    attributes
+    declarations
+    children).children
+    =
+    children := by rfl
+
+/-- [rowl_kernel::xml::Document]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 117:0-119:1
+    Visibility: public -/
+structure xml.Document where
+  root : xml.Element
+
+/-- [rowl_kernel::xml::ReadResult]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 121:0-124:1
+    Visibility: public -/
+@[discriminant isize]
+inductive xml.ReadResult where
+| Document : xml.Document → xml.ReadResult
+| Error : xml.XmlError → xml.ReadResult
+
+/-- [rowl_kernel::xml::Limits]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 128:0-130:1
+    Visibility: public -/
+structure xml.Limits where
+  expansion : Std.Usize
+
+/-- [rowl_kernel::xml::EntityKind]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 134:0-138:1
+    Visibility: public -/
+@[discriminant isize]
+inductive xml.EntityKind where
+| Internal : xml.EntityKind
+| External : xml.EntityKind
+| Unparsed : xml.EntityKind
+
+/-- [rowl_kernel::xml::{impl core::clone::Clone for rowl_kernel::xml::EntityKind}::clone]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 133:9-133:14
+    Visibility: public -/
+def xml.EntityKind.Insts.CoreCloneClone.clone
+  (self : xml.EntityKind) : Result xml.EntityKind := do
+  ok self
+
+/-- Trait implementation: [rowl_kernel::xml::{impl core::clone::Clone for rowl_kernel::xml::EntityKind}]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 133:9-133:14 -/
+@[reducible]
+def xml.EntityKind.Insts.CoreCloneClone : core.clone.Clone xml.EntityKind := {
+  clone := xml.EntityKind.Insts.CoreCloneClone.clone
+}
+
+/-- Trait implementation: [rowl_kernel::xml::{impl core::marker::Copy for rowl_kernel::xml::EntityKind}]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 133:16-133:20 -/
+@[reducible]
+def xml.EntityKind.Insts.CoreMarkerCopy : core.marker.Copy xml.EntityKind := {
+  cloneInst := xml.EntityKind.Insts.CoreCloneClone
+}
+
+/-- [rowl_kernel::xml::Entity]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 142:0-146:1
+    Visibility: public -/
+structure xml.Entity where
+  «name» : alloc.vec.Vec Std.U32
+  kind : xml.EntityKind
+  text : alloc.vec.Vec Std.U32
+
+/-- [rowl_kernel::xml::fail]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 148:0-150:1 -/
+def xml.fail
+  (kind : xml.ErrorKind) (offset : Std.Usize) : Result xml.XmlError := do
+  ok { kind, offset }
+
+/-- [rowl_kernel::xml::order_mark]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 156:0-158:1 -/
+def xml.order_mark
+  (offset : Std.Usize) (codepoint : Std.U32) : Result Bool := do
+  ok ((offset = 0#usize) && (codepoint = 65279#u32))
+
+/-- [rowl_kernel::xml::crlf]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 161:0-163:1 -/
+def xml.crlf (codepoint : Std.U32) (cr : Bool) : Result Bool := do
+  ok ((codepoint = 10#u32) && cr)
+
+/-- [rowl_kernel::xml::push_char]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 165:0-172:1 -/
+def xml.push_char
+  (text : alloc.vec.Vec Std.U32) (codepoint : Std.U32) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len text
+  if i < core.num.Usize.MAX
+  then
+    let text1 ← alloc.vec.Vec.push text codepoint
+    ok (core.result.Result.Ok text1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::take]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 175:0-185:1 -/
+def xml.take
+  (chars : alloc.vec.Vec Std.U32) (codepoint : Std.U32) (offset : Std.Usize)
+  (cr : Bool) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let b ← xml.order_mark offset codepoint
+  if b
+  then ok (core.result.Result.Ok chars)
+  else
+    if codepoint = 13#u32
+    then xml.push_char chars 10#u32 offset
+    else
+      let b1 ← xml.crlf codepoint cr
+      if b1
+      then ok (core.result.Result.Ok chars)
+      else xml.push_char chars codepoint offset
+
+/-- [rowl_kernel::xml::decode_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 187:0-205:1 -/
+def xml.decode_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize)
+  (chars : alloc.vec.Vec Std.U32) (cr : Bool) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok (core.result.Result.Ok chars)
+  | unicode.Decoded.Scalar codepoint next =>
+    let b ← unicode.xml_character codepoint
+    if b
+    then
+      let r ← xml.take chars codepoint offset cr
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        xml.decode_from bytes next val (codepoint = 13#u32)
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
+    else
+      let xe ← xml.fail xml.ErrorKind.NonXmlCharacter offset
+      ok (core.result.Result.Err xe)
+  | unicode.Decoded.Error _ =>
+    let xe ← xml.fail xml.ErrorKind.MalformedUtf8 offset
+    ok (core.result.Result.Err xe)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::decode]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 209:0-211:1
+    Visibility: public -/
+def xml.decode
+  (bytes : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  xml.decode_from bytes 0#usize (alloc.vec.Vec.new Std.U32) false
+
+/-- [rowl_kernel::xml::emitted]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 214:0-216:1 -/
+def xml.emitted
+  (offset : Std.Usize) (codepoint : Std.U32) (cr : Bool) : Result Bool := do
+  let b ← xml.order_mark offset codepoint
+  let b1 ← xml.crlf codepoint cr
+  ok (¬ (b || b1))
+
+/-- [rowl_kernel::xml::offset_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 218:0-233:1 -/
+def xml.offset_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) (count : Std.Usize)
+  (index : Std.Usize) (cr : Bool) :
+  Result Std.Usize
+  := do
+  let d ← unicode.decode_next bytes offset
+  match d with
+  | unicode.Decoded.End => ok offset
+  | unicode.Decoded.Scalar codepoint next =>
+    let b ← xml.emitted offset codepoint cr
+    if b
+    then
+      if count = index
+      then ok offset
+      else
+        let i ← count + 1#usize
+        xml.offset_from bytes next i index (codepoint = 13#u32)
+    else xml.offset_from bytes next count index (codepoint = 13#u32)
+  | unicode.Decoded.Error _ => ok offset
+partial_fixpoint
+
+/-- [rowl_kernel::xml::byte_offset]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 236:0-238:1
+    Visibility: public -/
+def xml.byte_offset
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  xml.offset_from bytes 0#usize 0#usize index false
+
+/-- [rowl_kernel::xml::at]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 244:0-250:1 -/
+def xml.at (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.U32 := do
+  let i1 := alloc.vec.Vec.len cs
+  if i < i1
+  then alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cs i
+  else ok 0#u32
+
+/-- [rowl_kernel::xml::space]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 253:0-255:1 -/
+def xml.space (c : Std.U32) : Result Bool := do
+  ok ((((c = 32#u32) || (c = 9#u32)) || (c = 13#u32)) || (c = 10#u32))
+
+/-- [rowl_kernel::xml::name_start]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 258:0-275:1 -/
+def xml.name_start (c : Std.U32) : Result Bool := do
+  ok ((((((((((((((((c = 58#u32) || ((c >= 65#u32) && (c <= 90#u32))) || (c =
+    95#u32)) || ((c >= 97#u32) && (c <= 122#u32))) || ((c >= 192#u32) && (c <=
+    214#u32))) || ((c >= 216#u32) && (c <= 246#u32))) || ((c >= 248#u32) && (c
+    <= 767#u32))) || ((c >= 880#u32) && (c <= 893#u32))) || ((c >= 895#u32) &&
+    (c <= 8191#u32))) || ((c >= 8204#u32) && (c <= 8205#u32))) || ((c >=
+    8304#u32) && (c <= 8591#u32))) || ((c >= 11264#u32) && (c <= 12271#u32)))
+    || ((c >= 12289#u32) && (c <= 55295#u32))) || ((c >= 63744#u32) && (c <=
+    64975#u32))) || ((c >= 65008#u32) && (c <= 65533#u32))) || ((c >=
+    65536#u32) && (c <= 983039#u32)))
+
+/-- [rowl_kernel::xml::name_char]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 278:0-286:1 -/
+def xml.name_char (c : Std.U32) : Result Bool := do
+  let b ← xml.name_start c
+  ok ((((((b || (c = 45#u32)) || (c = 46#u32)) || ((c >= 48#u32) && (c <=
+    57#u32))) || (c = 183#u32)) || ((c >= 768#u32) && (c <= 879#u32))) || ((c
+    >= 8255#u32) && (c <= 8256#u32)))
+
+/-- [rowl_kernel::xml::skip_spaces]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 289:0-295:1 -/
+def xml.skip_spaces
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
+  let i1 ← xml.at cs i
+  let b ← xml.space i1
+  if b
+  then let i2 ← i + 1#usize
+       xml.skip_spaces cs i2
+  else ok i
+partial_fixpoint
+
+/-- [rowl_kernel::xml::spaces]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 298:0-304:1 -/
+def xml.spaces
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  let b ← xml.space i1
+  if b
+  then
+    let i2 ← i + 1#usize
+    let i3 ← xml.skip_spaces cs i2
+    ok (core.result.Result.Ok i3)
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::names_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 307:0-313:1 -/
+def xml.names_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
+  let i1 ← xml.at cs i
+  let b ← xml.name_char i1
+  if b
+  then let i2 ← i + 1#usize
+       xml.names_end cs i2
+  else ok i
+partial_fixpoint
+
+/-- [rowl_kernel::xml::name]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 316:0-322:1 -/
+def xml.name
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  let b ← xml.name_start i1
+  if b
+  then
+    let i2 ← i + 1#usize
+    let i3 ← xml.names_end cs i2
+    ok (core.result.Result.Ok i3)
+  else
+    let xe ← xml.fail xml.ErrorKind.InvalidName i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::colon]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 325:0-335:1 -/
+def xml.colon
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if i < «end»
+  then
+    let i1 ← xml.at cs i
+    if i1 = 58#u32
+    then ok i
+    else let i2 ← i + 1#usize
+         xml.colon cs i2 «end»
+  else ok «end»
+partial_fixpoint
+
+/-- [rowl_kernel::xml::prefixed]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 339:0-344:1 -/
+def xml.prefixed
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) (mark : Std.Usize)
+  («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i ← mark + 1#usize
+  let i1 ← xml.at cs i
+  let b ← xml.name_start i1
+  let i2 ← xml.colon cs i «end»
+  ok ((((start < mark) && (i < «end»)) && b) && (i2 = «end»))
+
+/-- [rowl_kernel::xml::qname]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 348:0-358:1 -/
+def xml.qname
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (Std.Usize × Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.name cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let mark ← xml.colon cs i val
+    if mark = val
+    then ok (core.result.Result.Ok (val, val))
+    else
+      let b ← xml.prefixed cs i mark val
+      if b
+      then ok (core.result.Result.Ok (val, mark))
+      else
+        let xe ← xml.fail xml.ErrorKind.InvalidName i
+        ok (core.result.Result.Err xe)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::ncname]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 361:0-368:1 -/
+def xml.ncname
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let r ← xml.name cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i1 ← xml.colon cs i val
+    if i1 = val
+    then ok (core.result.Result.Ok val)
+    else
+      let xe ← xml.fail xml.ErrorKind.InvalidName i
+      ok (core.result.Result.Err xe)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::starts_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 371:0-385:1 -/
+def xml.starts_from
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (word : Slice Std.U8)
+  (k : Std.Usize) :
+  Result Bool
+  := do
+  let i1 := Slice.len word
+  if k < i1
+  then
+    let i2 := alloc.vec.Vec.len cs
+    if i < i2
+    then
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) cs
+          i
+      let i4 ← Slice.index_usize word k
+      let i5 ← lift (core.convert.num.FromU32U8.from i4)
+      if i3 = i5
+      then
+        let i6 ← i + 1#usize
+        let i7 ← k + 1#usize
+        xml.starts_from cs i6 word i7
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::starts]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 388:0-390:1 -/
+def xml.starts
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (word : Slice Std.U8) :
+  Result Bool
+  := do
+  xml.starts_from cs i word 0#usize
+
+/-- [rowl_kernel::xml::span_is]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 393:0-395:1 -/
+def xml.span_is
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
+  (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let i ← «end» - start
+  let i1 := Slice.len word
+  let b ← xml.starts cs start word
+  ok ((i = i1) && b)
+
+/-- [rowl_kernel::xml::caseless]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 398:0-400:1 -/
+def xml.caseless (c : Std.U32) (lower : Std.U32) : Result Bool := do
+  let i ← lower - 32#u32
+  ok ((c = lower) || (c = i))
+
+/-- [rowl_kernel::xml::xml_letters]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 403:0-407:1 -/
+def xml.xml_letters
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) : Result Bool := do
+  let i ← xml.at cs start
+  let b ← xml.caseless i 120#u32
+  let i1 ← start + 1#usize
+  let i2 ← xml.at cs i1
+  let b1 ← xml.caseless i2 109#u32
+  let i3 ← start + 2#usize
+  let i4 ← xml.at cs i3
+  let b2 ← xml.caseless i4 108#u32
+  ok ((b && b1) && b2)
+
+/-- [rowl_kernel::xml::reserved_target]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 410:0-416:1 -/
+def xml.reserved_target
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i ← «end» - start
+  if i = 3#usize
+  then xml.xml_letters cs start
+  else ok false
+
+/-- [rowl_kernel::xml::same_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 419:0-429:1 -/
+def xml.same_from
+  (cs : alloc.vec.Vec Std.U32) (a : Std.Usize) (b : Std.Usize) (n : Std.Usize)
+  (k : Std.Usize) :
+  Result Bool
+  := do
+  if k < n
+  then
+    let i ← a + k
+    let i1 ← xml.at cs i
+    let i2 ← b + k
+    let i3 ← xml.at cs i2
+    if i1 = i3
+    then let i4 ← k + 1#usize
+         xml.same_from cs a b n i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::same_span]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 432:0-438:1 -/
+def xml.same_span
+  (cs : alloc.vec.Vec Std.U32) (a : Std.Usize) (a_end : Std.Usize)
+  (b : Std.Usize) (b_end : Std.Usize) :
+  Result Bool
+  := do
+  let i ← a_end - a
+  let i1 ← b_end - b
+  if i = i1
+  then xml.same_from cs a b i 0#usize
+  else ok false
+
+/-- [rowl_kernel::xml::word_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 441:0-451:1 -/
+def xml.word_from
+  (word : alloc.vec.Vec Std.U32) (cs : alloc.vec.Vec Std.U32)
+  (start : Std.Usize) (k : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len word
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) word
+        k
+    let i2 ← start + k
+    let i3 ← xml.at cs i2
+    if i1 = i3
+    then let i4 ← k + 1#usize
+         xml.word_from word cs start i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::word_is]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 454:0-460:1 -/
+def xml.word_is
+  (word : alloc.vec.Vec Std.U32) (cs : alloc.vec.Vec Std.U32)
+  (start : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len word
+  let i1 ← «end» - start
+  if i = i1
+  then xml.word_from word cs start 0#usize
+  else ok false
+
+/-- [rowl_kernel::xml::copy_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 463:0-470:1 -/
+def xml.copy_from
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  if i < «end»
+  then
+    let i1 ← xml.at cs i
+    let r ← xml.push_char out i1 i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i2 ← i + 1#usize
+      xml.copy_from cs i2 «end» val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::copy_span]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 473:0-475:1 -/
+def xml.copy_span
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  xml.copy_from cs start «end» (alloc.vec.Vec.new Std.U32)
+
+/-- [rowl_kernel::xml::copy_all]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 478:0-480:1 -/
+def xml.copy_all
+  (word : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len word
+  xml.copy_from word 0#usize i (alloc.vec.Vec.new Std.U32)
+
+mutual
+
+/-- [rowl_kernel::xml::comment_body]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 485:0-494:1 -/
+def xml.comment_body
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  if c = 0#u32
+  then
+    let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+    ok (core.result.Result.Err xe)
+  else
+    if c = 45#u32
+    then xml.comment_dash cs i
+    else let i1 ← i + 1#usize
+         xml.comment_body cs i1
+partial_fixpoint
+
+/-- [rowl_kernel::xml::comment_dash]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 497:0-507:1 -/
+def xml.comment_dash
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let i2 ← xml.at cs i1
+  if i2 = 45#u32
+  then
+    let i3 ← i + 2#usize
+    let i4 ← xml.at cs i3
+    if i4 = 62#u32
+    then let i5 ← i + 3#usize
+         ok (core.result.Result.Ok i5)
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+  else xml.comment_body cs i1
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::xml::comment]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 510:0-512:1 -/
+def xml.comment
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← i + 4#usize
+  xml.comment_body cs i1
+
+/-- [rowl_kernel::xml::pi_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 515:0-517:1 -/
+def xml.pi_end (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
+  let s ← lift (Array.to_slice (Array.make 2#usize [ 63#u8, 62#u8 ]))
+  xml.starts cs i s
+
+/-- [rowl_kernel::xml::pi_body]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 519:0-527:1 -/
+def xml.pi_body
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  if i1 = 0#u32
+  then
+    let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+    ok (core.result.Result.Err xe)
+  else
+    let b ← xml.pi_end cs i
+    if b
+    then let i2 ← i + 2#usize
+         ok (core.result.Result.Ok i2)
+    else let i2 ← i + 1#usize
+         xml.pi_body cs i2
+partial_fixpoint
+
+/-- [rowl_kernel::xml::pi_rest]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 530:0-538:1 -/
+def xml.pi_rest
+  (cs : alloc.vec.Vec Std.U32) («end» : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let b ← xml.pi_end cs «end»
+  if b
+  then let i ← «end» + 2#usize
+       ok (core.result.Result.Ok i)
+  else
+    let i ← xml.at cs «end»
+    let b1 ← xml.space i
+    if b1
+    then let i1 ← «end» + 1#usize
+         xml.pi_body cs i1
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax «end»
+      ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::pi]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 542:0-549:1 -/
+def xml.pi
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← i + 2#usize
+  let r ← xml.ncname cs i1
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← xml.reserved_target cs i1 val
+    if b
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+    else xml.pi_rest cs val
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::cdata_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 552:0-554:1 -/
+def xml.cdata_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
+  let s ← lift (Array.to_slice (Array.make 3#usize [ 93#u8, 93#u8, 62#u8 ]))
+  xml.starts cs i s
+
+/-- [rowl_kernel::xml::cdata_body]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 556:0-565:1 -/
+def xml.cdata_body
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  if i1 = 0#u32
+  then
+    let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+    ok (core.result.Result.Err xe)
+  else
+    let b ← xml.cdata_end cs i
+    if b
+    then let i2 ← i + 3#usize
+         ok (core.result.Result.Ok (text, i2))
+    else
+      let r ← xml.push_char text i1 i
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let i2 ← i + 1#usize
+        xml.cdata_body cs i2 val
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::cdata]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 569:0-571:1 -/
+def xml.cdata
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← i + 9#usize
+  xml.cdata_body cs i1 text
+
+/-- [rowl_kernel::xml::data_stop]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 574:0-576:1 -/
+def xml.data_stop (c : Std.U32) : Result Bool := do
+  ok (((c = 0#u32) || (c = 60#u32)) || (c = 38#u32))
+
+/-- [rowl_kernel::xml::char_data]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 580:0-589:1 -/
+def xml.char_data
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  let b ← xml.data_stop i1
+  if b
+  then ok (core.result.Result.Ok (text, i))
+  else
+    let b1 ← xml.cdata_end cs i
+    if b1
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+    else
+      let r ← xml.push_char text i1 i
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let i2 ← i + 1#usize
+        xml.char_data cs i2 val
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::Reference]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 596:0-599:1
+    Visibility: public -/
+@[discriminant isize]
+inductive xml.Reference where
+| Character : Std.U32 → xml.Reference
+| Entity : Std.Usize → Std.Usize → xml.Reference
+
+/-- [rowl_kernel::xml::digit]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 601:0-603:1 -/
+def xml.digit (c : Std.U32) : Result Bool := do
+  ok ((c >= 48#u32) && (c <= 57#u32))
+
+/-- [rowl_kernel::xml::hex_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 606:0-616:1 -/
+def xml.hex_value (c : Std.U32) : Result Std.U32 := do
+  let b ← xml.digit c
+  if b
+  then c - 48#u32
+  else
+    if (c >= 65#u32) && (c <= 70#u32)
+    then c - 55#u32
+    else if (c >= 97#u32) && (c <= 102#u32)
+         then c - 87#u32
+         else ok 16#u32
+
+/-- [rowl_kernel::xml::decimal]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 620:0-640:1 -/
+def xml.decimal
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
+  (value : Std.U32) (origin : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  let b ← xml.digit c
+  if b
+  then
+    let i1 ← value * 10#u32
+    let i2 ← c - 48#u32
+    let next ← i1 + i2
+    if next > 1114111#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.InvalidCharacterReference origin
+      ok (core.result.Result.Err xe)
+    else let i3 ← i + 1#usize
+         xml.decimal cs i3 start next origin
+  else
+    if i = start
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax origin
+      ok (core.result.Result.Err xe)
+    else ok (core.result.Result.Ok (value, i))
+partial_fixpoint
+
+/-- [rowl_kernel::xml::hexadecimal]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 643:0-663:1 -/
+def xml.hexadecimal
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
+  (value : Std.U32) (origin : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
+  := do
+  let i1 ← xml.at cs i
+  let d ← xml.hex_value i1
+  if d < 16#u32
+  then
+    let i2 ← value * 16#u32
+    let next ← i2 + d
+    if next > 1114111#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.InvalidCharacterReference origin
+      ok (core.result.Result.Err xe)
+    else let i3 ← i + 1#usize
+         xml.hexadecimal cs i3 start next origin
+  else
+    if i = start
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax origin
+      ok (core.result.Result.Err xe)
+    else ok (core.result.Result.Ok (value, i))
+partial_fixpoint
+
+/-- [rowl_kernel::xml::reference_digits]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 666:0-672:1 -/
+def xml.reference_digits
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
+  := do
+  let i1 ← i + 2#usize
+  let i2 ← xml.at cs i1
+  if i2 = 120#u32
+  then let i3 ← i + 3#usize
+       xml.hexadecimal cs i3 i3 0#u32 i
+  else xml.decimal cs i1 i1 0#u32 i
+
+/-- [rowl_kernel::xml::char_reference]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 675:0-684:1 -/
+def xml.char_reference
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.reference_digits cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (value, j) := val
+    let i1 ← xml.at cs j
+    if i1 != 59#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax j
+      ok (core.result.Result.Err xe)
+    else
+      let b ← unicode.xml_character value
+      if b
+      then let i2 ← j + 1#usize
+           ok (core.result.Result.Ok (value, i2))
+      else
+        let xe ← xml.fail xml.ErrorKind.InvalidCharacterReference i
+        ok (core.result.Result.Err xe)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::predefined]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 687:0-701:1 -/
+def xml.predefined
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
+  Result Std.U32
+  := do
+  let s ← lift (Array.to_slice (Array.make 2#usize [ 108#u8, 116#u8 ]))
+  let b ← xml.span_is cs start «end» s
+  if b
+  then ok 60#u32
+  else
+    let s1 ← lift (Array.to_slice (Array.make 2#usize [ 103#u8, 116#u8 ]))
+    let b1 ← xml.span_is cs start «end» s1
+    if b1
+    then ok 62#u32
+    else
+      let s2 ←
+        lift (Array.to_slice (Array.make 3#usize [ 97#u8, 109#u8, 112#u8 ]))
+      let b2 ← xml.span_is cs start «end» s2
+      if b2
+      then ok 38#u32
+      else
+        let s3 ←
+          lift (Array.to_slice
+            (Array.make 4#usize [ 97#u8, 112#u8, 111#u8, 115#u8 ]))
+        let b3 ← xml.span_is cs start «end» s3
+        if b3
+        then ok 39#u32
+        else
+          let s4 ←
+            lift (Array.to_slice
+              (Array.make 4#usize [ 113#u8, 117#u8, 111#u8, 116#u8 ]))
+          let b4 ← xml.span_is cs start «end» s4
+          if b4
+          then ok 34#u32
+          else ok 0#u32
+
+/-- [rowl_kernel::xml::entity_name]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 704:0-711:1 -/
+def xml.entity_name
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (Std.Usize × Std.Usize) xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let r ← xml.ncname cs i1
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i2 ← xml.at cs val
+    if i2 = 59#u32
+    then let i3 ← val + 1#usize
+         ok (core.result.Result.Ok (val, i3))
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax val
+      ok (core.result.Result.Err xe)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::reference]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 715:0-728:1 -/
+def xml.reference
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (xml.Reference × Std.Usize) xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let i2 ← xml.at cs i1
+  if i2 = 35#u32
+  then
+    let r ← xml.char_reference cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (c, j) := val
+      ok (core.result.Result.Ok (xml.Reference.Character c, j))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.Reference × Std.Usize) (core.convert.FromSame xml.XmlError)
+        residual
+  else
+    let r ← xml.entity_name cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let («end», j) := val
+      let c ← xml.predefined cs i1 «end»
+      if c = 0#u32
+      then ok (core.result.Result.Ok (xml.Reference.Entity i1 «end», j))
+      else ok (core.result.Result.Ok (xml.Reference.Character c, j))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.Reference × Std.Usize) (core.convert.FromSame xml.XmlError)
+        residual
+
+/-- [rowl_kernel::xml::find_entity]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 734:0-750:1 -/
+def xml.find_entity
+  (env : alloc.vec.Vec xml.Entity) (cs : alloc.vec.Vec Std.U32)
+  (start : Std.Usize) («end» : Std.Usize) (k : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i := alloc.vec.Vec.len env
+  if k < i
+  then
+    let e ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Entity)
+        env k
+    let b ← xml.word_is e.name cs start «end»
+    if b
+    then ok (some k)
+    else let i1 ← k + 1#usize
+         xml.find_entity env cs start «end» i1
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::xml::on_stack]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 753:0-763:1 -/
+def xml.on_stack
+  (stack : alloc.vec.Vec Std.Usize) (k : Std.Usize) (i : Std.Usize) :
+  Result Bool
+  := do
+  let i1 := alloc.vec.Vec.len stack
+  if i < i1
+  then
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+        stack i
+    if i2 = k
+    then ok true
+    else let i3 ← i + 1#usize
+         xml.on_stack stack k i3
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::xml::internal]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 766:0-768:1 -/
+def xml.internal
+  (env : alloc.vec.Vec xml.Entity) (k : Std.Usize) : Result Bool := do
+  let e ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Entity) env
+      k
+  match e.kind with
+  | xml.EntityKind.Internal => ok true
+  | xml.EntityKind.External => ok false
+  | xml.EntityKind.Unparsed => ok false
+
+/-- [rowl_kernel::xml::expandable]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 772:0-792:1 -/
+def xml.expandable
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
+  (env : alloc.vec.Vec xml.Entity) (stack : alloc.vec.Vec Std.Usize)
+  (origin : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let o ← xml.find_entity env cs start «end» 0#usize
+  match o with
+  | none =>
+    let xe ← xml.fail xml.ErrorKind.UndeclaredEntity origin
+    ok (core.result.Result.Err xe)
+  | some k =>
+    let b ← xml.internal env k
+    if b
+    then
+      let b1 ← xml.on_stack stack k 0#usize
+      if b1
+      then
+        let xe ← xml.fail xml.ErrorKind.RecursiveEntity origin
+        ok (core.result.Result.Err xe)
+      else ok (core.result.Result.Ok k)
+    else
+      let xe ← xml.fail xml.ErrorKind.UndeclaredEntity origin
+      ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::copy_stack]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 805:0-816:1 -/
+def xml.copy_stack
+  (stack : alloc.vec.Vec Std.Usize) (i : Std.Usize)
+  (out : alloc.vec.Vec Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.Usize) xml.XmlError)
+  := do
+  let i1 := alloc.vec.Vec.len stack
+  if i < i1
+  then
+    let i2 := alloc.vec.Vec.len out
+    if i2 < core.num.Usize.MAX
+    then
+      let i3 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.Usize)
+          stack i
+      let out1 ← alloc.vec.Vec.push out i3
+      let i4 ← i + 1#usize
+      xml.copy_stack stack i4 out1
+    else
+      let xe ← xml.fail xml.ErrorKind.ResourceLimit 0#usize
+      ok (core.result.Result.Err xe)
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::pushed]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 795:0-803:1 -/
+def xml.pushed
+  (stack : alloc.vec.Vec Std.Usize) (k : Std.Usize) (origin : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.copy_stack stack 0#usize (alloc.vec.Vec.new Std.Usize)
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i := alloc.vec.Vec.len val
+    if i < core.num.Usize.MAX
+    then let val1 ← alloc.vec.Vec.push val k
+         ok (core.result.Result.Ok val1)
+    else
+      let xe ← xml.fail xml.ErrorKind.ResourceLimit origin
+      ok (core.result.Result.Err xe)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.Usize) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::spend]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 820:0-827:1 -/
+def xml.spend
+  (env : alloc.vec.Vec xml.Entity) (k : Std.Usize) (budget : Std.Usize)
+  (origin : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let e ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Entity) env
+      k
+  let length := alloc.vec.Vec.len e.text
+  if budget <= length
+  then
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit origin
+    ok (core.result.Result.Err xe)
+  else
+    let i ← budget - length
+    let i1 ← i - 1#usize
+    ok (core.result.Result.Ok i1)
+
+/-- [rowl_kernel::xml::normalized]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 833:0-839:1 -/
+def xml.normalized (c : Std.U32) : Result Std.U32 := do
+  let b ← xml.space c
+  if b
+  then ok 32#u32
+  else ok c
+
+mutual
+
+/-- [rowl_kernel::xml::att_text]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 844:0-867:1 -/
+def xml.att_text
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (quote : Std.U32)
+  (env : alloc.vec.Vec xml.Entity) (stack : alloc.vec.Vec Std.Usize)
+  (budget : Std.Usize) (out : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize ×
+    Std.Usize) xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  if c = quote
+  then ok (core.result.Result.Ok (out, i, budget))
+  else
+    if c = 0#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+      ok (core.result.Result.Err xe)
+    else
+      if c = 60#u32
+      then
+        let xe ← xml.fail xml.ErrorKind.Syntax i
+        ok (core.result.Result.Err xe)
+      else
+        if c = 38#u32
+        then
+          let r ← xml.att_reference cs i env stack budget out
+          let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+          match cf with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let (out1, j, budget1) := val
+            xml.att_text cs j quote env stack budget1 out1
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+              (core.convert.FromSame xml.XmlError) residual
+        else
+          let i1 ← xml.normalized c
+          let r ← xml.push_char out i1 i
+          let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+          match cf with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let i2 ← i + 1#usize
+            xml.att_text cs i2 quote env stack budget val
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+              (core.convert.FromSame xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::att_reference]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 871:0-895:1 -/
+def xml.att_reference
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize)
+  (out : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize ×
+    Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.reference cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r1, j) := val
+    match r1 with
+    | xml.Reference.Character c =>
+      let r2 ← xml.push_char out c i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (val1, j, budget))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+          (core.convert.FromSame xml.XmlError) residual
+    | xml.Reference.Entity start «end» =>
+      let r2 ← xml.expandable cs start «end» env stack i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r3 ← xml.spend env val1 budget i
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let r4 ← xml.pushed stack val1 i
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let e ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                xml.Entity) env val1
+            let r5 ← xml.att_text e.text 0#usize 0#u32 env val3 val2 out
+            match r5 with
+            | core.result.Result.Ok t =>
+              let (out1, _, left) := t
+              ok (core.result.Result.Ok (out1, j, left))
+            | core.result.Result.Err e1 =>
+              let xe ← xml.fail e1.kind i
+              ok (core.result.Result.Err xe)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+              (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+            (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+          (core.convert.FromSame xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U32) × Std.Usize × Std.Usize)
+      (core.convert.FromSame xml.XmlError) residual
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::xml::Raw]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 902:0-907:1
+    Visibility: public -/
+structure xml.Raw where
+  start : Std.Usize
+  mark : Std.Usize
+  stop : Std.Usize
+  value : alloc.vec.Vec Std.U32
+
+/-- [rowl_kernel::xml::quote]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 909:0-911:1 -/
+def xml.quote (c : Std.U32) : Result Bool := do
+  ok ((c = 34#u32) || (c = 39#u32))
+
+/-- [rowl_kernel::xml::eq]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 914:0-921:1 -/
+def xml.eq
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let i1 ← xml.at cs j
+  if i1 = 61#u32
+  then
+    let i2 ← j + 1#usize
+    let i3 ← xml.skip_spaces cs i2
+    ok (core.result.Result.Ok i3)
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax j
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::attribute]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 924:0-949:1 -/
+def xml.attribute
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize) :
+  Result (core.result.Result (xml.Raw × Std.Usize × Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.qname cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let («end», mark) := val
+    let r1 ← xml.eq cs «end»
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let q ← xml.at cs val1
+      let b ← xml.quote q
+      if b
+      then
+        let i1 ← val1 + 1#usize
+        let r2 ←
+          xml.att_text cs i1 q env stack budget (alloc.vec.Vec.new Std.U32)
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let (value, k, budget1) := val2
+          let i2 ← k + 1#usize
+          ok (core.result.Result.Ok
+            ({ start := i, mark, stop := «end», value }, i2, budget1))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (xml.Raw × Std.Usize × Std.Usize) (core.convert.FromSame
+            xml.XmlError) residual
+      else
+        let xe ← xml.fail xml.ErrorKind.Syntax val1
+        ok (core.result.Result.Err xe)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.Raw × Std.Usize × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (xml.Raw × Std.Usize × Std.Usize) (core.convert.FromSame xml.XmlError)
+      residual
+
+/-- [rowl_kernel::xml::attribute_follows]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 952:0-954:1 -/
+def xml.attribute_follows
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
+  Result Bool
+  := do
+  let i1 ← xml.at cs j
+  let b ← xml.name_start i1
+  ok ((i < j) && b)
+
+/-- [rowl_kernel::xml::push_raw]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 956:0-963:1 -/
+def xml.push_raw
+  (raws : alloc.vec.Vec xml.Raw) (raw : xml.Raw) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec xml.Raw) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len raws
+  if i < core.num.Usize.MAX
+  then
+    let raws1 ← alloc.vec.Vec.push raws raw
+    ok (core.result.Result.Ok raws1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::attributes]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 967:0-983:1 -/
+def xml.attributes
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize)
+  (raws : alloc.vec.Vec xml.Raw) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Raw) × Std.Usize ×
+    Std.Usize) xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let b ← xml.attribute_follows cs i j
+  if b
+  then
+    let r ← xml.attribute cs j env stack budget
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (raw, k, budget1) := val
+      let r1 ← xml.push_raw raws raw j
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        xml.attributes cs k env stack budget1 val1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Raw) × Std.Usize × Std.Usize)
+          (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Raw) × Std.Usize × Std.Usize)
+        (core.convert.FromSame xml.XmlError) residual
+  else ok (core.result.Result.Ok (raws, i, budget))
+partial_fixpoint
+
+/-- [rowl_kernel::xml::distinct_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 986:0-996:1 -/
+def xml.distinct_from
+  (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
+  (m : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len raws
+  if m < i
+  then
+    let r ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Raw) raws
+        k
+    let r1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Raw) raws
+        m
+    let b ← xml.same_span cs r.start r.stop r1.start r1.stop
+    if b
+    then ok false
+    else let i1 ← m + 1#usize
+         xml.distinct_from cs raws k i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::unique_names]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 999:0-1009:1 -/
+def xml.unique_names
+  (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize) :
+  Result (core.result.Result Unit xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len raws
+  if k < i
+  then
+    let i1 ← k + 1#usize
+    let b ← xml.distinct_from cs raws k i1
+    if b
+    then xml.unique_names cs raws i1
+    else
+      let r ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Raw)
+          raws k
+      let xe ← xml.fail xml.ErrorKind.DuplicateAttribute r.start
+      ok (core.result.Result.Err xe)
+  else ok (core.result.Result.Ok ())
+partial_fixpoint
+
+/-- [rowl_kernel::xml::NsKind]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1012:0-1019:1 -/
+@[discriminant isize]
+inductive xml.NsKind where
+| Default : xml.NsKind
+| Prefixed : xml.NsKind
+| Plain : xml.NsKind
+
+/-- [rowl_kernel::xml::ns_kind]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1021:0-1033:1 -/
+def xml.ns_kind
+  (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw) : Result xml.NsKind := do
+  if raw.mark = raw.stop
+  then
+    let s ←
+      lift (Array.to_slice
+        (Array.make 5#usize [ 120#u8, 109#u8, 108#u8, 110#u8, 115#u8 ]))
+    let b ← xml.span_is cs raw.start raw.stop s
+    if b
+    then ok xml.NsKind.Default
+    else ok xml.NsKind.Plain
+  else
+    let s ←
+      lift (Array.to_slice
+        (Array.make 5#usize [ 120#u8, 109#u8, 108#u8, 110#u8, 115#u8 ]))
+    let b ← xml.span_is cs raw.start raw.mark s
+    if b
+    then ok xml.NsKind.Prefixed
+    else ok xml.NsKind.Plain
+
+/-- [rowl_kernel::xml::XML_NAMESPACE]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1036:0-1036:69 -/
+@[global_simps, irreducible]
+def xml.XML_NAMESPACE : Slice Std.U8 :=
+  Array.to_slice
+    (Array.make 36#usize [
+      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+      119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+      88#u8, 77#u8, 76#u8, 47#u8, 49#u8, 57#u8, 57#u8, 56#u8, 47#u8, 110#u8,
+      97#u8, 109#u8, 101#u8, 115#u8, 112#u8, 97#u8, 99#u8, 101#u8
+      ])
+
+/-- [rowl_kernel::xml::XMLNS_NAMESPACE]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1038:0-1038:64 -/
+@[global_simps, irreducible]
+def xml.XMLNS_NAMESPACE : Slice Std.U8 :=
+  Array.to_slice
+    (Array.make 29#usize [
+      104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+      119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+      50#u8, 48#u8, 48#u8, 48#u8, 47#u8, 120#u8, 109#u8, 108#u8, 110#u8,
+      115#u8, 47#u8
+      ])
+
+/-- [rowl_kernel::xml::word_eq_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1045:0-1059:1 -/
+def xml.word_eq_from
+  (word : alloc.vec.Vec Std.U32) (text : Slice Std.U8) (k : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len word
+  if k < i
+  then
+    let i1 := Slice.len text
+    if k < i1
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32)
+          word k
+      let i3 ← Slice.index_usize text k
+      let i4 ← lift (core.convert.num.FromU32U8.from i3)
+      if i2 = i4
+      then let i5 ← k + 1#usize
+           xml.word_eq_from word text i5
+      else ok false
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::word_eq]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1041:0-1043:1 -/
+def xml.word_eq
+  (word : alloc.vec.Vec Std.U32) (text : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len word
+  let i1 := Slice.len text
+  let b ← xml.word_eq_from word text 0#usize
+  ok ((i = i1) && b)
+
+/-- [rowl_kernel::xml::reserved_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1062:0-1064:1 -/
+def xml.reserved_value (value : alloc.vec.Vec Std.U32) : Result Bool := do
+  let b ← xml.word_eq value xml.XML_NAMESPACE
+  let b1 ← xml.word_eq value xml.XMLNS_NAMESPACE
+  ok (b || b1)
+
+/-- [rowl_kernel::xml::ascii_word]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1066:0-1073:1 -/
+def xml.ascii_word
+  (text : Slice Std.U8) (k : Std.Usize) (out : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let i := Slice.len text
+  if k < i
+  then
+    let i1 ← Slice.index_usize text k
+    let i2 ← lift (core.convert.num.FromU32U8.from i1)
+    let r ← xml.push_char out i2 0#usize
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i3 ← k + 1#usize
+      xml.ascii_word text i3 val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::push_binding]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1075:0-1086:1 -/
+def xml.push_binding
+  (decls : alloc.vec.Vec xml.Binding) (b : xml.Binding) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len decls
+  if i < core.num.Usize.MAX
+  then
+    let decls1 ← alloc.vec.Vec.push decls b
+    ok (core.result.Result.Ok decls1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::default_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1089:0-1103:1 -/
+def xml.default_declaration
+  (raw : xml.Raw) (decls : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let b ← xml.reserved_value raw.value
+  if b
+  then
+    let xe ← xml.fail xml.ErrorKind.ReservedNamespace raw.start
+    ok (core.result.Result.Err xe)
+  else
+    let r ← xml.copy_all raw.value
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.push_binding decls { ns_prefix := none, value := val } raw.start
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+        residual
+
+/-- [rowl_kernel::xml::prefix_allowed]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1107:0-1115:1 -/
+def xml.prefix_allowed
+  (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw) : Result Bool := do
+  let i ← raw.mark + 1#usize
+  let s ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 120#u8, 109#u8, 108#u8, 110#u8, 115#u8 ]))
+  let b ← xml.span_is cs i raw.stop s
+  if b
+  then ok false
+  else
+    let s1 ←
+      lift (Array.to_slice (Array.make 3#usize [ 120#u8, 109#u8, 108#u8 ]))
+    let b1 ← xml.span_is cs i raw.stop s1
+    if b1
+    then xml.word_eq raw.value xml.XML_NAMESPACE
+    else
+      let i1 := alloc.vec.Vec.len raw.value
+      let b2 ← xml.reserved_value raw.value
+      ok ((0#usize < i1) && (¬ b2))
+
+/-- [rowl_kernel::xml::prefixed_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1118:0-1137:1 -/
+def xml.prefixed_declaration
+  (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw)
+  (decls : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let b ← xml.prefix_allowed cs raw
+  if b
+  then
+    let i ← raw.mark + 1#usize
+    let r ← xml.copy_span cs i raw.stop
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.copy_all raw.value
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        xml.push_binding decls { ns_prefix := (some val), value := val1 }
+          raw.start
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+        residual
+  else
+    let xe ← xml.fail xml.ErrorKind.ReservedNamespace raw.start
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::declarations]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1140:0-1156:1 -/
+def xml.declarations
+  (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
+  (decls : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len raws
+  if k < i
+  then
+    let r ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Raw) raws
+        k
+    let nk ← xml.ns_kind cs r
+    match nk with
+    | xml.NsKind.Default =>
+      let r1 ← xml.default_declaration r decls
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let i1 ← k + 1#usize
+        xml.declarations cs raws i1 val
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+          residual
+    | xml.NsKind.Prefixed =>
+      let r1 ← xml.prefixed_declaration cs r decls
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let i1 ← k + 1#usize
+        xml.declarations cs raws i1 val
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+          residual
+    | xml.NsKind.Plain =>
+      let i1 ← k + 1#usize
+      xml.declarations cs raws i1 decls
+  else ok (core.result.Result.Ok decls)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::copy_option]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1158:0-1166:1 -/
+def xml.copy_option
+  (word : Option (alloc.vec.Vec Std.U32)) :
+  Result (core.result.Result (Option (alloc.vec.Vec Std.U32)) xml.XmlError)
+  := do
+  match word with
+  | none => ok (core.result.Result.Ok none)
+  | some w =>
+    let r ← xml.copy_all w
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      ok (core.result.Result.Ok (some val))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Option (alloc.vec.Vec Std.U32)) (core.convert.FromSame xml.XmlError)
+        residual
+
+/-- [rowl_kernel::xml::copy_bindings]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1168:0-1181:1 -/
+def xml.copy_bindings
+  (ctx : alloc.vec.Vec xml.Binding) (i : Std.Usize)
+  (out : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let i1 := alloc.vec.Vec.len ctx
+  if i < i1
+  then
+    let b ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Binding)
+        ctx i
+    let r ← xml.copy_option b.ns_prefix
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.copy_all b.value
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r2 ←
+          xml.push_binding out { ns_prefix := val, value := val1 } 0#usize
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let i2 ← i + 1#usize
+          xml.copy_bindings ctx i2 val2
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+            residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError)
+        residual
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::extend]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1184:0-1187:1 -/
+def xml.extend
+  (ctx : alloc.vec.Vec xml.Binding) (decls : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
+  := do
+  let r ← xml.copy_bindings ctx 0#usize (alloc.vec.Vec.new xml.Binding)
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    xml.copy_bindings decls 0#usize val
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::binds]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1190:0-1195:1 -/
+def xml.binds
+  (b : xml.Binding) (cs : alloc.vec.Vec Std.U32) (start : Std.Usize)
+  («end» : Std.Usize) :
+  Result Bool
+  := do
+  match b.ns_prefix with
+  | none => ok false
+  | some p => xml.word_is p cs start «end»
+
+/-- [rowl_kernel::xml::lookup_prefix]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1199:0-1216:1 -/
+def xml.lookup_prefix
+  (ctx : alloc.vec.Vec xml.Binding) (cs : alloc.vec.Vec Std.U32)
+  (start : Std.Usize) («end» : Std.Usize) (k : Std.Usize) :
+  Result (core.result.Result (Option (alloc.vec.Vec Std.U32)) xml.XmlError)
+  := do
+  if 0#usize < k
+  then
+    let i ← k - 1#usize
+    let b ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Binding)
+        ctx i
+    let b1 ← xml.binds b cs start «end»
+    if b1
+    then
+      let b2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Binding)
+          ctx i
+      let r ← xml.copy_all b2.value
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        ok (core.result.Result.Ok (some val))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Option (alloc.vec.Vec Std.U32)) (core.convert.FromSame xml.XmlError)
+          residual
+    else xml.lookup_prefix ctx cs start «end» i
+  else ok (core.result.Result.Ok none)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::is_default]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1219:0-1221:1 -/
+def xml.is_default (b : xml.Binding) : Result Bool := do
+  ok (core.option.Option.is_none b.ns_prefix)
+
+/-- [rowl_kernel::xml::lookup_default]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1225:0-1240:1 -/
+def xml.lookup_default
+  (ctx : alloc.vec.Vec xml.Binding) (k : Std.Usize) :
+  Result (core.result.Result (Option (alloc.vec.Vec Std.U32)) xml.XmlError)
+  := do
+  if 0#usize < k
+  then
+    let i ← k - 1#usize
+    let b ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Binding)
+        ctx i
+    let b1 ← xml.is_default b
+    if b1
+    then
+      let b2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Binding)
+          ctx i
+      let i1 := alloc.vec.Vec.len b2.value
+      if i1 = 0#usize
+      then ok (core.result.Result.Ok none)
+      else
+        let b3 ←
+          alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+            xml.Binding) ctx i
+        let r ← xml.copy_all b3.value
+        let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+        match cf with
+        | core.ops.control_flow.ControlFlow.Continue val =>
+          ok (core.result.Result.Ok (some val))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Option (alloc.vec.Vec Std.U32)) (core.convert.FromSame
+            xml.XmlError) residual
+    else xml.lookup_default ctx i
+  else ok (core.result.Result.Ok none)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::prefix_namespace]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1243:0-1257:1 -/
+def xml.prefix_namespace
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
+  (ctx : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  let s ←
+    lift (Array.to_slice (Array.make 3#usize [ 120#u8, 109#u8, 108#u8 ]))
+  let b ← xml.span_is cs start «end» s
+  if b
+  then xml.ascii_word xml.XML_NAMESPACE 0#usize (alloc.vec.Vec.new Std.U32)
+  else
+    let i := alloc.vec.Vec.len ctx
+    let r ← xml.lookup_prefix ctx cs start «end» i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      match val with
+      | none =>
+        let xe ← xml.fail xml.ErrorKind.UndeclaredPrefix start
+        ok (core.result.Result.Err xe)
+      | some value => ok (core.result.Result.Ok value)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::element_namespace]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1261:0-1278:1 -/
+def xml.element_namespace
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) (mark : Std.Usize)
+  («end» : Std.Usize) (ctx : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result ((Option (alloc.vec.Vec Std.U32)) × (Option
+    (alloc.vec.Vec Std.U32))) xml.XmlError)
+  := do
+  if mark = «end»
+  then
+    let i := alloc.vec.Vec.len ctx
+    let r ← xml.lookup_default ctx i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      ok (core.result.Result.Ok (none, val))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((Option (alloc.vec.Vec Std.U32)) × (Option (alloc.vec.Vec Std.U32)))
+        (core.convert.FromSame xml.XmlError) residual
+  else
+    let s ←
+      lift (Array.to_slice
+        (Array.make 5#usize [ 120#u8, 109#u8, 108#u8, 110#u8, 115#u8 ]))
+    let b ← xml.span_is cs start mark s
+    if b
+    then
+      let xe ← xml.fail xml.ErrorKind.ReservedNamespace start
+      ok (core.result.Result.Err xe)
+    else
+      let r ← xml.prefix_namespace cs start mark ctx
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let r1 ← xml.copy_span cs start mark
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          ok (core.result.Result.Ok (some val1, some val))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((Option (alloc.vec.Vec Std.U32)) × (Option (alloc.vec.Vec
+            Std.U32))) (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((Option (alloc.vec.Vec Std.U32)) × (Option (alloc.vec.Vec
+          Std.U32))) (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::push_attribute]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1280:0-1291:1 -/
+def xml.push_attribute
+  (out : alloc.vec.Vec xml.Attribute) (a : xml.Attribute) (offset : Std.Usize)
+  :
+  Result (core.result.Result (alloc.vec.Vec xml.Attribute) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < core.num.Usize.MAX
+  then let out1 ← alloc.vec.Vec.push out a
+       ok (core.result.Result.Ok out1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::resolved_attribute]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1295:0-1316:1 -/
+def xml.resolved_attribute
+  (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw)
+  (ctx : alloc.vec.Vec xml.Binding) :
+  Result (core.result.Result xml.Attribute xml.XmlError)
+  := do
+  let r ← xml.copy_all raw.value
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    if raw.mark = raw.stop
+    then
+      let r1 ← xml.copy_span cs raw.start raw.stop
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok
+          {
+            ns_prefix := none,
+            ns_name := none,
+            local_name := val1,
+            value := val
+          })
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          xml.Attribute (core.convert.FromSame xml.XmlError) residual
+    else
+      let r1 ← xml.prefix_namespace cs raw.start raw.mark ctx
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r2 ← xml.copy_span cs raw.start raw.mark
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let i ← raw.mark + 1#usize
+          let r3 ← xml.copy_span cs i raw.stop
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            ok (core.result.Result.Ok
+              {
+                ns_prefix := (some val2),
+                ns_name := (some val1),
+                local_name := val3,
+                value := val
+              })
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              xml.Attribute (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            xml.Attribute (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          xml.Attribute (core.convert.FromSame xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      xml.Attribute (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::resolve_attributes]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1320:0-1339:1 -/
+def xml.resolve_attributes
+  (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
+  (ctx : alloc.vec.Vec xml.Binding) (out : alloc.vec.Vec xml.Attribute) :
+  Result (core.result.Result (alloc.vec.Vec xml.Attribute) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len raws
+  if k < i
+  then
+    let r ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Raw) raws
+        k
+    let nk ← xml.ns_kind cs r
+    match nk with
+    | xml.NsKind.Default =>
+      let i1 ← k + 1#usize
+      xml.resolve_attributes cs raws i1 ctx out
+    | xml.NsKind.Prefixed =>
+      let i1 ← k + 1#usize
+      xml.resolve_attributes cs raws i1 ctx out
+    | xml.NsKind.Plain =>
+      let r1 ← xml.resolved_attribute cs r ctx
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let r2 ← xml.push_attribute out val r.start
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let i1 ← k + 1#usize
+          xml.resolve_attributes cs raws i1 ctx val1
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (alloc.vec.Vec xml.Attribute) (core.convert.FromSame xml.XmlError)
+            residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec xml.Attribute) (core.convert.FromSame xml.XmlError)
+          residual
+  else ok (core.result.Result.Ok out)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::same_word_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1350:0-1360:1 -/
+def xml.same_word_from
+  (a : alloc.vec.Vec Std.U32) (b : alloc.vec.Vec Std.U32) (k : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len a
+  if k < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) a k
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U32) b k
+    if i1 = i2
+    then let i3 ← k + 1#usize
+         xml.same_word_from a b i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::same_word]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1362:0-1368:1 -/
+def xml.same_word
+  (a : alloc.vec.Vec Std.U32) (b : alloc.vec.Vec Std.U32) : Result Bool := do
+  let i := alloc.vec.Vec.len a
+  let i1 := alloc.vec.Vec.len b
+  if i = i1
+  then xml.same_word_from a b 0#usize
+  else ok false
+
+/-- [rowl_kernel::xml::same_option]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1342:0-1348:1 -/
+def xml.same_option
+  (a : Option (alloc.vec.Vec Std.U32)) (b : Option (alloc.vec.Vec Std.U32)) :
+  Result Bool
+  := do
+  match a with
+  | none => match b with
+            | none => ok true
+            | some _ => ok false
+  | some x => match b with
+              | none => ok false
+              | some y => xml.same_word x y
+
+/-- [rowl_kernel::xml::same_expanded]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1371:0-1373:1 -/
+def xml.same_expanded
+  (a : xml.Attribute) (b : xml.Attribute) : Result Bool := do
+  let b1 ← xml.same_option a.ns_name b.ns_name
+  let b2 ← xml.same_word a.local_name b.local_name
+  ok (b1 && b2)
+
+/-- [rowl_kernel::xml::expanded_distinct_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1375:0-1385:1 -/
+def xml.expanded_distinct_from
+  (attrs : alloc.vec.Vec xml.Attribute) (k : Std.Usize) (m : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len attrs
+  if m < i
+  then
+    let a ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Attribute)
+        attrs k
+    let a1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice xml.Attribute)
+        attrs m
+    let b ← xml.same_expanded a a1
+    if b
+    then ok false
+    else let i1 ← m + 1#usize
+         xml.expanded_distinct_from attrs k i1
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::xml::unique_expanded]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1388:0-1398:1 -/
+def xml.unique_expanded
+  (attrs : alloc.vec.Vec xml.Attribute) (k : Std.Usize) (origin : Std.Usize) :
+  Result (core.result.Result Unit xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len attrs
+  if k < i
+  then
+    let i1 ← k + 1#usize
+    let b ← xml.expanded_distinct_from attrs k i1
+    if b
+    then xml.unique_expanded attrs i1 origin
+    else
+      let xe ← xml.fail xml.ErrorKind.DuplicateAttribute origin
+      ok (core.result.Result.Err xe)
+  else ok (core.result.Result.Ok ())
+partial_fixpoint
+
+/-- [rowl_kernel::xml::Rule]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1404:0-1414:1 -/
+@[discriminant isize]
+inductive xml.Rule where
+| End : xml.Rule
+| Stop : xml.Rule
+| Chars : xml.Rule
+| Comment : xml.Rule
+| CData : xml.Rule
+| Pi : xml.Rule
+| Reference : xml.Rule
+| Element : xml.Rule
+| Invalid : xml.Rule
+
+/-- [rowl_kernel::xml::bang_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1416:0-1424:1 -/
+def xml.bang_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
+  let s ←
+    lift (Array.to_slice (Array.make 4#usize [ 60#u8, 33#u8, 45#u8, 45#u8 ]))
+  let b ← xml.starts cs i s
+  if b
+  then ok xml.Rule.Comment
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 9#usize [
+          60#u8, 33#u8, 91#u8, 67#u8, 68#u8, 65#u8, 84#u8, 65#u8, 91#u8
+          ]))
+    let b1 ← xml.starts cs i s1
+    if b1
+    then ok xml.Rule.CData
+    else ok xml.Rule.Invalid
+
+/-- [rowl_kernel::xml::markup_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1426:0-1437:1 -/
+def xml.markup_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
+  let i1 ← i + 1#usize
+  let c ← xml.at cs i1
+  if c = 47#u32
+  then ok xml.Rule.Stop
+  else
+    if c = 33#u32
+    then xml.bang_rule cs i
+    else if c = 63#u32
+         then ok xml.Rule.Pi
+         else ok xml.Rule.Element
+
+/-- [rowl_kernel::xml::content_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1439:0-1450:1 -/
+def xml.content_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
+  let c ← xml.at cs i
+  if c = 0#u32
+  then ok xml.Rule.End
+  else
+    if c = 60#u32
+    then xml.markup_rule cs i
+    else if c = 38#u32
+         then ok xml.Rule.Reference
+         else ok xml.Rule.Chars
+
+/-- [rowl_kernel::xml::push_node]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1452:0-1459:1 -/
+def xml.push_node
+  (nodes : alloc.vec.Vec xml.Node) (node : xml.Node) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec xml.Node) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len nodes
+  if i < core.num.Usize.MAX
+  then
+    let nodes1 ← alloc.vec.Vec.push nodes node
+    ok (core.result.Result.Ok nodes1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::flush]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1462:0-1468:1 -/
+def xml.flush
+  (nodes : alloc.vec.Vec xml.Node) (text : alloc.vec.Vec Std.U32)
+  (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec xml.Node) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len text
+  if i = 0#usize
+  then ok (core.result.Result.Ok nodes)
+  else xml.push_node nodes (xml.Node.Text text) offset
+
+/-- [rowl_kernel::xml::local_start]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1609:0-1615:1 -/
+def xml.local_start
+  (start : Std.Usize) (mark : Std.Usize) («end» : Std.Usize) :
+  Result Std.Usize
+  := do
+  if mark = «end»
+  then ok start
+  else mark + 1#usize
+
+/-- [rowl_kernel::xml::end_name]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1577:0-1594:1 -/
+def xml.end_name
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (stop : Std.Usize)
+  (start : Std.Usize) («end» : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← i + 2#usize
+  let i2 ← «end» - start
+  let b ← xml.same_from cs i1 start i2 0#usize
+  if b
+  then
+    let j ← xml.skip_spaces cs stop
+    let i3 ← xml.at cs j
+    if i3 = 62#u32
+    then let i4 ← j + 1#usize
+         ok (core.result.Result.Ok i4)
+    else
+      let xe ← xml.fail xml.ErrorKind.MismatchedEndTag i
+      ok (core.result.Result.Err xe)
+  else
+    let xe ← xml.fail xml.ErrorKind.MismatchedEndTag i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::fits]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1571:0-1573:1 -/
+def xml.fits
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (n : Std.Usize) :
+  Result Bool
+  := do
+  let i1 := alloc.vec.Vec.len cs
+  let i2 ← i1 - i
+  ok (n <= i2)
+
+/-- [rowl_kernel::xml::end_tag]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1597:0-1605:1 -/
+def xml.end_tag
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
+  («end» : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let s ← lift (Array.to_slice (Array.make 2#usize [ 60#u8, 47#u8 ]))
+  let b ← xml.starts cs i s
+  if b
+  then
+    let i1 ← i + 2#usize
+    let i2 ← «end» - start
+    let b1 ← xml.fits cs i1 i2
+    if b1
+    then let i3 ← i1 + i2
+         xml.end_name cs i i3 start «end»
+    else
+      let xe ← xml.fail xml.ErrorKind.MismatchedEndTag i
+      ok (core.result.Result.Err xe)
+  else
+    let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::tag_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1555:0-1568:1 -/
+def xml.tag_end
+  (cs : alloc.vec.Vec Std.U32) (j : Std.Usize) :
+  Result (core.result.Result (Bool × Std.Usize) xml.XmlError)
+  := do
+  let c ← xml.at cs j
+  if c = 62#u32
+  then let i ← j + 1#usize
+       ok (core.result.Result.Ok (false, i))
+  else
+    if c = 47#u32
+    then
+      let i ← j + 1#usize
+      let i1 ← xml.at cs i
+      if i1 = 62#u32
+      then let i2 ← j + 2#usize
+           ok (core.result.Result.Ok (true, i2))
+      else
+        let xe ← xml.fail xml.ErrorKind.Syntax j
+        ok (core.result.Result.Err xe)
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax j
+      ok (core.result.Result.Err xe)
+
+mutual
+
+/-- [rowl_kernel::xml::content]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1473:0-1515:1 -/
+def xml.content
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
+  (budget : Std.Usize) (nodes : alloc.vec.Vec xml.Node)
+  (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec
+    Std.U32) × Std.Usize × Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.content_rule cs i
+  match r with
+  | xml.Rule.End => ok (core.result.Result.Ok (nodes, text, i, budget))
+  | xml.Rule.Stop => ok (core.result.Result.Ok (nodes, text, i, budget))
+  | xml.Rule.Chars =>
+    let r1 ← xml.char_data cs i text
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (text1, j) := val
+      xml.content cs j env stack ctx budget nodes text1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.Comment =>
+    let r1 ← xml.comment cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.content cs val env stack ctx budget nodes text
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.CData =>
+    let r1 ← xml.cdata cs i text
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (text1, j) := val
+      xml.content cs j env stack ctx budget nodes text1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.Pi =>
+    let r1 ← xml.pi cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.content cs val env stack ctx budget nodes text
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.Reference =>
+    let r1 ← xml.content_reference cs i env stack ctx budget nodes text
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (nodes1, text1, j, budget1) := val
+      xml.content cs j env stack ctx budget1 nodes1 text1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.Element =>
+    let r1 ← xml.element cs i env stack ctx budget
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (e, j, budget1) := val
+      let r2 ← xml.flush nodes text i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r3 ← xml.push_node val1 (xml.Node.Element e) i
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          xml.content cs j env stack ctx budget1 val2 (alloc.vec.Vec.new
+            Std.U32)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize
+            × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+          Std.Usize) (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+        Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | xml.Rule.Invalid =>
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::content_reference]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1519:0-1551:1 -/
+def xml.content_reference
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
+  (budget : Std.Usize) (nodes : alloc.vec.Vec xml.Node)
+  (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec
+    Std.U32) × Std.Usize × Std.Usize) xml.XmlError)
+  := do
+  let r ← xml.reference cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (r1, j) := val
+    match r1 with
+    | xml.Reference.Character c =>
+      let r2 ← xml.push_char text c i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (nodes, val1, j, budget))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+          Std.Usize) (core.convert.FromSame xml.XmlError) residual
+    | xml.Reference.Entity start «end» =>
+      let r2 ← xml.expandable cs start «end» env stack i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r3 ← xml.spend env val1 budget i
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let r4 ← xml.pushed stack val1 i
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let e ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                xml.Entity) env val1
+            let r5 ← xml.content e.text 0#usize env val3 ctx val2 nodes text
+            match r5 with
+            | core.result.Result.Ok t =>
+              let (nodes1, text1, stop, left) := t
+              let i1 := alloc.vec.Vec.len e.text
+              if stop = i1
+              then ok (core.result.Result.Ok (nodes1, text1, j, left))
+              else
+                let xe ← xml.fail xml.ErrorKind.EntityBoundary i
+                ok (core.result.Result.Err xe)
+            | core.result.Result.Err e1 =>
+              let xe ← xml.fail e1.kind i
+              ok (core.result.Result.Err xe)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize
+              × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize
+            × Std.Usize) (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+          Std.Usize) (core.convert.FromSame xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec xml.Node) × (alloc.vec.Vec Std.U32) × Std.Usize ×
+      Std.Usize) (core.convert.FromSame xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::element_in]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1620:0-1669:1 -/
+def xml.element_in
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (name_end : Std.Usize)
+  (mark : Std.Usize) (after : Std.Usize) (empty : Bool)
+  (env : alloc.vec.Vec xml.Entity) (stack : alloc.vec.Vec Std.Usize)
+  (ctx : alloc.vec.Vec xml.Binding) (raws : alloc.vec.Vec xml.Raw)
+  (decls : alloc.vec.Vec xml.Binding) (budget : Std.Usize) :
+  Result (core.result.Result (xml.Element × Std.Usize × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let r ← xml.element_namespace cs i1 mark name_end ctx
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let («prefix», «namespace») := val
+    let i2 ← xml.local_start i1 mark name_end
+    let r1 ← xml.copy_span cs i2 name_end
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ←
+        xml.resolve_attributes cs raws 0#usize ctx (alloc.vec.Vec.new
+          xml.Attribute)
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let r3 ← xml.unique_expanded val2 0#usize i
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          if empty
+          then
+            ok (core.result.Result.Ok (xml.Element.mk «prefix» «namespace»
+              val1 val2 decls (alloc.vec.Vec.new xml.Node), after, budget))
+          else
+            let r4 ←
+              xml.content cs after env stack ctx budget (alloc.vec.Vec.new
+                xml.Node) (alloc.vec.Vec.new Std.U32)
+            let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+            match cf4 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let (nodes, text, stop, budget1) := val3
+              let r5 ← xml.flush nodes text stop
+              let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+              match cf5 with
+              | core.ops.control_flow.ControlFlow.Continue val4 =>
+                let r6 ← xml.end_tag cs stop i1 name_end
+                let cf6 ← core.result.Result.Insts.CoreOpsTry.branch r6
+                match cf6 with
+                | core.ops.control_flow.ControlFlow.Continue val5 =>
+                  ok (core.result.Result.Ok (xml.Element.mk «prefix»
+                    «namespace» val1 val2 decls val4, val5, budget1))
+                | core.ops.control_flow.ControlFlow.Break residual =>
+                  core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                    (xml.Element × Std.Usize × Std.Usize)
+                    (core.convert.FromSame xml.XmlError) residual
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  (xml.Element × Std.Usize × Std.Usize)
+                  (core.convert.FromSame xml.XmlError) residual
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+                xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+            xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+      xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::element]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1673:0-1696:1 -/
+def xml.element
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
+  (budget : Std.Usize) :
+  Result (core.result.Result (xml.Element × Std.Usize × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let r ← xml.qname cs i1
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (name_end, mark) := val
+    let r1 ←
+      xml.attributes cs name_end env stack budget (alloc.vec.Vec.new xml.Raw)
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (raws, j, budget1) := val1
+      let i2 ← xml.skip_spaces cs j
+      let r2 ← xml.tag_end cs i2
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (empty, after) := val2
+        let r3 ← xml.unique_names cs raws 0#usize
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue _ =>
+          let r4 ←
+            xml.declarations cs raws 0#usize (alloc.vec.Vec.new xml.Binding)
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let i3 := alloc.vec.Vec.len val3
+            if i3 = 0#usize
+            then
+              xml.element_in cs i name_end mark after empty env stack ctx raws
+                val3 budget1
+            else
+              let r5 ← xml.extend ctx val3
+              let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+              match cf5 with
+              | core.ops.control_flow.ControlFlow.Continue val4 =>
+                xml.element_in cs i name_end mark after empty env stack val4
+                  raws val3 budget1
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  (xml.Element × Std.Usize × Std.Usize)
+                  (core.convert.FromSame xml.XmlError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+              xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+            xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (xml.Element × Std.Usize × Std.Usize) (core.convert.FromSame
+      xml.XmlError) residual
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::xml::version_digits]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1702:0-1713:1 -/
+def xml.version_digits
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
+  (q : Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  let b ← xml.digit c
+  if b
+  then let i1 ← i + 1#usize
+       xml.version_digits cs i1 start q
+  else
+    if i = start
+    then
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+    else
+      if c = q
+      then let i1 ← i + 1#usize
+           ok (core.result.Result.Ok i1)
+      else
+        let xe ← xml.fail xml.ErrorKind.Syntax i
+        ok (core.result.Result.Err xe)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::version_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1716:0-1725:1 -/
+def xml.version_value
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then
+    let i1 ← i + 1#usize
+    let s ← lift (Array.to_slice (Array.make 2#usize [ 49#u8, 46#u8 ]))
+    let b1 ← xml.starts cs i1 s
+    if b1
+    then let i2 ← i + 3#usize
+         xml.version_digits cs i2 i2 q
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::ascii_letter]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1727:0-1729:1 -/
+def xml.ascii_letter (c : Std.U32) : Result Bool := do
+  ok (((c >= 65#u32) && (c <= 90#u32)) || ((c >= 97#u32) && (c <= 122#u32)))
+
+/-- [rowl_kernel::xml::enc_char]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1732:0-1734:1 -/
+def xml.enc_char (c : Std.U32) : Result Bool := do
+  let b ← xml.ascii_letter c
+  let b1 ← xml.digit c
+  ok ((((b || b1) || (c = 46#u32)) || (c = 95#u32)) || (c = 45#u32))
+
+/-- [rowl_kernel::xml::enc_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1736:0-1742:1 -/
+def xml.enc_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
+  let i1 ← xml.at cs i
+  let b ← xml.enc_char i1
+  if b
+  then let i2 ← i + 1#usize
+       xml.enc_end cs i2
+  else ok i
+partial_fixpoint
+
+/-- [rowl_kernel::xml::utf8_letters]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1745:0-1751:1 -/
+def xml.utf8_letters
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) : Result Bool := do
+  let i ← xml.at cs start
+  let b ← xml.caseless i 117#u32
+  let i1 ← start + 1#usize
+  let i2 ← xml.at cs i1
+  let b1 ← xml.caseless i2 116#u32
+  let i3 ← start + 2#usize
+  let i4 ← xml.at cs i3
+  let b2 ← xml.caseless i4 102#u32
+  let i5 ← start + 3#usize
+  let i6 ← xml.at cs i5
+  let i7 ← start + 4#usize
+  let i8 ← xml.at cs i7
+  ok ((((b && b1) && b2) && (i6 = 45#u32)) && (i8 = 56#u32))
+
+/-- [rowl_kernel::xml::utf8_name]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1754:0-1760:1 -/
+def xml.utf8_name
+  (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i ← «end» - start
+  if i = 5#usize
+  then xml.utf8_letters cs start
+  else ok false
+
+/-- [rowl_kernel::xml::encoding_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1763:0-1779:1 -/
+def xml.encoding_value
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then
+    let i1 ← i + 1#usize
+    let i2 ← xml.at cs i1
+    let b1 ← xml.ascii_letter i2
+    if b1
+    then
+      let i3 ← i + 2#usize
+      let «end» ← xml.enc_end cs i3
+      let i4 ← xml.at cs «end»
+      if i4 != q
+      then
+        let xe ← xml.fail xml.ErrorKind.Syntax «end»
+        ok (core.result.Result.Err xe)
+      else
+        let b2 ← xml.utf8_name cs i1 «end»
+        if b2
+        then let i5 ← «end» + 1#usize
+             ok (core.result.Result.Ok i5)
+        else
+          let xe ← xml.fail xml.ErrorKind.UnsupportedEncoding i1
+          ok (core.result.Result.Err xe)
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax i1
+      ok (core.result.Result.Err xe)
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::yes_no_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1782:0-1790:1 -/
+def xml.yes_no_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
+  let s ←
+    lift (Array.to_slice (Array.make 3#usize [ 121#u8, 101#u8, 115#u8 ]))
+  let b ← xml.starts cs i s
+  if b
+  then i + 3#usize
+  else
+    let s1 ← lift (Array.to_slice (Array.make 2#usize [ 110#u8, 111#u8 ]))
+    let b1 ← xml.starts cs i s1
+    if b1
+    then i + 2#usize
+    else ok i
+
+/-- [rowl_kernel::xml::standalone_close]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1805:0-1813:1 -/
+def xml.standalone_close
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize)
+  (q : Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  if «end» = i1
+  then
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+  else
+    let i2 ← xml.at cs «end»
+    if i2 = q
+    then let i3 ← «end» + 1#usize
+         ok (core.result.Result.Ok i3)
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax «end»
+      ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::standalone_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1793:0-1801:1 -/
+def xml.standalone_value
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then
+    let i1 ← i + 1#usize
+    let «end» ← xml.yes_no_end cs i1
+    xml.standalone_close cs i «end» q
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::keyword_follows]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1816:0-1818:1 -/
+def xml.keyword_follows
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
+  (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let b ← xml.starts cs j word
+  ok ((i < j) && b)
+
+/-- [rowl_kernel::xml::encoding_part]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1821:0-1829:1 -/
+def xml.encoding_part
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let s ←
+    lift (Array.to_slice
+      (Array.make 8#usize [
+        101#u8, 110#u8, 99#u8, 111#u8, 100#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  let b ← xml.keyword_follows cs i j s
+  if b
+  then
+    let i1 ← j + 8#usize
+    let r ← xml.eq cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.encoding_value cs val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  else ok (core.result.Result.Ok i)
+
+/-- [rowl_kernel::xml::standalone_part]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1832:0-1840:1 -/
+def xml.standalone_part
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let s ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        115#u8, 116#u8, 97#u8, 110#u8, 100#u8, 97#u8, 108#u8, 111#u8, 110#u8,
+        101#u8
+        ]))
+  let b ← xml.keyword_follows cs i j s
+  if b
+  then
+    let i1 ← j + 10#usize
+    let r ← xml.eq cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.standalone_value cs val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  else ok (core.result.Result.Ok i)
+
+/-- [rowl_kernel::xml::declaration_start]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1843:0-1845:1 -/
+def xml.declaration_start (cs : alloc.vec.Vec Std.U32) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 60#u8, 63#u8, 120#u8, 109#u8, 108#u8 ]))
+  let b ← xml.starts cs 0#usize s
+  let i ← xml.at cs 5#usize
+  let b1 ← xml.space i
+  ok (b && b1)
+
+/-- [rowl_kernel::xml::declaration_body]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1848:0-1864:1 -/
+def xml.declaration_body
+  (cs : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i ← xml.skip_spaces cs 5#usize
+  let s ←
+    lift (Array.to_slice
+      (Array.make 7#usize [
+        118#u8, 101#u8, 114#u8, 115#u8, 105#u8, 111#u8, 110#u8
+        ]))
+  let b ← xml.starts cs i s
+  if b
+  then
+    let i1 ← i + 7#usize
+    let r ← xml.eq cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.version_value cs val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r2 ← xml.encoding_part cs val1
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let r3 ← xml.standalone_part cs val2
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let j ← xml.skip_spaces cs val3
+            let b1 ← xml.pi_end cs j
+            if b1
+            then let i2 ← j + 2#usize
+                 ok (core.result.Result.Ok i2)
+            else
+              let xe ← xml.fail xml.ErrorKind.Syntax j
+              ok (core.result.Result.Err xe)
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Std.Usize (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Std.Usize (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Std.Usize (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::xml_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1867:0-1873:1 -/
+def xml.xml_declaration
+  (cs : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let b ← xml.declaration_start cs
+  if b
+  then xml.declaration_body cs
+  else ok (core.result.Result.Ok 0#usize)
+
+/-- [rowl_kernel::xml::MiscRule]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1875:0-1879:1 -/
+@[discriminant isize]
+inductive xml.MiscRule where
+| Comment : xml.MiscRule
+| Pi : xml.MiscRule
+| Other : xml.MiscRule
+
+/-- [rowl_kernel::xml::misc_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1881:0-1889:1 -/
+def xml.misc_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.MiscRule := do
+  let s ←
+    lift (Array.to_slice (Array.make 4#usize [ 60#u8, 33#u8, 45#u8, 45#u8 ]))
+  let b ← xml.starts cs i s
+  if b
+  then ok xml.MiscRule.Comment
+  else
+    let s1 ← lift (Array.to_slice (Array.make 2#usize [ 60#u8, 63#u8 ]))
+    let b1 ← xml.starts cs i s1
+    if b1
+    then ok xml.MiscRule.Pi
+    else ok xml.MiscRule.Other
+
+/-- [rowl_kernel::xml::misc]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1892:0-1905:1 -/
+def xml.misc
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let mr ← xml.misc_rule cs j
+  match mr with
+  | xml.MiscRule.Comment =>
+    let r ← xml.comment cs j
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val => xml.misc cs val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  | xml.MiscRule.Pi =>
+    let r ← xml.pi cs j
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val => xml.misc cs val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  | xml.MiscRule.Other => ok (core.result.Result.Ok j)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::literal_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1918:0-1927:1 -/
+def xml.literal_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  if c = q
+  then let i1 ← i + 1#usize
+       ok (core.result.Result.Ok i1)
+  else
+    if c = 0#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+      ok (core.result.Result.Err xe)
+    else let i1 ← i + 1#usize
+         xml.literal_end cs i1 q
+partial_fixpoint
+
+/-- [rowl_kernel::xml::system_literal]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1908:0-1915:1 -/
+def xml.system_literal
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then let i1 ← i + 1#usize
+       xml.literal_end cs i1 q
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::pubid_char]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1930:0-1955:1 -/
+def xml.pubid_char (c : Std.U32) : Result Bool := do
+  let b ← xml.ascii_letter c
+  let b1 ← xml.digit c
+  ok ((((((((((((((((((((((((c = 32#u32) || (c = 13#u32)) || (c = 10#u32)) ||
+    b) || b1) || (c = 45#u32)) || (c = 39#u32)) || (c = 40#u32)) || (c =
+    41#u32)) || (c = 43#u32)) || (c = 44#u32)) || (c = 46#u32)) || (c =
+    47#u32)) || (c = 58#u32)) || (c = 61#u32)) || (c = 63#u32)) || (c =
+    59#u32)) || (c = 33#u32)) || (c = 42#u32)) || (c = 35#u32)) || (c =
+    64#u32)) || (c = 36#u32)) || (c = 95#u32)) || (c = 37#u32))
+
+/-- [rowl_kernel::xml::pubid_end]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1957:0-1966:1 -/
+def xml.pubid_end
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  if c = q
+  then let i1 ← i + 1#usize
+       ok (core.result.Result.Ok i1)
+  else
+    let b ← xml.pubid_char c
+    if b
+    then let i1 ← i + 1#usize
+         xml.pubid_end cs i1 q
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::pubid_literal]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1969:0-1976:1 -/
+def xml.pubid_literal
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then let i1 ← i + 1#usize
+       xml.pubid_end cs i1 q
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax i
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::external_id]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1979:0-1991:1 -/
+def xml.external_id
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 83#u8, 89#u8, 83#u8, 84#u8, 69#u8, 77#u8 ]))
+  let b ← xml.starts cs i s
+  if b
+  then
+    let i1 ← i + 6#usize
+    let r ← xml.spaces cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.system_literal cs val
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 6#usize [ 80#u8, 85#u8, 66#u8, 76#u8, 73#u8, 67#u8 ]))
+    let b1 ← xml.starts cs i s1
+    if b1
+    then
+      let i1 ← i + 6#usize
+      let r ← xml.spaces cs i1
+      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+      match cf with
+      | core.ops.control_flow.ControlFlow.Continue val =>
+        let r1 ← xml.pubid_literal cs val
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let r2 ← xml.spaces cs val1
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            xml.system_literal cs val2
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              Std.Usize (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Std.Usize (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Std.Usize (core.convert.FromSame xml.XmlError) residual
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax i
+      ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::external_follows]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1994:0-1996:1 -/
+def xml.external_follows
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
+  Result Bool
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 83#u8, 89#u8, 83#u8, 84#u8, 69#u8, 77#u8 ]))
+  let b ← xml.starts cs j s
+  let s1 ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 80#u8, 85#u8, 66#u8, 76#u8, 73#u8, 67#u8 ]))
+  let b1 ← xml.starts cs j s1
+  ok ((i < j) && (b || b1))
+
+/-- [rowl_kernel::xml::push_entity]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1998:0-2005:1 -/
+def xml.push_entity
+  (env : alloc.vec.Vec xml.Entity) (e : xml.Entity) (offset : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec xml.Entity) xml.XmlError)
+  := do
+  let i := alloc.vec.Vec.len env
+  if i < core.num.Usize.MAX
+  then let env1 ← alloc.vec.Vec.push env e
+       ok (core.result.Result.Ok env1)
+  else
+    let xe ← xml.fail xml.ErrorKind.ResourceLimit offset
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::bypass]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2009:0-2011:1 -/
+def xml.bypass
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
+  (out : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  xml.copy_from cs i j out
+
+/-- [rowl_kernel::xml::value_reference]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2015:0-2025:1 -/
+def xml.value_reference
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← i + 1#usize
+  let i2 ← xml.at cs i1
+  if i2 = 35#u32
+  then
+    let r ← xml.char_reference cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (c, j) := val
+      let r1 ← xml.push_char text c i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (val1, j))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  else
+    let r ← xml.entity_name cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (_, j) := val
+      let r1 ← xml.bypass cs i j text
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (val1, j))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+
+/-- [rowl_kernel::xml::entity_value]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2030:0-2050:1 -/
+def xml.entity_value
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32)
+  (text : alloc.vec.Vec Std.U32) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
+    xml.XmlError)
+  := do
+  let c ← xml.at cs i
+  if c = q
+  then ok (core.result.Result.Ok (text, i))
+  else
+    if c = 0#u32
+    then
+      let xe ← xml.fail xml.ErrorKind.UnexpectedEnd i
+      ok (core.result.Result.Err xe)
+    else
+      if c = 37#u32
+      then
+        let xe ← xml.fail xml.ErrorKind.UnsupportedDeclaration i
+        ok (core.result.Result.Err xe)
+      else
+        if c = 38#u32
+        then
+          let r ← xml.value_reference cs i text
+          let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+          match cf with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let (text1, j) := val
+            xml.entity_value cs j q text1
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+              xml.XmlError) residual
+        else
+          let r ← xml.push_char text c i
+          let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+          match cf with
+          | core.ops.control_flow.ControlFlow.Continue val =>
+            let i1 ← i + 1#usize
+            xml.entity_value cs i1 q val
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec Std.U32) × Std.Usize) (core.convert.FromSame
+              xml.XmlError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::xml::ndata_follows]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2053:0-2055:1 -/
+def xml.ndata_follows
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
+  Result Bool
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 5#usize [ 78#u8, 68#u8, 65#u8, 84#u8, 65#u8 ]))
+  let b ← xml.starts cs j s
+  ok ((i < j) && b)
+
+/-- [rowl_kernel::xml::external_rest]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2059:0-2068:1 -/
+def xml.external_rest
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (xml.EntityKind × Std.Usize) xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let b ← xml.ndata_follows cs i j
+  if b
+  then
+    let i1 ← j + 5#usize
+    let r ← xml.spaces cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.ncname cs val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (xml.EntityKind.Unparsed, val1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (xml.EntityKind × Std.Usize) (core.convert.FromSame xml.XmlError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.EntityKind × Std.Usize) (core.convert.FromSame xml.XmlError)
+        residual
+  else ok (core.result.Result.Ok (xml.EntityKind.External, i))
+
+/-- [rowl_kernel::xml::entity_definition]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2071:0-2081:1 -/
+def xml.entity_definition
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result (xml.EntityKind × (alloc.vec.Vec Std.U32) ×
+    Std.Usize) xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then
+    let i1 ← i + 1#usize
+    let r ← xml.entity_value cs i1 q (alloc.vec.Vec.new Std.U32)
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (text, j) := val
+      let i2 ← j + 1#usize
+      ok (core.result.Result.Ok (xml.EntityKind.Internal, text, i2))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.EntityKind × (alloc.vec.Vec Std.U32) × Std.Usize)
+        (core.convert.FromSame xml.XmlError) residual
+  else
+    let r ← xml.external_id cs i
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.external_rest cs val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (kind, k) := val1
+        ok (core.result.Result.Ok (kind, alloc.vec.Vec.new Std.U32, k))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (xml.EntityKind × (alloc.vec.Vec Std.U32) × Std.Usize)
+          (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (xml.EntityKind × (alloc.vec.Vec Std.U32) × Std.Usize)
+        (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::parameter_definition]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2084:0-2092:1 -/
+def xml.parameter_definition
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let q ← xml.at cs i
+  let b ← xml.quote q
+  if b
+  then
+    let i1 ← i + 1#usize
+    let r ← xml.entity_value cs i1 q (alloc.vec.Vec.new Std.U32)
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (_, j) := val
+      let i2 ← j + 1#usize
+      ok (core.result.Result.Ok i2)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  else xml.external_id cs i
+
+/-- [rowl_kernel::xml::declaration_close]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2095:0-2102:1 -/
+def xml.declaration_close
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let i1 ← xml.at cs j
+  if i1 = 62#u32
+  then let i2 ← j + 1#usize
+       ok (core.result.Result.Ok i2)
+  else
+    let xe ← xml.fail xml.ErrorKind.Syntax j
+    ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::parameter_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2105:0-2111:1 -/
+def xml.parameter_declaration
+  (cs : alloc.vec.Vec Std.U32) (j : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let i ← j + 1#usize
+  let r ← xml.spaces cs i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← xml.ncname cs val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← xml.spaces cs val1
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let r3 ← xml.parameter_definition cs val2
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          xml.declaration_close cs val3
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            Std.Usize (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          Std.Usize (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        Std.Usize (core.convert.FromSame xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::general_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2114:0-2127:1 -/
+def xml.general_declaration
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
+  (env : alloc.vec.Vec xml.Entity) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
+    xml.XmlError)
+  := do
+  let r ← xml.ncname cs j
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← xml.spaces cs val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← xml.entity_definition cs val1
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (kind, text, n) := val2
+        let r3 ← xml.declaration_close cs n
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let r4 ← xml.copy_span cs j val
+          let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+          match cf4 with
+          | core.ops.control_flow.ControlFlow.Continue val4 =>
+            let r5 ← xml.push_entity env { «name» := val4, kind, text } i
+            let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+            match cf5 with
+            | core.ops.control_flow.ControlFlow.Continue val5 =>
+              ok (core.result.Result.Ok (val5, val3))
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                ((alloc.vec.Vec xml.Entity) × Std.Usize)
+                (core.convert.FromSame xml.XmlError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+              xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+            xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+      xml.XmlError) residual
+
+/-- [rowl_kernel::xml::entity_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2130:0-2142:1 -/
+def xml.entity_declaration
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  :
+  Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← i + 8#usize
+  let r ← xml.spaces cs i1
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i2 ← xml.at cs val
+    if i2 = 37#u32
+    then
+      let r1 ← xml.parameter_declaration cs val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (env, val1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    else xml.general_declaration cs i val env
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+      xml.XmlError) residual
+
+/-- [rowl_kernel::xml::SubsetRule]
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2144:0-2151:1 -/
+@[discriminant isize]
+inductive xml.SubsetRule where
+| Close : xml.SubsetRule
+| Entity : xml.SubsetRule
+| Comment : xml.SubsetRule
+| Pi : xml.SubsetRule
+| Unsupported : xml.SubsetRule
+| Invalid : xml.SubsetRule
+
+/-- [rowl_kernel::xml::other_declaration]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2155:0-2157:1 -/
+def xml.other_declaration
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        60#u8, 33#u8, 69#u8, 76#u8, 69#u8, 77#u8, 69#u8, 78#u8, 84#u8
+        ]))
+  let b ← xml.starts cs i s
+  let s1 ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        60#u8, 33#u8, 65#u8, 84#u8, 84#u8, 76#u8, 73#u8, 83#u8, 84#u8
+        ]))
+  let b1 ← xml.starts cs i s1
+  let s2 ←
+    lift (Array.to_slice
+      (Array.make 10#usize [
+        60#u8, 33#u8, 78#u8, 79#u8, 84#u8, 65#u8, 84#u8, 73#u8, 79#u8, 78#u8
+        ]))
+  let b2 ← xml.starts cs i s2
+  ok ((b || b1) || b2)
+
+/-- [rowl_kernel::xml::declaration_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2159:0-2165:1 -/
+def xml.declaration_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.SubsetRule := do
+  let b ← xml.other_declaration cs i
+  if b
+  then ok xml.SubsetRule.Unsupported
+  else ok xml.SubsetRule.Invalid
+
+/-- [rowl_kernel::xml::subset_rule]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2167:0-2181:1 -/
+def xml.subset_rule
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.SubsetRule := do
+  let i1 ← xml.at cs i
+  if i1 = 93#u32
+  then ok xml.SubsetRule.Close
+  else
+    if i1 = 37#u32
+    then ok xml.SubsetRule.Unsupported
+    else
+      let s ←
+        lift (Array.to_slice
+          (Array.make 8#usize [
+            60#u8, 33#u8, 69#u8, 78#u8, 84#u8, 73#u8, 84#u8, 89#u8
+            ]))
+      let b ← xml.starts cs i s
+      if b
+      then ok xml.SubsetRule.Entity
+      else
+        let s1 ←
+          lift (Array.to_slice
+            (Array.make 4#usize [ 60#u8, 33#u8, 45#u8, 45#u8 ]))
+        let b1 ← xml.starts cs i s1
+        if b1
+        then ok xml.SubsetRule.Comment
+        else
+          let s2 ←
+            lift (Array.to_slice (Array.make 2#usize [ 60#u8, 63#u8 ]))
+          let b2 ← xml.starts cs i s2
+          if b2
+          then ok xml.SubsetRule.Pi
+          else xml.declaration_rule cs i
+
+/-- [rowl_kernel::xml::internal_subset]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2185:0-2208:1 -/
+def xml.internal_subset
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
+  :
+  Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
+    xml.XmlError)
+  := do
+  let i1 ← xml.skip_spaces cs i
+  let sr ← xml.subset_rule cs i1
+  match sr with
+  | xml.SubsetRule.Close => ok (core.result.Result.Ok (env, i1))
+  | xml.SubsetRule.Entity =>
+    let r ← xml.entity_declaration cs i1 env
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (env1, j) := val
+      xml.internal_subset cs j env1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | xml.SubsetRule.Comment =>
+    let r ← xml.comment cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.internal_subset cs val env
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | xml.SubsetRule.Pi =>
+    let r ← xml.pi cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      xml.internal_subset cs val env
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  | xml.SubsetRule.Unsupported =>
+    let xe ← xml.fail xml.ErrorKind.UnsupportedDeclaration i1
+    ok (core.result.Result.Err xe)
+  | xml.SubsetRule.Invalid =>
+    let xe ← xml.fail xml.ErrorKind.Syntax i1
+    ok (core.result.Result.Err xe)
+partial_fixpoint
+
+/-- [rowl_kernel::xml::doctype_external]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2212:0-2219:1 -/
+def xml.doctype_external
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result Std.Usize xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let b ← xml.external_follows cs i j
+  if b
+  then xml.external_id cs j
+  else ok (core.result.Result.Ok i)
+
+/-- [rowl_kernel::xml::doctype_rest]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2223:0-2234:1 -/
+def xml.doctype_rest
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
+    xml.XmlError)
+  := do
+  let j ← xml.skip_spaces cs i
+  let i1 ← xml.at cs j
+  if i1 = 91#u32
+  then
+    let i2 ← j + 1#usize
+    let r ← xml.internal_subset cs i2 (alloc.vec.Vec.new xml.Entity)
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (env, k) := val
+      let i3 ← k + 1#usize
+      let r1 ← xml.declaration_close cs i3
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        ok (core.result.Result.Ok (env, val1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  else
+    if i1 = 62#u32
+    then
+      let i2 ← j + 1#usize
+      ok (core.result.Result.Ok (alloc.vec.Vec.new xml.Entity, i2))
+    else
+      let xe ← xml.fail xml.ErrorKind.Syntax j
+      ok (core.result.Result.Err xe)
+
+/-- [rowl_kernel::xml::doctype]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2238:0-2247:1 -/
+def xml.doctype
+  (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
+    xml.XmlError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 9#usize [
+        60#u8, 33#u8, 68#u8, 79#u8, 67#u8, 84#u8, 89#u8, 80#u8, 69#u8
+        ]))
+  let b ← xml.starts cs i s
+  if b
+  then
+    let i1 ← i + 9#usize
+    let r ← xml.spaces cs i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← xml.qname cs val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («end», _) := val1
+        let r2 ← xml.doctype_external cs «end»
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          xml.doctype_rest cs val2
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+            xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+          xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec xml.Entity) × Std.Usize) (core.convert.FromSame
+        xml.XmlError) residual
+  else ok (core.result.Result.Ok (alloc.vec.Vec.new xml.Entity, i))
+
+/-- [rowl_kernel::xml::document]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2250:0-2266:1 -/
+def xml.document
+  (cs : alloc.vec.Vec Std.U32) (budget : Std.Usize) :
+  Result (core.result.Result xml.Document xml.XmlError)
+  := do
+  let r ← xml.xml_declaration cs
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← xml.misc cs val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← xml.doctype cs val1
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let (env, i) := val2
+        let r3 ← xml.misc cs i
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          let i1 ← xml.at cs val3
+          if i1 != 60#u32
+          then
+            let xe ← xml.fail xml.ErrorKind.Syntax val3
+            ok (core.result.Result.Err xe)
+          else
+            let r4 ←
+              xml.element cs val3 env (alloc.vec.Vec.new Std.Usize)
+                (alloc.vec.Vec.new xml.Binding) budget
+            let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
+            match cf4 with
+            | core.ops.control_flow.ControlFlow.Continue val4 =>
+              let (root, j, _) := val4
+              let r5 ← xml.misc cs j
+              let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
+              match cf5 with
+              | core.ops.control_flow.ControlFlow.Continue val5 =>
+                let i2 := alloc.vec.Vec.len cs
+                if val5 = i2
+                then ok (core.result.Result.Ok { root })
+                else
+                  let xe ← xml.fail xml.ErrorKind.Syntax val5
+                  ok (core.result.Result.Err xe)
+              | core.ops.control_flow.ControlFlow.Break residual =>
+                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                  xml.Document (core.convert.FromSame xml.XmlError) residual
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                xml.Document (core.convert.FromSame xml.XmlError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            xml.Document (core.convert.FromSame xml.XmlError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          xml.Document (core.convert.FromSame xml.XmlError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        xml.Document (core.convert.FromSame xml.XmlError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      xml.Document (core.convert.FromSame xml.XmlError) residual
+
+/-- [rowl_kernel::xml::read]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2270:0-2278:1
+    Visibility: public -/
+def xml.read
+  (bytes : alloc.vec.Vec Std.U8) (limits : xml.Limits) :
+  Result xml.ReadResult
+  := do
+  let r ← xml.decode bytes
+  match r with
+  | core.result.Result.Ok cs =>
+    let r1 ← xml.document cs limits.expansion
+    match r1 with
+    | core.result.Result.Ok d => ok (xml.ReadResult.Document d)
+    | core.result.Result.Err e =>
+      let i ← xml.byte_offset bytes e.offset
+      let xe ← xml.fail e.kind i
+      ok (xml.ReadResult.Error xe)
+  | core.result.Result.Err e => ok (xml.ReadResult.Error e)
+
 end RowlRust

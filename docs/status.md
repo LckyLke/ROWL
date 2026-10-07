@@ -61,6 +61,19 @@ progress. Full OWL parsing and executable reasoning are still future work.
   not beginning with `//`; a proved counterexample shows that the RFC algorithm
   can leave the IRI grammar otherwise. `references::is_reference` is proved to
   accept exactly the UTF-8 spellings of RFC 3987 IRI references.
+- M3 XML 1.0 and Namespaces in XML 1.0 reading for RDF/XML (`xml::read`):
+  strict UTF-8 with a leading byte order mark dropped and line ends normalized,
+  the XML declaration, comments, processing instructions, a document type
+  declaration whose internal subset declares entities, elements, attributes
+  normalized as §3.3.3 prescribes, character data, CDATA sections, character
+  and entity references under an expansion budget, and namespace resolution
+  under every namespace constraint. Proved against an independent grammar over
+  code points: when the byte length plus the budget fits in `usize`, `read`
+  returns the element tree exactly for the supported documents, that tree is
+  unique, and every other input gives a typed error. Other encodings, element
+  type, attribute-list and notation declarations, parameter-entity references
+  and external or unparsed entities are declined. The RDF/XML grammar over
+  these trees is not yet implemented.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against
@@ -1069,7 +1082,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 2834 audited public theorems and 1237 audited semantic definitions. Consistency,
+- 3336 audited public theorems and 1321 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1086,7 +1099,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 548 Rust regression tests and 13 Python binding tests, plus a separately fetched
+- 552 Rust regression tests and 13 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1103,7 +1116,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3027-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3529-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

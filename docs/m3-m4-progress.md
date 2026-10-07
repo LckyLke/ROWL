@@ -4995,3 +4995,64 @@ unchanged.
 
 This block adds 80 public theorems and 40 definitions. Totals are 2834 audited
 theorems, 1237 definitions, 548 Rust regressions and 3027 ledger obligations.
+
+## M3: XML documents for RDF/XML
+
+`xml.rs` reads the UTF-8 bytes of an XML document into the element tree that
+RDF/XML reads (RDF 1.1 XML Syntax §6). `XmlGrammar.lean` states, independently
+of the reader and over words of code points, the productions of XML 1.0 (Fifth
+Edition) that the supported documents use and the constraints of Namespaces in
+XML 1.0 (Third Edition). Every production is a relation between a word and what
+it yields: the element tree, whose elements have their prefix, namespace name
+and local name, their attributes in document order with normalized values, their
+own namespace declarations and their children, where each maximal run of
+characters is one text node and comments and processing instructions give
+nothing; and the cost of the entity expansions, one plus the length of the
+replacement text for each. `Decoded` reads bytes as strict UTF-8 whose
+characters are all `Char`s, drops a leading byte order mark (§4.3.3) and
+normalizes line ends (§2.11). `Document` is production [1]: a prolog, one
+element under the well-formedness constraints Element Type Match, Unique Att
+Spec, No < in Attribute Values, Legal Character, Entity Declared, Parsed Entity
+and No Recursion, and Misc. `Read bytes budget root` says that the decoded
+characters derive a document with root `root` whose expansions cost at most
+`budget`.
+
+The supported documents are the well-formed ones whose encoding declaration,
+when present, names UTF-8, whose internal subset holds only entity declarations,
+comments, processing instructions and white space, and whose entity references
+name declared internal entities or predefined ones. An external identifier of
+the document type declaration is not read. Declarations of the five predefined
+names never change them. Attribute values are normalized as for CDATA
+attributes, character references and entity replacement texts included
+(§3.3.3). Element and attribute names are QNames resolved under every namespace
+constraint: Reserved Prefixes and Namespace Names, Prefix Declared, No Prefix
+Undeclaring and Attributes Unique. Element type, attribute-list and notation
+declarations, parameter-entity references, other encodings and references to
+external, unparsed or undeclared entities are declined with typed errors; an
+attribute-list declaration would change the infoset through defaults and
+normalization.
+
+`Xml.lean` proves `read_correct`: when the byte length plus the budget fits in
+`usize`, `xml::read` returns the tree `root` exactly when `Read bytes budget
+root` holds, and returns an error exactly when no tree is read. `read_unique`
+follows: a document has at most one tree. `read_total` proves that `read`
+always returns. On the characters, `document_sound` and `document_complete`
+relate `xml::document` to `Document`; `decode_spec` proves that `decode`
+returns exactly the decoded characters, which are unique (`textFrom_unique`),
+and `byte_offset_total` that mapping an error position back to a byte offset
+never fails. Error kinds and offsets are reported but not specified by the
+theorems.
+
+Each function has a soundness theorem, proved by well-founded recursion on the
+remaining characters, saying that it returns, and that a successful result
+comes with a derivation of the word it consumed; and a completeness theorem,
+proved by induction on derivations, saying that it returns the derived value
+when the characters that follow the word cannot extend it. Elements, content
+and markup are mutually recursive in the grammar; their completeness proofs are
+mutual structural recursions over the derivations. The entity stack makes
+references to an entity inside its own expansion an error, which is the No
+Recursion constraint, and the budget bounds the expansions, so the
+billion-laughs document of the tests stops with a resource error.
+
+This block adds 502 public theorems and 84 definitions. Totals are 3336 audited
+theorems, 1321 definitions, 552 Rust regressions and 3529 ledger obligations.

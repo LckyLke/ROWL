@@ -138,3 +138,4 @@ pub mod classification;
 pub mod saturation;
 pub mod snapshot;
 pub mod unicode;
+pub mod xml;
