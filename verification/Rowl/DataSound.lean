@@ -1164,7 +1164,7 @@ end Sizes
 section Model
 variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap Native}
   (context : data_ontology.Context) (J : Interpretation Object' Value') (N : Normative D) (order : List Usize)
-  (atoms : List (DataProperty × Option DataRange × Nat))
+  (atoms : List (DataProperty × Option DataRange × Nat)) (shift : Object' → ℕ)
 
 /-- The value of a literal value. -/
 noncomputable def litValue (val : datatypes.DataValue) : Values.{v,w} Native := embedValue (valueOf N val)
@@ -1236,9 +1236,9 @@ noncomputable def peers (z d : Object') : List Object' :=
     regionOf context J order e = regionOf context J order d))).dedup
 
 /-- The value of a data node for an element: its value at its place among
-    its peers. -/
+    its peers, after the element's shift. -/
 noncomputable def nodeValue (z d : Object') : Values.{v,w} Native :=
-  valueAt.{u,v,w,x} context J N order d ((peers context J order atoms z d).idxOf d)
+  valueAt.{u,v,w,x} context J N order d (shift z + (peers context J order atoms z d).idxOf d)
 
 /-- The data nodes that have values for an element: the literal values'
     individuals and its successors among its witnesses. -/
@@ -1247,7 +1247,7 @@ def ValuedNode (z d : Object') : Prop :=
 
 /-- An element's values at its data nodes. -/
 def Place (z : Object') (y : Values.{v,w} Native) (d : Object') : Prop :=
-  ValuedNode context J atoms z d ∧ nodeValue.{u,v,w,x} context J N order atoms z d = y
+  ValuedNode context J atoms z d ∧ nodeValue.{u,v,w,x} context J N order atoms shift z d = y
 
 /-- The elements of the interpretation of the encoding that are no data nodes. -/
 def Element : Type u := {y : Object' // ¬ J.classes dataClass y}
@@ -1259,7 +1259,7 @@ noncomputable def sound (o : Element J) : Interpretation (Element J) (Values.{v,
   classes c z := J.classes c z.1
   objectProperties r z z' := J.objectProperties r z.1 z'.1
   dataProperties p z y := p = topData ∨ ∃ role, data_ontology.data_role context p = .ok (some role) ∧
-    ∃ d, Place.{u,v,w,x} context J N order atoms z.1 y d ∧ objectRelation J role z.1 d
+    ∃ d, Place.{u,v,w,x} context J N order atoms shift z.1 y d ∧ objectRelation J role z.1 d
   namedIndividuals a := if h : ¬ J.classes dataClass (J.namedIndividuals a) then ⟨_, h⟩ else o
   anonymousIndividuals b := if h : ¬ J.classes dataClass (J.anonymousIndividuals b) then ⟨_, h⟩ else o
   datatypes dt y := dt = literalDatatype ∨ ∃ y0, D.valueSpace dt y0 ∧ embedValue y0 = y
@@ -1276,6 +1276,12 @@ section Values
 variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap Native}
   {context : data_ontology.Context} {J : Interpretation Object' Value'} {N : Normative D}
   {atoms : List (DataProperty × Option DataRange × Nat)} {capacity : Nat} {bits : Usize} {order : List Usize}
+  {shift : Object' → ℕ}
+
+/-- A shift of the indices of the elements' values that is none while numbers
+    are ordered, so that the bounded runs of integers keep their room. -/
+def ShiftOk (context : data_ontology.Context) (shift : Object' → ℕ) : Prop :=
+  context.kinds.ordered = true → ∀ z, shift z = 0
 
 theorem typeOf_not_literal (N : Normative D) (k : datatypes.Kind) : typeOf k ≠ literalDatatype := by
   intro same
@@ -1505,14 +1511,16 @@ theorem peers_bound (setting : Setting context capacity bits order J) (count : a
 /-- The index of the value of a node that is placed for an element is one its
     region has a value for. -/
 theorem placed_valid (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    {z d : Object'} (notLiteral : ¬ LiteralNode context J d) (inList : d ∈ witnessList context J atoms z)
-    (succ : Successor context J z d) :
+    (shiftOk : ShiftOk context shift) {z d : Object'} (notLiteral : ¬ LiteralNode context J d)
+    (inList : d ∈ witnessList context J atoms z) (succ : Successor context J z d) :
     Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
-      (regionStart.{v,w} context N order (regionOf context J order d) + (peers context J order atoms z d).idxOf d) := by
+      (regionStart.{v,w} context N order (regionOf context J order d) +
+        (shift z + (peers context J order atoms z d).idxOf d)) := by
   by_cases infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
   · exact valid_of_infinite infinite _
   · rw [region_start_finite context N order _ infinite, zero_add]
-    obtain ⟨_, numeric, level, _, _⟩ := finite_run setting notLiteral infinite
+    obtain ⟨ordered, numeric, level, _, _⟩ := finite_run setting notLiteral infinite
+    rw [shiftOk ordered z, zero_add]
     have bound := peers_bound setting count notLiteral infinite (z := z)
     have mem : d ∈ peers context J order atoms z d := mem_peers.mpr ⟨inList, succ, notLiteral, rfl⟩
     have idx := List.idxOf_lt_length_of_mem mem
@@ -1590,7 +1598,7 @@ theorem interval_cut {cs : List regions.Cut} (sorted : cs.Pairwise CutBefore) {p
     · rw [eq]; exact low
 
 theorem sound_types (N : Normative D) (o : Element J) (k : datatypes.Kind) (y : Values.{v,w} Native) :
-    (sound.{u,v,w,x} context J N order atoms o).datatypes (typeOf k) y ↔
+    (sound.{u,v,w,x} context J N order atoms shift o).datatypes (typeOf k) y ↔
       ∃ y0, D.valueSpace (typeOf k) y0 ∧ embedValue y0 = y := by
   simp only [sound, typeOf_not_literal N k, false_or]
 
@@ -1602,7 +1610,7 @@ theorem realValue_injective (N : Normative D) : Function.Injective (realValue.{v
 theorem value_node (setting : Setting context capacity bits order J) (o : Element J) {d : Object'} {n : ℕ}
     (valid : ¬ LiteralNode context J d → Valid (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
       (regionStart.{v,w} context N order (regionOf context J order d) + n)) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms o) J (litValue N) (realValue N) d
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) d
       (valueAt.{u,v,w,x} context J N order d n) where
   kinds := fun k used => by
     rw [sound_types]
@@ -1696,8 +1704,8 @@ theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regio
 /-- Distinct data nodes that have values for an element have distinct
     values. -/
 theorem nodeValue_injective (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (z : Object') {d d' : Object'} (hd : ValuedNode context J atoms z d) (hd' : ValuedNode context J atoms z d')
-    (same : nodeValue.{u,v,w,x} context J N order atoms z d = nodeValue context J N order atoms z d') : d = d' := by
+    (shiftOk : ShiftOk context shift) (z : Object') {d d' : Object'} (hd : ValuedNode context J atoms z d) (hd' : ValuedNode context J atoms z d')
+    (same : nodeValue.{u,v,w,x} context J N order atoms shift z d = nodeValue context J N order atoms shift z d') : d = d' := by
   unfold nodeValue at same
   by_cases ld : LiteralNode context J d
   · obtain ⟨i, hi, rfl⟩ := ld
@@ -1708,16 +1716,16 @@ theorem nodeValue_injective (setting : Setting context capacity bits order J) (c
       have values := litValue_injective N setting.good (List.getElem_mem hi) (List.getElem_mem hi') same
       rw [value_index_unique (hi := hi) (hj := hi') setting.good values]
     · have placed := hd'.resolve_left ld'
-      exact absurd same.symm (region_not_literal setting ld' (placed_valid setting count ld' placed.1 placed.2)
+      exact absurd same.symm (region_not_literal setting ld' (placed_valid setting count shiftOk ld' placed.1 placed.2)
         (List.getElem_mem hi))
   · have placed := hd.resolve_left ld
-    have valid := placed_valid (N := N) setting count ld placed.1 placed.2
+    have valid := placed_valid (N := N) setting count shiftOk ld placed.1 placed.2
     by_cases ld' : LiteralNode context J d'
     · obtain ⟨i', hi', rfl⟩ := ld'
       rw [literal_value_at setting i' hi'] at same
       exact absurd same (region_not_literal setting ld valid (List.getElem_mem hi'))
     · have placed' := hd'.resolve_left ld'
-      have valid' := placed_valid (N := N) setting count ld' placed'.1 placed'.2
+      have valid' := placed_valid (N := N) setting count shiftOk ld' placed'.1 placed'.2
       rw [region_value_at d ld, region_value_at d' ld'] at same
       have len := position_le context J order
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
@@ -1731,12 +1739,59 @@ theorem nodeValue_injective (setting : Setting context capacity bits order J) (c
         mem_peers.mpr ⟨placed.1, placed.2, ld, sameRegion⟩
       exact (List.idxOf_inj mem).mp index
 
+/-- The place of a node among an element's peers is below the count of the
+    data restrictions. -/
+theorem peers_index (z d : Object') : (peers context J order atoms z d).idxOf d ≤ atomCount atoms := by
+  have := List.idxOf_le_length (a := d) (l := peers context J order atoms z d)
+  have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
+  have := witness_list_length (context := context) (J := J) (atoms := atoms) z
+  omega
+
+/-- Two elements whose shifted places of two data nodes differ have one value
+    at the two nodes only when the nodes are one: a literal value's own value,
+    or a region's value at one index. -/
+theorem nodeValue_shared (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
+    (shiftOk : ShiftOk context shift) {z z' d d' : Object'} (hd : ValuedNode context J atoms z d)
+    (hd' : ValuedNode context J atoms z' d')
+    (distinct : shift z + (peers context J order atoms z d).idxOf d ≠
+      shift z' + (peers context J order atoms z' d').idxOf d')
+    (same : nodeValue.{u,v,w,x} context J N order atoms shift z d = nodeValue context J N order atoms shift z' d') :
+    d = d' := by
+  unfold nodeValue at same
+  by_cases ld : LiteralNode context J d
+  · obtain ⟨i, hi, rfl⟩ := ld
+    rw [literal_value_at setting i hi] at same
+    by_cases ld' : LiteralNode context J d'
+    · obtain ⟨i', hi', rfl⟩ := ld'
+      rw [literal_value_at setting i' hi'] at same
+      have values := litValue_injective N setting.good (List.getElem_mem hi) (List.getElem_mem hi') same
+      rw [value_index_unique (hi := hi) (hj := hi') setting.good values]
+    · have placed := hd'.resolve_left ld'
+      exact absurd same.symm (region_not_literal setting ld' (placed_valid setting count shiftOk ld' placed.1 placed.2)
+        (List.getElem_mem hi))
+  · have placed := hd.resolve_left ld
+    have valid := placed_valid (N := N) setting count shiftOk ld placed.1 placed.2
+    by_cases ld' : LiteralNode context J d'
+    · obtain ⟨i', hi', rfl⟩ := ld'
+      rw [literal_value_at setting i' hi'] at same
+      exact absurd same (region_not_literal setting ld valid (List.getElem_mem hi'))
+    · have placed' := hd'.resolve_left ld'
+      have valid' := placed_valid (N := N) setting count shiftOk ld' placed'.1 placed'.2
+      rw [region_value_at d ld, region_value_at d' ld'] at same
+      have len := position_le context J order
+      obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
+        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
+        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d') same
+      rw [sameRegion] at sameIndex
+      exact absurd (by omega) distinct
+
 /-- Each data node an element has a value at stands for it. -/
 theorem place_node (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (o : Element J) {z d : Object'} (placed : ValuedNode context J atoms z d) :
-    NodeValue context (sound.{u,v,w,x} context J N order atoms o) J (litValue N) (realValue N) d
-      (nodeValue.{u,v,w,x} context J N order atoms z d) :=
-  value_node setting o (fun ld => placed_valid setting count ld (placed.resolve_left ld).1 (placed.resolve_left ld).2)
+    (shiftOk : ShiftOk context shift) (o : Element J) {z d : Object'} (placed : ValuedNode context J atoms z d) :
+    NodeValue context (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) d
+      (nodeValue.{u,v,w,x} context J N order atoms shift z d) :=
+  value_node setting o (fun ld => placed_valid setting count shiftOk ld (placed.resolve_left ld).1
+    (placed.resolve_left ld).2)
 
 end Values
 
@@ -1746,6 +1801,7 @@ section Correspondence
 variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap Native}
   {context : data_ontology.Context} {J : Interpretation Object' Value'} {N : Normative D}
   {atoms : List (DataProperty × Option DataRange × Nat)} {capacity : Nat} {bits : Usize} {order : List Usize}
+  {shift : Object' → ℕ}
 
 /-- The individuals that `J` places at elements that are no data nodes. -/
 def Known (J : Interpretation Object' Value') (a : Individual) : Prop := ¬ J.classes dataClass (individual J a)
@@ -1755,8 +1811,8 @@ theorem top_ne_bottom_data : topData ≠ bottomData := by
 
 theorem sound_data_role (good : Good context) (o : Element J) {p : DataProperty} {role : ObjectPropertyExpression}
     (run : data_ontology.data_role context p = .ok (some role)) (z : Element J) (y : Values.{v,w} Native) :
-    (sound.{u,v,w,x} context J N order atoms o).dataProperties p z y ↔
-      ∃ d, Place.{u,v,w,x} context J N order atoms z.1 y d ∧ objectRelation J role z.1 d := by
+    (sound.{u,v,w,x} context J N order atoms shift o).dataProperties p z y ↔
+      ∃ d, Place.{u,v,w,x} context J N order atoms shift z.1 y d ∧ objectRelation J role z.1 d := by
   have notTop : p ≠ topData := by
     rintro rfl
     obtain ⟨res, run', facts⟩ := data_role_correct context topData
@@ -1776,7 +1832,7 @@ theorem sound_data_role (good : Good context) (o : Element J) {p : DataProperty}
 
 theorem sound_literal (o : Element J) {lt : Literal} {val : datatypes.DataValue}
     (run : datatypes.literal_value lt = .ok (some val)) :
-    (sound.{u,v,w,x} context J N order atoms o).literals lt = litValue N val := by
+    (sound.{u,v,w,x} context J N order atoms shift o).literals lt = litValue N val := by
   obtain ⟨r, run', facts, _⟩ := Rowl.Datatypes.literal_value_correct lt
   rw [run] at run'
   cases Result.ok_injective run'
@@ -1785,7 +1841,7 @@ theorem sound_literal (o : Element J) {lt : Literal} {val : datatypes.DataValue}
   simp only [sound, litValue, value]
 
 theorem sound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
-    RangeFrame (sound.{u,v,w,x} context J N order atoms o) J (litValue N) (realValue N) where
+    RangeFrame (sound.{u,v,w,x} context J N order atoms shift o) J (litValue N) (realValue N) where
   literal := fun _ => .inl rfl
   thing := setting.thing
   literals := fun _ _ run => sound_literal o run
@@ -1815,25 +1871,25 @@ theorem sound_range_frame (setting : Setting context capacity bits order J) (o :
       exact ⟨N.real s, (facet_reals N F _ _).mpr ⟨s, rfl, real⟩, rfl⟩
 
 theorem sound_atom (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (o : Element J) {p : DataProperty} {range : Option DataRange} {n : Nat} (member : (p, range, n) ∈ atoms)
+    (shiftOk : ShiftOk context shift) (o : Element J) {p : DataProperty} {range : Option DataRange} {n : Nat} (member : (p, range, n) ∈ atoms)
     {role : ObjectPropertyExpression} {filler : Option ClassExpression}
     (roleRun : data_ontology.data_role context p = .ok (some role))
     (fillerRun : data_ontology.encode_optional_range context range = .ok (some filler)) (z : Element J) :
-    (AtLeast n (fun y => (sound.{u,v,w,x} context J N order atoms o).dataProperties p z y ∧
-      RangeHolds (sound.{u,v,w,x} context J N order atoms o) range y)) ↔
+    (AtLeast n (fun y => (sound.{u,v,w,x} context J N order atoms shift o).dataProperties p z y ∧
+      RangeHolds (sound.{u,v,w,x} context J N order atoms shift o) range y)) ↔
       AtLeast n (fun d => objectRelation J role z.1 d ∧ Rowl.Concepts.FillerHolds J filler d) := by
-  have fillerAt : ∀ y d, Place.{u,v,w,x} context J N order atoms z.1 y d →
-      (RangeHolds (sound.{u,v,w,x} context J N order atoms o) range y ↔ Rowl.Concepts.FillerHolds J filler d) := by
+  have fillerAt : ∀ y d, Place.{u,v,w,x} context J N order atoms shift z.1 y d →
+      (RangeHolds (sound.{u,v,w,x} context J N order atoms shift o) range y ↔ Rowl.Concepts.FillerHolds J filler d) := by
     intro y d pl
     obtain ⟨placed, rfl⟩ := pl
     rcases optional_range_meaning.{u,max v w,u,x} context range filler fillerRun with
       ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
     · simp [RangeHolds, Rowl.Concepts.FillerHolds]
     · exact means _ J (litValue N) (realValue N) (sound_range_frame setting o) d _
-        (place_node setting count o placed)
+        (place_node setting count shiftOk o placed)
   constructor
   · rintro ⟨f, fInj, each⟩
-    have pick : ∀ i, ∃ d, Place.{u,v,w,x} context J N order atoms z.1 (f i) d ∧ objectRelation J role z.1 d :=
+    have pick : ∀ i, ∃ d, Place.{u,v,w,x} context J N order atoms shift z.1 (f i) d ∧ objectRelation J role z.1 d :=
       fun i => (sound_data_role setting.good o roleRun z (f i)).mp (each i).1
     choose g gPlace gRel using pick
     refine ⟨g, fun i j same => fInj ?_, fun i => ⟨gRel i, (fillerAt (f i) (g i) (gPlace i)).mp (each i).2⟩⟩
@@ -1855,15 +1911,15 @@ theorem sound_atom (setting : Setting context capacity bits order J) (count : at
       List.mem_flatMap.mpr ⟨(p, range, n), member, by rw [listed]; exact List.mem_ofFn.mpr ⟨i, rfl⟩⟩
     have placed : ∀ i, ValuedNode context J atoms z.1 (Classical.choose h i) := fun i =>
       .inr ⟨inList i, p, role, roleRun, (fEach role filler roleRun fillerRun i).1⟩
-    refine ⟨fun i => nodeValue.{u,v,w,x} context J N order atoms z.1 (Classical.choose h i),
-      fun i j same => fInj (nodeValue_injective setting count z.1 (placed i) (placed j) same), fun i => ?_⟩
-    have pl : Place.{u,v,w,x} context J N order atoms z.1 _ _ := ⟨placed i, rfl⟩
+    refine ⟨fun i => nodeValue.{u,v,w,x} context J N order atoms shift z.1 (Classical.choose h i),
+      fun i j same => fInj (nodeValue_injective setting count shiftOk z.1 (placed i) (placed j) same), fun i => ?_⟩
+    have pl : Place.{u,v,w,x} context J N order atoms shift z.1 _ _ := ⟨placed i, rfl⟩
     obtain ⟨related, fills⟩ := fEach role filler roleRun fillerRun i
     exact ⟨(sound_data_role setting.good o roleRun z _).mpr ⟨_, pl, related⟩, (fillerAt _ _ pl).mpr fills⟩
 
 theorem sound_simulates (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (o : Element J) :
-    Simulates context (sound.{u,v,w,x} context J N order atoms o) J Subtype.val (Known J) atoms where
+    (shiftOk : ShiftOk context shift) (o : Element J) :
+    Simulates context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (Known J) atoms where
   injective := Subtype.val_injective
   objects := fun y => ⟨fun h => ⟨⟨y, h⟩, rfl⟩, fun ⟨z, same⟩ => same ▸ z.2⟩
   classes := fun _ _ _ => Iff.rfl
@@ -1879,18 +1935,18 @@ theorem sound_simulates (setting : Setting context capacity bits order J) (count
       have known' : ¬ J.classes dataClass (J.anonymousIndividuals b) := known
       simp only [individual, sound, dif_pos known']
   data := fun _ _ _ member _ _ roleRun fillerRun z =>
-    sound_atom setting count o member roleRun fillerRun z
+    sound_atom setting count shiftOk o member roleRun fillerRun z
 
 theorem sound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (o : Element J) :
-    Placed context (sound.{u,v,w,x} context J N order atoms o) J Subtype.val (litValue N) (realValue N)
-      (fun z y d => Place.{u,v,w,x} context J N order atoms z.1 y d) where
+    (shiftOk : ShiftOk context shift) (o : Element J) :
+    Placed context (sound.{u,v,w,x} context J N order atoms shift o) J Subtype.val (litValue N) (realValue N)
+      (fun z y d => Place.{u,v,w,x} context J N order atoms shift z.1 y d) where
   functional := fun z _ d d' pl pl' =>
-    nodeValue_injective setting count z.1 pl.1 pl'.1 (pl.2.trans pl'.2.symm)
+    nodeValue_injective setting count shiftOk z.1 pl.1 pl'.1 (pl.2.trans pl'.2.symm)
   injective := fun _ _ _ _ pl pl' => pl.2.symm.trans pl'.2
   nodes := fun z _ d pl => by
     obtain ⟨placed, rfl⟩ := pl
-    exact place_node setting count o placed
+    exact place_node setting count shiftOk o placed
   data := fun p role run z y => sound_data_role setting.good o run z y
   literals := fun z lt a run => by
     obtain ⟨res, run', facts⟩ := literal_individual_correct context lt
@@ -1908,7 +1964,7 @@ theorem sound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes thing d
     (jNothing : ∀ d, ¬ J.classes nothing d) (jTop : ∀ y y', J.objectProperties topObject y y')
     (jBottom : ∀ y y', ¬ J.objectProperties bottomObject y y') (o : Element J) :
     IsInterpretation D (ValueEmbedding.ofEmbedding D ⟨embedValue.{v,w}, embedValue_injective⟩) V
-      (sound.{u,v,w,x} context J N order atoms o) := by
+      (sound.{u,v,w,x} context J N order atoms shift o) := by
   refine ⟨fun z => jThing z.1, fun z => jNothing z.1, fun z z' => jTop z.1 z'.1, fun z z' => jBottom z.1 z'.1,
     fun _ _ => .inl rfl, ?_, fun dt supported y => ?_, fun _ => .inl rfl, fun _ _ => rfl, fun _ _ _ => Iff.rfl,
     fun _ _ => trivial⟩
@@ -1949,7 +2005,7 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
     ∃ (bits : Usize) (order : List Usize) (o : Element J), Setting context capacity.val bits order J ∧
       (∀ item ∈ items.val, ∀ a ∈ axiomIndividuals item.axiom, Known J a) ∧
       ∀ atoms, (∀ a ∈ itemAtoms items.val, a ∈ atoms) → atomCount atoms ≤ capacity.val →
-        satisfiesClosure (sound.{u,v,w,x} context J N order atoms o) items.val := by
+        satisfiesClosure (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) items.val := by
   obtain ⟨res, run', facts⟩ := encode_meaning.{u,max v w,u,x} context good capacity capSmall items
   rw [run] at run'
   cases Result.ok_injective run'
@@ -1960,8 +2016,9 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
   have setting : Setting context capacity.val bits order J :=
     ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom⟩
   refine ⟨bits, order, o, setting, names, fun atoms covers count => ?_⟩
-  exact (means.1 (sound.{u,v,w,x} context J N order atoms o) J Subtype.val (Known J) atoms (litValue N)
-    (realValue N) _ (sound_simulates setting count o) (sound_placed setting count o) (sound_range_frame setting o)
+  exact (means.1 (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) J Subtype.val (Known J) atoms (litValue N)
+    (realValue N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)
+    (sound_range_frame setting o)
     (fun item mem a inside => covers a (List.mem_flatMap.mpr ⟨item, mem, inside⟩)) names).1 newHolds
 
 /-- A class expression holds at an element of the OWL interpretation exactly
@@ -1969,13 +2026,14 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
 theorem sound_class (N : Normative D) {context : data_ontology.Context} {capacity : Nat} {bits : Usize}
     {order : List Usize} {J : Interpretation Object' Value'} (setting : Setting context capacity bits order J)
     (o : Element J) {atoms : List (DataProperty × Option DataRange × Nat)} (count : atomCount atoms ≤ capacity)
+    {shift : Object' → ℕ} (shiftOk : ShiftOk context shift)
     {c c' : ClassExpression} (run : data_ontology.encode_class context c = .ok (some c'))
     (atomsIn : ∀ a ∈ classAtoms c, a ∈ atoms) (known : ∀ a ∈ classIndividuals c, Known J a) (z : Element J) :
-    classDenote (sound.{u,v,w,x} context J N order atoms o) c z ↔ classDenote J c' z.1 := by
+    classDenote (sound.{u,v,w,x} context J N order atoms shift o) c z ↔ classDenote J c' z.1 := by
   obtain ⟨res, run', means⟩ := encode_class_meaning.{u,max v w,u,x} context c
   rw [run] at run'
   cases Result.ok_injective run'
-  exact means c' rfl _ J Subtype.val (Known J) atoms (sound_simulates setting count o) atomsIn known z
+  exact means c' rfl _ J Subtype.val (Known J) atoms (sound_simulates setting count shiftOk o) atomsIn known z
 
 end Satisfaction
 
@@ -1997,14 +2055,15 @@ theorem filler_anonymous (N : Normative D) (g : AnonymousIndividual → Object')
     ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
   · simp [Rowl.Concepts.FillerHolds]
   · simp only [Rowl.Concepts.FillerHolds]
-    have node := value_node (N := N) (atoms := []) (n := 0) setting o (d := d) (fun ld => alone_valid setting ld)
-    have frame0 : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] o) (withAnonymous J g)
-        (litValue N) (realValue N) := sound_range_frame setting o
-    have frameJ : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] o) J (litValue N)
+    have node := value_node (N := N) (atoms := []) (shift := fun _ => 0) (n := 0) setting o (d := d)
+      (fun ld => alone_valid setting ld)
+    have frame0 : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) (withAnonymous J g)
+        (litValue N) (realValue N) := sound_range_frame (shift := fun _ => 0) setting o
+    have frameJ : RangeFrame (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
         (realValue N) :=
       ⟨frame0.literal, frame0.thing, frame0.literals, frame0.injective, frame0.numbers, frame0.numeric,
         frame0.facets⟩
-    have nodeJ : NodeValue context (sound.{u,0,w,x} context (withAnonymous J g) N order [] o) J (litValue N)
+    have nodeJ : NodeValue context (sound.{u,0,w,x} context (withAnonymous J g) N order [] (fun _ => 0) o) J (litValue N)
         (realValue N) d (valueAt.{u,0,w,x} context (withAnonymous J g) N order d 0) :=
       ⟨node.kinds, node.values, node.cuts⟩
     exact (means _ _ _ _ frame0 d _ node).symm.trans (means _ J _ _ frameJ d _ nodeJ)

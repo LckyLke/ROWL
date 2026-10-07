@@ -313,6 +313,18 @@ fn declined_keys_get_no_answer() {
         asserted(class(b"ex:Patient"), named(b"ex:ann")),
     ];
     assert_eq!(consistent(&empty), None);
+    let bottom = vec![
+        axiom(Axiom::HasKey(
+            class(b"ex:Patient"),
+            Vec::new(),
+            vec![DataProperty {
+                iri: iri(b"http://www.w3.org/2002/07/owl#bottomDataProperty"),
+            }],
+        )),
+        asserted(class(b"ex:Patient"), named(b"ex:ann")),
+    ];
+    assert_eq!(consistent(&bottom), None);
+    // A key with a data property gets an answer.
     let data = vec![
         axiom(Axiom::HasKey(
             class(b"ex:Patient"),
@@ -323,7 +335,7 @@ fn declined_keys_get_no_answer() {
         )),
         asserted(class(b"ex:Patient"), named(b"ex:ann")),
     ];
-    assert_eq!(consistent(&data), None);
+    assert_eq!(consistent(&data), Some(true));
     assert!(has_keys(&data, 0));
     assert!(!has_keys(&data, 1));
 }

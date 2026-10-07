@@ -2539,6 +2539,8 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.value_node
 #print axioms Rowl.DataSound.peers_same
 #print axioms Rowl.DataSound.nodeValue_injective
+#print axioms Rowl.DataSound.peers_index
+#print axioms Rowl.DataSound.nodeValue_shared
 #print axioms Rowl.DataSound.place_node
 #print axioms Rowl.DataSound.top_ne_bottom_data
 #print axioms Rowl.DataSound.sound_data_role
@@ -5297,6 +5299,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyEncoding.inverse_relation
 #print axioms Rowl.KeyEncoding.shares_iff
 #print axioms Rowl.KeyEncoding.counted_holds
+#print axioms Rowl.KeyEncoding.data_counted_holds
 #print axioms Rowl.KeyEncoding.chain_holds
 #print axioms Rowl.KeyEncoding.nominal_denote
 #print axioms Rowl.KeyEncoding.or_denote
@@ -5308,6 +5311,14 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyEncoding.named_assertions_spec
 #print axioms Rowl.KeyEncoding.object_role_some
 #print axioms Rowl.KeyEncoding.counted_key_spec
+#print axioms Rowl.KeyEncoding.data_counted_key_spec
+#print axioms Rowl.KeyEncoding.data_chain_spec
+#print axioms Rowl.KeyEncoding.data_chains_spec
+#print axioms Rowl.KeyEncoding.append_roles_spec
+#print axioms Rowl.KeyEncoding.data_roles_unique
+#print axioms Rowl.KeyEncoding.data_roles_length
+#print axioms Rowl.KeyEncoding.data_roles_key
+#print axioms Rowl.KeyEncoding.data_key_roles_spec
 #print axioms Rowl.KeyEncoding.chain_spec
 #print axioms Rowl.KeyEncoding.chains_spec
 #print axioms Rowl.KeyEncoding.apart_spec
@@ -5317,6 +5328,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyEncoding.shared_at_spec
 #print axioms Rowl.KeyEncoding.shared_assertions_spec
 #print axioms Rowl.KeyEncoding.counted_means
+#print axioms Rowl.KeyEncoding.data_counted_means
 #print axioms Rowl.KeyEncoding.shared_means
 #print axioms Rowl.KeyEncoding.counted_correct
 #print axioms Rowl.KeyEncoding.key_with_spec
@@ -5327,7 +5339,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyEncoding.axiom_keys_spec
 #print axioms Rowl.KeyEncoding.keys_from_spec
 #print axioms Rowl.KeyEncoding.shared_key_correct
+#print axioms Rowl.KeyEncoding.data_shared_key_correct
 #print axioms Rowl.KeyEncoding.shared_from_correct
+#print axioms Rowl.KeyEncoding.data_shared_from_correct
 #print axioms Rowl.KeyEncoding.marks_spec
 #print axioms Rowl.KeyEncoding.unkeyed_cons
 #print axioms Rowl.KeyEncoding.unkeyed_spec
@@ -5388,7 +5402,10 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyModels.liftedN_structured
 #print axioms Rowl.KeyModels.liftedN_class_iff
 #print axioms Rowl.KeyModels.liftedN_successor
+#print axioms Rowl.KeyModels.data_roles_left
+#print axioms Rowl.KeyModels.data_roles_right
 #print axioms Rowl.KeyModels.liftedN_key_holds
+#print axioms Rowl.KeyModels.slotShift_ok
 #print axioms Rowl.KeyModels.keyedSound_name
 #print axioms Rowl.KeyModels.keyedSound_data
 #print axioms Rowl.KeyModels.keyedSound_range
@@ -5397,6 +5414,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.KeyModels.keyedSound_range_frame
 #print axioms Rowl.KeyModels.keyedSound_interpretation
 #print axioms Rowl.KeyModels.relation_val
+#print axioms Rowl.KeyModels.role_data_node
+#print axioms Rowl.KeyModels.slot_apart
+#print axioms Rowl.KeyModels.keyed_value_shared
 #print axioms Rowl.KeyModels.withAnonymous_self_eq
 #print axioms Rowl.KeyModels.liftedN_anonymous
 #print axioms Rowl.KeyModels.atom_count_append
@@ -7587,3 +7607,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataStructure.chainKind
 #print axioms Rowl.DataStructure.StringFacts
 #print axioms Rowl.DataSound.stringLevel
+#print axioms Rowl.DataSound.ShiftOk
+#print axioms Rowl.KeyEncoding.DataKeyRole
+#print axioms Rowl.KeyEncoding.dataCountedAxiom
+#print axioms Rowl.KeyEncoding.DataRoles
+#print axioms Rowl.KeyEncoding.DataSharedIn
+#print axioms Rowl.KeyModels.slotShift

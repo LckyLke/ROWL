@@ -1004,11 +1004,11 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     · obtain ⟨Object', Value', embed', J, ⟨_, jInterp, g, jSat⟩⟩ := (encodedSound answer h D V vocab).mp yes
       obtain ⟨bits, order, o, _, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good capSmall encRun
         (J := withAnonymous J g) jInterp.1 jInterp.2.2.1 jInterp.2.2.2.1 jSat
-      let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order (itemAtoms items.val) o
+      let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order (itemAtoms items.val) (fun _ => 0) o
       refine ⟨Element (withAnonymous J g), Values.{v,w} Native,
         ValueEmbedding.ofEmbedding D ⟨embedValue, embedValue_injective⟩, I,
         vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N) (order := order)
-          (atoms := itemAtoms items.val) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o,
+          (atoms := itemAtoms items.val) (shift := fun _ => 0) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o,
         I.anonymousIndividuals, ?_⟩
       rw [withAnonymous_self]
       exact sat _ (fun _ h => h) (by omega)
@@ -1062,9 +1062,9 @@ theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Typ
   have atomsCount : atomCount atoms ≤ capacity.val := by
     simp only [atoms, atomCount_append]
     exact count
-  let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order atoms o
+  let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order atoms (fun _ => 0) o
   have sim0 : Simulates context I (withAnonymous J g) Subtype.val (Known (withAnonymous J g)) atoms :=
-    sound_simulates.{u,v,w,max w v} setting atomsCount o
+    sound_simulates.{u,v,w,max w v} setting atomsCount (fun _ _ => rfl) o
   have simQ : Simulates context I J Subtype.val (fun a => ∃ e ∈ questions, a ∈ classIndividuals e) atoms := by
     refine simulates_anonymous N g setting o sim0 (fun a ⟨e, mem, inside⟩ => ?_)
     have knownA := known e mem a inside
@@ -1076,7 +1076,7 @@ theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Typ
   refine ⟨Element (withAnonymous J g), Values.{v,w} Native,
     ValueEmbedding.ofEmbedding D ⟨embedValue, embedValue_injective⟩, I, Subtype.val,
     ⟨vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N) (order := order)
-      (atoms := atoms) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o, I.anonymousIndividuals, ?_⟩,
+      (atoms := atoms) (shift := fun _ => 0) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o, I.anonymousIndividuals, ?_⟩,
     fun y outside => ⟨⟨y, outside⟩, rfl⟩, fun a outside => ?_, fun e mem e' run z => ?_⟩
   · rw [withAnonymous_self]
     exact sat atoms (fun _ h => List.mem_append_left _ h) atomsCount

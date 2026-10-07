@@ -6741,3 +6741,54 @@ that a lexical form outside its subtype gets no answer.
 This block adds 59 public theorems (39 in the new module `Rowl.Strings`) and
 32 definitions. Totals are 5532 audited theorems, 1868 definitions, 672 Rust
 regressions, 24 Python binding tests and 5725 ledger obligations.
+
+## Keys with data properties
+
+`HasKey(CE (P1 … Pm) (Q1 … Qn))` now answers with data properties too. Two
+named instances of `CE` that share a value along every `Qj` are equal, and,
+unlike object values, a data value counts whether or not a literal names it
+(OWL 2 Direct Semantics, Table 9).
+
+Encoding. The roles of the key are the object properties followed by the
+roles of the data properties in the data encoding (`data_key_roles`,
+`DataRoles`), which lead to data nodes. A key with one data property `Q` in a
+closure that allows counting becomes `D ⊑ ≤1 Q⁻.(CE' ⊓ N)`
+(`dataCountedAxiom`, `data_counted_means`): a data value has at most one named
+instance of `CE` as predecessor. A shared key with a data property adds
+`D ⊑ ∃mark.Self` (`data_shared_from`, `DataSharedIn`), so that the chains
+`Q ∘ mark ∘ Q⁻ ⊑ share(Q)` relate the elements that share a data node, and
+the shared assertions treat the data roles like the object roles
+(`KeyHoldsAt` asks for a common data node along each data role). The top and
+bottom data properties are declined, and so is any key with a data property
+while numbers are ordered (a datatype restriction or a subtype of
+`xsd:integer` in use): the models built from the encoding take an element's
+integers from bounded runs there, and two elements could not get values of
+their own.
+
+Models. A model of the encoding gives an OWL model in which two named
+elements share a value only at a common data node, where the encoding's key
+applies. `DataSound.nodeValue` now takes a shift per element
+(`valueAt d (shift z + idxOf d peers)`), which must be zero while numbers are
+ordered (`ShiftOk`); every lemma of the value choice holds for any such shift,
+and the data encoding's own models keep shift zero. `KeyModels.slotShift`
+gives the `k`-th named element the slot `(k + 1) · (atomCount atoms + 1)`, past
+the place of any of its nodes among its peers (`peers_index`), so different
+named elements have different indices (`slot_apart`), and indices that differ
+give values that differ unless they are one literal value's node
+(`nodeValue_shared`, `keyed_value_shared`). Conversely the lifted model of an
+OWL model marks every value, so `share(Q)` relates exactly the elements with
+a common `Q`-value, and the OWL key gives the encoded one
+(`liftedN_key_holds`).
+
+The regressions check that two patients with one `:ssn` value are one patient
+(also `07` and `7` as integers), that different values or a patient outside
+the key class are not merged, that keys skip anonymous individuals, that a
+boolean key property leaves room for two distinct patients but not three,
+that unnamed strings give every patient a value of its own, that a key with
+an object and a data property needs both values, and that a key on
+`xsd:byte` values, `owl:topDataProperty` or `owl:bottomDataProperty` gets no
+answer.
+
+This block adds 20 public theorems and 6 definitions. Totals are 5552 audited
+theorems, 1874 definitions, 677 Rust regressions, 24 Python binding tests and
+5745 ledger obligations.

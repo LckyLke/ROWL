@@ -295,6 +295,10 @@ theorem nominal_eq (a : Individual) :
     key_ontology.nominal a = .ok (.ObjectOneOf ⟨a, alloc.vec.Vec.new Individual⟩) := by
   simp [key_ontology.nominal, Rowl.Concepts.copy_individual_identity]
 
+/-- A role of a data property in the data encoding. -/
+def DataKeyRole (q : ObjectPropertyExpression) : Prop :=
+  ∃ (p : DataProperty) (q' : ObjectProperty), q = .Property q' ∧ DataRoleOf p q'
+
 section Meaning
 variable {Object' : Type w} {Value' : Type x}
 
@@ -316,12 +320,15 @@ theorem shares_iff {J : Interpretation Object' Value'} {r : ObjectPropertyExpres
 
 /-- In an interpretation of the encoding, the key holds for the named
     individuals `names`: two of them in `e'` that share one of them along every
-    role are equal. -/
-def KeyHoldsAt (J : Interpretation Object' Value') (e' : ClassExpression) (roles : List ObjectPropertyExpression)
+    role of an object property and a data node along every role of a data
+    property are equal. -/
+def KeyHoldsAt (J : Interpretation Object' Value') (e' : ClassExpression) (roles datas : List ObjectPropertyExpression)
     (names : List NamedIndividual) : Prop :=
   ∀ a ∈ names, ∀ b ∈ names, classDenote J e' (J.namedIndividuals a) → classDenote J e' (J.namedIndividuals b) →
     (∀ r ∈ roles, ∃ c ∈ names, objectRelation J r (J.namedIndividuals a) (J.namedIndividuals c) ∧
       objectRelation J r (J.namedIndividuals b) (J.namedIndividuals c)) →
+    (∀ q ∈ datas, ∃ z, J.classes dataClass z ∧ objectRelation J q (J.namedIndividuals a) z ∧
+      objectRelation J q (J.namedIndividuals b) z) →
     J.namedIndividuals a = J.namedIndividuals b
 
 /-- Two elements of `N` in `e'` that share a marked element along every role
@@ -333,11 +340,12 @@ def KeyHolds (J : Interpretation Object' Value') (e' : ClassExpression) (roles :
 
 /-- `mark` relates exactly the marked elements to themselves, and `share(r)`
     exactly the pairs of elements that share a marked element along `r`, for
-    every role that is not the encoding's own. -/
+    every role that is not the encoding's own and every role of a data
+    property. -/
 def Structured (J : Interpretation Object' Value') (marked : Object' → Prop) : Prop :=
   (∀ y y', J.objectProperties markRole y y' ↔ y = y' ∧ marked y) ∧
   ∀ (r : ObjectPropertyExpression) (p : ObjectProperty), p.iri.spelling.val = shareName r →
-    ¬ Reserved (RoleOf r).iri.spelling.val → ∀ y y',
+    (¬ Reserved (RoleOf r).iri.spelling.val ∨ DataKeyRole r) → ∀ y y',
       (J.objectProperties p y y' ↔ ∃ z, marked z ∧ objectRelation J r y z ∧ objectRelation J r y' z)
 
 /-- The counted axiom `N ⊑ ≤1 r⁻.(e' ⊓ N)` of a key with one role. -/
@@ -350,6 +358,30 @@ theorem counted_holds (J : Interpretation Object' Value') (e' : ClassExpression)
       objectRelation J r y z → classDenote J e' y → J.classes keyClass y →
       objectRelation J r y' z → classDenote J e' y' → J.classes keyClass y' → y = y' := by
   simp only [countedAxiom, satisfies]
+  rw [forall_congr' fun z => imp_congr (by rw [classDenote]) Iff.rfl]
+  apply forall_congr'; intro z
+  apply imp_congr Iff.rfl
+  rw [classDenote.eq_def]
+  simp only [Rowl.Probes.naturalValue, Nat.zero_add]
+  rw [Rowl.ShiParts.atMost_one_iff]
+  simp only [inverse_relation, and_denote, classDenote]
+  constructor
+  · intro holds y y' ry ey ny ry' ey' ny'
+    exact holds y y' ⟨ry, ey, ny⟩ ⟨ry', ey', ny'⟩
+  · rintro holds y y' ⟨ry, ey, ny⟩ ⟨ry', ey', ny'⟩
+    exact holds y y' ry ey ny ry' ey' ny'
+
+/-- The counted axiom `D ⊑ ≤1 q⁻.(e' ⊓ N)` of a key with the role of one data
+    property. -/
+noncomputable def dataCountedAxiom (e' : ClassExpression) (q : ObjectPropertyExpression) : Axiom :=
+  .SubClassOf (.Class dataClass) (.ObjectMaxCardinality (.Succ .Zero) (inverseRole q)
+    (some (.ObjectIntersectionOf ⟨e', .Class keyClass, alloc.vec.Vec.new ClassExpression⟩)))
+
+theorem data_counted_holds (J : Interpretation Object' Value') (e' : ClassExpression) (q : ObjectPropertyExpression) :
+    satisfies J (dataCountedAxiom e' q) ↔ ∀ z, J.classes dataClass z → ∀ y y',
+      objectRelation J q y z → classDenote J e' y → J.classes keyClass y →
+      objectRelation J q y' z → classDenote J e' y' → J.classes keyClass y' → y = y' := by
+  simp only [dataCountedAxiom, satisfies]
   rw [forall_congr' fun z => imp_congr (by rw [classDenote]) Iff.rfl]
   apply forall_congr'; intro z
   apply imp_congr Iff.rfl
@@ -604,6 +636,194 @@ theorem counted_key_spec (context : data_ontology.Context) (e : ClassExpression)
         (inverseRole copy) (some (.ObjectIntersectionOf ⟨e', .Class keyClass, alloc.vec.Vec.new ClassExpression⟩))))
       refine ⟨r3, by simp [run1, run2, named_class_eq, inverse_of_eq, data_ontology.and, run3],
         fun out' h => ⟨e', run2, plain, inContext, by rw [contents out' h]; rfl⟩⟩
+
+theorem data_counted_key_spec (context : data_ontology.Context) (e : ClassExpression) (q : ObjectPropertyExpression)
+    (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, key_ontology.data_counted_key context e q out = .ok res ∧ ∀ out', res = some out' →
+      ∃ e', data_ontology.encode_class context e = .ok (some e') ∧
+        out'.val = out.val ++ [bare (dataCountedAxiom e' q)] := by
+  rw [key_ontology.data_counted_key]
+  obtain ⟨r1, run1⟩ := encode_class_runs context e
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some e' =>
+    obtain ⟨r2, run2, contents⟩ := push_spec out (.SubClassOf (.Class dataClass) (.ObjectMaxCardinality (.Succ .Zero)
+      (inverseRole q) (some (.ObjectIntersectionOf ⟨e', .Class keyClass, alloc.vec.Vec.new ClassExpression⟩))))
+    refine ⟨r2, by simp [run1, data_class_eq, Rowl.Concepts.copy_role_identity, inverse_of_eq, named_class_eq,
+      data_ontology.and, run2], fun out' h => ⟨e', run1, by rw [contents out' h]; rfl⟩⟩
+
+theorem data_chain_spec (q : ObjectPropertyExpression) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, key_ontology.data_chain q out = .ok res ∧ ∀ out', res = some out' →
+      ∃ p : ObjectProperty, p.iri.spelling.val = shareName q ∧ ∃ new, out'.val = out.val ++ new ∧
+        ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+          ((∀ b ∈ new, satisfies J b.axiom) ↔ ChainHolds J q p) := by
+  rw [key_ontology.data_chain]
+  obtain ⟨r1, run1, named⟩ := share_role_correct q
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some p =>
+    obtain ⟨rest, restRun, restValue⟩ := WP.spec_imp_exists
+      (alloc.vec.Vec.push_spec (alloc.vec.Vec.new ObjectPropertyExpression) (inverseRole q)
+        (by simp [new_val]; scalar_tac))
+    obtain ⟨r3, run3, contents⟩ := push_spec out
+      (.SubObjectPropertyOf (.Chain ⟨q, .Property markRole, rest⟩) (.Property p))
+    refine ⟨r3, by simp [run1, Rowl.Concepts.copy_role_identity, inverse_of_eq, restRun, mark_role_eq, run3],
+      fun out' h => ⟨p, named p rfl, [bare (.SubObjectPropertyOf (.Chain ⟨q, .Property markRole, rest⟩)
+        (.Property p))], by rw [contents out' h]; rfl, fun J => ?_⟩⟩
+    simp only [List.mem_singleton, forall_eq, bare]
+    exact chain_holds J q p rest (by rw [restValue]; simp [new_val])
+
+theorem data_chains_spec (roles : alloc.vec.Vec ObjectPropertyExpression) (index : Usize)
+    (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, key_ontology.data_chains roles index out = .ok res ∧ ∀ out', res = some out' →
+      (∀ r ∈ roles.val.drop index.val, ∃ p : ObjectProperty, p.iri.spelling.val = shareName r) ∧
+      ∃ new, out'.val = out.val ++ new ∧
+        ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+          ((∀ b ∈ new, satisfies J b.axiom) ↔ ∀ r ∈ roles.val.drop index.val, ∀ p : ObjectProperty,
+            p.iri.spelling.val = shareName r → ChainHolds J r p) := by
+  rw [key_ontology.data_chains]
+  by_cases inside : index.val < roles.val.length
+  · have lookup : roles.index_usize index = .ok roles.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨r1, run1, facts1⟩ := data_chain_spec.{w,x} roles.val[index.val] out
+    cases r1 with
+    | none => exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run1], by simp⟩
+    | some out1 =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨rest, restRun, restFacts⟩ := data_chains_spec roles next out1
+      refine ⟨rest, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run1, advance,
+        restRun], fun out' h => ?_⟩
+      obtain ⟨roles2, new2, c2, means2⟩ := restFacts out' h
+      obtain ⟨p, pNamed, new1, c1, means1⟩ := facts1 out1 rfl
+      rw [nextIndex] at roles2 means2
+      refine ⟨?_, new1 ++ new2, by rw [c2, c1, List.append_assoc], fun J => ?_⟩
+      · rw [split]
+        intro r mem
+        rcases List.mem_cons.mp mem with rfl | later
+        · exact ⟨p, pNamed⟩
+        · exact roles2 r later
+      · rw [split]
+        simp only [List.forall_mem_append, means1 J, means2 J, List.mem_cons]
+        constructor
+        · rintro ⟨here, later⟩ r (rfl | mem) q qNamed
+          · have same : q = p := (Rowl.Tableau.property_eq_iff q p).mpr (qNamed.trans pNamed.symm)
+            rw [same]; exact here
+          · exact later r mem q qNamed
+        · intro holds
+          exact ⟨holds _ (.inl rfl) p pNamed, fun r mem q qNamed => holds r (.inr mem) q qNamed⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, inside], fun out' h => ⟨?_, [], by cases h; simp, fun J => ?_⟩⟩
+    · simp [List.drop_eq_nil_iff.mpr (show roles.val.length ≤ index.val by omega)]
+    · simp [List.drop_eq_nil_iff.mpr (show roles.val.length ≤ index.val by omega)]
+termination_by roles.val.length - index.val
+decreasing_by omega
+
+theorem append_roles_spec (roles : alloc.vec.Vec ObjectPropertyExpression) (index : Usize)
+    (out : alloc.vec.Vec ObjectPropertyExpression) :
+    ∃ res, key_ontology.append_roles roles index out = .ok res ∧ ∀ v, res = some v →
+      v.val = out.val ++ roles.val.drop index.val := by
+  rw [key_ontology.append_roles]
+  by_cases inside : index.val < roles.val.length
+  · have lookup : roles.index_usize index = .ok roles.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    by_cases room : out.val.length < Usize.max
+    · have room' : alloc.vec.Vec.len out < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      obtain ⟨out1, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out roles.val[index.val] room)
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨rest, restRun, restFacts⟩ := append_roles_spec roles next out1
+      refine ⟨rest, by simp [UScalar.lt_equiv, inside, room', alloc.vec.Vec.index_slice_index, lookup,
+        Rowl.Concepts.copy_role_identity, push, advance, restRun], fun v h => ?_⟩
+      rw [restFacts v h, contents, nextIndex, split]
+      simp
+    · have full : ¬ alloc.vec.Vec.len out < core.num.Usize.MAX := by
+        simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+      exact ⟨none, by simp [UScalar.lt_equiv, inside, full], by simp⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, inside], fun v h => ?_⟩
+    cases h
+    simp [List.drop_eq_nil_iff.mpr (show roles.val.length ≤ index.val by omega)]
+termination_by roles.val.length - index.val
+decreasing_by omega
+
+/-- The roles of the data properties of a key: those of the data encoding. -/
+def DataRoles (context : data_ontology.Context) (dps : List DataProperty) (datas : List ObjectPropertyExpression) :
+    Prop :=
+  List.Forall₂ (fun p q => data_ontology.data_role context p = .ok (some q) ∧ DataKeyRole q) dps datas
+
+theorem data_roles_unique {context : data_ontology.Context} {dps : List DataProperty}
+    {datas datas' : List ObjectPropertyExpression} (h : DataRoles context dps datas) (h' : DataRoles context dps datas') :
+    datas = datas' := by
+  induction h generalizing datas' with
+  | nil => cases h'; rfl
+  | cons head _ ih =>
+    cases h' with
+    | cons head' tail' =>
+      rw [Option.some.inj (Result.ok_injective (head.1.symm.trans head'.1)), ih tail']
+
+theorem data_roles_length {context : data_ontology.Context} {dps : List DataProperty}
+    {datas : List ObjectPropertyExpression} (h : DataRoles context dps datas) : datas.length = dps.length :=
+  (List.Forall₂.length_eq h).symm
+
+theorem data_roles_key {context : data_ontology.Context} {dps : List DataProperty}
+    {datas : List ObjectPropertyExpression} (h : DataRoles context dps datas) : ∀ q ∈ datas, DataKeyRole q := by
+  induction h with
+  | nil => simp
+  | cons head _ ih =>
+    intro q mem
+    rcases List.mem_cons.mp mem with rfl | later
+    · exact head.2
+    · exact ih q later
+
+theorem data_key_roles_spec (context : data_ontology.Context) (data : alloc.vec.Vec DataProperty) (index : Usize)
+    (out : alloc.vec.Vec ObjectPropertyExpression) :
+    ∃ res, key_ontology.data_key_roles context data index out = .ok res ∧ ∀ v, res = some v →
+      ∃ new, v.val = out.val ++ new ∧ DataRoles context (data.val.drop index.val) new := by
+  rw [key_ontology.data_key_roles]
+  by_cases inside : index.val < data.val.length
+  · have lookup : data.index_usize index = .ok data.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    by_cases bottom : data.val[index.val] = bottomData
+    · exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, is_bottom_data_correct,
+        bottom], by simp⟩
+    · obtain ⟨r1, run1, facts1⟩ := data_role_correct context data.val[index.val]
+      cases r1 with
+      | none => exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup,
+          is_bottom_data_correct, bottom, run1], by simp⟩
+      | some q =>
+        have dataRole : DataKeyRole q := by
+          rcases facts1 q rfl with ⟨isBottom, _⟩ | ⟨_, _, _, q', rfl, roleOf⟩
+          · exact absurd isBottom bottom
+          · exact ⟨_, q', rfl, roleOf⟩
+        by_cases room : out.val.length < Usize.max
+        · have room' : alloc.vec.Vec.len out < core.num.Usize.MAX := by
+            simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+          obtain ⟨out1, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out q room)
+          obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+            (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+          have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+          obtain ⟨rest, restRun, restFacts⟩ := data_key_roles_spec context data next out1
+          refine ⟨rest, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup,
+            is_bottom_data_correct, bottom, run1, room', push, advance, restRun], fun v h => ?_⟩
+          obtain ⟨new, value, roles⟩ := restFacts v h
+          rw [nextIndex] at roles
+          refine ⟨q :: new, by rw [value, contents]; simp, ?_⟩
+          rw [split]
+          exact .cons ⟨run1, dataRole⟩ roles
+        · have full : ¬ alloc.vec.Vec.len out < core.num.Usize.MAX := by
+            simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val, usize_max_val]; exact room
+          exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup,
+            is_bottom_data_correct, bottom, run1, full], by simp⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, inside], fun v h => ⟨[], by cases h; simp, ?_⟩⟩
+    rw [List.drop_eq_nil_iff.mpr (show data.val.length ≤ index.val by omega)]
+    exact .nil
+termination_by data.val.length - index.val
+decreasing_by omega
 
 theorem chain_spec (context : data_ontology.Context) (r : ObjectPropertyExpression) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.chain context r out = .ok res ∧ ∀ out', res = some out' →
@@ -921,37 +1141,42 @@ theorem shared_assertions_spec (context : data_ontology.Context) (e : ClassExpre
 termination_by nodes.val.length - index.val
 decreasing_by omega
 
-/-- What the axioms of a key with the class expression `e` and the roles
-    `roles` say, for the named individuals `names` and the encoding `e'` of `e`:
-    in every interpretation that satisfies them, in which `names` are in `N`
-    and, for a key that is not counted, `N ⊑ ∃mark.Self` holds, the key holds
-    for `names`; and they hold in every interpretation with the structure of
-    `mark` and `share` whose elements of `N` are marked and include `names`, in
-    which the key holds for the elements of `N`. -/
-def KeyMeans (context : data_ontology.Context) (e : ClassExpression) (roles : List ObjectPropertyExpression)
-    (names : List NamedIndividual) (shared : Bool) (new : List AnnotatedAxiom) : Prop :=
-  roles ≠ [] ∧ (∀ r ∈ roles, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val) ∧
+/-- What the axioms of a key with the class expression `e`, the roles `roles`
+    of its object properties and the roles `datas` of its data properties say,
+    for the named individuals `names` and the encoding `e'` of `e`: in every
+    interpretation that satisfies them, in which `names` are in `N` and, for a
+    key that is not counted, `N ⊑ ∃mark.Self` holds, and `D ⊑ ∃mark.Self` too
+    when it has a data property, the key holds for `names`; and they hold in
+    every interpretation with the structure of `mark` and `share` whose elements
+    of `N` and data nodes are marked and whose elements of `N` include `names`,
+    in which the key holds for the elements of `N`. -/
+def KeyMeans (context : data_ontology.Context) (e : ClassExpression) (roles datas : List ObjectPropertyExpression)
+    (names : List NamedIndividual) (shared dataShared : Bool) (new : List AnnotatedAxiom) : Prop :=
+  (roles ≠ [] ∨ datas ≠ []) ∧
+  (∀ r ∈ roles, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val) ∧
+  (∀ q ∈ datas, DataKeyRole q) ∧
   (names ≠ [] → ∃ e', data_ontology.encode_class context e = .ok (some e')) ∧
   (∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'), (∀ b ∈ new, satisfies J b.axiom) →
     (∀ a ∈ names, J.classes keyClass (J.namedIndividuals a)) →
     (shared = true → ∀ y, J.classes keyClass y → J.objectProperties markRole y y) →
-    ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHoldsAt J e' roles names) ∧
+    (dataShared = true → ∀ y, J.classes dataClass y → J.objectProperties markRole y y) →
+    ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHoldsAt J e' roles datas names) ∧
   (∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value') (marked : Object' → Prop),
-    Structured J marked → (∀ y, J.classes keyClass y → marked y) →
+    Structured J marked → (∀ y, J.classes keyClass y → marked y) → (∀ y, J.classes dataClass y → marked y) →
     (∀ a ∈ names, J.classes keyClass (J.namedIndividuals a)) →
-    (∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHolds J e' roles marked) →
+    (∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHolds J e' (roles ++ datas) marked) →
     ∀ b ∈ new, satisfies J b.axiom)
 
 theorem counted_means {context : data_ontology.Context} {e e' : ClassExpression} {r : ObjectPropertyExpression}
     (eRun : data_ontology.encode_class context e = .ok (some e')) (plain : ¬ Reserved (RoleOf r).iri.spelling.val)
     (inContext : RoleOf r ∈ context.roles.val) (names : List NamedIndividual) :
-    KeyMeans.{w,x} context e [r] names false [bare (countedAxiom e' r)] := by
-  refine ⟨by simp, by simp [plain, inContext], fun _ => ⟨e', eRun⟩, fun J holds named _ e'' eRun' => ?_,
-    fun J marked _ markedN _ keys => ?_⟩
+    KeyMeans.{w,x} context e [r] [] names false false [bare (countedAxiom e' r)] := by
+  refine ⟨by simp, by simp [plain, inContext], by simp, fun _ => ⟨e', eRun⟩, fun J holds named _ _ e'' eRun' => ?_,
+    fun J marked _ markedN _ _ keys => ?_⟩
   · have same : e'' = e' := Option.some.inj (Result.ok_injective (eRun'.symm.trans eRun))
     subst same
     have counted := (counted_holds J e'' r).mp (holds (bare (countedAxiom e'' r)) (by simp))
-    intro a aIn b bIn inA inB shared
+    intro a aIn b bIn inA inB shared _
     obtain ⟨c, cIn, ra, rb⟩ := shared r (by simp)
     exact counted _ (named c cIn) _ _ ra inA (named a aIn) rb inB (named b bIn)
   · have key := keys e' eRun
@@ -959,14 +1184,36 @@ theorem counted_means {context : data_ontology.Context} {e e' : ClassExpression}
     rw [counted_holds]
     intro z inZ y y' ry ey ny ry' ey' ny'
     exact key y y' ny ny' ey ey' (fun s mem => by
-      simp only [List.mem_singleton] at mem
+      simp only [List.append_nil, List.mem_singleton] at mem
       subst mem
       exact ⟨z, markedN z inZ, ry, ry'⟩)
 
-theorem shared_means {context : data_ontology.Context} {e : ClassExpression} {r0 : ObjectPropertyExpression}
-    {rs : List ObjectPropertyExpression}
-    (roles : ∀ r ∈ r0 :: rs, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val ∧
-      ∃ p : ObjectProperty, p.iri.spelling.val = shareName r)
+theorem data_counted_means {context : data_ontology.Context} {e e' : ClassExpression} {q : ObjectPropertyExpression}
+    (eRun : data_ontology.encode_class context e = .ok (some e')) (dataRole : DataKeyRole q)
+    (names : List NamedIndividual) :
+    KeyMeans.{w,x} context e [] [q] names false false [bare (dataCountedAxiom e' q)] := by
+  refine ⟨by simp, by simp, by simp [dataRole], fun _ => ⟨e', eRun⟩, fun J holds named _ _ e'' eRun' => ?_,
+    fun J marked _ _ markedD _ keys => ?_⟩
+  · have same : e'' = e' := Option.some.inj (Result.ok_injective (eRun'.symm.trans eRun))
+    subst same
+    have counted := (data_counted_holds J e'' q).mp (holds (bare (dataCountedAxiom e'' q)) (by simp))
+    intro a aIn b bIn inA inB _ shared
+    obtain ⟨z, inD, ra, rb⟩ := shared q (by simp)
+    exact counted z inD _ _ ra inA (named a aIn) rb inB (named b bIn)
+  · have key := keys e' eRun
+    simp only [List.mem_singleton, forall_eq, bare]
+    rw [data_counted_holds]
+    intro z inD y y' ry ey ny ry' ey' ny'
+    exact key y y' ny ny' ey ey' (fun s mem => by
+      simp only [List.nil_append, List.mem_singleton] at mem
+      subst mem
+      exact ⟨z, markedD z inD, ry, ry'⟩)
+
+theorem shared_means {context : data_ontology.Context} {e : ClassExpression} {roles datas : List ObjectPropertyExpression}
+    {r0 : ObjectPropertyExpression} {rs : List ObjectPropertyExpression} (shape : roles ++ datas = r0 :: rs)
+    (objectRoles : ∀ r ∈ roles, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val)
+    (dataRoles : ∀ q ∈ datas, DataKeyRole q)
+    (named : ∀ r ∈ r0 :: rs, ∃ p : ObjectProperty, p.iri.spelling.val = shareName r)
     (names : List NamedIndividual) (chainsNew assertionsNew : List AnnotatedAxiom)
     (chainsMean : ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
       (∀ b ∈ chainsNew, satisfies J b.axiom) ↔ ∀ r ∈ r0 :: rs, ∀ p : ObjectProperty,
@@ -975,116 +1222,167 @@ theorem shared_means {context : data_ontology.Context} {e : ClassExpression} {r0
     (assertionsMean : ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
       (∀ b ∈ assertionsNew, satisfies J b.axiom) ↔ ∀ n ∈ names, ∀ e', data_ontology.encode_class context e = .ok (some e') →
         SharedAt J e' r0 rs (J.namedIndividuals n)) :
-    KeyMeans.{w,x} context e (r0 :: rs) names true (chainsNew ++ assertionsNew) := by
-  refine ⟨by simp, fun r mem => ⟨(roles r mem).1, (roles r mem).2.1⟩, encoded, fun J holds named marks e' eRun => ?_,
-    fun J marked structured markedN named keys => ?_⟩
+    KeyMeans.{w,x} context e roles datas names true (decide (datas ≠ [])) (chainsNew ++ assertionsNew) := by
+  have nonempty : roles ≠ [] ∨ datas ≠ [] := by
+    by_cases h : roles = []
+    · right; intro hd; rw [h, hd] at shape; simp at shape
+    · exact .inl h
+  have memAll : ∀ r, r ∈ r0 :: rs ↔ r ∈ roles ∨ r ∈ datas := by
+    intro r; rw [← shape, List.mem_append]
+  refine ⟨nonempty, objectRoles, dataRoles, encoded, fun J holds namedN marks dataMarks e' eRun => ?_,
+    fun J marked structured markedN markedD namedN keys => ?_⟩
   · rw [List.forall_mem_append, chainsMean J, assertionsMean J] at holds
     obtain ⟨chains, assertions'⟩ := holds
     have assertions : ∀ n ∈ names, SharedAt J e' r0 rs (J.namedIndividuals n) := fun n nIn => assertions' n nIn e' eRun
-    have shares : ∀ r ∈ r0 :: rs, ∀ a b c, c ∈ names →
-        objectRelation J r (J.namedIndividuals a) (J.namedIndividuals c) →
-        objectRelation J r (J.namedIndividuals b) (J.namedIndividuals c) →
-        Shares J r (J.namedIndividuals a) (J.namedIndividuals b) := by
-      intro r mem a b c cIn ra rb
-      obtain ⟨p, pNamed⟩ := (roles r mem).2.2
-      exact ⟨p, pNamed, chains r mem p pNamed _ _ _ _ ra (marks rfl _ (named c cIn)) rb⟩
-    intro a aIn b bIn inA inB shared
-    obtain ⟨c0, c0In, ra0, rb0⟩ := shared r0 (by simp)
-    rcases assertions a aIn inA (J.namedIndividuals b) (shares r0 (by simp) a b c0 c0In ra0 rb0) (named b bIn) inB with
+    intro a aIn b bIn inA inB sharedObjects sharedData
+    have shares : ∀ r ∈ r0 :: rs, Shares J r (J.namedIndividuals a) (J.namedIndividuals b) := by
+      intro r mem
+      obtain ⟨p, pNamed⟩ := named r mem
+      rcases (memAll r).mp mem with inRoles | inDatas
+      · obtain ⟨c, cIn, ra, rb⟩ := sharedObjects r inRoles
+        exact ⟨p, pNamed, chains r mem p pNamed _ _ _ _ ra (marks rfl _ (namedN c cIn)) rb⟩
+      · obtain ⟨z, inD, ra, rb⟩ := sharedData r inDatas
+        have dataShared : decide (datas ≠ []) = true := by
+          simpa using List.ne_nil_of_mem inDatas
+        exact ⟨p, pNamed, chains r mem p pNamed _ _ _ _ ra (dataMarks dataShared z inD) rb⟩
+    rcases assertions a aIn inA (J.namedIndividuals b) (shares r0 (by simp)) (namedN b bIn) inB with
       same | ⟨r, rMem, apart⟩
     · exact same.symm
-    · obtain ⟨c, cIn, ra, rb⟩ := shared r (List.mem_cons_of_mem _ rMem)
-      exact absurd (shares r (List.mem_cons_of_mem _ rMem) a b c cIn ra rb) apart
+    · exact absurd (shares r (List.mem_cons_of_mem _ rMem)) apart
   · rw [List.forall_mem_append, chainsMean J, assertionsMean J]
     obtain ⟨markIff, shareIff⟩ := structured
+    have keyRole : ∀ r ∈ r0 :: rs, ¬ Reserved (RoleOf r).iri.spelling.val ∨ DataKeyRole r := by
+      intro r mem
+      rcases (memAll r).mp mem with inRoles | inDatas
+      · exact .inl (objectRoles r inRoles).1
+      · exact .inr (dataRoles r inDatas)
     refine ⟨fun r mem p pNamed y z z' y' ry mark ry' => ?_, fun n nIn e' eRun inE y sharesY inN inE' => ?_⟩
     · obtain ⟨same, markedZ⟩ := (markIff z z').mp mark
       subst same
-      exact (shareIff r p pNamed (roles r mem).1 y y').mpr ⟨z, markedZ, ry, ry'⟩
+      exact (shareIff r p pNamed (keyRole r mem) y y').mpr ⟨z, markedZ, ry, ry'⟩
     · by_cases all : ∀ r ∈ rs, Shares J r (J.namedIndividuals n) y
       · left
-        refine (keys e' eRun _ _ (named n nIn) inN inE inE' (fun r mem => ?_)).symm
+        refine (keys e' eRun _ _ (namedN n nIn) inN inE inE' (fun r mem => ?_)).symm
+        have mem' : r ∈ r0 :: rs := by rw [← shape]; exact mem
         have sharesR : Shares J r (J.namedIndividuals n) y := by
-          rcases List.mem_cons.mp mem with rfl | later
+          rcases List.mem_cons.mp mem' with rfl | later
           · exact sharesY
           · exact all r later
         obtain ⟨p, pNamed, related⟩ := sharesR
-        exact (shareIff r p pNamed (roles r mem).1 _ y).mp related
+        exact (shareIff r p pNamed (keyRole r mem') _ y).mp related
       · right
         simp only [not_forall] at all
         obtain ⟨r, mem, apart⟩ := all
         exact ⟨r, mem, apart⟩
 
-/-- A key that is counted: one role and no data property, when the closure
-    allows counting. -/
-def Counted (roles : List ObjectPropertyExpression) (data : List DataProperty) (counting : Bool) : Prop :=
-  counting = true ∧ roles.length = 1 ∧ data.length = 0
+/-- A key that is counted: one property, when the closure allows counting. -/
+def Counted (objects data : Nat) (counting : Bool) : Prop :=
+  counting = true ∧ ((objects = 1 ∧ data = 0) ∨ (objects = 0 ∧ data = 1))
 
-theorem counted_correct (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
-    (counting : Bool) :
-    ∃ b, key_ontology.counted objects data counting = .ok b ∧ (b = true ↔ Counted objects.val data.val counting) := by
+theorem counted_correct (objects data : Usize) (counting : Bool) :
+    key_ontology.counted objects data counting = .ok (decide (Counted objects.val data.val counting)) := by
   rw [key_ontology.counted]
-  cases counting with
-  | false => exact ⟨false, by simp, by simp [Counted]⟩
-  | true =>
-    by_cases one : objects.val.length = 1
-    · have one' : alloc.vec.Vec.len objects = 1#usize := UScalar.eq_of_val_eq (by simpa using one)
-      by_cases none : data.val.length = 0
-      · have none' : alloc.vec.Vec.len data = 0#usize := UScalar.eq_of_val_eq (by simpa using none)
-        exact ⟨true, by simp [one', none'], by simp [Counted, one, none]⟩
-      · have none' : ¬ alloc.vec.Vec.len data = 0#usize := fun h => none (by simpa using congrArg UScalar.val h)
-        exact ⟨false, by simp [one', none'], by simp [Counted, none]⟩
-    · have one' : ¬ alloc.vec.Vec.len objects = 1#usize := fun h => one (by simpa using congrArg UScalar.val h)
-      exact ⟨false, by simp [one'], by simp [Counted, one]⟩
+  cases counting <;> simp [Counted, UScalar.eq_equiv]
 
 theorem key_with_spec (context : data_ontology.Context) (e : ClassExpression)
-    (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
+    (objects datas : alloc.vec.Vec ObjectPropertyExpression)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom)
-    (nonempty : objects.val ≠ []) (noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject) :
-    ∃ res, key_ontology.key_with context e objects data nodes counting out = .ok res ∧ ∀ out', res = some out' →
+    (nonempty : objects.val ≠ [] ∨ datas.val ≠ []) (noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject)
+    (dataRoles : ∀ q ∈ datas.val, DataKeyRole q) :
+    ∃ res, key_ontology.key_with context e objects datas nodes counting out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧
-        KeyMeans.{w,x} context e objects.val (namesOf nodes.val) (decide (¬ Counted objects.val data.val counting)) new := by
-  rw [key_ontology.key_with]
-  obtain ⟨b, countedRun, countedIff⟩ := counted_correct objects data counting
-  cases b with
-  | true =>
-    obtain ⟨_, one, _⟩ := countedIff.mp rfl
-    obtain ⟨r, shape⟩ : ∃ r, objects.val = [r] := by
-      match h : objects.val, one with
-      | [r], _ => exact ⟨r, rfl⟩
-    have lookup : objects.index_usize 0#usize = .ok r := by simp [alloc.vec.Vec.index_usize, shape]
-    obtain ⟨res, run, facts⟩ := counted_key_spec context e r out
-    refine ⟨res, by simp [countedRun, alloc.vec.Vec.index_slice_index, lookup, run], fun out' h => ?_⟩
-    obtain ⟨e', eRun, plain, inContext, contents⟩ := facts out' h
-    have inContext' : RoleOf r ∈ context.roles.val :=
-      inContext.resolve_left (noTop r (by simp [shape]))
-    refine ⟨[bare (countedAxiom e' r)], contents, ?_⟩
-    rw [shape, show decide (¬ Counted [r] data.val counting) = false by simp [← shape, countedIff.mp rfl]]
-    exact counted_means eRun plain inContext' _
-  | false =>
-    have notCounted : ¬ Counted objects.val data.val counting := fun h => absurd (countedIff.mpr h) (by simp)
-    obtain ⟨r0, rs, shape⟩ : ∃ r0 rs, objects.val = r0 :: rs := by
-      match h : objects.val, nonempty with
-      | r0 :: rs, _ => exact ⟨r0, rs, rfl⟩
-    obtain ⟨r1, run1, facts1⟩ := chains_spec.{w,x} context objects 0#usize out
-    cases r1 with
-    | none => exact ⟨none, by simp [countedRun, run1], by simp⟩
+        KeyMeans.{w,x} context e objects.val datas.val (namesOf nodes.val)
+          (decide (¬ Counted objects.val.length datas.val.length counting))
+          (decide (¬ Counted objects.val.length datas.val.length counting ∧ datas.val ≠ [])) new := by
+  rw [key_ontology.key_with, counted_correct]
+  simp only [alloc.vec.Vec.len_val]
+  by_cases isCounted : Counted objects.val.length datas.val.length counting
+  · rcases isCounted.2 with ⟨o1, d0⟩ | ⟨o0, d1⟩
+    · obtain ⟨r, shape⟩ : ∃ r, objects.val = [r] := by
+        match h : objects.val, o1 with
+        | [r], _ => exact ⟨r, rfl⟩
+      have datasNil : datas.val = [] := List.eq_nil_of_length_eq_zero d0
+      have one' : alloc.vec.Vec.len objects = 1#usize := UScalar.eq_of_val_eq (by simpa using o1)
+      have lookup : objects.index_usize 0#usize = .ok r := by simp [alloc.vec.Vec.index_usize, shape]
+      obtain ⟨res, run, facts⟩ := counted_key_spec context e r out
+      refine ⟨res, by simp [isCounted, one', alloc.vec.Vec.index_slice_index, lookup, run], fun out' h => ?_⟩
+      obtain ⟨e', eRun, plain, inContext, contents⟩ := facts out' h
+      have inContext' : RoleOf r ∈ context.roles.val := inContext.resolve_left (noTop r (by simp [shape]))
+      refine ⟨[bare (countedAxiom e' r)], contents, ?_⟩
+      rw [show decide (¬ Counted objects.val.length datas.val.length counting) = false by simp [isCounted],
+        show decide (¬ Counted objects.val.length datas.val.length counting ∧ datas.val ≠ []) = false by
+          simp [isCounted], shape, datasNil]
+      exact counted_means eRun plain inContext' _
+    · obtain ⟨q, shape⟩ : ∃ q, datas.val = [q] := by
+        match h : datas.val, d1 with
+        | [q], _ => exact ⟨q, rfl⟩
+      have objectsNil : objects.val = [] := List.eq_nil_of_length_eq_zero o0
+      have notOne : ¬ alloc.vec.Vec.len objects = 1#usize := fun h => by
+        have := congrArg UScalar.val h; simp [o0] at this
+      have lookup : datas.index_usize 0#usize = .ok q := by simp [alloc.vec.Vec.index_usize, shape]
+      obtain ⟨res, run, facts⟩ := data_counted_key_spec context e q out
+      refine ⟨res, by simp [isCounted, notOne, alloc.vec.Vec.index_slice_index, lookup, run], fun out' h => ?_⟩
+      obtain ⟨e', eRun, contents⟩ := facts out' h
+      refine ⟨[bare (dataCountedAxiom e' q)], contents, ?_⟩
+      rw [show decide (¬ Counted objects.val.length datas.val.length counting) = false by simp [isCounted],
+        show decide (¬ Counted objects.val.length datas.val.length counting ∧ datas.val ≠ []) = false by
+          simp [isCounted], shape, objectsNil]
+      exact data_counted_means eRun (dataRoles q (by simp [shape])) _
+  · obtain ⟨roles0, run0, value0⟩ := append_roles_spec objects 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
+    cases roles0 with
+    | none => exact ⟨none, by simp [isCounted, run0], by simp⟩
+    | some roles0 =>
+    obtain ⟨roles1, run1, value1⟩ := append_roles_spec datas 0#usize roles0
+    cases roles1 with
+    | none => exact ⟨none, by simp [isCounted, run0, run1], by simp⟩
+    | some roles1 =>
+    have all : roles1.val = objects.val ++ datas.val := by
+      rw [value1 roles1 rfl, value0 roles0 rfl]; simp [new_val]
+    obtain ⟨r0, rs, shape⟩ : ∃ r0 rs, objects.val ++ datas.val = r0 :: rs := by
+      match h : objects.val ++ datas.val with
+      | [] => exact absurd h (by rcases nonempty with n | n <;> simp [n])
+      | r0 :: rs => exact ⟨r0, rs, rfl⟩
+    obtain ⟨c1, chainsRun, chainsFacts⟩ := chains_spec.{w,x} context objects 0#usize out
+    cases c1 with
+    | none => exact ⟨none, by simp [isCounted, run0, run1, chainsRun], by simp⟩
     | some out1 =>
-      obtain ⟨roles1, new1, c1, means1⟩ := facts1 out1 rfl
-      obtain ⟨r2, run2, facts2⟩ := shared_assertions_spec.{w,x} context e objects r0 rs shape nodes 0#usize out1
-      refine ⟨r2, by simp [countedRun, run1, run2], fun out' h => ?_⟩
-      obtain ⟨exists2, new2, c2, means2⟩ := facts2 out' h
-      refine ⟨new1 ++ new2, by rw [c2, c1, List.append_assoc], ?_⟩
-      rw [show decide (¬ Counted objects.val data.val counting) = true by simp [notCounted], shape]
-      simp only [zero_val, List.drop_zero, shape] at roles1 means1 means2 exists2
-      refine shared_means (fun r mem => ?_) _ new1 new2 means1 (fun nonempty => ?_) (fun J => ?_)
-      · obtain ⟨plain, inContext, p, pNamed⟩ := roles1 r mem
-        exact ⟨plain, inContext.resolve_left (noTop r (by rw [shape]; exact mem)), p, pNamed⟩
-      · obtain ⟨n, nIn⟩ := List.exists_mem_of_ne_nil _ nonempty
-        exact exists2 n (mem_namesOf.mp nIn)
-      · rw [means2 J]
-        exact ⟨fun holds n nIn => holds n (mem_namesOf.mp nIn), fun holds n nIn => holds n (mem_namesOf.mpr nIn)⟩
-
+    obtain ⟨objectFacts, new1, cc1, means1⟩ := chainsFacts out1 rfl
+    obtain ⟨c2, dataRun, dataFacts⟩ := data_chains_spec.{w,x} datas 0#usize out1
+    cases c2 with
+    | none => exact ⟨none, by simp [isCounted, run0, run1, chainsRun, dataRun], by simp⟩
+    | some out2 =>
+    obtain ⟨dataNamed, new2, cc2, means2⟩ := dataFacts out2 rfl
+    obtain ⟨r3, run3, facts3⟩ := shared_assertions_spec.{w,x} context e roles1 r0 rs (by rw [all, shape]) nodes 0#usize
+      out2
+    refine ⟨r3, by simp [isCounted, run0, run1, chainsRun, dataRun, run3], fun out' h => ?_⟩
+    obtain ⟨exists3, new3, cc3, means3⟩ := facts3 out' h
+    refine ⟨(new1 ++ new2) ++ new3, by rw [cc3, cc2, cc1]; simp, ?_⟩
+    rw [show decide (¬ Counted objects.val.length datas.val.length counting) = true by simp [isCounted],
+      show decide (¬ Counted objects.val.length datas.val.length counting ∧ datas.val ≠ []) =
+        decide (datas.val ≠ []) by simp [isCounted]]
+    simp only [zero_val, List.drop_zero] at objectFacts means1 dataNamed means2 means3 exists3
+    have memAll : ∀ r, r ∈ r0 :: rs ↔ r ∈ objects.val ∨ r ∈ datas.val := by
+      intro r; rw [← shape, List.mem_append]
+    refine shared_means shape (fun r mem => ?_) dataRoles (fun r mem => ?_) _ (new1 ++ new2) new3 (fun J => ?_)
+      (fun nonempty => ?_) (fun J => ?_)
+    · obtain ⟨plain, inContext, _⟩ := objectFacts r mem
+      exact ⟨plain, inContext.resolve_left (noTop r mem)⟩
+    · rcases (memAll r).mp mem with inObjects | inDatas
+      · exact (objectFacts r inObjects).2.2
+      · exact dataNamed r inDatas
+    · rw [List.forall_mem_append, means1 J, means2 J]
+      constructor
+      · rintro ⟨objectChains, dataChains⟩ r mem p pNamed
+        rcases (memAll r).mp mem with inObjects | inDatas
+        · exact objectChains r inObjects p pNamed
+        · exact dataChains r inDatas p pNamed
+      · intro holds
+        exact ⟨fun r mem p pNamed => holds r ((memAll r).mpr (.inl mem)) p pNamed,
+          fun r mem p pNamed => holds r ((memAll r).mpr (.inr mem)) p pNamed⟩
+    · obtain ⟨n, nIn⟩ := List.exists_mem_of_ne_nil _ nonempty
+      exact exists3 n (mem_namesOf.mp nIn)
+    · rw [means3 J]
+      exact ⟨fun holds n nIn => holds n (mem_namesOf.mp nIn), fun holds n nIn => holds n (mem_namesOf.mpr nIn)⟩
 
 theorem any_universal_correct (roles : alloc.vec.Vec ObjectPropertyExpression) (index : Usize) :
     ∃ b, key_ontology.any_universal roles index = .ok b ∧
@@ -1116,109 +1414,164 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.key_axioms context e objects data nodes counting out = .ok res ∧ ∀ out', res = some out' →
-      data.val = [] ∧ ∃ new, out'.val = out.val ++ new ∧
-        KeyMeans.{w,x} context e objects.val (namesOf nodes.val) (decide (¬ Counted objects.val data.val counting)) new := by
+      (data.val ≠ [] → context.kinds.ordered = false) ∧ ∃ datas, DataRoles context data.val datas ∧
+        ∃ new, out'.val = out.val ++ new ∧
+          KeyMeans.{w,x} context e objects.val datas (namesOf nodes.val)
+            (decide (¬ Counted objects.val.length data.val.length counting))
+            (decide (¬ Counted objects.val.length data.val.length counting ∧ data.val ≠ [])) new := by
   rw [key_ontology.key_axioms]
-  by_cases hasData : data.val.length = 0
-  · have hasData' : ¬ alloc.vec.Vec.len data ≠ 0#usize := by
-      intro h; apply h; exact UScalar.eq_of_val_eq (by simpa using hasData)
-    by_cases empty : objects.val.length = 0
-    · have empty' : alloc.vec.Vec.len objects = 0#usize := UScalar.eq_of_val_eq (by simpa using empty)
-      exact ⟨none, by simp [hasData', empty'], by simp⟩
-    · have empty' : ¬ alloc.vec.Vec.len objects = 0#usize := fun h => empty (by simpa using congrArg UScalar.val h)
-      obtain ⟨b, run, facts⟩ := any_universal_correct objects 0#usize
-      cases b with
-      | true => exact ⟨none, by simp [hasData', empty', run], by simp⟩
-      | false =>
-        have noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject := by simpa using facts rfl
-        have nonempty : objects.val ≠ [] := fun h => empty (by simp [h])
-        obtain ⟨res, run', facts'⟩ := key_with_spec.{w,x} context e objects data nodes counting out nonempty noTop
-        exact ⟨res, by simp [hasData', empty', run, run'], fun out' h => ⟨List.eq_nil_of_length_eq_zero hasData,
-          facts' out' h⟩⟩
-  · have hasData' : alloc.vec.Vec.len data ≠ 0#usize := fun h => hasData (by simpa using congrArg UScalar.val h)
-    exact ⟨none, by simp [hasData'], by simp⟩
+  by_cases empty : objects.val.length = 0 ∧ data.val.length = 0
+  · have e1 : alloc.vec.Vec.len objects = 0#usize := UScalar.eq_of_val_eq (by simpa using empty.1)
+    have e2 : alloc.vec.Vec.len data = 0#usize := UScalar.eq_of_val_eq (by simpa using empty.2)
+    exact ⟨none, by simp [e1, e2], by simp⟩
+  · have notEmpty : ¬ (alloc.vec.Vec.len objects = 0#usize ∧ alloc.vec.Vec.len data = 0#usize) := by
+      rintro ⟨h1, h2⟩
+      exact empty ⟨by simpa using congrArg UScalar.val h1, by simpa using congrArg UScalar.val h2⟩
+    obtain ⟨b, run, facts⟩ := any_universal_correct objects 0#usize
+    cases b with
+    | true => exact ⟨none, by simp [notEmpty, run], by simp⟩
+    | false =>
+      have noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject := by simpa using facts rfl
+      by_cases blocked : data.val.length ≠ 0 ∧ context.kinds.ordered = true
+      · have blocked' : alloc.vec.Vec.len data ≠ 0#usize := fun h => blocked.1 (by simpa using congrArg UScalar.val h)
+        exact ⟨none, by simp [notEmpty, run, blocked', blocked.2], by simp⟩
+      · have open' : ¬ ((alloc.vec.Vec.len data != 0#usize) && context.kinds.ordered) = true := by
+          intro h
+          simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h
+          exact blocked ⟨fun zero => h.1 (UScalar.eq_of_val_eq (by simpa using zero)), h.2⟩
+        obtain ⟨r1, run1, facts1⟩ := data_key_roles_spec context data 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
+        cases r1 with
+        | none => exact ⟨none, by simp [notEmpty, run, open', run1], by simp⟩
+        | some datas =>
+          obtain ⟨new0, value0, roles0⟩ := facts1 datas rfl
+          simp only [zero_val, List.drop_zero, new_val, List.nil_append] at value0 roles0
+          rw [← value0] at roles0
+          have sameLength := data_roles_length roles0
+          have nonempty : objects.val ≠ [] ∨ datas.val ≠ [] := by
+            by_contra both
+            simp only [not_or, not_not] at both
+            exact empty ⟨by simp [both.1], by rw [← sameLength, both.2]; rfl⟩
+          have dataRoles : ∀ q ∈ datas.val, DataKeyRole q := data_roles_key roles0
+          obtain ⟨res, run2, facts2⟩ := key_with_spec.{w,x} context e objects datas nodes counting out nonempty noTop
+            dataRoles
+          refine ⟨res, by simp [notEmpty, run, open', run1, run2], fun out' h => ?_⟩
+          obtain ⟨new, c, means⟩ := facts2 out' h
+          refine ⟨fun hasData => ?_, datas.val, roles0, new, c, ?_⟩
+          · by_contra ordered
+            exact blocked ⟨fun zero => hasData (List.eq_nil_of_length_eq_zero zero), by simpa using ordered⟩
+          · have ne : datas.val ≠ [] ↔ data.val ≠ [] := by
+              rw [ne_eq, ne_eq, ← List.length_eq_zero_iff, ← List.length_eq_zero_iff, sameLength]
+            have e1 : decide (¬ Counted objects.val.length datas.val.length counting) =
+                decide (¬ Counted objects.val.length data.val.length counting) := by rw [sameLength]
+            have e2 : decide (¬ Counted objects.val.length datas.val.length counting ∧ datas.val ≠ []) =
+                decide (¬ Counted objects.val.length data.val.length counting ∧ data.val ≠ []) := by
+              rw [decide_eq_decide, sameLength, ne]
+            rw [e1, e2] at means
+            exact means
 
 /-- Whether a key of a closure is not counted, which needs the self loops of
-    `mark`. -/
+    `mark` at the elements of `N`. -/
 def SharedIn (items : List AnnotatedAxiom) (counting : Bool) : Prop :=
-  ∃ item ∈ items, ∃ e ops dps, item.axiom = .HasKey e ops dps ∧ ¬ Counted ops.val dps.val counting
+  ∃ item ∈ items, ∃ e ops dps, item.axiom = .HasKey e ops dps ∧ ¬ Counted ops.val.length dps.val.length counting
+
+/-- Whether a key of a closure with a data property is not counted, which needs
+    the self loops of `mark` at the data nodes. -/
+def DataSharedIn (items : List AnnotatedAxiom) (counting : Bool) : Prop :=
+  ∃ item ∈ items, ∃ e ops dps, item.axiom = .HasKey e ops dps ∧ ¬ Counted ops.val.length dps.val.length counting ∧
+    dps.val ≠ []
 
 /-- What the axioms of the keys of `items` say, for the named individuals
-    `names`: every key has no data property and roles of the context that are
-    not the encoding's; in every interpretation that satisfies the axioms, in
-    which `names` are in `N` and, when a key is not counted, `N ⊑ ∃mark.Self`
-    holds, every key holds for `names`; and the axioms hold in every
-    interpretation with the structure of `mark` and `share` whose elements of
-    `N` are marked and include `names`, in which every key holds for the
-    elements of `N`. -/
+    `names`: every key with a data property is in a context whose numbers are
+    not ordered, its data properties have roles, and its object properties
+    are roles of the context that are not the encoding's; in every
+    interpretation that satisfies the axioms, in which `names` are in `N` and
+    `mark` has the self loops the keys that are not counted need, every key
+    holds for `names`; and the axioms hold in every interpretation with the
+    structure of `mark` and `share` whose elements of `N` and data nodes are
+    marked and whose elements of `N` include `names`, in which every key holds
+    for the elements of `N`. -/
 def KeysMeans (context : data_ontology.Context) (items : List AnnotatedAxiom) (names : List NamedIndividual)
     (counting : Bool) (new : List AnnotatedAxiom) : Prop :=
-  (∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps → dps.val = [] ∧ ops.val ≠ [] ∧
-    (∀ r ∈ ops.val, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val) ∧
-    (names ≠ [] → ∃ e', data_ontology.encode_class context e = .ok (some e'))) ∧
+  (∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps →
+    (dps.val ≠ [] → context.kinds.ordered = false) ∧
+    ∃ datas, DataRoles context dps.val datas ∧ (ops.val ≠ [] ∨ datas ≠ []) ∧
+      (∀ r ∈ ops.val, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val) ∧
+      (names ≠ [] → ∃ e', data_ontology.encode_class context e = .ok (some e'))) ∧
   (∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'), (∀ b ∈ new, satisfies J b.axiom) →
     (∀ a ∈ names, J.classes keyClass (J.namedIndividuals a)) →
     (SharedIn items counting → ∀ y, J.classes keyClass y → J.objectProperties markRole y y) →
-    ∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps →
-      ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHoldsAt J e' ops.val names) ∧
+    (DataSharedIn items counting → ∀ y, J.classes dataClass y → J.objectProperties markRole y y) →
+    ∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps → ∀ datas, DataRoles context dps.val datas →
+      ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHoldsAt J e' ops.val datas names) ∧
   (∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value') (marked : Object' → Prop),
-    Structured J marked → (∀ y, J.classes keyClass y → marked y) →
+    Structured J marked → (∀ y, J.classes keyClass y → marked y) → (∀ y, J.classes dataClass y → marked y) →
     (∀ a ∈ names, J.classes keyClass (J.namedIndividuals a)) →
-    (∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps →
-      ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHolds J e' ops.val marked) →
+    (∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps → ∀ datas, DataRoles context dps.val datas →
+      ∀ e', data_ontology.encode_class context e = .ok (some e') → KeyHolds J e' (ops.val ++ datas) marked) →
     ∀ b ∈ new, satisfies J b.axiom)
 
 theorem keys_means_nil (context : data_ontology.Context) (names : List NamedIndividual) (counting : Bool) :
     KeysMeans.{w,x} context [] names counting [] :=
-  ⟨by simp, fun _ _ _ _ => by simp, fun _ _ _ _ _ _ => by simp⟩
+  ⟨by simp, fun _ _ _ _ _ => by simp, fun _ _ _ _ _ _ _ => by simp⟩
 
 theorem keys_means_cons {context : data_ontology.Context} {item : AnnotatedAxiom} {rest new1 new2 : List AnnotatedAxiom}
     {names : List NamedIndividual} {counting : Bool}
-    (head : ∀ e ops dps, item.axiom = .HasKey e ops dps → dps.val = [] ∧
-      KeyMeans.{w,x} context e ops.val names (decide (¬ Counted ops.val dps.val counting)) new1)
+    (head : ∀ e ops dps, item.axiom = .HasKey e ops dps → (dps.val ≠ [] → context.kinds.ordered = false) ∧
+      ∃ datas, DataRoles context dps.val datas ∧
+        KeyMeans.{w,x} context e ops.val datas names (decide (¬ Counted ops.val.length dps.val.length counting))
+          (decide (¬ Counted ops.val.length dps.val.length counting ∧ dps.val ≠ [])) new1)
     (plain : ¬ IsKey item.axiom → new1 = []) (tail : KeysMeans.{w,x} context rest names counting new2) :
     KeysMeans.{w,x} context (item :: rest) names counting (new1 ++ new2) := by
   obtain ⟨tailFacts, tailSound, tailComplete⟩ := tail
-  refine ⟨?_, fun J holds named marks => ?_, fun J marked structured markedN named keys => ?_⟩
+  refine ⟨?_, fun J holds named marks dataMarks => ?_, fun J marked structured markedN markedD named keys => ?_⟩
   · intro i mem e ops dps key
     rcases List.mem_cons.mp mem with rfl | later
-    · obtain ⟨noData, nonempty, roles, encoded, _⟩ := head e ops dps key
-      exact ⟨noData, nonempty, roles, encoded⟩
+    · obtain ⟨ordered, datas, roles, nonempty, objects, _, encoded, _⟩ := head e ops dps key
+      exact ⟨ordered, datas, roles, nonempty, objects, encoded⟩
     · exact tailFacts i later e ops dps key
-  · intro i mem e ops dps key e' eRun
+  · intro i mem e ops dps key datas roles e' eRun
     rcases List.mem_cons.mp mem with rfl | later
-    · obtain ⟨_, _, _, _, sound, _⟩ := head e ops dps key
-      exact sound J (fun b m => holds b (List.mem_append_left _ m)) named (fun shared => marks
-        ⟨i, List.mem_cons_self, e, ops, dps, key, by simpa using shared⟩) e' eRun
+    · obtain ⟨_, datas', roles', means⟩ := head e ops dps key
+      have same := data_roles_unique roles' roles
+      subst same
+      exact means.2.2.2.2.1 J (fun b m => holds b (List.mem_append_left _ m)) named
+        (fun shared => marks ⟨i, List.mem_cons_self, e, ops, dps, key, by simpa using shared⟩)
+        (fun shared => dataMarks ⟨i, List.mem_cons_self, e, ops, dps, key, by simpa using shared⟩) e' eRun
     · exact tailSound J (fun b m => holds b (List.mem_append_right _ m)) named
-        (fun ⟨j, jMem, rest⟩ => marks ⟨j, List.mem_cons_of_mem _ jMem, rest⟩) i later e ops dps key e' eRun
+        (fun ⟨j, jMem, rest⟩ => marks ⟨j, List.mem_cons_of_mem _ jMem, rest⟩)
+        (fun ⟨j, jMem, rest⟩ => dataMarks ⟨j, List.mem_cons_of_mem _ jMem, rest⟩) i later e ops dps key datas roles
+        e' eRun
   · intro b mem
     rcases List.mem_append.mp mem with early | late
     · by_cases key : IsKey item.axiom
       · obtain ⟨e, ops, dps, shape⟩ : ∃ e ops dps, item.axiom = .HasKey e ops dps := by
           revert key; cases item.axiom <;> simp [IsKey]
-        obtain ⟨_, _, _, _, _, complete⟩ := head e ops dps shape
-        exact complete J marked structured markedN named (keys item List.mem_cons_self e ops dps shape) b early
+        obtain ⟨_, datas, roles, means⟩ := head e ops dps shape
+        exact means.2.2.2.2.2 J marked structured markedN markedD named
+          (fun e' eRun => keys item List.mem_cons_self e ops dps shape datas roles e' eRun) b early
       · rw [plain key] at early; simp at early
-    · exact tailComplete J marked structured markedN named (fun i iMem => keys i (List.mem_cons_of_mem _ iMem)) b late
-
+    · exact tailComplete J marked structured markedN markedD named
+        (fun i iMem => keys i (List.mem_cons_of_mem _ iMem)) b late
 
 theorem axiom_keys_spec (context : data_ontology.Context) (ax : Axiom) (nodes : alloc.vec.Vec Individual)
     (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.axiom_keys context ax nodes counting out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧
-        (∀ e ops dps, ax = .HasKey e ops dps → dps.val = [] ∧
-          KeyMeans.{w,x} context e ops.val (namesOf nodes.val) (decide (¬ Counted ops.val dps.val counting)) new) ∧
+        (∀ e ops dps, ax = .HasKey e ops dps → (dps.val ≠ [] → context.kinds.ordered = false) ∧
+          ∃ datas, DataRoles context dps.val datas ∧
+            KeyMeans.{w,x} context e ops.val datas (namesOf nodes.val)
+              (decide (¬ Counted ops.val.length dps.val.length counting))
+              (decide (¬ Counted ops.val.length dps.val.length counting ∧ dps.val ≠ [])) new) ∧
         (¬ IsKey ax → new = []) := by
   cases ax with
   | HasKey e ops dps =>
     rw [key_ontology.axiom_keys]
     obtain ⟨res, run, facts⟩ := key_axioms_spec.{w,x} context e ops dps nodes counting out
     refine ⟨res, run, fun out' h => ?_⟩
-    obtain ⟨noData, new, c, means⟩ := facts out' h
+    obtain ⟨ordered, datas, roles, new, c, means⟩ := facts out' h
     refine ⟨new, c, fun e' ops' dps' same => ?_, fun notKey => absurd trivial notKey⟩
     cases same
-    exact ⟨noData, means⟩
+    exact ⟨ordered, datas, roles, means⟩
   | _ =>
     refine ⟨some out, by rw [key_ontology.axiom_keys], fun out' h => ⟨[], by cases h; simp, by simp, fun _ => rfl⟩⟩
 
@@ -1256,14 +1609,43 @@ decreasing_by omega
 
 theorem shared_key_correct (ax : Axiom) (counting : Bool) :
     ∃ b, key_ontology.shared_key ax counting = .ok b ∧
-      (b = true ↔ ∃ e ops dps, ax = .HasKey e ops dps ∧ ¬ Counted ops.val dps.val counting) := by
+      (b = true ↔ ∃ e ops dps, ax = .HasKey e ops dps ∧ ¬ Counted ops.val.length dps.val.length counting) := by
   cases ax with
   | HasKey e ops dps =>
     rw [key_ontology.shared_key]
-    obtain ⟨b, run, iff⟩ := counted_correct ops dps counting
-    refine ⟨!b, by simp [run], ?_⟩
-    cases b <;> simp_all
+    refine ⟨!decide (Counted ops.val.length dps.val.length counting), by simp [counted_correct], ?_⟩
+    simp
   | _ => exact ⟨false, by rw [key_ontology.shared_key], by simp⟩
+
+theorem data_shared_key_correct (ax : Axiom) (counting : Bool) :
+    ∃ b, key_ontology.data_shared_key ax counting = .ok b ∧
+      (b = true ↔ ∃ e ops dps, ax = .HasKey e ops dps ∧ ¬ Counted ops.val.length dps.val.length counting ∧
+        dps.val ≠ []) := by
+  cases ax with
+  | HasKey e ops dps =>
+    rw [key_ontology.data_shared_key]
+    refine ⟨decide (dps.val ≠ []) && !decide (Counted ops.val.length dps.val.length counting), ?_, ?_⟩
+    · have iff : (alloc.vec.Vec.len dps != 0#usize) = decide (dps.val ≠ []) := by
+        rw [Bool.eq_iff_iff]
+        simp only [bne_iff_ne, ne_eq, decide_eq_true_eq]
+        constructor
+        · intro h empty
+          apply h
+          apply UScalar.eq_of_val_eq
+          simp [empty]
+        · intro h zero
+          apply h
+          have := congrArg UScalar.val zero
+          simpa using this
+      simp [counted_correct, iff]
+    · simp only [Bool.and_eq_true, decide_eq_true_eq, Bool.not_eq_true', decide_eq_false_iff_not]
+      constructor
+      · rintro ⟨nonempty, notCounted⟩
+        exact ⟨e, ops, dps, rfl, notCounted, nonempty⟩
+      · rintro ⟨_, _, _, same, notCounted, nonempty⟩
+        cases same
+        exact ⟨nonempty, notCounted⟩
+  | _ => exact ⟨false, by rw [key_ontology.data_shared_key], by simp⟩
 
 theorem shared_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (counting : Bool) :
     ∃ b, key_ontology.shared_from items index counting = .ok b ∧
@@ -1299,25 +1681,92 @@ theorem shared_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usiz
 termination_by items.val.length - index.val
 decreasing_by omega
 
+theorem data_shared_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (counting : Bool) :
+    ∃ b, key_ontology.data_shared_from items index counting = .ok b ∧
+      (b = true ↔ DataSharedIn (items.val.drop index.val) counting) := by
+  rw [key_ontology.data_shared_from]
+  by_cases inside : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨b, run, iff⟩ := data_shared_key_correct items.val[index.val].axiom counting
+    cases b with
+    | true =>
+      refine ⟨true, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run], ?_⟩
+      obtain ⟨e, ops, dps, shape, notCounted, nonempty⟩ := iff.mp rfl
+      rw [split]
+      exact ⟨fun _ => ⟨_, List.mem_cons_self, e, ops, dps, shape, notCounted, nonempty⟩, fun _ => rfl⟩
+    | false =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨b', run', iff'⟩ := data_shared_from_correct items next counting
+      refine ⟨b', by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance, run'], ?_⟩
+      rw [iff', split, nextIndex]
+      constructor
+      · rintro ⟨i, mem, rest⟩
+        exact ⟨i, List.mem_cons_of_mem _ mem, rest⟩
+      · rintro ⟨i, mem, e, ops, dps, shape, notCounted, nonempty⟩
+        rcases List.mem_cons.mp mem with rfl | later
+        · exact absurd (iff.mpr ⟨e, ops, dps, shape, notCounted, nonempty⟩) (by simp)
+        · exact ⟨i, later, e, ops, dps, shape, notCounted, nonempty⟩
+  · refine ⟨false, by simp [UScalar.lt_equiv, inside], ?_⟩
+    simp [DataSharedIn, List.drop_eq_nil_iff.mpr (show items.val.length ≤ index.val by omega)]
+termination_by items.val.length - index.val
+decreasing_by omega
+
 theorem marks_spec (items : alloc.vec.Vec AnnotatedAxiom) (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.marks items counting out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧
         ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
           ((∀ b ∈ new, satisfies J b.axiom) ↔
-            (SharedIn items.val counting → ∀ y, J.classes keyClass y → J.objectProperties markRole y y)) := by
+            ((SharedIn items.val counting → ∀ y, J.classes keyClass y → J.objectProperties markRole y y) ∧
+              (DataSharedIn items.val counting → ∀ y, J.classes dataClass y → J.objectProperties markRole y y))) := by
   rw [key_ontology.marks]
   obtain ⟨b, run, iff⟩ := shared_from_correct items 0#usize counting
-  simp only [zero_val, List.drop_zero] at iff
+  obtain ⟨b1, run1, iff1⟩ := data_shared_from_correct items 0#usize counting
+  simp only [zero_val, List.drop_zero] at iff iff1
+  let axN : Axiom := .SubClassOf (.Class keyClass) (.ObjectHasSelf (.Property markRole))
+  let axD : Axiom := .SubClassOf (.Class dataClass) (.ObjectHasSelf (.Property markRole))
+  have markN : ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+      satisfies J axN ↔ ∀ y, J.classes keyClass y → J.objectProperties markRole y y := by
+    intro _ _ J; simp [axN, satisfies, classDenote, objectRelation]
+  have markD : ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+      satisfies J axD ↔ ∀ y, J.classes dataClass y → J.objectProperties markRole y y := by
+    intro _ _ J; simp [axD, satisfies, classDenote, objectRelation]
   cases b with
   | true =>
-    obtain ⟨r, pushRun, contents⟩ := push_spec out (.SubClassOf (.Class keyClass) (.ObjectHasSelf (.Property markRole)))
-    refine ⟨r, by simp [run, named_class_eq, mark_role_eq, pushRun], fun out' h => ⟨_, contents out' h, fun J => ?_⟩⟩
-    simp only [List.mem_singleton, forall_eq, satisfies, iff.mp rfl, true_implies]
-    simp [classDenote, objectRelation]
+    obtain ⟨r, pushRun, contents⟩ := push_spec out axN
+    cases r with
+    | none => exact ⟨none, by simp [run, named_class_eq, mark_role_eq, pushRun, axN], by simp⟩
+    | some out1 =>
+    cases b1 with
+    | true =>
+      obtain ⟨r2, pushRun2, contents2⟩ := push_spec out1 axD
+      refine ⟨r2, by simp [run, named_class_eq, mark_role_eq, pushRun, axN, run1, data_class_eq, pushRun2, axD],
+        fun out' h => ⟨[bare axN, bare axD], by rw [contents2 out' h, contents out1 rfl]; simp [bare], fun J => ?_⟩⟩
+      simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false, forall_eq_or_imp, forall_eq, bare,
+        markN J, markD J]
+      exact ⟨fun ⟨h1, h2⟩ => ⟨fun _ => h1, fun _ => h2⟩, fun ⟨h1, h2⟩ => ⟨h1 (iff.mp rfl), h2 (iff1.mp rfl)⟩⟩
+    | false =>
+      refine ⟨some out1, by simp [run, named_class_eq, mark_role_eq, pushRun, axN, run1], fun out' h =>
+        ⟨[bare axN], by cases h; rw [contents out1 rfl]; rfl, fun J => ?_⟩⟩
+      simp only [List.mem_singleton, forall_eq, bare, markN J]
+      exact ⟨fun h1 => ⟨fun _ => h1, fun shared => absurd (iff1.mpr shared) (by simp)⟩,
+        fun ⟨h1, _⟩ => h1 (iff.mp rfl)⟩
   | false =>
-    refine ⟨some out, by simp [run], fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
-    simp only [List.not_mem_nil, false_implies, implies_true, true_iff]
-    exact fun shared => absurd (iff.mpr shared) (by simp)
+    cases b1 with
+    | true =>
+      obtain ⟨r2, pushRun2, contents2⟩ := push_spec out axD
+      refine ⟨r2, by simp [run, run1, data_class_eq, mark_role_eq, pushRun2, axD], fun out' h =>
+        ⟨[bare axD], by rw [contents2 out' h]; rfl, fun J => ?_⟩⟩
+      simp only [List.mem_singleton, forall_eq, bare, markD J]
+      exact ⟨fun h2 => ⟨fun shared => absurd (iff.mpr shared) (by simp), fun _ => h2⟩,
+        fun ⟨_, h2⟩ => h2 (iff1.mp rfl)⟩
+    | false =>
+      refine ⟨some out, by simp [run, run1], fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
+      simp only [List.not_mem_nil, false_implies, implies_true, true_iff]
+      exact ⟨fun shared => absurd (iff.mpr shared) (by simp), fun shared => absurd (iff1.mpr shared) (by simp)⟩
 
 /-! ### The axioms other than keys -/
 
@@ -1398,6 +1847,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
             (∀ y, J.classes keyClass y → ¬ J.classes dataClass y) ∧
             (∀ a ∈ nodes.val, NodeHeld J a) ∧
             (SharedIn items.val counting → ∀ y, J.classes keyClass y → J.objectProperties markRole y y) ∧
+            (DataSharedIn items.val counting → ∀ y, J.classes dataClass y → J.objectProperties markRole y y) ∧
             (∀ b ∈ newK, satisfies J b.axiom)) := by
   rw [key_ontology.encode]
   obtain ⟨r0, run0, facts0⟩ := Rowl.DataStructure.encode_meaning.{u,v,w,x} context good capacity capSmall
@@ -1439,10 +1889,10 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   rw [show [⟨alloc.vec.Vec.new Annotation, .SubClassOf (.Class keyClass) (.ObjectComplementOf (.Class dataClass))⟩] =
     [bare (.SubClassOf (.Class keyClass) (.ObjectComplementOf (.Class dataClass)))] from rfl, apartIff]
   constructor
-  · rintro ⟨⟨⟨⟨⟨base, unkeyed⟩, apart⟩, held⟩, marks⟩, keys⟩
-    exact ⟨base, unkeyed, apart, held, marks, keys⟩
-  · rintro ⟨base, unkeyed, apart, held, marks, keys⟩
-    exact ⟨⟨⟨⟨⟨base, unkeyed⟩, apart⟩, held⟩, marks⟩, keys⟩
+  · rintro ⟨⟨⟨⟨⟨base, unkeyed⟩, apart⟩, held⟩, marks, dataMarks⟩, keys⟩
+    exact ⟨base, unkeyed, apart, held, marks, dataMarks, keys⟩
+  · rintro ⟨base, unkeyed, apart, held, marks, dataMarks, keys⟩
+    exact ⟨⟨⟨⟨⟨base, unkeyed⟩, apart⟩, held⟩, marks, dataMarks⟩, keys⟩
 
 
 /-! ### The individuals a closure names -/

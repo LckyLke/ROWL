@@ -333,10 +333,12 @@ properties:
 - **Data properties:** domains, ranges, sub-, equivalent and disjoint
   properties, functional properties; some, only, has-value and number
   restrictions; positive and negative assertions.
-- **Keys:** `HasKey` with object properties.
-- **Not yet:** keys with data properties, datatype definitions,
-  `owl:topDataProperty` other than as a superproperty, and a few corner cases
-  that [docs/status.md](docs/status.md) lists. They are answered "unknown".
+- **Keys:** `HasKey` with object and data properties: two named patients
+  with the same `:ssn` value are the same patient.
+- **Not yet:** keys with data properties next to datatype restrictions or
+  subtypes of `xsd:integer`, datatype definitions, `owl:topDataProperty` other
+  than as a superproperty, and a few corner cases that
+  [docs/status.md](docs/status.md) lists. They are answered "unknown".
 
 ### Datatypes
 
@@ -438,7 +440,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 672 Rust regression tests
+cargo test --workspace         # 677 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

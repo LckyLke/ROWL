@@ -1,16 +1,19 @@
 //! Keys (`HasKey`) in the ontology queries, by an encoding into the SROIQ
 //! axioms that `data_ontology` hands to `shi_ontology`.
 //!
-//! A key `HasKey(CE (P1 … Pm) ())` says that two named instances of `CE` that
-//! share a named `Pi`-value for every `i` are equal (OWL 2 Direct Semantics,
-//! Table 7). Only named individuals take part, and the named elements of a model
-//! are the individuals of its vocabulary, so the encoding marks every named
-//! individual of the closure with a fresh class `N` (whose elements are no data
-//! nodes) and asks every key of named elements only:
+//! A key `HasKey(CE (P1 … Pm) (Q1 … Qn))` says that two named instances of `CE`
+//! that share a named `Pi`-value for every `i` and a `Qj`-value for every `j` are
+//! equal (OWL 2 Direct Semantics, Table 9). Only named individuals take part,
+//! and the named elements of a model are the individuals of its vocabulary, so
+//! the encoding marks every named individual of the closure with a fresh class
+//! `N` (whose elements are no data nodes) and asks every key of named elements
+//! only. A data property `Qj` counts by the role of its data encoding, along
+//! which any data value is shared, named or not:
 //!
 //! - a key with one property `P`, when the closure has no transitive property
 //!   and no property chain, becomes `N ⊑ ≤1 P⁻.(CE ⊓ N)`: a named value has at
-//!   most one named instance of `CE` as its `P`-predecessor. The completion
+//!   most one named instance of `CE` as its `P`-predecessor; for one data
+//!   property `Q`, `D ⊑ ≤1 Q⁻.(CE ⊓ N)` for every data value. The completion
 //!   forest decides this with its choose rule and its merges;
 //! - every other key becomes, with a fresh role `mark` whose self loops mark the
 //!   named elements (`N ⊑ ∃mark.Self`) and for every key property `Pi` a fresh
@@ -22,7 +25,9 @@
 //!   property is `x`. The last disjunct says, at an element that shares a value
 //!   with `x` along `P1`, that `x` is not in `CE`, so the case split on `CE` at
 //!   `x` happens only where an element shares a value with `x`, and not at every
-//!   named individual.
+//!   named individual. When a key that is not counted has a data property,
+//!   `D ⊑ ∃mark.Self` marks the data values too, and the roles of the data
+//!   properties take part like the object properties.
 //!
 //! Both forms hold in a model of the encoding exactly when the key holds for
 //! the named individuals, so the encoding has a model exactly when the closure
@@ -36,9 +41,11 @@
 //! `[0, K]`, `mark` is `[0, K, R]` and `share(P)` is `[0, K, S]` followed by 0
 //! for a named property or 1 for an inverse one and the property's name.
 //!
-//! `None` means that a key has a data property, no property or the universal
-//! role, that a name is too long, or that the data encoding of the rest of the
-//! closure gives no answer.
+//! `None` means that a key has no property, the universal role or the top or
+//! bottom data property, that a key has a data property while numbers are
+//! ordered (their bounded runs of integers would need every value named), that
+//! a name is too long, or that the data encoding of the rest of the closure
+//! gives no answer.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -50,7 +57,7 @@
     clippy::match_like_matches_macro,
     clippy::if_same_then_else
 )] // Indexed operations and explicit branches for the pinned extraction subset.
-use crate::concepts::copy_individual;
+use crate::concepts::{copy_individual, copy_role};
 use crate::data_ontology::{self, Context, Prepared};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, Individual, Iri,
@@ -269,14 +276,55 @@ fn any_universal(roles: &Vec<ObjectPropertyExpression>, index: usize) -> bool {
         false
     }
 }
-/// Whether a key with these properties is counted: one object property and no
-/// data property, when the closure allows counting.
-fn counted(
-    objects: &Vec<ObjectPropertyExpression>,
+/// Whether a key with `objects` object properties and `data` data properties
+/// is counted: it has one property, when the closure allows counting.
+fn counted(objects: usize, data: usize, counting: bool) -> bool {
+    counting & (((objects == 1) & (data == 0)) | ((objects == 0) & (data == 1)))
+}
+/// `out` with the roles of the data properties of `data[index..]` in the data
+/// encoding; `None` for the bottom data property or one without a role.
+fn data_key_roles(
+    context: &Context,
     data: &Vec<DataProperty>,
-    counting: bool,
-) -> bool {
-    counting && objects.len() == 1 && data.len() == 0
+    index: usize,
+    mut out: Vec<ObjectPropertyExpression>,
+) -> Option<Vec<ObjectPropertyExpression>> {
+    if index < data.len() {
+        if data_ontology::is_bottom_data(&data[index]) {
+            None
+        } else {
+            match data_ontology::data_role(context, &data[index]) {
+                Some(role) => {
+                    if out.len() < usize::MAX {
+                        out.push(role);
+                        data_key_roles(context, data, index + 1, out)
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with copies of the roles of `roles[index..]`.
+fn append_roles(
+    roles: &Vec<ObjectPropertyExpression>,
+    index: usize,
+    mut out: Vec<ObjectPropertyExpression>,
+) -> Option<Vec<ObjectPropertyExpression>> {
+    if index < roles.len() {
+        if out.len() < usize::MAX {
+            out.push(copy_role(&roles[index]));
+            append_roles(roles, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
 }
 /// `out` with `N ⊑ ≤1 role⁻.(class ⊓ N)`.
 fn counted_key(
@@ -301,6 +349,69 @@ fn counted_key(
             ),
         ),
         _ => None,
+    }
+}
+/// `out` with `D ⊑ ≤1 role⁻.(class ⊓ N)` for the role of a data property: a
+/// data value has at most one named instance of the class as predecessor.
+fn data_counted_key(
+    context: &Context,
+    class: &ClassExpression,
+    role: &ObjectPropertyExpression,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    match data_ontology::encode_class(context, class) {
+        Some(encoded) => data_ontology::push(
+            out,
+            Axiom::SubClassOf(
+                data_ontology::data_class(),
+                ClassExpression::ObjectMaxCardinality(
+                    Natural::Succ(Box::new(Natural::Zero)),
+                    inverse_of(copy_role(role)),
+                    Some(Box::new(data_ontology::and(encoded, named_class()))),
+                ),
+            ),
+        ),
+        None => None,
+    }
+}
+/// `out` with `role ∘ mark ∘ role⁻ ⊑ share(role)` for the role of a data
+/// property.
+fn data_chain(
+    role: &ObjectPropertyExpression,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    match share_role(role) {
+        Some(share) => {
+            let mut rest = Vec::new();
+            rest.push(inverse_of(copy_role(role)));
+            data_ontology::push(
+                out,
+                Axiom::SubObjectPropertyOf(
+                    SubObjectPropertyExpression::Chain(AtLeastTwo {
+                        first: copy_role(role),
+                        second: mark_role(),
+                        rest,
+                    }),
+                    ObjectPropertyExpression::Property(share),
+                ),
+            )
+        }
+        None => None,
+    }
+}
+/// `out` with the chain of every role of a data property of `roles[index..]`.
+fn data_chains(
+    roles: &Vec<ObjectPropertyExpression>,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < roles.len() {
+        match data_chain(&roles[index], out) {
+            Some(out) => data_chains(roles, index + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
     }
 }
 /// `out` with `role ∘ mark ∘ role⁻ ⊑ share(role)`.
@@ -472,27 +583,41 @@ fn shared_at(
     }
 }
 /// `out` with the axioms of a key whose properties are `objects`, none of them
-/// the universal role, the first at `objects[0]`.
+/// the universal role, and the data properties of the roles `data`.
 fn key_with(
     context: &Context,
     class: &ClassExpression,
     objects: &Vec<ObjectPropertyExpression>,
-    data: &Vec<DataProperty>,
+    data: &Vec<ObjectPropertyExpression>,
     nodes: &Vec<Individual>,
     counting: bool,
     out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if counted(objects, data, counting) {
-        counted_key(context, class, &objects[0], out)
+    if counted(objects.len(), data.len(), counting) {
+        if objects.len() == 1 {
+            counted_key(context, class, &objects[0], out)
+        } else {
+            data_counted_key(context, class, &data[0], out)
+        }
     } else {
-        match chains(context, objects, 0, out) {
-            Some(out) => shared_assertions(context, class, objects, nodes, 0, out),
+        match append_roles(objects, 0, Vec::new()) {
+            Some(roles) => match append_roles(data, 0, roles) {
+                Some(roles) => match chains(context, objects, 0, out) {
+                    Some(out) => match data_chains(data, 0, out) {
+                        Some(out) => shared_assertions(context, class, &roles, nodes, 0, out),
+                        None => None,
+                    },
+                    None => None,
+                },
+                None => None,
+            },
             None => None,
         }
     }
 }
-/// `out` with the axioms of a key; `None` for a key with a data property, no
-/// property or the universal role.
+/// `out` with the axioms of a key; `None` for a key with no property, the
+/// universal role or the top or bottom data property, or with a data property
+/// while numbers are ordered.
 fn key_axioms(
     context: &Context,
     class: &ClassExpression,
@@ -502,14 +627,17 @@ fn key_axioms(
     counting: bool,
     out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if data.len() != 0 {
-        None
-    } else if objects.len() == 0 {
+    if (objects.len() == 0) & (data.len() == 0) {
         None
     } else if any_universal(objects, 0) {
         None
+    } else if (data.len() != 0) & context.kinds.ordered {
+        None
     } else {
-        key_with(context, class, objects, data, nodes, counting, out)
+        match data_key_roles(context, data, 0, Vec::new()) {
+            Some(roles) => key_with(context, class, objects, &roles, nodes, counting, out),
+            None => None,
+        }
     }
 }
 /// `out` with the axioms of the axiom if it is a key.
@@ -561,20 +689,57 @@ fn shared_from(items: &Vec<AnnotatedAxiom>, index: usize, counting: bool) -> boo
 /// Whether the axiom is a key that is not counted.
 fn shared_key(axiom: &Axiom, counting: bool) -> bool {
     match axiom {
-        Axiom::HasKey(_, objects, data) => !counted(objects, data, counting),
+        Axiom::HasKey(_, objects, data) => !counted(objects.len(), data.len(), counting),
         _ => false,
     }
 }
-/// `out` with `N ⊑ ∃mark.Self` when a key is not counted.
+/// Whether the axiom is a key with a data property that is not counted.
+fn data_shared_key(axiom: &Axiom, counting: bool) -> bool {
+    match axiom {
+        Axiom::HasKey(_, objects, data) => {
+            (data.len() != 0) & !counted(objects.len(), data.len(), counting)
+        }
+        _ => false,
+    }
+}
+/// Whether a key of `items[index..]` with a data property is not counted,
+/// which needs the self loops of `mark` at the data values.
+fn data_shared_from(items: &Vec<AnnotatedAxiom>, index: usize, counting: bool) -> bool {
+    if index < items.len() {
+        if data_shared_key(&items[index].axiom, counting) {
+            true
+        } else {
+            data_shared_from(items, index + 1, counting)
+        }
+    } else {
+        false
+    }
+}
+/// `out` with `N ⊑ ∃mark.Self` when a key is not counted, and `D ⊑ ∃mark.Self`
+/// when a key with a data property is not counted.
 fn marks(
     items: &Vec<AnnotatedAxiom>,
     counting: bool,
     out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if shared_from(items, 0, counting) {
-        data_ontology::push(
+    let out = if shared_from(items, 0, counting) {
+        match data_ontology::push(
             out,
             Axiom::SubClassOf(named_class(), ClassExpression::ObjectHasSelf(mark_role())),
+        ) {
+            Some(out) => out,
+            None => return None,
+        }
+    } else {
+        out
+    };
+    if data_shared_from(items, 0, counting) {
+        data_ontology::push(
+            out,
+            Axiom::SubClassOf(
+                data_ontology::data_class(),
+                ClassExpression::ObjectHasSelf(mark_role()),
+            ),
         )
     } else {
         Some(out)

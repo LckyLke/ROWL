@@ -334,9 +334,11 @@ theorem liftedN_interpretation (N : Normative D) (x0 : Object) (interp : IsInter
 
 theorem liftedN_structured (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object) :
     Structured (liftedN context I lit num x0) (Marked I) := by
-  refine ⟨fun y y' => liftedN_mark y y', fun r p named plain y y' => ?_⟩
+  refine ⟨fun y y' => liftedN_mark y y', fun r p named keyRole y y' => ?_⟩
   rw [liftedN_share named]
-  simp only [liftedN_relation plain]
+  rcases keyRole with plain | ⟨dp, q, rfl, roleOf⟩
+  · simp only [liftedN_relation plain]
+  · simp only [objectRelation, liftedN_role (data_role_not_mark roleOf) (data_role_not_share roleOf)]
 
 theorem liftedN_class_iff (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) {c c' : ClassExpression}
@@ -370,16 +372,44 @@ theorem liftedN_successor {lit : datatypes.DataValue → Value} {num : ℝ → V
       simp only [objectRelation, lifted] at related
       exact absurd related notTop
 
+/-- Each data property of a key has its role. -/
+theorem data_roles_left {dps : List DataProperty} {datas : List ObjectPropertyExpression}
+    (roles : DataRoles context dps datas) : ∀ p ∈ dps, ∃ q ∈ datas, data_ontology.data_role context p = .ok (some q) := by
+  induction roles with
+  | nil => simp
+  | cons head _ ih =>
+    intro p mem
+    rcases List.mem_cons.mp mem with rfl | later
+    · exact ⟨_, List.mem_cons_self, head.1⟩
+    · obtain ⟨q, qIn, run⟩ := ih p later
+      exact ⟨q, List.mem_cons_of_mem _ qIn, run⟩
+
+/-- Each role of the data properties of a key is the role of one of them. -/
+theorem data_roles_right {dps : List DataProperty} {datas : List ObjectPropertyExpression}
+    (roles : DataRoles context dps datas) : ∀ q ∈ datas, ∃ p ∈ dps, data_ontology.data_role context p = .ok (some q) := by
+  induction roles with
+  | nil => simp
+  | cons head _ ih =>
+    intro q mem
+    rcases List.mem_cons.mp mem with rfl | later
+    · exact ⟨_, List.mem_cons_self, head.1⟩
+    · obtain ⟨p, pIn, run⟩ := ih q later
+      exact ⟨p, List.mem_cons_of_mem _ pIn, run⟩
+
 /-- A key of the OWL interpretation holds for the elements of `N` in the lifted
-    one. -/
+    one, along the roles of its object properties and of its data
+    properties. -/
 theorem liftedN_key_holds (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) {e e' : ClassExpression}
-    {ops : List ObjectPropertyExpression} (run : data_ontology.encode_class context e = .ok (some e'))
+    {ops : List ObjectPropertyExpression} {dps : List DataProperty} {datas : List ObjectPropertyExpression}
+    (run : data_ontology.encode_class context e = .ok (some e'))
     (plain : ∀ a ∈ classIndividuals e, Plain a)
     (opsIn : ∀ r ∈ ops, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val)
+    (roles : DataRoles context dps datas)
     (key : ∀ x y, classDenote I e x → I.named x → classDenote I e y → I.named y →
-      (∀ p ∈ ops, ∃ z, I.named z ∧ objectRelation I p x z ∧ objectRelation I p y z) → x = y) :
-    KeyHolds (liftedN context I (litOf N embed) (numOf N embed) x0) e' ops (Marked I) := by
+      (∀ p ∈ ops, ∃ z, I.named z ∧ objectRelation I p x z ∧ objectRelation I p y z) →
+      (∀ p ∈ dps, ∃ v, I.dataProperties p x v ∧ I.dataProperties p y v) → x = y) :
+    KeyHolds (liftedN context I (litOf N embed) (numOf N embed) x0) e' (ops ++ datas) (Marked I) := by
   intro y y' ny ny' ey ey' shared
   rw [liftedN_key] at ny ny'
   cases y with
@@ -389,12 +419,20 @@ theorem liftedN_key_holds (N : Normative D) (x0 : Object) (vocab : IsVocabulary 
   | inr _ => exact absurd ny' id
   | inl b =>
   refine congrArg Sum.inl (key a b ((liftedN_class_iff N x0 vocab interp good run plain a).mpr ey) ny
-    ((liftedN_class_iff N x0 vocab interp good run plain b).mpr ey') ny' (fun p mem => ?_))
-  obtain ⟨z, markedZ, ra, rb⟩ := shared p mem
-  have notTop : RoleOf p ≠ topObject := fun same => (good.2.1 _ (opsIn p mem).2).2 same
-  obtain ⟨c, rfl⟩ := liftedN_successor (opsIn p mem).1 notTop ra
-  have sim := liftedN_simulates N x0 vocab interp good []
-  exact ⟨c, markedZ, (relation_place sim p (opsIn p mem).1 a c).mpr ra, (relation_place sim p (opsIn p mem).1 b c).mpr rb⟩
+    ((liftedN_class_iff N x0 vocab interp good run plain b).mpr ey') ny' (fun p mem => ?_) (fun p mem => ?_))
+  · obtain ⟨z, markedZ, ra, rb⟩ := shared p (List.mem_append_left _ mem)
+    have notTop : RoleOf p ≠ topObject := fun same => (good.2.1 _ (opsIn p mem).2).2 same
+    obtain ⟨c, rfl⟩ := liftedN_successor (opsIn p mem).1 notTop ra
+    have sim := liftedN_simulates N x0 vocab interp good []
+    exact ⟨c, markedZ, (relation_place sim p (opsIn p mem).1 a c).mpr ra,
+      (relation_place sim p (opsIn p mem).1 b c).mpr rb⟩
+  · obtain ⟨q, qIn, qRun⟩ := data_roles_left roles p mem
+    obtain ⟨z, _, ra, rb⟩ := shared q (List.mem_append_right _ qIn)
+    rw [liftedN_data_relation qRun] at ra rb
+    obtain ⟨v, rfl, pa⟩ := (lifted_data_role interp.2.2.2.1 interp.2.2.2.2.2.1 qRun a _).mp ra
+    obtain ⟨v', same, pb⟩ := (lifted_data_role interp.2.2.2.1 interp.2.2.2.2.2.1 qRun b _).mp rb
+    cases same
+    exact ⟨v, pa, pb⟩
 
 end Transfer
 
@@ -404,6 +442,20 @@ end Transfer
 section Sound
 variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap Native}
 
+/-- The shift of an element's values in the OWL interpretation made from a
+    model of the key encoding: a slot of `atomCount atoms + 1` values for each
+    element of `names` up to its own, and none while numbers are ordered, so
+    that two elements of `names` have one value only at a common data node. -/
+noncomputable def slotShift (context : data_ontology.Context) (J : Interpretation Object' Value')
+    (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) (z : Object') : ℕ :=
+  if context.kinds.ordered = true then 0
+  else ((names.map J.namedIndividuals).idxOf z + 1) * (atomCount atoms + 1)
+
+theorem slotShift_ok (context : data_ontology.Context) (J : Interpretation Object' Value')
+    (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) :
+    ShiftOk context (slotShift context J atoms names) :=
+  fun ordered z => by simp only [slotShift, if_pos ordered]
+
 /-- Where the named individuals outside `names` are placed: at the first of
     `names`, or at `o` when there is none. -/
 noncomputable def fallback (context : data_ontology.Context) (J : Interpretation Object' Value') (N : Normative D)
@@ -411,7 +463,7 @@ noncomputable def fallback (context : data_ontology.Context) (J : Interpretation
     (o : Element J) : Element J :=
   match names with
   | [] => o
-  | b :: _ => (sound.{u,v,w,x} context J N order atoms o).namedIndividuals b
+  | b :: _ => (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o).namedIndividuals b
 
 /-- The OWL interpretation made from a model of the key encoding: the data
     encoding's interpretation `sound`, with the named individuals outside
@@ -420,10 +472,10 @@ noncomputable def fallback (context : data_ontology.Context) (J : Interpretation
 noncomputable def keyedSound (context : data_ontology.Context) (J : Interpretation Object' Value') (N : Normative D)
     (order : List Usize) (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual)
     (o : Element J) : Interpretation (Element J) (Values.{v,w} Native) :=
-  { sound.{u,v,w,x} context J N order atoms o with
-    namedIndividuals := fun a => if a ∈ names then (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a
+  { sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o with
+    namedIndividuals := fun a => if a ∈ names then (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o).namedIndividuals a
       else fallback.{u,v,w,x} context J N order atoms names o
-    named := fun z => (∃ a ∈ names, z = (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a) ∨
+    named := fun z => (∃ a ∈ names, z = (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o).namedIndividuals a) ∨
       (names = [] ∧ z = o) }
 
 /-- The individuals that a model of the encoding places at elements that are no
@@ -437,7 +489,7 @@ variable {context : data_ontology.Context} {J : Interpretation Object' Value'} {
 
 theorem keyedSound_name {o : Element J} {a : NamedIndividual} (inNames : a ∈ names) :
     (keyedSound.{u,v,w,x} context J N order atoms names o).namedIndividuals a =
-      (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a := by
+      (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o).namedIndividuals a := by
   simp only [keyedSound, if_pos inNames]
 
 /-- A data range holds at a value in the OWL interpretation made from a model of
@@ -445,7 +497,7 @@ theorem keyedSound_name {o : Element J} {a : NamedIndividual} (inNames : a ∈ n
     have the same datatypes, literals and facets. -/
 theorem keyedSound_data (o : Element J) (r : DataRange) (y : Values.{v,w} Native) :
     dataDenote (keyedSound.{u,v,w,x} context J N order atoms names o) r y ↔
-      dataDenote (sound.{u,v,w,x} context J N order atoms o) r y := by
+      dataDenote (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o) r y := by
   cases h : r with
   | Datatype dt => rw [dataDenote, dataDenote]; rfl
   | Intersection xs =>
@@ -477,7 +529,7 @@ decreasing_by
 
 theorem keyedSound_range (o : Element J) (range : Option DataRange) (y : Values.{v,w} Native) :
     RangeHolds (keyedSound.{u,v,w,x} context J N order atoms names o) range y ↔
-      RangeHolds (sound.{u,v,w,x} context J N order atoms o) range y := by
+      RangeHolds (sound.{u,v,w,x} context J N order atoms (slotShift context J atoms names) o) range y := by
   cases range with
   | none => exact Iff.rfl
   | some r => exact keyedSound_data o r y
@@ -485,7 +537,7 @@ theorem keyedSound_range (o : Element J) (range : Option DataRange) (y : Values.
 theorem keyedSound_simulates (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (o : Element J) :
     Simulates context (keyedSound.{u,v,w,x} context J N order atoms names o) J Subtype.val (KnownIn J names) atoms := by
-  have base := sound_simulates.{u,v,w,x} (N := N) (atoms := atoms) setting count o
+  have base := sound_simulates.{u,v,w,x} (N := N) (atoms := atoms) setting count (slotShift_ok context J atoms names) o
   refine ⟨base.injective, base.objects, base.classes, base.roles, base.closed, base.topAll, fun a known => ?_,
     fun p range n mem role filler roleRun fillerRun z => ?_⟩
   swap
@@ -501,15 +553,16 @@ theorem keyedSound_simulates (setting : Setting context capacity bits order J) (
 theorem keyedSound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
     (o : Element J) :
     Placed context (keyedSound.{u,v,w,x} context J N order atoms names o) J Subtype.val (litValue N) (realValue N)
-      (fun z y d => Place.{u,v,w,x} context J N order atoms z.1 y d) := by
-  have base := sound_placed.{u,v,w,x} (N := N) (atoms := atoms) setting count o
+      (fun z y d => Place.{u,v,w,x} context J N order atoms (slotShift context J atoms names) z.1 y d) := by
+  have base := sound_placed.{u,v,w,x} (N := N) (atoms := atoms) setting count (slotShift_ok context J atoms names) o
   exact ⟨base.functional, base.injective, fun z v d pl =>
     ⟨(base.nodes z v d pl).kinds, (base.nodes z v d pl).values, (base.nodes z v d pl).cuts⟩,
     base.data, base.literals, base.top⟩
 
 theorem keyedSound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
     RangeFrame (keyedSound.{u,v,w,x} context J N order atoms names o) J (litValue N) (realValue N) := by
-  have base := sound_range_frame.{u,v,w,x} (N := N) (atoms := atoms) setting o
+  have base := sound_range_frame.{u,v,w,x} (N := N) (atoms := atoms) (shift := slotShift context J atoms names)
+    setting o
   exact ⟨base.literal, base.thing, base.literals, base.injective, base.numbers, base.numeric, base.facets⟩
 
 theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes thing d)
@@ -518,7 +571,8 @@ theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes th
     IsInterpretation D (ValueEmbedding.ofEmbedding D ⟨embedValue.{v,w}, embedValue_injective⟩) V
       (keyedSound.{u,v,w,x} context J N order atoms names o) := by
   obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, _⟩ := sound_interpretation.{u,v,w,x} (context := context)
-    (J := J) (N := N) (order := order) (atoms := atoms) V jThing jNothing jTop jBottom o
+    (J := J) (N := N) (order := order) (atoms := atoms) (shift := slotShift context J atoms names) V jThing jNothing
+    jTop jBottom o
   refine ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, fun a _ => ?_⟩
   by_cases inNames : a ∈ names
   · exact .inl ⟨a, inNames, keyedSound_name inNames⟩
@@ -529,6 +583,53 @@ theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes th
 theorem relation_val (o : Element J) (r : ObjectPropertyExpression) (y y' : Element J) :
     objectRelation (keyedSound.{u,v,w,x} context J N order atoms names o) r y y' ↔ objectRelation J r y.1 y'.1 := by
   cases r <;> rfl
+
+/-- The nodes along the role of a data property are data nodes. -/
+theorem role_data_node (setting : Setting context capacity bits order J) {p : DataProperty}
+    {role : ObjectPropertyExpression} (run : data_ontology.data_role context p = .ok (some role)) {y d : Object'}
+    (related : objectRelation J role y d) : J.classes dataClass d := by
+  obtain ⟨res, run', facts⟩ := data_role_correct context p
+  rw [run] at run'
+  cases Result.ok_injective run'
+  rcases facts role rfl with ⟨_, rfl⟩ | ⟨_, inData, _⟩
+  · exact absurd related (setting.bottom y d)
+  · exact (setting.frame.data p inData role run y d related).2
+
+/-- Places in two different slots differ. -/
+theorem slot_apart {B k k' i i' : ℕ} (hi : i < B) (hi' : i' < B) (same : (k + 1) * B + i = (k' + 1) * B + i') :
+    k = k' := by
+  have positive : 0 < B := by omega
+  have left : ((k + 1) * B + i) / B = k + 1 := by
+    rw [Nat.add_comm, Nat.add_mul_div_right _ _ positive, Nat.div_eq_of_lt hi, Nat.zero_add]
+  have right : ((k' + 1) * B + i') / B = k' + 1 := by
+    rw [Nat.add_comm, Nat.add_mul_div_right _ _ positive, Nat.div_eq_of_lt hi', Nat.zero_add]
+  rw [same, right] at left
+  omega
+
+/-- Two elements of `names` that have one value along the role of a data
+    property in the OWL interpretation made from a model of the key encoding,
+    while numbers are not ordered, are equal or have it at a common data
+    node. -/
+theorem keyed_value_shared (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
+    (unordered : context.kinds.ordered = false) (o : Element J) {p : DataProperty} {role : ObjectPropertyExpression}
+    (run : data_ontology.data_role context p = .ok (some role)) {y y' : Element J}
+    (inY : y.1 ∈ names.map J.namedIndividuals) (apart : y ≠ y') {v : Values.{v,w} Native}
+    (hv : (keyedSound.{u,v,w,x} context J N order atoms names o).dataProperties p y v)
+    (hv' : (keyedSound.{u,v,w,x} context J N order atoms names o).dataProperties p y' v) :
+    ∃ d, J.classes dataClass d ∧ objectRelation J role y.1 d ∧ objectRelation J role y'.1 d := by
+  obtain ⟨d, ⟨hd, vd⟩, rd⟩ := (sound_data_role setting.good o run y v).mp hv
+  obtain ⟨d', ⟨hd', vd'⟩, rd'⟩ := (sound_data_role setting.good o run y' v).mp hv'
+  have distinct : slotShift context J atoms names y.1 + (peers context J order atoms y.1 d).idxOf d ≠
+      slotShift context J atoms names y'.1 + (peers context J order atoms y'.1 d').idxOf d' := by
+    intro same
+    have i := peers_index (context := context) (J := J) (order := order) (atoms := atoms) y.1 d
+    have i' := peers_index (context := context) (J := J) (order := order) (atoms := atoms) y'.1 d'
+    simp only [slotShift, unordered, Bool.false_eq_true, ↓reduceIte] at same
+    have slots := slot_apart (by omega) (by omega) same
+    exact apart (Subtype.ext ((List.idxOf_inj inY).mp slots))
+  have one := nodeValue_shared setting count (slotShift_ok context J atoms names) hd hd' distinct (vd.trans vd'.symm)
+  subst one
+  exact ⟨d, role_data_node setting run rd, rd, rd'⟩
 
 end Sound
 
@@ -591,7 +692,7 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
   rw [encRun] at run
   cases Result.ok_injective run
   obtain ⟨fine, fit, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ := facts enc rfl
-  obtain ⟨⟨_, frame⟩, newUHolds, apart, held, marks, keysHold⟩ := (iff (withAnonymous J g)).mp jSat
+  obtain ⟨⟨_, frame⟩, newUHolds, apart, held, marks, dataMarks, keysHold⟩ := (iff (withAnonymous J g)).mp jSat
   have setting : Setting context capacity.val bits order (withAnonymous J g) :=
     ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1⟩
   let o : Element (withAnonymous J g) := ⟨(withAnonymous J g).namedIndividuals objectIndividual, frame.object⟩
@@ -629,10 +730,10 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     intro item mem key
     obtain ⟨e, ops, dps, shape⟩ : ∃ e ops dps, item.axiom = .HasKey e ops dps := by
       revert key; cases item.axiom <;> simp [IsKey]
-    obtain ⟨_, _, _, encoded⟩ := keysMeans.1 item mem e ops dps shape
+    obtain ⟨unordered, datas, roles, _, _, encoded⟩ := keysMeans.1 item mem e ops dps shape
     rw [shape]
     simp only [satisfies]
-    intro y y' inE ny inE' ny' sharedOps _
+    intro y y' inE ny inE' ny' sharedOps sharedData
     by_cases empty : names = []
     · rcases ny with ⟨a, aIn, _⟩ | ⟨_, rfl⟩
       · rw [empty] at aIn; simp at aIn
@@ -641,7 +742,7 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
         · rfl
     · obtain ⟨e', eRun⟩ := encoded empty
       have holdsAt := keysMeans.2.1 (withAnonymous J g) keysHold (fun n nIn => held _ (mem_namesOf.mp nIn)) marks
-        item mem e ops dps shape e' eRun
+        dataMarks item mem e ops dps shape datas roles e' eRun
       have classIff : ∀ z, classDenote I e z ↔ classDenote (withAnonymous J g) e' z.1 := by
         obtain ⟨res, run', means⟩ := encode_class_meaning.{u, max v w, u, max w v} context e
         rw [eRun] at run'
@@ -652,18 +753,30 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
           (fun t h => nodeKnown t ((nodesExact t).mpr (key_closure mem shape h)))
       obtain ⟨a, aIn, _, ya⟩ := namedAt empty y ny
       obtain ⟨b, bIn, _, yb⟩ := namedAt empty y' ny'
+      by_cases one : y = y'
+      · exact one
       apply Subtype.ext
       rw [ya, yb]
       refine holdsAt a aIn b bIn (ya ▸ (classIff y).mp inE) (yb ▸ (classIff y').mp inE') (fun r rIn => ?_)
-      obtain ⟨z, nz, ry, ry'⟩ := sharedOps r rIn
-      obtain ⟨c, cIn, _, zc⟩ := namedAt empty z nz
-      refine ⟨c, cIn, ?_, ?_⟩
-      · have := (relation_val o r y z).mp ry
-        rw [ya, zc] at this
-        exact this
-      · have := (relation_val o r y' z).mp ry'
-        rw [yb, zc] at this
-        exact this
+        (fun q qIn => ?_)
+      · obtain ⟨z, nz, ry, ry'⟩ := sharedOps r rIn
+        obtain ⟨c, cIn, _, zc⟩ := namedAt empty z nz
+        refine ⟨c, cIn, ?_, ?_⟩
+        · have := (relation_val o r y z).mp ry
+          rw [ya, zc] at this
+          exact this
+        · have := (relation_val o r y' z).mp ry'
+          rw [yb, zc] at this
+          exact this
+      · obtain ⟨p, pIn, pRun⟩ := data_roles_right roles q qIn
+        obtain ⟨v, hv, hv'⟩ := sharedData p pIn
+        have inY : y.1 ∈ names.map (withAnonymous J g).namedIndividuals := by
+          rw [ya]; exact List.mem_map_of_mem aIn
+        obtain ⟨d, dData, rd, rd'⟩ := keyed_value_shared setting atomsCount (unordered (List.ne_nil_of_mem pIn)) o
+          pRun inY one hv hv'
+        rw [ya] at rd
+        rw [yb] at rd'
+        exact ⟨d, dData, rd, rd'⟩
   have satisfied : satisfiesClosure I items.val := by
     intro item mem
     by_cases key : IsKey item.axiom
@@ -760,19 +873,29 @@ theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : 
     intro _ y inN
     rw [liftedN_key] at inN
     exact (liftedN_mark y y).mpr ⟨rfl, marked_of_named _ y inN⟩
+  have markedD : ∀ y, (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes dataClass y →
+      Marked (withAnonymous I g) y := by
+    intro y inD
+    cases y with
+    | inl z => rw [liftedN_data_class] at inD; exact absurd inD (lifted_element N x0 z)
+    | inr _ => trivial
+  have dataMarks : DataSharedIn items.val counting → ∀ y,
+      (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes dataClass y →
+      (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).objectProperties markRole y y :=
+    fun _ y inD => (liftedN_mark y y).mpr ⟨rfl, markedD y inD⟩
   have keysSat : ∀ b ∈ newK, satisfies (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0) b.axiom := by
     refine keysMeans.2.2 _ (Marked (withAnonymous I g)) (liftedN_structured _ _ x0)
-      (fun y inN => by rw [liftedN_key] at inN; exact marked_of_named _ y inN)
-      (fun n nIn => held _ (mem_namesOf.mp nIn)) (fun item mem e ops dps shape e' eRun => ?_)
-    obtain ⟨noData, _, opsIn, _⟩ := keysMeans.1 item mem e ops dps shape
+      (fun y inN => by rw [liftedN_key] at inN; exact marked_of_named _ y inN) markedD
+      (fun n nIn => held _ (mem_namesOf.mp nIn)) (fun item mem e ops dps shape datas roles e' eRun => ?_)
+    obtain ⟨_, _, _, _, opsIn, _⟩ := keysMeans.1 item mem e ops dps shape
     have keySat := sat item mem
     rw [shape] at keySat
-    refine liftedN_key_holds N x0 vocab interp0 good eRun (fun a inside => ?_) opsIn ?_
+    refine liftedN_key_holds N x0 vocab interp0 good eRun (fun a inside => ?_) opsIn roles ?_
     · exact plainNodes a ((nodesExact a).mpr (key_closure mem shape inside))
-    · intro x y inE nx inE' ny shared
-      exact keySat x y inE nx inE' ny shared (by rw [noData]; simp)
+    · intro x y inE nx inE' ny shared sharedData
+      exact keySat x y inE nx inE' ny shared sharedData
   have satJ := (iff (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0)).mpr
-    ⟨⟨sat0, frame⟩, satU, apart, held, marks, keysSat⟩
+    ⟨⟨sat0, frame⟩, satU, apart, held, marks, dataMarks, keysSat⟩
   refine ⟨liftedN context I (litOf N embed) (numOf N embed) x0, ⟨vocab, liftedN_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
     fun z => ?_, fun a plainA => ?_, fun e mem e' run z => ?_⟩
   · rw [liftedN_anonymous]

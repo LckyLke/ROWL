@@ -1157,26 +1157,33 @@ formats are future work.
   outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric
-  datatypes, datatype definitions, keys with a data property, data ranges of the
-  other datatypes,
+  datatypes, datatype definitions, keys with a data property while numbers are
+  ordered (see the keys below), data ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. Since the source reasoning stage these
   answers also come straight from Functional Syntax bytes, which the reader
   reads with all their data axioms, data restrictions and data assertions.
-- M5 keys with object properties in the ontology queries (`key_ontology`): a
-  closure with `HasKey` axioms goes to `key_ontology::prepare`, which encodes
-  the keys next to the data encoding of the other axioms. A fresh class `N` is
-  asserted at every named individual of the closure, those of the keys' class
-  expressions included, and kept apart from the data nodes. A key with one
-  property `P`, in a closure without transitive properties and property
-  chains, becomes `N ⊑ ≤1 P⁻.(CE ⊓ N)`; every other key gets a role `mark`
-  whose self loops mark `N`, the chain `P ∘ mark ∘ P⁻ ⊑ share(P)` of each of its
-  properties and, at every named individual `x`, the assertion
+- M5 keys with object and data properties in the ontology queries
+  (`key_ontology`): a closure with `HasKey` axioms goes to
+  `key_ontology::prepare`, which encodes the keys next to the data encoding of
+  the other axioms. A fresh class `N` is asserted at every named individual of
+  the closure, those of the keys' class expressions included, and kept apart
+  from the data nodes. A data property of a key counts by its role in the data
+  encoding, which leads to data nodes. A key with one property, in a closure
+  without transitive properties and property chains, becomes
+  `N ⊑ ≤1 P⁻.(CE ⊓ N)` for an object property `P` and `D ⊑ ≤1 Q⁻.(CE ⊓ N)` for
+  the role `Q` of a data property; every other key gets a role `mark` whose
+  self loops mark `N`, and the data nodes when the key has a data property, the
+  chain `P ∘ mark ∘ P⁻ ⊑ share(P)` of the role of each of its properties and, at
+  every named individual `x`, the assertion
   `x : ∀share(P1).(¬N ⊔ ¬CE ⊔ {x} ⊔ ∀share(P2)⁻.¬{x} ⊔ … ⊔ ∀share(P1)⁻.(¬{x} ⊔ ¬CE))`.
   A model of the encoding gives an OWL model of the closure whose named
   elements are exactly the closure's named individuals
-  (`keyed_encoded_model`), and an OWL model lifts to a model of the encoding
+  (`keyed_encoded_model`). In it each named element takes the values of its
+  data nodes from a slot of its own (`slotShift`), so two named elements share
+  a value only at a common data node (`keyed_value_shared`), where the
+  encoding's key applies. An OWL model lifts to a model of the encoding
   with `N` its named elements (`keyed_lifted_model`), provided its vocabulary
   names the closure's individuals, since keys apply only to named individuals.
   So consistency, class satisfiability, subsumption, instance checking (about
@@ -1186,8 +1193,13 @@ formats are future work.
   keys), also from source bytes, together with the numeric data ranges and
   range facets: the key encoding uses the data encoding with a capacity that
   counts the data restrictions of the keys' class expressions too. Keys apply
-  neither to anonymous individuals nor through unnamed values. Keys with a data
-  property, no property or the universal role get no answer.
+  neither to anonymous individuals nor through unnamed objects; data values
+  count whether a literal names them or not, so a key on a boolean property
+  makes three distinct patients with a value inconsistent. Keys with no
+  property, the universal role or the top or bottom data property get no
+  answer, and so do keys with a data property while a datatype restriction or
+  a subtype of `xsd:integer` is in use: a bounded run of integers would then
+  have to be named value by value.
 - Classification of named classes: `classification::classify` answers, for a
   prepared closure and a list of named classes, whether each class is
   satisfiable and, for every pair, whether the first is subsumed by the second.
@@ -1320,12 +1332,12 @@ formats are future work.
   Functional Syntax source bytes, and with data properties, data restrictions
   over twenty-eight datatypes, with the range facets on the numeric ones, and data
   assertions with their literals under the OWL 2 datatype map, and keys with
-  object properties;
+  object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 672 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 677 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its

@@ -179,7 +179,7 @@ pub(crate) fn is_top_data(property: &DataProperty) -> bool {
         b"http://www.w3.org/2002/07/owl#topDataProperty",
     )
 }
-fn is_bottom_data(property: &DataProperty) -> bool {
+pub(crate) fn is_bottom_data(property: &DataProperty) -> bool {
     same_pattern(
         &property.iri.spelling,
         b"http://www.w3.org/2002/07/owl#bottomDataProperty",
@@ -264,7 +264,7 @@ fn class_named(spelling: Vec<u8>) -> ClassExpression {
     })
 }
 /// The class `D` of the data nodes.
-fn data_class() -> ClassExpression {
+pub(crate) fn data_class() -> ClassExpression {
     class_named(tagged_name(b'D', Vec::new()))
 }
 /// The complement of `D`.
@@ -982,7 +982,10 @@ fn individuals_from(
 }
 /// The object property of a data property of the context, or of
 /// `owl:bottomDataProperty`.
-fn data_role(context: &Context, property: &DataProperty) -> Option<ObjectPropertyExpression> {
+pub(crate) fn data_role(
+    context: &Context,
+    property: &DataProperty,
+) -> Option<ObjectPropertyExpression> {
     if is_bottom_data(property) {
         Some(ObjectPropertyExpression::Property(ObjectProperty {
             iri: Iri {
