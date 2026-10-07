@@ -24,6 +24,8 @@ import Rowl.LangTag
 import Rowl.NTriples
 import Rowl.IriResolution
 import Rowl.References
+import Rowl.TurtleTokens
+import Rowl.Turtle
 import Rowl.RdfMapping
 import Rowl.TopData
 import Rowl.Roles

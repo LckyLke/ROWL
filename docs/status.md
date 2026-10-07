@@ -114,6 +114,19 @@ progress. Full OWL parsing and executable reasoning are still future work.
   proofs remain pending. All 68 official W3C syntax
   cases pass, and positive cases round-trip through the writer with an
   independent blank-bijection/term-preservation check. See formats.md.
+- M3 RDF 1.1 Turtle byte-to-graph reading: the whole grammar of section 6.5
+  (`@prefix`/`@base` and SPARQL directives, prefixed names with local escapes,
+  blank node property lists, collections, object and predicate-object lists and
+  every literal form) with longest-match tokens, RFC 3986 resolution of relative
+  IRIs against the base in force, RFC 3987 IRI and BCP 47 tag checks, generated
+  blank nodes labelled from byte offsets in the caller's scope and the triple
+  order of section 7. Every token and production reader has totality and
+  complete-acceptance proofs against independent relations;
+  `read_with_limits_total_correct` and `read_with_limits_accepted_iff` prove that
+  `turtle::read_with_limits` returns exactly the triples a document denotes, in
+  order, or its first error, and a graph exactly for Turtle documents within the
+  limits. All 313 W3C RDF 1.1 Turtle cases pass. Reading Turtle into ontologies
+  and Turtle export remain pending.
 - M3 exact byte-key symbol table: duplicates reuse their first symbol, new keys
   receive stable consecutive symbols and count-capacity errors preserve the table.
   Forward/reverse lookup, unique-key invariants and old-symbol preservation are
@@ -1027,7 +1040,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2670 audited public theorems and 1211 audited semantic definitions. Consistency,
+- 2973 audited public theorems and 1360 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1044,8 +1057,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 521 Rust regression tests and 11 Python binding tests, plus a separately fetched
-  68-case W3C syntax corpus;
+- 535 Rust regression tests and 11 Python binding tests, plus separately fetched
+  W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
   lazy unfolding with absorption (unfoldings indexed by their triggering
@@ -1061,7 +1074,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2863-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3166-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

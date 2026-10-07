@@ -129,6 +129,7 @@ pub mod rdf;
 pub mod rdf_mapping;
 pub mod references;
 pub mod regular;
+pub mod turtle;
 
 pub mod compiled;
 
