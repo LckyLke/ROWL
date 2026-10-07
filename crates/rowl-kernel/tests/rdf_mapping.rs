@@ -1,6 +1,11 @@
+use rowl_kernel::axiom_equality::{same_axiom, same_body};
 use rowl_kernel::data_ontology::{
     prepare, prepared_consistent, prepared_instance_of, prepared_subsumed,
 };
+use rowl_kernel::functional_annotations::AnnotationLimits;
+use rowl_kernel::functional_classes::ClassLimits;
+use rowl_kernel::functional_document::{read_document, DocumentLimits};
+use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::*;
 use rowl_kernel::ntriples::{read, ReadResult};
 use rowl_kernel::probes::Natural;
@@ -10,6 +15,10 @@ use rowl_kernel::rdf_mapping::map_graph;
 const MEDICATION: &[u8] = include_bytes!("../../../examples/medication-safety.nt");
 const ANNOTATED_MEDICATION: &[u8] =
     include_bytes!("../../../examples/medication-safety-annotated.nt");
+const DOSING: &[u8] = include_bytes!("data/dosing.nt");
+const DOSING_FUNCTIONAL: &[u8] = include_bytes!("data/dosing.ofn");
+const DOSING_ANNOTATED: &[u8] = include_bytes!("data/dosing-annotated.nt");
+const DOSING_ANNOTATED_FUNCTIONAL: &[u8] = include_bytes!("data/dosing-annotated.ofn");
 const EX: &str = "https://example.org/medication/";
 
 fn graph(source: &[u8]) -> RawGraph {
@@ -653,4 +662,366 @@ fn el_graphs_in_forward_order_read_back_exactly() {
         .map(|label| label.as_bytes().to_vec())
         .collect();
     assert_eq!(labels, expected);
+}
+
+/// The ontology of a Functional Syntax document, its anonymous individuals in
+/// the scope `test` like the blank nodes of `graph`.
+fn functional_ontology(source: &[u8]) -> RawOntology {
+    let limits = DocumentLimits {
+        tokens: 10_000,
+        prefixes: 10,
+        prefix_value: 100,
+        imports: 10,
+        iri: 200,
+        axioms: 200,
+        annotations: AnnotationLimits {
+            depth: 2,
+            count: 10,
+            iri: 200,
+            lexical: 200,
+        },
+        classes: ClassLimits {
+            depth: 10,
+            count: 100,
+            iri: 200,
+        },
+    };
+    let document = match read_document(&source.to_vec(), &limits) {
+        Ok(document) => document,
+        Err(_) => panic!("the fixture is a Functional Syntax document"),
+    };
+    document_ontology(&document, &b"test".to_vec()).expect("every read document maps")
+}
+
+fn same_iri(left: &Iri, right: &Iri) -> bool {
+    left.spelling == right.spelling
+}
+
+#[test]
+fn readable_graphs_in_forward_order_read_back_exactly() {
+    // The forward mapping of an ontology of the fragment of
+    // RdfReadOntology.map_graph_complete, in order: a version IRI and an import,
+    // every kind of class expression and data range, and every kind of axiom,
+    // equivalences of two members and disjointness and difference of two and of
+    // three, an anonymous individual and inverse properties in many positions.
+    let expected = functional_ontology(DOSING_FUNCTIONAL);
+    let mapped = map_graph(&graph(DOSING)).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    match (&ontology.identity, &expected.identity) {
+        (
+            OntologyIdentity::Named { ontology, version },
+            OntologyIdentity::Named {
+                ontology: expected_ontology,
+                version: expected_version,
+            },
+        ) => {
+            assert!(same_iri(ontology, expected_ontology));
+            match (version, expected_version) {
+                (Some(version), Some(expected_version)) => {
+                    assert!(same_iri(version, expected_version))
+                }
+                _ => panic!("both have a version IRI"),
+            }
+        }
+        _ => panic!("both are named"),
+    }
+    assert_eq!(ontology.imports.len(), 1);
+    assert!(same_iri(&ontology.imports[0], &expected.imports[0]));
+    assert!(ontology.annotations.is_empty() && expected.annotations.is_empty());
+    assert_eq!(ontology.axioms.len(), expected.axioms.len());
+    assert_eq!(ontology.axioms.len(), 80);
+    for (index, (read, written)) in ontology
+        .axioms
+        .iter()
+        .zip(expected.axioms.iter())
+        .enumerate()
+    {
+        assert!(same_axiom(read, written), "axiom {index} differs");
+    }
+    // The blank nodes in the order in which the forward mapping allocates them.
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let allocated: Vec<Vec<u8>> = (1..=71).map(|n| format!("b{n}").into_bytes()).collect();
+    assert_eq!(labels, allocated);
+}
+
+/// The lines of `source` in an order fixed by `seed` (a Fisher-Yates shuffle
+/// driven by a 64-bit linear congruential generator).
+fn shuffled_lines(source: &[u8], seed: u64) -> Vec<u8> {
+    let mut lines: Vec<&[u8]> = source
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    let mut state = seed;
+    for last in (1..lines.len()).rev() {
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        let pick = ((state >> 33) as usize) % (last + 1);
+        lines.swap(last, pick);
+    }
+    let mut out = Vec::new();
+    for line in lines {
+        out.extend_from_slice(line);
+        out.push(b'\n');
+    }
+    out
+}
+
+/// Whether `read` lists the axioms of `written` in some order.
+fn same_axioms_up_to_order(read: &[AnnotatedAxiom], written: &[AnnotatedAxiom]) -> bool {
+    if read.len() != written.len() {
+        return false;
+    }
+    let mut taken = vec![false; written.len()];
+    read.iter().all(|axiom| {
+        let found =
+            (0..written.len()).find(|&index| !taken[index] && same_axiom(axiom, &written[index]));
+        match found {
+            Some(index) => {
+                taken[index] = true;
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+#[test]
+fn readable_graphs_in_any_order_read_back_up_to_order() {
+    // RdfReadPermuted.map_graph_complete_perm: the triples of the forward
+    // mapping of tests/data/dosing.ofn in reverse order and in shuffled orders
+    // read back to the same ontology, its axioms and imports up to their order
+    // and the same blank nodes up to their order.
+    let expected = functional_ontology(DOSING_FUNCTIONAL);
+    let mut reversed: Vec<&[u8]> = DOSING
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    reversed.reverse();
+    let mut backwards = reversed.join(&b'\n');
+    backwards.push(b'\n');
+    let mut sources = vec![backwards];
+    for seed in [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233] {
+        sources.push(shuffled_lines(DOSING, seed));
+    }
+    let mut allocated: Vec<Vec<u8>> = (1..=71).map(|n| format!("b{n}").into_bytes()).collect();
+    allocated.sort();
+    for (round, source) in sources.iter().enumerate() {
+        assert_ne!(&source[..], DOSING, "round {round} reorders the triples");
+        let mapped = map_graph(&graph(source))
+            .unwrap_or_else(|| panic!("round {round}: the graph is the image of its ontology"));
+        let ontology = &mapped.ontology;
+        match (&ontology.identity, &expected.identity) {
+            (
+                OntologyIdentity::Named { ontology, version },
+                OntologyIdentity::Named {
+                    ontology: expected_ontology,
+                    version: Some(expected_version),
+                },
+            ) => {
+                assert!(same_iri(ontology, expected_ontology));
+                assert!(matches!(version, Some(version) if same_iri(version, expected_version)));
+            }
+            _ => panic!("round {round}: both are named with a version IRI"),
+        }
+        assert_eq!(ontology.imports.len(), 1);
+        assert!(same_iri(&ontology.imports[0], &expected.imports[0]));
+        assert!(ontology.annotations.is_empty());
+        assert!(
+            same_axioms_up_to_order(&ontology.axioms, &expected.axioms),
+            "round {round}: the same axioms"
+        );
+        let mut labels: Vec<Vec<u8>> = mapped
+            .blanks
+            .iter()
+            .map(|node| node.label.clone())
+            .collect();
+        labels.sort();
+        assert_eq!(labels, allocated, "round {round}: the same blank nodes");
+    }
+}
+
+fn same_value(left: &AnnotationValue, right: &AnnotationValue) -> bool {
+    match (left, right) {
+        (AnnotationValue::Iri(left), AnnotationValue::Iri(right)) => same_iri(left, right),
+        (AnnotationValue::Anonymous(left), AnnotationValue::Anonymous(right)) => {
+            left.scope == right.scope && left.label == right.label
+        }
+        (AnnotationValue::Literal(left), AnnotationValue::Literal(right)) => {
+            left.lexical == right.lexical && same_iri(&left.datatype.iri, &right.datatype.iri)
+        }
+        _ => false,
+    }
+}
+
+/// Whether two lists of annotations are the same, in the same order.
+fn same_annotations_in_order(left: &[Annotation], right: &[Annotation]) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right.iter()).all(|(left, right)| {
+            same_iri(&left.property.iri, &right.property.iri)
+                && same_value(&left.value, &right.value)
+                && same_annotations_in_order(&left.annotations, &right.annotations)
+        })
+}
+
+#[test]
+fn annotated_graphs_in_forward_order_read_back_exactly() {
+    // RdfReadAnnotated.map_graph_complete_annotated: the forward mapping of
+    // tests/data/dosing-annotated.ofn, the dosing example with two ontology
+    // annotations and annotations on 18 axioms, in order, reads back to the
+    // same ontology, annotations in order included, with its blank nodes in
+    // allocation order. The theorem covers the twelve annotated axioms with one
+    // main triple, each reified by a node typed owl:Axiom; the six annotated
+    // axioms that a blank node represents are read as well.
+    let expected = functional_ontology(DOSING_ANNOTATED_FUNCTIONAL);
+    let mapped =
+        map_graph(&graph(DOSING_ANNOTATED)).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    assert!(same_annotations_in_order(
+        &ontology.annotations,
+        &expected.annotations
+    ));
+    assert_eq!(ontology.annotations.len(), 2);
+    assert_eq!(ontology.axioms.len(), expected.axioms.len());
+    for (index, (read, written)) in ontology
+        .axioms
+        .iter()
+        .zip(expected.axioms.iter())
+        .enumerate()
+    {
+        assert!(
+            same_body(&read.axiom, &written.axiom),
+            "axiom {index} differs"
+        );
+        assert!(
+            same_annotations_in_order(&read.annotations, &written.annotations),
+            "annotations of axiom {index} differ"
+        );
+    }
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let allocated: Vec<Vec<u8>> = (1..=83).map(|n| format!("b{n}").into_bytes()).collect();
+    assert_eq!(labels, allocated);
+}
+
+/// Whether two lists of annotations are the same up to their order.
+fn same_annotations_up_to_order(left: &[Annotation], right: &[Annotation]) -> bool {
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut taken = vec![false; right.len()];
+    left.iter().all(|annotation| {
+        let found = (0..right.len()).find(|&index| {
+            !taken[index]
+                && same_annotations_in_order(
+                    std::slice::from_ref(annotation),
+                    std::slice::from_ref(&right[index]),
+                )
+        });
+        match found {
+            Some(index) => {
+                taken[index] = true;
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+/// Whether `read` lists the axioms of `written` in some order, each with its
+/// annotations in some order.
+fn same_annotated_axioms_up_to_order(read: &[AnnotatedAxiom], written: &[AnnotatedAxiom]) -> bool {
+    if read.len() != written.len() {
+        return false;
+    }
+    let mut taken = vec![false; written.len()];
+    read.iter().all(|axiom| {
+        let found = (0..written.len()).find(|&index| {
+            !taken[index]
+                && same_body(&axiom.axiom, &written[index].axiom)
+                && same_annotations_up_to_order(&axiom.annotations, &written[index].annotations)
+        });
+        match found {
+            Some(index) => {
+                taken[index] = true;
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+#[test]
+fn annotated_graphs_in_any_order_read_back_up_to_order() {
+    // RdfReadAnnotatedPermuted.map_graph_complete_annotated_perm: the triples
+    // of the forward mapping of tests/data/dosing-annotated.ofn in reverse order
+    // and in shuffled orders, with reifications and annotation triples before
+    // the axioms they annotate, read back to the same ontology: the same
+    // identity, the same imports and ontology annotations up to their order,
+    // the same axioms up to their order, each with its annotations up to their
+    // order, and the same blank nodes up to their order. The theorem covers the
+    // twelve annotated axioms with one main triple; the six annotated axioms
+    // that a blank node represents are read as well.
+    let expected = functional_ontology(DOSING_ANNOTATED_FUNCTIONAL);
+    let mut reversed: Vec<&[u8]> = DOSING_ANNOTATED
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    reversed.reverse();
+    let mut backwards = reversed.join(&b'\n');
+    backwards.push(b'\n');
+    let mut sources = vec![backwards];
+    for seed in [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233] {
+        sources.push(shuffled_lines(DOSING_ANNOTATED, seed));
+    }
+    let mut allocated: Vec<Vec<u8>> = (1..=83).map(|n| format!("b{n}").into_bytes()).collect();
+    allocated.sort();
+    for (round, source) in sources.iter().enumerate() {
+        assert_ne!(
+            &source[..],
+            DOSING_ANNOTATED,
+            "round {round} reorders the triples"
+        );
+        let mapped = map_graph(&graph(source))
+            .unwrap_or_else(|| panic!("round {round}: the graph is the image of its ontology"));
+        let ontology = &mapped.ontology;
+        match (&ontology.identity, &expected.identity) {
+            (
+                OntologyIdentity::Named { ontology, version },
+                OntologyIdentity::Named {
+                    ontology: expected_ontology,
+                    version: Some(expected_version),
+                },
+            ) => {
+                assert!(same_iri(ontology, expected_ontology));
+                assert!(matches!(version, Some(version) if same_iri(version, expected_version)));
+            }
+            _ => panic!("round {round}: both are named with a version IRI"),
+        }
+        assert_eq!(ontology.imports.len(), 1);
+        assert!(same_iri(&ontology.imports[0], &expected.imports[0]));
+        assert!(
+            same_annotations_up_to_order(&ontology.annotations, &expected.annotations),
+            "round {round}: the same ontology annotations"
+        );
+        assert_eq!(ontology.annotations.len(), 2);
+        assert!(
+            same_annotated_axioms_up_to_order(&ontology.axioms, &expected.axioms),
+            "round {round}: the same axioms and annotations"
+        );
+        let mut labels: Vec<Vec<u8>> = mapped
+            .blanks
+            .iter()
+            .map(|node| node.label.clone())
+            .collect();
+        labels.sort();
+        assert_eq!(labels, allocated, "round {round}: the same blank nodes");
+    }
 }

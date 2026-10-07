@@ -123,11 +123,22 @@ document reading now compose those stages with totality and complete-acceptance
 proofs. Exact ordered graph occurrences, caller-scope blank identities, repeated
 triples, count-limit outcomes and first errors are checked. The RDF-to-OWL
 mapping is proved sound, annotated axioms and annotations included, and complete
-for the EL fragment: the graph of an ontology of declarations and subclass axioms
-between named classes and existential restrictions, listed in the order of the
-forward mapping, is read back to exactly that ontology. The completeness of the
-mapping beyond that fragment
-and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
+for every ontology without annotations that it reads back exactly: the graph of
+such an ontology, with its version IRI and imports, listed in the order of the
+forward mapping, is read back to exactly that ontology, and listed in any order,
+to that ontology up to the order of its axioms and imports; with ontology
+annotations and annotations on axioms with one main triple, listed in the order
+of the forward mapping, it is read back to exactly that ontology, annotations
+included, and listed in any order, to that ontology up to the order of its
+imports, annotations and axioms and of the annotations of each axiom. The
+ontologies are those
+that satisfy the reserved-vocabulary and typing conditions of OWL 2 DL, with
+axioms, class expressions and data ranges of every kind except equivalences and
+equalities of three or more members, inverse-property axioms whose first member
+is an inverse and object property assertions on an inverse, which the mapping
+writes as triples of other axioms. Canonical identity assignment across imports,
+the completeness of the mapping for annotations of annotations and for annotated
+axioms that a blank node represents, and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 
 ```sh
