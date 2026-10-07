@@ -4679,3 +4679,125 @@ unchanged, so there is nothing new to measure.
 This block adds 156 public theorems and 55 definitions. Totals are 2751
 audited theorems, 1226 definitions, 529 Rust regressions and 2944 ledger
 obligations.
+
+## M5: numeric data ranges and range facets in the ontology queries
+
+The ontology queries now answer closures and questions that use data ranges of
+`owl:real`, `owl:rational` and the twelve subtypes of `xsd:integer`, and
+datatype restrictions of every numeric datatype by `xsd:minInclusive`,
+`xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive` with a numeric
+bound of any numeric datatype, inside data restrictions, property ranges,
+intersections, unions, complements and enumerations. Every answer is the Direct
+Semantics answer under every datatype map that is the OWL 2 map on the
+datatypes of `datatypes::literal_value` (`consistent_correct`,
+`class_satisfiable_correct`, `subsumed_correct`, `instance_of_correct` and
+their prepared forms, whose statements are unchanged).
+
+The encoding orders numbers by cuts of the real line. A cut is a number with a
+side, the reals at or above it (closed) or above it (open) (`Rowl.Regions.InCut`).
+The context collects the cuts the closure needs (`add_cut_correct`): both cuts
+of every numeric literal value; one cut for each range facet, the closed cut of
+the bound for `xsd:minInclusive` and `xsd:maxExclusive` and the open cut for the
+other two, the upper facets holding outside their cut; and for a subtype the
+closed cut of its lower bound and the open cut of its upper bound. `finished`
+then adds every number with both cuts to the literal values (`finished_good`).
+The new kernel module `regions` orders the cuts exactly, numbers by
+`datatypes::compare_values` and a closed cut before the open cut of its number,
+by repeated selection of the least cut after the last one (`cut_order_spec`),
+and counts the integers that one cut contains and the next does not from the
+floors and ceilings of their numbers with the signed digit arithmetic of
+`numbers` (`between_spec`), turned into a `usize` up to a cap (`run_size_spec`).
+When a datatype restriction or a subtype is in use, every cut gets a class and
+the encoding adds (`region_axioms_spec`, `RegionFacts`): the class of the first
+cut inside the reals; each cut's class inside the class of the cut before it;
+between the two cuts of a number nothing but its literal value's individual;
+and, when the integers are in use, for two neighbouring cuts of different
+numbers with K integers between them, no integer between them when K is 0, and
+at most K of them at any element along a role `U`, which includes every data
+property's role, when 0 < K and K is below the capacity (`GapFact`; a run of
+as many integers as the capacity or more gets no axiom, and the kernel counts
+no further than one past the capacity). A
+subtype becomes the integers in its lower bound's cut and outside its upper
+bound's cut, and a facet its cut's class or that class's complement
+(`kind_range_meaning`, `facet_class_meaning`): `NodeValue` now asks that each
+cut's class hold at a data node exactly when the node's value is a real in the
+cut.
+
+The capacity bounds the counts of the data restrictions of the closure and its
+questions. Each data restriction counts the values that decide it (an
+existential, universal or value restriction 1, a minimum n, a maximum n + 1,
+an exact restriction 2n + 1, `atomCount`), and `class_count` and `items_count`
+add them up, capped at `usize::MAX / 16` (`class_count_spec`,
+`items_count_spec`). `prepare` leaves room for 64 values in questions
+(`QUESTION_ROOM`); a question to a prepared closure that counts more gets no
+answer, and the direct queries make room for their own question.
+
+An OWL model lifts to a model of the encoding as before, now with each value in
+the cut classes of its real (`node_cut`) and every element related along `U` to
+the values of the context's data properties at it, so a run of K integers has
+at most K of them at any element (`lifted_regions`). Conversely, a model of the
+encoding gives an OWL model (`sound`) in which each data node that witnesses an
+element's data restriction takes a value of its region (`regionOf`): the reals
+of its level, the least of the integers, the decimals and the rationals whose
+class in use holds at it or else the irrational numbers (`levelOf`,
+`number_profile`), in the interval between the cuts its cut classes place it
+(`positionOf`, `position_cut`, `regionSet`). Every region is infinite
+(`Rowl.DataReals.level_infinite`, `integers_above`, `integers_below`,
+`region_cases`) but a bounded run of integers between cuts of different
+numbers, which has exactly the kernel's count of members (`run_ncard`). A
+numeric literal value lies in no interval but its own point (`literal_outside`),
+and a point holds no data node but its literal value's individual
+(`not_point`), so the values of the other data nodes are no literal values
+(`region_not_literal`). An element's data nodes in a run are numbered among its
+peers in that run (`peers`), and the numbers fit (`peers_bound`): by the axiom
+on the run when it has fewer integers than the capacity, since every successor
+along a data property's role is one along `U` (`successor_super`), and
+otherwise because an element has at most as many witnesses as the counts of the
+data restrictions (`witness_list_length`). Distinct data nodes of an element
+therefore get distinct values (`nodeValue_injective`) that stand for them
+(`value_node`, `place_node`), and the OWL interpretation satisfies the closure
+whenever the interpretation of the encoding satisfies its encoding
+(`sound_satisfies`), for every list of data restrictions that covers the
+closure's and counts at most the capacity.
+
+Statements that changed: `encode` takes the capacity; `encode_meaning` asks
+that it be below `usize::MAX / 16` and gives the order of the cuts; `Frame` has
+the facts of the cuts; `NodeValue`, `RangeFrame` and `Placed` take the
+embedding `num` of the reals among the values; `sound_satisfies` and
+`sound_class` ask that the data restrictions count at most the capacity
+(`Setting` gathers what a model of the encoding brings); `DataPrepared` records
+the capacity and the room; `known_plain`, `encoded_model` and `lifted_model`
+take the capacity. The DataSound lemmas on the regions of the five datatypes
+(`number_kind`, `text_kind`, `tagged_kind`, `region_profile` and their helpers)
+are replaced by `real_space`, `text_space`, `tagged_space`, `number_profile`
+and `text_profile`.
+
+The regressions (`tests/numeric_ranges.rs`) check, among others, that a dose
+above a daily maximum `xsd:decimal[<= 4000]` makes the records inconsistent,
+that a value of `"8001/2"^^owl:rational` triggers an overdose class defined by
+`xsd:decimal[> 4000]`, that an element can have 256 values of `xsd:byte` but not
+300, that `owl:real[> 0, < 1]` without `owl:rational` is satisfiable while
+`xsd:integer[> 0, < 1]` is not, that every integer subtype contains its bounds
+and nothing beyond them, and that a prepared closure answers a question with 10
+values of `xsd:unsignedByte` but leaves one with 100 to the direct query. The
+ledger entries of the sixteen numeric datatypes and the four range facets are
+verified. The cross-cutting facet entries (DatatypeFacetApplicability,
+ExactLexicalInterpretation, ValueEquality, CrossDatatypeOverlap,
+FiniteCardinality, AtLeastN, ConstraintSatisfiability, DomainComplement) are
+implemented: their scope says that the numeric datatypes, `xsd:string`,
+`rdf:PlainLiteral` and `xsd:boolean` are done and the other datatypes are not.
+The other facets, facets with bounds that are no numbers, data ranges of the
+other datatypes, datatype definitions and keys still get no answer.
+
+Closures without datatype restrictions and integer subtypes get no cut classes
+and no region axioms, so their encoding is as before. The eleven regressions of
+`tests/numeric_ranges.rs` take 7.2 s together in a debug build, most of it for
+the 256 and 300 values of `xsd:byte`. Each distinct numeric literal value of a
+closure that orders numbers adds two cuts, and a value's node is in the classes
+of all cuts below it, so the tableau grows with the square of the number of
+distinct numeric values; the next block measures this on a generated
+ontology.
+
+This block adds 219 public theorems and 51 definitions and removes 8 theorems
+and 1 definition of the former regions. Totals are 2962 audited theorems, 1276
+definitions, 540 Rust regressions and 3155 ledger obligations.

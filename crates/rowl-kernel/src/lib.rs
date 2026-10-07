@@ -94,6 +94,8 @@ pub mod numbers;
 
 pub mod datatypes;
 
+pub mod regions;
+
 pub mod data_ontology;
 
 pub mod source_reasoning;
