@@ -4030,6 +4030,21 @@
         "Rowl.ImportClosure.closure_provenance",
         "Rowl.ImportClosure.source_closure_models"
       ]
+    },
+    {
+      "module": "Rowl.FunctionalScopes",
+      "namespace": "Rowl.FunctionalScopes",
+      "theorems": [
+        "Rowl.FunctionalScopes.class_model_scoped",
+        "Rowl.FunctionalScopes.members_model_scoped",
+        "Rowl.FunctionalScopes.rest_model_scoped",
+        "Rowl.FunctionalScopes.annotation_model_scoped",
+        "Rowl.FunctionalScopes.annotations_model_scoped",
+        "Rowl.FunctionalScopes.axiom_model_scoped",
+        "Rowl.FunctionalScopes.ontology_model_scoped",
+        "Rowl.FunctionalScopes.source_ontology_scoped",
+        "Rowl.FunctionalScopes.source_closure_functional_in_scope"
+      ]
     }
   ],
   "specifications": [

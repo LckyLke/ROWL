@@ -140,6 +140,7 @@ import Rowl.DlValidity
 import Rowl.ImportCatalog
 import Rowl.AnonymousScopes
 import Rowl.ImportClosure
+import Rowl.FunctionalScopes
 
 #print axioms Rowl.next_valuation_total_correct
 #print axioms Rowl.evaluate_total_correct
@@ -3320,6 +3321,15 @@ import Rowl.ImportClosure
 #print axioms Rowl.ImportClosure.closure_instance_iff
 #print axioms Rowl.ImportClosure.closure_provenance
 #print axioms Rowl.ImportClosure.source_closure_models
+#print axioms Rowl.FunctionalScopes.class_model_scoped
+#print axioms Rowl.FunctionalScopes.members_model_scoped
+#print axioms Rowl.FunctionalScopes.rest_model_scoped
+#print axioms Rowl.FunctionalScopes.annotation_model_scoped
+#print axioms Rowl.FunctionalScopes.annotations_model_scoped
+#print axioms Rowl.FunctionalScopes.axiom_model_scoped
+#print axioms Rowl.FunctionalScopes.ontology_model_scoped
+#print axioms Rowl.FunctionalScopes.source_ontology_scoped
+#print axioms Rowl.FunctionalScopes.source_closure_functional_in_scope
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote

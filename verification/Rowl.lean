@@ -166,3 +166,4 @@ import Rowl.DlValidity
 import Rowl.ImportCatalog
 import Rowl.AnonymousScopes
 import Rowl.ImportClosure
+import Rowl.FunctionalScopes

@@ -5305,3 +5305,28 @@ root, so `imports.HeaderlessIncludes` stays planned too.
 
 This block adds 0 public theorems and 0 definitions. Totals are 3179 audited
 theorems, 1430 definitions, 586 Rust regressions and 3372 ledger obligations.
+
+## M3: Functional Syntax documents lie in their scope
+
+The assembly of an import closure checks that every anonymous individual of a
+closure document has the scope of its position, and its meaning rests on that
+check. `FunctionalScopes.lean` proves that the check never fails for Functional
+Syntax documents. The verified mapping into the raw OWL model turns every node
+ID into an anonymous individual of the caller's scope; `class_model_scoped`,
+`members_model_scoped` and `rest_model_scoped` prove by mutual induction over
+the correspondence relations of `FunctionalModel.lean` that every class
+expression it builds is scoped, `annotation_model_scoped` and
+`annotations_model_scoped` do the same for annotations with their nested
+annotations, `axiom_model_scoped` for every axiom form with its annotations, and
+`ontology_model_scoped` for the ontology annotations and axioms of a document.
+`source_ontology_scoped` concludes that every ontology read from Functional
+Syntax bytes in a scope is scoped by it, and `source_closure_functional_in_scope`
+that `source_closure` never reports `OutOfScope` for a catalog of Functional
+Syntax documents: for them the standardization apart of the import closure is
+proved, not only checked. For N-Triples and Turtle documents the check remains
+the guarantee, since the reverse RDF mapping's treatment of blank nodes is only
+covered by its soundness theorem against the forward mapping. The Rust code is
+unchanged.
+
+This block adds 9 public theorems and 0 definitions. Totals are 3188 audited
+theorems, 1430 definitions, 586 Rust regressions and 3381 ledger obligations.

@@ -40,7 +40,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   names no document or several is a typed error with the document and the IRI,
   and imports of documents outside the closure do not matter. Every anonymous
   individual of a closure document is checked to have its document's scope
-  (`anonymous_scopes`, decided exactly), and the closure holds the root's
+  (`anonymous_scopes`, decided exactly; for Functional Syntax documents the
+  check is proved never to fail), and the closure holds the root's
   identity and imports and the ontology annotations and axioms of the closure
   documents in catalog order, every axiom with its document and position. The
   assembly is proved total and exact, the assembled axioms are proved to have
@@ -1122,7 +1123,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3179 audited public theorems and 1430 audited semantic definitions. Consistency,
+- 3188 audited public theorems and 1430 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1156,7 +1157,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3372-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3381-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

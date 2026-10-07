@@ -1848,7 +1848,7 @@
       "rust_symbol": "rowl_kernel::anonymous_scopes::scoped_ontology",
       "theorem": "Rowl.ImportClosure.closure_models",
       "regression": "crates/rowl-kernel/tests/import_closure.rs::colliding_node_ids_stay_apart",
-      "implementation_scope": "Every document is read with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (import_catalog::document_scope, scope_injective); assembly checks, by the exact traversal of anonymous_scopes, that every anonymous individual of every closure document has its document's scope (ClosureScoped), so the anonymous individuals of different documents are different (section 5.6.2). The meaning of a scoped axiom depends only on the anonymous individuals of its scope (axiom_coincide), so the models of the assembled axioms are exactly the interpretations that are models of every closure document's axioms, each with its own anonymous individuals (models_parts, closure_models)."
+      "implementation_scope": "Every document is read with its node IDs or blank nodes in a scope of its own, the eight bytes of its position (import_catalog::document_scope, scope_injective); assembly checks, by the exact traversal of anonymous_scopes, that every anonymous individual of every closure document has its document's scope (ClosureScoped), so the anonymous individuals of different documents are different (section 5.6.2); for Functional Syntax documents the check is proved never to fail (source_closure_functional_in_scope). The meaning of a scoped axiom depends only on the anonymous individuals of its scope (axiom_coincide), so the models of the assembled axioms are exactly the interpretations that are models of every closure document's axioms, each with its own anonymous individuals (models_parts, closure_models)."
     },
     {
       "id": "imports.ImportedAxiomProvenance",
@@ -37029,6 +37029,105 @@
       "theorem": "Rowl.ImportClosure.source_closure_models",
       "regression": "crates/rowl-kernel/tests/import_closure.rs",
       "implementation_scope": "The import closure of a root document of a catalog and its axiom closure (import_closure::assemble, source_closure; OWL 2 Structural Specification 3.4, Direct Semantics 2.4). assemble builds the catalog of import_catalog, resolves it from the root with the proved imports::resolve and marks the documents of the import closure (InClosure); the first import IRI of a closure document that names no document or several is the error, naming the document and the IRI (FirstUnresolved, UnresolvedError); every anonymous individual of a closure document must have the scope of its position (ClosureScoped); the closure then has the closure documents in catalog order, the root's identity and imports, and the ontology annotations and axioms of those documents in that order with each axiom's document and position (AssembledFrom). assemble_correct proves assemble total and exact (AssembleCorrect); source_closure_correct composes it with the verified readers (SourceClosureCorrect), and Functional Syntax catalogs always give a result (source_closure_functional_total). closure_models proves that an interpretation is a model of the assembled axioms exactly when it is a model of the axioms of every document of the import closure, each with its own anonymous individuals, and closure_model_iff, closure_consistent_iff, closure_entails_iff, closure_satisfiable_iff, closure_subsumed_iff and closure_instance_iff transfer this to models, consistency, entailment, satisfiability, subsumption and instance checking (ImportClosureModel); closure_provenance proves every axiom is the axiom at its recorded origin. RDF documents are read without the declarations of the documents they import, and termination of the reverse RDF mapping is not proved."
+    },
+    {
+      "id": "m3.FunctionalScopes.class_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: class_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.class_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.members_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: members_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.members_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.rest_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: rest_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.rest_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.annotation_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: annotation_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.annotation_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.annotations_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: annotations_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.annotations_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.axiom_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: axiom_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.axiom_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.ontology_model_scoped",
+      "requirement": "Verified Functional Syntax scopes: ontology_model_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::functional_model::document_ontology",
+      "theorem": "Rowl.FunctionalScopes.ontology_model_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.source_ontology_scoped",
+      "requirement": "Verified Functional Syntax scopes: source_ontology_scoped",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::source_reasoning::source_ontology",
+      "theorem": "Rowl.FunctionalScopes.source_ontology_scoped",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
+    },
+    {
+      "id": "m3.FunctionalScopes.source_closure_functional_in_scope",
+      "requirement": "Verified Functional Syntax scopes: source_closure_functional_in_scope",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#Anonymous_Individuals",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::import_closure::source_closure",
+      "theorem": "Rowl.FunctionalScopes.source_closure_functional_in_scope",
+      "regression": "crates/rowl-kernel/tests/import_closure.rs",
+      "implementation_scope": "Functional Syntax documents lie in their scope: every anonymous individual of the raw OWL ontology that the verified mapping builds from a read document, in class expressions, axioms, annotations, nested annotations and ontology annotations, has the caller's scope (class_model_scoped to ontology_model_scoped, over the correspondence relations of FunctionalModel), so every ontology read from Functional Syntax bytes is scoped (source_ontology_scoped) and import_closure::source_closure never reports OutOfScope for a catalog of Functional Syntax documents (source_closure_functional_in_scope): their standardization apart is proved, not only checked."
     }
   ]
 }
