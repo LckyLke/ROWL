@@ -29,6 +29,8 @@ open Rowl.DataEncoding
 open Rowl.DataMeaning
 open Rowl.DataAxioms
 open Rowl.DataStructure
+open Rowl.DataRegions (PointsNamed ValuesFit)
+open Rowl.Regions (Ordered FineCuts)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
@@ -1372,34 +1374,38 @@ decreasing_by all_goals omega
 
 /-! ### The whole encoding -/
 
-/-- The encoding of a closure with keys: the encoding's own axioms (the data
-    encoding of no axioms), the encodings of the axioms other than keys,
-    `N ⊑ ¬D`, the named individuals of `nodes` in `N`, `N ⊑ ∃mark.Self` when a
-    key is not counted, and the axioms of the keys. -/
-theorem encode_meaning (context : data_ontology.Context) (good : Good context) (items : alloc.vec.Vec AnnotatedAxiom)
+/-- The encoding of a closure with keys for a capacity: the encoding's own
+    axioms (the data encoding of no axioms), the encodings of the axioms other
+    than keys, `N ⊑ ¬D`, the named individuals of `nodes` in `N`,
+    `N ⊑ ∃mark.Self` when a key is not counted, and the axioms of the keys. -/
+theorem encode_meaning (context : data_ontology.Context) (good : Good context) (capacity : Usize)
+    (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) :
-    ∃ res, key_ontology.encode context items nodes counting = .ok res ∧ ∀ enc, res = some enc →
-      ∃ (new0 newU newK : List AnnotatedAxiom) (bits : Usize),
+    ∃ res, key_ontology.encode context capacity items nodes counting = .ok res ∧ ∀ enc, res = some enc →
+      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      ∃ (new0 newU newK : List AnnotatedAxiom) (bits : Usize) (order : List Usize),
         ItemsMeans.{u,v,w,x} context [] new0 ∧ ItemsMeans.{u,v,w,x} context (unkeyedItems items.val) newU ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
+        (context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1) ∧
         (∀ p ∈ context.data.val, ∃ role, data_ontology.data_role context p = .ok (some role)) ∧
         TruthsKnown context ∧
         (∀ a ∈ nodes.val, Plain a) ∧
         KeysMeans.{w,x} context items.val (namesOf nodes.val) counting newK ∧
         ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
           ((∀ b ∈ enc.val, satisfies J b.axiom) ↔
-            ((∀ b ∈ new0, satisfies J b.axiom) ∧ Frame context bits J) ∧ (∀ b ∈ newU, satisfies J b.axiom) ∧
+            ((∀ b ∈ new0, satisfies J b.axiom) ∧ Frame context capacity.val bits order J) ∧
+            (∀ b ∈ newU, satisfies J b.axiom) ∧
             (∀ y, J.classes keyClass y → ¬ J.classes dataClass y) ∧
             (∀ a ∈ nodes.val, NodeHeld J a) ∧
             (SharedIn items.val counting → ∀ y, J.classes keyClass y → J.objectProperties markRole y y) ∧
             (∀ b ∈ newK, satisfies J b.axiom)) := by
   rw [key_ontology.encode]
-  obtain ⟨r0, run0, facts0⟩ := Rowl.DataStructure.encode_meaning.{u,v,w,x} context good
+  obtain ⟨r0, run0, facts0⟩ := Rowl.DataStructure.encode_meaning.{u,v,w,x} context good capacity capSmall
     (alloc.vec.Vec.new AnnotatedAxiom)
   cases r0 with
   | none => exact ⟨none, by simp [run0], by simp⟩
   | some out =>
-  obtain ⟨new0, bits, means0, enough, roles, known, iff0⟩ := facts0 out rfl
+  obtain ⟨fine, fit, new0, bits, order, means0, enough, sorted, roles, known, iff0⟩ := facts0 out rfl
   obtain ⟨r1, run1, facts1⟩ := unkeyed_spec.{u,v,w,x} context items 0#usize out
   cases r1 with
   | none => exact ⟨none, by simp [run0, run1], by simp⟩
@@ -1423,8 +1429,8 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   refine ⟨r5, by simp [run0, run1, named_class_eq, object_class_eq, run2, run3, run4, run5], fun enc h => ?_⟩
   obtain ⟨newK, c5, meansK⟩ := facts5 enc h
   simp only [zero_val, List.drop_zero] at meansU plainN meansN meansK
-  refine ⟨new0, newU, newK, bits, by simpa [new_val] using means0, meansU, enough, roles, known, plainN, meansK,
-    fun J => ?_⟩
+  refine ⟨fine, fit, new0, newU, newK, bits, order, by simpa [new_val] using means0, meansU, enough, sorted, roles,
+    known, plainN, meansK, fun J => ?_⟩
   have apartIff : (∀ b ∈ [bare (.SubClassOf (.Class keyClass) (.ObjectComplementOf (.Class dataClass)))],
       satisfies J b.axiom) ↔ ∀ y, J.classes keyClass y → ¬ J.classes dataClass y := by
     simp [bare, satisfies, classDenote]

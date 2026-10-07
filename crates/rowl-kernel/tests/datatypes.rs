@@ -1,4 +1,7 @@
-use rowl_kernel::datatypes::{in_kind, kind_of, literal_value, same_value, DataValue, Kind};
+use rowl_kernel::datatypes::{
+    compare_values, facet_applies, facet_holds, facet_of, in_kind, kind_of, literal_value,
+    same_value, DataValue, Facet, Kind,
+};
 use rowl_kernel::model::{Datatype, Iri, Literal};
 
 const INTEGER: &[u8] = b"http://www.w3.org/2001/XMLSchema#integer";
@@ -7,6 +10,14 @@ const STRING: &[u8] = b"http://www.w3.org/2001/XMLSchema#string";
 const PLAIN: &[u8] = b"http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral";
 const BOOLEAN: &[u8] = b"http://www.w3.org/2001/XMLSchema#boolean";
 const DOUBLE: &[u8] = b"http://www.w3.org/2001/XMLSchema#double";
+const REAL: &[u8] = b"http://www.w3.org/2002/07/owl#real";
+const RATIONAL: &[u8] = b"http://www.w3.org/2002/07/owl#rational";
+const BYTE: &[u8] = b"http://www.w3.org/2001/XMLSchema#byte";
+const UNSIGNED_LONG: &[u8] = b"http://www.w3.org/2001/XMLSchema#unsignedLong";
+const LONG: &[u8] = b"http://www.w3.org/2001/XMLSchema#long";
+const NON_NEGATIVE: &[u8] = b"http://www.w3.org/2001/XMLSchema#nonNegativeInteger";
+const POSITIVE: &[u8] = b"http://www.w3.org/2001/XMLSchema#positiveInteger";
+const NEGATIVE: &[u8] = b"http://www.w3.org/2001/XMLSchema#negativeInteger";
 
 fn datatype(iri: &[u8]) -> Datatype {
     Datatype {
@@ -131,4 +142,184 @@ fn truth_values() {
     assert!(in_kind(&truth, Kind::Boolean));
     assert!(!in_kind(&truth, Kind::Integer));
     assert!(!same(&value(b"1", INTEGER), &truth));
+}
+
+fn fraction(negative: bool, numerator: &[u8], denominator: &[u8]) -> DataValue {
+    DataValue::Fraction(negative, numerator.to_vec(), denominator.to_vec())
+}
+fn iri(spelling: &[u8]) -> Iri {
+    Iri {
+        spelling: spelling.to_vec(),
+    }
+}
+
+#[test]
+fn the_numeric_datatypes_are_recognized_by_their_iris() {
+    assert!(matches!(kind_of(&datatype(REAL)), Some(Kind::Real)));
+    assert!(matches!(kind_of(&datatype(RATIONAL)), Some(Kind::Rational)));
+    assert!(matches!(kind_of(&datatype(BYTE)), Some(Kind::Byte)));
+    assert!(matches!(
+        kind_of(&datatype(UNSIGNED_LONG)),
+        Some(Kind::UnsignedLong)
+    ));
+    assert!(matches!(
+        kind_of(&datatype(NON_NEGATIVE)),
+        Some(Kind::NonNegativeInteger)
+    ));
+    assert!(kind_of(&datatype(b"http://www.w3.org/2001/XMLSchema#Byte")).is_none());
+}
+
+#[test]
+fn owl_real_has_no_lexical_forms() {
+    assert!(value(b"1", REAL).is_none());
+    assert!(value(b"1/2", REAL).is_none());
+}
+
+#[test]
+fn rationals_in_lowest_terms_or_as_decimals() {
+    assert!(same(&value(b"1/3", RATIONAL), &fraction(false, b"1", b"3")));
+    assert!(same(&value(b"-4/6", RATIONAL), &fraction(true, b"2", b"3")));
+    assert!(same(
+        &value(b"+10/0030", RATIONAL),
+        &fraction(false, b"1", b"3")
+    ));
+    assert!(same(&value(b"1/2", RATIONAL), &number(false, b"", b"5")));
+    assert!(same(&value(b"-6/4", RATIONAL), &number(true, b"1", b"5")));
+    assert!(same(&value(b"12/4", RATIONAL), &number(false, b"3", b"")));
+    assert!(same(&value(b"-0/7", RATIONAL), &number(false, b"", b"")));
+    assert!(same(
+        &value(b"7/1", RATIONAL),
+        &value(b"7", INTEGER).unwrap()
+    ));
+    assert!(same(
+        &value(b"1/80", RATIONAL),
+        &number(false, b"", b"0125")
+    ));
+    assert!(same(
+        &value(b"123456789012345678901234567891/7", RATIONAL),
+        &fraction(false, b"123456789012345678901234567891", b"7")
+    ));
+    assert!(same(
+        &value(b"123456789012345678901234567890/7", RATIONAL),
+        &number(false, b"17636684144620811271604938270", b"")
+    ));
+    assert!(same(
+        &value(
+            b"10000000000000000000000000000000001/50000000000000000000000000000000005",
+            RATIONAL
+        ),
+        &number(false, b"", b"2")
+    ));
+    for ill in [
+        &b"1"[..],
+        b"1/0",
+        b"1/00",
+        b"1/-2",
+        b"1/+2",
+        b"1/",
+        b"/2",
+        b"1.5/2",
+        b"1/2/3",
+        b" 1/2",
+        b"1/ 2",
+    ] {
+        assert!(value(ill, RATIONAL).is_none(), "{ill:?}");
+    }
+}
+
+#[test]
+fn integer_subtypes_bound_their_values() {
+    assert!(same(&value(b"127", BYTE), &number(false, b"127", b"")));
+    assert!(same(&value(b"-128", BYTE), &number(true, b"128", b"")));
+    assert!(value(b"128", BYTE).is_none());
+    assert!(value(b"-129", BYTE).is_none());
+    assert!(value(b"1.0", BYTE).is_none());
+    assert!(same(
+        &value(b"18446744073709551615", UNSIGNED_LONG),
+        &number(false, b"18446744073709551615", b"")
+    ));
+    assert!(value(b"18446744073709551616", UNSIGNED_LONG).is_none());
+    assert!(same(&value(b"-0", UNSIGNED_LONG), &number(false, b"", b"")));
+    assert!(value(b"-1", UNSIGNED_LONG).is_none());
+    assert!(value(b"9223372036854775808", LONG).is_none());
+    assert!(value(b"-9223372036854775808", LONG).is_some());
+    assert!(same(&value(b"-0", NON_NEGATIVE), &number(false, b"", b"")));
+    assert!(value(b"0", POSITIVE).is_none());
+    assert!(value(b"+1", POSITIVE).is_some());
+    assert!(value(b"-1", NEGATIVE).is_some());
+    assert!(value(b"0", NEGATIVE).is_none());
+    let five = value(b"5", BYTE).expect("a byte");
+    assert!(same(&value(b"5.000", DECIMAL), &five));
+    assert!(in_kind(&five, Kind::Byte));
+    assert!(in_kind(&five, Kind::Real));
+    assert!(in_kind(&five, Kind::Rational));
+    assert!(!in_kind(&five, Kind::NegativeInteger));
+    let third = value(b"1/3", RATIONAL).expect("a rational");
+    assert!(in_kind(&third, Kind::Real));
+    assert!(in_kind(&third, Kind::Rational));
+    assert!(!in_kind(&third, Kind::Decimal));
+    assert!(!in_kind(&third, Kind::Byte));
+}
+
+#[test]
+fn numbers_are_ordered_exactly() {
+    let order = |a: &[u8], ta: &[u8], b: &[u8], tb: &[u8]| {
+        compare_values(&value(a, ta).unwrap(), &value(b, tb).unwrap())
+    };
+    assert_eq!(order(b"1", INTEGER, b"2", INTEGER), Some(0));
+    assert_eq!(order(b"2", INTEGER, b"1.999", DECIMAL), Some(2));
+    assert_eq!(order(b"-2", INTEGER, b"-1.5", DECIMAL), Some(0));
+    assert_eq!(order(b"-0.5", DECIMAL, b"0", INTEGER), Some(0));
+    assert_eq!(order(b"1/3", RATIONAL, b"0.333333333333", DECIMAL), Some(2));
+    assert_eq!(
+        order(b"1/3", RATIONAL, b"0.3333333333334", DECIMAL),
+        Some(0)
+    );
+    assert_eq!(order(b"-1/3", RATIONAL, b"-1/4", RATIONAL), Some(0));
+    assert_eq!(order(b"2/6", RATIONAL, b"1/3", RATIONAL), Some(1));
+    assert_eq!(order(b"0.75", DECIMAL, b"3/4", RATIONAL), Some(1));
+    assert_eq!(order(b"10", INTEGER, b"9.99", DECIMAL), Some(2));
+    assert_eq!(order(b"0.1", DECIMAL, b"0.09", DECIMAL), Some(2));
+    assert_eq!(order(b"-10", INTEGER, b"-9.99", DECIMAL), Some(0));
+    assert!(compare_values(&DataValue::Truth(true), &number(false, b"1", b"")).is_none());
+}
+
+#[test]
+fn range_facets_on_single_values() {
+    let min_inclusive = facet_of(&iri(b"http://www.w3.org/2001/XMLSchema#minInclusive"));
+    let max_exclusive = facet_of(&iri(b"http://www.w3.org/2001/XMLSchema#maxExclusive"));
+    assert!(matches!(min_inclusive, Some(Facet::MinInclusive)));
+    assert!(matches!(max_exclusive, Some(Facet::MaxExclusive)));
+    assert!(facet_of(&iri(b"http://www.w3.org/2001/XMLSchema#minLength")).is_none());
+    let dose = value(b"4000", DECIMAL).unwrap();
+    let prescribed = value(b"4500.5", DECIMAL).unwrap();
+    assert_eq!(
+        facet_holds(Facet::MaxInclusive, &dose, &prescribed),
+        Some(false)
+    );
+    assert_eq!(facet_holds(Facet::MaxInclusive, &dose, &dose), Some(true));
+    assert_eq!(facet_holds(Facet::MaxExclusive, &dose, &dose), Some(false));
+    assert_eq!(
+        facet_holds(Facet::MinExclusive, &dose, &prescribed),
+        Some(true)
+    );
+    let third = value(b"1/3", RATIONAL).unwrap();
+    assert_eq!(
+        facet_holds(
+            Facet::MinInclusive,
+            &third,
+            &value(b"0.34", DECIMAL).unwrap()
+        ),
+        Some(true)
+    );
+    assert_eq!(
+        facet_holds(Facet::MinInclusive, &third, &DataValue::Truth(true)),
+        None
+    );
+    assert!(facet_applies(Kind::Real, &third));
+    assert!(facet_applies(Kind::Rational, &third));
+    assert!(!facet_applies(Kind::Decimal, &third));
+    assert!(facet_applies(Kind::Decimal, &dose));
+    assert!(!facet_applies(Kind::Byte, &dose));
+    assert!(!facet_applies(Kind::String, &dose));
 }

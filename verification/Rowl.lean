@@ -152,10 +152,14 @@ import Rowl.ShiEquality
 import Rowl.ShiNominals
 import Rowl.ShiOntology
 import Rowl.DatatypeMap
+import Rowl.Numbers
 import Rowl.Datatypes
+import Rowl.Regions
 import Rowl.DataEncoding
 import Rowl.DataMeaning
 import Rowl.DataAxioms
+import Rowl.DataRegions
+import Rowl.DataReals
 import Rowl.DataStructure
 import Rowl.DataComplete
 import Rowl.DataSound

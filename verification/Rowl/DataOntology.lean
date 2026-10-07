@@ -3,20 +3,24 @@ import Rowl.ShiOntology
 import Rowl.KeyModels
 
 /-!
-The ontology queries of `data_ontology` with data properties, literals and the
-five datatypes of `datatypes`: consistency, class satisfiability, subsumption
-and instance checking, through the encoding into the SROIQ queries of
-`shi_ontology`. Under every datatype map that is the OWL 2 map on the five
-datatypes (`Normative`), an answer is the answer of the 2012 OWL 2 Direct
-Semantics (`consistent_correct`, `class_satisfiable_correct`,
+The ontology queries of `data_ontology` with data properties, the literals of
+the datatypes of `datatypes`, and data ranges of the numeric datatypes, with
+the range facets, and of `xsd:string`, `rdf:PlainLiteral` and `xsd:boolean`:
+consistency, class satisfiability, subsumption and instance checking, through
+the encoding into the SROIQ queries of `shi_ontology`, for a capacity that
+bounds the counts of the data restrictions of the closure and its questions
+(`items_count_spec`, `class_count_spec`). Under every datatype map that is the
+OWL 2 map on these datatypes (`Normative`), an answer is the answer of the
+2012 OWL 2 Direct Semantics (`consistent_correct`, `class_satisfiable_correct`,
 `subsumed_correct`, `instance_of_correct`, and their prepared forms): the
 encoding of a closure has a model exactly when the closure has one
 (`lifted_satisfies`, `sound_satisfies`), and a question's encoding holds at the
 same elements as the question. A closure with keys is encoded by
-`key_ontology` (`Rowl.KeyModels`): its answers hold for every vocabulary in
-which the closure's named individuals are named (`NamesKeyed`), the condition
-under which keys apply to them; for a closure without keys that condition asks
-nothing.
+`key_ontology` (`Rowl.KeyModels`), for a capacity that also counts the data
+restrictions of its keys' class expressions: its answers hold for every
+vocabulary in which the closure's named individuals are named (`NamesKeyed`),
+the condition under which keys apply to them; for a closure without keys that
+condition asks nothing.
 -/
 namespace Rowl.DataOntology
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -29,7 +33,7 @@ open Rowl.DataAxioms
 open Rowl.DataStructure
 open Rowl.DataComplete
 open Rowl.DataSound
-open Rowl.KeyEncoding (NamesKeyed Keyed closureIndividuals)
+open Rowl.KeyEncoding (NamesKeyed Keyed closureIndividuals keyAtoms)
 open Rowl.KeyModels (keyed_encoded_model keyed_lifted_model)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
@@ -503,16 +507,280 @@ theorem class_known_spec (nodes : alloc.vec.Vec Individual) (c : ClassExpression
 termination_by sizeOf c
 decreasing_by all_goals (subst_vars; first | omega | (simp_wf; omega))
 
+/-! ### The counts of the data restrictions -/
+
+/-- The cap on the counts of the data restrictions. -/
+def limit : Nat := Usize.max / 16
+
+theorem limit_spec : ∃ l : Usize, data_ontology.LIMIT = .ok l ∧ l.val = limit := by
+  unfold data_ontology.LIMIT
+  obtain ⟨q, qRun, qValue⟩ := WP.spec_imp_exists (Usize.div_spec core.num.Usize.MAX (y := 16#usize) (by simp))
+  exact ⟨q, qRun, by rw [qValue]; simp [core.num.Usize.MAX, limit]⟩
+
+theorem limit_room : 2 * limit < Usize.max := by
+  have : 16 ≤ Usize.max := by scalar_tac
+  unfold limit
+  omega
+
+theorem one_val : (1#usize).val = 1 := by simp
+
+theorem add_count_spec (total amount : Usize) :
+    ∃ r : Usize, data_ontology.add_count total amount = .ok r ∧ r.val = min (total.val + amount.val) limit := by
+  obtain ⟨l, lRun, lIs⟩ := limit_spec
+  have small := limit_room
+  rw [data_ontology.add_count, lRun, bind_ok]
+  by_cases both : total.val < l.val ∧ amount.val < l.val
+  · obtain ⟨sum, sumRun, sumValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := total) (y := amount) (by omega))
+    have sumIs : sum.val = total.val + amount.val := by simpa using sumValue
+    have cond : ((decide (total < l)) && (decide (amount < l))) = true := by
+      simp [UScalar.lt_equiv, both.1, both.2]
+    rw [if_pos cond, sumRun, bind_ok]
+    by_cases fits : sum.val < l.val
+    · have fits' : sum < l := by rw [UScalar.lt_equiv]; exact fits
+      rw [if_pos fits']
+      exact ⟨sum, rfl, by omega⟩
+    · have fits' : ¬ sum < l := by rw [UScalar.lt_equiv]; exact fits
+      rw [if_neg fits']
+      exact ⟨l, rfl, by omega⟩
+  · have cond : ¬ ((decide (total < l)) && (decide (amount < l))) = true := by
+      simp only [Bool.and_eq_true, decide_eq_true_eq, UScalar.lt_equiv]
+      exact both
+    rw [if_neg cond]
+    exact ⟨l, rfl, by omega⟩
+
+theorem natural_count_spec (value : probes.Natural) (total : Usize) (small : total.val ≤ limit) :
+    ∃ r : Usize, data_ontology.natural_count value total = .ok r ∧
+      r.val = min (total.val + Rowl.Probes.naturalValue value) limit := by
+  cases value with
+  | Zero =>
+    refine ⟨total, by rw [data_ontology.natural_count], ?_⟩
+    simp only [Rowl.Probes.naturalValue]
+    omega
+  | Succ inner =>
+    obtain ⟨t1, run1, is1⟩ := add_count_spec total 1#usize
+    obtain ⟨r, run, isR⟩ := natural_count_spec inner t1 (by rw [is1]; omega)
+    refine ⟨r, by rw [data_ontology.natural_count]; simp [run1, run], ?_⟩
+    rw [isR, is1, one_val]
+    simp only [Rowl.Probes.naturalValue]
+    omega
+
+theorem atomCount_append (a b : List (DataProperty × Option DataRange × Nat)) :
+    atomCount (a ++ b) = atomCount a + atomCount b := by
+  simp [atomCount]
+
+theorem atomCount_cons (a : DataProperty × Option DataRange × Nat) (b : List (DataProperty × Option DataRange × Nat)) :
+    atomCount (a :: b) = a.2.2 + atomCount b := by
+  simp [atomCount]
+
+theorem atomCount_nil : atomCount [] = 0 := rfl
+
+theorem class_atoms_members (xs : AtLeastTwo ClassExpression) :
+    classAtoms (.ObjectIntersectionOf xs) = xs.elements.flatMap classAtoms ∧
+      classAtoms (.ObjectUnionOf xs) = xs.elements.flatMap classAtoms := by
+  rw [classAtoms, classAtoms]
+  simp [AtLeastTwo.elements]
+
+/-- What counting a class expression's data restrictions gives. -/
+def CountSpec (c : ClassExpression) : Prop :=
+  ∀ total : Usize, total.val ≤ limit → ∃ r : Usize, data_ontology.class_count c total = .ok r ∧
+    r.val = min (total.val + atomCount (classAtoms c)) limit
+
+theorem classes_count_spec (classes : alloc.vec.Vec ClassExpression) (index total : Usize)
+    (small : total.val ≤ limit) (each : ∀ e ∈ classes.val, CountSpec e) :
+    ∃ r : Usize, data_ontology.classes_count classes index total = .ok r ∧
+      r.val = min (total.val + atomCount ((classes.val.drop index.val).flatMap classAtoms)) limit := by
+  rw [data_ontology.classes_count]
+  by_cases inside : index.val < classes.val.length
+  · have lookup : classes.index_usize index = .ok classes.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨t1, run1, is1⟩ := each _ (List.getElem_mem inside) total small
+    obtain ⟨r, run, isR⟩ := classes_count_spec classes next t1 (by rw [is1]; omega) each
+    refine ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, advance, run1, run], ?_⟩
+    rw [isR, is1, nextIndex, split, List.flatMap_cons, atomCount_append]
+    omega
+  · refine ⟨total, by simp [UScalar.lt_equiv, inside], ?_⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp only [List.flatMap_nil, atomCount_nil]
+    omega
+termination_by classes.val.length - index.val
+decreasing_by omega
+
+theorem members_count_spec (members : AtLeastTwo ClassExpression) (total : Usize) (small : total.val ≤ limit)
+    (each : ∀ e ∈ members.elements, CountSpec e) :
+    ∃ r : Usize, data_ontology.members_count members total = .ok r ∧
+      r.val = min (total.val + atomCount (members.elements.flatMap classAtoms)) limit := by
+  rw [data_ontology.members_count]
+  obtain ⟨t1, run1, is1⟩ := each members.first (by simp [AtLeastTwo.elements]) total small
+  obtain ⟨t2, run2, is2⟩ := each members.second (by simp [AtLeastTwo.elements]) t1 (by rw [is1]; omega)
+  obtain ⟨r, run3, is3⟩ := classes_count_spec members.rest 0#usize t2 (by rw [is2]; omega)
+    (fun e mem => each e (by simp [AtLeastTwo.elements, mem]))
+  refine ⟨r, by simp [run1, run2, run3], ?_⟩
+  rw [is3, is2, is1]
+  simp only [AtLeastTwo.elements, List.flatMap_cons, atomCount_append, zero_val, List.drop_zero]
+  omega
+
+/-- Counting a class expression's data restrictions gives the sum of their
+    counts, capped. -/
+theorem class_count_spec (c : ClassExpression) : CountSpec c := by
+  have bound : ∀ (xs : AtLeastTwo ClassExpression), ∀ e ∈ xs.elements, sizeOf e < 1 + sizeOf xs := by
+    intro xs e mem
+    simp only [AtLeastTwo.elements, List.mem_cons] at mem
+    rcases mem with rfl | rfl | mem
+    · have := first_size xs; omega
+    · have := second_size xs; omega
+    · have := member_size xs e mem; omega
+  intro total small
+  cases h : c with
+  | ObjectIntersectionOf xs =>
+    rw [data_ontology.class_count, (class_atoms_members xs).1]
+    exact members_count_spec xs total small (fun e mem => by have := bound xs e mem; exact class_count_spec e)
+  | ObjectUnionOf xs =>
+    rw [data_ontology.class_count, (class_atoms_members xs).2]
+    exact members_count_spec xs total small (fun e mem => by have := bound xs e mem; exact class_count_spec e)
+  | ObjectComplementOf inner =>
+    rw [data_ontology.class_count, classAtoms]
+    have : sizeOf inner < sizeOf c := by rw [h]; simp
+    exact class_count_spec inner total small
+  | ObjectSomeValuesFrom _ filler =>
+    rw [data_ontology.class_count, classAtoms]
+    have : sizeOf filler < sizeOf c := by rw [h]; simp
+    exact class_count_spec filler total small
+  | ObjectAllValuesFrom _ filler =>
+    rw [data_ontology.class_count, classAtoms]
+    have : sizeOf filler < sizeOf c := by rw [h]; simp
+    exact class_count_spec filler total small
+  | ObjectMinCardinality _ _ filler | ObjectMaxCardinality _ _ filler | ObjectExactCardinality _ _ filler =>
+    cases hf : filler with
+    | none =>
+      rw [data_ontology.class_count, classAtoms]
+      exact ⟨total, rfl, by simp only [atomCount_nil]; omega⟩
+    | some e =>
+      rw [data_ontology.class_count, classAtoms]
+      have : sizeOf e < sizeOf c := by rw [h, hf]; simp; omega
+      exact class_count_spec e total small
+  | DataSomeValuesFrom _ _ | DataAllValuesFrom _ _ | DataHasValue _ _ =>
+    rw [data_ontology.class_count, classAtoms]
+    obtain ⟨r, run, isR⟩ := add_count_spec total 1#usize
+    exact ⟨r, run, by rw [isR]; simp [atomCount]⟩
+  | DataMinCardinality n _ _ =>
+    rw [data_ontology.class_count, classAtoms]
+    obtain ⟨r, run, isR⟩ := natural_count_spec n total small
+    exact ⟨r, run, by rw [isR]; simp [atomCount]⟩
+  | DataMaxCardinality n _ _ =>
+    rw [data_ontology.class_count, classAtoms]
+    obtain ⟨t1, run1, is1⟩ := add_count_spec total 1#usize
+    obtain ⟨r, run, isR⟩ := natural_count_spec n t1 (by rw [is1]; omega)
+    refine ⟨r, by simp [run1, run], ?_⟩
+    rw [isR, is1, one_val]
+    simp only [atomCount, List.map_cons, List.map_nil, List.sum_cons, List.sum_nil]
+    omega
+  | DataExactCardinality n _ _ =>
+    rw [data_ontology.class_count, classAtoms]
+    obtain ⟨t1, run1, is1⟩ := add_count_spec total 1#usize
+    obtain ⟨t2, run2, is2⟩ := natural_count_spec n t1 (by rw [is1]; omega)
+    obtain ⟨r, run, isR⟩ := natural_count_spec n t2 (by rw [is2]; omega)
+    refine ⟨r, by simp [run1, run2, run], ?_⟩
+    rw [isR, is2, is1, one_val]
+    simp only [atomCount, List.map_cons, List.map_nil, List.sum_cons, List.sum_nil]
+    omega
+  | Class _ | ObjectOneOf _ | ObjectHasValue _ _ | ObjectHasSelf _ =>
+    rw [data_ontology.class_count, classAtoms]
+    exact ⟨total, rfl, by simp only [atomCount_nil]; omega⟩
+termination_by sizeOf c
+decreasing_by all_goals (subst_vars; first | omega | (simp_wf; omega))
+
+theorem axiom_count_spec (item : Axiom) (total : Usize) (small : total.val ≤ limit) :
+    ∃ r : Usize, data_ontology.axiom_count item total = .ok r ∧
+      r.val = min (total.val + atomCount (axiomAtoms item)) limit := by
+  cases item with
+  | SubClassOf sub sup =>
+    obtain ⟨t1, run1, is1⟩ := class_count_spec sub total small
+    obtain ⟨r, run, isR⟩ := class_count_spec sup t1 (by rw [is1]; omega)
+    refine ⟨r, by simp [data_ontology.axiom_count, run1, run], ?_⟩
+    rw [isR, is1, axiomAtoms, atomCount_append]
+    omega
+  | EquivalentClasses xs | DisjointClasses xs | DisjointUnion _ xs =>
+    obtain ⟨r, run, isR⟩ := members_count_spec xs total small (fun e _ => class_count_spec e)
+    exact ⟨r, by simp [data_ontology.axiom_count, run], by rw [isR, axiomAtoms]⟩
+  | ObjectPropertyDomain _ e | ObjectPropertyRange _ e | DataPropertyDomain _ e | ClassAssertion e _ =>
+    obtain ⟨r, run, isR⟩ := class_count_spec e total small
+    exact ⟨r, by simp [data_ontology.axiom_count, run], by rw [isR, axiomAtoms]⟩
+  | _ => exact ⟨total, by simp [data_ontology.axiom_count], by simp only [axiomAtoms, atomCount_nil]; omega⟩
+
+theorem items_count_spec (items : alloc.vec.Vec AnnotatedAxiom) (index total : Usize) (small : total.val ≤ limit) :
+    ∃ r : Usize, data_ontology.items_count items index total = .ok r ∧
+      r.val = min (total.val + atomCount (itemAtoms (items.val.drop index.val))) limit := by
+  rw [data_ontology.items_count]
+  by_cases inside : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨t1, run1, is1⟩ := axiom_count_spec items.val[index.val].axiom total small
+    obtain ⟨r, run, isR⟩ := items_count_spec items next t1 (by rw [is1]; omega)
+    refine ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, advance, run1, run], ?_⟩
+    rw [isR, is1, nextIndex, split]
+    simp only [itemAtoms, List.flatMap_cons, atomCount_append]
+    omega
+  · refine ⟨total, by simp [UScalar.lt_equiv, inside], ?_⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp only [itemAtoms, List.flatMap_nil, atomCount_nil]
+    omega
+termination_by items.val.length - index.val
+decreasing_by omega
+
+theorem key_count_spec (item : Axiom) (total : Usize) (small : total.val ≤ limit) :
+    ∃ r : Usize, key_ontology.key_count item total = .ok r ∧
+      r.val = min (total.val + atomCount (keyAtoms item)) limit := by
+  cases item with
+  | HasKey e ops dps =>
+    obtain ⟨r, run, isR⟩ := class_count_spec e total small
+    exact ⟨r, by simp [key_ontology.key_count, run], by rw [isR]; rfl⟩
+  | _ => exact ⟨total, by simp [key_ontology.key_count], by simp only [keyAtoms, atomCount_nil]; omega⟩
+
+theorem keys_count_spec (items : alloc.vec.Vec AnnotatedAxiom) (index total : Usize) (small : total.val ≤ limit) :
+    ∃ r : Usize, key_ontology.keys_count items index total = .ok r ∧
+      r.val = min (total.val + atomCount ((items.val.drop index.val).flatMap (fun i => keyAtoms i.axiom))) limit := by
+  rw [key_ontology.keys_count]
+  by_cases inside : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨t1, run1, is1⟩ := key_count_spec items.val[index.val].axiom total small
+    obtain ⟨r, run, isR⟩ := keys_count_spec items next t1 (by rw [is1]; omega)
+    refine ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, advance, run1, run], ?_⟩
+    rw [isR, is1, nextIndex, split]
+    simp only [List.flatMap_cons, atomCount_append]
+    omega
+  · refine ⟨total, by simp [UScalar.lt_equiv, inside], ?_⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp only [List.flatMap_nil, atomCount_nil]
+    omega
+termination_by items.val.length - index.val
+decreasing_by omega
+
 /-- The individuals the actual kernel names for a closure with keys are not the
     encoding's. -/
-theorem keyed_plain {context : data_ontology.Context} (good : Good context) {items : alloc.vec.Vec AnnotatedAxiom}
+theorem keyed_plain {context : data_ontology.Context} (good : Good context) {capacity : Usize}
+    (capSmall : capacity.val < limit) {items : alloc.vec.Vec AnnotatedAxiom}
     {nodes : alloc.vec.Vec Individual} {counting : Bool} {enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : key_ontology.encode context items nodes counting = .ok (some enc)) {a : Individual}
+    (encRun : key_ontology.encode context capacity items nodes counting = .ok (some enc)) {a : Individual}
     (mem : a ∈ nodes.val) : Plain a := by
-  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} context good items nodes counting
+  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} context good capacity capSmall items nodes
+    counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
   exact plainNodes a mem
 
 theorem named_known_spec (nodes : alloc.vec.Vec Individual) (a : NamedIndividual) :
@@ -533,61 +801,90 @@ theorem named_known_spec (nodes : alloc.vec.Vec Individual) (a : NamedIndividual
 
 /-- What a prepared closure keeps: a closure without data as the SROIQ queries
     prepare it, or a good context, the closure's encoding as the SROIQ queries
-    prepare it, and individuals that the closure names; or, for a closure with
-    keys, a good context, the closure's key encoding as the SROIQ queries prepare
-    it, and exactly the individuals the closure names. -/
+    prepare it, for a capacity below the cap that has the room for a
+    question's data restrictions besides the closure's, and individuals that
+    the closure names; or, for a closure with keys, the same with its key
+    encoding, a capacity that also counts its keys' class expressions, and
+    exactly the individuals the closure names. -/
 def DataPrepared (items : alloc.vec.Vec AnnotatedAxiom) : data_ontology.Prepared → Prop
   | .Plain p => Rowl.ShiOntology.PreparedData items p
-  | .Encoded context nodes p => Good context ∧
-      (∃ enc, data_ontology.encode context items = .ok (some enc) ∧ Rowl.ShiOntology.PreparedData enc p) ∧
+  | .Encoded context nodes p room => Good context ∧
+      (∃ (capacity : Usize) (enc : alloc.vec.Vec AnnotatedAxiom), capacity.val < limit ∧
+        atomCount (itemAtoms items.val) + room.val ≤ capacity.val ∧
+        data_ontology.encode context capacity items = .ok (some enc) ∧ Rowl.ShiOntology.PreparedData enc p) ∧
       Adds (alloc.vec.Vec.new Individual) nodes (itemIndividuals items.val)
-  | .Keyed context nodes p => Good context ∧
-      (∃ counting enc, key_ontology.encode context items nodes counting = .ok (some enc) ∧
+  | .Keyed context nodes p room => Good context ∧
+      (∃ (capacity : Usize) (counting : Bool) (enc : alloc.vec.Vec AnnotatedAxiom), capacity.val < limit ∧
+        atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) + room.val ≤
+          capacity.val ∧
+        key_ontology.encode context capacity items nodes counting = .ok (some enc) ∧
         Rowl.ShiOntology.PreparedData enc p) ∧
       (∀ b, b ∈ nodes.val ↔ b ∈ closureIndividuals items.val) ∧ Keyed items.val
-
-theorem key_prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : data_ontology.Context)
-    (good : Good context) (keyed : Keyed items.val) :
-    ∃ res, key_ontology.prepare items context = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
-  rw [key_ontology.prepare]
-  obtain ⟨c1, run1, good1⟩ := Rowl.KeyEncoding.keys_context_good context items 0#usize good
-  obtain ⟨c2, run2, good2⟩ := with_truths_good c1 good1
-  obtain ⟨r1, nodesRun, nodesFacts⟩ := Rowl.KeyEncoding.closure_nodes items
-  cases r1 with
-  | none => exact ⟨none, by simp [run1, run2, nodesRun], by simp⟩
-  | some n1 =>
-    obtain ⟨r2, keyRun, keyFacts⟩ := nodesFacts n1 rfl
-    cases r2 with
-    | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun], by simp⟩
-    | some nodes =>
-      obtain ⟨b, complexRun⟩ := Rowl.KeyEncoding.complex_roles_runs items 0#usize
-      obtain ⟨r3, encRun, _⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} c2 good2 items nodes (!b)
-      cases r3 with
-      | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun, complexRun, encRun], by simp⟩
-      | some enc =>
-        obtain ⟨r4, prepRun, prepFacts⟩ := Rowl.ShiOntology.prepare_correct enc
-        cases r4 with
-        | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun, complexRun, encRun, prepRun], by simp⟩
-        | some sp =>
-          refine ⟨some (.Keyed c2 nodes sp), by simp [run1, run2, nodesRun, keyRun, complexRun, encRun, prepRun],
-            fun p h => ?_⟩
-          cases h
-          exact ⟨good2, ⟨_, enc, encRun, prepFacts sp rfl⟩, keyFacts nodes rfl, keyed⟩
 
 theorem data_free_runs (context : data_ontology.Context) : ∃ b, data_ontology.data_free context = .ok b := by
   rw [data_ontology.data_free]
   dsimp only
   split_ifs <;> exact ⟨_, rfl⟩
 
+theorem key_prepare_with_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : data_ontology.Context)
+    (good : Good context) (capacity room : Usize) (capSmall : capacity.val < limit)
+    (fits : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) + room.val ≤
+      capacity.val) (keyed : Keyed items.val) :
+    ∃ res, key_ontology.prepare_with items context capacity room = .ok res ∧ ∀ p, res = some p →
+      DataPrepared items p := by
+  rw [key_ontology.prepare_with]
+  obtain ⟨r1, nodesRun, nodesFacts⟩ := Rowl.KeyEncoding.closure_nodes items
+  cases r1 with
+  | none => exact ⟨none, by simp [nodesRun], by simp⟩
+  | some n1 =>
+    obtain ⟨r2, keyRun, keyFacts⟩ := nodesFacts n1 rfl
+    cases r2 with
+    | none => exact ⟨none, by simp [nodesRun, keyRun], by simp⟩
+    | some nodes =>
+      obtain ⟨b, complexRun⟩ := Rowl.KeyEncoding.complex_roles_runs items 0#usize
+      obtain ⟨r3, encRun, _⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} context good capacity capSmall items nodes
+        (!b)
+      cases r3 with
+      | none => exact ⟨none, by simp [nodesRun, keyRun, complexRun, encRun], by simp⟩
+      | some enc =>
+        obtain ⟨r4, prepRun, prepFacts⟩ := Rowl.ShiOntology.prepare_correct enc
+        cases r4 with
+        | none => exact ⟨none, by simp [nodesRun, keyRun, complexRun, encRun, prepRun], by simp⟩
+        | some sp =>
+          refine ⟨some (.Keyed context nodes sp room), by simp [nodesRun, keyRun, complexRun, encRun, prepRun],
+            fun p h => ?_⟩
+          cases h
+          exact ⟨good, ⟨capacity, _, enc, capSmall, fits, encRun, prepFacts sp rfl⟩, keyFacts nodes rfl, keyed⟩
+
+theorem key_prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : data_ontology.Context)
+    (good : Good context) (room : Usize) (keyed : Keyed items.val) :
+    ∃ res, key_ontology.prepare items context room = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
+  rw [key_ontology.prepare]
+  obtain ⟨c1, run1, good1⟩ := Rowl.KeyEncoding.keys_context_good context items 0#usize good
+  obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
+  obtain ⟨n, countRun, countIs⟩ := items_count_spec items 0#usize 0#usize (by simp)
+  obtain ⟨k, keysRun, keysIs⟩ := keys_count_spec items 0#usize n (by rw [countIs]; omega)
+  obtain ⟨capacity, capRun, capIs⟩ := add_count_spec k room
+  obtain ⟨l, lRun, lIs⟩ := limit_spec
+  by_cases small : capacity.val < l.val
+  · have capSmall : capacity.val < limit := by rw [lIs] at small; exact small
+    have fits : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) +
+        room.val ≤ capacity.val := by
+      simp only [zero_val, List.drop_zero, Nat.zero_add] at countIs keysIs
+      omega
+    obtain ⟨res, run, facts⟩ := key_prepare_with_correct items c2 good2 capacity room capSmall fits keyed
+    exact ⟨res, by simp [run1, run2, countRun, keysRun, capRun, lRun, small, run], facts⟩
+  · exact ⟨none, by simp [run1, run2, countRun, keysRun, capRun, lRun, small], by simp⟩
+
 theorem prepare_in_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : data_ontology.Context)
-    (good : Good context) :
-    ∃ res, data_ontology.prepare_in items context = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
+    (good : Good context) (room : Usize) :
+    ∃ res, data_ontology.prepare_in items context room = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
   rw [data_ontology.prepare_in]
   obtain ⟨k, keysRun, keysIff⟩ := Rowl.KeyEncoding.has_keys_correct items 0#usize
   cases k with
   | true =>
     obtain ⟨item, mem, key⟩ := keysIff.mp rfl
-    obtain ⟨res, run, facts⟩ := key_prepare_correct items context good ⟨item, by simpa using mem, key⟩
+    obtain ⟨res, run, facts⟩ := key_prepare_correct items context good room ⟨item, by simpa using mem, key⟩
     exact ⟨res, by simp [keysRun, run], facts⟩
   | false =>
   simp only [keysRun, bind_ok, Bool.false_eq_true, ↓reduceIte]
@@ -599,30 +896,40 @@ theorem prepare_in_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : dat
     | none => exact ⟨none, by simp [freeRun, run], by simp⟩
     | some sp => exact ⟨some (.Plain sp), by simp [freeRun, run], fun p h => by cases h; exact facts sp rfl⟩
   | false =>
-    obtain ⟨r1, run1, _⟩ := encode_meaning.{0,0,0,0} context good items
-    obtain ⟨r2, run2, facts2⟩ := items_individuals_spec (alloc.vec.Vec.new Individual) items 0#usize
-    cases r1 with
-    | none => exact ⟨none, by simp [freeRun, run1, run2], by simp⟩
-    | some enc =>
-      cases r2 with
-      | none => exact ⟨none, by simp [freeRun, run1, run2], by simp⟩
-      | some nodes =>
-        obtain ⟨r3, run3, facts3⟩ := Rowl.ShiOntology.prepare_correct enc
-        cases r3 with
-        | none => exact ⟨none, by simp [freeRun, run1, run2, run3], by simp⟩
-        | some sp =>
-          refine ⟨some (.Encoded context nodes sp), by simp [freeRun, run1, run2, run3], fun p h => ?_⟩
-          cases h
-          refine ⟨good, ⟨enc, run1, facts3 sp rfl⟩, ?_⟩
-          simpa [zero_val] using facts2 nodes rfl
+    obtain ⟨n, countRun, countIs⟩ := items_count_spec items 0#usize 0#usize (by simp)
+    obtain ⟨capacity, capRun, capIs⟩ := add_count_spec n room
+    obtain ⟨l, lRun, lIs⟩ := limit_spec
+    by_cases small : capacity.val < l.val
+    · have capSmall : capacity.val < Usize.max / 16 := by rw [lIs] at small; exact small
+      have fits : atomCount (itemAtoms items.val) + room.val ≤ capacity.val := by
+        simp only [zero_val, List.drop_zero, Nat.zero_add] at countIs
+        omega
+      obtain ⟨r1, run1, _⟩ := encode_meaning.{0,0,0,0} context good capacity capSmall items
+      obtain ⟨r2, run2, facts2⟩ := items_individuals_spec (alloc.vec.Vec.new Individual) items 0#usize
+      cases r1 with
+      | none => exact ⟨none, by simp [freeRun, countRun, capRun, lRun, small, run1, run2], by simp⟩
+      | some enc =>
+        cases r2 with
+        | none => exact ⟨none, by simp [freeRun, countRun, capRun, lRun, small, run1, run2], by simp⟩
+        | some nodes =>
+          obtain ⟨r3, run3, facts3⟩ := Rowl.ShiOntology.prepare_correct enc
+          cases r3 with
+          | none => exact ⟨none, by simp [freeRun, countRun, capRun, lRun, small, run1, run2, run3], by simp⟩
+          | some sp =>
+            refine ⟨some (.Encoded context nodes sp room), by
+              simp [freeRun, countRun, capRun, lRun, small, run1, run2, run3], fun p h => ?_⟩
+            cases h
+            refine ⟨good, ⟨capacity, enc, by rw [← lIs]; exact small, fits, run1, facts3 sp rfl⟩, ?_⟩
+            simpa [zero_val] using facts2 nodes rfl
+    · exact ⟨none, by simp [freeRun, countRun, capRun, lRun, small], by simp⟩
 
 /-- Preparing a closure for the queries terminates, and what it prepares keeps
     its closure. -/
 theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.prepare items = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
-  obtain ⟨c2, run2, good2⟩ := with_truths_good c1 good1
-  obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2
+  obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
+  obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2 data_ontology.QUESTION_ROOM
   exact ⟨res, by simp [data_ontology.prepare, run1, run2, run], facts⟩
 
 /-! ### Interpretations with other anonymous individuals -/
@@ -638,8 +945,8 @@ theorem interpretation_anonymous {Native : Type w} {D : DatatypeMap Native} {emb
     (g : AnonymousIndividual → Object) : IsInterpretation D embed V (withAnonymous I g) := interp
 
 theorem lifted_anonymous (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (x0 : Object) (g : AnonymousIndividual → Object) :
-    withAnonymous (lifted context I lit x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit x0 := rfl
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object) (g : AnonymousIndividual → Object) :
+    withAnonymous (lifted context I lit num x0) (Sum.inl ∘ g) = lifted context (withAnonymous I g) lit num x0 := rfl
 
 theorem class_denote_named (J : Interpretation Object Value) (c : Class) (y : Object) :
     classDenote J (.Class c) y ↔ J.classes c y := by
@@ -667,8 +974,8 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     obtain ⟨result, run, facts⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} items sp data
     exact ⟨result, by simpa [data_ontology.prepared_consistent] using run,
       fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
-  | Keyed context nodes sp =>
-    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+  | Keyed context nodes sp room =>
+    obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨result, run, encodedSound⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} enc sp prepData
     obtain ⟨result', run', encodedComplete⟩ :=
       Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
@@ -678,13 +985,15 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       ⟨fun yes => ?_, fun model => ?_⟩⟩
     · obtain ⟨Object', Value', embed', J, modelJ⟩ := (encodedSound answer h D V vocab).mp yes
       obtain ⟨Object, Value, embed, I, _, modelI, _⟩ :=
-        keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact modelJ [] (by simp)
+        keyed_encoded_model.{u,v,w} N vocab good capSmall encRun nodesExact modelJ [] (by simp)
+          (by simp only [List.flatMap_nil, atomCount_nil]; omega)
       exact ⟨Object, Value, embed, I, modelI⟩
     · obtain ⟨Object, Value, embed, I, modelI⟩ := model
-      obtain ⟨J, modelJ, _⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names keyed modelI [] (by simp)
+      obtain ⟨J, modelJ, _⟩ := keyed_lifted_model.{u,v,w} N vocab good capSmall encRun nodesExact names keyed modelI []
+        (by simp)
       exact (encodedComplete answer h D V vocab).mpr ⟨Object ⊕ Value, Value, embed, J, modelJ⟩
-  | Encoded context nodes sp =>
-    obtain ⟨good, ⟨enc, encRun, prepData⟩, _⟩ := data
+  | Encoded context nodes sp room =>
+    obtain ⟨good, ⟨capacity, enc, capSmall, count, encRun, prepData⟩, _⟩ := data
     obtain ⟨result, run, encodedSound⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} enc sp prepData
     obtain ⟨result', run', encodedComplete⟩ :=
       Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
@@ -693,33 +1002,35 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab _ =>
       ⟨fun yes => ?_, fun model => ?_⟩⟩
     · obtain ⟨Object', Value', embed', J, ⟨_, jInterp, g, jSat⟩⟩ := (encodedSound answer h D V vocab).mp yes
-      obtain ⟨bits, o, frame, enough, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good encRun
-        (J := withAnonymous J g) jInterp.1 jInterp.2.2.1 jSat
-      let I := sound.{u,v,w,max w v} context (withAnonymous J g) N (itemAtoms items.val) o
+      obtain ⟨bits, order, o, _, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good capSmall encRun
+        (J := withAnonymous J g) jInterp.1 jInterp.2.2.1 jInterp.2.2.2.1 jSat
+      let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order (itemAtoms items.val) o
       refine ⟨Element (withAnonymous J g), Values.{v,w} Native,
         ValueEmbedding.ofEmbedding D ⟨embedValue, embedValue_injective⟩, I,
-        vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N)
+        vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N) (order := order)
           (atoms := itemAtoms items.val) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o,
         I.anonymousIndividuals, ?_⟩
       rw [withAnonymous_self]
-      exact sat _ (fun _ h => h)
+      exact sat _ (fun _ h => h) (by omega)
     · obtain ⟨Object, Value, embed, I, ⟨_, interp, g, sat⟩⟩ := model
       obtain ⟨x0⟩ := I.objectsNonempty
-      have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good items enc encRun sat
+      have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc
+        encRun sat
       apply (encodedComplete answer h D V vocab).mpr
-      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) x0, vocab,
+      exact ⟨Object ⊕ Value, Value, embed, lifted context I (litOf N embed) (numOf N embed) x0, vocab,
         lifted_interpretation N x0 interp, Sum.inl ∘ g, by rw [lifted_anonymous]; exact sat'⟩
 
 /-- The individuals of a question that a prepared closure names are named
     individuals of the closure, which are not the encoding's. -/
-theorem known_plain {context : data_ontology.Context} (good : Good context) {items enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : data_ontology.encode context items = .ok (some enc)) {nodes : alloc.vec.Vec Individual}
+theorem known_plain {context : data_ontology.Context} (good : Good context) {capacity : Usize}
+    (capSmall : capacity.val < limit) {items enc : alloc.vec.Vec AnnotatedAxiom}
+    (encRun : data_ontology.encode context capacity items = .ok (some enc)) {nodes : alloc.vec.Vec Individual}
     (nodesAdd : Adds (alloc.vec.Vec.new Individual) nodes (itemIndividuals items.val)) {a : Individual}
     (known : KnownTo nodes a) : Plain a := by
-  obtain ⟨res, run, facts⟩ := encode_meaning.{0,0,0,0} context good items
+  obtain ⟨res, run, facts⟩ := encode_meaning.{0,0,0,0} context good capacity capSmall items
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨new, _, means, _⟩ := facts enc rfl
+  obtain ⟨_, _, new, _, _, means, _⟩ := facts enc rfl
   rcases nodesAdd a known.2 with absurdity | inside
   · simp [new_val] at absurdity
   · obtain ⟨item, mem, inAxiom⟩ := List.mem_flatMap.mp inside
@@ -731,11 +1042,12 @@ theorem known_plain {context : data_ontology.Context} (good : Good context) {ite
     encoding does. -/
 theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Type w} {D : DatatypeMap Native}
     (N : Normative D) {V : Vocabulary} (vocab : IsVocabulary D V) {context : data_ontology.Context}
-    (good : Good context) {items enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : data_ontology.encode context items = .ok (some enc)) {nodes : alloc.vec.Vec Individual}
+    (good : Good context) {capacity : Usize} (capSmall : capacity.val < limit) {items enc : alloc.vec.Vec AnnotatedAxiom}
+    (encRun : data_ontology.encode context capacity items = .ok (some enc)) {nodes : alloc.vec.Vec Individual}
     (nodesAdd : Adds (alloc.vec.Vec.new Individual) nodes (itemIndividuals items.val))
     {embed' : ValueEmbedding D Value'} {J : Interpretation Object' Value'} (model : Model D embed' V J enc.val)
-    (questions : List ClassExpression) (known : ∀ e ∈ questions, ∀ a ∈ classIndividuals e, KnownTo nodes a) :
+    (questions : List ClassExpression) (known : ∀ e ∈ questions, ∀ a ∈ classIndividuals e, KnownTo nodes a)
+    (count : atomCount (itemAtoms items.val) + atomCount (questions.flatMap classAtoms) ≤ capacity.val) :
     ∃ (Object : Type u) (Value : Type (max w v)) (embed : ValueEmbedding D Value) (I : Interpretation Object Value)
       (point : Object → Object'), Model D embed V I items.val ∧
       (∀ y, ¬ J.classes dataClass y → ∃ z, point z = y) ∧
@@ -744,14 +1056,17 @@ theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Typ
       ∀ e ∈ questions, ∀ e', data_ontology.encode_class context e = .ok (some e') →
         ∀ z, classDenote I e z ↔ classDenote J e' (point z) := by
   obtain ⟨_, jInterp, g, jSat⟩ := model
-  obtain ⟨bits, o, frame, enough, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good encRun
-    (J := withAnonymous J g) jInterp.1 jInterp.2.2.1 jSat
+  obtain ⟨bits, order, o, setting, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good capSmall encRun
+    (J := withAnonymous J g) jInterp.1 jInterp.2.2.1 jInterp.2.2.2.1 jSat
   let atoms := itemAtoms items.val ++ questions.flatMap classAtoms
-  let I := sound.{u,v,w,max w v} context (withAnonymous J g) N atoms o
+  have atomsCount : atomCount atoms ≤ capacity.val := by
+    simp only [atoms, atomCount_append]
+    exact count
+  let I := sound.{u,v,w,max w v} context (withAnonymous J g) N order atoms o
   have sim0 : Simulates context I (withAnonymous J g) Subtype.val (Known (withAnonymous J g)) atoms :=
-    sound_simulates.{u,v,w,max w v} good frame enough jInterp.1 jInterp.2.2.1 o
+    sound_simulates.{u,v,w,max w v} setting atomsCount o
   have simQ : Simulates context I J Subtype.val (fun a => ∃ e ∈ questions, a ∈ classIndividuals e) atoms := by
-    refine simulates_anonymous N good g frame enough jInterp.1 o sim0 (fun a ⟨e, mem, inside⟩ => ?_)
+    refine simulates_anonymous N g setting o sim0 (fun a ⟨e, mem, inside⟩ => ?_)
     have knownA := known e mem a inside
     obtain ⟨n, rfl⟩ := knownA.1
     rcases nodesAdd _ knownA.2 with absurdity | inItems
@@ -760,11 +1075,11 @@ theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Typ
       exact sim0.individuals _ (names item itemMem _ inAxiom)
   refine ⟨Element (withAnonymous J g), Values.{v,w} Native,
     ValueEmbedding.ofEmbedding D ⟨embedValue, embedValue_injective⟩, I, Subtype.val,
-    ⟨vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N) (atoms := atoms) V
-      jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o, I.anonymousIndividuals, ?_⟩,
+    ⟨vocab, sound_interpretation (context := context) (J := withAnonymous J g) (N := N) (order := order)
+      (atoms := atoms) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o, I.anonymousIndividuals, ?_⟩,
     fun y outside => ⟨⟨y, outside⟩, rfl⟩, fun a outside => ?_, fun e mem e' run z => ?_⟩
   · rw [withAnonymous_self]
-    exact sat atoms (fun _ h => List.mem_append_left _ h)
+    exact sat atoms (fun _ h => List.mem_append_left _ h) atomsCount
   · have outside' : ¬ (withAnonymous J g).classes dataClass ((withAnonymous J g).namedIndividuals a) := outside
     simp only [I, sound, dif_pos outside']
     rfl
@@ -780,8 +1095,8 @@ theorem encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Typ
     those elements. -/
 theorem lifted_model {Object : Type u} {Value : Type (max w v)} {Native : Type w} {D : DatatypeMap Native}
     (N : Normative D) {V : Vocabulary} (vocab : IsVocabulary D V) {context : data_ontology.Context}
-    (good : Good context) {items enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : data_ontology.encode context items = .ok (some enc)) {embed : ValueEmbedding D Value}
+    (good : Good context) {capacity : Usize} (capSmall : capacity.val < limit) {items enc : alloc.vec.Vec AnnotatedAxiom}
+    (encRun : data_ontology.encode context capacity items = .ok (some enc)) {embed : ValueEmbedding D Value}
     {I : Interpretation Object Value} (model : Model D embed V I items.val) (questions : List ClassExpression)
     (plain : ∀ e ∈ questions, ∀ a ∈ classIndividuals e, Plain a) :
     ∃ J : Interpretation (Object ⊕ Value) Value, Model D embed V J enc.val ∧
@@ -791,8 +1106,10 @@ theorem lifted_model {Object : Type u} {Value : Type (max w v)} {Native : Type w
         ∀ z, classDenote I e z ↔ classDenote J e' (.inl z) := by
   obtain ⟨_, interp, g, sat⟩ := model
   obtain ⟨x0⟩ := I.objectsNonempty
-  have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good items enc encRun sat
-  refine ⟨lifted context I (litOf N embed) x0, ⟨vocab, lifted_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
+  have sat' := lifted_satisfies N x0 vocab (interpretation_anonymous interp g) good capacity capSmall items enc encRun
+    sat
+  refine ⟨lifted context I (litOf N embed) (numOf N embed) x0,
+    ⟨vocab, lifted_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
     fun z => lifted_element N x0 z, fun a plainA => lifted_plain_name plainA,
     fun e mem e' run z => lifted_class N x0 vocab interp good run (plain e mem) z⟩
   rw [lifted_anonymous]
@@ -812,15 +1129,24 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_class_satisfiable_correct.{u,v,w} items sp data e
     exact ⟨result, by simpa [data_ontology.prepared_class_satisfiable] using run,
       fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
-  | Keyed context nodes sp =>
-    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+  | Keyed context nodes sp room =>
+    obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
     cases b with
     | false => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun], by simp⟩
     | true =>
+      obtain ⟨n, countRun, countIs⟩ := class_count_spec e 0#usize (by simp)
+      by_cases over : room.val < n.val
+      · exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over], by simp⟩
+      have fits : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) +
+          atomCount ([e].flatMap classAtoms) ≤ capacity.val := by
+        simp only [zero_val, Nat.zero_add] at countIs
+        simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil]
+        omega
       obtain ⟨res, classRun⟩ := encode_class_runs context e
       cases res with
-      | none => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun], by simp⟩
+      | none =>
+        exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun], by simp⟩
       | some e' =>
         let query : ClassExpression :=
           .ObjectIntersectionOf ⟨e', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
@@ -835,30 +1161,39 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           simp only [List.mem_singleton] at mem
           subst mem
           exact knownFacts rfl
-        refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun, object_class_eq,
-          data_ontology.and, run, query], fun answer h Native D N V vocab names => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+        refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun,
+          object_class_eq, data_ontology.and, run, query],
+          fun answer h Native D N V vocab names => ⟨fun yes => ?_, fun holds => ?_⟩⟩
         · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
           rw [and_denote, object_class_denote] at inQuery
           obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
-            keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [e] known
+            keyed_encoded_model.{u,v,w} N vocab good capSmall encRun nodesExact model [e] known fits
           obtain ⟨z, rfl⟩ := onto y inQuery.2
           exact ⟨Object, Value, embed, I, modelI, z, (transfer e (by simp) e' classRun z).mpr inQuery.1⟩
         · obtain ⟨Object, Value, embed, I, model, x, inE⟩ := holds
-          obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
-            keyed model [e] (fun c mem a inside => keyed_plain good encRun (known c mem a inside).2)
+          obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good capSmall encRun
+            nodesExact names keyed model [e] (fun c mem a inside => keyed_plain good capSmall encRun (known c mem a inside).2)
           apply (encodedComplete answer h D V vocab).mpr
           refine ⟨Object ⊕ Value, Value, embed, J, modelJ, .inl x, ?_⟩
           rw [and_denote, object_class_denote]
           exact ⟨(transfer e (by simp) e' classRun x).mp inE, elements x⟩
-  | Encoded context nodes sp =>
-    obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
+  | Encoded context nodes sp room =>
+    obtain ⟨good, ⟨capacity, enc, capSmall, count, encRun, prepData⟩, nodesAdd⟩ := data
     obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
     cases b with
     | false => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun], by simp⟩
     | true =>
+      obtain ⟨n, countRun, countIs⟩ := class_count_spec e 0#usize (by simp)
+      by_cases over : room.val < n.val
+      · exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over], by simp⟩
+      have fits : atomCount (itemAtoms items.val) + atomCount ([e].flatMap classAtoms) ≤ capacity.val := by
+        simp only [zero_val, Nat.zero_add] at countIs
+        simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil]
+        omega
       obtain ⟨res, classRun⟩ := encode_class_runs context e
       cases res with
-      | none => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun], by simp⟩
+      | none =>
+        exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun], by simp⟩
       | some e' =>
         let query : ClassExpression :=
           .ObjectIntersectionOf ⟨e', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
@@ -873,17 +1208,18 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           simp only [List.mem_singleton] at mem
           subst mem
           exact knownFacts rfl
-        refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun, object_class_eq,
-          data_ontology.and, run, query], fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+        refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun,
+          object_class_eq, data_ontology.and, run, query],
+          fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
         · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
           rw [and_denote, object_class_denote] at inQuery
           obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
-            encoded_model.{u,v,w} N vocab good encRun nodesAdd model [e] known
+            encoded_model.{u,v,w} N vocab good capSmall encRun nodesAdd model [e] known fits
           obtain ⟨z, rfl⟩ := onto y inQuery.2
           exact ⟨Object, Value, embed, I, modelI, z, (transfer e (by simp) e' classRun z).mpr inQuery.1⟩
         · obtain ⟨Object, Value, embed, I, model, x, inE⟩ := holds
-          obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good encRun model [e]
-            (fun c mem a inside => known_plain good encRun nodesAdd (known c mem a inside))
+          obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good capSmall encRun model [e]
+            (fun c mem a inside => known_plain good capSmall encRun nodesAdd (known c mem a inside))
           apply (encodedComplete answer h D V vocab).mpr
           refine ⟨Object ⊕ Value, Value, embed, J, modelJ, .inl x, ?_⟩
           rw [and_denote, object_class_denote]
@@ -902,8 +1238,8 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_subsumed_correct.{u,v,w} items sp data sub sup
     exact ⟨result, by simpa [data_ontology.prepared_subsumed] using run,
       fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
-  | Keyed context nodes sp =>
-    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+  | Keyed context nodes sp room =>
+    obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨b1, knownRun1, knownFacts1⟩ := class_known_spec nodes sub
     obtain ⟨b2, knownRun2, knownFacts2⟩ := class_known_spec nodes sup
     cases b1 with
@@ -912,15 +1248,27 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
     cases b2 with
     | false => exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2], by simp⟩
     | true =>
+    obtain ⟨n1, countRun1, countIs1⟩ := class_count_spec sub 0#usize (by simp)
+    obtain ⟨n2, countRun2, countIs2⟩ := class_count_spec sup n1 (by rw [countIs1]; omega)
+    by_cases over : room.val < n2.val
+    · exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over],
+        by simp⟩
+    have fits : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) +
+        atomCount ([sub, sup].flatMap classAtoms) ≤ capacity.val := by
+      simp only [zero_val, Nat.zero_add] at countIs1
+      simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil, atomCount_append]
+      omega
     obtain ⟨r1, classRun1⟩ := encode_class_runs context sub
     obtain ⟨r2, classRun2⟩ := encode_class_runs context sup
     cases r1 with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+        classRun1, classRun2], by simp⟩
     | some sub' =>
     cases r2 with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+        classRun1, classRun2], by simp⟩
     | some sup' =>
     let query : ClassExpression :=
       .ObjectIntersectionOf ⟨sub', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
@@ -936,13 +1284,13 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       rcases mem with rfl | rfl
       · exact knownFacts1 rfl
       · exact knownFacts2 rfl
-    refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2,
-      object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab names =>
+    refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+      classRun1, classRun2, object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab names =>
         ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model x inSub
-      obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
-        keyed model [sub, sup] (fun c mem a inside => keyed_plain good encRun (known c mem a inside).2)
+      obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good capSmall encRun nodesExact
+        names keyed model [sub, sup] (fun c mem a inside => keyed_plain good capSmall encRun (known c mem a inside).2)
       have inQuery : classDenote J query (.inl x) := by
         rw [and_denote, object_class_denote]
         exact ⟨(transfer sub (by simp) sub' classRun1 x).mp inSub, elements x⟩
@@ -951,12 +1299,12 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       intro Object' Value' embed' J model y inQuery
       rw [and_denote, object_class_denote] at inQuery
       obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
-        keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [sub, sup] known
+        keyed_encoded_model.{u,v,w} N vocab good capSmall encRun nodesExact model [sub, sup] known fits
       obtain ⟨z, rfl⟩ := onto y inQuery.2
       exact (transfer sup (by simp) sup' classRun2 z).mp
         (holds Object Value embed I modelI z ((transfer sub (by simp) sub' classRun1 z).mpr inQuery.1))
-  | Encoded context nodes sp =>
-    obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
+  | Encoded context nodes sp room =>
+    obtain ⟨good, ⟨capacity, enc, capSmall, count, encRun, prepData⟩, nodesAdd⟩ := data
     obtain ⟨b1, knownRun1, knownFacts1⟩ := class_known_spec nodes sub
     obtain ⟨b2, knownRun2, knownFacts2⟩ := class_known_spec nodes sup
     cases b1 with
@@ -965,15 +1313,26 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
     cases b2 with
     | false => exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2], by simp⟩
     | true =>
+    obtain ⟨n1, countRun1, countIs1⟩ := class_count_spec sub 0#usize (by simp)
+    obtain ⟨n2, countRun2, countIs2⟩ := class_count_spec sup n1 (by rw [countIs1]; omega)
+    by_cases over : room.val < n2.val
+    · exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over],
+        by simp⟩
+    have fits : atomCount (itemAtoms items.val) + atomCount ([sub, sup].flatMap classAtoms) ≤ capacity.val := by
+      simp only [zero_val, Nat.zero_add] at countIs1
+      simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil, atomCount_append]
+      omega
     obtain ⟨r1, classRun1⟩ := encode_class_runs context sub
     obtain ⟨r2, classRun2⟩ := encode_class_runs context sup
     cases r1 with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+        classRun1, classRun2], by simp⟩
     | some sub' =>
     cases r2 with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+        classRun1, classRun2], by simp⟩
     | some sup' =>
     let query : ClassExpression :=
       .ObjectIntersectionOf ⟨sub', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
@@ -989,13 +1348,13 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       rcases mem with rfl | rfl
       · exact knownFacts1 rfl
       · exact knownFacts2 rfl
-    refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2,
-      object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab _ =>
-        ⟨fun yes => ?_, fun holds => ?_⟩⟩
+    refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
+      classRun1, classRun2, object_class_eq, data_ontology.and, run, query],
+      fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model x inSub
-      obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good encRun model [sub, sup]
-        (fun c mem a inside => known_plain good encRun nodesAdd (known c mem a inside))
+      obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good capSmall encRun model [sub, sup]
+        (fun c mem a inside => known_plain good capSmall encRun nodesAdd (known c mem a inside))
       have inQuery : classDenote J query (.inl x) := by
         rw [and_denote, object_class_denote]
         exact ⟨(transfer sub (by simp) sub' classRun1 x).mp inSub, elements x⟩
@@ -1004,7 +1363,7 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       intro Object' Value' embed' J model y inQuery
       rw [and_denote, object_class_denote] at inQuery
       obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
-        encoded_model.{u,v,w} N vocab good encRun nodesAdd model [sub, sup] known
+        encoded_model.{u,v,w} N vocab good capSmall encRun nodesAdd model [sub, sup] known fits
       obtain ⟨z, rfl⟩ := onto y inQuery.2
       exact (transfer sup (by simp) sup' classRun2 z).mp
         (holds Object Value embed I modelI z ((transfer sub (by simp) sub' classRun1 z).mpr inQuery.1))
@@ -1023,8 +1382,8 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_instance_of_correct.{u,v,w} items sp data a e
     exact ⟨result, by simpa [data_ontology.prepared_instance_of] using run,
       fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
-  | Keyed context nodes sp =>
-    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+  | Keyed context nodes sp room =>
+    obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨k, namedRun, namedFacts⟩ := named_known_spec nodes a
     cases k with
     | false => exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun], by simp⟩
@@ -1035,10 +1394,18 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
     | false =>
       exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun], by simp⟩
     | true =>
+    obtain ⟨n, countRun, countIs⟩ := class_count_spec e 0#usize (by simp)
+    by_cases over : room.val < n.val
+    · exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun, countRun, over], by simp⟩
+    have fits : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) +
+        atomCount ([e].flatMap classAtoms) ≤ capacity.val := by
+      simp only [zero_val, Nat.zero_add] at countIs
+      simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil]
+      omega
     obtain ⟨res, classRun⟩ := encode_class_runs context e
     cases res with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun, classRun], by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun, countRun, over, classRun], by simp⟩
     | some e' =>
     let query : ClassExpression := .ObjectUnionOf ⟨e', .Class dataClass, alloc.vec.Vec.new ClassExpression⟩
     obtain ⟨result, run, _, encodedSound⟩ :=
@@ -1052,13 +1419,13 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       simp only [List.mem_singleton] at mem
       subst mem
       exact knownFacts rfl
-    refine ⟨result', by simp [data_ontology.prepared_instance_of, namedRun, knownRun, classRun,
+    refine ⟨result', by simp [data_ontology.prepared_instance_of, namedRun, knownRun, countRun, over, classRun,
       data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab names =>
         ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model
-      obtain ⟨J, modelJ, elements, namesJ, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
-        keyed model [e] (fun c mem b inside => keyed_plain good encRun (known c mem b inside).2)
+      obtain ⟨J, modelJ, elements, namesJ, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good capSmall encRun
+        nodesExact names keyed model [e] (fun c mem b inside => keyed_plain good capSmall encRun (known c mem b inside).2)
       have holdsJ := encodedInstance _ _ _ J modelJ
       rw [or_denote, namesJ a plainA] at holdsJ
       rcases holdsJ with inE | isData
@@ -1070,12 +1437,12 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       by_cases isData : J.classes dataClass (J.namedIndividuals a)
       · exact .inr ((class_denote_named J _ _).mpr isData)
       · obtain ⟨Object, Value, embed, I, point, modelI, _, names', transfer⟩ :=
-          keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [e] known
+          keyed_encoded_model.{u,v,w} N vocab good capSmall encRun nodesExact model [e] known fits
         left
         rw [← (names' a aIn).2]
         exact (transfer e (by simp) e' classRun _).mp (holds Object Value embed I modelI)
-  | Encoded context nodes sp =>
-    obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
+  | Encoded context nodes sp room =>
+    obtain ⟨good, ⟨capacity, enc, capSmall, count, encRun, prepData⟩, nodesAdd⟩ := data
     by_cases reserved : Reserved a.iri.spelling.val
     · exact ⟨none, by simp [data_ontology.prepared_instance_of, reserved_correct, reserved], by simp⟩
     obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
@@ -1083,11 +1450,19 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
     | false =>
       exact ⟨none, by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun], by simp⟩
     | true =>
+    obtain ⟨n, countRun, countIs⟩ := class_count_spec e 0#usize (by simp)
+    by_cases over : room.val < n.val
+    · exact ⟨none, by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, countRun, over],
+        by simp⟩
+    have fits : atomCount (itemAtoms items.val) + atomCount ([e].flatMap classAtoms) ≤ capacity.val := by
+      simp only [zero_val, Nat.zero_add] at countIs
+      simp only [List.flatMap_cons, List.flatMap_nil, List.append_nil]
+      omega
     obtain ⟨res, classRun⟩ := encode_class_runs context e
     cases res with
     | none =>
-      exact ⟨none, by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, classRun],
-        by simp⟩
+      exact ⟨none, by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, countRun, over,
+        classRun], by simp⟩
     | some e' =>
     let query : ClassExpression := .ObjectUnionOf ⟨e', .Class dataClass, alloc.vec.Vec.new ClassExpression⟩
     obtain ⟨result, run, _, encodedSound⟩ :=
@@ -1101,13 +1476,13 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       simp only [List.mem_singleton] at mem
       subst mem
       exact knownFacts rfl
-    refine ⟨result', by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, classRun,
-      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab _ =>
-        ⟨fun yes => ?_, fun holds => ?_⟩⟩
+    refine ⟨result', by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, countRun,
+      over, classRun, data_class_eq, data_ontology.or, run, query],
+      fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model
-      obtain ⟨J, modelJ, elements, names, transfer⟩ := lifted_model.{u,v,w} N vocab good encRun model [e]
-        (fun c mem b inside => known_plain good encRun nodesAdd (known c mem b inside))
+      obtain ⟨J, modelJ, elements, names, transfer⟩ := lifted_model.{u,v,w} N vocab good capSmall encRun model [e]
+        (fun c mem b inside => known_plain good capSmall encRun nodesAdd (known c mem b inside))
       have holdsJ := encodedInstance _ _ _ J modelJ
       rw [or_denote, names a reserved] at holdsJ
       rcases holdsJ with inE | isData
@@ -1119,7 +1494,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       by_cases isData : J.classes dataClass (J.namedIndividuals a)
       · exact .inr ((class_denote_named J _ _).mpr isData)
       · obtain ⟨Object, Value, embed, I, point, modelI, _, names, transfer⟩ :=
-          encoded_model.{u,v,w} N vocab good encRun nodesAdd model [e] known
+          encoded_model.{u,v,w} N vocab good capSmall encRun nodesAdd model [e] known fits
         left
         rw [← names a isData]
         exact (transfer e (by simp) e' classRun _).mp (holds Object Value embed I modelI)
@@ -1129,12 +1504,14 @@ theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ result, data_ontology.consistent items = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
         NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
-  obtain ⟨res, run, facts⟩ := prepare_correct items
+  obtain ⟨c1, run1, good1⟩ := closure_context_good items
+  obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
+  obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2 0#usize
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.consistent, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.consistent, run1, run2, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_consistent_correct.{u,v,w} items p (facts p rfl)
-    exact ⟨result, by simp [data_ontology.consistent, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.consistent, run1, run2, run, run'], facts'⟩
 
 /-- Class satisfiability with respect to a closure. -/
 theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
@@ -1143,13 +1520,14 @@ theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : Cl
         NamesKeyed V items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
-  obtain ⟨c3, run3, good3⟩ := with_truths_good c2 good2
-  obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3
+  obtain ⟨c3, run3, good3⟩ := finished_good c2 good2
+  obtain ⟨n, countRun, _⟩ := class_count_spec e 0#usize (by simp)
+  obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3 n
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.class_satisfiable, run1, run2, run3, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.class_satisfiable, run1, run2, run3, countRun, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_class_satisfiable_correct.{u,v,w} items p (facts p rfl) e
-    exact ⟨result, by simp [data_ontology.class_satisfiable, run1, run2, run3, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.class_satisfiable, run1, run2, run3, countRun, run, run'], facts'⟩
 
 /-- Subsumption with respect to a closure. -/
 theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
@@ -1159,13 +1537,17 @@ theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : Class
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good sub c1 good1
   obtain ⟨c3, run3, good3⟩ := class_context_good sup c2 good2
-  obtain ⟨c4, run4, good4⟩ := with_truths_good c3 good3
-  obtain ⟨res, run, facts⟩ := prepare_in_correct items c4 good4
+  obtain ⟨c4, run4, good4⟩ := finished_good c3 good3
+  obtain ⟨n1, countRun1, countIs1⟩ := class_count_spec sub 0#usize (by simp)
+  obtain ⟨n2, countRun2, _⟩ := class_count_spec sup n1 (by rw [countIs1]; omega)
+  obtain ⟨res, run, facts⟩ := prepare_in_correct items c4 good4 n2
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.subsumed, run1, run2, run3, run4, run], by simp⟩
+  | none =>
+    exact ⟨none, by simp [data_ontology.subsumed, run1, run2, run3, run4, countRun1, countRun2, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_subsumed_correct.{u,v,w} items p (facts p rfl) sub sup
-    exact ⟨result, by simp [data_ontology.subsumed, run1, run2, run3, run4, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.subsumed, run1, run2, run3, run4, countRun1, countRun2, run, run'],
+      facts'⟩
 
 /-- Instance checking with respect to a closure. -/
 theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
@@ -1174,12 +1556,13 @@ theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedInd
         NamesKeyed V items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
-  obtain ⟨c3, run3, good3⟩ := with_truths_good c2 good2
-  obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3
+  obtain ⟨c3, run3, good3⟩ := finished_good c2 good2
+  obtain ⟨n, countRun, _⟩ := class_count_spec e 0#usize (by simp)
+  obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3 n
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.instance_of, run1, run2, run3, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.instance_of, run1, run2, run3, countRun, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_instance_of_correct.{u,v,w} items p (facts p rfl) a e
-    exact ⟨result, by simp [data_ontology.instance_of, run1, run2, run3, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.instance_of, run1, run2, run3, countRun, run, run'], facts'⟩
 
 end Rowl.DataOntology

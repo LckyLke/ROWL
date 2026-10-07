@@ -605,18 +605,20 @@ fn unkeyed(
         Some(out)
     }
 }
-/// The encoding of a closure with keys in the context: the encoding's own
-/// axioms (the data encoding of no axioms), the encodings of the axioms other
-/// than keys, `N ⊑ ¬D`, every named individual of `nodes` in `N`, and the
-/// axioms of the keys, counted where `counting` allows.
+/// The encoding of a closure with keys in the context for a capacity that
+/// bounds the counts of its data restrictions and its questions': the
+/// encoding's own axioms (the data encoding of no axioms), the encodings of the
+/// axioms other than keys, `N ⊑ ¬D`, every named individual of `nodes` in `N`,
+/// and the axioms of the keys, counted where `counting` allows.
 pub fn encode(
     context: &Context,
+    capacity: usize,
     items: &Vec<AnnotatedAxiom>,
     nodes: &Vec<Individual>,
     counting: bool,
 ) -> Option<Vec<AnnotatedAxiom>> {
     let empty: Vec<AnnotatedAxiom> = Vec::new();
-    let out = match data_ontology::encode(context, &empty) {
+    let out = match data_ontology::encode(context, capacity, &empty) {
         Some(out) => out,
         None => return None,
     };
@@ -641,12 +643,33 @@ pub fn encode(
     };
     keys_from(context, items, nodes, 0, counting, out)
 }
-/// A closure with keys prepared in the context: the context with the keys'
-/// class expressions and properties, the individuals the closure names, its
-/// keys' class expressions included, and its encoding prepared for the SROIQ
-/// queries.
-pub fn prepare(items: &Vec<AnnotatedAxiom>, context: Context) -> Option<Prepared> {
-    let context = data_ontology::with_truths(keys_context(context, items, 0));
+/// `total` plus the counts of the data restrictions of the axiom's class
+/// expression if it is a key.
+fn key_count(axiom: &Axiom, total: usize) -> usize {
+    match axiom {
+        Axiom::HasKey(class, _, _) => data_ontology::class_count(class, total),
+        _ => total,
+    }
+}
+/// `total` plus the counts of the data restrictions of the class expressions of
+/// the keys of `items[index..]`.
+fn keys_count(items: &Vec<AnnotatedAxiom>, index: usize, total: usize) -> usize {
+    if index < items.len() {
+        keys_count(items, index + 1, key_count(&items[index].axiom, total))
+    } else {
+        total
+    }
+}
+/// The encoding of a closure with keys prepared: the individuals the closure
+/// names, its keys' class expressions included, and its encoding for a
+/// capacity with `room` for a question's data restrictions, prepared for the
+/// SROIQ queries.
+fn prepare_with(
+    items: &Vec<AnnotatedAxiom>,
+    context: Context,
+    capacity: usize,
+    room: usize,
+) -> Option<Prepared> {
     let nodes = match data_ontology::items_individuals(Vec::new(), items, 0) {
         Some(nodes) => nodes,
         None => return None,
@@ -655,11 +678,29 @@ pub fn prepare(items: &Vec<AnnotatedAxiom>, context: Context) -> Option<Prepared
         Some(nodes) => nodes,
         None => return None,
     };
-    match encode(&context, items, &nodes, !complex_roles(items, 0)) {
+    match encode(&context, capacity, items, &nodes, !complex_roles(items, 0)) {
         Some(encoded) => match shi_ontology::prepare(&encoded) {
-            Some(prepared) => Some(Prepared::Keyed(context, nodes, prepared)),
+            Some(prepared) => Some(Prepared::Keyed(context, nodes, prepared, room)),
             None => None,
         },
         None => None,
+    }
+}
+/// A closure with keys prepared in the context with `room` for the counts of a
+/// question's data restrictions: the context with the keys' class expressions
+/// and properties, finished again, the individuals the closure names, its
+/// keys' class expressions included, and its encoding prepared for the SROIQ
+/// queries; `None` when the counts of the data restrictions of the closure, its
+/// keys' class expressions included, and the room reach the cap.
+pub fn prepare(items: &Vec<AnnotatedAxiom>, context: Context, room: usize) -> Option<Prepared> {
+    let context = data_ontology::finished(keys_context(context, items, 0));
+    let capacity = data_ontology::add_count(
+        keys_count(items, 0, data_ontology::items_count(items, 0, 0)),
+        room,
+    );
+    if capacity < data_ontology::LIMIT {
+        prepare_with(items, context, capacity, room)
+    } else {
+        None
     }
 }

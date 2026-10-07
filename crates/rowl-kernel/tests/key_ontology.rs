@@ -327,3 +327,86 @@ fn declined_keys_get_no_answer() {
     assert!(has_keys(&data, 0));
     assert!(!has_keys(&data, 1));
 }
+
+const XSD_INTEGER: &[u8] = b"http://www.w3.org/2001/XMLSchema#integer";
+const XSD_MIN_INCLUSIVE: &[u8] = b"http://www.w3.org/2001/XMLSchema#minInclusive";
+
+fn integer(lexical: &[u8]) -> Literal {
+    Literal {
+        lexical: lexical.to_vec(),
+        datatype: Datatype {
+            iri: iri(XSD_INTEGER),
+        },
+    }
+}
+/// The class of the elements with a `p`-value of at least `low`.
+fn at_least(p: &[u8], low: &[u8]) -> ClassExpression {
+    ClassExpression::DataSomeValuesFrom(
+        DataProperty { iri: iri(p) },
+        DataRange::Restriction(
+            Datatype {
+                iri: iri(XSD_INTEGER),
+            },
+            NonEmpty {
+                first: FacetRestriction {
+                    facet: iri(XSD_MIN_INCLUSIVE),
+                    value: integer(low),
+                },
+                rest: Vec::new(),
+            },
+        ),
+    )
+}
+fn dose(a: &[u8], value: &[u8]) -> AnnotatedAxiom {
+    axiom(Axiom::DataPropertyAssertion(
+        DataProperty {
+            iri: iri(b"ex:dose"),
+        },
+        named(a),
+        integer(value),
+    ))
+}
+
+#[test]
+fn keys_on_classes_of_numeric_ranges() {
+    // High doses are identified by their prescription: two orders with doses of
+    // at least 500 that share a prescription are one order.
+    let high_orders = || {
+        vec![
+            key(
+                at_least(b"ex:dose", b"500"),
+                vec![property(b"ex:prescription")],
+            ),
+            dose(b"ex:order1", b"600"),
+            dose(b"ex:order2", b"700"),
+            related(b"ex:prescription", named(b"ex:order1"), named(b"ex:rx1")),
+            related(b"ex:prescription", named(b"ex:order2"), named(b"ex:rx1")),
+            asserted(class(b"ex:Checked"), named(b"ex:order1")),
+        ]
+    };
+    let orders = high_orders();
+    assert_eq!(consistent(&orders), Some(true));
+    assert_eq!(
+        instance_of(&orders, &individual(b"ex:order2"), &class(b"ex:Checked")),
+        Some(true)
+    );
+    let mut apart = high_orders();
+    apart.push(different(named(b"ex:order1"), named(b"ex:order2")));
+    assert_eq!(consistent(&apart), Some(false));
+    // A low dose is outside the key class, so the orders may differ.
+    let mut low = vec![
+        key(
+            at_least(b"ex:dose", b"500"),
+            vec![property(b"ex:prescription")],
+        ),
+        dose(b"ex:order1", b"600"),
+        dose(b"ex:order2", b"100"),
+        related(b"ex:prescription", named(b"ex:order1"), named(b"ex:rx1")),
+        related(b"ex:prescription", named(b"ex:order2"), named(b"ex:rx1")),
+    ];
+    low.push(axiom(Axiom::FunctionalDataProperty(DataProperty {
+        iri: iri(b"ex:dose"),
+    })));
+    low.push(different(named(b"ex:order1"), named(b"ex:order2")));
+    assert_eq!(consistent(&low), Some(true));
+}

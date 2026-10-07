@@ -722,9 +722,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   outside the supported fragment or a `usize` limit was reached. An answer is
   proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf of the
   read axioms for any valid vocabulary under every datatype map that is the OWL
-  2 map on the five datatypes, and a positive subsumption or instance answer
-  holds in every such model. Imports, datatype restrictions, datatype
-  definitions, keys, the other datatypes and performance remain pending.
+  2 map on the datatypes of `datatypes::literal_value`, and a positive
+  subsumption or instance answer holds in every such model. Imports, the other
+  facets, datatype definitions, keys with a data property, data ranges of the
+  other datatypes and performance remain pending.
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
   procedure abox_satisfiable decides whether some interpretation in which the
   TBox concept holds at every element has an element for every node that
@@ -1007,14 +1008,54 @@ progress. Full OWL parsing and executable reasoning are still future work.
   exactly for a literal of these datatypes in its lexical space; under every
   normative map that is the literal's value, equal values are equal kernel
   values (`1`, `+01` and `1.000` are one), and datatype membership is exact.
-  Facets and the other datatypes remain pending.
+- M5 numeric datatypes and range facets on single values: Normative also
+  specifies `owl:real` (the reals, no literals), `owl:rational` (the rationals,
+  lexical forms `numerator/denominator`), and the twelve subtypes of
+  `xsd:integer` with their XML Schema bounds, and the facets `xsd:minInclusive`,
+  `xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive` (facet spaces
+  and facet values from OWL 2 §4.1 and XML Schema 1.1); a model map over the
+  reals satisfies it. Numbers can denote reals: Normative has an injective
+  `real` embedding whose restriction to the rationals is the number embedding.
+  `literal_value` reads literals of all nineteen datatypes, `owl:rational` ones
+  into fractions in lowest terms, the kernel orders numbers exactly by
+  arithmetic on decimal digit strings (`numbers`, Rowl.Numbers) and evaluates
+  the four facets on a number exactly (`compare_values_correct`,
+  `facet_holds_correct`, `normative_facet`, `facet_applies_correct`).
+  OwlSemantics' DatatypeMap no longer has the field `facetInSpace`, which read
+  literally contradicts Table 4 for `owl:real` (see m3-m4-progress.md).
+- M5 numeric data ranges and range facets in the ontology queries: data ranges
+  of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
+  restrictions of every numeric datatype by the four range facets with numeric
+  bounds, are answered inside data restrictions, ranges, intersections, unions,
+  complements and enumerations. The bounds of facets and subtypes become cuts
+  of the real line that the kernel orders and counts exactly (`regions`,
+  Rowl.Regions); each cut gets a class, chained in order, each numeric literal
+  value's individual is in exactly the classes of the cuts that contain its
+  number, the two cuts of a number leave only its literal value's individual,
+  and between neighbouring cuts of different numbers the integers that are no
+  literal values are none or at most their number at any element along a role
+  `U` above every data property, when they are fewer than a capacity that
+  bounds the counts of the data restrictions of the closure and its questions
+  (`region_axioms_spec`, `class_count_spec`, `items_count_spec`). An OWL model
+  lifts to a model of the encoding (`lifted_regions`), and a model of the
+  encoding gives an OWL model whose data nodes take values from the region
+  between their cuts at their level (integers, decimals, rationals or
+  irrational numbers), without the numbers of the literal values: infinite, or
+  a bounded run of integers that holds an element's values by the axiom on the
+  run or by the capacity (`run_count`, `peers_bound`, `sound_satisfies`). The query theorems keep their statements;
+  `encode` now takes the capacity and a prepared closure leaves room for
+  questions that count 64 values. The other facets, facets on strings and data
+  ranges of the other datatypes get no answer. `examples/medication-dose.ofn`
+  checks paracetamol doses against daily maximums from its bytes.
 - M5 data properties and literals in the ontology queries: consistency, class
   satisfiability, subsumption and instance checking (`data_ontology`) take data
   properties with their domains, ranges, inclusions, equivalences,
   disjointness and functionality, data restrictions (existential, universal,
-  value and number restrictions) over ranges of the five datatypes,
+  value and number restrictions) over the datatypes of
+  `datatypes::literal_value` and their range restrictions (above),
   `rdfs:Literal`, literal enumerations and their intersections, unions and
-  complements, and positive and negative data property assertions. An encoding
+  complements, and positive and negative data property assertions, with
+  literals of every datatype of `datatypes::literal_value`. An encoding
   turns them into classes, object properties and named individuals that the
   SROIQ queries decide: the data values become data nodes of a class `D`, each
   data property an object property into them, each datatype in use a class
@@ -1022,17 +1063,18 @@ progress. Full OWL parsing and executable reasoning are still future work.
   two truth values, and each literal value a named data node that a pattern of
   bit classes keeps apart from the others. An OWL model lifts to a model of the
   encoding with its values as the data nodes, and a model of the encoding gives
-  an OWL model in which each element takes its values from infinite regions of
-  integers, decimals that are no integers, strings, tagged strings and values
+  an OWL model in which each element takes its values from regions of numbers
+  (see the numeric data ranges above), strings, tagged strings and values
   outside every datatype. Under every datatype map that is the OWL 2 map on the
-  five datatypes an answer is therefore the Direct Semantics answer. Datatype
-  restrictions, datatype definitions, keys with a data property, the other
-  datatypes, `owl:topDataProperty` outside an inclusion into it and the
-  universal role outside its own axioms get no answer, as does a question that
-  names an individual the closure does not name. Since the source reasoning
-  stage these answers also come straight from Functional Syntax bytes, which the
-  reader reads with all their data axioms, data restrictions and data
-  assertions.
+  datatypes of `literal_value` an answer is therefore the Direct Semantics
+  answer. Datatype restrictions other than the range facets on the numeric
+  datatypes, datatype definitions, keys with a data property, data ranges of the
+  other datatypes,
+  `owl:topDataProperty` outside an inclusion into it and the universal role
+  outside its own axioms get no answer, as does a question that names an
+  individual the closure does not name. Since the source reasoning stage these
+  answers also come straight from Functional Syntax bytes, which the reader
+  reads with all their data axioms, data restrictions and data assertions.
 - M5 keys with object properties in the ontology queries (`key_ontology`): a
   closure with `HasKey` axioms goes to `key_ontology::prepare`, which encodes
   the keys next to the data encoding of the other axioms. A fresh class `N` is
@@ -1052,9 +1094,11 @@ progress. Full OWL parsing and executable reasoning are still future work.
   an individual the closure names) and classification are proved to give the
   Direct Semantics answer for every vocabulary that names the individuals of a
   closure with keys (`NamesKeyed`, which asks nothing of a closure without
-  keys), also from source bytes. Keys apply neither to anonymous individuals
-  nor through unnamed values. Keys with a data property, no property or the
-  universal role get no answer.
+  keys), also from source bytes, together with the numeric data ranges and
+  range facets: the key encoding uses the data encoding with a capacity that
+  counts the data restrictions of the keys' class expressions too. Keys apply
+  neither to anonymous individuals nor through unnamed values. Keys with a data
+  property, no property or the universal role get no answer.
 - Classification of named classes: `classification::classify` answers, for a
   prepared closure and a list of named classes, whether each class is
   satisfiable and, for every pair, whether the first is subsumed by the second.
@@ -1146,7 +1190,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3316 audited public theorems and 1466 audited semantic definitions. Consistency,
+- 3713 audited public theorems and 1579 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1158,13 +1202,14 @@ progress. Full OWL parsing and executable reasoning are still future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  and data assertions over the five datatypes under the OWL 2 datatype map and
-  keys with object properties;
+  over nineteen datatypes, with the range facets on the numeric ones, and data
+  assertions with their literals under the OWL 2 datatype map, and keys with
+  object properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 598 Rust regression tests and 18 Python binding tests, plus separately fetched
+- 622 Rust regression tests and 18 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1181,7 +1226,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3509-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3906-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1240,10 +1285,11 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on five datatypes is specified
-(Rowl.DatatypeMap.Normative) and satisfiable, and the data queries are proved
-under every such map; the complete normative OWL map, its other datatypes and
-facets are unimplemented. Semantic
+external solver. Agreement with the OWL 2 map on nineteen datatypes and the
+four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
+and the data queries are proved under every such map; they do not use the
+facets yet, and the complete normative OWL map, its other datatypes and facets
+are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity and canonical structure; `import_closure` assembles the complete import
 closure. The structural,

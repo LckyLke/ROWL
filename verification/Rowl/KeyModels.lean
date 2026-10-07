@@ -26,6 +26,7 @@ open Rowl.DataAxioms
 open Rowl.DataStructure
 open Rowl.DataComplete
 open Rowl.DataSound
+open Rowl.DataRegions
 open Rowl.KeyEncoding
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
@@ -46,6 +47,11 @@ theorem kind_not_key (k : datatypes.Kind) : (kindClass k).iri.spelling.val ≠ k
   simp [kindClass_name, kindName, keyName]
 theorem bit_not_key (j : Usize) : (bitClass j).iri.spelling.val ≠ keyName := by
   simp [bitClass_name, bitName, keyName]
+theorem cut_not_key (i : Usize) : (cutClass i).iri.spelling.val ≠ keyName := by
+  simp [cutClass_name, cutName, keyName]
+theorem super_not_mark : dataSuper.iri.spelling.val ≠ markName := by simp [dataSuper_name, superName, markName]
+theorem super_not_share (r : ObjectPropertyExpression) : dataSuper.iri.spelling.val ≠ shareName r := by
+  cases r <;> simp [dataSuper_name, superName, shareName]
 theorem thing_not_key : thing.iri.spelling.val ≠ keyName := plain_not_key thing_plain
 theorem nothing_not_key : nothing.iri.spelling.val ≠ keyName := plain_not_key nothing_plain
 
@@ -96,75 +102,85 @@ theorem marked_of_named (I : Interpretation Object Value) (y : Object ⊕ Value)
     `mark` the self loops of the marked elements and `share(r)` the pairs that
     share a marked element along `r`. -/
 noncomputable def liftedN (context : data_ontology.Context) (I : Interpretation Object Value)
-    (lit : datatypes.DataValue → Value) (x0 : Object) : Interpretation (Object ⊕ Value) Value :=
-  { lifted context I lit x0 with
-    classes := fun c y => if c.iri.spelling.val = keyName then KeyNamed I y else (lifted context I lit x0).classes c y
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object) : Interpretation (Object ⊕ Value) Value :=
+  { lifted context I lit num x0 with
+    classes := fun c y => if c.iri.spelling.val = keyName then KeyNamed I y
+      else (lifted context I lit num x0).classes c y
     objectProperties := fun p y y' =>
       if p.iri.spelling.val = markName then y = y' ∧ Marked I y
       else match sharedRole p with
-        | some r => ∃ z, Marked I z ∧ objectRelation (lifted context I lit x0) r y z ∧
-            objectRelation (lifted context I lit x0) r y' z
-        | none => (lifted context I lit x0).objectProperties p y y' }
+        | some r => ∃ z, Marked I z ∧ objectRelation (lifted context I lit num x0) r y z ∧
+            objectRelation (lifted context I lit num x0) r y' z
+        | none => (lifted context I lit num x0).objectProperties p y y' }
 
 variable {context : data_ontology.Context} {I : Interpretation Object Value} {lit : datatypes.DataValue → Value}
-  {x0 : Object}
+  {num : ℝ → Value} {x0 : Object}
 
 theorem liftedN_class {c : Class} (other : c.iri.spelling.val ≠ keyName) (y : Object ⊕ Value) :
-    (liftedN context I lit x0).classes c y = (lifted context I lit x0).classes c y := by
+    (liftedN context I lit num x0).classes c y = (lifted context I lit num x0).classes c y := by
   simp only [liftedN, other, ↓reduceIte]
 
-theorem liftedN_key (y : Object ⊕ Value) : (liftedN context I lit x0).classes keyClass y = KeyNamed I y := by
+theorem liftedN_key (y : Object ⊕ Value) : (liftedN context I lit num x0).classes keyClass y = KeyNamed I y := by
   simp only [liftedN, keyClass_name, ↓reduceIte]
 
 theorem liftedN_role {p : ObjectProperty} (notMark : p.iri.spelling.val ≠ markName)
     (notShare : ∀ r, p.iri.spelling.val ≠ shareName r) (y y' : Object ⊕ Value) :
-    (liftedN context I lit x0).objectProperties p y y' = (lifted context I lit x0).objectProperties p y y' := by
+    (liftedN context I lit num x0).objectProperties p y y' = (lifted context I lit num x0).objectProperties p y y' := by
   simp only [liftedN, notMark, ↓reduceIte, sharedRole_none notShare]
 
 theorem liftedN_mark (y y' : Object ⊕ Value) :
-    (liftedN context I lit x0).objectProperties markRole y y' ↔ y = y' ∧ Marked I y := by
+    (liftedN context I lit num x0).objectProperties markRole y y' ↔ y = y' ∧ Marked I y := by
   simp only [liftedN, markRole_name, ↓reduceIte]
 
 theorem liftedN_share {p : ObjectProperty} {r : ObjectPropertyExpression} (share : p.iri.spelling.val = shareName r)
     (y y' : Object ⊕ Value) :
-    (liftedN context I lit x0).objectProperties p y y' ↔ ∃ z, Marked I z ∧
-      objectRelation (lifted context I lit x0) r y z ∧ objectRelation (lifted context I lit x0) r y' z := by
+    (liftedN context I lit num x0).objectProperties p y y' ↔ ∃ z, Marked I z ∧
+      objectRelation (lifted context I lit num x0) r y z ∧ objectRelation (lifted context I lit num x0) r y' z := by
   have notMark : p.iri.spelling.val ≠ markName := by
     rw [share]; cases r <;> simp [shareName, markName]
   simp only [liftedN, notMark, ↓reduceIte, sharedRole_share share]
 
-theorem liftedN_named : (liftedN context I lit x0).namedIndividuals = (lifted context I lit x0).namedIndividuals := rfl
+theorem liftedN_named : (liftedN context I lit num x0).namedIndividuals = (lifted context I lit num x0).namedIndividuals := rfl
 
 theorem liftedN_plain_class {c : Class} (plain : ¬ Reserved c.iri.spelling.val) (y : Object ⊕ Value) :
-    (liftedN context I lit x0).classes c y = (lifted context I lit x0).classes c y :=
+    (liftedN context I lit num x0).classes c y = (lifted context I lit num x0).classes c y :=
   liftedN_class (plain_not_key plain) y
 
 theorem liftedN_data_class (y : Object ⊕ Value) :
-    (liftedN context I lit x0).classes dataClass y = (lifted context I lit x0).classes dataClass y :=
+    (liftedN context I lit num x0).classes dataClass y = (lifted context I lit num x0).classes dataClass y :=
   liftedN_class data_not_key y
 
 theorem liftedN_kind_class (k : datatypes.Kind) (y : Object ⊕ Value) :
-    (liftedN context I lit x0).classes (kindClass k) y = (lifted context I lit x0).classes (kindClass k) y :=
+    (liftedN context I lit num x0).classes (kindClass k) y = (lifted context I lit num x0).classes (kindClass k) y :=
   liftedN_class (kind_not_key k) y
 
 theorem liftedN_bit_class (j : Usize) (y : Object ⊕ Value) :
-    (liftedN context I lit x0).classes (bitClass j) y = (lifted context I lit x0).classes (bitClass j) y :=
+    (liftedN context I lit num x0).classes (bitClass j) y = (lifted context I lit num x0).classes (bitClass j) y :=
   liftedN_class (bit_not_key j) y
 
+theorem liftedN_cut_class (i : Usize) (y : Object ⊕ Value) :
+    (liftedN context I lit num x0).classes (cutClass i) y = (lifted context I lit num x0).classes (cutClass i) y :=
+  liftedN_class (cut_not_key i) y
+
+theorem liftedN_super (y y' : Object ⊕ Value) :
+    (liftedN context I lit num x0).objectProperties dataSuper y y' =
+      (lifted context I lit num x0).objectProperties dataSuper y y' :=
+  liftedN_role super_not_mark super_not_share y y'
+
 theorem liftedN_plain_role {p : ObjectProperty} (plain : ¬ Reserved p.iri.spelling.val) (y y' : Object ⊕ Value) :
-    (liftedN context I lit x0).objectProperties p y y' = (lifted context I lit x0).objectProperties p y y' :=
+    (liftedN context I lit num x0).objectProperties p y y' = (lifted context I lit num x0).objectProperties p y y' :=
   liftedN_role (plain_not_mark plain) (plain_not_share plain) y y'
 
 theorem liftedN_relation {r : ObjectPropertyExpression} (plain : ¬ Reserved (RoleOf r).iri.spelling.val)
     (y y' : Object ⊕ Value) :
-    objectRelation (liftedN context I lit x0) r y y' ↔ objectRelation (lifted context I lit x0) r y y' := by
+    objectRelation (liftedN context I lit num x0) r y y' ↔ objectRelation (lifted context I lit num x0) r y y' := by
   cases r with
   | Property p => simp only [objectRelation]; rw [liftedN_plain_role (show ¬ Reserved p.iri.spelling.val from plain)]
   | Inverse p => simp only [objectRelation]; rw [liftedN_plain_role (show ¬ Reserved p.iri.spelling.val from plain)]
 
 theorem liftedN_data_relation {p : DataProperty} {role : ObjectPropertyExpression}
     (run : data_ontology.data_role context p = .ok (some role)) (y y' : Object ⊕ Value) :
-    objectRelation (liftedN context I lit x0) role y y' ↔ objectRelation (lifted context I lit x0) role y y' := by
+    objectRelation (liftedN context I lit num x0) role y y' ↔ objectRelation (lifted context I lit num x0) role y y' := by
   obtain ⟨res, run', facts⟩ := data_role_correct context p
   rw [run] at run'
   cases Result.ok_injective run'
@@ -184,30 +200,37 @@ variable {Object : Type u} {Value : Type v} {Native : Type w} {D : DatatypeMap N
   {context : data_ontology.Context}
 
 theorem liftedN_node (N : Normative D) (x0 : Object) (v : Value) :
-    NodeValue context I (liftedN context I (litOf N embed) x0) (litOf N embed) (.inr v) v where
+    NodeValue context I (liftedN context I (litOf N embed) (numOf N embed) x0) (litOf N embed) (numOf N embed)
+      (.inr v) v where
   kinds := fun k used => by rw [liftedN_kind_class]; exact (lifted_node N x0 v).kinds k used
   values := (lifted_node N x0 v).values
+  cuts := fun ordered i h => by rw [liftedN_cut_class]; exact (lifted_node N x0 v).cuts ordered i h
 
 theorem liftedN_range_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) :
-    RangeFrame I (liftedN context I (litOf N embed) x0) (litOf N embed) where
+    RangeFrame I (liftedN context I (litOf N embed) (numOf N embed) x0) (litOf N embed) (numOf N embed) where
   literal := (lifted_range_frame (context := context) N x0 vocab interp).literal
   thing := fun y => by
     rw [liftedN_class thing_not_key]; exact (lifted_range_frame (context := context) N x0 vocab interp).thing y
   literals := (lifted_range_frame (context := context) N x0 vocab interp).literals
+  injective := (lifted_range_frame (context := context) N x0 vocab interp).injective
+  numbers := (lifted_range_frame (context := context) N x0 vocab interp).numbers
+  numeric := (lifted_range_frame (context := context) N x0 vocab interp).numeric
+  facets := (lifted_range_frame (context := context) N x0 vocab interp).facets
 
 theorem liftedN_filler (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) {range : Option DataRange} {filler : Option ClassExpression}
     (run : data_ontology.encode_optional_range context range = .ok (some filler)) (v : Value) :
-    Rowl.Concepts.FillerHolds (liftedN context I (litOf N embed) x0) filler (.inr v) ↔ RangeHolds I range v := by
+    Rowl.Concepts.FillerHolds (liftedN context I (litOf N embed) (numOf N embed) x0) filler (.inr v) ↔
+      RangeHolds I range v := by
   rcases optional_range_meaning.{u,v,max u v,v} context range filler run with ⟨rfl, rfl⟩ | ⟨r, c, rfl, rfl, means⟩
   · simp [Rowl.Concepts.FillerHolds, RangeHolds]
   · simp only [Rowl.Concepts.FillerHolds, RangeHolds]
-    exact (means I _ _ (liftedN_range_frame N x0 vocab interp) (.inr v) v (liftedN_node N x0 v)).symm
+    exact (means I _ _ _ (liftedN_range_frame N x0 vocab interp) (.inr v) v (liftedN_node N x0 v)).symm
 
 theorem liftedN_simulates (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) (atoms : List (DataProperty × Option DataRange × Nat)) :
-    Simulates context I (liftedN context I (litOf N embed) x0) Sum.inl Plain atoms := by
+    Simulates context I (liftedN context I (litOf N embed) (numOf N embed) x0) Sum.inl Plain atoms := by
   have base := lifted_simulates (context := context) N x0 vocab interp good atoms
   refine ⟨Sum.inl_injective, fun y => ?_, fun c z plain => ?_, fun r z y plain => ?_,
     fun r inContext y y' related => ?_, fun y y' => ?_, base.individuals,
@@ -221,10 +244,10 @@ theorem liftedN_simulates (N : Normative D) (x0 : Object) (vocab : IsVocabulary 
     exact base.closed r inContext y y' related
   · rw [liftedN_plain_role topObject_plain]; exact base.topAll y y'
   · rw [base.data p range n mem role filler roleRun fillerRun z]
-    have same : ∀ y, (objectRelation (lifted context I (litOf N embed) x0) role (.inl z) y ∧
-        Rowl.Concepts.FillerHolds (lifted context I (litOf N embed) x0) filler y) ↔
-        (objectRelation (liftedN context I (litOf N embed) x0) role (.inl z) y ∧
-          Rowl.Concepts.FillerHolds (liftedN context I (litOf N embed) x0) filler y) := by
+    have same : ∀ y, (objectRelation (lifted context I (litOf N embed) (numOf N embed) x0) role (.inl z) y ∧
+        Rowl.Concepts.FillerHolds (lifted context I (litOf N embed) (numOf N embed) x0) filler y) ↔
+        (objectRelation (liftedN context I (litOf N embed) (numOf N embed) x0) role (.inl z) y ∧
+          Rowl.Concepts.FillerHolds (liftedN context I (litOf N embed) (numOf N embed) x0) filler y) := by
       intro y
       rw [liftedN_data_relation roleRun]
       constructor
@@ -240,7 +263,8 @@ theorem liftedN_simulates (N : Normative D) (x0 : Object) (vocab : IsVocabulary 
 
 theorem liftedN_placed (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) :
-    Placed context I (liftedN context I (litOf N embed) x0) Sum.inl (litOf N embed) (fun _ v d => d = .inr v) := by
+    Placed context I (liftedN context I (litOf N embed) (numOf N embed) x0) Sum.inl (litOf N embed) (numOf N embed)
+      (fun _ v d => d = .inr v) := by
   have base := lifted_placed (context := context) N x0 vocab interp
   refine ⟨base.functional, base.injective, fun _ v d h => h ▸ liftedN_node N x0 v, fun p role run z v => ?_,
     base.literals, base.top⟩
@@ -248,7 +272,7 @@ theorem liftedN_placed (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V
   simp only [liftedN_data_relation run]
 
 theorem liftedN_inert (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I) :
-    Inert context (liftedN context I (litOf N embed) x0) Sum.inl (fun _ v d => d = .inr v) := by
+    Inert context (liftedN context I (litOf N embed) (numOf N embed) x0) Sum.inl (fun _ v d => d = .inr v) := by
   have base := lifted_inert (context := context) N x0 interp
   refine ⟨fun c y plain notThing dataNode => ?_, fun p role run y y' related => ?_,
     fun p role run z d related => ?_⟩
@@ -261,10 +285,12 @@ theorem liftedN_inert (N : Normative D) (x0 : Object) (interp : IsInterpretation
   · rw [liftedN_data_relation run] at related
     exact base.placed p role run z d related
 
-theorem liftedN_frame {lit : datatypes.DataValue → Value} {x0 : Object} {bits : Usize} (good : Good context)
-    (frame : Frame context bits (lifted context I lit x0)) : Frame context bits (liftedN context I lit x0) := by
-  obtain ⟨roles, data, kinds, values, object⟩ := frame
-  refine ⟨fun r mem y y' related => ?_, fun p mem role run y y' related => ?_, ?_, fun i h => ?_, ?_⟩
+theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value} {x0 : Object} {capacity : Nat}
+    {bits : Usize} {order : List Usize} (good : Good context)
+    (frame : Frame context capacity bits order (lifted context I lit num x0)) :
+    Frame context capacity bits order (liftedN context I lit num x0) := by
+  obtain ⟨roles, data, kinds, regions, values, object⟩ := frame
+  refine ⟨fun r mem y y' related => ?_, fun p mem role run y y' related => ?_, ?_, ?_, fun i h => ?_, ?_⟩
   · rw [liftedN_plain_role (good.2.1 r mem).1] at related
     rw [liftedN_data_class, liftedN_data_class]
     exact roles r mem y y' related
@@ -273,13 +299,30 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {x0 : Object} {bits 
     exact data p mem role run y y' related
   · cases kinds
     constructor <;> simp only [Included, Apart, Truths, liftedN_kind_class, liftedN_named] <;> assumption
+  · intro ordered
+    obtain ⟨first, chain, super⟩ := regions ordered
+    refine ⟨fun f hf y h => ?_, fun p hp pos ppos => ?_, fun used k hk idx role run y y' related => ?_⟩
+    · rw [liftedN_cut_class] at h
+      rw [liftedN_kind_class]
+      exact first f hf y h
+    · obtain ⟨sub, between⟩ := chain p hp pos ppos
+      refine ⟨fun y h => ?_, ?_⟩
+      · rw [liftedN_cut_class] at h ⊢
+        exact sub y h
+      · simp only [BetweenFact, GapFact, InRun, RunNamed, liftedN_cut_class, liftedN_kind_class,
+          liftedN_class thing_not_key, liftedN_super, liftedN_named] at between ⊢
+        exact between
+    · rw [liftedN_data_relation run] at related
+      rw [liftedN_super]
+      exact super used k hk idx role run y y' related
   · have := values i h
-    simp only [ValueFact, liftedN_data_class, liftedN_kind_class, liftedN_bit_class, liftedN_named] at this ⊢
+    simp only [ValueFact, CutFact, liftedN_data_class, liftedN_kind_class, liftedN_bit_class, liftedN_cut_class,
+      liftedN_named] at this ⊢
     exact this
   · rw [liftedN_data_class, liftedN_named]; exact object
 
 theorem liftedN_interpretation (N : Normative D) (x0 : Object) (interp : IsInterpretation D embed V I) :
-    IsInterpretation D embed V (liftedN context I (litOf N embed) x0) := by
+    IsInterpretation D embed V (liftedN context I (litOf N embed) (numOf N embed) x0) := by
   obtain ⟨hThing, hNothing, hTop, hBottom, rest⟩ := lifted_interpretation (context := context) N x0 interp
   refine ⟨fun y => ?_, fun y => ?_, fun y y' => ?_, fun y y' => ?_, rest⟩
   · rw [liftedN_class thing_not_key]; exact hThing y
@@ -287,8 +330,8 @@ theorem liftedN_interpretation (N : Normative D) (x0 : Object) (interp : IsInter
   · rw [liftedN_plain_role topObject_plain]; exact hTop y y'
   · rw [liftedN_plain_role bottom_plain]; exact hBottom y y'
 
-theorem liftedN_structured (lit : datatypes.DataValue → Value) (x0 : Object) :
-    Structured (liftedN context I lit x0) (Marked I) := by
+theorem liftedN_structured (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object) :
+    Structured (liftedN context I lit num x0) (Marked I) := by
   refine ⟨fun y y' => liftedN_mark y y', fun r p named plain y y' => ?_⟩
   rw [liftedN_share named]
   simp only [liftedN_relation plain]
@@ -296,16 +339,17 @@ theorem liftedN_structured (lit : datatypes.DataValue → Value) (x0 : Object) :
 theorem liftedN_class_iff (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
     (interp : IsInterpretation D embed V I) (good : Good context) {c c' : ClassExpression}
     (run : data_ontology.encode_class context c = .ok (some c')) (plain : ∀ a ∈ classIndividuals c, Plain a)
-    (z : Object) : classDenote I c z ↔ classDenote (liftedN context I (litOf N embed) x0) c' (.inl z) := by
+    (z : Object) : classDenote I c z ↔ classDenote (liftedN context I (litOf N embed) (numOf N embed) x0) c' (.inl z) := by
   obtain ⟨res, run', means⟩ := encode_class_meaning.{u,v,max u v,v} context c
   rw [run] at run'
   cases Result.ok_injective run'
   exact means c' rfl I _ Sum.inl Plain (classAtoms c) (liftedN_simulates N x0 vocab interp good _) (fun _ h => h)
     plain z
 
-theorem liftedN_successor {lit : datatypes.DataValue → Value} {x0 : Object} {r : ObjectPropertyExpression}
+theorem liftedN_successor {lit : datatypes.DataValue → Value} {num : ℝ → Value} {x0 : Object}
+    {r : ObjectPropertyExpression}
     (plain : ¬ Reserved (RoleOf r).iri.spelling.val) (notTop : RoleOf r ≠ topObject) {a : Object}
-    {y : Object ⊕ Value} (related : objectRelation (liftedN context I lit x0) r (.inl a) y) : ∃ b, y = .inl b := by
+    {y : Object ⊕ Value} (related : objectRelation (liftedN context I lit num x0) r (.inl a) y) : ∃ b, y = .inl b := by
   rw [liftedN_relation plain] at related
   cases r with
   | Property p =>
@@ -313,9 +357,10 @@ theorem liftedN_successor {lit : datatypes.DataValue → Value} {x0 : Object} {r
     | inl b => exact ⟨b, rfl⟩
     | inr v =>
       simp only [objectRelation, lifted] at related
-      rcases related with top | ⟨q, roleOf, _⟩
+      rcases related with top | ⟨q, roleOf, _⟩ | ⟨super, _⟩
       · exact absurd top notTop
       · exact absurd (data_role_reserved roleOf) plain
+      · exact absurd (show Reserved p.iri.spelling.val by rw [super]; exact reserved_super) plain
   | Inverse p =>
     cases y with
     | inl b => exact ⟨b, rfl⟩
@@ -332,7 +377,7 @@ theorem liftedN_key_holds (N : Normative D) (x0 : Object) (vocab : IsVocabulary 
     (opsIn : ∀ r ∈ ops, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val)
     (key : ∀ x y, classDenote I e x → I.named x → classDenote I e y → I.named y →
       (∀ p ∈ ops, ∃ z, I.named z ∧ objectRelation I p x z ∧ objectRelation I p y z) → x = y) :
-    KeyHolds (liftedN context I (litOf N embed) x0) e' ops (Marked I) := by
+    KeyHolds (liftedN context I (litOf N embed) (numOf N embed) x0) e' ops (Marked I) := by
   intro y y' ny ny' ey ey' shared
   rw [liftedN_key] at ny ny'
   cases y with
@@ -360,23 +405,23 @@ variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap
 /-- Where the named individuals outside `names` are placed: at the first of
     `names`, or at `o` when there is none. -/
 noncomputable def fallback (context : data_ontology.Context) (J : Interpretation Object' Value') (N : Normative D)
-    (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) (o : Element J) :
-    Element J :=
+    (order : List Usize) (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual)
+    (o : Element J) : Element J :=
   match names with
   | [] => o
-  | b :: _ => (sound.{u,v,w,x} context J N atoms o).namedIndividuals b
+  | b :: _ => (sound.{u,v,w,x} context J N order atoms o).namedIndividuals b
 
 /-- The OWL interpretation made from a model of the key encoding: the data
     encoding's interpretation `sound`, with the named individuals outside
     `names` at the first of them and the named elements exactly the elements of
     `names` (or `o` when there is none). -/
 noncomputable def keyedSound (context : data_ontology.Context) (J : Interpretation Object' Value') (N : Normative D)
-    (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) (o : Element J) :
-    Interpretation (Element J) (Values.{v,w} Native) :=
-  { sound.{u,v,w,x} context J N atoms o with
-    namedIndividuals := fun a => if a ∈ names then (sound.{u,v,w,x} context J N atoms o).namedIndividuals a
-      else fallback.{u,v,w,x} context J N atoms names o
-    named := fun z => (∃ a ∈ names, z = (sound.{u,v,w,x} context J N atoms o).namedIndividuals a) ∨
+    (order : List Usize) (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual)
+    (o : Element J) : Interpretation (Element J) (Values.{v,w} Native) :=
+  { sound.{u,v,w,x} context J N order atoms o with
+    namedIndividuals := fun a => if a ∈ names then (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a
+      else fallback.{u,v,w,x} context J N order atoms names o
+    named := fun z => (∃ a ∈ names, z = (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a) ∨
       (names = [] ∧ z = o) }
 
 /-- The individuals that a model of the encoding places at elements that are no
@@ -385,19 +430,20 @@ def KnownIn (J : Interpretation Object' Value') (names : List NamedIndividual) (
   Known J a ∧ ∀ n, a = .Named n → n ∈ names
 
 variable {context : data_ontology.Context} {J : Interpretation Object' Value'} {N : Normative D}
-  {atoms : List (DataProperty × Option DataRange × Nat)} {names : List NamedIndividual} {bits : Usize}
+  {atoms : List (DataProperty × Option DataRange × Nat)} {names : List NamedIndividual} {capacity : Nat}
+  {bits : Usize} {order : List Usize}
 
 theorem keyedSound_name {o : Element J} {a : NamedIndividual} (inNames : a ∈ names) :
-    (keyedSound.{u,v,w,x} context J N atoms names o).namedIndividuals a =
-      (sound.{u,v,w,x} context J N atoms o).namedIndividuals a := by
+    (keyedSound.{u,v,w,x} context J N order atoms names o).namedIndividuals a =
+      (sound.{u,v,w,x} context J N order atoms o).namedIndividuals a := by
   simp only [keyedSound, if_pos inNames]
 
 /-- A data range holds at a value in the OWL interpretation made from a model of
     the key encoding exactly when it holds there in the data encoding's: both
     have the same datatypes, literals and facets. -/
 theorem keyedSound_data (o : Element J) (r : DataRange) (y : Values.{v,w} Native) :
-    dataDenote (keyedSound.{u,v,w,x} context J N atoms names o) r y ↔
-      dataDenote (sound.{u,v,w,x} context J N atoms o) r y := by
+    dataDenote (keyedSound.{u,v,w,x} context J N order atoms names o) r y ↔
+      dataDenote (sound.{u,v,w,x} context J N order atoms o) r y := by
   cases h : r with
   | Datatype dt => rw [dataDenote, dataDenote]; rfl
   | Intersection xs =>
@@ -428,17 +474,16 @@ decreasing_by
     (have := vec_mem_size xs.rest ‹_ ∈ _›; have := rest_size xs; omega)
 
 theorem keyedSound_range (o : Element J) (range : Option DataRange) (y : Values.{v,w} Native) :
-    RangeHolds (keyedSound.{u,v,w,x} context J N atoms names o) range y ↔
-      RangeHolds (sound.{u,v,w,x} context J N atoms o) range y := by
+    RangeHolds (keyedSound.{u,v,w,x} context J N order atoms names o) range y ↔
+      RangeHolds (sound.{u,v,w,x} context J N order atoms o) range y := by
   cases range with
   | none => exact Iff.rfl
   | some r => exact keyedSound_data o r y
 
-theorem keyedSound_simulates (good : Good context) (frame : Frame context bits J)
-    (enough : context.values.val.length ≤ 2 ^ bits.val) (jThing : ∀ d, J.classes thing d)
-    (jTop : ∀ y y', J.objectProperties topObject y y') (o : Element J) :
-    Simulates context (keyedSound.{u,v,w,x} context J N atoms names o) J Subtype.val (KnownIn J names) atoms := by
-  have base := sound_simulates.{u,v,w,x} (N := N) (atoms := atoms) good frame enough jThing jTop o
+theorem keyedSound_simulates (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
+    (o : Element J) :
+    Simulates context (keyedSound.{u,v,w,x} context J N order atoms names o) J Subtype.val (KnownIn J names) atoms := by
+  have base := sound_simulates.{u,v,w,x} (N := N) (atoms := atoms) setting count o
   refine ⟨base.injective, base.objects, base.classes, base.roles, base.closed, base.topAll, fun a known => ?_,
     fun p range n mem role filler roleRun fillerRun z => ?_⟩
   swap
@@ -451,26 +496,27 @@ theorem keyedSound_simulates (good : Good context) (frame : Frame context bits J
     simp only [individual, keyedSound_name (known.2 n rfl), sound, dif_pos known']
   | Anonymous b => exact base.individuals (.Anonymous b) known.1
 
-theorem keyedSound_placed (good : Good context) (frame : Frame context bits J)
-    (enough : context.values.val.length ≤ 2 ^ bits.val) (o : Element J) :
-    Placed context (keyedSound.{u,v,w,x} context J N atoms names o) J Subtype.val (litValue N)
-      (fun z y d => Place.{u,v,w,x} context J N atoms z.1 y d) := by
-  have base := sound_placed.{u,v,w,x} (N := N) (atoms := atoms) good frame enough o
-  exact ⟨base.functional, base.injective, fun z v d pl => ⟨(base.nodes z v d pl).kinds, (base.nodes z v d pl).values⟩,
+theorem keyedSound_placed (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
+    (o : Element J) :
+    Placed context (keyedSound.{u,v,w,x} context J N order atoms names o) J Subtype.val (litValue N) (realValue N)
+      (fun z y d => Place.{u,v,w,x} context J N order atoms z.1 y d) := by
+  have base := sound_placed.{u,v,w,x} (N := N) (atoms := atoms) setting count o
+  exact ⟨base.functional, base.injective, fun z v d pl =>
+    ⟨(base.nodes z v d pl).kinds, (base.nodes z v d pl).values, (base.nodes z v d pl).cuts⟩,
     base.data, base.literals, base.top⟩
 
-theorem keyedSound_range_frame (jThing : ∀ d, J.classes thing d) (o : Element J) :
-    RangeFrame (keyedSound.{u,v,w,x} context J N atoms names o) J (litValue N) := by
-  have base := sound_range_frame.{u,v,w,x} (context := context) (N := N) (atoms := atoms) jThing o
-  exact ⟨base.literal, base.thing, base.literals⟩
+theorem keyedSound_range_frame (setting : Setting context capacity bits order J) (o : Element J) :
+    RangeFrame (keyedSound.{u,v,w,x} context J N order atoms names o) J (litValue N) (realValue N) := by
+  have base := sound_range_frame.{u,v,w,x} (N := N) (atoms := atoms) setting o
+  exact ⟨base.literal, base.thing, base.literals, base.injective, base.numbers, base.numeric, base.facets⟩
 
 theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes thing d)
     (jNothing : ∀ d, ¬ J.classes nothing d) (jTop : ∀ y y', J.objectProperties topObject y y')
     (jBottom : ∀ y y', ¬ J.objectProperties bottomObject y y') (o : Element J) :
     IsInterpretation D (ValueEmbedding.ofEmbedding D ⟨embedValue.{v,w}, embedValue_injective⟩) V
-      (keyedSound.{u,v,w,x} context J N atoms names o) := by
+      (keyedSound.{u,v,w,x} context J N order atoms names o) := by
   obtain ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, _⟩ := sound_interpretation.{u,v,w,x} (context := context)
-    (J := J) (N := N) (atoms := atoms) V jThing jNothing jTop jBottom o
+    (J := J) (N := N) (order := order) (atoms := atoms) V jThing jNothing jTop jBottom o
   refine ⟨a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, fun a _ => ?_⟩
   by_cases inNames : a ∈ names
   · exact .inl ⟨a, inNames, keyedSound_name inNames⟩
@@ -479,7 +525,7 @@ theorem keyedSound_interpretation (V : Vocabulary) (jThing : ∀ d, J.classes th
     · exact .inl ⟨b, List.mem_cons_self, by simp only [keyedSound, fallback, if_neg inNames]⟩
 
 theorem relation_val (o : Element J) (r : ObjectPropertyExpression) (y y' : Element J) :
-    objectRelation (keyedSound.{u,v,w,x} context J N atoms names o) r y y' ↔ objectRelation J r y.1 y'.1 := by
+    objectRelation (keyedSound.{u,v,w,x} context J N order atoms names o) r y y' ↔ objectRelation J r y.1 y'.1 := by
   cases r <;> rfl
 
 end Sound
@@ -494,9 +540,14 @@ theorem withAnonymous_self_eq {Object : Type u} {Value : Type v} (I : Interpreta
   cases I; rfl
 
 theorem liftedN_anonymous {Object : Type u} {Value : Type v} (context : data_ontology.Context)
-    (I : Interpretation Object Value) (lit : datatypes.DataValue → Value) (x0 : Object)
+    (I : Interpretation Object Value) (lit : datatypes.DataValue → Value) (num : ℝ → Value) (x0 : Object)
     (g : AnonymousIndividual → Object) :
-    withAnonymous (liftedN context I lit x0) (Sum.inl ∘ g) = liftedN context (withAnonymous I g) lit x0 := rfl
+    withAnonymous (liftedN context I lit num x0) (Sum.inl ∘ g) = liftedN context (withAnonymous I g) lit num x0 :=
+  rfl
+
+theorem atom_count_append (a b : List (DataProperty × Option DataRange × Nat)) :
+    atomCount (a ++ b) = atomCount a + atomCount b := by
+  simp [atomCount]
 
 theorem unkeyed_closure {items : List AnnotatedAxiom} {item : AnnotatedAxiom} (mem : item ∈ unkeyedItems items)
     {a : Individual} (inside : a ∈ axiomIndividuals item.axiom) : a ∈ closureIndividuals items :=
@@ -515,13 +566,16 @@ theorem key_closure {items : List AnnotatedAxiom} {item : AnnotatedAxiom} (mem :
     exactly when its encoding does. -/
 theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native : Type w} {D : DatatypeMap Native}
     (N : Normative D) {V : Vocabulary} (vocab : IsVocabulary D V) {context : data_ontology.Context}
-    (good : Good context) {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
+    (good : Good context) {capacity : Usize} (capSmall : capacity.val < Usize.max / 16)
+    {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
     {counting : Bool} {enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : key_ontology.encode context items nodes counting = .ok (some enc))
+    (encRun : key_ontology.encode context capacity items nodes counting = .ok (some enc))
     (nodesExact : ∀ b, b ∈ nodes.val ↔ b ∈ closureIndividuals items.val)
     {embed' : ValueEmbedding D Value'} {J : Interpretation Object' Value'} (model : Model D embed' V J enc.val)
     (questions : List ClassExpression)
-    (known : ∀ e ∈ questions, ∀ a ∈ classIndividuals e, (∃ n, a = .Named n) ∧ a ∈ nodes.val) :
+    (known : ∀ e ∈ questions, ∀ a ∈ classIndividuals e, (∃ n, a = .Named n) ∧ a ∈ nodes.val)
+    (count : atomCount (itemAtoms items.val) + atomCount (items.val.flatMap (fun i => keyAtoms i.axiom)) +
+      atomCount (questions.flatMap classAtoms) ≤ capacity.val) :
     ∃ (Object : Type u) (Value : Type (max w v)) (embed : ValueEmbedding D Value) (I : Interpretation Object Value)
       (point : Object → Object'), Model D embed V I items.val ∧
       (∀ y, ¬ J.classes dataClass y → ∃ z, point z = y) ∧
@@ -530,19 +584,23 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
       ∀ e ∈ questions, ∀ e', data_ontology.encode_class context e = .ok (some e') →
         ∀ z, classDenote I e z ↔ classDenote J e' (point z) := by
   obtain ⟨_, jInterp, g, jSat⟩ := model
-  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{u, max v w, u, max w v} context good items nodes
-    counting
+  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{u, max v w, u, max w v} context good capacity
+    capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, newU, _, bits, _, meansU, enough, _, _, _, keysMeans, iff⟩ := facts enc rfl
+  obtain ⟨fine, fit, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ := facts enc rfl
   obtain ⟨⟨_, frame⟩, newUHolds, apart, held, marks, keysHold⟩ := (iff (withAnonymous J g)).mp jSat
+  have setting : Setting context capacity.val bits order (withAnonymous J g) :=
+    ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1⟩
   let o : Element (withAnonymous J g) := ⟨(withAnonymous J g).namedIndividuals objectIndividual, frame.object⟩
   let names := namesOf nodes.val
-  let atoms := (unkeyedItems items.val).flatMap (fun i => axiomAtoms i.axiom) ++
-    items.val.flatMap (fun i => keyAtoms i.axiom) ++ questions.flatMap classAtoms
-  let I := keyedSound.{u,v,w,max w v} context (withAnonymous J g) N atoms names o
+  let atoms := itemAtoms items.val ++ items.val.flatMap (fun i => keyAtoms i.axiom) ++ questions.flatMap classAtoms
+  have atomsCount : atomCount atoms ≤ capacity.val := by
+    simp only [atoms, atom_count_append]
+    exact count
+  let I := keyedSound.{u,v,w,max w v} context (withAnonymous J g) N order atoms names o
   have sim : Simulates context I (withAnonymous J g) Subtype.val (KnownIn (withAnonymous J g) names) atoms :=
-    keyedSound_simulates good frame enough jInterp.1 jInterp.2.2.1 o
+    keyedSound_simulates setting atomsCount o
   have nodeKnown : ∀ a ∈ nodes.val, KnownIn (withAnonymous J g) names a := by
     intro a mem
     have h := held a mem
@@ -550,10 +608,11 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     | Named n => exact ⟨apart _ h, fun m same => by cases same; exact mem_namesOf.mpr mem⟩
     | Anonymous b => exact ⟨h, fun m same => by cases same⟩
   have unkeyedSat : ∀ item ∈ unkeyedItems items.val, satisfies I item.axiom :=
-    (meansU.1 I (withAnonymous J g) Subtype.val (KnownIn (withAnonymous J g) names) atoms (litValue N) _ sim
-      (keyedSound_placed good frame enough o) (keyedSound_range_frame (context := context) (J := withAnonymous J g) (N := N)
-        (atoms := atoms) (names := names) jInterp.1 o)
-      (fun item mem a inside => List.mem_append_left _ (List.mem_append_left _ (List.mem_flatMap.mpr ⟨item, mem, inside⟩)))
+    (meansU.1 I (withAnonymous J g) Subtype.val (KnownIn (withAnonymous J g) names) atoms (litValue N) (realValue N) _
+      sim (keyedSound_placed setting atomsCount o)
+      (keyedSound_range_frame (N := N) (atoms := atoms) (names := names) setting o)
+      (fun item mem a inside => List.mem_append_left _ (List.mem_append_left _
+        (List.mem_flatMap.mpr ⟨item, (List.mem_filter.mp mem).1, inside⟩)))
       (fun item mem a inside => nodeKnown a ((nodesExact a).mpr (unkeyed_closure mem inside)))).1 newUHolds
   have namedAt : names ≠ [] → ∀ z, I.named z →
       ∃ a ∈ names, z = I.namedIndividuals a ∧ z.1 = J.namedIndividuals a := by
@@ -609,13 +668,13 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     · exact keysSat item mem key
     · exact unkeyedSat item (List.mem_filter.mpr ⟨mem, by simpa using key⟩)
   have simQ : Simulates context I J Subtype.val (fun a => ∃ e ∈ questions, a ∈ classIndividuals e) atoms := by
-    refine simulates_anonymous N good g frame enough jInterp.1 o sim (fun a ⟨e, mem, inside⟩ => ?_)
+    refine simulates_anonymous N g setting o sim (fun a ⟨e, mem, inside⟩ => ?_)
     obtain ⟨⟨n, rfl⟩, aIn⟩ := known e mem a inside
     exact sim.individuals _ (nodeKnown _ aIn)
   refine ⟨Element (withAnonymous J g), Values.{v,w} Native,
     ValueEmbedding.ofEmbedding D ⟨embedValue, embedValue_injective⟩, I, Subtype.val,
-    ⟨vocab, keyedSound_interpretation (context := context) (J := withAnonymous J g) (N := N) (atoms := atoms)
-      (names := names) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o,
+    ⟨vocab, keyedSound_interpretation (context := context) (J := withAnonymous J g) (N := N) (order := order)
+      (atoms := atoms) (names := names) V jInterp.1 jInterp.2.1 jInterp.2.2.1 jInterp.2.2.2.1 o,
       I.anonymousIndividuals, by rw [withAnonymous_self_eq]; exact satisfied⟩,
     fun y outside => ⟨⟨y, outside⟩, rfl⟩, fun a aIn => ?_, fun e mem e' run z => ?_⟩
   · have known' : ¬ (withAnonymous J g).classes dataClass ((withAnonymous J g).namedIndividuals a) :=
@@ -637,9 +696,10 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     as at those elements. -/
 theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : Type w} {D : DatatypeMap Native}
     (N : Normative D) {V : Vocabulary} (vocab : IsVocabulary D V) {context : data_ontology.Context}
-    (good : Good context) {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
+    (good : Good context) {capacity : Usize} (capSmall : capacity.val < Usize.max / 16)
+    {items : alloc.vec.Vec AnnotatedAxiom} {nodes : alloc.vec.Vec Individual}
     {counting : Bool} {enc : alloc.vec.Vec AnnotatedAxiom}
-    (encRun : key_ontology.encode context items nodes counting = .ok (some enc))
+    (encRun : key_ontology.encode context capacity items nodes counting = .ok (some enc))
     (nodesExact : ∀ b, b ∈ nodes.val ↔ b ∈ closureIndividuals items.val)
     (vocabNamed : NamesKeyed V items.val) (keyed : Keyed items.val)
     {embed : ValueEmbedding D Value} {I : Interpretation Object Value} (model : Model D embed V I items.val)
@@ -652,52 +712,54 @@ theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : 
   obtain ⟨_, interp, g, sat⟩ := model
   obtain ⟨x0⟩ := I.objectsNonempty
   have interp0 : IsInterpretation D embed V (withAnonymous I g) := interp
-  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{u, max w v, max u w v, max w v} context good items
-    nodes counting
+  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{u, max w v, max u w v, max w v} context good capacity
+    capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨new0, newU, newK, bits, means0, meansU, _, _, truths, plainNodes, keysMeans, iff⟩ := facts enc rfl
+  obtain ⟨_, _, new0, newU, newK, bits, order, means0, meansU, _, sorted, _, truths, plainNodes, keysMeans, iff⟩ :=
+    facts enc rfl
   have placed := liftedN_placed (context := context) N x0 vocab interp0
   have rangeFrame := liftedN_range_frame (context := context) N x0 vocab interp0
   have inert := liftedN_inert (context := context) N x0 interp0
-  have frame := liftedN_frame good (lifted_frame N x0 vocab interp0 good truths bits)
-  have sat0 : ∀ b ∈ new0, satisfies (liftedN context (withAnonymous I g) (litOf N embed) x0) b.axiom :=
-    (means0.1 (withAnonymous I g) _ Sum.inl Plain [] (litOf N embed) _
+  have frame := liftedN_frame good (lifted_frame N x0 vocab interp0 good truths capacity.val bits order
+    (fun o => (sorted o).1))
+  have sat0 : ∀ b ∈ new0, satisfies (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0) b.axiom :=
+    (means0.1 (withAnonymous I g) _ Sum.inl Plain [] (litOf N embed) (numOf N embed) _
       (liftedN_simulates N x0 vocab interp0 good []) placed rangeFrame (by simp) (by simp)).2 inert (by simp)
-  have satU : ∀ b ∈ newU, satisfies (liftedN context (withAnonymous I g) (litOf N embed) x0) b.axiom :=
-    (meansU.1 (withAnonymous I g) _ Sum.inl Plain _ (litOf N embed) _
+  have satU : ∀ b ∈ newU, satisfies (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0) b.axiom :=
+    (meansU.1 (withAnonymous I g) _ Sum.inl Plain _ (litOf N embed) (numOf N embed) _
       (liftedN_simulates N x0 vocab interp0 good ((unkeyedItems items.val).flatMap (fun i => axiomAtoms i.axiom)))
       placed rangeFrame (fun item mem a inside => List.mem_flatMap.mpr ⟨item, mem, inside⟩) meansU.2.1).2 inert
       (fun item mem => sat item (List.mem_filter.mp mem).1)
-  have apart : ∀ y, (liftedN context (withAnonymous I g) (litOf N embed) x0).classes keyClass y →
-      ¬ (liftedN context (withAnonymous I g) (litOf N embed) x0).classes dataClass y := by
+  have apart : ∀ y, (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes keyClass y →
+      ¬ (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes dataClass y := by
     intro y inN
     rw [liftedN_key] at inN
     cases y with
     | inl z => rw [liftedN_data_class]; exact lifted_element N x0 z
     | inr _ => exact absurd inN id
-  have held : ∀ a ∈ nodes.val, NodeHeld (liftedN context (withAnonymous I g) (litOf N embed) x0) a := by
+  have held : ∀ a ∈ nodes.val, NodeHeld (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0) a := by
     intro a mem
     cases a with
     | Named n =>
       have plainN : ¬ Reserved n.iri.spelling.val := plainNodes _ mem
-      show (liftedN context (withAnonymous I g) (litOf N embed) x0).classes keyClass
-        ((liftedN context (withAnonymous I g) (litOf N embed) x0).namedIndividuals n)
+      show (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes keyClass
+        ((liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).namedIndividuals n)
       rw [liftedN_key, liftedN_named, lifted_plain_name plainN]
       exact interp.2.2.2.2.2.2.2.2.2.2 n (vocabNamed keyed n ((nodesExact _).mp mem))
     | Anonymous b =>
-      show ¬ (liftedN context (withAnonymous I g) (litOf N embed) x0).classes dataClass
-        ((liftedN context (withAnonymous I g) (litOf N embed) x0).anonymousIndividuals b)
+      show ¬ (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes dataClass
+        ((liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).anonymousIndividuals b)
       rw [liftedN_data_class]
       exact lifted_element N x0 _
   have marks : SharedIn items.val counting → ∀ y,
-      (liftedN context (withAnonymous I g) (litOf N embed) x0).classes keyClass y →
-      (liftedN context (withAnonymous I g) (litOf N embed) x0).objectProperties markRole y y := by
+      (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).classes keyClass y →
+      (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0).objectProperties markRole y y := by
     intro _ y inN
     rw [liftedN_key] at inN
     exact (liftedN_mark y y).mpr ⟨rfl, marked_of_named _ y inN⟩
-  have keysSat : ∀ b ∈ newK, satisfies (liftedN context (withAnonymous I g) (litOf N embed) x0) b.axiom := by
-    refine keysMeans.2.2 _ (Marked (withAnonymous I g)) (liftedN_structured _ x0)
+  have keysSat : ∀ b ∈ newK, satisfies (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0) b.axiom := by
+    refine keysMeans.2.2 _ (Marked (withAnonymous I g)) (liftedN_structured _ _ x0)
       (fun y inN => by rw [liftedN_key] at inN; exact marked_of_named _ y inN)
       (fun n nIn => held _ (mem_namesOf.mp nIn)) (fun item mem e ops dps shape e' eRun => ?_)
     obtain ⟨noData, _, opsIn, _⟩ := keysMeans.1 item mem e ops dps shape
@@ -707,14 +769,14 @@ theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : 
     · exact plainNodes a ((nodesExact a).mpr (key_closure mem shape inside))
     · intro x y inE nx inE' ny shared
       exact keySat x y inE nx inE' ny shared (by rw [noData]; simp)
-  have satJ := (iff (liftedN context (withAnonymous I g) (litOf N embed) x0)).mpr
+  have satJ := (iff (liftedN context (withAnonymous I g) (litOf N embed) (numOf N embed) x0)).mpr
     ⟨⟨sat0, frame⟩, satU, apart, held, marks, keysSat⟩
-  refine ⟨liftedN context I (litOf N embed) x0, ⟨vocab, liftedN_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
+  refine ⟨liftedN context I (litOf N embed) (numOf N embed) x0, ⟨vocab, liftedN_interpretation N x0 interp, Sum.inl ∘ g, ?_⟩,
     fun z => ?_, fun a plainA => ?_, fun e mem e' run z => ?_⟩
   · rw [liftedN_anonymous]
     exact satJ
   · rw [liftedN_data_class]; exact lifted_element N x0 z
-  · exact lifted_plain_name plainA
+  · exact lifted_plain_name (num := numOf N embed) plainA
   · exact liftedN_class_iff N x0 vocab interp good run (plain e mem) z
 
 end Models
