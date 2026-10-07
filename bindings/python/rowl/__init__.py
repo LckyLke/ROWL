@@ -126,6 +126,9 @@ _lib.rowl_subsumed.argtypes = [_handle, _text, _size, _text, _size]
 _lib.rowl_subsumed.restype = ctypes.c_int32
 _lib.rowl_instance_of.argtypes = [_handle, _text, _size, _text, _size]
 _lib.rowl_instance_of.restype = ctypes.c_int32
+_lib.rowl_entails_fact.argtypes = [_handle, ctypes.c_int32, _text, _size, _text, _size, _text, _size,
+                                   _text, _size]
+_lib.rowl_entails_fact.restype = ctypes.c_int32
 for _name in ("rowl_classes", "rowl_individuals", "rowl_classify", "rowl_dl_violation"):
     getattr(_lib, _name).argtypes = [_handle]
     getattr(_lib, _name).restype = ctypes.c_void_p
@@ -140,6 +143,10 @@ _SUFFIXES = {".ofn": "functional", ".nt": "ntriples", ".ttl": "turtle", ".owl": 
 
 def _syntax_of(path: Path) -> str:
     return {".nt": "ntriples", ".ttl": "turtle", ".owl": "rdfxml", ".rdf": "rdfxml"}.get(path.suffix, "functional")
+
+
+XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
+"""The IRI of ``xsd:string``, the default datatype of ``entails_data_property``."""
 
 
 def library_version() -> str:
@@ -329,6 +336,37 @@ class Reasoner:
         """Whether the named individual is an instance of the named class in every model."""
         who, what = _utf8(individual), _utf8(cls)
         return _answer(_lib.rowl_instance_of(self._live(), who, len(who), what, len(what)))
+
+    def _fact(self, kind: int, first: str, second: str, third: str = "", fourth: str = "") -> Optional[bool]:
+        arguments = []
+        for text in (first, second, third, fourth):
+            data = _utf8(text)
+            arguments += [data, len(data)]
+        return _answer(_lib.rowl_entails_fact(self._live(), kind, *arguments))
+
+    def entails_object_property(self, prop: str, subject: str, obj: str,
+                                negative: bool = False) -> Optional[bool]:
+        """Whether every model relates the named individual ``subject`` to the named
+        individual ``obj`` by the object property, or, with ``negative``, whether no
+        model does. An inconsistent ontology entails every fact."""
+        return self._fact(1 if negative else 0, prop, subject, obj)
+
+    def entails_data_property(self, prop: str, subject: str, lexical: str, datatype: str = XSD_STRING,
+                              negative: bool = False) -> Optional[bool]:
+        """Whether every model gives the named individual ``subject`` the literal
+        ``lexical`` of ``datatype`` for the data property, or, with ``negative``,
+        whether no model does. Literals are compared by value: ``"07"`` and ``"7"``
+        of ``xsd:integer`` are one value."""
+        return self._fact(3 if negative else 2, prop, subject, lexical, datatype)
+
+    def entails_same_individual(self, first: str, second: str) -> Optional[bool]:
+        """Whether the two named individuals are one individual in every model."""
+        return self._fact(4, first, second)
+
+    def entails_different_individuals(self, first: str, second: str) -> Optional[bool]:
+        """Whether the two named individuals are different individuals in every
+        model; without the unique name assumption, two names may denote one."""
+        return self._fact(5, first, second)
 
     def classes(self) -> List[str]:
         """The named classes the document declares or uses, sorted by IRI."""

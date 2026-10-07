@@ -201,6 +201,7 @@ import Rowl.DataSound
 import Rowl.KeyEncoding
 import Rowl.Partition
 import Rowl.Components
+import Rowl.Facts
 import Rowl.KeyModels
 import Rowl.DataOntology
 import Rowl.Classification

@@ -104,6 +104,8 @@ pub mod data_ontology;
 pub mod key_ontology;
 
 pub mod components;
+// Entailment of named facts by the consistency of the closure with their negation.
+pub mod facts;
 
 pub mod source_reasoning;
 

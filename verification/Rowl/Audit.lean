@@ -175,6 +175,7 @@ import Rowl.DataSound
 import Rowl.KeyEncoding
 import Rowl.Partition
 import Rowl.Components
+import Rowl.Facts
 import Rowl.KeyModels
 import Rowl.DataOntology
 import Rowl.Classification
@@ -5633,6 +5634,11 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.components_from_spec
 #print axioms Rowl.Components.closure_parts_correct
 #print axioms Rowl.Components.parts_instance_correct
+#print axioms Rowl.Facts.entails_iff_inconsistent
+#print axioms Rowl.Facts.negation_spec
+#print axioms Rowl.Facts.meaningful_spec
+#print axioms Rowl.Facts.consistent_closure_correct
+#print axioms Rowl.Facts.entails_fact_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7450,3 +7456,4 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Prefixes.Reserved
 #print axioms Rowl.Components.PartFor
 #print axioms Rowl.Components.ComponentOk
+#print axioms Rowl.Facts.Negates

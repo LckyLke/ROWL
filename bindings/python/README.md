@@ -43,6 +43,9 @@ several.
 | `satisfiable(cls)` | Does some model have an instance of the named class? |
 | `subsumed(sub, sup)` | Is every instance of `sub` an instance of `sup` in every model? |
 | `instance_of(individual, cls)` | Is the named individual an instance of the named class in every model? |
+| `entails_object_property(prop, subject, obj, negative=False)` | Does every model relate the two named individuals by the object property (or, with `negative`, none)? |
+| `entails_data_property(prop, subject, lexical, datatype=XSD_STRING, negative=False)` | Does every model give the named individual that literal for the data property (or, with `negative`, none)? Literals compare by value. |
+| `entails_same_individual(a, b)`, `entails_different_individuals(a, b)` | Are the two named individuals one individual, or different ones, in every model? |
 | `classes()`, `individuals()` | The named classes and individuals of the document (individuals named in class expressions included) |
 | `classify()` | Every named class with its named superclasses |
 | `superclasses(cls)` | The named superclasses of one named class |

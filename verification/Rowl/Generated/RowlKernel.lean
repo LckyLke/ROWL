@@ -40956,6 +40956,193 @@ def encoding.encode
           ok (some (encoding.Encoded.Four i2 i6 i10 i13))
   else ok none
 
+/-- [rowl_kernel::facts::named]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 35:0-40:1 -/
+def facts.named (individual : model.Individual) : Result Bool := do
+  match individual with
+  | model.Individual.Named _ => ok true
+  | model.Individual.Anonymous _ => ok false
+
+/-- [rowl_kernel::facts::flip]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 42:0-114:1 -/
+def facts.flip (fact : model.Axiom) : Result (Option model.Axiom) := do
+  match fact with
+  | model.Axiom.Declaration _ => ok none
+  | model.Axiom.SubClassOf _ _ => ok none
+  | model.Axiom.EquivalentClasses _ => ok none
+  | model.Axiom.DisjointClasses _ => ok none
+  | model.Axiom.DisjointUnion _ _ => ok none
+  | model.Axiom.SubObjectPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentObjectProperties _ => ok none
+  | model.Axiom.DisjointObjectProperties _ => ok none
+  | model.Axiom.InverseObjectProperties _ _ => ok none
+  | model.Axiom.ObjectPropertyDomain _ _ => ok none
+  | model.Axiom.ObjectPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalObjectProperty _ => ok none
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok none
+  | model.Axiom.ReflexiveObjectProperty _ => ok none
+  | model.Axiom.IrreflexiveObjectProperty _ => ok none
+  | model.Axiom.SymmetricObjectProperty _ => ok none
+  | model.Axiom.AsymmetricObjectProperty _ => ok none
+  | model.Axiom.TransitiveObjectProperty _ => ok none
+  | model.Axiom.SubDataPropertyOf _ _ => ok none
+  | model.Axiom.EquivalentDataProperties _ => ok none
+  | model.Axiom.DisjointDataProperties _ => ok none
+  | model.Axiom.DataPropertyDomain _ _ => ok none
+  | model.Axiom.DataPropertyRange _ _ => ok none
+  | model.Axiom.FunctionalDataProperty _ => ok none
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey _ _ _ => ok none
+  | model.Axiom.SameIndividual individuals =>
+    let i := alloc.vec.Vec.len individuals.rest
+    if i = 0#usize
+    then
+      let b ← facts.named individuals.first
+      if b
+      then
+        let b1 ← facts.named individuals.second
+        if b1
+        then ok (some (model.Axiom.DifferentIndividuals individuals))
+        else ok none
+      else ok none
+    else ok none
+  | model.Axiom.DifferentIndividuals individuals =>
+    let i := alloc.vec.Vec.len individuals.rest
+    if i = 0#usize
+    then
+      let b ← facts.named individuals.first
+      if b
+      then
+        let b1 ← facts.named individuals.second
+        if b1
+        then ok (some (model.Axiom.SameIndividual individuals))
+        else ok none
+      else ok none
+    else ok none
+  | model.Axiom.ClassAssertion _ _ => ok none
+  | model.Axiom.ObjectPropertyAssertion role source target =>
+    let b ← facts.named source
+    if b
+    then
+      let b1 ← facts.named target
+      if b1
+      then
+        ok (some (model.Axiom.NegativeObjectPropertyAssertion role source
+          target))
+      else ok none
+    else ok none
+  | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+    let b ← facts.named source
+    if b
+    then
+      let b1 ← facts.named target
+      if b1
+      then ok (some (model.Axiom.ObjectPropertyAssertion role source target))
+      else ok none
+    else ok none
+  | model.Axiom.DataPropertyAssertion property source literal =>
+    let b ← facts.named source
+    if b
+    then
+      ok (some (model.Axiom.NegativeDataPropertyAssertion property source
+        literal))
+    else ok none
+  | model.Axiom.NegativeDataPropertyAssertion property source literal =>
+    let b ← facts.named source
+    if b
+    then ok (some (model.Axiom.DataPropertyAssertion property source literal))
+    else ok none
+  | model.Axiom.AnnotationAssertion _ _ _ => ok none
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok none
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok none
+  | model.Axiom.AnnotationPropertyRange _ _ => ok none
+
+/-- [rowl_kernel::facts::negation]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 119:0-124:1
+    Visibility: public -/
+def facts.negation (fact : model.Axiom) : Result (Option model.Axiom) := do
+  let o ← components.copy_axiom fact
+  match o with
+  | none => ok none
+  | some copied => facts.flip copied
+
+/-- [rowl_kernel::facts::meaningful]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 127:0-154:1 -/
+def facts.meaningful
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let b ← components.meaningless aa.axiom
+    if b
+    then let i1 ← index + 1#usize
+         facts.meaningful items i1 out
+    else
+      let o ← components.copy_axiom aa.axiom
+      match o with
+      | none => ok none
+      | some copied =>
+        let i1 := alloc.vec.Vec.len out
+        if i1 < core.num.Usize.MAX
+        then
+          let out1 ←
+            alloc.vec.Vec.push out
+              ({
+                 annotations := (alloc.vec.Vec.new model.Annotation),
+                 «axiom» := copied
+               } : model.AnnotatedAxiom)
+          let i2 ← index + 1#usize
+          facts.meaningful items i2 out1
+        else ok none
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::facts::consistent_closure]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 157:0-162:1 -/
+def facts.consistent_closure
+  (items : alloc.vec.Vec model.AnnotatedAxiom) : Result (Option Bool) := do
+  let o ← components.consistent_by_parts items
+  match o with
+  | none => data_ontology.consistent items
+  | some _ => ok o
+
+/-- [rowl_kernel::facts::entails_fact]:
+    Source: 'crates/rowl-kernel/src/facts.rs', lines 168:0-189:1
+    Visibility: public -/
+def facts.entails_fact
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (fact : model.Axiom) :
+  Result (Option Bool)
+  := do
+  let o ← facts.negation fact
+  match o with
+  | none => ok none
+  | some negated =>
+    let o1 ←
+      facts.meaningful items 0#usize (alloc.vec.Vec.new model.AnnotatedAxiom)
+    match o1 with
+    | none => ok none
+    | some closure =>
+      let i := alloc.vec.Vec.len closure
+      if i < core.num.Usize.MAX
+      then
+        let closure1 ←
+          alloc.vec.Vec.push closure
+            ({
+               annotations := (alloc.vec.Vec.new model.Annotation),
+               «axiom» := negated
+             } : model.AnnotatedAxiom)
+        let o2 ← facts.consistent_closure closure1
+        match o2 with
+        | none => ok none
+        | some answer => ok (some (¬ answer))
+      else ok none
+
 /-- [rowl_kernel::functional::Keyword]
     Source: 'crates/rowl-kernel/src/functional.rs', lines 10:0-82:1
     Visibility: public -/

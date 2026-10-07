@@ -1,3 +1,4 @@
+use rowl::experimental::functional_prefixes::read_prefix_header;
 use rowl::experimental::ntriples;
 use rowl::experimental::{decide, Atom, Decision, Formula};
 use rowl::reasoner::{
@@ -162,6 +163,27 @@ fn split_imports(arguments: &[String]) -> Result<(Vec<String>, Vec<String>), Str
     Ok((rest, imports))
 }
 
+/// The fact `text`, one axiom in Functional Syntax, read by the verified reader
+/// in a document of its own, with the prefix declarations of the document at
+/// `path` when that is a Functional Syntax document.
+fn read_fact(path: &str, text: &str) -> Result<Reasoner, String> {
+    let mut source = Vec::new();
+    if matches!(syntax_of(std::path::Path::new(path)), Syntax::Functional) {
+        let bytes = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+        let limits = default_limits();
+        if let Ok(header) =
+            read_prefix_header(&bytes, limits.tokens, limits.prefixes, limits.prefix_value)
+        {
+            source.extend_from_slice(&bytes[..header.ontology.start]);
+        }
+    }
+    source.extend_from_slice(b"Ontology(<urn:rowl:fact>\n");
+    source.extend_from_slice(text.as_bytes());
+    source.extend_from_slice(b"\n)\n");
+    Reasoner::from_functional(&source, &default_limits())
+        .map_err(|error| load_message("the fact", error))
+}
+
 fn reasoning_command(
     command: &str,
     path: &str,
@@ -211,6 +233,13 @@ fn reasoning_command(
                 return Err(format!(
                     "{unknown} individual(s) could not be decided (outside the supported fragment or over a limit), so the list is incomplete."
                 ));
+            }
+        }
+        ("entails", [fact]) => {
+            let query = read_fact(path, fact)?;
+            match query.ontology().axioms.as_slice() {
+                [item] => println!("entailed: {}", answer(reasoner.entails(&item.axiom))),
+                _ => return Err("the fact must be exactly one axiom".into()),
             }
         }
         _ => return Err("unknown command".into()),
@@ -283,10 +312,10 @@ fn main() -> std::process::ExitCode {
     };
     let reads = matches!(
         arguments.first().map(String::as_str),
-        Some("check" | "classify" | "instances" | "validate")
+        Some("check" | "classify" | "instances" | "entails" | "validate")
     );
     if !imports.is_empty() && !reads {
-        eprintln!("--imports applies to check, classify, instances and validate");
+        eprintln!("--imports applies to check, classify, instances, entails and validate");
         return std::process::ExitCode::FAILURE;
     }
     match arguments.as_slice() {
@@ -356,7 +385,10 @@ fn main() -> std::process::ExitCode {
             }
         }
         [command, path, extra @ ..]
-            if command == "check" || command == "classify" || command == "instances" =>
+            if command == "check"
+                || command == "classify"
+                || command == "instances"
+                || command == "entails" =>
         {
             if let Err(error) = reasoning_command(command, path, extra, &imports) {
                 eprintln!("{error}");
@@ -378,10 +410,11 @@ fn main() -> std::process::ExitCode {
             }
         }
         _ => {
-            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE> [--imports DIR]...");
-            eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE, RDF/XML for a .owl or .rdf FILE and Functional Syntax otherwise.");
+            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|entails FILE FACT|validate FILE|check-nt FILE|export-nt FILE> [--imports DIR]...");
+            eprintln!("check, classify, instances, entails and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE, RDF/XML for a .owl or .rdf FILE and Functional Syntax otherwise.");
             eprintln!("With --imports DIR they read the import closure of FILE from a catalog of FILE and every .ofn, .nt, .ttl, .owl and .rdf file of each DIR; an import IRI must be the ontology or version IRI of exactly one of them. Nothing is fetched.");
             eprintln!("instances lists the individuals proved to be instances of CLASS. It exits with status 1, after naming them, when some individuals cannot be decided, and without a list when the ontology is inconsistent.");
+            eprintln!("entails prints whether every model of the ontology satisfies FACT: one Functional Syntax axiom, written with the document's own prefixes when it is a Functional Syntax document and with full IRIs otherwise. Property assertions and their negatives about named individuals, SameIndividual and DifferentIndividuals of two named individuals, and class assertions are answered.");
             eprintln!("validate prints whether the document is OWL 2 DL or its first violation, and exits with status 1 when it is not.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;

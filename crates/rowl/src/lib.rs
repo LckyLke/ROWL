@@ -64,6 +64,7 @@ pub mod experimental {
     pub use rowl_kernel::datatypes;
     pub use rowl_kernel::decimal;
     pub use rowl_kernel::dl_validity;
+    pub use rowl_kernel::facts;
     pub use rowl_kernel::indexing;
     pub use rowl_kernel::keys;
     pub use rowl_kernel::model;

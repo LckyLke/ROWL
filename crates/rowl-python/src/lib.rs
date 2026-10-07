@@ -11,6 +11,10 @@
 //! supported fragment or a limit was reached) or -2 (a null handle or text that
 //! is not UTF-8). Lists and the OWL 2 DL verdict come back as JSON text that
 //! the caller releases with [`rowl_string_free`].
+use rowl::experimental::model::{
+    AtLeastTwo, Axiom, DataProperty, Datatype, Individual, Iri, Literal, NamedIndividual,
+    ObjectProperty, ObjectPropertyExpression,
+};
 use rowl::reasoner::{
     default_limits, document_error_words, named, rdfxml_error_words, xml_error_words, Classified,
     Document, LoadError, Reasoner, Syntax,
@@ -552,6 +556,94 @@ pub unsafe extern "C" fn rowl_instance_of(
     } {
         (Some(found), Some(individual), Some(class)) => {
             answer(found.instance_of(individual, &named(class)))
+        }
+        _ => INVALID_ARGUMENT,
+    }
+}
+
+/// The fact of `kind` about named individuals: 0 an object property assertion
+/// (`first` the property, `second` and `third` the individuals), 1 its
+/// negative, 2 a data property assertion (`first` the property, `second` the
+/// individual, `third` the lexical form and `fourth` the datatype IRI), 3 its
+/// negative, 4 the equality and 5 the inequality of `first` and `second`.
+fn fact(kind: i32, first: &str, second: &str, third: &str, fourth: &str) -> Option<Axiom> {
+    let iri = |text: &str| Iri {
+        spelling: text.as_bytes().to_vec(),
+    };
+    let individual = |text: &str| Individual::Named(NamedIndividual { iri: iri(text) });
+    let role = || ObjectPropertyExpression::Property(ObjectProperty { iri: iri(first) });
+    let property = || DataProperty { iri: iri(first) };
+    let literal = || Literal {
+        lexical: third.as_bytes().to_vec(),
+        datatype: Datatype { iri: iri(fourth) },
+    };
+    let pair = || AtLeastTwo {
+        first: individual(first),
+        second: individual(second),
+        rest: Vec::new(),
+    };
+    match kind {
+        0 => Some(Axiom::ObjectPropertyAssertion(
+            role(),
+            individual(second),
+            individual(third),
+        )),
+        1 => Some(Axiom::NegativeObjectPropertyAssertion(
+            role(),
+            individual(second),
+            individual(third),
+        )),
+        2 => Some(Axiom::DataPropertyAssertion(
+            property(),
+            individual(second),
+            literal(),
+        )),
+        3 => Some(Axiom::NegativeDataPropertyAssertion(
+            property(),
+            individual(second),
+            literal(),
+        )),
+        4 => Some(Axiom::SameIndividual(pair())),
+        5 => Some(Axiom::DifferentIndividuals(pair())),
+        _ => None,
+    }
+}
+
+/// Whether every model of the axioms satisfies the fact of `kind` (see
+/// [`fact`]) about the given IRIs and literal; -2 for an unknown kind.
+///
+/// # Safety
+/// `reasoner` must be null or a live handle, and each text pointer must be
+/// null or point to its length of bytes.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rowl_entails_fact(
+    reasoner: *const RowlReasoner,
+    kind: i32,
+    first: *const u8,
+    first_len: usize,
+    second: *const u8,
+    second_len: usize,
+    third: *const u8,
+    third_len: usize,
+    fourth: *const u8,
+    fourth_len: usize,
+) -> i32 {
+    // SAFETY: forwarded from the caller.
+    match unsafe {
+        (
+            handle(reasoner),
+            text(first, first_len),
+            text(second, second_len),
+            text(third, third_len),
+            text(fourth, fourth_len),
+        )
+    } {
+        (Some(found), Some(first), Some(second), Some(third), Some(fourth)) => {
+            match fact(kind, first, second, third, fourth) {
+                Some(fact) => answer(found.entails(&fact)),
+                None => INVALID_ARGUMENT,
+            }
         }
         _ => INVALID_ARGUMENT,
     }

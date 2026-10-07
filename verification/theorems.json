@@ -6561,6 +6561,17 @@
         "Rowl.Components.closure_parts_correct",
         "Rowl.Components.parts_instance_correct"
       ]
+    },
+    {
+      "module": "Rowl.Facts",
+      "namespace": "Rowl.Facts",
+      "theorems": [
+        "Rowl.Facts.entails_iff_inconsistent",
+        "Rowl.Facts.negation_spec",
+        "Rowl.Facts.meaningful_spec",
+        "Rowl.Facts.consistent_closure_correct",
+        "Rowl.Facts.entails_fact_correct"
+      ]
     }
   ],
   "specifications": [
@@ -8380,6 +8391,7 @@
     "Rowl.Components.checked",
     "Rowl.Prefixes.Reserved",
     "Rowl.Components.PartFor",
-    "Rowl.Components.ComponentOk"
+    "Rowl.Components.ComponentOk",
+    "Rowl.Facts.Negates"
   ]
 }

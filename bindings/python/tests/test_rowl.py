@@ -204,3 +204,49 @@ class ImportClosures(unittest.TestCase):
         with self.assertRaises(rowl.DocumentRejected) as raised:
             rowl.Reasoner.from_documents([("first", first, "functional"), ("broken", "Ontology(", "functional")])
         self.assertIn("broken", str(raised.exception))
+
+
+FAMILY = """Prefix(:=<https://example.org/f/>)
+Ontology(<https://example.org/f/onto>
+SubObjectPropertyOf(:hasMother :hasParent)
+InverseObjectProperties(:hasParent :hasChild)
+FunctionalObjectProperty(:hasMother)
+FunctionalDataProperty(:age)
+ObjectPropertyAssertion(:hasMother :ann :beth)
+ObjectPropertyAssertion(:hasMother :ann :mum)
+DataPropertyAssertion(:age :ann "7"^^xsd:integer)
+DifferentIndividuals(:carl :dora)
+)
+"""
+F = "https://example.org/f/"
+INTEGER = "http://www.w3.org/2001/XMLSchema#integer"
+
+
+class NamedFacts(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.reasoner = rowl.Reasoner(FAMILY)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.reasoner.close()
+
+    def test_property_facts(self):
+        r = self.reasoner
+        self.assertIs(r.entails_object_property(F + "hasParent", F + "ann", F + "beth"), True)
+        self.assertIs(r.entails_object_property(F + "hasChild", F + "beth", F + "ann"), True)
+        self.assertIs(r.entails_object_property(F + "hasParent", F + "carl", F + "ann"), False)
+        self.assertIs(r.entails_object_property(F + "hasParent", F + "carl", F + "ann", negative=True), False)
+
+    def test_data_facts(self):
+        r = self.reasoner
+        self.assertIs(r.entails_data_property(F + "age", F + "ann", "07", INTEGER), True)
+        self.assertIs(r.entails_data_property(F + "age", F + "ann", "8", INTEGER), False)
+        self.assertIs(r.entails_data_property(F + "age", F + "ann", "8", INTEGER, negative=True), True)
+
+    def test_equality_facts(self):
+        r = self.reasoner
+        self.assertIs(r.entails_same_individual(F + "beth", F + "mum"), True)
+        self.assertIs(r.entails_different_individuals(F + "carl", F + "dora"), True)
+        self.assertIs(r.entails_different_individuals(F + "ann", F + "carl"), False)
+

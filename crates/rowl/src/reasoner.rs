@@ -21,6 +21,7 @@ use rowl_kernel::data_ontology::{
     prepared_subsumed, Prepared,
 };
 use rowl_kernel::dl_validity::{check_ontology, DlCheck};
+use rowl_kernel::facts::entails_fact;
 use rowl_kernel::functional_annotations::AnnotationLimits;
 use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
@@ -1111,13 +1112,35 @@ impl Reasoner {
                 spelling: individual.as_bytes().to_vec(),
             },
         };
+        self.named_instance_of(&individual, class)
+    }
+    /// Whether the named individual is an instance of `class` in every model,
+    /// as `instance_of` answers it.
+    fn named_instance_of(
+        &self,
+        individual: &NamedIndividual,
+        class: &ClassExpression,
+    ) -> Option<bool> {
         if self.consistent() == Some(true) {
-            if let Some(answer) = self.part_instance_of(&individual, class) {
+            if let Some(answer) = self.part_instance_of(individual, class) {
                 return Some(answer);
             }
         }
         let prepared = self.queries()?;
-        on_kernel_stack(|| prepared_instance_of(prepared, &individual, class))
+        on_kernel_stack(|| prepared_instance_of(prepared, individual, class))
+    }
+    /// Whether every model of the axioms satisfies the fact: a property
+    /// assertion or its negative about named individuals, or an equality or
+    /// inequality of two named individuals, decided by the consistency of the
+    /// axioms with the fact's negation (`facts::entails_fact`); a class
+    /// assertion about a named individual is an instance question. Axioms
+    /// without a model entail every fact. `None` for another kind of fact, one
+    /// about an anonymous individual, or when the queries do not answer.
+    pub fn entails(&self, fact: &Axiom) -> Option<bool> {
+        if let Axiom::ClassAssertion(class, Individual::Named(individual)) = fact {
+            return self.named_instance_of(individual, class);
+        }
+        on_kernel_stack(|| entails_fact(&self.ontology.axioms, fact))
     }
     /// The parts of the closure for instance questions, found on first use;
     /// `None` when the closure does not fall apart into them.

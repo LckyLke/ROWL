@@ -6583,3 +6583,42 @@ This block adds 3 public theorems (`components_from_spec`,
 (`PartFor`, `ComponentOk`). Totals are 5448 audited theorems, 1817
 definitions, 662 Rust regressions and 5641 ledger obligations.
 
+## Queries: entailment of named facts
+
+The queries answered consistency, class questions and instance questions, but
+not whether a property assertion or an equality of individuals follows. A
+closure entails a fact when every model of the closure satisfies it. For a
+property assertion about named individuals, its negative, and an equality or
+inequality of two named individuals, the negation is again an assertion: the
+negative of a property assertion and the other way round, the inequality of
+two individuals and the other way round. `Rowl.Facts.entails_iff_inconsistent`
+proves that the closure entails such a fact exactly when the closure with its
+negation has no model, for any negation that an interpretation satisfies
+exactly when it does not satisfy the fact (`Negates`) on a fact that no
+reassignment of the anonymous individuals changes.
+
+`facts::entails_fact` builds the negation (`negation_spec`; facts about
+anonymous individuals and equalities of more than two individuals get no
+answer, since their negations are no assertions), copies the axioms of the
+closure that mean something (`meaningful_spec`), adds the negation, and asks
+`consistent_by_parts`, or the whole closure when it does not fall apart
+(`consistent_closure_correct`). `entails_fact_correct` proves the answer to be
+whether the closure entails the fact, under every datatype map that is the OWL
+2 map on the datatypes of `datatypes` and every vocabulary that names the
+individuals of a closure with keys and of the fact.
+
+`Reasoner::entails` answers a class assertion about a named individual as an
+instance question and the other facts by `entails_fact`. The CLI command
+`rowl entails FILE FACT` reads the fact as one Functional Syntax axiom with the
+document's own prefixes, and the Python bindings have
+`entails_object_property`, `entails_data_property`, `entails_same_individual`
+and `entails_different_individuals`. The regressions check sub-properties,
+inverses, a functional property that makes two mothers one individual, the
+absence of the unique name assumption, data values compared by value (`07` and
+`7` are one integer), negative facts, an inconsistent closure that entails
+every fact, and facts that get no answer.
+
+This block adds 5 public theorems and 1 definition (`Rowl.Facts`). Totals are
+5453 audited theorems, 1818 definitions, 666 Rust regressions, 24 Python
+binding tests and 5646 ledger obligations.
+

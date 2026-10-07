@@ -1272,7 +1272,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5448 audited public theorems and 1817 audited semantic definitions. Consistency,
+- 5453 audited public theorems and 1818 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1291,7 +1291,7 @@ formats are future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 662 Rust regression tests and 21 Python binding tests, plus separately fetched
+- 666 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1311,7 +1311,12 @@ formats are future work.
   `part_subsumed_correct`); such a closure's consistency is decided part by
   part, from its axioms other than assertions and the part of each component
   (`components::consistent_by_parts`, `consistent_by_parts_correct`); and a
-  closure or document prepared once answers any number of queries.
+  closure or document prepared once answers any number of queries. A closure
+  entails a property assertion about named individuals, its negative, or an
+  equality or inequality of two named individuals exactly when it has no model
+  together with the fact's negation (`Rowl.Facts.entails_iff_inconsistent`);
+  `facts::entails_fact` decides it so (`entails_fact_correct`), and the
+  Reasoner, the CLI command `entails` and the Python bindings ask it.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.
   The frontend stages are extracted together with the kernel as one Lean
   development, so parsing and reasoning can be composed without assumptions;
@@ -1319,7 +1324,7 @@ formats are future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 5641-obligation release ledger and separate checked constructor and built-in inventories.
+- A 5646-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

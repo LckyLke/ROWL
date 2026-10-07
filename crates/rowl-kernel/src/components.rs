@@ -81,7 +81,7 @@ fn assertion(axiom: &Axiom) -> bool {
 }
 /// Whether the axiom means nothing in a model: a declaration or an annotation
 /// axiom.
-fn meaningless(axiom: &Axiom) -> bool {
+pub(crate) fn meaningless(axiom: &Axiom) -> bool {
     match axiom {
         Axiom::Declaration(_) => true,
         Axiom::AnnotationAssertion(_, _, _) => true,
@@ -965,7 +965,7 @@ fn copy_sub_role(sub: &SubObjectPropertyExpression) -> SubObjectPropertyExpressi
 }
 /// A copy of a logical axiom; `None` for a declaration, an annotation axiom or
 /// a datatype definition, which no part has.
-fn copy_axiom(axiom: &Axiom) -> Option<Axiom> {
+pub(crate) fn copy_axiom(axiom: &Axiom) -> Option<Axiom> {
     match axiom {
         Axiom::SubClassOf(sub, sup) => Some(Axiom::SubClassOf(copy_class(sub), copy_class(sup))),
         Axiom::EquivalentClasses(members) => {
