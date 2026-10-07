@@ -139,6 +139,7 @@ import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
 import Rowl.Concepts
+import Rowl.Copies
 import Rowl.Hierarchy
 import Rowl.ConceptTable
 import Rowl.CompletionSearch
@@ -179,6 +180,7 @@ import Rowl.Partition
 import Rowl.Components
 import Rowl.Facts
 import Rowl.KeyModels
+import Rowl.Unfolding
 import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation
@@ -2605,6 +2607,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataOntology.key_prepare_correct
 #print axioms Rowl.DataOntology.prepare_in_correct
 #print axioms Rowl.DataOntology.prepare_correct
+#print axioms Rowl.DataOntology.defined_facts
 #print axioms Rowl.DataOntology.withAnonymous_self
 #print axioms Rowl.DataOntology.interpretation_anonymous
 #print axioms Rowl.DataOntology.lifted_anonymous
@@ -2617,6 +2620,10 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataOntology.prepared_class_satisfiable_correct
 #print axioms Rowl.DataOntology.prepared_subsumed_correct
 #print axioms Rowl.DataOntology.prepared_instance_of_correct
+#print axioms Rowl.DataOntology.consistent_closure_correct
+#print axioms Rowl.DataOntology.class_satisfiable_closure_correct
+#print axioms Rowl.DataOntology.subsumed_closure_correct
+#print axioms Rowl.DataOntology.instance_of_closure_correct
 #print axioms Rowl.DataOntology.consistent_correct
 #print axioms Rowl.DataOntology.class_satisfiable_correct
 #print axioms Rowl.DataOntology.subsumed_correct
@@ -5691,9 +5698,6 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.component_total
 #print axioms Rowl.Components.closed_spec
 #print axioms Rowl.Components.members_of_spec
-#print axioms Rowl.Components.copy_range_eq
-#print axioms Rowl.Components.copy_class_eq
-#print axioms Rowl.Components.copy_axiom_spec
 #print axioms Rowl.Components.kept_spec
 #print axioms Rowl.Components.select_spec
 #print axioms Rowl.Components.component_closure_correct
@@ -5815,6 +5819,96 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Moments.moment_value_correct
 #print axioms Rowl.Moments.momentForm_unique
 #print axioms Rowl.Moments.momentForm_valid
+#print axioms Rowl.Copies.copy_natural_eq
+#print axioms Rowl.Copies.copy_class_name_eq
+#print axioms Rowl.Copies.copy_datatype_eq
+#print axioms Rowl.Copies.copy_data_property_eq
+#print axioms Rowl.Copies.copy_literal_eq
+#print axioms Rowl.Copies.copy_facet_eq
+#print axioms Rowl.Copies.copy_literals_spec
+#print axioms Rowl.Copies.copy_literals_eq
+#print axioms Rowl.Copies.copy_facets_spec
+#print axioms Rowl.Copies.copy_facets_eq
+#print axioms Rowl.Copies.copy_individuals_spec
+#print axioms Rowl.Copies.copy_individuals_eq
+#print axioms Rowl.Copies.copy_roles_spec
+#print axioms Rowl.Copies.copy_roles_eq
+#print axioms Rowl.Copies.copy_data_list_spec
+#print axioms Rowl.Copies.copy_data_list_eq
+#print axioms Rowl.Copies.copy_role_members_eq
+#print axioms Rowl.Copies.copy_data_members_eq
+#print axioms Rowl.Copies.copy_individual_members_eq
+#print axioms Rowl.Copies.copy_sub_role_eq
+#print axioms Rowl.Copies.copy_range_list_spec
+#print axioms Rowl.Copies.copy_range_members_eq
+#print axioms Rowl.Copies.copy_range_eq
+#print axioms Rowl.Copies.copy_range_filler_eq
+#print axioms Rowl.Copies.copy_class_list_spec
+#print axioms Rowl.Copies.copy_class_members_eq
+#print axioms Rowl.Copies.copy_class_filler_eq
+#print axioms Rowl.Copies.copy_class_eq
+#print axioms Rowl.Copies.copy_axiom_spec
+#print axioms Rowl.Copies.copy_range_members_full
+#print axioms Rowl.Copies.copy_class_members_full
+#print axioms Rowl.Unfolding.definition_from_eq
+#print axioms Rowl.Unfolding.definitionOf_mem
+#print axioms Rowl.Unfolding.defined_values
+#print axioms Rowl.Unfolding.forall2_all
+#print axioms Rowl.Unfolding.forall2_any
+#print axioms Rowl.Unfolding.forall2_map
+#print axioms Rowl.Unfolding.unfold_range_list_spec
+#print axioms Rowl.Unfolding.unfold_range_members_spec
+#print axioms Rowl.Unfolding.unfold_range_spec
+#print axioms Rowl.Unfolding.unfold_range_filler_spec
+#print axioms Rowl.Unfolding.extend_relation
+#print axioms Rowl.Unfolding.extend_individual
+#print axioms Rowl.Unfolding.individuals_members
+#print axioms Rowl.Unfolding.individuals_counted
+#print axioms Rowl.Unfolding.members_names
+#print axioms Rowl.Unfolding.unfold_class_list_spec
+#print axioms Rowl.Unfolding.unfold_class_members_spec
+#print axioms Rowl.Unfolding.unfold_class_filler_spec
+#print axioms Rowl.Unfolding.unfold_class_spec
+#print axioms Rowl.Unfolding.extend_relation_fun
+#print axioms Rowl.Unfolding.extend_individual_fun
+#print axioms Rowl.Unfolding.extend_chain
+#print axioms Rowl.Unfolding.extend_sub
+#print axioms Rowl.Unfolding.allEqual_map
+#print axioms Rowl.Unfolding.pairwiseDisjoint_map
+#print axioms Rowl.Unfolding.members_denote
+#print axioms Rowl.Unfolding.copy_entity_eq
+#print axioms Rowl.Unfolding.unfold_axiom_spec
+#print axioms Rowl.Unfolding.has_definitions_runs
+#print axioms Rowl.Unfolding.definitions_from_spec
+#print axioms Rowl.Unfolding.definitions_spec
+#print axioms Rowl.Unfolding.definitions_proper_spec
+#print axioms Rowl.Unfolding.unfold_from_spec
+#print axioms Rowl.Unfolding.unfold_items_spec
+#print axioms Rowl.Unfolding.unfold_question_spec
+#print axioms Rowl.Unfolding.literal_predefined
+#print axioms Rowl.Unfolding.proper_found
+#print axioms Rowl.Unfolding.proper_not_predefined
+#print axioms Rowl.Unfolding.mem_definitionsOf
+#print axioms Rowl.Unfolding.definitionsOf_mem
+#print axioms Rowl.Unfolding.unfold_range_unique
+#print axioms Rowl.Unfolding.extend_definition
+#print axioms Rowl.Unfolding.extend_interpretation
+#print axioms Rowl.Unfolding.data_denote_anonymous
+#print axioms Rowl.Unfolding.definitions_hold
+#print axioms Rowl.Unfolding.items_forward
+#print axioms Rowl.Unfolding.items_backward
+#print axioms Rowl.Unfolding.items_names
+#print axioms Rowl.Unfolding.names_keyed
+#print axioms Rowl.Unfolding.unfolded_undefined
+#print axioms Rowl.Unfolding.unfolded_defines_new
+#print axioms Rowl.Unfolding.defines_new_of_none
+#print axioms Rowl.Unfolding.extend_anonymous
+#print axioms Rowl.Unfolding.unfolded_model
+#print axioms Rowl.Unfolding.extended_model
+#print axioms Rowl.Unfolding.unfolded_consistent
+#print axioms Rowl.Unfolding.unfolded_satisfiable
+#print axioms Rowl.Unfolding.unfolded_subsumed
+#print axioms Rowl.Unfolding.unfolded_instance
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7722,3 +7816,18 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataStructure.MomentFacts
 #print axioms Rowl.DataComplete.IsMomentKind
 #print axioms Rowl.DataSound.momentAt
+#print axioms Rowl.Unfolding.definitionOf
+#print axioms Rowl.Unfolding.DefinitionsHold
+#print axioms Rowl.Unfolding.extend
+#print axioms Rowl.Unfolding.RangeKeeps
+#print axioms Rowl.Unfolding.RangeSpec
+#print axioms Rowl.Unfolding.RangeFills
+#print axioms Rowl.Unfolding.ClassKeeps
+#print axioms Rowl.Unfolding.fillerNames
+#print axioms Rowl.Unfolding.ClassSpec
+#print axioms Rowl.Unfolding.AxiomKeeps
+#print axioms Rowl.Unfolding.Dropped
+#print axioms Rowl.Unfolding.definitionsOf
+#print axioms Rowl.Unfolding.Proper
+#print axioms Rowl.Unfolding.ItemsUnfold
+#print axioms Rowl.Unfolding.DefinesNew

@@ -106,6 +106,8 @@ pub mod data_ontology;
 pub mod key_ontology;
 
 pub mod components;
+// Datatype definitions unfolded for the data queries.
+pub mod unfolding;
 // Entailment of named facts by the consistency of the closure with their negation.
 pub mod facts;
 

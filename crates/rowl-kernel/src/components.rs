@@ -47,7 +47,9 @@
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::alc_ontology::{intern, position};
 use crate::concepts::{copy_individual, copy_role};
-use crate::data_ontology::{axiom_individuals, consistent, is_literal, is_top_data, universal};
+use crate::data_ontology::{
+    axiom_individuals, consistent_closure, is_literal, is_top_data, universal,
+};
 use crate::datatypes::{facet_of, kind_of, literal_value, numeric};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange, Datatype,
@@ -663,40 +665,44 @@ fn members_of(table: &Vec<Vec<Individual>>, start: &Individual) -> Option<Vec<In
 // Copies
 // ---------------------------------------------------------------------------
 
-fn copy_natural(value: &Natural) -> Natural {
+pub(crate) fn copy_natural(value: &Natural) -> Natural {
     match value {
         Natural::Zero => Natural::Zero,
         Natural::Succ(inner) => Natural::Succ(Box::new(copy_natural(inner))),
     }
 }
-fn copy_class_name(expression: &Class) -> Class {
+pub(crate) fn copy_class_name(expression: &Class) -> Class {
     Class {
         iri: copy_iri(&expression.iri),
     }
 }
-fn copy_datatype(datatype: &Datatype) -> Datatype {
+pub(crate) fn copy_datatype(datatype: &Datatype) -> Datatype {
     Datatype {
         iri: copy_iri(&datatype.iri),
     }
 }
-fn copy_data_property(property: &DataProperty) -> DataProperty {
+pub(crate) fn copy_data_property(property: &DataProperty) -> DataProperty {
     DataProperty {
         iri: copy_iri(&property.iri),
     }
 }
-fn copy_literal(literal: &Literal) -> Literal {
+pub(crate) fn copy_literal(literal: &Literal) -> Literal {
     Literal {
         lexical: copy_bytes(&literal.lexical),
         datatype: copy_datatype(&literal.datatype),
     }
 }
-fn copy_facet(facet: &FacetRestriction) -> FacetRestriction {
+pub(crate) fn copy_facet(facet: &FacetRestriction) -> FacetRestriction {
     FacetRestriction {
         facet: copy_iri(&facet.facet),
         value: copy_literal(&facet.value),
     }
 }
-fn copy_literals(literals: &Vec<Literal>, index: usize, mut out: Vec<Literal>) -> Vec<Literal> {
+pub(crate) fn copy_literals(
+    literals: &Vec<Literal>,
+    index: usize,
+    mut out: Vec<Literal>,
+) -> Vec<Literal> {
     if index < literals.len() {
         if out.len() < usize::MAX {
             out.push(copy_literal(&literals[index]));
@@ -708,7 +714,7 @@ fn copy_literals(literals: &Vec<Literal>, index: usize, mut out: Vec<Literal>) -
         out
     }
 }
-fn copy_facets(
+pub(crate) fn copy_facets(
     facets: &Vec<FacetRestriction>,
     index: usize,
     mut out: Vec<FacetRestriction>,
@@ -724,7 +730,7 @@ fn copy_facets(
         out
     }
 }
-fn copy_individuals(
+pub(crate) fn copy_individuals(
     individuals: &Vec<Individual>,
     index: usize,
     mut out: Vec<Individual>,
@@ -740,7 +746,7 @@ fn copy_individuals(
         out
     }
 }
-fn copy_roles(
+pub(crate) fn copy_roles(
     roles: &Vec<ObjectPropertyExpression>,
     index: usize,
     mut out: Vec<ObjectPropertyExpression>,
@@ -756,7 +762,7 @@ fn copy_roles(
         out
     }
 }
-fn copy_data_list(
+pub(crate) fn copy_data_list(
     properties: &Vec<DataProperty>,
     index: usize,
     mut out: Vec<DataProperty>,
@@ -772,7 +778,7 @@ fn copy_data_list(
         out
     }
 }
-fn copy_range(range: &DataRange) -> DataRange {
+pub(crate) fn copy_range(range: &DataRange) -> DataRange {
     match range {
         DataRange::Datatype(datatype) => DataRange::Datatype(copy_datatype(datatype)),
         DataRange::Intersection(members) => {
@@ -930,7 +936,7 @@ fn copy_class_members(members: &AtLeastTwo<ClassExpression>) -> AtLeastTwo<Class
         rest: copy_class_list(&members.rest, 0, Vec::new()),
     }
 }
-fn copy_role_members(
+pub(crate) fn copy_role_members(
     roles: &AtLeastTwo<ObjectPropertyExpression>,
 ) -> AtLeastTwo<ObjectPropertyExpression> {
     AtLeastTwo {
@@ -939,21 +945,23 @@ fn copy_role_members(
         rest: copy_roles(&roles.rest, 0, Vec::new()),
     }
 }
-fn copy_data_members(properties: &AtLeastTwo<DataProperty>) -> AtLeastTwo<DataProperty> {
+pub(crate) fn copy_data_members(properties: &AtLeastTwo<DataProperty>) -> AtLeastTwo<DataProperty> {
     AtLeastTwo {
         first: copy_data_property(&properties.first),
         second: copy_data_property(&properties.second),
         rest: copy_data_list(&properties.rest, 0, Vec::new()),
     }
 }
-fn copy_individual_members(individuals: &AtLeastTwo<Individual>) -> AtLeastTwo<Individual> {
+pub(crate) fn copy_individual_members(
+    individuals: &AtLeastTwo<Individual>,
+) -> AtLeastTwo<Individual> {
     AtLeastTwo {
         first: copy_individual(&individuals.first),
         second: copy_individual(&individuals.second),
         rest: copy_individuals(&individuals.rest, 0, Vec::new()),
     }
 }
-fn copy_sub_role(sub: &SubObjectPropertyExpression) -> SubObjectPropertyExpression {
+pub(crate) fn copy_sub_role(sub: &SubObjectPropertyExpression) -> SubObjectPropertyExpression {
     match sub {
         SubObjectPropertyExpression::Single(role) => {
             SubObjectPropertyExpression::Single(copy_role(role))
@@ -1260,7 +1268,7 @@ fn parts_from(
     match open_from(table, 0, &done) {
         Some(open) => match members_of(table, &table[open][0]) {
             Some(members) => match select(items, table, 0, &members, Vec::new()) {
-                Some(part) => match consistent(&part) {
+                Some(part) => match consistent_closure(&part) {
                     Some(true) => {
                         if 0 < rounds {
                             match mark(table, 0, &members, done) {
@@ -1291,7 +1299,7 @@ pub fn consistent_by_parts(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
             Some(table) => {
                 let members = Vec::new();
                 match select(items, &table, 0, &members, Vec::new()) {
-                    Some(tbox) => match consistent(&tbox) {
+                    Some(tbox) => match consistent_closure(&tbox) {
                         Some(true) => {
                             parts_from(items, &table, falses(items.len(), Vec::new()), items.len())
                         }

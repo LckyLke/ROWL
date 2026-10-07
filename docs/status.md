@@ -779,8 +779,9 @@ formats are future work.
   read axioms for any valid vocabulary under every datatype map that is the OWL
   2 map on the datatypes of `datatypes::literal_value`, and a positive
   subsumption or instance answer holds in every such model. Imports, the other
-  facets, datatype definitions, keys with a data property, data ranges of the
-  other datatypes and performance remain pending.
+  facets, keys with a data property while numbers are ordered, data ranges of
+  the other datatypes and performance remain pending; datatype definitions are
+  unfolded first (see the M5 entry on them).
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
   procedure abox_satisfiable decides whether some interpretation in which the
   TBox concept holds at every element has an element for every node that
@@ -1129,6 +1130,22 @@ formats are future work.
   first of January of a year at midnight, at offset zero where the class of
   `xsd:dateTimeStamp` holds, infinitely many (`moment_space`). Facets on time
   instants and their order get no answer.
+- M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
+  unfolded before the data queries (`unfolding`): each defined datatype in a
+  data range of an axiom or of a question becomes the data range of its
+  definition, unfolded in turn, and the definitions go. A model of the closure
+  is a model of its unfolding with the same instances of every question, and a
+  model of the unfolding becomes one of the closure when each defined datatype
+  gets the values of its unfolded definition (`Rowl.Unfolding.extend`), so the
+  two agree on consistency, satisfiability, subsumption and instances
+  (`unfolded_consistent` and siblings). This holds under every datatype map
+  that has none of the defined datatypes (`DefinesNew`), the condition OWL 2
+  §9.4 puts on a definition, which the query theorems now take besides the
+  one on keys; it says nothing for a closure without definitions. A datatype
+  with two definitions, a definition of a predefined datatype, cyclic
+  definitions and facets on a defined datatype get no answer. The copies that
+  unfolding and the parts of a closure build axioms from are proved in
+  `Rowl.Copies`.
 - M5 numeric data ranges and range facets in the ontology queries: data ranges
   of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
   restrictions of every numeric datatype by the four range facets with numeric
@@ -1174,7 +1191,7 @@ formats are future work.
   outside every datatype. Under every datatype map that is the OWL 2 map on the
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric
-  datatypes, datatype definitions, keys with a data property while numbers are
+  datatypes, keys with a data property while numbers are
   ordered (see the keys below), data ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
@@ -1335,7 +1352,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5627 audited public theorems and 1907 audited semantic definitions. Consistency,
+- 5719 audited public theorems and 1922 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1348,13 +1365,13 @@ formats are future work.
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
   over thirty datatypes, with the range facets on the numeric ones, and data
-  assertions with their literals under the OWL 2 datatype map, and keys with
-  object and data properties;
+  assertions with their literals under the OWL 2 datatype map, datatype
+  definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 680 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 683 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its

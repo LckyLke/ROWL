@@ -1,6 +1,7 @@
 import Rowl.DataSound
 import Rowl.ShiOntology
 import Rowl.KeyModels
+import Rowl.Unfolding
 
 /-!
 The ontology queries of `data_ontology` with data properties, the literals of
@@ -820,6 +821,8 @@ def DataPrepared (items : alloc.vec.Vec AnnotatedAxiom) : data_ontology.Prepared
         key_ontology.encode context capacity items nodes counting = .ok (some enc) ∧
         Rowl.ShiOntology.PreparedData enc p) ∧
       (∀ b, b ∈ nodes.val ↔ b ∈ closureIndividuals items.val) ∧ Keyed items.val
+  | .Defined defs inner => ∃ unfolded, unfolding.definitions items = .ok defs ∧
+      unfolding.unfold_items defs items = .ok (some unfolded) ∧ DataPrepared unfolded inner
 
 theorem data_free_runs (context : data_ontology.Context) : ∃ b, data_ontology.data_free context = .ok b := by
   rw [data_ontology.data_free]
@@ -927,10 +930,45 @@ theorem prepare_in_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : dat
     its closure. -/
 theorem prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.prepare items = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
-  obtain ⟨c1, run1, good1⟩ := closure_context_good items
-  obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
-  obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2 data_ontology.QUESTION_ROOM
-  exact ⟨res, by simp [data_ontology.prepare, run1, run2, run], facts⟩
+  obtain ⟨b, hasRun⟩ := Rowl.Unfolding.has_definitions_runs items 0#usize
+  cases b with
+  | false =>
+    obtain ⟨c1, run1, good1⟩ := closure_context_good items
+    obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
+    obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2 data_ontology.QUESTION_ROOM
+    exact ⟨res, by simp [data_ontology.prepare, hasRun, run1, run2, run], facts⟩
+  | true =>
+    obtain ⟨defs, defsRun, _⟩ := Rowl.Unfolding.definitions_spec items
+    obtain ⟨res, unfoldRun, _⟩ := Rowl.Unfolding.unfold_items_spec.{0,0} defs items
+    cases res with
+    | none => exact ⟨none, by simp [data_ontology.prepare, hasRun, defsRun, unfoldRun], by simp⟩
+    | some unfolded =>
+      obtain ⟨c1, run1, good1⟩ := closure_context_good unfolded
+      obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
+      obtain ⟨res2, run, facts⟩ := prepare_in_correct unfolded c2 good2 data_ontology.QUESTION_ROOM
+      cases res2 with
+      | none =>
+        exact ⟨none, by simp [data_ontology.prepare, hasRun, defsRun, unfoldRun, run1, run2, run], by simp⟩
+      | some inner =>
+        refine ⟨some (.Defined defs inner), by simp [data_ontology.prepare, hasRun, defsRun, unfoldRun, run1, run2,
+          run], fun p hp => ?_⟩
+        cases hp
+        exact ⟨unfolded, defsRun, unfoldRun, facts inner rfl⟩
+
+/-- What the definitions of a closure and its unfolding give. -/
+theorem defined_facts {items defs unfolded : alloc.vec.Vec AnnotatedAxiom}
+    (defsRun : unfolding.definitions items = .ok defs)
+    (unfoldRun : unfolding.unfold_items defs items = .ok (some unfolded)) :
+    defs.val = Rowl.Unfolding.definitionsOf items.val ∧ Rowl.Unfolding.Proper defs.val ∧
+      Rowl.Unfolding.ItemsUnfold.{u,v} defs items.val unfolded.val := by
+  obtain ⟨defs', defsRun', hdefs⟩ := Rowl.Unfolding.definitions_spec items
+  rw [defsRun] at defsRun'
+  cases Result.ok_injective defsRun'
+  obtain ⟨res, unfoldRun', facts⟩ := Rowl.Unfolding.unfold_items_spec.{u,v} defs items
+  rw [unfoldRun] at unfoldRun'
+  cases Result.ok_injective unfoldRun'
+  obtain ⟨proper, unfolds⟩ := facts unfolded rfl
+  exact ⟨hdefs, proper, unfolds⟩
 
 /-! ### Interpretations with other anonymous individuals -/
 
@@ -968,12 +1006,20 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     (data : DataPrepared items p) :
     ∃ result, data_ontology.prepared_consistent p = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, facts⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} items sp data
     exact ⟨result, by simpa [data_ontology.prepared_consistent] using run,
-      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ _ => facts answer h D V vocab⟩
+  | Defined defs inner =>
+    obtain ⟨unfolded, defsRun, unfoldRun, innerData⟩ := data
+    obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+    obtain ⟨result, run, facts⟩ := prepared_consistent_correct unfolded inner innerData
+    refine ⟨result, by simp [data_ontology.prepared_consistent, run], fun answer h Native D N V vocab names fresh => ?_⟩
+    rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+      (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+    exact (Rowl.Unfolding.unfolded_consistent hdefs proper unfolds fresh).symm
   | Keyed context nodes sp room =>
     obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨result, run, encodedSound⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} enc sp prepData
@@ -981,7 +1027,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
     have same : result' = result := Result.ok_injective (run'.symm.trans run)
     subst same
-    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab names =>
+    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab names _ =>
       ⟨fun yes => ?_, fun model => ?_⟩⟩
     · obtain ⟨Object', Value', embed', J, modelJ⟩ := (encodedSound answer h D V vocab).mp yes
       obtain ⟨Object, Value, embed, I, _, modelI, _⟩ :=
@@ -999,7 +1045,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
     have same : result' = result := Result.ok_injective (run'.symm.trans run)
     subst same
-    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab _ =>
+    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab _ _ =>
       ⟨fun yes => ?_, fun model => ?_⟩⟩
     · obtain ⟨Object', Value', embed', J, ⟨_, jInterp, g, jSat⟩⟩ := (encodedSound answer h D V vocab).mp yes
       obtain ⟨bits, order, o, _, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good capSmall encRun
@@ -1123,12 +1169,25 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
     (data : DataPrepared items p) (e : ClassExpression) :
     ∃ result, data_ontology.prepared_class_satisfiable p e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_class_satisfiable_correct.{u,v,w} items sp data e
     exact ⟨result, by simpa [data_ontology.prepared_class_satisfiable] using run,
-      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ _ => facts answer h D V vocab⟩
+  | Defined defs inner =>
+    obtain ⟨unfolded, defsRun, unfoldRun, innerData⟩ := data
+    obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+    obtain ⟨q, qRun, qFacts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs e
+    cases q with
+    | none => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, qRun], by simp⟩
+    | some e' =>
+      obtain ⟨result, run, facts⟩ := prepared_class_satisfiable_correct unfolded inner innerData e'
+      refine ⟨result, by simp [data_ontology.prepared_class_satisfiable, qRun, run],
+        fun answer h Native D N V vocab names fresh => ?_⟩
+      rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+        (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+      exact (Rowl.Unfolding.unfolded_satisfiable hdefs proper unfolds fresh (qFacts e' rfl)).symm
   | Keyed context nodes sp room =>
     obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
@@ -1163,7 +1222,7 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           exact knownFacts rfl
         refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun,
           object_class_eq, data_ontology.and, run, query],
-          fun answer h Native D N V vocab names => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+          fun answer h Native D N V vocab names _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
         · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
           rw [and_denote, object_class_denote] at inQuery
           obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
@@ -1210,7 +1269,7 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           exact knownFacts rfl
         refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, countRun, over, classRun,
           object_class_eq, data_ontology.and, run, query],
-          fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+          fun answer h Native D N V vocab _ _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
         · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
           rw [and_denote, object_class_denote] at inQuery
           obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
@@ -1232,12 +1291,30 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
     (data : DataPrepared items p) (sub sup : ClassExpression) :
     ∃ result, data_ontology.prepared_subsumed p sub sup = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_subsumed_correct.{u,v,w} items sp data sub sup
     exact ⟨result, by simpa [data_ontology.prepared_subsumed] using run,
-      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ _ => facts answer h D V vocab⟩
+  | Defined defs inner =>
+    obtain ⟨unfolded, defsRun, unfoldRun, innerData⟩ := data
+    obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+    obtain ⟨q1, q1Run, q1Facts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs sub
+    obtain ⟨q2, q2Run, q2Facts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs sup
+    cases q1 with
+    | none => exact ⟨none, by simp [data_ontology.prepared_subsumed, q1Run, q2Run], by simp⟩
+    | some sub' =>
+      cases q2 with
+      | none => exact ⟨none, by simp [data_ontology.prepared_subsumed, q1Run, q2Run], by simp⟩
+      | some sup' =>
+        obtain ⟨result, run, facts⟩ := prepared_subsumed_correct unfolded inner innerData sub' sup'
+        refine ⟨result, by simp [data_ontology.prepared_subsumed, q1Run, q2Run, run],
+          fun answer h Native D N V vocab names fresh => ?_⟩
+        rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+          (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+        exact (Rowl.Unfolding.unfolded_subsumed hdefs proper unfolds fresh (q1Facts sub' rfl)
+          (q2Facts sup' rfl)).symm
   | Keyed context nodes sp room =>
     obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨b1, knownRun1, knownFacts1⟩ := class_known_spec nodes sub
@@ -1285,7 +1362,7 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       · exact knownFacts1 rfl
       · exact knownFacts2 rfl
     refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
-      classRun1, classRun2, object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab names =>
+      classRun1, classRun2, object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab names _ =>
         ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model x inSub
@@ -1350,7 +1427,7 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       · exact knownFacts2 rfl
     refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, countRun1, countRun2, over,
       classRun1, classRun2, object_class_eq, data_ontology.and, run, query],
-      fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+      fun answer h Native D N V vocab _ _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model x inSub
       obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good capSmall encRun model [sub, sup]
@@ -1376,12 +1453,25 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
     (data : DataPrepared items p) (a : NamedIndividual) (e : ClassExpression) :
     ∃ result, data_ontology.prepared_instance_of p a e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_instance_of_correct.{u,v,w} items sp data a e
     exact ⟨result, by simpa [data_ontology.prepared_instance_of] using run,
-      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ _ => facts answer h D V vocab⟩
+  | Defined defs inner =>
+    obtain ⟨unfolded, defsRun, unfoldRun, innerData⟩ := data
+    obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+    obtain ⟨q, qRun, qFacts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs e
+    cases q with
+    | none => exact ⟨none, by simp [data_ontology.prepared_instance_of, qRun], by simp⟩
+    | some e' =>
+      obtain ⟨result, run, facts⟩ := prepared_instance_of_correct unfolded inner innerData a e'
+      refine ⟨result, by simp [data_ontology.prepared_instance_of, qRun, run],
+        fun answer h Native D N V vocab names fresh => ?_⟩
+      rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+        (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+      exact (Rowl.Unfolding.unfolded_instance hdefs proper unfolds fresh a (qFacts e' rfl)).symm
   | Keyed context nodes sp room =>
     obtain ⟨good, ⟨capacity, counting, enc, capSmall, count, encRun, prepData⟩, nodesExact, keyed⟩ := data
     obtain ⟨k, namedRun, namedFacts⟩ := named_known_spec nodes a
@@ -1420,7 +1510,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       subst mem
       exact knownFacts rfl
     refine ⟨result', by simp [data_ontology.prepared_instance_of, namedRun, knownRun, countRun, over, classRun,
-      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab names =>
+      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab names _ =>
         ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model
@@ -1478,7 +1568,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       exact knownFacts rfl
     refine ⟨result', by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, countRun,
       over, classRun, data_class_eq, data_ontology.or, run, query],
-      fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+      fun answer h Native D N V vocab _ _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model
       obtain ⟨J, modelJ, elements, names, transfer⟩ := lifted_model.{u,v,w} N vocab good capSmall encRun model [e]
@@ -1499,41 +1589,41 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
         rw [← names a isData]
         exact (transfer e (by simp) e' classRun _).mp (holds Object Value embed I modelI)
 
-/-- Consistency of a closure. -/
-theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
-    ∃ result, data_ontology.consistent items = .ok result ∧ ∀ answer, result = some answer →
+/-- Consistency of a closure without datatype definitions. -/
+theorem consistent_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ result, data_ontology.consistent_closure items = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := finished_good c1 good1
   obtain ⟨res, run, facts⟩ := prepare_in_correct items c2 good2 0#usize
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.consistent, run1, run2, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.consistent_closure, run1, run2, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_consistent_correct.{u,v,w} items p (facts p rfl)
-    exact ⟨result, by simp [data_ontology.consistent, run1, run2, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.consistent_closure, run1, run2, run, run'], facts'⟩
 
-/-- Class satisfiability with respect to a closure. -/
-theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
-    ∃ result, data_ontology.class_satisfiable items e = .ok result ∧ ∀ answer, result = some answer →
+/-- Class satisfiability with respect to a closure without datatype definitions. -/
+theorem class_satisfiable_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
+    ∃ result, data_ontology.class_satisfiable_closure items e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
   obtain ⟨c3, run3, good3⟩ := finished_good c2 good2
   obtain ⟨n, countRun, _⟩ := class_count_spec e 0#usize (by simp)
   obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3 n
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.class_satisfiable, run1, run2, run3, countRun, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.class_satisfiable_closure, run1, run2, run3, countRun, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_class_satisfiable_correct.{u,v,w} items p (facts p rfl) e
-    exact ⟨result, by simp [data_ontology.class_satisfiable, run1, run2, run3, countRun, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.class_satisfiable_closure, run1, run2, run3, countRun, run, run'], facts'⟩
 
-/-- Subsumption with respect to a closure. -/
-theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
-    ∃ result, data_ontology.subsumed items sub sup = .ok result ∧ ∀ answer, result = some answer →
+/-- Subsumption with respect to a closure without datatype definitions. -/
+theorem subsumed_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
+    ∃ result, data_ontology.subsumed_closure items sub sup = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good sub c1 good1
   obtain ⟨c3, run3, good3⟩ := class_context_good sup c2 good2
@@ -1543,26 +1633,149 @@ theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : Class
   obtain ⟨res, run, facts⟩ := prepare_in_correct items c4 good4 n2
   cases res with
   | none =>
-    exact ⟨none, by simp [data_ontology.subsumed, run1, run2, run3, run4, countRun1, countRun2, run], by simp⟩
+    exact ⟨none, by simp [data_ontology.subsumed_closure, run1, run2, run3, run4, countRun1, countRun2, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_subsumed_correct.{u,v,w} items p (facts p rfl) sub sup
-    exact ⟨result, by simp [data_ontology.subsumed, run1, run2, run3, run4, countRun1, countRun2, run, run'],
+    exact ⟨result, by simp [data_ontology.subsumed_closure, run1, run2, run3, run4, countRun1, countRun2, run, run'],
       facts'⟩
 
-/-- Instance checking with respect to a closure. -/
-theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
-    ∃ result, data_ontology.instance_of items a e = .ok result ∧ ∀ answer, result = some answer →
+/-- Instance checking with respect to a closure without datatype definitions. -/
+theorem instance_of_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
+    ∃ result, data_ontology.instance_of_closure items a e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
   obtain ⟨c3, run3, good3⟩ := finished_good c2 good2
   obtain ⟨n, countRun, _⟩ := class_count_spec e 0#usize (by simp)
   obtain ⟨res, run, facts⟩ := prepare_in_correct items c3 good3 n
   cases res with
-  | none => exact ⟨none, by simp [data_ontology.instance_of, run1, run2, run3, countRun, run], by simp⟩
+  | none => exact ⟨none, by simp [data_ontology.instance_of_closure, run1, run2, run3, countRun, run], by simp⟩
   | some p =>
     obtain ⟨result, run', facts'⟩ := prepared_instance_of_correct.{u,v,w} items p (facts p rfl) a e
-    exact ⟨result, by simp [data_ontology.instance_of, run1, run2, run3, countRun, run, run'], facts'⟩
+    exact ⟨result, by simp [data_ontology.instance_of_closure, run1, run2, run3, countRun, run, run'], facts'⟩
+
+/-- Consistency of a closure: one with datatype definitions is unfolded
+    first (`Rowl.Unfolding.unfolded_consistent`). -/
+theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ result, data_ontology.consistent items = .ok result ∧ ∀ answer, result = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
+          (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+  obtain ⟨b, hasRun⟩ := Rowl.Unfolding.has_definitions_runs items 0#usize
+  cases b with
+  | false =>
+    obtain ⟨result, run, facts⟩ := consistent_closure_correct.{u,v,w} items
+    exact ⟨result, by simp [data_ontology.consistent, hasRun, run], facts⟩
+  | true =>
+    obtain ⟨defs, defsRun, _⟩ := Rowl.Unfolding.definitions_spec items
+    obtain ⟨res, unfoldRun, _⟩ := Rowl.Unfolding.unfold_items_spec.{0,0} defs items
+    cases res with
+    | none => exact ⟨none, by simp [data_ontology.consistent, hasRun, defsRun, unfoldRun], by simp⟩
+    | some unfolded =>
+      obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+      obtain ⟨result, run, facts⟩ := consistent_closure_correct.{u,v,w} unfolded
+      refine ⟨result, by simp [data_ontology.consistent, hasRun, defsRun, unfoldRun, run],
+        fun answer h Native D N V vocab names fresh => ?_⟩
+      rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+        (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+      exact (Rowl.Unfolding.unfolded_consistent hdefs proper unfolds fresh).symm
+
+/-- Class satisfiability with respect to a closure. -/
+theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
+    ∃ result, data_ontology.class_satisfiable items e = .ok result ∧ ∀ answer, result = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
+          (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+  obtain ⟨b, hasRun⟩ := Rowl.Unfolding.has_definitions_runs items 0#usize
+  cases b with
+  | false =>
+    obtain ⟨result, run, facts⟩ := class_satisfiable_closure_correct.{u,v,w} items e
+    exact ⟨result, by simp [data_ontology.class_satisfiable, hasRun, run], facts⟩
+  | true =>
+    obtain ⟨defs, defsRun, _⟩ := Rowl.Unfolding.definitions_spec items
+    obtain ⟨res, unfoldRun, _⟩ := Rowl.Unfolding.unfold_items_spec.{0,0} defs items
+    obtain ⟨q, qRun, qFacts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs e
+    cases res with
+    | none => exact ⟨none, by simp [data_ontology.class_satisfiable, hasRun, defsRun, unfoldRun, qRun], by simp⟩
+    | some unfolded =>
+      cases q with
+      | none =>
+        exact ⟨none, by simp [data_ontology.class_satisfiable, hasRun, defsRun, unfoldRun, qRun], by simp⟩
+      | some e' =>
+        obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+        obtain ⟨result, run, facts⟩ := class_satisfiable_closure_correct.{u,v,w} unfolded e'
+        refine ⟨result, by simp [data_ontology.class_satisfiable, hasRun, defsRun, unfoldRun, qRun, run],
+          fun answer h Native D N V vocab names fresh => ?_⟩
+        rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+          (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+        exact (Rowl.Unfolding.unfolded_satisfiable hdefs proper unfolds fresh (qFacts e' rfl)).symm
+
+/-- Subsumption with respect to a closure. -/
+theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
+    ∃ result, data_ontology.subsumed items sub sup = .ok result ∧ ∀ answer, result = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
+          (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+  obtain ⟨b, hasRun⟩ := Rowl.Unfolding.has_definitions_runs items 0#usize
+  cases b with
+  | false =>
+    obtain ⟨result, run, facts⟩ := subsumed_closure_correct.{u,v,w} items sub sup
+    exact ⟨result, by simp [data_ontology.subsumed, hasRun, run], facts⟩
+  | true =>
+    obtain ⟨defs, defsRun, _⟩ := Rowl.Unfolding.definitions_spec items
+    obtain ⟨res, unfoldRun, _⟩ := Rowl.Unfolding.unfold_items_spec.{0,0} defs items
+    obtain ⟨q1, q1Run, q1Facts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs sub
+    obtain ⟨q2, q2Run, q2Facts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs sup
+    cases res with
+    | none =>
+      exact ⟨none, by simp [data_ontology.subsumed, hasRun, defsRun, unfoldRun, q1Run, q2Run], by simp⟩
+    | some unfolded =>
+      cases q1 with
+      | none =>
+        exact ⟨none, by simp [data_ontology.subsumed, hasRun, defsRun, unfoldRun, q1Run, q2Run], by simp⟩
+      | some sub' =>
+        cases q2 with
+        | none =>
+          exact ⟨none, by simp [data_ontology.subsumed, hasRun, defsRun, unfoldRun, q1Run, q2Run], by simp⟩
+        | some sup' =>
+          obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+          obtain ⟨result, run, facts⟩ := subsumed_closure_correct.{u,v,w} unfolded sub' sup'
+          refine ⟨result, by simp [data_ontology.subsumed, hasRun, defsRun, unfoldRun, q1Run, q2Run, run],
+            fun answer h Native D N V vocab names fresh => ?_⟩
+          rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+            (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+          exact (Rowl.Unfolding.unfolded_subsumed hdefs proper unfolds fresh (q1Facts sub' rfl)
+            (q2Facts sup' rfl)).symm
+
+/-- Instance checking with respect to a closure. -/
+theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
+    ∃ result, data_ontology.instance_of items a e = .ok result ∧ ∀ answer, result = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
+          (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+  obtain ⟨b, hasRun⟩ := Rowl.Unfolding.has_definitions_runs items 0#usize
+  cases b with
+  | false =>
+    obtain ⟨result, run, facts⟩ := instance_of_closure_correct.{u,v,w} items a e
+    exact ⟨result, by simp [data_ontology.instance_of, hasRun, run], facts⟩
+  | true =>
+    obtain ⟨defs, defsRun, _⟩ := Rowl.Unfolding.definitions_spec items
+    obtain ⟨res, unfoldRun, _⟩ := Rowl.Unfolding.unfold_items_spec.{0,0} defs items
+    obtain ⟨q, qRun, qFacts⟩ := Rowl.Unfolding.unfold_question_spec.{u, max w v} defs e
+    cases res with
+    | none => exact ⟨none, by simp [data_ontology.instance_of, hasRun, defsRun, unfoldRun, qRun], by simp⟩
+    | some unfolded =>
+      cases q with
+      | none =>
+        exact ⟨none, by simp [data_ontology.instance_of, hasRun, defsRun, unfoldRun, qRun], by simp⟩
+      | some e' =>
+        obtain ⟨hdefs, proper, unfolds⟩ := defined_facts.{u, max w v} defsRun unfoldRun
+        obtain ⟨result, run, facts⟩ := instance_of_closure_correct.{u,v,w} unfolded a e'
+        refine ⟨result, by simp [data_ontology.instance_of, hasRun, defsRun, unfoldRun, qRun, run],
+          fun answer h Native D N V vocab names fresh => ?_⟩
+        rw [facts answer h D N V vocab (Rowl.Unfolding.names_keyed unfolds names)
+          (Rowl.Unfolding.unfolded_defines_new D unfolds)]
+        exact (Rowl.Unfolding.unfolded_instance hdefs proper unfolds fresh a (qFacts e' rfl)).symm
 
 end Rowl.DataOntology

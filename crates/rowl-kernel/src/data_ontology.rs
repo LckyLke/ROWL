@@ -95,6 +95,7 @@ use crate::regions::{
     add_cut, copy_value, cut_index, cut_order, cuts_fit, fits, in_cut, run_size, Cut,
 };
 use crate::shi_ontology;
+use crate::unfolding::{definitions, has_definitions, unfold_items, unfold_question};
 
 /// The datatypes in use, and whether numbers are ordered: a datatype
 /// restriction or a subtype of `xsd:integer` is in use.
@@ -3393,11 +3394,13 @@ pub(crate) fn items_count(items: &Vec<AnnotatedAxiom>, index: usize, total: usiz
 /// individuals it mentions, its encoding and the room its encoding leaves for
 /// the counts of the data restrictions of a question, and for a closure with
 /// keys the same with its keys' class expressions included and its encoding
-/// with the keys (`key_ontology`).
+/// with the keys (`key_ontology`); a closure with datatype definitions is
+/// prepared unfolded (`unfolding`), with its definitions for the questions.
 pub enum Prepared {
     Plain(shi_ontology::Prepared),
     Encoded(Context, Vec<Individual>, shi_ontology::Prepared, usize),
     Keyed(Context, Vec<Individual>, shi_ontology::Prepared, usize),
+    Defined(Vec<AnnotatedAxiom>, Box<Prepared>),
 }
 /// Whether the context has no data properties, literal values or datatypes.
 fn data_free(context: &Context) -> bool {
@@ -3445,7 +3448,22 @@ fn prepare_in(items: &Vec<AnnotatedAxiom>, context: Context, room: usize) -> Opt
 /// datatype, object or data property outside the closure, or whose data
 /// restrictions count more than 64 values, gets no answer.
 pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
-    prepare_in(items, finished(closure_context(items)), QUESTION_ROOM)
+    if has_definitions(items, 0) {
+        let definitions = definitions(items);
+        match unfold_items(&definitions, items) {
+            Some(unfolded) => match prepare_in(
+                &unfolded,
+                finished(closure_context(&unfolded)),
+                QUESTION_ROOM,
+            ) {
+                Some(prepared) => Some(Prepared::Defined(definitions, Box::new(prepared))),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        prepare_in(items, finished(closure_context(items)), QUESTION_ROOM)
+    }
 }
 /// Whether the prepared closure has a model.
 pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
@@ -3453,6 +3471,7 @@ pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
         Prepared::Plain(prepared) => shi_ontology::prepared_consistent(prepared),
         Prepared::Encoded(_, _, prepared, _) => shi_ontology::prepared_consistent(prepared),
         Prepared::Keyed(_, _, prepared, _) => shi_ontology::prepared_consistent(prepared),
+        Prepared::Defined(_, prepared) => prepared_consistent(prepared),
     }
 }
 /// Whether some model of the prepared closure has an instance of the class
@@ -3490,6 +3509,10 @@ pub fn prepared_class_satisfiable(prepared: &Prepared, class: &ClassExpression) 
                 None => None,
             }
         }
+        Prepared::Defined(definitions, prepared) => match unfold_question(definitions, class) {
+            Some(class) => prepared_class_satisfiable(prepared, &class),
+            None => None,
+        },
     }
 }
 /// Whether every instance of `sub` is an instance of `sup` in every model of
@@ -3529,6 +3552,13 @@ pub fn prepared_subsumed(
                 _ => None,
             }
         }
+        Prepared::Defined(definitions, prepared) => match (
+            unfold_question(definitions, sub),
+            unfold_question(definitions, sup),
+        ) {
+            (Some(sub), Some(sup)) => prepared_subsumed(prepared, &sub, &sup),
+            _ => None,
+        },
     }
 }
 /// Whether the named individual is an instance of the class expression in
@@ -3576,27 +3606,55 @@ pub fn prepared_instance_of(
                 None => None,
             }
         }
+        Prepared::Defined(definitions, prepared) => match unfold_question(definitions, class) {
+            Some(class) => prepared_instance_of(prepared, individual, &class),
+            None => None,
+        },
     }
 }
-/// Whether the closure has a model, for every datatype map that is the OWL 2
-/// map on the datatypes of `datatypes`.
-pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+/// Whether the closure, taken without datatype definitions, has a model.
+pub(crate) fn consistent_closure(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
     match prepare_in(items, finished(closure_context(items)), 0) {
         Some(prepared) => prepared_consistent(&prepared),
         None => None,
     }
 }
-/// Whether some model of the closure has an instance of the class expression.
-pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
+/// Whether the closure has a model, for every datatype map that is the OWL 2
+/// map on the datatypes of `datatypes` and has none of the datatypes that the
+/// closure defines.
+pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+    if has_definitions(items, 0) {
+        match unfold_items(&definitions(items), items) {
+            Some(unfolded) => consistent_closure(&unfolded),
+            None => None,
+        }
+    } else {
+        consistent_closure(items)
+    }
+}
+fn class_satisfiable_closure(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
     let context = finished(class_context(closure_context(items), class));
     match prepare_in(items, context, class_count(class, 0)) {
         Some(prepared) => prepared_class_satisfiable(&prepared, class),
         None => None,
     }
 }
-/// Whether every instance of `sub` is an instance of `sup` in every model of
-/// the closure.
-pub fn subsumed(
+/// Whether some model of the closure has an instance of the class expression.
+pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
+    if has_definitions(items, 0) {
+        let definitions = definitions(items);
+        match (
+            unfold_items(&definitions, items),
+            unfold_question(&definitions, class),
+        ) {
+            (Some(unfolded), Some(class)) => class_satisfiable_closure(&unfolded, &class),
+            _ => None,
+        }
+    } else {
+        class_satisfiable_closure(items, class)
+    }
+}
+fn subsumed_closure(
     items: &Vec<AnnotatedAxiom>,
     sub: &ClassExpression,
     sup: &ClassExpression,
@@ -3610,9 +3668,28 @@ pub fn subsumed(
         None => None,
     }
 }
-/// Whether the named individual is an instance of the class expression in
-/// every model of the closure.
-pub fn instance_of(
+/// Whether every instance of `sub` is an instance of `sup` in every model of
+/// the closure.
+pub fn subsumed(
+    items: &Vec<AnnotatedAxiom>,
+    sub: &ClassExpression,
+    sup: &ClassExpression,
+) -> Option<bool> {
+    if has_definitions(items, 0) {
+        let definitions = definitions(items);
+        match (
+            unfold_items(&definitions, items),
+            unfold_question(&definitions, sub),
+            unfold_question(&definitions, sup),
+        ) {
+            (Some(unfolded), Some(sub), Some(sup)) => subsumed_closure(&unfolded, &sub, &sup),
+            _ => None,
+        }
+    } else {
+        subsumed_closure(items, sub, sup)
+    }
+}
+fn instance_of_closure(
     items: &Vec<AnnotatedAxiom>,
     individual: &NamedIndividual,
     class: &ClassExpression,
@@ -3621,5 +3698,25 @@ pub fn instance_of(
     match prepare_in(items, context, class_count(class, 0)) {
         Some(prepared) => prepared_instance_of(&prepared, individual, class),
         None => None,
+    }
+}
+/// Whether the named individual is an instance of the class expression in
+/// every model of the closure.
+pub fn instance_of(
+    items: &Vec<AnnotatedAxiom>,
+    individual: &NamedIndividual,
+    class: &ClassExpression,
+) -> Option<bool> {
+    if has_definitions(items, 0) {
+        let definitions = definitions(items);
+        match (
+            unfold_items(&definitions, items),
+            unfold_question(&definitions, class),
+        ) {
+            (Some(unfolded), Some(class)) => instance_of_closure(&unfolded, individual, &class),
+            _ => None,
+        }
+    } else {
+        instance_of_closure(items, individual, class)
     }
 }

@@ -36,7 +36,8 @@ def Negates (fact negated : Axiom) : Prop :=
   (∀ {O : Type u} {W : Type v} (I : Interpretation O W), satisfies I negated ↔ ¬ satisfies I fact) ∧
   (∀ {O : Type u} {W : Type v} (I : Interpretation O W) (asg : AnonymousIndividual → O),
     satisfies (withAnonymous I asg) fact ↔ satisfies I fact) ∧
-  axiomIndividuals negated = axiomIndividuals fact ∧ ¬ IsKey negated ∧ ¬ Meaningless negated
+  axiomIndividuals negated = axiomIndividuals fact ∧ ¬ IsKey negated ∧ ¬ Meaningless negated ∧
+  ∀ dt r, negated ≠ .DatatypeDefinition dt r
 
 section Meaning
 variable {Native : Type w} {D : DatatypeMap Native} {V : Vocabulary}
@@ -92,7 +93,7 @@ private theorem two_different {α : Type} {β : Sort _} (a b : α) (f : α → �
 theorem negation_spec (fact : Axiom) :
     ∃ r, facts.negation fact = .ok r ∧ ∀ negated, r = some negated → Negates.{u,v} fact negated := by
   rw [facts.negation]
-  rcases Rowl.Components.copy_axiom_spec fact with none' | some'
+  rcases Rowl.Copies.copy_axiom_spec fact with none' | some'
   · exact ⟨none, by simp [none'], by simp⟩
   · simp only [some', bind_ok]
     cases fact
@@ -109,7 +110,7 @@ theorem negation_spec (fact : Axiom) :
               by simp [facts.flip, named_eq, alloc.vec.Vec.len_val, empty], fun negated same => ?_⟩
             simp only [Option.some.injEq] at same
             subst same
-            refine ⟨fun I => ?_, fun I asg => ?_, rfl, by simp [IsKey], by simp [Meaningless]⟩
+            refine ⟨fun I => ?_, fun I asg => ?_, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
             · simp only [satisfies, AtLeastTwo.elements, empty, two_equal, two_different]
             · simp only [satisfies, AtLeastTwo.elements, empty, two_equal]
               rfl
@@ -127,7 +128,7 @@ theorem negation_spec (fact : Axiom) :
               by simp [facts.flip, named_eq, alloc.vec.Vec.len_val, empty], fun negated same => ?_⟩
             simp only [Option.some.injEq] at same
             subst same
-            refine ⟨fun I => ?_, fun I asg => ?_, rfl, by simp [IsKey], by simp [Meaningless]⟩
+            refine ⟨fun I => ?_, fun I asg => ?_, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
             · simp only [satisfies, AtLeastTwo.elements, empty, two_equal, two_different, not_not]
             · simp only [satisfies, AtLeastTwo.elements, empty, two_different]
               rfl
@@ -143,7 +144,7 @@ theorem negation_spec (fact : Axiom) :
             by simp [facts.flip, named_eq], fun negated same => ?_⟩
           simp only [Option.some.injEq] at same
           subst same
-          exact ⟨fun I => Iff.rfl, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless]⟩
+          exact ⟨fun I => Iff.rfl, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
     case NegativeObjectPropertyAssertion p a b =>
       cases a with
       | Anonymous a => exact ⟨none, by simp [facts.flip, named_eq], by simp⟩
@@ -155,7 +156,7 @@ theorem negation_spec (fact : Axiom) :
             by simp [facts.flip, named_eq], fun negated same => ?_⟩
           simp only [Option.some.injEq] at same
           subst same
-          exact ⟨fun I => not_not.symm, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless]⟩
+          exact ⟨fun I => not_not.symm, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
     case DataPropertyAssertion p a lt =>
       cases a with
       | Anonymous a => exact ⟨none, by simp [facts.flip, named_eq], by simp⟩
@@ -164,7 +165,7 @@ theorem negation_spec (fact : Axiom) :
           by simp [facts.flip, named_eq], fun negated same => ?_⟩
         simp only [Option.some.injEq] at same
         subst same
-        exact ⟨fun I => Iff.rfl, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless]⟩
+        exact ⟨fun I => Iff.rfl, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
     case NegativeDataPropertyAssertion p a lt =>
       cases a with
       | Anonymous a => exact ⟨none, by simp [facts.flip, named_eq], by simp⟩
@@ -173,7 +174,7 @@ theorem negation_spec (fact : Axiom) :
           by simp [facts.flip, named_eq], fun negated same => ?_⟩
         simp only [Option.some.injEq] at same
         subst same
-        exact ⟨fun I => not_not.symm, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless]⟩
+        exact ⟨fun I => not_not.symm, fun I asg => Iff.rfl, rfl, by simp [IsKey], by simp [Meaningless], fun _ _ h => by cases h⟩
     all_goals exact ⟨none, by simp [facts.flip], by simp⟩
 
 /-! ## The closure with the negation -/
@@ -213,7 +214,7 @@ theorem meaningful_spec (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize)
         rcases List.mem_cons.mp mx with rfl | later
         · exact absurd meaningless kx
         · exact sup x later kx
-    · rcases Rowl.Components.copy_axiom_spec items.val[index.val].axiom with none' | some'
+    · rcases Rowl.Copies.copy_axiom_spec items.val[index.val].axiom with none' | some'
       · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, meaningless_eq, meaningless, none'], by simp⟩
       · by_cases room : out.val.length < Usize.max
         · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out
@@ -254,14 +255,16 @@ decreasing_by all_goals omega
 theorem consistent_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ result, facts.consistent_closure items = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
+          (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
   rw [facts.consistent_closure]
   obtain ⟨r1, run1, facts1⟩ := Rowl.Components.consistent_by_parts_correct.{u,v,w} items
   cases r1 with
   | none =>
     obtain ⟨r2, run2, facts2⟩ := Rowl.DataOntology.consistent_correct.{u,v,w} items
     exact ⟨r2, by simp [run1, run2], facts2⟩
-  | some b => exact ⟨some b, by simp [run1], facts1⟩
+  | some b =>
+    exact ⟨some b, by simp [run1], fun answer h Native D N V vocab names _ => facts1 answer h D N V vocab names⟩
 
 private theorem no_key_individuals {ax : Axiom} (notKey : ¬ IsKey ax) : keyIndividuals ax = [] := by
   cases ax <;> simp_all [IsKey, keyIndividuals]
@@ -273,7 +276,7 @@ private theorem no_key_individuals {ax : Axiom} (notKey : ¬ IsKey ax) : keyIndi
 theorem entails_fact_correct (items : alloc.vec.Vec AnnotatedAxiom) (fact : Axiom) :
     ∃ result, facts.entails_fact items fact = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        NamesKeyed V items.val →
+        NamesKeyed V items.val → Rowl.Unfolding.DefinesNew D items.val →
         (Keyed items.val → ∀ a : NamedIndividual, Individual.Named a ∈ axiomIndividuals fact →
           V.individuals (.Named a)) →
         ∀ annotations, (answer = true ↔ Entails.{u, max w v, w} D V items.val [⟨annotations, fact⟩]) := by
@@ -283,7 +286,7 @@ theorem entails_fact_correct (items : alloc.vec.Vec AnnotatedAxiom) (fact : Axio
   | none => exact ⟨none, by simp [run0], by simp⟩
   | some negated =>
     have negates := negates0 negated rfl
-    obtain ⟨-, -, sameIndividuals, notKey, -⟩ := negates
+    obtain ⟨-, -, sameIndividuals, notKey, -, notDefinition⟩ := negates
     obtain ⟨r1, run1, known⟩ := meaningful_spec items 0#usize (alloc.vec.Vec.new AnnotatedAxiom)
     simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at known
     cases r1 with
@@ -307,7 +310,7 @@ theorem entails_fact_correct (items : alloc.vec.Vec AnnotatedAxiom) (fact : Axio
             fun result same => ?_⟩
           simp only [Option.some.injEq] at same
           subst same
-          intro Native D N V vocab keyed keyedFact annotations
+          intro Native D N V vocab keyed fresh keyedFact annotations
           have keyedExtended : NamesKeyed V extended.val := by
             intro keyedExt a member
             have keyedItems : Keyed items.val := by
@@ -332,7 +335,16 @@ theorem entails_fact_correct (items : alloc.vec.Vec AnnotatedAxiom) (fact : Axio
               rw [no_key_individuals notKey, List.append_nil] at mi
               rw [sameIndividuals] at mi
               exact keyedFact keyedItems a mi
-          have answerIff := decided answer rfl D N V vocab keyedExtended
+          have freshExtended : Rowl.Unfolding.DefinesNew D extended.val := by
+            intro y my dt r h
+            rw [contents] at my
+            rcases List.mem_append.mp my with old | new
+            · obtain ⟨x, mx, -, ax⟩ := sub y old
+              exact fresh x mx dt r (by rw [← ax]; exact h)
+            · simp only [List.mem_singleton] at new
+              subst new
+              exact absurd h (notDefinition dt r)
+          have answerIff := decided answer rfl D N V vocab keyedExtended freshExtended
           have same : Consistent.{u, max w v, w} D V extended.val ↔
               Consistent.{u, max w v, w} D V (items.val ++ [⟨alloc.vec.Vec.new Annotation, negated⟩]) := by
             constructor

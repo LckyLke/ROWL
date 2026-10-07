@@ -165,6 +165,7 @@ import Rowl.OntologyRoles
 import Rowl.AlcOntology
 import Rowl.SourceReasoning
 import Rowl.Concepts
+import Rowl.Copies
 import Rowl.Hierarchy
 import Rowl.ConceptTable
 import Rowl.CompletionSearch
@@ -205,6 +206,7 @@ import Rowl.Partition
 import Rowl.Components
 import Rowl.Facts
 import Rowl.KeyModels
+import Rowl.Unfolding
 import Rowl.DataOntology
 import Rowl.Classification
 import Rowl.Saturation

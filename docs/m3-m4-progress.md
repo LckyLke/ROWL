@@ -6855,3 +6855,55 @@ instants with instance checks, and that facets and invalid dates such as
 This block adds 75 public theorems (62 in the new module `Rowl.Moments`) and
 33 definitions. Totals are 5627 audited theorems, 1907 definitions, 680 Rust
 regressions, 24 Python binding tests and 5820 ledger obligations.
+
+## Datatype definitions
+
+`DatatypeDefinition(DT DR)` makes `DT` a name for the data range `DR` (OWL 2
+§9.4; Direct Semantics: `DT` has exactly the values of `DR`). The data
+queries now answer closures with definitions, and questions that use defined
+datatypes.
+
+Kernel. `unfolding::unfold_items` copies a closure with each defined datatype
+in a data range replaced by the data range of its definition, unfolded in
+turn, and without the definitions and the annotation axioms;
+`unfold_question` does the same for a question's class expression. Both look
+the definitions up in one copied list, `unfolding::definitions`, which a
+prepared closure keeps for its questions (`Prepared::Defined`). The unfolding
+spends at most one step per definition on any chain of definitions, so cyclic
+definitions run out and get no answer; so do a datatype with two
+definitions, a definition of a predefined datatype or of `rdfs:Literal`, and
+facets on a defined datatype. `consistent`, `class_satisfiable`, `subsumed`,
+`instance_of` and `prepare` unfold first when the closure has a definition,
+and answer as before otherwise (`consistent_closure` and siblings).
+
+Proofs. `Rowl.Unfolding` proves that an interpretation in which the
+definitions hold gives a data range, a class expression and an axiom the
+same values, instances and truth as their unfoldings (`unfold_range_spec`,
+`unfold_class_spec`, `unfold_axiom_spec`). Conversely an interpretation of the
+unfolding becomes one of the closure when each defined datatype gets the
+values of its unfolded definition (`extend`): it gives every data range of the
+closure the values of its unfolding, the definitions hold in it
+(`extend_definition`, using that an unfolding with more fuel is the same,
+`unfold_range_unique`), and it is still an interpretation under every datatype
+map that has none of the defined datatypes (`extend_interpretation`,
+`DefinesNew`). So a closure and its unfolding agree on consistency,
+satisfiability, subsumption and instances (`unfolded_consistent`,
+`unfolded_satisfiable`, `unfolded_subsumed`, `unfolded_instance`), and the
+unfolding names the same individuals and keys (`items_names`, `names_keyed`).
+The query theorems of `DataOntology` (and through them classification, fact
+entailment and the source queries) now take `DefinesNew D items` besides
+`NamesKeyed V items`: the condition OWL 2 puts on a definition, vacuous for a
+closure without one. The verified copies of axiom parts that the components
+proofs used privately moved to `Rowl.Copies`, which both use.
+
+The regressions check that a defined datatype has the values of its data
+range (`:age` as `xsd:nonNegativeInteger` rejects `-1`), nested definitions,
+definitions in enumerations, complements and intersections, an unused
+definition, questions with defined datatypes through a prepared reasoner
+(subsumption and instances), and that cyclic definitions, facets on a defined
+datatype and two definitions of one datatype get no answer.
+
+This block adds 92 public theorems (59 in the new module `Rowl.Unfolding`, 31
+in the new module `Rowl.Copies` of which three moved from `Rowl.Components`,
+and five in `Rowl.DataOntology`) and 15 definitions. Totals are 5719 audited theorems, 1922 definitions, 683 Rust
+regressions, 24 Python binding tests and 5912 ledger obligations.

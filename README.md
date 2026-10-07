@@ -336,7 +336,7 @@ properties:
 - **Keys:** `HasKey` with object and data properties: two named patients
   with the same `:ssn` value are the same patient.
 - **Not yet:** keys with data properties next to datatype restrictions or
-  subtypes of `xsd:integer`, datatype definitions, `owl:topDataProperty` other
+  subtypes of `xsd:integer`, `owl:topDataProperty` other
   than as a superproperty, and a few corner cases that
   [docs/status.md](docs/status.md) lists. They are answered "unknown".
 
@@ -352,6 +352,9 @@ properties:
   `"0fb7"^^xsd:hexBinary` are one value, while an IRI is never a string,
   hexadecimal and Base64 data are never equal, and `09:00:00+01:00` and
   `08:00:00Z` on one day are one instant but two values, as OWL 2 requires.
+- **Definitions:** `DatatypeDefinition(:age xsd:nonNegativeInteger)` makes
+  `:age` a name for its data range, usable in data ranges like any datatype
+  (but not restricted by facets), also in other definitions and in questions.
 - **Facets:** `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
   `xsd:maxExclusive` on the numeric datatypes. Numbers are compared exactly:
   `"8001/2"^^owl:rational` and `"4000.5"^^xsd:decimal` are the same value.
@@ -440,7 +443,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 680 Rust regression tests
+cargo test --workspace         # 683 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 
