@@ -144,13 +144,24 @@ progress. Full OWL parsing and executable reasoning are still future work.
   have totality and complete-acceptance proofs. Exact ordered occurrences,
   repeated triples, caller-scope blank identities, term/count limits and first
   original-offset errors are preserved. Every triple strictly advances; no
-  malformed suffix can expose a successful partial graph. Export laws remain pending.
-- N-Triples read and experimental export with strict UTF-8, absolute IRIs, escaped
+  malformed suffix can expose a successful partial graph. Export is proved below.
+- N-Triples read and export with strict UTF-8, absolute IRIs, escaped
   lexical forms, well-formed tags, exact datatype spelling, scoped blank keys,
-  comment/line handling and count/byte budgets. Serialization-isomorphism
-  proofs remain pending. All 68 official W3C syntax
+  comment/line handling and count/byte budgets. All 68 official W3C syntax
   cases pass, and positive cases round-trip through the writer with an
   independent blank-bijection/term-preservation check. See formats.md.
+- M3 N-Triples and Turtle writers proved by round trips: `RdfWrite.lean` gives
+  the written text and the terms each syntax cannot carry as Lean functions of
+  the graph, and `ntriples_write_total_correct` and `turtle_write_total_correct`
+  prove that the writers return exactly that text within the byte budget, the
+  first such term, or the exhausted budget. `ntriples_write_read` and
+  `turtle_write_read` prove that the verified readers read the written bytes back
+  as the graph's triples in order, with blank nodes renamed one to one into the
+  reader's scope (Turtle against any base shorter than `usize::MAX / 8` bytes).
+  `ntriples_write_error_exact`: when the N-Triples writer reports a term it
+  cannot carry, no N-Triples document denotes the graph up to blank nodes. The
+  Turtle writer is a canonical subset without prefixes; it also rejects IRIs that
+  RFC 3986 resolution changes, which Turtle could carry through prefixed names.
 - M3 RDF 1.1 Turtle byte-to-graph reading: the whole grammar of section 6.5
   (`@prefix`/`@base` and SPARQL directives, prefixed names with local escapes,
   blank node property lists, collections, object and predicate-object lists and
@@ -164,7 +175,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   order, or its first error, and a graph exactly for Turtle documents within the
   limits. All 313 W3C RDF 1.1 Turtle cases pass. The reasoner, the CLI and the
   Python package read the OWL ontologies of Turtle graphs through the RDF
-  mapping below; Turtle export remains pending.
+  mapping below; Turtle export, in a canonical subset, is proved above.
 - M3 exact byte-key symbol table: duplicates reuse their first symbol, new keys
   receive stable consecutive symbols and count-capacity errors preserve the table.
   Forward/reverse lookup, unique-key invariants and old-symbol preservation are
@@ -1123,7 +1134,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3188 audited public theorems and 1430 audited semantic definitions. Consistency,
+- 3411 audited public theorems and 1475 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1140,7 +1151,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 586 Rust regression tests and 18 Python binding tests, plus separately fetched
+- 593 Rust regression tests and 18 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1157,7 +1168,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3381-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3604-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
