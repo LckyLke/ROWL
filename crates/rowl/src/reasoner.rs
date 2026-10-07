@@ -13,7 +13,7 @@
 //! out answers; it adds no reasoning of its own. `dl_violation` reports, in
 //! words, the verdict of the verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
-use rowl_kernel::components::{component_closure, plain_question};
+use rowl_kernel::components::{component_closure, plain_question, tbox_closure};
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
     prepared_subsumed, Prepared,
@@ -170,6 +170,9 @@ pub struct Reasoner {
     prepared: OnceLock<Option<Prepared>>,
     violation: OnceLock<Option<String>>,
     consistency: OnceLock<Option<bool>>,
+    /// The axioms other than assertions and their prepared queries, which
+    /// answer class questions when the closure is consistent.
+    tbox: OnceLock<Option<(Vec<AnnotatedAxiom>, Prepared)>>,
     /// Whether instance questions go to the parts of the closure: decided by
     /// the first question that has a part, true when that part is less than
     /// half of the closure.
@@ -680,6 +683,7 @@ impl Reasoner {
                 prepared: OnceLock::new(),
                 violation: OnceLock::new(),
                 consistency: OnceLock::new(),
+                tbox: OnceLock::new(),
                 split: OnceLock::new(),
             }),
             Err(error) => Err(closure_error(error, &names)),
@@ -692,6 +696,7 @@ impl Reasoner {
             prepared: OnceLock::new(),
             violation: OnceLock::new(),
             consistency: OnceLock::new(),
+            tbox: OnceLock::new(),
             split: OnceLock::new(),
         }
     }
@@ -731,13 +736,49 @@ impl Reasoner {
             on_kernel_stack(|| prepared_consistent(prepared))
         })
     }
-    /// Whether some model of the axioms has an instance of `class`.
+    /// The axioms other than assertions and their prepared queries, when the
+    /// closure is consistent and of the kind that `components::tbox_closure`
+    /// splits: they answer satisfiability and subsumption questions as the
+    /// closure does (`part_satisfiable_correct`, `part_subsumed_correct`).
+    fn tbox_queries(&self) -> Option<&(Vec<AnnotatedAxiom>, Prepared)> {
+        if self.consistent() != Some(true) {
+            return None;
+        }
+        self.tbox
+            .get_or_init(|| {
+                on_kernel_stack(|| {
+                    let part = tbox_closure(&self.ontology.axioms)?;
+                    let prepared = prepare(&part)?;
+                    Some((part, prepared))
+                })
+            })
+            .as_ref()
+    }
+    /// Whether some model of the axioms has an instance of `class`. For a
+    /// consistent closure the question goes to its axioms other than
+    /// assertions when they answer it.
     pub fn satisfiable(&self, class: &ClassExpression) -> Option<bool> {
+        if let Some((_, tbox)) = self.tbox_queries() {
+            if on_kernel_stack(|| plain_question(class)) {
+                if let Some(answer) = on_kernel_stack(|| prepared_class_satisfiable(tbox, class)) {
+                    return Some(answer);
+                }
+            }
+        }
         let prepared = self.queries()?;
         on_kernel_stack(|| prepared_class_satisfiable(prepared, class))
     }
     /// Whether every instance of `sub` is an instance of `sup` in every model.
+    /// For a consistent closure the question goes to its axioms other than
+    /// assertions when they answer it.
     pub fn subsumed(&self, sub: &ClassExpression, sup: &ClassExpression) -> Option<bool> {
+        if let Some((_, tbox)) = self.tbox_queries() {
+            if on_kernel_stack(|| plain_question(sub) && plain_question(sup)) {
+                if let Some(answer) = on_kernel_stack(|| prepared_subsumed(tbox, sub, sup)) {
+                    return Some(answer);
+                }
+            }
+        }
         let prepared = self.queries()?;
         on_kernel_stack(|| prepared_subsumed(prepared, sub, sup))
     }
@@ -952,8 +993,13 @@ impl Reasoner {
             }
             return Some(out);
         }
-        let prepared = self.queries()?;
-        let result = on_kernel_stack(|| classify(prepared, &self.ontology.axioms, &classes))?;
+        let result = match self.tbox_queries() {
+            Some((part, tbox)) => on_kernel_stack(|| classify(tbox, part, &classes))?,
+            None => {
+                let prepared = self.queries()?;
+                on_kernel_stack(|| classify(prepared, &self.ontology.axioms, &classes))?
+            }
+        };
         let mut out = Vec::new();
         for (index, class) in names.iter().enumerate() {
             let satisfiable = *result.satisfiable.get(index)?;

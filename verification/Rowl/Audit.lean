@@ -5594,7 +5594,10 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Partition.join_plain
 #print axioms Rowl.Partition.join_left_assertion
 #print axioms Rowl.Partition.join_right_assertion
+#print axioms Rowl.Partition.join_model
 #print axioms Rowl.Partition.instance_part
+#print axioms Rowl.Partition.satisfiable_part
+#print axioms Rowl.Partition.subsumed_part
 #print axioms Rowl.Components.standard_range_spec
 #print axioms Rowl.Components.plain_class_spec
 #print axioms Rowl.Components.plain_axiom_spec
@@ -5612,6 +5615,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.select_spec
 #print axioms Rowl.Components.component_closure_correct
 #print axioms Rowl.Components.part_instance_correct
+#print axioms Rowl.Components.tbox_closure_correct
+#print axioms Rowl.Components.part_satisfiable_correct
+#print axioms Rowl.Components.part_subsumed_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote

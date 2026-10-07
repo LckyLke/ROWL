@@ -1718,4 +1718,100 @@ theorem part_instance_correct {items part : alloc.vec.Vec AnnotatedAxiom} {a : N
   exact instance_part vocab cover inside (fun x mx na => (itemsOk x mx D N V vocab).2 na)
     (fun x mx ia => (itemsOk x mx D N V vocab).1 ia) kinds apart aApart (closedQ rfl D N V vocab) consistent
 
+/-! ## The axioms other than assertions -/
+
+/-- `tbox_closure` checks the closure and, when it answers, returns copies of
+    the axioms that mean something and are no assertion; the rest of the
+    closure is assertions and axioms without meaning. -/
+theorem tbox_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ r, components.tbox_closure items = .ok r ∧ ∀ part, r = some part →
+      (∀ x ∈ items.val, ItemOk.{w} x) ∧ ∃ rest : List AnnotatedAxiom,
+        (∀ x ∈ items.val, (∃ y ∈ part.val, y.axiom = x.axiom) ∨ x ∈ rest) ∧
+        (∀ y ∈ part.val, ∃ x ∈ items.val, x.axiom = y.axiom) ∧
+        (∀ x ∈ rest, IsAssertion x.axiom ∨ Meaningless x.axiom) ∧
+        (∀ x ∈ part.val, ¬ IsAssertion x.axiom) := by
+  rw [components.tbox_closure]
+  obtain ⟨b, runItems, itemsOk⟩ := plain_items_spec.{w} items 0#usize
+  simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at itemsOk
+  cases b with
+  | false => exact ⟨none, by simp [runItems], by simp⟩
+  | true =>
+    obtain ⟨r, run, selectFacts⟩ := select_spec items 0#usize (alloc.vec.Vec.new Individual)
+      (alloc.vec.Vec.new AnnotatedAxiom)
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
+    refine ⟨r, by simp [runItems, run], fun part same => ?_⟩
+    obtain ⟨sub, sup, -⟩ := selectFacts part same
+    have empty : (alloc.vec.Vec.new Individual).val = [] := rfl
+    rw [empty] at sub sup
+    classical
+    refine ⟨itemsOk rfl, items.val.filter (fun x => ¬ Kept [] x.axiom), ?_, ?_, ?_, ?_⟩
+    · intro x mx
+      by_cases kx : Kept [] x.axiom
+      · exact .inl (sup x mx kx)
+      · exact .inr (List.mem_filter.mpr ⟨mx, by simp [kx]⟩)
+    · intro y my
+      rcases sub y my with fresh | ⟨x, mx, -, ax⟩
+      · simp at fresh
+      · exact ⟨x, mx, ax.symm⟩
+    · intro x mx
+      have notKept : ¬ Kept [] x.axiom := by simpa using (List.mem_filter.mp mx).2
+      by_cases assertion : IsAssertion x.axiom
+      · exact .inl assertion
+      · refine .inr ?_
+        by_contra meaningless
+        exact notKept (.inr ⟨assertion, meaningless⟩)
+    · intro x mx assertion
+      rcases sub x mx with fresh | ⟨x0, _, kx0, ax⟩
+      · simp at fresh
+      · rw [ax] at assertion
+        rcases kx0 with ⟨_, _, _, none⟩ | ⟨no, _⟩
+        · simp at none
+        · exact no assertion
+
+/-- When `tbox_closure` returns the axioms other than assertions and the
+    closure has a model, a class expression that `plain_question` accepts is
+    satisfiable for them exactly when it is for the closure. -/
+theorem part_satisfiable_correct {items part : alloc.vec.Vec AnnotatedAxiom} {e : ClassExpression}
+    (split : components.tbox_closure items = .ok (some part))
+    (question : components.plain_question e = .ok true)
+    {Native : Type w} (D : DatatypeMap Native) (N : Normative D) (V : Vocabulary) (vocab : IsVocabulary D V)
+    (consistent : Consistent.{u,v,w} D V items.val) :
+    ClassSatisfiable.{u,v,w} D V items.val e ↔ ClassSatisfiable.{u,v,w} D V part.val e := by
+  obtain ⟨r, run, facts⟩ := tbox_closure_correct.{w} items
+  rw [split] at run
+  simp only [Result.ok.injEq] at run
+  obtain ⟨itemsOk, rest, cover, inside, kinds, plainPart⟩ := facts part run.symm
+  obtain ⟨b, runQ, closedQ⟩ := plain_question_spec.{w} e
+  rw [question] at runQ
+  simp only [Result.ok.injEq] at runQ
+  subst runQ
+  exact satisfiable_part vocab cover inside (fun x mx na => (itemsOk x mx D N V vocab).2 na)
+    (fun x mx ia => (itemsOk x mx D N V vocab).1 ia) kinds (fun x mx ia => absurd ia (plainPart x mx))
+    (closedQ rfl D N V vocab) consistent
+
+/-- When `tbox_closure` returns the axioms other than assertions and the
+    closure has a model, one class expression that `plain_question` accepts is
+    subsumed by another for them exactly when it is for the closure. -/
+theorem part_subsumed_correct {items part : alloc.vec.Vec AnnotatedAxiom} {a b : ClassExpression}
+    (split : components.tbox_closure items = .ok (some part))
+    (questionA : components.plain_question a = .ok true) (questionB : components.plain_question b = .ok true)
+    {Native : Type w} (D : DatatypeMap Native) (N : Normative D) (V : Vocabulary) (vocab : IsVocabulary D V)
+    (consistent : Consistent.{u,v,w} D V items.val) :
+    Subsumed.{u,v,w} D V items.val a b ↔ Subsumed.{u,v,w} D V part.val a b := by
+  obtain ⟨r, run, facts⟩ := tbox_closure_correct.{w} items
+  rw [split] at run
+  simp only [Result.ok.injEq] at run
+  obtain ⟨itemsOk, rest, cover, inside, kinds, plainPart⟩ := facts part run.symm
+  obtain ⟨ba, runA, closedA⟩ := plain_question_spec.{w} a
+  rw [questionA] at runA
+  simp only [Result.ok.injEq] at runA
+  subst runA
+  obtain ⟨bb, runB, closedB⟩ := plain_question_spec.{w} b
+  rw [questionB] at runB
+  simp only [Result.ok.injEq] at runB
+  subst runB
+  exact subsumed_part vocab cover inside (fun x mx na => (itemsOk x mx D N V vocab).2 na)
+    (fun x mx ia => (itemsOk x mx D N V vocab).1 ia) kinds (fun x mx ia => absurd ia (plainPart x mx))
+    (closedA rfl D N V vocab) (closedB rfl D N V vocab) consistent
+
 end Rowl.Components

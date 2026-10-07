@@ -1558,12 +1558,67 @@ private theorem anonymous_side (I : Interpretation O W) (asg : AnonymousIndividu
 private theorem with_self (I : Interpretation O W) : withAnonymous I I.anonymousIndividuals = I := by
   cases I; rfl
 
+/-- A model of a closure is a model of a part whose axioms are axioms of the closure. -/
+private theorem model_part {Native : Type w} {D : DatatypeMap Native} {V : Vocabulary} {O : Type u} {W : Type v}
+    {emb : ValueEmbedding D W} {I : Interpretation O W} {items part : List AnnotatedAxiom}
+    (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom) (model : Model D emb V I items) : Model D emb V I part := by
+  obtain ⟨vocab', h, asg, sat⟩ := model
+  refine ⟨vocab', h, asg, fun y member => ?_⟩
+  obtain ⟨x, mx, same⟩ := inside y member
+  rw [← same]
+  exact sat x mx
+
+/-- When the axioms other than assertions are plain and a closure's assertions
+    fall into a part and a rest that share no individual, a model of the part
+    and a model of the closure combine into a model of the closure, with the
+    model of the part on the left. The part may hold copies of the closure's
+    axioms, and the rest may also hold axioms without meaning. -/
+theorem join_model (vocab : IsVocabulary D V) {items part rest : List AnnotatedAxiom}
+    (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
+    (plain : ∀ x ∈ items, ¬ IsAssertion x.axiom → PlainAxiom D V x.axiom)
+    (asserted : ∀ x ∈ items, IsAssertion x.axiom → PlainAssertion D V x.axiom)
+    (restKinds : ∀ x ∈ rest, IsAssertion x.axiom ∨ Meaningless x.axiom)
+    (apart : ∀ x ∈ part, IsAssertion x.axiom → ∀ y ∈ rest, ∀ i ∈ axiomIndividuals x.axiom,
+      i ∉ axiomIndividuals y.axiom)
+    {O1 O2 : Type u} {V1 V2 : Type v} {e1 : ValueEmbedding D V1} {e2 : ValueEmbedding D V2}
+    {I1 : Interpretation O1 V1} {I2 : Interpretation O2 V2}
+    (h1 : IsInterpretation D e1 V I1) (sat1 : satisfiesClosure I1 part)
+    (h2 : IsInterpretation D e2 V I2) (sat2 : satisfiesClosure I2 items) :
+    Model D (leftEmbedding e1) V (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom) I1 I2) items := by
+  refine ⟨vocab, join_interpretation V e1 e2 _ _ _ h1 h2,
+    (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom) I1 I2).anonymousIndividuals, ?_⟩
+  rw [with_self]
+  intro x member
+  by_cases assertion : IsAssertion x.axiom
+  · rcases cover x member with ⟨y, inPart, same⟩ | inRest
+    · have sy := sat1 y inPart
+      rw [same] at sy
+      exact join_left_assertion h1 x.axiom assertion
+        (fun i mi ⟨z, mz, mi'⟩ => apart y inPart (same ▸ assertion) z mz i (same ▸ mi) mi')
+        (asserted x member assertion) sy
+    · exact join_right_assertion vocab h1 h2 x.axiom assertion
+        (fun i mi other => other ⟨x, inRest, mi⟩) (asserted x member assertion) (sat2 x member)
+  · rcases cover x member with ⟨y, inPart, same⟩ | inRest
+    · have sy := sat1 y inPart
+      rw [same] at sy
+      exact join_plain vocab h1 h2 x.axiom (plain x member assertion) sy (sat2 x member)
+    · rcases restKinds x inRest with isAssertion | meaningless
+      · exact absurd isAssertion assertion
+      · exact meaningless_satisfied _ meaningless
+
+/-- A closed class expression means the same at the left image of an element
+    as at the element in the uncombined model of the part. -/
+private theorem left_class {O1 O2 : Type u} {V1 V2 : Type v} {e1 : ValueEmbedding D V1} {e2 : ValueEmbedding D V2}
+    {left : Individual → Prop} {I1 : Interpretation O1 V1} {I2 : Interpretation O2 V2}
+    (asg : AnonymousIndividual → O1) {e : ClassExpression} (closed : Closed D V e) (x : O1) :
+    classDenote (join e1 e2 left (withAnonymous I1 asg) I2) e (.inl x) ↔ classDenote I1 e x := by
+  rw [closed_left closed]
+  exact side_class (anonymous_side I1 asg) e (plain_mono e (fun _ h => h.elim) closed) x
+
 /-- When the axioms other than assertions are plain and a closure's assertions
     fall into a part and a rest that share no individual, an instance question
     about an individual that the rest does not name has the same answer for
-    the part as for the whole closure, provided the closure has a model. The
-    part may hold copies of the closure's axioms, and the rest may also hold
-    axioms without meaning. -/
+    the part as for the whole closure, provided the closure has a model. -/
 theorem instance_part (vocab : IsVocabulary D V) {items part rest : List AnnotatedAxiom}
     (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
     (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom)
@@ -1581,46 +1636,64 @@ theorem instance_part (vocab : IsVocabulary D V) {items part rest : List Annotat
     obtain ⟨_, h1, asg1, sat1⟩ := model1
     by_contra notIn
     obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
-    have h1' : IsInterpretation D e1 V (withAnonymous I1 asg1) := h1
-    have h2' : IsInterpretation D e2 V (withAnonymous I2 asg2) := h2
-    have model : Model D (leftEmbedding e1) V
-        (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom)
-          (withAnonymous I1 asg1) (withAnonymous I2 asg2)) items := by
-      refine ⟨vocab, join_interpretation V e1 e2 _ _ _ h1' h2',
-        (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom)
-          (withAnonymous I1 asg1) (withAnonymous I2 asg2)).anonymousIndividuals, ?_⟩
-      rw [with_self]
-      intro x member
-      by_cases assertion : IsAssertion x.axiom
-      · rcases cover x member with ⟨y, inPart, same⟩ | inRest
-        · have sy := sat1 y inPart
-          rw [same] at sy
-          exact join_left_assertion h1' x.axiom assertion
-            (fun i mi ⟨z, mz, mi'⟩ => apart y inPart (same ▸ assertion) z mz i (same ▸ mi) mi')
-            (asserted x member assertion) sy
-        · exact join_right_assertion vocab h1' h2' x.axiom assertion
-            (fun i mi other => other ⟨x, inRest, mi⟩) (asserted x member assertion) (sat2 x member)
-      · rcases cover x member with ⟨y, inPart, same⟩ | inRest
-        · have sy := sat1 y inPart
-          rw [same] at sy
-          exact join_plain vocab h1' h2' x.axiom (plain x member assertion) sy (sat2 x member)
-        · rcases restKinds x inRest with isAssertion | meaningless
-          · exact absurd isAssertion assertion
-          · exact meaningless_satisfied _ meaningless
+    have model := join_model vocab cover plain asserted restKinds apart
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
     have holds := entailed (O1 ⊕ O2) (V1 ⊕ V2) (leftEmbedding e1) _ model
     have aLeft : ¬ ∃ y ∈ rest, Individual.Named a ∈ axiomIndividuals y.axiom :=
       fun ⟨y, my, mi⟩ => aApart y my mi
     have place := individual_left (e1 := e1) (e2 := e2) (I1 := withAnonymous I1 asg1)
       (I2 := withAnonymous I2 asg2) (left := fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom) aLeft
     simp only [individual] at place
-    rw [place, closed_left closed] at holds
-    exact notIn ((side_class (anonymous_side I1 asg1) e (plain_mono e (fun _ h => h.elim) closed) _).mp holds)
+    rw [place, left_class asg1 closed] at holds
+    exact notIn holds
   · intro entailed O W emb I model
-    obtain ⟨vocab', h, asg, sat⟩ := model
-    refine entailed O W emb I ⟨vocab', h, asg, fun y member => ?_⟩
-    obtain ⟨x, mx, same⟩ := inside y member
-    rw [← same]
-    exact sat x mx
+    exact entailed O W emb I (model_part inside model)
+
+/-- Under the same conditions, a closed class expression is satisfiable for the
+    part exactly when it is for the closure. -/
+theorem satisfiable_part (vocab : IsVocabulary D V) {items part rest : List AnnotatedAxiom}
+    (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
+    (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom)
+    (plain : ∀ x ∈ items, ¬ IsAssertion x.axiom → PlainAxiom D V x.axiom)
+    (asserted : ∀ x ∈ items, IsAssertion x.axiom → PlainAssertion D V x.axiom)
+    (restKinds : ∀ x ∈ rest, IsAssertion x.axiom ∨ Meaningless x.axiom)
+    (apart : ∀ x ∈ part, IsAssertion x.axiom → ∀ y ∈ rest, ∀ i ∈ axiomIndividuals x.axiom,
+      i ∉ axiomIndividuals y.axiom)
+    {e : ClassExpression} (closed : Closed D V e)
+    (consistent : Consistent.{u,v,w} D V items) :
+    ClassSatisfiable.{u,v,w} D V items e ↔ ClassSatisfiable.{u,v,w} D V part e := by
+  constructor
+  · rintro ⟨O, W, emb, I, model, x, inside'⟩
+    exact ⟨O, W, emb, I, model_part inside model, x, inside'⟩
+  · rintro ⟨O1, V1, e1, I1, ⟨_, h1, asg1, sat1⟩, x, member⟩
+    obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
+    have model := join_model vocab cover plain asserted restKinds apart
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
+    exact ⟨O1 ⊕ O2, V1 ⊕ V2, leftEmbedding e1, _, model, .inl x, (left_class asg1 closed x).mpr member⟩
+
+/-- Under the same conditions, one closed class expression is subsumed by
+    another for the part exactly when it is for the closure. -/
+theorem subsumed_part (vocab : IsVocabulary D V) {items part rest : List AnnotatedAxiom}
+    (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
+    (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom)
+    (plain : ∀ x ∈ items, ¬ IsAssertion x.axiom → PlainAxiom D V x.axiom)
+    (asserted : ∀ x ∈ items, IsAssertion x.axiom → PlainAssertion D V x.axiom)
+    (restKinds : ∀ x ∈ rest, IsAssertion x.axiom ∨ Meaningless x.axiom)
+    (apart : ∀ x ∈ part, IsAssertion x.axiom → ∀ y ∈ rest, ∀ i ∈ axiomIndividuals x.axiom,
+      i ∉ axiomIndividuals y.axiom)
+    {a b : ClassExpression} (closedA : Closed D V a) (closedB : Closed D V b)
+    (consistent : Consistent.{u,v,w} D V items) :
+    Subsumed.{u,v,w} D V items a b ↔ Subsumed.{u,v,w} D V part a b := by
+  constructor
+  · intro sub O1 V1 e1 I1 model1 x inA
+    obtain ⟨_, h1, asg1, sat1⟩ := model1
+    obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
+    have model := join_model vocab cover plain asserted restKinds apart
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
+    have inB := sub (O1 ⊕ O2) (V1 ⊕ V2) (leftEmbedding e1) _ model (.inl x) ((left_class asg1 closedA x).mpr inA)
+    exact (left_class asg1 closedB x).mp inB
+  · intro sub O W emb I model x inA
+    exact sub O W emb I (model_part inside model) x inA
 
 end Main
 

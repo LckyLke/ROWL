@@ -1,5 +1,7 @@
-use rowl::experimental::components::{component_closure, plain_question};
-use rowl::experimental::data_ontology::{prepare, prepared_instance_of};
+use rowl::experimental::components::{component_closure, plain_question, tbox_closure};
+use rowl::experimental::data_ontology::{
+    prepare, prepared_class_satisfiable, prepared_instance_of, prepared_subsumed,
+};
 use rowl::experimental::model::{Iri, NamedIndividual};
 use rowl::reasoner::{default_limits, named, Reasoner};
 
@@ -114,4 +116,46 @@ fn closures_that_do_not_fall_apart_have_no_part() {
         },
     };
     assert!(component_closure(&reasoner.ontology().axioms, &individual).is_none());
+}
+
+#[test]
+fn the_axioms_other_than_assertions_answer_class_questions_like_the_closure() {
+    let generated = records(6);
+    let sources: [&[u8]; 4] = [
+        include_bytes!("../../../examples/medication-dose.ofn"),
+        include_bytes!("../../../examples/medication-safety.ofn"),
+        include_bytes!("../../../examples/maintenance-individuals.ofn"),
+        generated.as_bytes(),
+    ];
+    let mut compared = 0;
+    for source in sources {
+        let Ok(reasoner) = Reasoner::from_functional(source, &default_limits()) else {
+            panic!("the example must load");
+        };
+        assert_eq!(reasoner.consistent(), Some(true));
+        let axioms = &reasoner.ontology().axioms;
+        let whole = prepare(axioms).expect("the example must be prepared");
+        let part = tbox_closure(axioms).expect("the example falls apart");
+        assert!(part.len() < axioms.len());
+        let tbox = prepare(&part).expect("the part must be prepared");
+        let classes: Vec<_> = reasoner
+            .classes()
+            .iter()
+            .map(|class| named(class))
+            .collect();
+        for sub in &classes {
+            assert_eq!(
+                prepared_class_satisfiable(&tbox, sub),
+                prepared_class_satisfiable(&whole, sub)
+            );
+            for sup in &classes {
+                assert_eq!(
+                    prepared_subsumed(&tbox, sub, sup),
+                    prepared_subsumed(&whole, sub, sup)
+                );
+                compared += 1;
+            }
+        }
+    }
+    assert!(compared > 100, "the examples must have classes to compare");
 }

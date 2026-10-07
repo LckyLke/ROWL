@@ -22,7 +22,9 @@
 //! closure has a model, an instance question about the individual with a plain
 //! class expression that names no individual has the same answer for the part
 //! as for the closure (`Rowl.Components.part_instance_correct`), and the part
-//! of an individual among independent records is small.
+//! of an individual among independent records is small. Without any
+//! assertion, the part answers satisfiability and subsumption questions with
+//! such class expressions as the closure does (`tbox_closure`).
 //!
 //! `None` means that the closure has an axiom or an assertion that is not
 //! plain, that the component takes more than `ROUNDS` rounds or grows beyond
@@ -1121,6 +1123,19 @@ pub fn component_closure(
             }
             None => None,
         }
+    } else {
+        None
+    }
+}
+/// The axioms of the closure that mean something and are no assertion, copied
+/// without annotations, when every axiom is plain, a plain assertion or
+/// without meaning. When the closure has a model, a satisfiability or
+/// subsumption question with class expressions that `plain_question` accepts
+/// has the same answer for them as for the closure.
+pub fn tbox_closure(items: &Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    if plain_items(items, 0) {
+        let members = Vec::new();
+        select(items, 0, &members, Vec::new())
     } else {
         None
     }

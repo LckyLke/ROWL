@@ -6515,7 +6515,10 @@
         "Rowl.Partition.join_plain",
         "Rowl.Partition.join_left_assertion",
         "Rowl.Partition.join_right_assertion",
-        "Rowl.Partition.instance_part"
+        "Rowl.Partition.join_model",
+        "Rowl.Partition.instance_part",
+        "Rowl.Partition.satisfiable_part",
+        "Rowl.Partition.subsumed_part"
       ]
     },
     {
@@ -6538,7 +6541,10 @@
         "Rowl.Components.kept_spec",
         "Rowl.Components.select_spec",
         "Rowl.Components.component_closure_correct",
-        "Rowl.Components.part_instance_correct"
+        "Rowl.Components.part_instance_correct",
+        "Rowl.Components.tbox_closure_correct",
+        "Rowl.Components.part_satisfiable_correct",
+        "Rowl.Components.part_subsumed_correct"
       ]
     }
   ],

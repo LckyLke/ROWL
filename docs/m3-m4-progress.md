@@ -6430,3 +6430,37 @@ the part with the answer of the whole closure.
 This block adds 28 public theorems (11 in `Rowl.Partition`, 17 in
 `Rowl.Components`) and 16 definitions. Totals are 5427 audited theorems, 1809
 definitions, 657 Rust regressions and 5620 ledger obligations.
+
+## Performance: class questions without the assertions
+
+Satisfiability, subsumption and classification ran their tableaux with the whole
+ABox: classifying the 13 classes of the medication-dose ontology with 100
+prescriptions took 7.4 s. Without nominals or top properties in the other
+axioms, the assertions do not matter for these questions once the closure has a
+model: a model of the axioms other than assertions with an instance of a class
+combines with a model of the closure into a model of the closure with that
+instance.
+
+`Rowl.Partition.join_model` now builds that combination for any part, and
+`satisfiable_part` and `subsumed_part` transfer satisfiability and subsumption of
+closed class expressions between a part and the closure, as `instance_part`
+transfers instance questions. `components::tbox_closure` checks the closure as
+`component_closure` does and copies its axioms that mean something and are no
+assertion (`tbox_closure_correct`); `part_satisfiable_correct` and
+`part_subsumed_correct` compose them. `Reasoner::satisfiable`, `subsumed` and
+`classify` ask these axioms, prepared once, when the closure is consistent.
+
+| Classification | before | after |
+| --- | --- | --- |
+| medication doses, 100 prescriptions | 7.4 s | 0.32 s |
+| prescriptions with age and dose groups, 200 records | 11.0 s | 0.42 s |
+
+The regression `the_axioms_other_than_assertions_answer_class_questions_like_the_closure`
+compares satisfiability and subsumption of every pair of named classes of four
+ontologies.
+
+This block adds 6 public theorems (`join_model`, `satisfiable_part` and
+`subsumed_part` in `Rowl.Partition`, `tbox_closure_correct`,
+`part_satisfiable_correct` and `part_subsumed_correct` in `Rowl.Components`).
+Totals are 5433 audited theorems, 1809 definitions, 658 Rust regressions and
+5626 ledger obligations.
