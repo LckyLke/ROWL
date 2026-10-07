@@ -1,5 +1,8 @@
-//! Verified ontology-level answers for a small maintenance ontology in ALC.
-use rowl::experimental::alc_ontology::{class_satisfiable, consistent, instance_of, subsumed};
+//! Verified ontology-level answers for a small maintenance ontology in ALC,
+//! from the ontology queries of `data_ontology`. The first ALC queries of
+//! `alc_ontology` answer the same questions with the same proofs, but their
+//! tableau takes about two minutes here.
+use rowl::experimental::data_ontology::{class_satisfiable, consistent, instance_of, subsumed};
 use rowl::experimental::model::*;
 
 const EX: &str = "https://example.org/maintenance/";

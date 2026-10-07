@@ -194,11 +194,25 @@ fn reasoning_command(
             }
         }
         ("instances", [class]) => {
+            if reasoner.consistent() == Some(false) {
+                return Err("The ontology is inconsistent, so it entails that every individual is an instance of every class; no instances are listed.".into());
+            }
             let expression = named(class);
+            let mut unknown = 0;
             for individual in reasoner.individuals() {
-                if reasoner.instance_of(&individual, &expression) == Some(true) {
-                    println!("{individual}");
+                match reasoner.instance_of(&individual, &expression) {
+                    Some(true) => println!("{individual}"),
+                    Some(false) => {}
+                    None => {
+                        eprintln!("unknown: {individual}");
+                        unknown += 1;
+                    }
                 }
+            }
+            if unknown > 0 {
+                return Err(format!(
+                    "{unknown} individual(s) could not be decided (outside the supported fragment or over a limit), so the list is incomplete."
+                ));
             }
         }
         _ => return Err("unknown command".into()),
@@ -368,7 +382,8 @@ fn main() -> std::process::ExitCode {
         _ => {
             eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE> [--imports DIR]...");
             eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE, RDF/XML for a .owl or .rdf FILE and Functional Syntax otherwise.");
-            eprintln!("With --imports DIR they read the import closure of FILE from a catalog of FILE and every .ofn, .nt and .ttl file of each DIR; an import IRI must be the ontology or version IRI of exactly one of them. Nothing is fetched.");
+            eprintln!("With --imports DIR they read the import closure of FILE from a catalog of FILE and every .ofn, .nt, .ttl, .owl and .rdf file of each DIR; an import IRI must be the ontology or version IRI of exactly one of them. Nothing is fetched.");
+            eprintln!("instances lists the individuals proved to be instances of CLASS. It exits with status 1, after naming them, when some individuals cannot be decided, and without a list when the ontology is inconsistent.");
             eprintln!("validate prints whether the document is OWL 2 DL or its first violation, and exits with status 1 when it is not.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;

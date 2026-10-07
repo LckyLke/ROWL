@@ -2,10 +2,13 @@
 
 The user expanded the first-release requirement to standard RDF graph/dataset
 formats on 2026-09-30. The public bounded N-Triples and Turtle readers have
-**checked byte-to-graph totality and complete-acceptance proofs**, and the
-N-Triples writer and a canonical Turtle writer are **proved by round trips
-through them** (Writers, below). The other required formats are planned. No
-complete verified RDF/OWL frontend exists yet.
+**checked byte-to-graph totality and complete-acceptance proofs**, the RDF/XML
+reader is **proved exact against the XML 1.0 and RDF 1.1 XML Syntax grammars**
+over the verified XML reader (XML literals are declined; see status.md), and
+the N-Triples writer and a canonical Turtle writer are **proved by round trips
+through them** (Writers, below). The other required formats (N-Quads, TriG,
+JSON-LD, RDFa, and the RDF/XML, N-Quads, TriG and JSON-LD writers) are planned.
+No complete verified RDF/OWL frontend exists yet.
 
 The shared raw term/dataset representation and explicit graph-selection operation
 are now implemented. Lean proves exact graph-name comparison, total selection,

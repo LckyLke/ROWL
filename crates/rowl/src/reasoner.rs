@@ -1,10 +1,10 @@
 //! A convenience interface over the verified pipeline: read a Functional
-//! Syntax, N-Triples or Turtle document, or the import closure of one from a
-//! catalog of documents, once and ask questions about it by IRI.
+//! Syntax, N-Triples, Turtle or RDF/XML document, or the import closure of one
+//! from a catalog of documents, once and ask questions about it by IRI.
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
-//! the mapping into the raw OWL model (for N-Triples and Turtle, the reverse
-//! OWL RDF mapping of `rdf_mapping`), the prepared queries of `data_ontology`, the
+//! the mapping into the raw OWL model (for N-Triples, Turtle and RDF/XML, the
+//! reverse OWL RDF mapping of `rdf_mapping`), the prepared queries of `data_ontology`, the
 //! classification of `classification` and, for EL ontologies, the saturation of
 //! `saturation`. `None` means the question or the
 //! document is outside the reasoner's supported fragment, or a limit was
@@ -24,8 +24,8 @@ use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
 use rowl_kernel::import_catalog::{read_source, Format, Source, SourceError};
 use rowl_kernel::import_closure::{source_closure, ClosureError, Origin};
 use rowl_kernel::model::{
-    AnnotatedAxiom, AnonymousIndividual, Axiom, Class, ClassExpression, Entity, Individual, Iri,
-    NamedIndividual, RawOntology,
+    AnnotatedAxiom, AnonymousIndividual, AtLeastTwo, Axiom, Class, ClassExpression, Entity,
+    Individual, Iri, NamedIndividual, RawOntology,
 };
 use rowl_kernel::ntriples::{read, ReadError, ReadResult};
 use rowl_kernel::rdf_mapping::map_graph;
@@ -776,11 +776,48 @@ impl Reasoner {
             .filter_map(|iri| String::from_utf8(iri).ok())
             .collect()
     }
-    /// The named individuals the document asserts something about, sorted by IRI.
+    /// The named individuals the document declares, asserts something about or
+    /// names in a class expression (`ObjectOneOf`, `ObjectHasValue`), sorted
+    /// by IRI.
     pub fn individuals(&self) -> Vec<String> {
         fn add(individual: &Individual, found: &mut BTreeSet<Vec<u8>>) {
             if let Individual::Named(named) = individual {
                 found.insert(named.iri.spelling.clone());
+            }
+        }
+        fn class(expression: &ClassExpression, found: &mut BTreeSet<Vec<u8>>) {
+            match expression {
+                ClassExpression::ObjectIntersectionOf(members)
+                | ClassExpression::ObjectUnionOf(members) => {
+                    class(&members.first, found);
+                    class(&members.second, found);
+                    for member in &members.rest {
+                        class(member, found);
+                    }
+                }
+                ClassExpression::ObjectComplementOf(inner) => class(inner, found),
+                ClassExpression::ObjectOneOf(individuals) => {
+                    add(&individuals.first, found);
+                    for individual in &individuals.rest {
+                        add(individual, found);
+                    }
+                }
+                ClassExpression::ObjectSomeValuesFrom(_, filler)
+                | ClassExpression::ObjectAllValuesFrom(_, filler) => class(filler, found),
+                ClassExpression::ObjectHasValue(_, individual) => add(individual, found),
+                ClassExpression::ObjectMinCardinality(_, _, Some(filler))
+                | ClassExpression::ObjectMaxCardinality(_, _, Some(filler))
+                | ClassExpression::ObjectExactCardinality(_, _, Some(filler)) => {
+                    class(filler, found)
+                }
+                _ => {}
+            }
+        }
+        fn classes(members: &AtLeastTwo<ClassExpression>, found: &mut BTreeSet<Vec<u8>>) {
+            class(&members.first, found);
+            class(&members.second, found);
+            for member in &members.rest {
+                class(member, found);
             }
         }
         let mut found = BTreeSet::new();
@@ -789,7 +826,21 @@ impl Reasoner {
                 Axiom::Declaration(Entity::NamedIndividual(named)) => {
                     found.insert(named.iri.spelling.clone());
                 }
-                Axiom::ClassAssertion(_, individual) => add(individual, &mut found),
+                Axiom::SubClassOf(sub, sup) => {
+                    class(sub, &mut found);
+                    class(sup, &mut found);
+                }
+                Axiom::EquivalentClasses(members)
+                | Axiom::DisjointClasses(members)
+                | Axiom::DisjointUnion(_, members) => classes(members, &mut found),
+                Axiom::ObjectPropertyDomain(_, expression)
+                | Axiom::ObjectPropertyRange(_, expression)
+                | Axiom::DataPropertyDomain(_, expression)
+                | Axiom::HasKey(expression, _, _) => class(expression, &mut found),
+                Axiom::ClassAssertion(expression, individual) => {
+                    class(expression, &mut found);
+                    add(individual, &mut found);
+                }
                 Axiom::ObjectPropertyAssertion(_, source, target)
                 | Axiom::NegativeObjectPropertyAssertion(_, source, target) => {
                     add(source, &mut found);

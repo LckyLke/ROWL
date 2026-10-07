@@ -68,9 +68,11 @@ Answers come from the verified reader and queries, proved against the OWL 2 Dire
   `.owl` or `.rdf` RDF/XML, anything else Functional Syntax.
 - `--imports DIR` reads the import closure from the files in `DIR`. Nothing is
   fetched from the network.
-- `rowl instances` asks about each named individual that the document declares
-  or makes an assertion about, and lists those proved to be instances. It does
-  not list an individual whose answer is unknown.
+- `rowl instances` asks about each named individual that the document
+  declares, makes an assertion about or names in a class expression, and lists
+  those proved to be instances. It names the individuals whose answer is
+  unknown and then exits with status 1. On an inconsistent ontology it lists
+  nothing and exits with status 1, since every individual would follow.
 
 **Rust.** The crates are not on crates.io yet; add `crates/rowl` as a path
 dependency.
@@ -419,7 +421,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 650 Rust regression tests
+cargo test --workspace         # 654 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

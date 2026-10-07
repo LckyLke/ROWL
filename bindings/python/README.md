@@ -2,10 +2,10 @@
 
 Python bindings for ROWL, an OWL 2 reasoner written in Rust whose reader,
 mapping and queries are proved in Lean against the OWL 2 Direct Semantics.
-A `Reasoner` reads an OWL Functional Syntax, N-Triples or Turtle document
-once and answers any number of questions about it by IRI. An N-Triples or
-Turtle graph is read as the OWL ontology it encodes by the verified reverse OWL
-RDF mapping.
+A `Reasoner` reads an OWL Functional Syntax, N-Triples, Turtle or RDF/XML
+document once and answers any number of questions about it by IRI. An
+N-Triples, Turtle or RDF/XML graph is read as the OWL ontology it encodes by
+the verified reverse OWL RDF mapping.
 
 ```python
 import rowl
@@ -22,9 +22,10 @@ with rowl.Reasoner.from_file("examples/medication-safety.ofn") as r:
 ```
 
 `Reasoner.from_file` reads N-Triples for a `.nt` file, Turtle for a `.ttl`
-file and Functional Syntax otherwise; `Reasoner(text, syntax="ntriples")` and
-`Reasoner(text, syntax="turtle")` read N-Triples and Turtle text. A relative IRI
-in Turtle needs an `@base` or `BASE` directive before it.
+file, RDF/XML for a `.owl` or `.rdf` file and Functional Syntax otherwise,
+resolving relative IRIs against the file's `file:` URI;
+`Reasoner(text, syntax="ntriples")`, `syntax="turtle"` and `syntax="rdfxml"`
+read text, with `base=` for relative IRIs.
 
 Every answer is `True`, `False` or `None`. `None` means the question is
 outside the supported fragment (see the repository's `docs/status.md`) or a
@@ -42,7 +43,7 @@ several.
 | `satisfiable(cls)` | Does some model have an instance of the named class? |
 | `subsumed(sub, sup)` | Is every instance of `sub` an instance of `sup` in every model? |
 | `instance_of(individual, cls)` | Is the named individual an instance of the named class in every model? |
-| `classes()`, `individuals()` | The named classes and individuals of the document |
+| `classes()`, `individuals()` | The named classes and individuals of the document (individuals named in class expressions included) |
 | `classify()` | Every named class with its named superclasses |
 | `superclasses(cls)` | The named superclasses of one named class |
 | `dl_violation()` | The first OWL 2 DL restriction the document violates, or `None` |
@@ -68,16 +69,16 @@ with rowl.Reasoner.from_file("examples/imports/medication-prescriptions.ofn",
 ```
 
 `imports` lists further files of the catalog; a directory contributes its
-`.ofn`, `.nt` and `.ttl` files. `Reasoner.from_documents([(name, text, syntax),
+`.ofn`, `.nt`, `.ttl`, `.owl` and `.rdf` files. `Reasoner.from_documents([(name, text, syntax),
 ...], root=0)` takes the catalog as text, `syntax` being `"functional"`,
-`"ntriples"` or `"turtle"` (Turtle without a base IRI). Every import IRI of a
+`"ntriples"`, `"turtle"` or `"rdfxml"` (without a base IRI). Every import IRI of a
 document of the import closure must be the ontology IRI or version IRI of
 exactly one document of the catalog; otherwise loading raises
 `rowl.ImportUnresolved`, naming the document and the IRI. The verified assembly
 keeps every document's anonymous individuals apart, and the answers are proved
 to be those of the whole import closure. RDF documents are read without the
-declarations of the documents they import, so an N-Triples or Turtle document
-must declare what it uses.
+declarations of the documents they import, so an N-Triples, Turtle or RDF/XML
+document must declare what it uses.
 
 ## Installing
 
@@ -90,7 +91,7 @@ pip install --no-build-isolation ./bindings/python
 ```
 
 `--no-build-isolation` uses the installed setuptools instead of downloading
-one. In a source checkout the package also works without installing: build
+one, so the environment needs setuptools 61 or newer. In a source checkout the package also works without installing: build
 the library with `cargo build --release -p rowl-python`, and `import rowl`
 from `bindings/python` finds it in `target/release` (or set `ROWL_LIBRARY` to
 the library's path).

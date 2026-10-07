@@ -1,10 +1,10 @@
 """Python bindings for ROWL, an OWL 2 reasoner with proved answers.
 
-A :class:`Reasoner` reads an OWL Functional Syntax, N-Triples or Turtle
-document, or the import closure of one from a catalog of documents, once and
-answers any number of questions about it by IRI. Every answer comes from the
-verified Rust pipeline (the document reader, the mapping into the OWL model —
-for N-Triples and Turtle the reverse OWL RDF mapping —, the assembly of the
+A :class:`Reasoner` reads an OWL Functional Syntax, N-Triples, Turtle or
+RDF/XML document, or the import closure of one from a catalog of documents,
+once and answers any number of questions about it by IRI. Every answer comes
+from the verified Rust pipeline (the document reader, the mapping into the OWL
+model — for N-Triples, Turtle and RDF/XML the reverse OWL RDF mapping —, the assembly of the
 import closure and the prepared queries), which is proved against the OWL 2
 Direct Semantics; this package only passes text across the C interface of the
 ``rowl-python`` crate.
@@ -335,7 +335,8 @@ class Reasoner:
         return list(self._json(_lib.rowl_classes))
 
     def individuals(self) -> List[str]:
-        """The named individuals the document asserts something about, sorted by IRI."""
+        """The named individuals the document declares, asserts something about or
+        names in a class expression, sorted by IRI."""
         return list(self._json(_lib.rowl_individuals))
 
     def classify(self) -> Optional[List[Classified]]:

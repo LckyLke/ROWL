@@ -6351,3 +6351,21 @@ of 50 s: every instance question still runs a tableau over the whole ABox.
 
 This block adds no public theorems or definitions. Totals are 5399 audited
 theorems, 1793 definitions, 650 Rust regressions and 5592 ledger obligations.
+
+## Glue: safer instance listing
+
+A review of the README found three gaps in the unverified `rowl instances`
+command, which asks the verified instance query about each named individual:
+it printed nothing and exited successfully when no answer was known, it listed
+every individual of an inconsistent ontology without saying why, and it never
+asked about individuals that occur only in class expressions
+(`ObjectOneOf`, `ObjectHasValue`). `Reasoner::individuals` now includes those
+individuals, and `instances` names every individual whose answer is unknown
+and then exits with status 1, and on an inconsistent ontology lists nothing and
+exits with status 1. The `alc_ontology` example now asks the ontology queries
+of `data_ontology`, which answer it at once instead of in about two minutes,
+and stale statements in status.md, formats.md and the Python documentation
+(RDF/XML reading, the range facets, reading times) are corrected.
+
+This block adds no theorems or definitions. Totals are 5399 audited theorems,
+1793 definitions, 654 Rust regressions and 5592 ledger obligations.

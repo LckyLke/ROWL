@@ -2,7 +2,10 @@
 
 M0, M1 feasibility probes and M2 structural representation/independent semantics
 are complete. M3 and M4 have verified components; both milestones remain in
-progress. Full OWL parsing and executable reasoning are still future work.
+progress. Functional Syntax, Turtle, N-Triples and RDF/XML documents are read,
+and SROIQ with nineteen datatypes is decided, with proofs (below); a decision
+procedure for all of OWL 2 DL, its other datatypes and facets and the other
+formats are future work.
 
 ## Working now
 
@@ -1197,10 +1200,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   tableau queries only when a question needs them. A generated EL ontology with
   1000 classes classifies in 0.6 s instead of 19.5 s with the same answers, and
   one with 20 000 classes in under a second from N-Triples (2.2 s before the RDF
-  mapping's lookups were indexed) and 12 s from Functional Syntax, where lexing
-  takes most of the time.
+  mapping's lookups were indexed) and, since the proved name and IRI scanners
+  of the lexer, about 1.2 s from Functional Syntax (12 s before).
 - Python bindings: the `rowl` package in `bindings/python` reads a
-  Functional Syntax, N-Triples or Turtle document, or the import closure of one
+  Functional Syntax, N-Triples, Turtle or RDF/XML document, or the import closure of one
   from a catalog of documents, once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
   verified `Reasoner` through the C interface of the `rowl-python` crate with
@@ -1283,7 +1286,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 650 Rust regression tests and 21 Python binding tests, plus separately fetched
+- 654 Rust regression tests and 21 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1343,8 +1346,9 @@ annotated axioms included, and complete for every ontology without annotations
 that it reads back exactly, and for ontology annotations and annotated axioms
 with one main triple, its triples in any order; the writer, the termination
 of the mapping, the completeness of that mapping for annotations of
-annotations and for annotated axioms that a blank node represents, and the full
-byte-to-ontology pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
+annotations and for annotated axioms that a blank node represents remain unproved; so the
+byte-to-ontology pipeline from RDF (`import_catalog::read_source`) is proved
+correct whenever it returns (`read_source_correct`) but not proved to return. Correspondence to W3C prose/tables is
 a reviewed specification choice, not a mechanical proof of English. See
 m2-semantics.md for the mapping.
 
@@ -1367,9 +1371,9 @@ catalog and the import closure are assembled from the bytes of the documents
 Datatype maps are explicit parameters with their stated laws, not an assumed
 external solver. Agreement with the OWL 2 map on nineteen datatypes and the
 four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
-and the data queries are proved under every such map; they do not use the
-facets yet, and the complete normative OWL map, its other datatypes and facets
-are unimplemented. Semantic
+and the data queries, range facets included, are proved under every such map;
+the complete normative OWL map, its other datatypes and facets are
+unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity and canonical structure; `import_closure` assembles the complete import
 closure. The structural,

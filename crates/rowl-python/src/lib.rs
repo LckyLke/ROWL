@@ -575,8 +575,9 @@ pub unsafe extern "C" fn rowl_classes(reasoner: *const RowlReasoner) -> *mut c_c
     }
 }
 
-/// The named individuals the document asserts something about, as a JSON
-/// array of IRIs; null for a null handle.
+/// The named individuals the document declares, asserts something about or
+/// names in a class expression, as a JSON array of IRIs; null for a null
+/// handle.
 ///
 /// # Safety
 /// `reasoner` must be null or a live handle.

@@ -193,3 +193,25 @@ fn doses_are_checked_against_their_limits() {
     };
     assert_eq!(strict.consistent(), Some(false));
 }
+
+#[test]
+fn individuals_include_those_named_in_class_expressions() {
+    let source = b"Prefix(:=<https://example.org/w/>)\nOntology(<https://example.org/w/onto>\nEquivalentClasses(:Weekend ObjectOneOf(:saturday :sunday))\nSubClassOf(:Holiday ObjectSomeValuesFrom(:near ObjectHasValue(:after :monday)))\nClassAssertion(:Day :tuesday)\n)\n";
+    let Ok(reasoner) = Reasoner::from_functional(source, &default_limits()) else {
+        panic!("the document must load");
+    };
+    let w = "https://example.org/w/";
+    assert_eq!(
+        reasoner.individuals(),
+        vec![
+            format!("{w}monday"),
+            format!("{w}saturday"),
+            format!("{w}sunday"),
+            format!("{w}tuesday")
+        ]
+    );
+    assert_eq!(
+        reasoner.instance_of(&format!("{w}saturday"), &named(&format!("{w}Weekend"))),
+        Some(true)
+    );
+}
