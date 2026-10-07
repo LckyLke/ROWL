@@ -107,6 +107,34 @@ records*, not *proved safe*. Each answer comes from code proved to compute
 exactly the Direct Semantics of the bytes in that file. (An illustration, not
 clinical guidance.)
 
+Numbers work the same way. [`examples/medication-dose.ofn`](examples/medication-dose.ofn)
+flags a paracetamol prescription above 4000 mg a day, or above 2000 mg for a
+child under 12:
+
+```text
+EquivalentClasses(:Child DataSomeValuesFrom(:patientAgeYears
+                    DatatypeRestriction(xsd:integer xsd:maxExclusive "12"^^xsd:integer)))
+SubClassOf(ObjectIntersectionOf(:Paracetamol DataSomeValuesFrom(:dailyDoseMg
+             DatatypeRestriction(xsd:decimal xsd:minExclusive "4000"^^xsd:decimal))) :DoseAlert)
+SubClassOf(ObjectIntersectionOf(:Paracetamol :Child DataSomeValuesFrom(:dailyDoseMg
+             DatatypeRestriction(xsd:decimal xsd:minExclusive "2000"^^xsd:decimal))) :DoseAlert)
+```
+
+```console
+$ cargo run -q -p rowl-cli -- instances examples/medication-dose.ofn https://example.org/dose/DoseAlert
+https://example.org/dose/rx1
+https://example.org/dose/rx3
+https://example.org/dose/rx4
+Answers come from the verified reader and queries, proved against the OWL 2 Direct Semantics.
+```
+
+rx1 is 3000 mg for a child of 8, rx3 is 4000.5 mg, and rx4 is
+`"8001/2"^^owl:rational` mg, the same number; rx2, 3000 mg for an adult, is
+not flagged. With a hard maximum `DataAllValuesFrom(:dailyDoseMg
+xsd:decimal[<= 4000])` on paracetamol the records become inconsistent. The
+numbers are compared exactly, and the answers hold under the OWL 2 datatype
+map, irrational reals included.
+
 ## Status
 
 The Rust model represents every OWL 2 DL construct, and the Lean semantics gives
@@ -115,7 +143,7 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
 | **Input** | OWL Functional Syntax documents: prefixes, header, annotations and every one of the 37 axiom forms, with all 18 class expressions and all data ranges; N-Triples, passing all 68 W3C syntax tests, and Turtle, passing all 313 W3C Turtle tests, and the OWL ontologies their graphs encode, read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns, annotated axioms and annotations included, and, for every ontology without annotations that satisfies the vocabulary and typing conditions of OWL 2 DL and avoids the three forms the mapping writes as triples of other axioms, to read the graph of the ontology back to it, its triples in any order (up to the order of axioms and imports), and with ontology annotations and annotated axioms, also in any order (up to the order of axioms, imports and annotations); import closures from a catalog of documents (`--imports DIR`, `Reasoner.from_file(..., imports=...)`), with ontology and version IRIs, cycles, missing and ambiguous imports, every document's anonymous individuals kept apart and every axiom's document, proved to have exactly the models of the import closure; nothing is fetched | RDF/XML and the other required formats; RDF documents that use declarations of the documents they import |
-| **Logic** | ALC (and, or, not, some, only) with named individuals, equal and different individuals, inverse roles, role hierarchies, transitive roles, number restrictions, including functional properties, nominals of named individuals, such as enumerations and value restrictions (SHOIQ), self restrictions, reflexive, irreflexive, asymmetric and disjoint properties, role chains and the universal and empty roles (SROIQ); data properties, data restrictions and literals of `xsd:integer`, `xsd:decimal`, `xsd:string`, `rdf:PlainLiteral` and `xsd:boolean` | datatype facets, the other datatypes and keys, up to full OWL 2 DL (SROIQ(D)) |
+| **Logic** | ALC (and, or, not, some, only) with named individuals, equal and different individuals, inverse roles, role hierarchies, transitive roles, number restrictions, including functional properties, nominals of named individuals, such as enumerations and value restrictions (SHOIQ), self restrictions, reflexive, irreflexive, asymmetric and disjoint properties, role chains and the universal and empty roles (SROIQ); data properties, data restrictions and literals of `xsd:string`, `rdf:PlainLiteral`, `xsd:boolean` and the numeric datatypes (`owl:real`, `owl:rational`, `xsd:decimal`, `xsd:integer` and its twelve subtypes), with the range facets `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive`; keys (`HasKey`) with object properties | the other facets and datatypes and keys with data properties, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking, classification of the named classes | query answering |
 | **Validation** | whether a document is OWL 2 DL: keys and arities, the reserved vocabulary, declarations and typing, and the global restrictions on simple roles, property hierarchies, datatypes and anonymous individuals, with the first violation in words (`rowl validate FILE [--imports DIR]`, `Reasoner.dl_violation()`), over a whole import closure with the imported declarations | the lexical forms of literals and facet values |
 | **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection, anywhere equality blocking and backjumping, and a completion forest with pairwise blocking for counting, nominals and self restrictions; a document read once, with its queries prepared once when first needed, answers any number of queries; classification settles what told subclass axioms and earlier answers decide and tests the rest in groups, and classifies EL ontologies by saturation in one pass | model-based pruning and incremental rule search |

@@ -3,8 +3,11 @@ import Rowl.DataEncoding
 /-!
 What the encoding of `data_ontology` means. A data range's encoding holds at a
 data node exactly when the range holds of a value that the node stands for
-(`encode_range_meaning`): the same datatypes in use, and a literal individual
-exactly for its literal's value. A class expression's encoding holds at an
+(`encode_range_meaning`): the same datatypes in use, a literal individual
+exactly for its literal's value, and, when numbers are ordered, each cut's
+class exactly at the reals in the cut (`NodeValue`), so that the subtypes of
+`xsd:integer` and the range facets hold as their cuts say (`kind_range_meaning`,
+`facet_class_meaning`). A class expression's encoding holds at an
 element exactly when the expression holds at the element it stands for, under
 any correspondence between an OWL interpretation and an interpretation of the
 encoding that agrees on the names, relates the elements that are no data nodes
@@ -28,34 +31,58 @@ variable {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
 
 /-! ### Data ranges -/
 
+/-- A range facet's values among the reals, for a bound. -/
+def FacetReal : datatypes.Facet → ℚ → ℝ → Prop
+  | .MinInclusive, c, r => (c : ℝ) ≤ r
+  | .MaxInclusive, c, r => r ≤ c
+  | .MinExclusive, c, r => (c : ℝ) < r
+  | .MaxExclusive, c, r => r < c
+
 /-- What the encoding of a data range needs of a data node `d` of `J` that
-    stands for a value `x` of `I`: the same datatypes in use, and a literal
-    individual exactly at the node of its literal's value. -/
+    stands for a value `x` of `I`: the same datatypes in use, a literal
+    individual exactly at the node of its literal's value, and, when numbers
+    are ordered, each cut's class exactly at the nodes of numbers in the cut,
+    with `num` the reals among the values of `I`. -/
 structure NodeValue (context : data_ontology.Context) (I : Interpretation Object Value)
-    (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value) (d : Object') (x : Value) : Prop where
+    (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value) (num : ℝ → Value) (d : Object')
+    (x : Value) : Prop where
   kinds : ∀ k, Used context.kinds k = true → (J.classes (kindClass k) d ↔ I.datatypes (typeOf k) x)
   values : ∀ (i : Usize) (h : i.val < context.values.val.length),
     J.namedIndividuals (valueIndividual i) = d ↔ x = lit context.values.val[i.val]
+  cuts : context.kinds.ordered = true → ∀ (i : Usize) (h : i.val < context.cuts.val.length),
+    (J.classes (cutClass i) d ↔ ∃ r, x = num r ∧ Rowl.Regions.InCut context.cuts.val[i.val] r)
 
 /-- What every data range needs of the two interpretations: `rdfs:Literal` and
-    `owl:Thing` hold everywhere, and each literal with a value is that value. -/
+    `owl:Thing` hold everywhere, each literal with a value is that value, the
+    reals `num` are values one to one, every number is the real it writes, the
+    numeric datatypes are the reals of their value spaces, and a range facet
+    with a numeric bound holds of the reals on its side of the bound. -/
 structure RangeFrame (I : Interpretation Object Value) (J : Interpretation Object' Value')
-    (lit : datatypes.DataValue → Value) : Prop where
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) : Prop where
   literal : ∀ x, I.datatypes literalDatatype x
   thing : ∀ d, J.classes thing d
   literals : ∀ lt w, datatypes.literal_value lt = .ok (some w) → I.literals lt = lit w
+  injective : Function.Injective num
+  numbers : ∀ w, Rowl.Datatypes.IsNumber w → lit w = num (Rowl.Datatypes.numValue w)
+  numeric : ∀ k, Rowl.Datatypes.IsNumeric k → ∀ x,
+    I.datatypes (typeOf k) x ↔ ∃ r, x = num r ∧ Rowl.Datatypes.RealIn k r
+  facets : ∀ (f : FacetRestriction) (F : datatypes.Facet) (w : datatypes.DataValue),
+    Rowl.Datatypes.facetOf f.facet = some F → datatypes.literal_value f.value = .ok (some w) →
+    Rowl.Datatypes.IsNumber w → ∀ x, I.facets f x ↔ ∃ r, x = num r ∧ FacetReal F (Rowl.Datatypes.numValue w) r
 
 /-- What a data range's encoding means: at every data node standing for a
     value, it holds exactly when the range holds of the value. -/
 def RangeMeans (context : data_ontology.Context) (range : DataRange) (c : ClassExpression) : Prop :=
   ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
-    (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value),
-    RangeFrame I J lit → ∀ d x, NodeValue context I J lit d x → (dataDenote I range x ↔ classDenote J c d)
+    (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+    (num : ℝ → Value), RangeFrame I J lit num → ∀ d x, NodeValue context I J lit num d x →
+      (dataDenote I range x ↔ classDenote J c d)
 
 theorem literal_individual_meaning (context : data_ontology.Context) (lt : Literal) (a : Individual)
     (run : data_ontology.literal_individual context lt = .ok (some a))
     {I : Interpretation Object Value} {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value}
-    (frame : RangeFrame I J lit) {d : Object'} {x : Value} (node : NodeValue context I J lit d x) :
+    {num : ℝ → Value} (frame : RangeFrame I J lit num) {d : Object'} {x : Value}
+    (node : NodeValue context I J lit num d x) :
     individual J a = d ↔ I.literals lt = x := by
   obtain ⟨res, run', facts⟩ := literal_individual_correct context lt
   rw [run] at run'
@@ -160,6 +187,274 @@ theorem encode_ranges_meaning (context : data_ontology.Context) (members : AtLea
         simp only [new_val, List.length_nil, List.drop_zero, zero_val] at tail
         exact .cons (means1 c1 rfl) (.cons (means2 c2 rfl) tail)
 
+/-! ### Numeric ranges -/
+
+theorem in_closed (v : datatypes.DataValue) (r : ℝ) :
+    Rowl.Regions.InCut ⟨v, false⟩ r ↔ (Rowl.Datatypes.numValue v : ℝ) ≤ r := by
+  simp [Rowl.Regions.InCut]
+
+theorem in_open (v : datatypes.DataValue) (r : ℝ) :
+    Rowl.Regions.InCut ⟨v, true⟩ r ↔ (Rowl.Datatypes.numValue v : ℝ) < r := by
+  simp [Rowl.Regions.InCut]
+
+/-- The class of a bound's cut, or `owl:Thing` without a bound. -/
+theorem bound_class_correct (context : data_ontology.Context) (bound : Option datatypes.DataValue)
+    («open» outside : Bool) :
+    ∃ res, data_ontology.bound_class context bound «open» outside = .ok res ∧ ∀ c, res = some c →
+      (bound = none ∧ c = .Class thing) ∨ ∃ (v : datatypes.DataValue) (i : Usize)
+        (h : i.val < context.cuts.val.length), bound = some v ∧ context.cuts.val[i.val] = ⟨v, «open»⟩ ∧
+        c = if outside then .ObjectComplementOf (.Class (cutClass i)) else .Class (cutClass i) := by
+  cases bound with
+  | none => exact ⟨some (.Class thing), by simp [data_ontology.bound_class, thing_eq], fun c h => .inl ⟨rfl, by
+      cases h; rfl⟩⟩
+  | some v =>
+    obtain ⟨o, run, _, found⟩ := Rowl.Regions.cut_index_correct context.cuts v «open» 0#usize
+    cases o with
+    | none => exact ⟨none, by simp [data_ontology.bound_class, run], by simp⟩
+    | some i =>
+      obtain ⟨h, at_i⟩ := found i rfl
+      cases outside
+      · exact ⟨some (.Class (cutClass i)), by simp [data_ontology.bound_class, run, cut_class_eq],
+          fun c hc => .inr ⟨v, i, h, rfl, at_i, by cases hc; simp⟩⟩
+      · exact ⟨some (.ObjectComplementOf (.Class (cutClass i))),
+          by simp [data_ontology.bound_class, run, cut_class_eq, data_ontology.not],
+          fun c hc => .inr ⟨v, i, h, rfl, at_i, by cases hc; simp⟩⟩
+
+theorem realIn_subtype {k : datatypes.Kind} (sub : Rowl.Datatypes.IsSubtype k) (r : ℝ) :
+    Rowl.Datatypes.RealIn k r ↔ ∃ z : ℤ, Rowl.DatatypeMap.Bounded (Rowl.Datatypes.lowerOf k)
+      (Rowl.Datatypes.upperOf k) z ∧ r = z := by
+  cases k <;> simp_all [Rowl.Datatypes.IsSubtype, Rowl.Datatypes.RealIn]
+
+theorem bounded_eq (k : datatypes.Kind) : data_ontology.bounded k = .ok (decide (Rowl.Datatypes.IsSubtype k)) := by
+  cases k <;> simp [data_ontology.bounded, Rowl.Datatypes.IsSubtype]
+
+theorem numeric_kind_eq (k : datatypes.Kind) :
+    data_ontology.numeric_kind k = .ok (decide (Rowl.Datatypes.IsNumeric k)) := by
+  cases k <;> simp [data_ontology.numeric_kind, Rowl.Datatypes.IsNumeric]
+
+theorem and3_eq (a b c : ClassExpression) :
+    ∃ rest : alloc.vec.Vec ClassExpression, rest.val = [c] ∧
+      data_ontology.and3 a b c = .ok (.ObjectIntersectionOf ⟨a, b, rest⟩) := by
+  rw [data_ontology.and3]
+  obtain ⟨rest, run, value⟩ := WP.spec_imp_exists
+    (alloc.vec.Vec.push_spec (alloc.vec.Vec.new ClassExpression) c (by simp [new_val]; scalar_tac))
+  exact ⟨rest, by rw [value]; simp [new_val], by rw [run]; simp⟩
+
+theorem inter_iff (J : Interpretation Object' Value') (xs : AtLeastTwo ClassExpression) (d : Object') :
+    classDenote J (.ObjectIntersectionOf xs) d ↔ ∀ e ∈ xs.elements, classDenote J e d := by
+  rw [classDenote]; simp [AtLeastTwo.elements]
+
+theorem and3_iff (J : Interpretation Object' Value') (a b c : ClassExpression) (rest : alloc.vec.Vec ClassExpression)
+    (single : rest.val = [c]) (d : Object') :
+    classDenote J (.ObjectIntersectionOf ⟨a, b, rest⟩) d ↔
+      classDenote J a d ∧ classDenote J b d ∧ classDenote J c d := by
+  rw [inter_iff]; simp [AtLeastTwo.elements, single]
+
+/-- What the class of a bound's cut says at a data node standing for a value,
+    when numbers are ordered. -/
+theorem bound_meaning {context : data_ontology.Context} {I : Interpretation Object Value}
+    {J : Interpretation Object' Value'} {lit : datatypes.DataValue → Value} {num : ℝ → Value}
+    {d : Object'} {x : Value} (node : NodeValue context I J lit num d x)
+    (ordered : context.kinds.ordered = true) {v : datatypes.DataValue} {i : Usize}
+    (h : i.val < context.cuts.val.length) («open» : Bool) (at_i : context.cuts.val[i.val] = ⟨v, «open»⟩) :
+    J.classes (cutClass i) d ↔ ∃ r, x = num r ∧ Rowl.Regions.InCut ⟨v, «open»⟩ r := by
+  rw [node.cuts ordered i h, at_i]
+
+/-- The class expression of a datatype of a kind holds at a data node standing
+    for a value exactly when the value is in the datatype. -/
+theorem kind_range_meaning (context : data_ontology.Context) (k : datatypes.Kind) :
+    ∃ res, data_ontology.kind_range context k = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+        (num : ℝ → Value), RangeFrame I J lit num → ∀ d x, NodeValue context I J lit num d x →
+          (I.datatypes (typeOf k) x ↔ classDenote J c d) := by
+  rw [data_ontology.kind_range, bounded_eq]
+  by_cases sub : Rowl.Datatypes.IsSubtype k
+  · simp only [sub, decide_true, ↓reduceIte]
+    rw [data_ontology.subtype_range, used_eq]
+    by_cases ready : Used context.kinds .Integer = true ∧ context.kinds.ordered = true
+    · obtain ⟨lo, loRun, loNone, loSome⟩ := Rowl.Datatypes.lower_bound_correct k
+      obtain ⟨hi, hiRun, hiNone, hiSome⟩ := Rowl.Datatypes.upper_bound_correct k
+      obtain ⟨lc, lcRun, lcFacts⟩ := bound_class_correct context lo false false
+      obtain ⟨uc, ucRun, ucFacts⟩ := bound_class_correct context hi true true
+      cases lc with
+      | none => exact ⟨none, by simp [ready, loRun, lcRun, hiRun, ucRun], by simp⟩
+      | some lower =>
+        cases uc with
+        | none => exact ⟨none, by simp [ready, loRun, lcRun, hiRun, ucRun], by simp⟩
+        | some upper =>
+          obtain ⟨rest, single, andRun⟩ := and3_eq (.Class (kindClass .Integer)) lower upper
+          refine ⟨some (.ObjectIntersectionOf ⟨.Class (kindClass .Integer), lower, rest⟩),
+            by simp [ready, loRun, lcRun, hiRun, ucRun, kind_class_eq, andRun], fun c hc => ?_⟩
+          cases hc
+          intro Object Value Object' Value' I J lit num frame d x node
+          rw [and3_iff J _ _ _ rest single, frame.numeric k (by cases k <;> simp_all [Rowl.Datatypes.IsSubtype, Rowl.Datatypes.IsNumeric])]
+          simp only [classDenote]
+          rw [node.kinds .Integer ready.1, frame.numeric .Integer (by simp [Rowl.Datatypes.IsNumeric])]
+          simp only [Rowl.Datatypes.RealIn]
+          -- the lower bound
+          have lowerIff : classDenote J lower d ↔ ∀ l, Rowl.Datatypes.lowerOf k = some l →
+              ∃ r, x = num r ∧ (l : ℝ) ≤ r := by
+            rcases lcFacts lower rfl with ⟨none, rfl⟩ | ⟨v, i, h, some, at_i, rfl⟩
+            · simp only [classDenote, frame.thing d, true_iff]
+              intro l hl
+              exact absurd (loNone.mp none) (by simp [hl])
+            · simp only [Bool.false_eq_true, ↓reduceIte, classDenote]
+              rw [bound_meaning node ready.2 h false at_i]
+              obtain ⟨l, hl, bv⟩ := loSome v some
+              obtain ⟨_, value, _⟩ := Rowl.Datatypes.bound_number bv
+              simp only [in_closed, value, hl, Option.some.injEq, forall_eq']
+              push_cast; rfl
+          have upperIff : classDenote J upper d ↔ ∀ u, Rowl.Datatypes.upperOf k = some u →
+              ¬ ∃ r, x = num r ∧ (u : ℝ) < r := by
+            rcases ucFacts upper rfl with ⟨none, rfl⟩ | ⟨v, i, h, some, at_i, rfl⟩
+            · simp only [classDenote, frame.thing d, true_iff]
+              intro u hu
+              exact absurd (hiNone.mp none) (by simp [hu])
+            · simp only [↓reduceIte, classDenote]
+              rw [bound_meaning node ready.2 h true at_i]
+              obtain ⟨u, hu, bv⟩ := hiSome v some
+              obtain ⟨_, value, _⟩ := Rowl.Datatypes.bound_number bv
+              simp only [in_open, value, hu, Option.some.injEq, forall_eq']
+              push_cast; rfl
+          rw [lowerIff, upperIff]
+          constructor
+          · rintro ⟨r, rfl, inside⟩
+            obtain ⟨z, ⟨lo', hi'⟩, rfl⟩ := (realIn_subtype sub r).mp inside
+            refine ⟨⟨z, rfl, z, rfl⟩, fun l hl => ⟨z, rfl, by exact_mod_cast lo' l hl⟩, fun u hu => ?_⟩
+            rintro ⟨r', same, lt⟩
+            have := frame.injective same
+            subst this
+            have : (z : ℝ) ≤ u := by exact_mod_cast hi' u hu
+            linarith
+          · rintro ⟨⟨r, rfl, z, rfl⟩, lower', upper'⟩
+            refine ⟨z, rfl, (realIn_subtype sub _).mpr ⟨z, ⟨fun l hl => ?_, fun u hu => ?_⟩, rfl⟩⟩
+            · obtain ⟨r', same, le⟩ := lower' l hl
+              have := frame.injective same
+              subst this
+              exact_mod_cast le
+            · by_contra above
+              exact upper' u hu ⟨z, rfl, by exact_mod_cast (lt_of_not_ge above)⟩
+    · exact ⟨none, by simp [ready], by simp⟩
+  · simp only [sub, decide_false, Bool.false_eq_true, ↓reduceIte, used_eq, bind_ok]
+    by_cases inUse : Used context.kinds k = true
+    · refine ⟨some (.Class (kindClass k)), by simp [inUse, kind_class_eq], fun c hc => ?_⟩
+      cases hc
+      intro Object Value Object' Value' I J lit num frame d x node
+      simp only [classDenote]
+      exact (node.kinds k inUse).symm
+    · exact ⟨none, by simp [inUse], by simp⟩
+
+/-- The side of a range facet's cut: open for the exclusive lower and the
+    inclusive upper bound. -/
+def FacetOpen : datatypes.Facet → Bool
+  | .MinInclusive => false
+  | .MinExclusive => true
+  | .MaxInclusive => true
+  | .MaxExclusive => false
+
+/-- Whether a range facet's values lie outside its cut: for the upper bounds. -/
+def FacetOutside : datatypes.Facet → Bool
+  | .MinInclusive => false
+  | .MinExclusive => false
+  | .MaxInclusive => true
+  | .MaxExclusive => true
+
+theorem facet_open_eq (F : datatypes.Facet) : data_ontology.facet_open F = .ok (FacetOpen F) := by
+  cases F <;> rfl
+
+theorem facet_outside_eq (F : datatypes.Facet) : data_ontology.facet_outside F = .ok (FacetOutside F) := by
+  cases F <;> rfl
+
+/-- The class of a facet restriction holds at a data node standing for a
+    number exactly when the facet holds of it, when numbers are ordered. -/
+theorem facet_class_meaning (context : data_ontology.Context) (f : FacetRestriction) :
+    ∃ res, data_ontology.facet_class context f = .ok res ∧ ∀ c, res = some c →
+      ∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
+        (I : Interpretation Object Value) (J : Interpretation Object' Value') (lit : datatypes.DataValue → Value)
+        (num : ℝ → Value), RangeFrame I J lit num → ∀ d x, NodeValue context I J lit num d x →
+          context.kinds.ordered = true → (∃ r, x = num r) → (I.facets f x ↔ classDenote J c d) := by
+  rw [data_ontology.facet_class, Rowl.Datatypes.facet_of_correct]
+  obtain ⟨result, run, someValue, _⟩ := Rowl.Datatypes.literal_value_correct.{0} f.value
+  rw [run]
+  cases facet : Rowl.Datatypes.facetOf f.facet with
+  | none => exact ⟨none, by simp, by simp⟩
+  | some F =>
+    cases result with
+    | none => exact ⟨none, by simp, by simp⟩
+    | some w =>
+      by_cases number : Rowl.Datatypes.IsNumber w
+      · obtain ⟨res, bRun, bFacts⟩ := bound_class_correct context (some w) (FacetOpen F) (FacetOutside F)
+        refine ⟨res, by simp [Rowl.Datatypes.numeric_correct, number, facet_open_eq, facet_outside_eq, bRun],
+          fun c hc => ?_⟩
+        intro Object Value Object' Value' I J lit num frame d x node ordered isNumber
+        rcases bFacts c hc with ⟨none, _⟩ | ⟨v, i, h, same, at_i, rfl⟩
+        · cases none
+        · cases same
+          rw [frame.facets f F w facet run number x]
+          obtain ⟨r0, rfl⟩ := isNumber
+          have one : ∀ P : ℝ → Prop, (∃ r, num r0 = num r ∧ P r) ↔ P r0 := fun P =>
+            ⟨fun ⟨r, same, holds⟩ => (frame.injective same) ▸ holds, fun holds => ⟨r0, rfl, holds⟩⟩
+          cases F <;> simp only [FacetOpen, FacetOutside, ↓reduceIte, Bool.false_eq_true, classDenote] <;>
+            rw [bound_meaning node ordered h _ at_i] <;>
+            simp only [one, FacetOpen, in_closed, in_open, FacetReal, not_lt, not_le]
+      · exact ⟨none, by simp [Rowl.Datatypes.numeric_correct, number], by simp⟩
+
+/-- The classes of the facet restrictions of a list, member by member. -/
+theorem facet_classes_meaning (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+    (index : Usize) (out : alloc.vec.Vec ClassExpression)
+    (room : out.val.length + (restrictions.val.length - index.val) ≤ Usize.max) :
+    ∃ res, data_ontology.facet_classes context restrictions index out = .ok res ∧
+      ∀ v, res = some v → v.val.take out.val.length = out.val ∧
+        List.Forall₂ (fun c f => ∃ res, data_ontology.facet_class context f = .ok (some res) ∧ res = c)
+          (v.val.drop out.val.length) (restrictions.val.drop index.val) := by
+  rw [data_ontology.facet_classes]
+  by_cases inside : index.val < restrictions.val.length
+  · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have split := List.drop_eq_getElem_cons inside
+    obtain ⟨res, run, _⟩ := facet_class_meaning.{0,0,0,0} context restrictions.val[index.val]
+    cases res with
+    | none => exact ⟨none, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run], by simp⟩
+    | some c =>
+      have short : out.val.length < Usize.max := by omega
+      have notFull : ¬ (alloc.vec.Vec.len out = core.num.Usize.MAX) := fun h => by
+        have := congrArg UScalar.val h; simp [core.num.Usize.MAX] at this; omega
+      obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out c short)
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨rest, restRun, restFacts⟩ := facet_classes_meaning context restrictions next pushed
+        (by rw [contents, nextIndex]; simp; omega)
+      refine ⟨rest, ?_, fun v hv => ?_⟩
+      · have lt : alloc.vec.Vec.len out < core.num.Usize.MAX := by
+          simp [UScalar.lt_equiv, core.num.Usize.MAX]; omega
+        simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, lt, push, advance, restRun]
+      obtain ⟨prefix', tail⟩ := restFacts v hv
+      rw [contents] at prefix' tail
+      rw [nextIndex] at tail
+      have pushedLength : (out.val ++ [c]).length = out.val.length + 1 := by simp
+      rw [pushedLength] at prefix' tail
+      have vLength : out.val.length < v.val.length := by
+        have := congrArg List.length prefix'
+        simp at this; omega
+      refine ⟨?_, ?_⟩
+      · have := congrArg (List.take out.val.length) prefix'
+        simpa [List.take_take] using this
+      · rw [split, List.drop_eq_getElem_cons vLength]
+        have head : v.val[out.val.length] = c := by
+          have := congrArg (fun l => l[out.val.length]?) prefix'
+          simp [List.getElem?_take] at this
+          rw [List.getElem?_eq_getElem vLength] at this
+          simpa using this
+        rw [head]
+        exact .cons ⟨c, run, rfl⟩ tail
+  · refine ⟨some out, by simp [UScalar.lt_equiv, inside], fun v hv => ?_⟩
+    cases hv
+    simp [List.drop_eq_nil_iff.mpr (show restrictions.val.length ≤ index.val by omega)]
+termination_by restrictions.val.length - index.val
+decreasing_by omega
+
 /-- The encoding of a data range means it at every data node that stands for a
     value. -/
 theorem encode_range_meaning (context : data_ontology.Context) (range : DataRange) :
@@ -171,22 +466,19 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     by_cases literal : dt = literalDatatype
     · refine ⟨some (.Class thing), by simp [literal, thing_eq], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit frame d x _
+      intro Object Value Object' Value' I J lit num frame d x _
       subst literal
       simp [dataDenote, classDenote, frame.literal x, frame.thing d]
     · simp only [literal, decide_false, Bool.false_eq_true, ↓reduceIte, Rowl.Datatypes.kind_of_correct, bind_ok]
       cases kind : kindOf dt with
       | none => exact ⟨none, by simp, by simp⟩
       | some k =>
-        simp only [used_eq, bind_ok]
-        by_cases inUse : Used context.kinds k = true
-        · refine ⟨some (.Class (kindClass k)), by simp [inUse, kind_class_eq], fun c hc => ?_⟩
-          cases hc
-          intro Object Value Object' Value' I J lit frame d x node
-          rw [Rowl.Datatypes.kindOf_some kind]
-          simp only [dataDenote, classDenote]
-          exact (node.kinds k inUse).symm
-        · exact ⟨none, by simp [inUse], by simp⟩
+        obtain ⟨res, run, means⟩ := kind_range_meaning.{u,v,w,x} context k
+        refine ⟨res, by simp [run], fun c hc => ?_⟩
+        intro Object Value Object' Value' I J lit num frame d x node
+        rw [Rowl.Datatypes.kindOf_some kind]
+        simp only [dataDenote]
+        exact means c hc I J lit num frame d x node
   | Intersection members =>
     rw [data_ontology.encode_range]
     have bound : ∀ e ∈ members.elements, sizeOf e < 1 + sizeOf members := by
@@ -204,16 +496,16 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some cs =>
       refine ⟨some (.ObjectIntersectionOf cs), by simp [run], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit frame d x node
+      intro Object Value Object' Value' I J lit num frame d x node
       have pairs := means cs rfl
       have every : (∀ e ∈ members.elements, dataDenote I e x) ↔ ∀ c ∈ cs.elements, classDenote J c d := by
         constructor
         · intro all c member
           obtain ⟨e, inside, rel⟩ := forall2_mem_left pairs c member
-          exact (rel I J lit frame d x node).mp (all e inside)
+          exact (rel I J lit num frame d x node).mp (all e inside)
         · intro all e member
           obtain ⟨c, inside, rel⟩ := forall2_mem_right pairs e member
-          exact (rel I J lit frame d x node).mpr (all c inside)
+          exact (rel I J lit num frame d x node).mpr (all c inside)
       rw [dataDenote, classDenote]
       simpa [AtLeastTwo.elements] using every
   | Union members =>
@@ -233,16 +525,16 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some cs =>
       refine ⟨some (.ObjectUnionOf cs), by simp [run], fun c hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit frame d x node
+      intro Object Value Object' Value' I J lit num frame d x node
       have pairs := means cs rfl
       have some' : (∃ e ∈ members.elements, dataDenote I e x) ↔ ∃ c ∈ cs.elements, classDenote J c d := by
         constructor
         · rintro ⟨e, member, holds⟩
           obtain ⟨c, inside, rel⟩ := forall2_mem_right pairs e member
-          exact ⟨c, inside, (rel I J lit frame d x node).mp holds⟩
+          exact ⟨c, inside, (rel I J lit num frame d x node).mp holds⟩
         · rintro ⟨c, member, holds⟩
           obtain ⟨e, inside, rel⟩ := forall2_mem_left pairs c member
-          exact ⟨e, inside, (rel I J lit frame d x node).mpr holds⟩
+          exact ⟨e, inside, (rel I J lit num frame d x node).mpr holds⟩
       rw [dataDenote, classDenote]
       simpa [AtLeastTwo.elements, or_assoc] using some'
   | Complement inner =>
@@ -254,9 +546,9 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
     | some c =>
       refine ⟨some (.ObjectComplementOf c), by simp [run], fun c' hc => ?_⟩
       cases hc
-      intro Object Value Object' Value' I J lit frame d x node
+      intro Object Value Object' Value' I J lit num frame d x node
       rw [dataDenote, classDenote]
-      exact not_congr (means c rfl I J lit frame d x node)
+      exact not_congr (means c rfl I J lit num frame d x node)
   | OneOf literals =>
     rw [data_ontology.encode_range]
     obtain ⟨first, firstRun, _⟩ := literal_individual_correct context literals.first
@@ -270,7 +562,7 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
       | some others =>
         refine ⟨some (.ObjectOneOf ⟨a, others⟩), by simp [firstRun, restRun], fun c hc => ?_⟩
         cases hc
-        intro Object Value Object' Value' I J lit frame d x node
+        intro Object Value Object' Value' I J lit num frame d x node
         obtain ⟨pairs, _⟩ := restFacts others rfl
         simp only [new_val, List.length_nil, List.drop_zero, zero_val] at pairs
         rw [dataDenote, classDenote]
@@ -288,8 +580,61 @@ theorem encode_range_meaning (context : data_ontology.Context) (range : DataRang
               (literal_individual_meaning context _ _ firstRun frame node).mp holds⟩
           · obtain ⟨lt, inside, ⟨r, run, rfl⟩⟩ := forall2_mem_left pairs b later
             exact ⟨lt, by simp [NonEmpty.elements, inside], (literal_individual_meaning context lt r run frame node).mp holds⟩
-  | Restriction _ _ =>
-    exact ⟨none, by rw [data_ontology.encode_range], by simp⟩
+  | Restriction dt restrictions =>
+    rw [data_ontology.encode_range, Rowl.Datatypes.kind_of_correct]
+    cases kind : kindOf dt with
+    | none => exact ⟨none, by simp, by simp⟩
+    | some k =>
+      simp only [bind_ok]
+      rw [data_ontology.restriction_range, numeric_kind_eq]
+      by_cases ready : Rowl.Datatypes.IsNumeric k ∧ context.kinds.ordered = true
+      · obtain ⟨b, bRun, bMeans⟩ := kind_range_meaning.{u,v,w,x} context k
+        obtain ⟨f, fRun, fMeans⟩ := facet_class_meaning.{u,v,w,x} context restrictions.first
+        obtain ⟨fs, fsRun, fsFacts⟩ := facet_classes_meaning context restrictions.rest 0#usize
+          (alloc.vec.Vec.new ClassExpression) (by simp [new_val])
+        cases b with
+        | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+        | some base =>
+          cases f with
+          | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+          | some first =>
+            cases fs with
+            | none => exact ⟨none, by simp [ready, bRun, fRun, fsRun], by simp⟩
+            | some rest =>
+              refine ⟨some (.ObjectIntersectionOf ⟨base, first, rest⟩), by simp [ready, bRun, fRun, fsRun],
+                fun c hc => ?_⟩
+              cases hc
+              intro Object Value Object' Value' I J lit num frame d x node
+              obtain ⟨_, pairs⟩ := fsFacts rest rfl
+              simp only [new_val, List.length_nil, List.drop_zero, zero_val] at pairs
+              rw [Rowl.Datatypes.kindOf_some kind]
+              rw [dataDenote, inter_iff]
+              simp only [AtLeastTwo.elements, NonEmpty.elements, List.mem_cons, forall_eq_or_imp]
+              rw [← bMeans base rfl I J lit num frame d x node]
+              constructor
+              · rintro ⟨inType, firstFacet, restFacets⟩
+                have isNumber := (frame.numeric k ready.1 x).mp inType
+                obtain ⟨r, rfl, _⟩ := isNumber
+                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mp firstFacet,
+                  fun c member => ?_⟩
+                obtain ⟨e, inside, ⟨res, run', same⟩⟩ := forall2_mem_left pairs c member
+                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context e
+                rw [run''] at run'
+                cases Result.ok_injective run'
+                subst same
+                exact (means res rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mp (restFacets e inside)
+              · rintro ⟨inType, firstHolds, restHold⟩
+                have isNumber := (frame.numeric k ready.1 x).mp inType
+                obtain ⟨r, rfl, _⟩ := isNumber
+                refine ⟨inType, (fMeans first rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mpr firstHolds,
+                  fun e later => ?_⟩
+                obtain ⟨c, inside, ⟨res, run', same⟩⟩ := forall2_mem_right pairs e later
+                obtain ⟨_, run'', means⟩ := facet_class_meaning.{u,v,w,x} context e
+                rw [run''] at run'
+                cases Result.ok_injective run'
+                subst same
+                exact (means res rfl I J lit num frame d _ node ready.2 ⟨r, rfl⟩).mpr (restHold res inside)
+      · exact ⟨none, by simp [ready], by simp⟩
 termination_by sizeOf range
 decreasing_by all_goals (subst_vars; first | omega | (simp_wf; omega))
 

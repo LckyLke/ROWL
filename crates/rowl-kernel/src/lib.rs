@@ -93,9 +93,15 @@ pub mod universal;
 
 pub mod shi_ontology;
 
+pub mod numbers;
+
 pub mod datatypes;
 
+pub mod regions;
+
 pub mod data_ontology;
+
+pub mod key_ontology;
 
 pub mod source_reasoning;
 

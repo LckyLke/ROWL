@@ -1,12 +1,14 @@
 import Rowl.Datatypes
+import Rowl.Regions
 import Rowl.AlcOntology
 import Rowl.Concepts
 
 /-!
 The actual kernel functions of `data_ontology` that build the encoding: its own
-names, the context of a closure, and the encodings of data ranges, class
-expressions and axioms. This part proves what the functions return; the
-meaning of the encoding is proved in `Rowl.DataModels`.
+names, the context of a closure with the cuts of its bounds, and the encodings
+of data ranges, class expressions and axioms. This part proves what the
+functions return; the meaning of the encoding is proved in `Rowl.DataMeaning`
+and the modules after it.
 -/
 namespace Rowl.DataEncoding
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -242,6 +244,20 @@ def kindByte : datatypes.Kind → U8
   | .String => 2#u8
   | .Plain => 3#u8
   | .Boolean => 4#u8
+  | .Real => 5#u8
+  | .Rational => 6#u8
+  | .NonNegativeInteger => 7#u8
+  | .NonPositiveInteger => 8#u8
+  | .PositiveInteger => 9#u8
+  | .NegativeInteger => 10#u8
+  | .Long => 11#u8
+  | .Int => 12#u8
+  | .Short => 13#u8
+  | .Byte => 14#u8
+  | .UnsignedLong => 15#u8
+  | .UnsignedInt => 16#u8
+  | .UnsignedShort => 17#u8
+  | .UnsignedByte => 18#u8
 /-- The name of the class of a kind. -/
 def kindName (k : datatypes.Kind) : List U8 := [0#u8, 65#u8, kindByte k]
 /-- The name of a bit class. -/
@@ -252,6 +268,10 @@ def valueName (index : Nat) : List U8 := 0#u8 :: 76#u8 :: eightBytes index 8
 def objectName : List U8 := [0#u8, 79#u8]
 /-- The name of the object property of a data property. -/
 def dataRoleName (p : DataProperty) : List U8 := 0#u8 :: 80#u8 :: p.iri.spelling.val
+/-- The name of the class of the cut at an index. -/
+def cutName (index : Nat) : List U8 := 0#u8 :: 71#u8 :: eightBytes index 8
+/-- The name of the role above every data property's role. -/
+def superName : List U8 := [0#u8, 85#u8]
 
 theorem class_named_correct (spelling : alloc.vec.Vec U8) :
     data_ontology.class_named spelling = .ok (.Class ⟨⟨spelling⟩⟩) := rfl
@@ -302,6 +322,39 @@ theorem bit_class_correct (position : Usize) :
     (by rw [bytesValue]; simp [new_val, eightBytes_length]; scalar_tac)
   refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.bit_class, bytesRun, run, class_named_correct], ?_⟩
   simp [value, bytesValue, new_val, bitName]
+
+theorem cut_class_correct (index : Usize) :
+    ∃ c : Class, data_ontology.cut_class index = .ok (.Class c) ∧ c.iri.spelling.val = cutName index.val := by
+  obtain ⟨b, bytesRun, bytesValue⟩ := bytes_correct index 0#usize (alloc.vec.Vec.new U8) (by simp)
+    (by simp [new_val]; scalar_tac)
+  obtain ⟨v, run, value⟩ := tagged_name_correct 71#u8 b
+    (by rw [bytesValue]; simp [new_val, eightBytes_length]; scalar_tac)
+  refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.cut_class, bytesRun, run, class_named_correct], ?_⟩
+  simp [value, bytesValue, new_val, cutName]
+
+/-- The class of the cut at an index. -/
+noncomputable def cutClass (index : Usize) : Class := Classical.choose (cut_class_correct index)
+
+theorem cut_class_eq (index : Usize) : data_ontology.cut_class index = .ok (.Class (cutClass index)) :=
+  (Classical.choose_spec (cut_class_correct index)).1
+
+theorem cutClass_name (index : Usize) : (cutClass index).iri.spelling.val = cutName index.val :=
+  (Classical.choose_spec (cut_class_correct index)).2
+
+theorem data_super_correct :
+    ∃ r : ObjectProperty, data_ontology.data_super = .ok (.Property r) ∧ r.iri.spelling.val = superName := by
+  obtain ⟨v, run, value⟩ := tagged_name_correct 85#u8 (alloc.vec.Vec.new U8) (by simp [new_val]; scalar_tac)
+  refine ⟨⟨⟨v⟩⟩, by simp [data_ontology.data_super, run], ?_⟩
+  simp [value, new_val, superName]
+
+/-- The role above every data property's role. -/
+noncomputable def dataSuper : ObjectProperty := Classical.choose data_super_correct
+
+theorem data_super_eq : data_ontology.data_super = .ok (.Property dataSuper) :=
+  (Classical.choose_spec data_super_correct).1
+
+theorem dataSuper_name : dataSuper.iri.spelling.val = superName :=
+  (Classical.choose_spec data_super_correct).2
 
 theorem value_individual_correct (index : Usize) :
     ∃ a : NamedIndividual, data_ontology.value_individual index = .ok (.Named a) ∧
@@ -379,20 +432,39 @@ def Used (kinds : data_ontology.Kinds) : datatypes.Kind → Bool
   | .String => kinds.string
   | .Plain => kinds.plain
   | .Boolean => kinds.boolean
+  | .Real => kinds.real
+  | .Rational => kinds.rational
+  | _ => false
 
 theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
     data_ontology.used kinds k = .ok (Used kinds k) := by
   cases k <;> rfl
 
+/-- The datatypes that the encoding gives a class: the five of the first
+    stage, the reals and the rationals; the subtypes of `xsd:integer` are
+    integers between cuts. -/
+def Classic : datatypes.Kind → Prop
+  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational => True
+  | _ => False
+
+theorem used_classic {kinds : data_ontology.Kinds} {k : datatypes.Kind} (used : Used kinds k = true) : Classic k := by
+  cases k <;> simp_all [Used, Classic]
+
 /-- Canonical values, each once. -/
 def GoodValues (values : List datatypes.DataValue) : Prop := (∀ v ∈ values, Canonical v) ∧ values.Nodup
 
+/-- Cuts of canonical numbers, each once. -/
+def GoodCuts (cuts : List regions.Cut) : Prop :=
+  (∀ c ∈ cuts, Rowl.Datatypes.CanonicalNumeric c.value) ∧ cuts.Nodup
+
 /-- A context whose literal values are canonical, each once, whose object
-    properties are neither the encoding's nor the universal role, and whose data
-    properties are neither of the two built-in ones. -/
+    properties are neither the encoding's nor the universal role, whose data
+    properties are neither of the two built-in ones, and whose cuts are of
+    canonical numbers, each once. -/
 def Good (context : data_ontology.Context) : Prop :=
   GoodValues context.values.val ∧ (∀ r ∈ context.roles.val, ¬ Reserved r.iri.spelling.val ∧ r ≠ topObject) ∧
-    ∀ p ∈ context.data.val, p ≠ topData ∧ p ≠ bottomData
+    (∀ p ∈ context.data.val, p ≠ topData ∧ p ≠ bottomData) ∧ GoodCuts context.cuts.val ∧
+    (context.kinds.ordered = true → context.kinds.real = true)
 
 theorem value_index_correct (values : alloc.vec.Vec datatypes.DataValue) (value : datatypes.DataValue)
     (index : Usize) :
@@ -566,14 +638,27 @@ theorem add_data_good (context : data_ontology.Context) (property : DataProperty
           obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec context.data
             ({ iri := { spelling := copy } } : DataProperty) room)
           refine ⟨{ context with data := pushed }, by simp [full, copyRun, push],
-            fun good => ⟨good.1, good.2.1, ?_⟩⟩
+            fun good => ⟨good.1, good.2.1, ?_, good.2.2.2⟩⟩
           intro p member
           simp only [contents, List.mem_append, List.mem_singleton] at member
           rcases member with old | rfl
-          · exact good.2.2 p old
+          · exact good.2.2.1 p old
           · have same : ({ iri := { spelling := copy } } : DataProperty) = property := by rw [copied]
             rw [same]
             exact ⟨top, bottom⟩
+
+theorem canonical_numeric {v : datatypes.DataValue} (c : Canonical v) (number : Rowl.Datatypes.IsNumber v) :
+    Rowl.Datatypes.CanonicalNumeric v := by
+  cases v <;> simp_all [Canonical, Rowl.Datatypes.CanonicalNumeric, Rowl.Datatypes.IsNumber]
+
+theorem add_cut_good (cuts : alloc.vec.Vec regions.Cut) (value : datatypes.DataValue) («open» : Bool)
+    (c : Rowl.Datatypes.CanonicalNumeric value) :
+    ∃ r, regions.add_cut cuts value «open» = .ok r ∧ (GoodCuts cuts.val → GoodCuts r.val) := by
+  obtain ⟨r, run, members, nodup⟩ := Rowl.Regions.add_cut_correct cuts value «open»
+  refine ⟨r, run, fun good => ⟨fun x m => ?_, nodup good.2⟩⟩
+  rcases members x m with old | rfl
+  · exact good.1 x old
+  · exact c
 
 theorem add_literal_good (context : data_ontology.Context) (literal : Literal) :
     ∃ r, data_ontology.add_literal context literal = .ok r ∧ (Good context → Good r) := by
@@ -582,9 +667,10 @@ theorem add_literal_good (context : data_ontology.Context) (literal : Literal) :
   cases result with
   | none => exact ⟨context, by simp, id⟩
   | some value =>
+    have cv := (some' value rfl).1
     obtain ⟨v, addRun, addGood⟩ := add_value_correct context.values value
     refine ⟨{ context with values := v }, by simp [addRun], fun good => ?_⟩
-    exact ⟨addGood good.1 (some' value rfl).1, good.2⟩
+    exact ⟨addGood good.1 cv, good.2⟩
 
 /-! ### Sizes of nested expressions -/
 
@@ -638,6 +724,68 @@ theorem with_kind_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
     ∃ r, data_ontology.with_kind kinds k = .ok r := by
   cases k <;> exact ⟨_, rfl⟩
 
+theorem add_bound_good (cuts : alloc.vec.Vec regions.Cut) (bound : Option datatypes.DataValue) («open» : Bool)
+    (c : ∀ v, bound = some v → Rowl.Datatypes.CanonicalNumeric v) :
+    ∃ r, data_ontology.add_bound cuts bound «open» = .ok r ∧ (GoodCuts cuts.val → GoodCuts r.val) := by
+  cases bound with
+  | none => exact ⟨cuts, rfl, id⟩
+  | some v =>
+    obtain ⟨r, run, good⟩ := add_cut_good cuts v «open» (c v rfl)
+    exact ⟨r, by rw [data_ontology.add_bound]; exact run, good⟩
+
+theorem kind_context_good (context : data_ontology.Context) (k : datatypes.Kind) :
+    ∃ r, data_ontology.kind_context context k = .ok r ∧ (Good context → Good r) := by
+  rw [data_ontology.kind_context]
+  obtain ⟨kinds, kindsRun⟩ := with_kind_eq context.kinds k
+  obtain ⟨lo, loRun, _, loSome⟩ := Rowl.Datatypes.lower_bound_correct k
+  obtain ⟨hi, hiRun, _, hiSome⟩ := Rowl.Datatypes.upper_bound_correct k
+  obtain ⟨c1, run1, good1⟩ := add_bound_good context.cuts lo false (fun v h => by
+    obtain ⟨l, _, bv⟩ := loSome v h; exact (Rowl.Datatypes.bound_number bv).1)
+  obtain ⟨c2, run2, good2⟩ := add_bound_good c1 hi true (fun v h => by
+    obtain ⟨u, _, bv⟩ := hiSome v h; exact (Rowl.Datatypes.bound_number bv).1)
+  have keeps' : (context.kinds.ordered = true → context.kinds.real = true) → kinds.ordered = true →
+      kinds.real = true := by
+    intro h o
+    cases k <;> simp [data_ontology.with_kind] at kindsRun <;> subst kindsRun <;> simp_all
+  refine ⟨{ context with kinds := kinds, cuts := c2 }, by simp [kindsRun, loRun, run1, hiRun, run2],
+    fun good => ⟨good.1, good.2.1, good.2.2.1, good2 (good1 good.2.2.2.1), keeps' good.2.2.2.2⟩⟩
+
+theorem facet_context_good (context : data_ontology.Context) (restriction : FacetRestriction) :
+    ∃ r, data_ontology.facet_context context restriction = .ok r ∧ (Good context → Good r) := by
+  rw [data_ontology.facet_context, Rowl.Datatypes.facet_of_correct]
+  obtain ⟨result, run, some', _⟩ := Rowl.Datatypes.literal_value_correct.{0} restriction.value
+  rw [run]
+  cases facet : Rowl.Datatypes.facetOf restriction.facet with
+  | none => exact ⟨context, by simp, id⟩
+  | some F =>
+    cases result with
+    | none => exact ⟨context, by simp, id⟩
+    | some value =>
+      by_cases number : Rowl.Datatypes.IsNumber value
+      · obtain ⟨side, sideRun⟩ : ∃ b, data_ontology.facet_open F = .ok b := by cases F <;> exact ⟨_, rfl⟩
+        obtain ⟨c, cRun, cGood⟩ := add_cut_good context.cuts value side
+          (canonical_numeric (some' value rfl).1 number)
+        refine ⟨{ context with cuts := c }, by simp [Rowl.Datatypes.numeric_correct, number, sideRun, cRun],
+          fun good => ⟨good.1, good.2.1, good.2.2.1, cGood good.2.2.2.1, good.2.2.2.2⟩⟩
+      · exact ⟨context, by simp [Rowl.Datatypes.numeric_correct, number], id⟩
+
+theorem facets_context_good (context : data_ontology.Context) (restrictions : alloc.vec.Vec FacetRestriction)
+    (index : Usize) (good : Good context) :
+    ∃ r, data_ontology.facets_context context restrictions index = .ok r ∧ Good r := by
+  rw [data_ontology.facets_context]
+  by_cases inside : index.val < restrictions.val.length
+  · have lookup : restrictions.index_usize index = .ok restrictions.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨c, run, cGood⟩ := facet_context_good context restrictions.val[index.val]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨r, rest, rGood⟩ := facets_context_good c restrictions next (cGood good)
+    exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, run, advance, rest], rGood⟩
+  · exact ⟨context, by simp [UScalar.lt_equiv, inside], good⟩
+termination_by restrictions.val.length - index.val
+decreasing_by omega
+
 theorem ranges_context_good (ranges : alloc.vec.Vec DataRange) (index : Usize)
     (each : ∀ e ∈ ranges.val, ∀ context, Good context → ∃ r, data_ontology.range_context context e = .ok r ∧ Good r)
     (context : data_ontology.Context) (good : Good context) :
@@ -663,8 +811,8 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
     cases kindOf dt with
     | none => exact ⟨context, by simp, good⟩
     | some k =>
-      obtain ⟨kinds, kindsRun⟩ := with_kind_eq context.kinds k
-      exact ⟨{ context with kinds := kinds }, by simp [kindsRun], good⟩
+      obtain ⟨r, run, rGood⟩ := kind_context_good context k
+      exact ⟨r, by simp [run], rGood good⟩
   | Intersection members =>
     rw [data_ontology.range_context]
     have := first_size members
@@ -691,9 +839,23 @@ theorem range_context_good (range : DataRange) (context : data_ontology.Context)
     obtain ⟨c1, run1, good1⟩ := add_literal_good context literals.first
     obtain ⟨r, run, rGood⟩ := literals_context_good c1 literals.rest 0#usize (good1 good)
     exact ⟨r, by simp [run1, run], rGood⟩
-  | Restriction _ _ =>
-    rw [data_ontology.range_context]
-    exact ⟨context, rfl, good⟩
+  | Restriction dt restrictions =>
+    rw [data_ontology.range_context, Rowl.Datatypes.kind_of_correct]
+    obtain ⟨kinds, kindsRun⟩ : ∃ k, data_ontology.with_order context.kinds = .ok k := ⟨_, rfl⟩
+    have good0 : Good { context with kinds := kinds } := by
+      simp [data_ontology.with_order] at kindsRun
+      subst kindsRun
+      exact ⟨good.1, good.2.1, good.2.2.1, good.2.2.2.1, fun _ => rfl⟩
+    cases kindOf dt with
+    | none =>
+      obtain ⟨c2, run2, good2⟩ := facet_context_good { context with kinds := kinds } restrictions.first
+      obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 good0)
+      exact ⟨r, by simp [kindsRun, run2, run], rGood⟩
+    | some k =>
+      obtain ⟨c1, run1, good1⟩ := kind_context_good { context with kinds := kinds } k
+      obtain ⟨c2, run2, good2⟩ := facet_context_good c1 restrictions.first
+      obtain ⟨r, run, rGood⟩ := facets_context_good c2 restrictions.rest 0#usize (good2 (good1 good0))
+      exact ⟨r, by simp [kindsRun, run1, run2, run], rGood⟩
 termination_by sizeOf range
 decreasing_by all_goals simp_wf; all_goals omega
 
@@ -945,9 +1107,9 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ r, data_ontology.closure_context items = .ok r ∧ Good r := by
   rw [data_ontology.closure_context]
   have empty : Good (data_ontology.Context.mk (alloc.vec.Vec.new datatypes.DataValue)
-      (data_ontology.Kinds.mk false false false false false) (alloc.vec.Vec.new ObjectProperty)
-      (alloc.vec.Vec.new DataProperty)) := by
-    simp [Good, GoodValues, new_val]
+      (data_ontology.Kinds.mk false false false false false false false false) (alloc.vec.Vec.new ObjectProperty)
+      (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut)) := by
+    simp [Good, GoodValues, GoodCuts, new_val]
   obtain ⟨r, run, rGood⟩ := items_context_good _ items 0#usize empty
   exact ⟨r, by simp [data_ontology.no_kinds, run], rGood⟩
 
@@ -959,6 +1121,43 @@ theorem with_truths_good (context : data_ontology.Context) (good : Good context)
     obtain ⟨v2, run2, good2⟩ := add_value_correct v1 (.Truth false)
     exact ⟨{ context with values := v2 }, by simp [boolean, run1, run2], good2 (good1 good.1 trivial) trivial, good.2⟩
   · exact ⟨context, by simp [boolean], good⟩
+
+theorem canonical_of_numeric {v : datatypes.DataValue} (c : Rowl.Datatypes.CanonicalNumeric v) : Canonical v := by
+  cases v <;> simp_all [Canonical, Rowl.Datatypes.CanonicalNumeric]
+
+theorem points_from_good (cuts : alloc.vec.Vec regions.Cut) (good : GoodCuts cuts.val) (index : Usize)
+    (values : alloc.vec.Vec datatypes.DataValue) (gv : GoodValues values.val) :
+    ∃ r, data_ontology.points_from cuts index values = .ok r ∧ GoodValues r.val := by
+  rw [data_ontology.points_from]
+  by_cases inside : index.val < cuts.val.length
+  · have lookup : cuts.index_usize index = .ok cuts.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIndex : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨o, oRun, _, _⟩ := Rowl.Regions.cut_index_correct cuts cuts.val[index.val].value
+      (!cuts.val[index.val].open) 0#usize
+    cases o with
+    | none =>
+      obtain ⟨r, run, rGood⟩ := points_from_good cuts good next values gv
+      exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, oRun, advance, run],
+        rGood⟩
+    | some _ =>
+      obtain ⟨v, vRun, vGood⟩ := add_value_correct values cuts.val[index.val].value
+      obtain ⟨r, run, rGood⟩ := points_from_good cuts good next v
+        (vGood gv (canonical_of_numeric (good.1 _ (List.getElem_mem inside))))
+      exact ⟨r, by simp [UScalar.lt_equiv, inside, alloc.vec.Vec.index_slice_index, lookup, oRun, advance,
+        Rowl.Regions.copy_value_eq, vRun, run], rGood⟩
+  · exact ⟨values, by simp [UScalar.lt_equiv, inside], gv⟩
+termination_by cuts.val.length - index.val
+decreasing_by all_goals omega
+
+theorem finished_good (context : data_ontology.Context) (good : Good context) :
+    ∃ r, data_ontology.finished context = .ok r ∧ Good r := by
+  rw [data_ontology.finished]
+  obtain ⟨c, run, cGood⟩ := with_truths_good context good
+  obtain ⟨v, vRun, vGood⟩ := points_from_good c.cuts cGood.2.2.2.1 0#usize c.values cGood.1
+  exact ⟨{ c with values := v }, by simp [run, vRun], vGood, cGood.2⟩
 
 /-! ### What the encoding's lookups return -/
 

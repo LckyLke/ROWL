@@ -67,7 +67,17 @@ inductive Utf8Lexical : List U8 → Prop
       Utf8Lexical (a::b::c::d::rest)
 
 /-- §2.1: all six components of the datatype map, with their range conditions.
-    Functions outside their declared spaces are irrelevant total extensions. -/
+    Functions outside their declared spaces are irrelevant total extensions.
+    The facet value of a pair is one set for every datatype whose facet space
+    has the pair, and a datatype restriction intersects it with the datatype's
+    value space (Table 4). §2.1 also asks the facet value to lie in the value
+    space of each such datatype; that condition is not imposed here, because
+    read literally it is contradictory for numbers: the pair of
+    `xsd:minInclusive` and 0 is in the facet spaces of both `owl:real` and
+    `owl:rational` (Structural Specification §4.1, Table 4), so its facet value
+    would contain no irrational number, while `owl:real[>= 0]` must contain
+    every nonnegative real. With the intersection of Table 4 the restriction
+    denotes exactly the per-datatype facet values of §4.1. -/
 structure DatatypeMap (Value : Type v) where
   supported : Datatype → Prop
   lexicalSpace : Datatype → List U8 → Prop
@@ -79,8 +89,6 @@ structure DatatypeMap (Value : Type v) where
   lexicalUtf8 : ∀ dt text, supported dt → lexicalSpace dt text → Utf8Lexical text
   lexicalInSpace : ∀ dt text, supported dt → lexicalSpace dt text →
     valueSpace dt (lexicalValue dt text)
-  facetInSpace : ∀ dt f bound x, supported dt → facetSpace dt f bound →
-    facetValue f bound x → valueSpace dt x
 
 /-- Only actual datatype values must embed injectively into the data domain.
     Unused elements of the map's ambient carrier impose no size restriction.

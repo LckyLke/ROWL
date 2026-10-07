@@ -1,4 +1,4 @@
-import Rowl.DataAxioms
+import Rowl.DataRegions
 
 /-!
 The whole encoding of a closure by `data_ontology`: the axioms its axioms become
@@ -9,7 +9,9 @@ from elements that are no data nodes to data nodes, the kinds in use are
 included in and disjoint from each other as their datatypes are, the booleans
 are the two truth values, each literal value's individual is a data node in the
 kinds its value is in, with a pattern of bit classes that tells it apart from
-the other literal values, and the further individual is no data node (`Frame`).
+the other literal values and, when numbers are ordered, in the cuts of its
+number, the axioms of the cuts hold (`RegionFacts`), and the further individual
+is no data node (`Frame`).
 -/
 namespace Rowl.DataStructure
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -19,6 +21,8 @@ open Rowl.Datatypes (InKind)
 open Rowl.DataEncoding
 open Rowl.DataMeaning
 open Rowl.DataAxioms
+open Rowl.DataRegions
+open Rowl.Regions (cutAt Ordered FineCuts)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
@@ -33,8 +37,8 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
   (∀ {Object : Type u} {Value : Type v} {Object' : Type w} {Value' : Type x}
     (I : Interpretation Object Value) (J : Interpretation Object' Value') (obj : Object → Object')
     (known : Individual → Prop) (atoms : List (DataProperty × Option DataRange × Nat))
-    (lit : datatypes.DataValue → Value) (place : Object → Value → Object' → Prop),
-    Simulates context I J obj known atoms → Placed context I J obj lit place → RangeFrame I J lit →
+    (lit : datatypes.DataValue → Value) (num : ℝ → Value) (place : Object → Value → Object' → Prop),
+    Simulates context I J obj known atoms → Placed context I J obj lit num place → RangeFrame I J lit num →
     (∀ item ∈ items, ∀ a ∈ axiomAtoms item.axiom, a ∈ atoms) →
     (∀ item ∈ items, ∀ a ∈ axiomIndividuals item.axiom, known a) →
       ((∀ b ∈ new, satisfies J b.axiom) → ∀ item ∈ items, satisfies I item.axiom) ∧
@@ -45,7 +49,7 @@ def ItemsMeans (context : data_ontology.Context) (items new : List AnnotatedAxio
 
 theorem items_means_nil (context : data_ontology.Context) : ItemsMeans.{u,v,w,x} context [] [] := by
   refine ⟨?_, by simp, fun _ _ => by simp⟩
-  intro Object Value Object' Value' I J obj known atoms lit place _ _ _ _ _
+  intro Object Value Object' Value' I J obj known atoms lit num place _ _ _ _ _
   exact ⟨fun _ => by simp, fun _ _ => by simp⟩
 
 theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxiom}
@@ -56,10 +60,10 @@ theorem items_means_cons {context : data_ontology.Context} {item : AnnotatedAxio
     (tail : ItemsMeans.{u,v,w,x} context rest new2) : ItemsMeans.{u,v,w,x} context (item :: rest) (new1 ++ new2) := by
   obtain ⟨tailMeans, tailPlain, tailNames⟩ := tail
   refine ⟨?_, ?_, ?_⟩
-  · intro Object Value Object' Value' I J obj known atoms lit place sim placed frame atomsIn indsIn
-    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit place sim placed frame
+  · intro Object Value Object' Value' I J obj known atoms lit num place sim placed frame atomsIn indsIn
+    obtain ⟨sound1, complete1⟩ := means I J obj known atoms lit num place sim placed frame
       (atomsIn item List.mem_cons_self) (indsIn item List.mem_cons_self)
-    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit place sim placed frame
+    obtain ⟨sound2, complete2⟩ := tailMeans I J obj known atoms lit num place sim placed frame
       (fun i m => atomsIn i (List.mem_cons_of_mem _ m)) (fun i m => indsIn i (List.mem_cons_of_mem _ m))
     constructor
     · intro holds i mem
@@ -356,6 +360,11 @@ theorem truth_axiom_spec (context : data_ontology.Context) (good : Good context)
 /-- What the axioms on the kinds in use say. -/
 structure KindFacts (context : data_ontology.Context) (J : Interpretation Object' Value') : Prop where
   integerDecimal : Included context.kinds J .Integer .Decimal
+  integerRational : Included context.kinds J .Integer .Rational
+  integerReal : Included context.kinds J .Integer .Real
+  decimalRational : Included context.kinds J .Decimal .Rational
+  decimalReal : Included context.kinds J .Decimal .Real
+  rationalReal : Included context.kinds J .Rational .Real
   stringPlain : Included context.kinds J .String .Plain
   integerString : Apart context.kinds J .Integer .String
   integerPlain : Apart context.kinds J .Integer .Plain
@@ -363,16 +372,84 @@ structure KindFacts (context : data_ontology.Context) (J : Interpretation Object
   decimalString : Apart context.kinds J .Decimal .String
   decimalPlain : Apart context.kinds J .Decimal .Plain
   decimalBoolean : Apart context.kinds J .Decimal .Boolean
+  rationalString : Apart context.kinds J .Rational .String
+  rationalPlain : Apart context.kinds J .Rational .Plain
+  rationalBoolean : Apart context.kinds J .Rational .Boolean
+  realString : Apart context.kinds J .Real .String
+  realPlain : Apart context.kinds J .Real .Plain
+  realBoolean : Apart context.kinds J .Real .Boolean
   stringBoolean : Apart context.kinds J .String .Boolean
   plainBoolean : Apart context.kinds J .Plain .Boolean
   truths : Truths context J
+
+theorem number_axioms_spec (kinds : data_ontology.Kinds) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.number_axioms kinds out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ Included kinds J .Integer .Decimal ∧ Included kinds J .Integer .Rational ∧
+          Included kinds J .Integer .Real ∧ Included kinds J .Decimal .Rational ∧ Included kinds J .Decimal .Real ∧
+          Included kinds J .Rational .Real) := by
+  rw [data_ontology.number_axioms]
+  obtain ⟨r1, run1, f1⟩ := kinds_axiom_spec.{w,x} kinds .Integer .Decimal true out
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some o1 =>
+  obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
+  obtain ⟨r2, run2, f2⟩ := kinds_axiom_spec.{w,x} kinds .Integer .Rational true o1
+  cases r2 with
+  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | some o2 =>
+  obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
+  obtain ⟨r3, run3, f3⟩ := kinds_axiom_spec.{w,x} kinds .Integer .Real true o2
+  cases r3 with
+  | none => exact ⟨none, by simp [run1, run2, run3], by simp⟩
+  | some o3 =>
+  obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
+  obtain ⟨r4, run4, f4⟩ := kinds_axiom_spec.{w,x} kinds .Decimal .Rational true o3
+  cases r4 with
+  | none => exact ⟨none, by simp [run1, run2, run3, run4], by simp⟩
+  | some o4 =>
+  obtain ⟨n4, c4, m4⟩ := f4 o4 rfl
+  obtain ⟨r5, run5, f5⟩ := kinds_axiom_spec.{w,x} kinds .Decimal .Real true o4
+  cases r5 with
+  | none => exact ⟨none, by simp [run1, run2, run3, run4, run5], by simp⟩
+  | some o5 =>
+  obtain ⟨n5, c5, m5⟩ := f5 o5 rfl
+  obtain ⟨r6, run6, f6⟩ := kinds_axiom_spec.{w,x} kinds .Rational .Real true o5
+  refine ⟨r6, by simp [run1, run2, run3, run4, run5, run6], fun out' h => ?_⟩
+  obtain ⟨n6, c6, m6⟩ := f6 out' h
+  refine ⟨n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ n6, by rw [c6, c5, c4, c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3, m4, m5, m6, ↓reduceIte]
+  tauto
+
+theorem apart_axioms_spec (kinds : data_ontology.Kinds) (k : datatypes.Kind) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.apart_axioms kinds k out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ Apart kinds J k .String ∧ Apart kinds J k .Plain ∧
+          Apart kinds J k .Boolean) := by
+  rw [data_ontology.apart_axioms]
+  obtain ⟨r1, run1, f1⟩ := kinds_axiom_spec.{w,x} kinds k .String false out
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some o1 =>
+  obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
+  obtain ⟨r2, run2, f2⟩ := kinds_axiom_spec.{w,x} kinds k .Plain false o1
+  cases r2 with
+  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | some o2 =>
+  obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
+  obtain ⟨r3, run3, f3⟩ := kinds_axiom_spec.{w,x} kinds k .Boolean false o2
+  refine ⟨r3, by simp [run1, run2, run3], fun out' h => ?_⟩
+  obtain ⟨n3, c3, m3⟩ := f3 out' h
+  refine ⟨n1 ++ n2 ++ n3, by rw [c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3, ↓reduceIte, Bool.false_eq_true]
+  tauto
 
 theorem kind_axioms_spec (context : data_ontology.Context) (good : Good context) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.kind_axioms context out = .ok res ∧ ∀ out', res = some out' → TruthsKnown context ∧
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
         ((∀ y ∈ new, satisfies J y.axiom) ↔ KindFacts context J) := by
   rw [data_ontology.kind_axioms]
-  obtain ⟨r1, run1, f1⟩ := kinds_axiom_spec.{w,x} context.kinds .Integer .Decimal true out
+  obtain ⟨r1, run1, f1⟩ := number_axioms_spec.{w,x} context.kinds out
   cases r1 with
   | none => exact ⟨none, by simp [run1], by simp⟩
   | some o1 =>
@@ -382,58 +459,47 @@ theorem kind_axioms_spec (context : data_ontology.Context) (good : Good context)
   | none => exact ⟨none, by simp [run1, run2], by simp⟩
   | some o2 =>
   obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
-  obtain ⟨r3, run3, f3⟩ := kinds_axiom_spec.{w,x} context.kinds .Integer .String false o2
+  obtain ⟨r3, run3, f3⟩ := apart_axioms_spec.{w,x} context.kinds .Integer o2
   cases r3 with
   | none => exact ⟨none, by simp [run1, run2, run3], by simp⟩
   | some o3 =>
   obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
-  obtain ⟨r4, run4, f4⟩ := kinds_axiom_spec.{w,x} context.kinds .Integer .Plain false o3
+  obtain ⟨r4, run4, f4⟩ := apart_axioms_spec.{w,x} context.kinds .Decimal o3
   cases r4 with
   | none => exact ⟨none, by simp [run1, run2, run3, run4], by simp⟩
   | some o4 =>
   obtain ⟨n4, c4, m4⟩ := f4 o4 rfl
-  obtain ⟨r5, run5, f5⟩ := kinds_axiom_spec.{w,x} context.kinds .Integer .Boolean false o4
+  obtain ⟨r5, run5, f5⟩ := apart_axioms_spec.{w,x} context.kinds .Rational o4
   cases r5 with
   | none => exact ⟨none, by simp [run1, run2, run3, run4, run5], by simp⟩
   | some o5 =>
   obtain ⟨n5, c5, m5⟩ := f5 o5 rfl
-  obtain ⟨r6, run6, f6⟩ := kinds_axiom_spec.{w,x} context.kinds .Decimal .String false o5
+  obtain ⟨r6, run6, f6⟩ := apart_axioms_spec.{w,x} context.kinds .Real o5
   cases r6 with
   | none => exact ⟨none, by simp [run1, run2, run3, run4, run5, run6], by simp⟩
   | some o6 =>
   obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
-  obtain ⟨r7, run7, f7⟩ := kinds_axiom_spec.{w,x} context.kinds .Decimal .Plain false o6
+  obtain ⟨r7, run7, f7⟩ := kinds_axiom_spec.{w,x} context.kinds .String .Boolean false o6
   cases r7 with
   | none => exact ⟨none, by simp [run1, run2, run3, run4, run5, run6, run7], by simp⟩
   | some o7 =>
   obtain ⟨n7, c7, m7⟩ := f7 o7 rfl
-  obtain ⟨r8, run8, f8⟩ := kinds_axiom_spec.{w,x} context.kinds .Decimal .Boolean false o7
+  obtain ⟨r8, run8, f8⟩ := kinds_axiom_spec.{w,x} context.kinds .Plain .Boolean false o7
   cases r8 with
   | none => exact ⟨none, by simp [run1, run2, run3, run4, run5, run6, run7, run8], by simp⟩
   | some o8 =>
   obtain ⟨n8, c8, m8⟩ := f8 o8 rfl
-  obtain ⟨r9, run9, f9⟩ := kinds_axiom_spec.{w,x} context.kinds .String .Boolean false o8
-  cases r9 with
-  | none => exact ⟨none, by simp [run1, run2, run3, run4, run5, run6, run7, run8, run9], by simp⟩
-  | some o9 =>
-  obtain ⟨n9, c9, m9⟩ := f9 o9 rfl
-  obtain ⟨r10, run10, f10⟩ := kinds_axiom_spec.{w,x} context.kinds .Plain .Boolean false o9
-  cases r10 with
-  | none => exact ⟨none, by simp [run1, run2, run3, run4, run5, run6, run7, run8, run9, run10], by simp⟩
-  | some o10 =>
-  obtain ⟨n10, c10, m10⟩ := f10 o10 rfl
-  obtain ⟨r11, run11, f11⟩ := truth_axiom_spec.{w,x} context good o10
-  refine ⟨r11, by simp [run1, run2, run3, run4, run5, run6, run7, run8, run9, run10, run11], fun out' h => ?_⟩
-  obtain ⟨known, n11, c11, m11⟩ := f11 out' h
-  refine ⟨known, n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ n6 ++ n7 ++ n8 ++ n9 ++ n10 ++ n11,
-    by rw [c11, c10, c9, c8, c7, c6, c5, c4, c3, c2, c1]; simp, fun J => ?_⟩
-  simp only [List.forall_mem_append, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, ↓reduceIte,
-    Bool.false_eq_true]
+  obtain ⟨r9, run9, f9⟩ := truth_axiom_spec.{w,x} context good o8
+  refine ⟨r9, by simp [run1, run2, run3, run4, run5, run6, run7, run8, run9], fun out' h => ?_⟩
+  obtain ⟨known, n9, c9, m9⟩ := f9 out' h
+  refine ⟨known, n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ n6 ++ n7 ++ n8 ++ n9,
+    by rw [c9, c8, c7, c6, c5, c4, c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3, m4, m5, m6, m7, m8, m9, ↓reduceIte, Bool.false_eq_true]
   constructor
-  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩, h8⟩, h9⟩, h10⟩, h11⟩
-    exact ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩
-  · rintro ⟨h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩
-    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩, h7⟩, h8⟩, h9⟩, h10⟩, h11⟩
+  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩, h⟩, i⟩
+    exact ⟨a1, a2, a3, a4, a5, a6, b, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, i⟩
+  · rintro ⟨a1, a2, a3, a4, a5, a6, b, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, i⟩
+    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩, h⟩, i⟩
 
 /-! ### The literal values -/
 
@@ -540,7 +606,8 @@ theorem member_holds (J : Interpretation Object' Value') (c : Class) (P : Prop) 
       (J.classes c (individual J a) ↔ P) := by
   by_cases hp : P <;> simp [hp, satisfies, classDenote]
 
-theorem kind_member_spec (context : data_ontology.Context) (k : datatypes.Kind) (index : Usize)
+theorem kind_member_spec (context : data_ontology.Context)
+    (canonical : ∀ v ∈ context.values.val, Rowl.Datatypes.Canonical v) (k : datatypes.Kind) (index : Usize)
     (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.kind_member context k index out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
@@ -555,7 +622,8 @@ theorem kind_member_spec (context : data_ontology.Context) (k : datatypes.Kind) 
       obtain ⟨r, run, contents⟩ := member_spec (.Class (kindClass k))
         (decide (InKind context.values.val[index.val] k)) (.Named (valueIndividual index)) out
       refine ⟨r, by simp [used, UScalar.lt_equiv, inside, kind_class_eq, alloc.vec.Vec.index_slice_index, lookup,
-        Rowl.Datatypes.in_kind_correct, value_individual_eq, run], fun out' h => ⟨_, contents out' h, fun J => ?_⟩⟩
+        Rowl.Datatypes.in_kind_correct _ (canonical _ (List.getElem_mem inside)), value_individual_eq, run],
+        fun out' h => ⟨_, contents out' h, fun J => ?_⟩⟩
       simp only [List.mem_singleton, forall_eq, bare, decide_eq_true_eq]
       rw [member_holds]
       exact ⟨fun holds _ _ => holds, fun holds => holds used inside⟩
@@ -611,22 +679,169 @@ theorem bit_members_spec (index position bits : Usize) (out : alloc.vec.Vec Anno
 termination_by bits.val - position.val
 decreasing_by omega
 
+/-- What the axioms of a numeric literal value's cuts say: when numbers are
+    ordered, its individual is in the class of every cut that contains its
+    number and in no other cut's class. -/
+def CutFact (context : data_ontology.Context) (J : Interpretation Object' Value') (i : Usize)
+    (h : i.val < context.values.val.length) : Prop :=
+  context.kinds.ordered = true → Rowl.Datatypes.IsNumber context.values.val[i.val] →
+    ∀ (a : Usize) (ha : a.val < context.cuts.val.length),
+      (J.classes (cutClass a) (J.namedIndividuals (valueIndividual i)) ↔
+        Rowl.Regions.InCut context.cuts.val[a.val] (Rowl.Datatypes.numValue context.values.val[i.val]))
+
+theorem cut_unique {context : data_ontology.Context} (good : Good context) {a b : Usize}
+    (ha : a.val < context.cuts.val.length) (hb : b.val < context.cuts.val.length)
+    (same : context.cuts.val[a.val] = context.cuts.val[b.val]) : a = b :=
+  UScalar.eq_of_val_eq ((List.Nodup.getElem_inj_iff good.2.2.2.1.2).mp same)
+
+/-- The memberships of a numeric literal value in the classes of the cuts from
+    `cut` on. -/
+theorem cut_memberships_spec (context : data_ontology.Context) (fine : FineCuts context.cuts.val) (index : Usize)
+    (h : index.val < context.values.val.length) (cv : Rowl.Datatypes.CanonicalNumeric context.values.val[index.val])
+    (wv : Rowl.Datatypes.digitWidth context.values.val[index.val] < Usize.max / 8) (cut : Usize)
+    (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.cut_memberships context index cut out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ ∀ (a : Usize) (ha : a.val < context.cuts.val.length), cut.val ≤ a.val →
+          (J.classes (cutClass a) (J.namedIndividuals (valueIndividual index)) ↔
+            Rowl.Regions.InCut context.cuts.val[a.val] (Rowl.Datatypes.numValue context.values.val[index.val]))) := by
+  rw [data_ontology.cut_memberships]
+  by_cases inside : cut.val < context.cuts.val.length
+  · have lookupC : context.cuts.index_usize cut = .ok context.cuts.val[cut.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    have lookupV : context.values.index_usize index = .ok context.values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem h]
+    have fc := Rowl.Regions.fine_at fine inside
+    rw [Rowl.Regions.cutAt_eq _ _ inside] at fc
+    have inCut := Rowl.Regions.in_cut_correct context.cuts.val[cut.val] fc context.values.val[index.val] cv wv
+    obtain ⟨r1, run1, c1⟩ := member_spec (.Class (cutClass cut))
+      (decide (Rowl.Regions.InCut context.cuts.val[cut.val] (Rowl.Datatypes.numValue context.values.val[index.val])))
+      (.Named (valueIndividual index)) out
+    cases r1 with
+    | none => exact ⟨none, by simp [UScalar.lt_equiv, h, inside, cut_class_eq, alloc.vec.Vec.index_slice_index,
+        lookupC, lookupV, inCut, value_individual_eq, run1], by simp⟩
+    | some o1 =>
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := cut) (y := 1#usize) (by scalar_tac))
+      have nextIndex : next.val = cut.val + 1 := by simpa using nextValue
+      obtain ⟨r2, run2, f2⟩ := cut_memberships_spec context fine index h cv wv next o1
+      refine ⟨r2, by simp [UScalar.lt_equiv, h, inside, cut_class_eq, alloc.vec.Vec.index_slice_index,
+        lookupC, lookupV, inCut, value_individual_eq, run1, advance, run2], fun out' hr => ?_⟩
+      obtain ⟨n2, c2, m2⟩ := f2 out' hr
+      refine ⟨bare (.ClassAssertion (if decide (Rowl.Regions.InCut context.cuts.val[cut.val]
+          (Rowl.Datatypes.numValue context.values.val[index.val])) = true then .Class (cutClass cut)
+          else .ObjectComplementOf (.Class (cutClass cut))) (.Named (valueIndividual index))) :: n2,
+        by rw [c2, c1 o1 rfl]; simp, fun J => ?_⟩
+      simp only [List.mem_cons, forall_eq_or_imp, m2 J, nextIndex]
+      have here := member_holds J (cutClass cut)
+        (Rowl.Regions.InCut context.cuts.val[cut.val] (Rowl.Datatypes.numValue context.values.val[index.val]))
+        (.Named (valueIndividual index))
+      simp only [decide_eq_true_eq, bare] at here ⊢
+      rw [here]
+      simp only [individual]
+      constructor
+      · rintro ⟨first, rest⟩ a ha low
+        by_cases same : a = cut
+        · subst same; exact first
+        · have : a.val ≠ cut.val := fun e => same (UScalar.eq_of_val_eq e)
+          exact rest a ha (by omega)
+      · intro all
+        exact ⟨all cut inside le_rfl, fun a ha low => all a ha (by omega)⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, h, inside], fun out' hr => ⟨[], by cases hr; simp, fun J => ?_⟩⟩
+    simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+    intro a ha low
+    omega
+termination_by context.cuts.val.length - cut.val
+decreasing_by omega
+
+theorem cut_members_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.cut_members context index out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ ∀ (h : index.val < context.values.val.length), CutFact context J index h) := by
+  rw [data_ontology.cut_members]
+  by_cases ready : context.kinds.ordered = true ∧ index.val < context.values.val.length
+  · have inside := ready.2
+    have lookup : context.values.index_usize index = .ok context.values.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    by_cases number : Rowl.Datatypes.IsNumber context.values.val[index.val]
+    · have member := List.getElem_mem inside
+      have cv := canonical_numeric (good.1.1 _ member) number
+      obtain ⟨r, run, f⟩ := cut_memberships_spec context fine index inside cv (fit _ member number) 0#usize out
+      refine ⟨r, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
+        Rowl.Datatypes.numeric_correct, number, run], fun out' hr => ?_⟩
+      obtain ⟨new, c, m⟩ := f out' hr
+      refine ⟨new, c, fun J => ?_⟩
+      rw [m J]
+      constructor
+      · intro all _ _ _ a ha
+        exact all a ha (by simp)
+      · intro holds a ha _
+        exact holds inside ready.1 number a ha
+    · refine ⟨some out, by simp [UScalar.lt_equiv, ready, alloc.vec.Vec.index_slice_index, lookup,
+        Rowl.Datatypes.numeric_correct, number], fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
+      simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+      intro _ _ isNumber
+      exact absurd isNumber number
+  · refine ⟨some out, ?_, fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
+    · by_cases ordered : context.kinds.ordered = true
+      · have outside : ¬ index.val < context.values.val.length := fun h => ready ⟨ordered, h⟩
+        simp [UScalar.lt_equiv, ordered, outside]
+      · simp [ordered]
+    · simp only [List.not_mem_nil, false_imp_iff, implies_true, true_iff]
+      intro h ordered
+      exact absurd ⟨ordered, h⟩ ready
+
+theorem number_members_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.number_members context index out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔
+          (Used context.kinds .Rational = true → ∀ (h : index.val < context.values.val.length),
+            (J.classes (kindClass .Rational) (J.namedIndividuals (valueIndividual index)) ↔
+              InKind context.values.val[index.val] .Rational)) ∧
+          (Used context.kinds .Real = true → ∀ (h : index.val < context.values.val.length),
+            (J.classes (kindClass .Real) (J.namedIndividuals (valueIndividual index)) ↔
+              InKind context.values.val[index.val] .Real)) ∧
+          ∀ (h : index.val < context.values.val.length), CutFact context J index h) := by
+  rw [data_ontology.number_members]
+  obtain ⟨r1, run1, f1⟩ := kind_member_spec.{w,x} context good.1.1 .Rational index out
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some o1 =>
+  obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
+  obtain ⟨r2, run2, f2⟩ := kind_member_spec.{w,x} context good.1.1 .Real index o1
+  cases r2 with
+  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | some o2 =>
+  obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
+  obtain ⟨r3, run3, f3⟩ := cut_members_spec.{w,x} context good fine fit index o2
+  refine ⟨r3, by simp [run1, run2, run3], fun out' h => ?_⟩
+  obtain ⟨n3, c3, m3⟩ := f3 out' h
+  refine ⟨n1 ++ n2 ++ n3, by rw [c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3]
+  tauto
+
 /-- What the axioms of one literal value say: its individual is a data node,
-    in the classes of the kinds in use its value is in, and in the bit classes
-    of the bits of its index. -/
+    in the classes of the kinds in use its value is in, with the bit classes
+    of its index, and in the cuts of its own number. -/
 def ValueFact (context : data_ontology.Context) (bits : Usize) (J : Interpretation Object' Value') (i : Usize)
     (h : i.val < context.values.val.length) : Prop :=
   J.classes dataClass (J.namedIndividuals (valueIndividual i)) ∧
   (∀ k, Used context.kinds k = true →
     (J.classes (kindClass k) (J.namedIndividuals (valueIndividual i)) ↔ InKind context.values.val[i.val] k)) ∧
   (∀ j : Usize, j.val < bits.val →
-    (J.classes (bitClass j) (J.namedIndividuals (valueIndividual i)) ↔ i.val.testBit j.val = true))
+    (J.classes (bitClass j) (J.namedIndividuals (valueIndividual i)) ↔ i.val.testBit j.val = true)) ∧
+  CutFact context J i h
 
-theorem value_axioms_spec (context : data_ontology.Context) (index bits : Usize) (out : alloc.vec.Vec AnnotatedAxiom) :
+theorem value_axioms_spec (context : data_ontology.Context) (good : Good context) (fine : FineCuts context.cuts.val)
+    (fit : ValuesFit context) (index bits : Usize)
+    (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.value_axioms context index bits out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
         ((∀ y ∈ new, satisfies J y.axiom) ↔
           ∀ (i : Usize), index.val ≤ i.val → ∀ (h : i.val < context.values.val.length), ValueFact context bits J i h) := by
+  have canonical := good.1.1
   rw [data_ontology.value_axioms]
   by_cases inside : index.val < context.values.val.length
   · have inside' : index < alloc.vec.Vec.len context.values := by
@@ -635,73 +850,84 @@ theorem value_axioms_spec (context : data_ontology.Context) (index bits : Usize)
     cases r0 with
     | none => exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0], by simp⟩
     | some o0 =>
-    obtain ⟨r1, run1, f1⟩ := kind_member_spec.{w,x} context .Integer index o0
+    obtain ⟨r1, run1, f1⟩ := kind_member_spec.{w,x} context canonical .Integer index o0
     cases r1 with
     | none => exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1], by simp⟩
     | some o1 =>
-    obtain ⟨r2, run2, f2⟩ := kind_member_spec.{w,x} context .Decimal index o1
+    obtain ⟨r2, run2, f2⟩ := kind_member_spec.{w,x} context canonical .Decimal index o1
     cases r2 with
     | none => exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2], by simp⟩
     | some o2 =>
-    obtain ⟨r3, run3, f3⟩ := kind_member_spec.{w,x} context .String index o2
+    obtain ⟨r3, run3, f3⟩ := kind_member_spec.{w,x} context canonical .String index o2
     cases r3 with
     | none => exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3], by simp⟩
     | some o3 =>
-    obtain ⟨r4, run4, f4⟩ := kind_member_spec.{w,x} context .Plain index o3
+    obtain ⟨r4, run4, f4⟩ := kind_member_spec.{w,x} context canonical .Plain index o3
     cases r4 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4], by simp⟩
     | some o4 =>
-    obtain ⟨r5, run5, f5⟩ := kind_member_spec.{w,x} context .Boolean index o4
+    obtain ⟨r5, run5, f5⟩ := kind_member_spec.{w,x} context canonical .Boolean index o4
     cases r5 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5],
         by simp⟩
     | some o5 =>
-    obtain ⟨r6, run6, f6⟩ := bit_members_spec.{w,x} index 0#usize bits o5
+    obtain ⟨r6, run6, f6⟩ := number_members_spec.{w,x} context good fine fit index o5
     cases r6 with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, run6],
         by simp⟩
     | some o6 =>
+    obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits o6
+    cases r7 with
+    | none =>
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, run6,
+        run7], by simp⟩
+    | some o7 =>
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
-    obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context next bits o6
+    obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good fine fit next bits o7
     refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, run6,
-      advance, restRun], fun out' h => ?_⟩
+      run7, advance, restRun], fun out' h => ?_⟩
     obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
     obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
     obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
     obtain ⟨n4, c4, m4⟩ := f4 o4 rfl
     obtain ⟨n5, c5, m5⟩ := f5 o5 rfl
     obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
-    obtain ⟨n7, c7, m7⟩ := restFacts out' h
+    obtain ⟨n7, c7, m7⟩ := f7 o7 rfl
+    obtain ⟨n8, c8, m8⟩ := restFacts out' h
     refine ⟨bare (.ClassAssertion (.Class dataClass) (.Named (valueIndividual index))) ::
-      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ n6 ++ n7),
-      by rw [c7, c6, c5, c4, c3, c2, c1, contents0 o0 rfl]; simp [bare], fun J => ?_⟩
-    simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, m6, m7,
+      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ n6 ++ n7 ++ n8),
+      by rw [c8, c7, c6, c5, c4, c3, c2, c1, contents0 o0 rfl]; simp [bare], fun J => ?_⟩
+    simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, m6, m7, m8,
       zero_val, Nat.zero_le, true_implies]
     simp only [bare, satisfies, classDenote, individual]
     rw [nextIndex]
     constructor
-    · rintro ⟨data, ⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, bitsHere⟩, rest⟩ i low hi
+    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ⟨k6, k7, cutsHere⟩⟩, bitsHere⟩, rest⟩ i low hi
       by_cases same : i.val = index.val
       · have := UScalar.eq_of_val_eq same
         subst this
-        refine ⟨data, fun k used => ?_, fun j high => bitsHere j high⟩
+        refine ⟨data, fun k used => ?_, fun j high => bitsHere j high, cutsHere hi⟩
         cases k
         · exact k1 used hi
         · exact k2 used hi
         · exact k3 used hi
         · exact k4 used hi
         · exact k5 used hi
+        · exact k7 used hi
+        · exact k6 used hi
+        all_goals simp [Used] at used
       · exact rest i (by omega) hi
     · intro all
       have here := all index (le_refl _) inside
-      exact ⟨here.1, ⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
+      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
-        fun j high => here.2.2 j high⟩, fun i low hi => all i (by omega) hi⟩
+        ⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used, fun h => here.2.2.2⟩⟩,
+        fun j high => here.2.2.1 j high⟩, fun i low hi => all i (by omega) hi⟩
   · have inside' : ¬ index < alloc.vec.Vec.len context.values := by
       simp only [UScalar.lt_equiv, alloc.vec.Vec.len_val]; exact inside
     refine ⟨some out, by simp [inside'], fun out' h => ⟨[], by cases h; simp, fun J => ?_⟩⟩
@@ -713,75 +939,94 @@ decreasing_by omega
 
 /-! ### The whole encoding -/
 
-/-- What the encoding's own axioms say of an interpretation. -/
-structure Frame (context : data_ontology.Context) (bits : Usize) (J : Interpretation Object' Value') : Prop where
+/-- What the encoding's own axioms say of an interpretation, for the
+    capacity of the counts of data restrictions and the order of the cuts. -/
+structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize) (order : List Usize)
+    (J : Interpretation Object' Value') : Prop where
   roles : ∀ r ∈ context.roles.val, ∀ y y', J.objectProperties r y y' →
     ¬ J.classes dataClass y ∧ ¬ J.classes dataClass y'
   data : ∀ p ∈ context.data.val, ∀ role, data_ontology.data_role context p = .ok (some role) →
     ∀ y y', objectRelation J role y y' → ¬ J.classes dataClass y ∧ J.classes dataClass y'
   kinds : KindFacts context J
+  regions : RegionFacts context capacity order J
   values : ∀ (i : Usize) (h : i.val < context.values.val.length), ValueFact context bits J i h
   object : ¬ J.classes dataClass (J.namedIndividuals objectIndividual)
 
 /-- The encoding of a closure in a context: what its axioms become, and the
     encoding's own axioms, with enough bit classes to tell the literal values
-    apart, and a role for every data property of the context. -/
-theorem encode_meaning (context : data_ontology.Context) (good : Good context)
-    (items : alloc.vec.Vec AnnotatedAxiom) :
-    ∃ res, data_ontology.encode context items = .ok res ∧ ∀ enc, res = some enc →
-      ∃ (new : List AnnotatedAxiom) (bits : Usize), ItemsMeans.{u,v,w,x} context items.val new ∧
+    apart, a role for every data property of the context, and, when numbers are
+    ordered, the cuts in order; the context's cuts can be ordered and every
+    number among its literal values can be compared with them. -/
+theorem encode_meaning (context : data_ontology.Context) (good : Good context) (capacity : Usize)
+    (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.encode context capacity items = .ok res ∧ ∀ enc, res = some enc →
+      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      ∃ (new : List AnnotatedAxiom) (bits : Usize) (order : List Usize), ItemsMeans.{u,v,w,x} context items.val new ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
+        (context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1) ∧
         (∀ p ∈ context.data.val, ∃ role, data_ontology.data_role context p = .ok (some role)) ∧
         TruthsKnown context ∧
         ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
-          ((∀ b ∈ enc.val, satisfies J b.axiom) ↔ (∀ b ∈ new, satisfies J b.axiom) ∧ Frame context bits J) := by
+          ((∀ b ∈ enc.val, satisfies J b.axiom) ↔
+            (∀ b ∈ new, satisfies J b.axiom) ∧ Frame context capacity.val bits order J) := by
   rw [data_ontology.encode]
+  obtain ⟨ok, okRun, okFacts⟩ := encodable_spec context good
+  cases ok with
+  | false => exact ⟨none, by simp [okRun], by simp⟩
+  | true =>
+  obtain ⟨fine, valuesFit⟩ := okFacts rfl
   obtain ⟨r1, run1, f1⟩ := encode_items_meaning.{u,v,w,x} context items 0#usize (alloc.vec.Vec.new AnnotatedAxiom)
   cases r1 with
-  | none => exact ⟨none, by simp [run1], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1], by simp⟩
   | some o1 =>
   obtain ⟨new, c1, m1⟩ := f1 o1 rfl
   obtain ⟨r2, run2, f2⟩ := role_axioms_spec.{w,x} context 0#usize o1
   cases r2 with
-  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2], by simp⟩
   | some o2 =>
   obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
   obtain ⟨r3, run3, f3⟩ := data_axioms_spec.{w,x} context 0#usize o2
   cases r3 with
-  | none => exact ⟨none, by simp [run1, run2, run3], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3], by simp⟩
   | some o3 =>
   obtain ⟨roles3, n3, c3, m3⟩ := f3 o3 rfl
   obtain ⟨r4, run4, f4⟩ := kind_axioms_spec.{w,x} context good o3
   cases r4 with
-  | none => exact ⟨none, by simp [run1, run2, run3, run4], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4], by simp⟩
   | some o4 =>
   obtain ⟨known, n4, c4, m4⟩ := f4 o4 rfl
-  obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
-  obtain ⟨r5, run5, f5⟩ := value_axioms_spec.{w,x} context 0#usize bits o4
+  obtain ⟨r5, run5, f5⟩ := region_axioms_spec.{w,x} context good fine valuesFit capacity capSmall o4
   cases r5 with
-  | none => exact ⟨none, by simp [run1, run2, run3, run4, bitsRun, run5], by simp⟩
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5], by simp⟩
   | some o5 =>
-  obtain ⟨n5, c5, m5⟩ := f5 o5 rfl
-  obtain ⟨r6, run6, c6⟩ := push_spec o5
+  obtain ⟨order, sorted, n5, c5, m5⟩ := f5 o5 rfl
+  obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
+  obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits o5
+  cases r6 with
+  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6], by simp⟩
+  | some o6 =>
+  obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
+  obtain ⟨r7, run7, c7⟩ := push_spec o6
     (.ClassAssertion (.ObjectComplementOf (.Class dataClass)) (.Named objectIndividual))
-  refine ⟨r6, by simp [run1, run2, run3, run4, bitsRun, run5, object_class_eq, object_individual_eq, run6],
-    fun enc h => ?_⟩
+  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6, object_class_eq, object_individual_eq,
+    run7], fun enc h => ?_⟩
   simp only [zero_val, List.drop_zero] at m1 roles3 m2 m3
-  refine ⟨new, bits, m1, by simpa using bitsLe, roles3, known, fun J => ?_⟩
-  rw [c6 enc h, c5, c4, c3, c2, c1]
-  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, zero_val, Nat.zero_le,
+  refine ⟨fine, valuesFit, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
+  rw [c7 enc h, c6, c5, c4, c3, c2, c1]
+  simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, m6 J, zero_val, Nat.zero_le,
     true_implies]
   simp only [List.mem_singleton, forall_eq, bare, satisfies, classDenote, individual]
   constructor
-  · rintro ⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, values⟩, object⟩
-    exact ⟨items', ⟨roles, fun p mem role run y y' rel => data p mem role run y y' rel, kinds, values, object⟩⟩
+  · rintro ⟨⟨⟨⟨⟨⟨items', roles⟩, data⟩, kinds⟩, regions⟩, values⟩, object⟩
+    exact ⟨items', ⟨roles, fun p mem role run y y' rel => data p mem role run y y' rel, kinds, regions, values,
+      object⟩⟩
   · rintro ⟨items', frame⟩
-    exact ⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.values⟩, frame.object⟩
+    exact ⟨⟨⟨⟨⟨⟨items', frame.roles⟩, frame.data⟩, frame.kinds⟩, frame.regions⟩, frame.values⟩, frame.object⟩
 
 /-- Literal values at distinct indices have distinct individuals in every
     interpretation of the encoding's own axioms. -/
-theorem value_individuals_apart {context : data_ontology.Context} {bits : Usize} {J : Interpretation Object' Value'}
-    (frame : Frame context bits J) (enough : context.values.val.length ≤ 2 ^ bits.val) (i j : Usize)
+theorem value_individuals_apart {context : data_ontology.Context} {capacity : Nat} {bits : Usize}
+    {order : List Usize} {J : Interpretation Object' Value'} (frame : Frame context capacity bits order J) (enough : context.values.val.length ≤ 2 ^ bits.val) (i j : Usize)
     (hi : i.val < context.values.val.length) (hj : j.val < context.values.val.length) (apart : i ≠ j) :
     J.namedIndividuals (valueIndividual i) ≠ J.namedIndividuals (valueIndividual j) := by
   intro same
@@ -797,8 +1042,8 @@ theorem value_individuals_apart {context : data_ontology.Context} {bits : Usize}
     omega
   let position : Usize := Usize.ofNatCore k lt
   have positionIs : position.val = k := UScalar.ofNatCore_val_eq lt
-  have bi := (frame.values i hi).2.2 position (by rw [positionIs]; exact low)
-  have bj := (frame.values j hj).2.2 position (by rw [positionIs]; exact low)
+  have bi := (frame.values i hi).2.2.1 position (by rw [positionIs]; exact low)
+  have bj := (frame.values j hj).2.2.1 position (by rw [positionIs]; exact low)
   rw [same, bj, positionIs] at bi
   exact differ (by cases h1 : i.val.testBit k <;> cases h2 : j.val.testBit k <;> simp_all)
 

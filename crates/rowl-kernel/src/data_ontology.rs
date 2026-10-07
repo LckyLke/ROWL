@@ -1,6 +1,6 @@
-//! Data properties, literals and the five datatypes of `datatypes` in the
-//! ontology queries, by an encoding into classes, object properties and named
-//! individuals that the SROIQ queries of `shi_ontology` decide.
+//! Data properties, literals, the datatypes of `datatypes` and the range facets
+//! in the ontology queries, by an encoding into classes, object properties and
+//! named individuals that the SROIQ queries of `shi_ontology` decide.
 //!
 //! The data values of a model become further elements, the data nodes, which
 //! the class `D` marks:
@@ -12,9 +12,22 @@
 //!   whose classes say which of the datatypes in use it is in, with a pattern
 //!   of bit classes that tells it apart from every other literal value;
 //! - every datatype of a data range becomes a class `A`, with the inclusions of
-//!   the datatypes (integers are decimals, strings are plain literals) and their
-//!   disjointness, and the booleans are the individuals of `true` and `false`;
-//!   `rdfs:Literal` is every data node;
+//!   the datatypes (integers are decimals, decimals rationals, rationals reals,
+//!   strings plain literals) and their disjointness, and the booleans are the
+//!   individuals of `true` and `false`; `rdfs:Literal` is every data node;
+//! - when a datatype restriction or a subtype of `xsd:integer` is in use, the
+//!   numbers of the closure become cuts of the real line (`regions`), each with
+//!   a class of the numbers at or above it (closed) or above it (open): a
+//!   numeric literal value both its cuts, a range facet one, and a subtype the
+//!   closed cut of its lower bound and the open cut of its upper bound. The
+//!   classes are chained in the order of the cuts; a number with both cuts is a
+//!   literal value whose individual is alone between them; a facet becomes its
+//!   cut's class or that class's complement, and a subtype the integers between
+//!   its bounds' classes. When the integers are in use, the integers between
+//!   two neighbouring cuts of different numbers are none, a few (fewer than a
+//!   capacity that bounds the counts of the data restrictions of the closure
+//!   and its questions, and at most that many at any element along a role `U`
+//!   above every data property) or treated as infinitely many;
 //! - every object property relates only elements that are no data nodes, and
 //!   the individuals are no data nodes; a class expression that a data node
 //!   could satisfy, on the left of an inclusion or in a list of equivalent or
@@ -23,23 +36,33 @@
 //!   filler of a universal restriction along it is joined with `D`.
 //!
 //! The context of the encoding (`Context`) lists the distinct literal values,
-//! the datatypes in use, the object properties and the data properties; the
-//! encoding gives no answer for anything outside it, so a context prepared from
-//! a closure also encodes the questions about it. A model of the encoding has,
+//! the datatypes in use, the object properties, the data properties and the
+//! cuts; the encoding gives no answer for anything outside it, so a context
+//! prepared from a closure also encodes the questions about it. A model of the encoding has,
 //! at every element that is no data node, a value for each of finitely many
 //! data nodes it is related to, with the values of the literal individuals and
 //! distinct values for distinct data nodes, which the infinitely many values of
-//! every combination of datatypes outside the literals allow; and every OWL
-//! model, with its data values as data nodes, is a model of the encoding.
+//! every region of numbers outside the literals allow, and every bounded run of
+//! integers too, since its bound or the counts of all data restrictions limit
+//! how many data nodes need values from it; and every OWL model, with its data
+//! values as data nodes, is a model of the encoding.
 //!
-//! `None` means that the closure or the question uses a datatype restriction, a
-//! datatype definition, a key, another datatype, a literal outside its lexical
-//! space, `owl:topDataProperty` outside an inclusion into it, `owl:Thing` as a
-//! disjoint union, a number restriction along the universal role, the universal
-//! role included in another role (alone or in a chain), equivalent or inverse
-//! to a role, functional or inverse functional, or a name starting with the
-//! byte 0; that a question names an individual that is anonymous or that the
-//! closure does not mention; or that the queries give no answer.
+//! A closure with keys is encoded by `key_ontology`, which adds the keys to
+//! this encoding of its other axioms.
+//!
+//! `None` means that the closure or the question uses a datatype restriction
+//! other than one of the four range facets with a numeric bound on a numeric
+//! datatype, a datatype definition, a key that `key_ontology` declines, another
+//! datatype, a literal outside its lexical space, `owl:topDataProperty` outside
+//! an inclusion into it, `owl:Thing` as a disjoint union, a number restriction
+//! along the universal role, the universal role included in another role (alone
+//! or in a chain), equivalent or inverse to a role, functional or inverse
+//! functional, or a name starting with the byte 0; that the data restrictions of
+//! the closure, with the room for a question's, count `usize::MAX / 16` values
+//! or more; that a question names an individual that is anonymous or that the
+//! closure does not mention, or, for a closure with keys, asks whether such an
+//! individual is an instance, or counts more values than a prepared closure has
+//! room for; or that the queries give no answer.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -54,33 +77,46 @@
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
-use crate::datatypes::{in_kind, kind_of, literal_value, same_value, DataValue, Kind};
+use crate::datatypes::{
+    facet_of, in_kind, kind_of, literal_value, lower_bound, numeric, same_value, upper_bound,
+    DataValue, Facet, Kind,
+};
+use crate::key_ontology;
 use crate::model::{
-    AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange, Individual,
-    Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty, ObjectPropertyExpression,
-    SubObjectPropertyExpression,
+    AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange,
+    FacetRestriction, Individual, Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty,
+    ObjectPropertyExpression, SubObjectPropertyExpression,
 };
 use crate::nnf::copy_bytes;
 use crate::probes::Natural;
+use crate::regions::{
+    add_cut, copy_value, cut_index, cut_order, cuts_fit, fits, in_cut, run_size, Cut,
+};
 use crate::shi_ontology;
 
-/// The datatypes in use.
+/// The datatypes in use, and whether numbers are ordered: a datatype
+/// restriction or a subtype of `xsd:integer` is in use.
 pub struct Kinds {
     pub integer: bool,
     pub decimal: bool,
     pub string: bool,
     pub plain: bool,
     pub boolean: bool,
+    pub real: bool,
+    pub rational: bool,
+    pub ordered: bool,
 }
 /// What the encoding of a closure and its questions knows: the distinct
 /// literal values, the datatypes in use, the named object properties other than
-/// the universal role, and the data properties other than the top and bottom
-/// ones.
+/// the universal role, the data properties other than the top and bottom
+/// ones, and the cuts of the numbers that facets, bounds of datatypes and
+/// literal values make.
 pub struct Context {
     pub values: Vec<DataValue>,
     pub kinds: Kinds,
     pub roles: Vec<ObjectProperty>,
     pub data: Vec<DataProperty>,
+    pub cuts: Vec<Cut>,
 }
 
 fn equal_from(key: &Vec<u8>, pattern: &[u8], index: usize) -> bool {
@@ -155,7 +191,7 @@ fn named(role: &ObjectPropertyExpression) -> &ObjectProperty {
     }
 }
 /// Whether the role is the universal role or its inverse.
-fn universal(role: &ObjectPropertyExpression) -> bool {
+pub(crate) fn universal(role: &ObjectPropertyExpression) -> bool {
     is_top_object(named(role))
 }
 
@@ -196,14 +232,14 @@ fn bytes(value: usize, count: usize, mut out: Vec<u8>) -> Vec<u8> {
     }
 }
 /// The byte 0, a tag and `rest`.
-fn tagged_name(tag: u8, rest: Vec<u8>) -> Vec<u8> {
+pub(crate) fn tagged_name(tag: u8, rest: Vec<u8>) -> Vec<u8> {
     let mut spelling = Vec::new();
     spelling.push(0);
     spelling.push(tag);
     copy_after(&rest, 0, spelling)
 }
 /// `out` followed by `source[index..]`.
-fn copy_after(source: &Vec<u8>, index: usize, mut out: Vec<u8>) -> Vec<u8> {
+pub(crate) fn copy_after(source: &Vec<u8>, index: usize, mut out: Vec<u8>) -> Vec<u8> {
     if index < source.len() {
         out.push(source[index]);
         copy_after(source, index + 1, out)
@@ -221,11 +257,11 @@ fn data_class() -> ClassExpression {
     class_named(tagged_name(b'D', Vec::new()))
 }
 /// The complement of `D`.
-fn object_class() -> ClassExpression {
+pub(crate) fn object_class() -> ClassExpression {
     ClassExpression::ObjectComplementOf(Box::new(data_class()))
 }
 /// The index of a kind: integer 0, decimal 1, string 2, plain literal 3,
-/// boolean 4.
+/// boolean 4, and the further datatypes from 5 on.
 fn kind_index(kind: Kind) -> u8 {
     match kind {
         Kind::Integer => 0,
@@ -233,6 +269,20 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::String => 2,
         Kind::Plain => 3,
         Kind::Boolean => 4,
+        Kind::Real => 5,
+        Kind::Rational => 6,
+        Kind::NonNegativeInteger => 7,
+        Kind::NonPositiveInteger => 8,
+        Kind::PositiveInteger => 9,
+        Kind::NegativeInteger => 10,
+        Kind::Long => 11,
+        Kind::Int => 12,
+        Kind::Short => 13,
+        Kind::Byte => 14,
+        Kind::UnsignedLong => 15,
+        Kind::UnsignedInt => 16,
+        Kind::UnsignedShort => 17,
+        Kind::UnsignedByte => 18,
     }
 }
 /// The class of a kind.
@@ -250,6 +300,18 @@ fn value_individual(index: usize) -> Individual {
     Individual::Named(NamedIndividual {
         iri: Iri {
             spelling: tagged_name(b'L', bytes(index, 0, Vec::new())),
+        },
+    })
+}
+/// The class `G` of the numbers in the cut at `index`.
+fn cut_class(index: usize) -> ClassExpression {
+    class_named(tagged_name(b'G', bytes(index, 0, Vec::new())))
+}
+/// The role `U` above every data property's role.
+fn data_super() -> ObjectPropertyExpression {
+    ObjectPropertyExpression::Property(ObjectProperty {
+        iri: Iri {
+            spelling: tagged_name(b'U', Vec::new()),
         },
     })
 }
@@ -280,6 +342,9 @@ fn no_kinds() -> Kinds {
         string: false,
         plain: false,
         boolean: false,
+        real: false,
+        rational: false,
+        ordered: false,
     }
 }
 /// Whether the kind is in use.
@@ -290,6 +355,31 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::String => kinds.string,
         Kind::Plain => kinds.plain,
         Kind::Boolean => kinds.boolean,
+        Kind::Real => kinds.real,
+        Kind::Rational => kinds.rational,
+        _ => false,
+    }
+}
+/// Whether the kind is a subtype of `xsd:integer` with bounds.
+fn bounded(kind: Kind) -> bool {
+    match kind {
+        Kind::Integer => false,
+        Kind::Decimal => false,
+        Kind::String => false,
+        Kind::Plain => false,
+        Kind::Boolean => false,
+        Kind::Real => false,
+        Kind::Rational => false,
+        _ => true,
+    }
+}
+/// Whether the kind is a numeric datatype.
+fn numeric_kind(kind: Kind) -> bool {
+    match kind {
+        Kind::String => false,
+        Kind::Plain => false,
+        Kind::Boolean => false,
+        _ => true,
     }
 }
 /// The kinds with `kind` in use too.
@@ -315,6 +405,28 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
             boolean: true,
             ..kinds
         },
+        Kind::Real => Kinds {
+            real: true,
+            ..kinds
+        },
+        Kind::Rational => Kinds {
+            rational: true,
+            ..kinds
+        },
+        _ => Kinds {
+            integer: true,
+            real: true,
+            ordered: true,
+            ..kinds
+        },
+    }
+}
+/// The kinds with ordered numbers.
+fn with_order(kinds: Kinds) -> Kinds {
+    Kinds {
+        real: true,
+        ordered: true,
+        ..kinds
     }
 }
 /// The index of the value in `values[index..]`.
@@ -396,6 +508,7 @@ fn add_data(mut context: Context, property: &DataProperty) -> Context {
         context
     }
 }
+/// The context with a literal's value, and the two cuts of a numeric one.
 fn add_literal(mut context: Context, literal: &Literal) -> Context {
     match literal_value(literal) {
         Some(value) => {
@@ -412,13 +525,63 @@ fn literals_context(context: Context, literals: &Vec<Literal>, index: usize) -> 
         context
     }
 }
+/// The cuts with the cut of a bound, if any.
+fn add_bound(cuts: Vec<Cut>, bound: Option<DataValue>, open: bool) -> Vec<Cut> {
+    match bound {
+        Some(value) => add_cut(cuts, &value, open),
+        None => cuts,
+    }
+}
+/// The context with the datatype of the kind in use, and the cuts of the
+/// bounds of a subtype of `xsd:integer`: at or above its lower bound, and above
+/// its upper bound.
+fn kind_context(mut context: Context, kind: Kind) -> Context {
+    context.kinds = with_kind(context.kinds, kind);
+    context.cuts = add_bound(context.cuts, lower_bound(kind), false);
+    context.cuts = add_bound(context.cuts, upper_bound(kind), true);
+    context
+}
+/// The side of the cut of a range facet: open for `xsd:minExclusive` and
+/// `xsd:maxInclusive`.
+fn facet_open(facet: Facet) -> bool {
+    match facet {
+        Facet::MinInclusive => false,
+        Facet::MinExclusive => true,
+        Facet::MaxInclusive => true,
+        Facet::MaxExclusive => false,
+    }
+}
+/// The context with the cut of a range facet with a numeric bound.
+fn facet_context(mut context: Context, restriction: &FacetRestriction) -> Context {
+    match (
+        facet_of(&restriction.facet),
+        literal_value(&restriction.value),
+    ) {
+        (Some(facet), Some(value)) => {
+            if numeric(&value) {
+                context.cuts = add_cut(context.cuts, &value, facet_open(facet));
+            }
+            context
+        }
+        _ => context,
+    }
+}
+/// The context with the cuts of the facet restrictions `restrictions[index..]`.
+fn facets_context(context: Context, restrictions: &Vec<FacetRestriction>, index: usize) -> Context {
+    if index < restrictions.len() {
+        facets_context(
+            facet_context(context, &restrictions[index]),
+            restrictions,
+            index + 1,
+        )
+    } else {
+        context
+    }
+}
 fn range_context(mut context: Context, range: &DataRange) -> Context {
     match range {
         DataRange::Datatype(datatype) => match kind_of(datatype) {
-            Some(kind) => {
-                context.kinds = with_kind(context.kinds, kind);
-                context
-            }
+            Some(kind) => kind_context(context, kind),
             None => context,
         },
         DataRange::Intersection(members) | DataRange::Union(members) => {
@@ -431,7 +594,15 @@ fn range_context(mut context: Context, range: &DataRange) -> Context {
             let context = add_literal(context, &literals.first);
             literals_context(context, &literals.rest, 0)
         }
-        DataRange::Restriction(_, _) => context,
+        DataRange::Restriction(datatype, restrictions) => {
+            context.kinds = with_order(context.kinds);
+            let context = match kind_of(datatype) {
+                Some(kind) => kind_context(context, kind),
+                None => context,
+            };
+            let context = facet_context(context, &restrictions.first);
+            facets_context(context, &restrictions.rest, 0)
+        }
     }
 }
 fn ranges_context(context: Context, ranges: &Vec<DataRange>, index: usize) -> Context {
@@ -447,7 +618,7 @@ fn optional_range_context(context: Context, range: &Option<DataRange>) -> Contex
         None => context,
     }
 }
-fn class_context(context: Context, class: &ClassExpression) -> Context {
+pub(crate) fn class_context(context: Context, class: &ClassExpression) -> Context {
     match class {
         ClassExpression::Class(_) => context,
         ClassExpression::ObjectIntersectionOf(members)
@@ -495,7 +666,11 @@ fn members_context(context: Context, members: &AtLeastTwo<ClassExpression>) -> C
     let context = class_context(context, &members.second);
     classes_context(context, &members.rest, 0)
 }
-fn roles_context(context: Context, roles: &Vec<ObjectPropertyExpression>, index: usize) -> Context {
+pub(crate) fn roles_context(
+    context: Context,
+    roles: &Vec<ObjectPropertyExpression>,
+    index: usize,
+) -> Context {
     if index < roles.len() {
         roles_context(add_role(context, &roles[index]), roles, index + 1)
     } else {
@@ -507,7 +682,11 @@ fn role_members_context(context: Context, roles: &AtLeastTwo<ObjectPropertyExpre
     let context = add_role(context, &roles.second);
     roles_context(context, &roles.rest, 0)
 }
-fn data_list_context(context: Context, data: &Vec<DataProperty>, index: usize) -> Context {
+pub(crate) fn data_list_context(
+    context: Context,
+    data: &Vec<DataProperty>,
+    index: usize,
+) -> Context {
     if index < data.len() {
         data_list_context(add_data(context, &data[index]), data, index + 1)
     } else {
@@ -583,6 +762,7 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
             kinds: no_kinds(),
             roles: Vec::new(),
             data: Vec::new(),
+            cuts: Vec::new(),
         },
         items,
         0,
@@ -590,11 +770,36 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
 }
 /// The context with both truth values among the literal values when the
 /// booleans are in use.
-fn with_truths(mut context: Context) -> Context {
+pub(crate) fn with_truths(mut context: Context) -> Context {
     if context.kinds.boolean {
         context.values = add_value(context.values, DataValue::Truth(true));
         context.values = add_value(context.values, DataValue::Truth(false));
     }
+    context
+}
+/// The values with the number of every cut of `cuts[index..]` whose number has
+/// both cuts.
+fn points_from(cuts: &Vec<Cut>, index: usize, values: Vec<DataValue>) -> Vec<DataValue> {
+    if index < cuts.len() {
+        let open = !cuts[index].open;
+        match cut_index(cuts, &cuts[index].value, open, 0) {
+            Some(_) => points_from(
+                cuts,
+                index + 1,
+                add_value(values, copy_value(&cuts[index].value)),
+            ),
+            None => points_from(cuts, index + 1, values),
+        }
+    } else {
+        values
+    }
+}
+/// The context finished for the encoding: both truth values among the literal
+/// values when the booleans are in use, and every number with both cuts
+/// among the literal values too.
+pub(crate) fn finished(context: Context) -> Context {
+    let mut context = with_truths(context);
+    context.values = points_from(&context.cuts, 0, context.values);
     context
 }
 
@@ -614,14 +819,14 @@ fn positive(value: &Natural) -> bool {
         Natural::Succ(_) => true,
     }
 }
-fn and(left: ClassExpression, right: ClassExpression) -> ClassExpression {
+pub(crate) fn and(left: ClassExpression, right: ClassExpression) -> ClassExpression {
     ClassExpression::ObjectIntersectionOf(Box::new(AtLeastTwo {
         first: left,
         second: right,
         rest: Vec::new(),
     }))
 }
-fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
+pub(crate) fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
     ClassExpression::ObjectUnionOf(Box::new(AtLeastTwo {
         first: left,
         second: right,
@@ -630,7 +835,7 @@ fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
 }
 /// A copy of an object property expression of the context, or of the
 /// universal role.
-fn object_role(
+pub(crate) fn object_role(
     context: &Context,
     role: &ObjectPropertyExpression,
 ) -> Option<ObjectPropertyExpression> {
@@ -652,7 +857,7 @@ fn object_role(
     }
 }
 /// A copy of an individual whose name is not the encoding's.
-fn object_individual_of(individual: &Individual) -> Option<Individual> {
+pub(crate) fn object_individual_of(individual: &Individual) -> Option<Individual> {
     match individual {
         Individual::Named(named) => {
             if reserved(&named.iri.spelling) {
@@ -735,6 +940,148 @@ fn literal_individuals(
         Some(out)
     }
 }
+/// The complement of a class expression.
+fn not(class: ClassExpression) -> ClassExpression {
+    ClassExpression::ObjectComplementOf(Box::new(class))
+}
+/// The intersection of three class expressions.
+fn and3(
+    first: ClassExpression,
+    second: ClassExpression,
+    third: ClassExpression,
+) -> ClassExpression {
+    let mut rest = Vec::new();
+    rest.push(third);
+    ClassExpression::ObjectIntersectionOf(Box::new(AtLeastTwo {
+        first,
+        second,
+        rest,
+    }))
+}
+/// The class of the cut of a bound on the side `open`, complemented when
+/// `outside`, and `owl:Thing` without a bound.
+fn bound_class(
+    context: &Context,
+    bound: Option<DataValue>,
+    open: bool,
+    outside: bool,
+) -> Option<ClassExpression> {
+    match bound {
+        Some(value) => match cut_index(&context.cuts, &value, open, 0) {
+            Some(index) => {
+                if outside {
+                    Some(not(cut_class(index)))
+                } else {
+                    Some(cut_class(index))
+                }
+            }
+            None => None,
+        },
+        None => Some(thing()),
+    }
+}
+/// The class expression of a subtype of `xsd:integer`: the integers at or
+/// above its lower bound and not above its upper bound.
+fn subtype_range(context: &Context, kind: Kind) -> Option<ClassExpression> {
+    if used(&context.kinds, Kind::Integer) & context.kinds.ordered {
+        match (
+            bound_class(context, lower_bound(kind), false, false),
+            bound_class(context, upper_bound(kind), true, true),
+        ) {
+            (Some(lower), Some(upper)) => Some(and3(kind_class(Kind::Integer), lower, upper)),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+/// The class expression of a datatype of a kind in use.
+fn kind_range(context: &Context, kind: Kind) -> Option<ClassExpression> {
+    if bounded(kind) {
+        subtype_range(context, kind)
+    } else if used(&context.kinds, kind) {
+        Some(kind_class(kind))
+    } else {
+        None
+    }
+}
+/// Whether a range facet bounds the numbers from above: its values are
+/// outside its cut.
+fn facet_outside(facet: Facet) -> bool {
+    match facet {
+        Facet::MinInclusive => false,
+        Facet::MinExclusive => false,
+        Facet::MaxInclusive => true,
+        Facet::MaxExclusive => true,
+    }
+}
+/// The class expression of a facet restriction: a range facet with a numeric
+/// bound, whose cut is in the context.
+fn facet_class(context: &Context, restriction: &FacetRestriction) -> Option<ClassExpression> {
+    match (
+        facet_of(&restriction.facet),
+        literal_value(&restriction.value),
+    ) {
+        (Some(facet), Some(value)) => {
+            if numeric(&value) {
+                bound_class(
+                    context,
+                    Some(value),
+                    facet_open(facet),
+                    facet_outside(facet),
+                )
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+fn facet_classes(
+    context: &Context,
+    restrictions: &Vec<FacetRestriction>,
+    index: usize,
+    mut out: Vec<ClassExpression>,
+) -> Option<Vec<ClassExpression>> {
+    if index < restrictions.len() {
+        match facet_class(context, &restrictions[index]) {
+            Some(class) => {
+                if out.len() < usize::MAX {
+                    out.push(class);
+                }
+                facet_classes(context, restrictions, index + 1, out)
+            }
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The class expression of a datatype restriction of a numeric datatype.
+fn restriction_range(
+    context: &Context,
+    kind: Kind,
+    restrictions: &NonEmpty<FacetRestriction>,
+) -> Option<ClassExpression> {
+    if numeric_kind(kind) & context.kinds.ordered {
+        match (
+            kind_range(context, kind),
+            facet_class(context, &restrictions.first),
+            facet_classes(context, &restrictions.rest, 0, Vec::new()),
+        ) {
+            (Some(base), Some(first), Some(rest)) => Some(ClassExpression::ObjectIntersectionOf(
+                Box::new(AtLeastTwo {
+                    first: base,
+                    second: first,
+                    rest,
+                }),
+            )),
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
 /// The class expression a data range becomes at data nodes.
 pub fn encode_range(context: &Context, range: &DataRange) -> Option<ClassExpression> {
     match range {
@@ -743,13 +1090,7 @@ pub fn encode_range(context: &Context, range: &DataRange) -> Option<ClassExpress
                 Some(thing())
             } else {
                 match kind_of(datatype) {
-                    Some(kind) => {
-                        if used(&context.kinds, kind) {
-                            Some(kind_class(kind))
-                        } else {
-                            None
-                        }
-                    }
+                    Some(kind) => kind_range(context, kind),
                     None => None,
                 }
             }
@@ -773,7 +1114,10 @@ pub fn encode_range(context: &Context, range: &DataRange) -> Option<ClassExpress
             },
             None => None,
         },
-        DataRange::Restriction(_, _) => None,
+        DataRange::Restriction(datatype, restrictions) => match kind_of(datatype) {
+            Some(kind) => restriction_range(context, kind, restrictions),
+            None => None,
+        },
     }
 }
 fn encode_range_list(
@@ -1172,7 +1516,7 @@ fn encode_object_members(
 // ---------------------------------------------------------------------------
 
 /// `out` with the axiom; `None` when there is no room.
-fn push(mut out: Vec<AnnotatedAxiom>, axiom: Axiom) -> Option<Vec<AnnotatedAxiom>> {
+pub(crate) fn push(mut out: Vec<AnnotatedAxiom>, axiom: Axiom) -> Option<Vec<AnnotatedAxiom>> {
     if out.len() < usize::MAX {
         out.push(AnnotatedAxiom {
             annotations: Vec::new(),
@@ -1495,7 +1839,7 @@ fn encode_sub(
     }
 }
 /// `out` with the axioms an axiom becomes.
-fn encode_axiom(
+pub(crate) fn encode_axiom(
     context: &Context,
     item: &Axiom,
     out: Vec<AnnotatedAxiom>,
@@ -1858,11 +2202,53 @@ fn truth_axiom(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         Some(out)
     }
 }
+/// `out` with the inclusions of the numeric kinds in use: integers are
+/// decimals, decimals rationals and rationals reals.
+fn number_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Decimal, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Rational, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Real, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::Decimal, Kind::Rational, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::Decimal, Kind::Real, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, Kind::Rational, Kind::Real, true, out)
+}
+/// `out` with a numeric kind in use apart from the strings, the plain
+/// literals and the booleans.
+fn apart_axioms(
+    kinds: &Kinds,
+    kind: Kind,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match kinds_axiom(kinds, kind, Kind::String, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::Plain, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, kind, Kind::Boolean, false, out)
+}
 /// `out` with the inclusions and disjointness of the kinds in use and the
 /// booleans.
 fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
     let kinds = &context.kinds;
-    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Decimal, true, out) {
+    let out = match number_axioms(kinds, out) {
         Some(out) => out,
         None => return None,
     };
@@ -1870,27 +2256,19 @@ fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         Some(out) => out,
         None => return None,
     };
-    let out = match kinds_axiom(kinds, Kind::Integer, Kind::String, false, out) {
+    let out = match apart_axioms(kinds, Kind::Integer, out) {
         Some(out) => out,
         None => return None,
     };
-    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Plain, false, out) {
+    let out = match apart_axioms(kinds, Kind::Decimal, out) {
         Some(out) => out,
         None => return None,
     };
-    let out = match kinds_axiom(kinds, Kind::Integer, Kind::Boolean, false, out) {
+    let out = match apart_axioms(kinds, Kind::Rational, out) {
         Some(out) => out,
         None => return None,
     };
-    let out = match kinds_axiom(kinds, Kind::Decimal, Kind::String, false, out) {
-        Some(out) => out,
-        None => return None,
-    };
-    let out = match kinds_axiom(kinds, Kind::Decimal, Kind::Plain, false, out) {
-        Some(out) => out,
-        None => return None,
-    };
-    let out = match kinds_axiom(kinds, Kind::Decimal, Kind::Boolean, false, out) {
+    let out = match apart_axioms(kinds, Kind::Real, out) {
         Some(out) => out,
         None => return None,
     };
@@ -1985,8 +2363,61 @@ fn bit_members(
         Some(out)
     }
 }
+/// `out` with a numeric literal value at `index` in its own closed cut and
+/// outside its own open cut, when numbers are ordered.
+/// `out` with the literal value at `index` in the class of every cut of
+/// `context.cuts[cut..]` that contains its number, and outside the others.
+fn cut_memberships(
+    context: &Context,
+    index: usize,
+    cut: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (index < context.values.len()) & (cut < context.cuts.len()) {
+        match member(
+            cut_class(cut),
+            in_cut(&context.cuts[cut], &context.values[index]),
+            value_individual(index),
+            out,
+        ) {
+            Some(out) => cut_memberships(context, index, cut + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+fn cut_members(
+    context: &Context,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if context.kinds.ordered & (index < context.values.len()) {
+        if numeric(&context.values[index]) {
+            cut_memberships(context, index, 0, out)
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
+fn number_members(
+    context: &Context,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    match kind_member(context, Kind::Rational, index, out) {
+        Some(out) => match kind_member(context, Kind::Real, index, out) {
+            Some(out) => cut_members(context, index, out),
+            None => None,
+        },
+        None => None,
+    }
+}
 /// `out` with the classes of the literal values from `index` on: `D`, each
-/// kind class in use or its complement, and each bit class or its complement.
+/// kind class in use or its complement, the classes of the numbers at and
+/// above a numeric value, and each bit class or its complement.
 fn value_axioms(
     context: &Context,
     index: usize,
@@ -2021,6 +2452,10 @@ fn value_axioms(
             Some(out) => out,
             None => return None,
         };
+        let out = match number_members(context, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
         match bit_members(index, 0, bits, out) {
             Some(out) => value_axioms(context, index + 1, bits, out),
             None => None,
@@ -2029,10 +2464,320 @@ fn value_axioms(
         Some(out)
     }
 }
+/// The natural number `count`.
+fn natural_of(count: usize) -> Natural {
+    if count == 0 {
+        Natural::Zero
+    } else {
+        Natural::Succ(Box::new(natural_of(count - 1)))
+    }
+}
+/// `out` with the axiom on the integers in the cut at `low` and outside the
+/// cut at `high`, neighbours of different numbers in the order of the cuts:
+/// none when there are none, and at most their number at any element along
+/// `U` when there are fewer than `capacity`; they are counted up to one more
+/// than the capacity.
+/// Whether a literal value is an integer in the cut `low` and outside the cut
+/// `high`.
+fn in_run(low: &Cut, high: &Cut, value: &DataValue) -> bool {
+    in_kind(value, Kind::Integer) & in_cut(low, value) & !in_cut(high, value)
+}
+/// `found` with `individual` added.
+fn add_named(
+    found: Option<NonEmpty<Individual>>,
+    individual: Individual,
+) -> Option<NonEmpty<Individual>> {
+    match found {
+        None => Some(NonEmpty {
+            first: individual,
+            rest: Vec::new(),
+        }),
+        Some(mut list) => {
+            if list.rest.len() < usize::MAX {
+                list.rest.push(individual);
+            }
+            Some(list)
+        }
+    }
+}
+/// `found` with the individuals of the literal values of `values[index..]`
+/// that are integers between the cuts `low` and `high`.
+fn run_literals(
+    context: &Context,
+    low: &Cut,
+    high: &Cut,
+    index: usize,
+    found: Option<NonEmpty<Individual>>,
+) -> Option<NonEmpty<Individual>> {
+    if index < context.values.len() {
+        if in_run(low, high, &context.values[index]) {
+            run_literals(
+                context,
+                low,
+                high,
+                index + 1,
+                add_named(found, value_individual(index)),
+            )
+        } else {
+            run_literals(context, low, high, index + 1, found)
+        }
+    } else {
+        found
+    }
+}
+/// `count` plus the number of literal values of `values[index..]` that are
+/// integers between the cuts `low` and `high`.
+fn run_count(context: &Context, low: &Cut, high: &Cut, index: usize, count: usize) -> usize {
+    if index < context.values.len() {
+        if in_run(low, high, &context.values[index]) & (count < usize::MAX) {
+            run_count(context, low, high, index + 1, count + 1)
+        } else {
+            run_count(context, low, high, index + 1, count)
+        }
+    } else {
+        count
+    }
+}
+/// The integers between `low` and `high` that are no literal values: none
+/// when there are none, a class of the literal values when every integer
+/// there is one.
+fn no_free_integers(low: usize, high: usize, named: Option<NonEmpty<Individual>>) -> Axiom {
+    match named {
+        None => Axiom::SubClassOf(
+            and(kind_class(Kind::Integer), cut_class(low)),
+            cut_class(high),
+        ),
+        Some(list) => Axiom::SubClassOf(
+            and3(
+                kind_class(Kind::Integer),
+                cut_class(low),
+                not(cut_class(high)),
+            ),
+            ClassExpression::ObjectOneOf(list),
+        ),
+    }
+}
+/// The integers between `low` and `high` that are no literal values.
+fn free_integers(low: usize, high: usize, named: Option<NonEmpty<Individual>>) -> ClassExpression {
+    match named {
+        None => and3(
+            kind_class(Kind::Integer),
+            cut_class(low),
+            not(cut_class(high)),
+        ),
+        Some(list) => and(
+            and3(
+                kind_class(Kind::Integer),
+                cut_class(low),
+                not(cut_class(high)),
+            ),
+            not(ClassExpression::ObjectOneOf(list)),
+        ),
+    }
+}
+/// `out` with the axiom on the integers between the neighbouring cuts `low`
+/// and `high` of different numbers that are no literal values: none of them
+/// when there are none, and at most their number at any element along `U`
+/// when there are fewer than `capacity`; they are counted up to one more than
+/// the capacity.
+fn gap_axiom(
+    context: &Context,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (low < context.cuts.len()) & (high < context.cuts.len()) & (capacity < usize::MAX / 16) {
+        let named = run_count(context, &context.cuts[low], &context.cuts[high], 0, 0);
+        if named < usize::MAX / 16 - capacity {
+            let size = run_size(
+                &context.cuts[low],
+                &context.cuts[high],
+                capacity + 1 + named,
+            );
+            if named <= size {
+                let free = size - named;
+                let found = run_literals(context, &context.cuts[low], &context.cuts[high], 0, None);
+                if free == 0 {
+                    push(out, no_free_integers(low, high, found))
+                } else if free < capacity {
+                    push(
+                        out,
+                        Axiom::SubClassOf(
+                            thing(),
+                            ClassExpression::ObjectMaxCardinality(
+                                natural_of(free),
+                                data_super(),
+                                Some(Box::new(free_integers(low, high, found))),
+                            ),
+                        ),
+                    )
+                } else {
+                    Some(out)
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+fn between_axiom(
+    context: &Context,
+    low: usize,
+    high: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (low < context.cuts.len()) & (high < context.cuts.len()) {
+        if same_value(&context.cuts[low].value, &context.cuts[high].value) {
+            match value_index(&context.values, &context.cuts[low].value, 0) {
+                Some(index) => push(
+                    out,
+                    Axiom::SubClassOf(
+                        and(cut_class(low), not(cut_class(high))),
+                        ClassExpression::ObjectOneOf(NonEmpty {
+                            first: value_individual(index),
+                            rest: Vec::new(),
+                        }),
+                    ),
+                ),
+                None => None,
+            }
+        } else if context.kinds.integer {
+            gap_axiom(context, low, high, capacity, out)
+        } else {
+            Some(out)
+        }
+    } else {
+        None
+    }
+}
+/// `out` with the axioms of the cuts from `order[position..]` on, in order:
+/// each cut after the first inside the one before it, with the axiom between
+/// the two.
+fn chain_axioms(
+    context: &Context,
+    order: &Vec<usize>,
+    position: usize,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if (0 < position) & (position < order.len()) {
+        let low = order[position - 1];
+        let high = order[position];
+        match push(out, Axiom::SubClassOf(cut_class(high), cut_class(low))) {
+            Some(out) => match between_axiom(context, low, high, capacity, out) {
+                Some(out) => chain_axioms(context, order, position + 1, capacity, out),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with every data property of `context.data[index..]` below `U`.
+fn super_axioms(
+    context: &Context,
+    index: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if index < context.data.len() {
+        match data_role(context, &context.data[index]) {
+            Some(role) => match push(
+                out,
+                Axiom::SubObjectPropertyOf(SubObjectPropertyExpression::Single(role), data_super()),
+            ) {
+                Some(out) => super_axioms(context, index + 1, out),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the first cut inside the reals, if there is a cut.
+fn least_axiom(order: &Vec<usize>, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    if 0 < order.len() {
+        push(
+            out,
+            Axiom::SubClassOf(cut_class(order[0]), kind_class(Kind::Real)),
+        )
+    } else {
+        Some(out)
+    }
+}
+/// Whether a literal value is no number or a number short enough to compare.
+fn value_fits(value: &DataValue) -> bool {
+    if numeric(value) {
+        fits(value)
+    } else {
+        true
+    }
+}
+/// Whether every literal value of `values[index..]` is no number or a number
+/// short enough to compare.
+fn values_fit(context: &Context, index: usize) -> bool {
+    if index < context.values.len() {
+        if value_fits(&context.values[index]) {
+            values_fit(context, index + 1)
+        } else {
+            false
+        }
+    } else {
+        true
+    }
+}
+/// Whether the cuts are of numbers short enough to compare, and every number
+/// among the literal values has both its cuts.
+fn encodable(context: &Context) -> bool {
+    cuts_fit(&context.cuts, 0) & values_fit(context, 0)
+}
+/// `out` with the axioms of the ordered numbers, when numbers are ordered: the
+/// first cut inside the reals and the chain of the cuts, and when the integers
+/// are in use, every data property below `U`.
+fn region_axioms(
+    context: &Context,
+    capacity: usize,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if context.kinds.ordered {
+        let order = cut_order(&context.cuts);
+        let out = match least_axiom(&order, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match chain_axioms(context, &order, 1, capacity, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        if context.kinds.integer {
+            super_axioms(context, 0, out)
+        } else {
+            Some(out)
+        }
+    } else {
+        Some(out)
+    }
+}
 /// The encoding of a closure in the context: its axioms' encodings, then the
-/// axioms of the object and data properties, of the kinds and of the literal
-/// values, and the further individual that is no data node.
-pub fn encode(context: &Context, items: &Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+/// axioms of the object and data properties, of the kinds, of the ordered
+/// numbers and of the literal values, and the further individual that is no
+/// data node. `capacity` bounds the counts of the data restrictions of the
+/// closure and its questions together.
+pub fn encode(
+    context: &Context,
+    capacity: usize,
+    items: &Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if !encodable(context) {
+        return None;
+    }
     let out = match encode_items(context, items, 0, Vec::new()) {
         Some(out) => out,
         None => return None,
@@ -2046,6 +2791,10 @@ pub fn encode(context: &Context, items: &Vec<AnnotatedAxiom>) -> Option<Vec<Anno
         None => return None,
     };
     let out = match kind_axioms(context, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match region_axioms(context, capacity, out) {
         Some(out) => out,
         None => return None,
     };
@@ -2079,7 +2828,10 @@ fn list_individuals(
 }
 /// `nodes` with the individuals of the nominals and value restrictions of a
 /// class expression.
-fn class_individuals(nodes: Vec<Individual>, class: &ClassExpression) -> Option<Vec<Individual>> {
+pub(crate) fn class_individuals(
+    nodes: Vec<Individual>,
+    class: &ClassExpression,
+) -> Option<Vec<Individual>> {
     match class {
         ClassExpression::ObjectIntersectionOf(members)
         | ClassExpression::ObjectUnionOf(members) => members_individuals(nodes, members),
@@ -2165,7 +2917,7 @@ fn axiom_individuals(nodes: Vec<Individual>, axiom: &Axiom) -> Option<Vec<Indivi
     }
 }
 /// `nodes` with the individuals that the axioms of `items[index..]` mention.
-fn items_individuals(
+pub(crate) fn items_individuals(
     nodes: Vec<Individual>,
     items: &Vec<AnnotatedAxiom>,
     index: usize,
@@ -2177,6 +2929,23 @@ fn items_individuals(
         }
     } else {
         Some(nodes)
+    }
+}
+/// Whether the named individual is among `nodes` and its name is not the
+/// encoding's.
+fn named_known(nodes: &Vec<Individual>, individual: &NamedIndividual) -> bool {
+    if reserved(&individual.iri.spelling) {
+        false
+    } else {
+        position(
+            nodes,
+            &Individual::Named(NamedIndividual {
+                iri: Iri {
+                    spelling: copy_bytes(&individual.iri.spelling),
+                },
+            }),
+            0,
+        ) != 0
     }
 }
 /// Whether the individual is named and among `nodes`.
@@ -2233,12 +3002,117 @@ fn classes_known(nodes: &Vec<Individual>, classes: &Vec<ClassExpression>, index:
 // Queries
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// The counts of the data restrictions
+// ---------------------------------------------------------------------------
+
+/// The cap on the counts of data restrictions: a closure and its questions
+/// together must count fewer values.
+pub(crate) const LIMIT: usize = usize::MAX / 16;
+/// Room for the counts of the data restrictions of the questions to a
+/// prepared closure.
+const QUESTION_ROOM: usize = 64;
+/// `total + amount`, or `LIMIT` when that is not less.
+pub(crate) fn add_count(total: usize, amount: usize) -> usize {
+    if (total < LIMIT) & (amount < LIMIT) {
+        if total + amount < LIMIT {
+            total + amount
+        } else {
+            LIMIT
+        }
+    } else {
+        LIMIT
+    }
+}
+/// `total` plus a natural number, capped at `LIMIT`.
+fn natural_count(value: &Natural, total: usize) -> usize {
+    match value {
+        Natural::Zero => total,
+        Natural::Succ(inner) => natural_count(inner, add_count(total, 1)),
+    }
+}
+/// `total` plus the counts of the data restrictions of a class expression,
+/// each restriction counting the values it is decided by, capped at `LIMIT`.
+pub(crate) fn class_count(class: &ClassExpression, total: usize) -> usize {
+    match class {
+        ClassExpression::Class(_) => total,
+        ClassExpression::ObjectIntersectionOf(members)
+        | ClassExpression::ObjectUnionOf(members) => members_count(members, total),
+        ClassExpression::ObjectComplementOf(inner) => class_count(inner, total),
+        ClassExpression::ObjectOneOf(_) => total,
+        ClassExpression::ObjectSomeValuesFrom(_, filler)
+        | ClassExpression::ObjectAllValuesFrom(_, filler) => class_count(filler, total),
+        ClassExpression::ObjectHasValue(_, _) => total,
+        ClassExpression::ObjectHasSelf(_) => total,
+        ClassExpression::ObjectMinCardinality(_, _, filler)
+        | ClassExpression::ObjectMaxCardinality(_, _, filler)
+        | ClassExpression::ObjectExactCardinality(_, _, filler) => match filler {
+            Some(filler) => class_count(filler, total),
+            None => total,
+        },
+        ClassExpression::DataSomeValuesFrom(_, _)
+        | ClassExpression::DataAllValuesFrom(_, _)
+        | ClassExpression::DataHasValue(_, _) => add_count(total, 1),
+        ClassExpression::DataMinCardinality(count, _, _) => natural_count(count, total),
+        ClassExpression::DataMaxCardinality(count, _, _) => {
+            natural_count(count, add_count(total, 1))
+        }
+        ClassExpression::DataExactCardinality(count, _, _) => {
+            natural_count(count, natural_count(count, add_count(total, 1)))
+        }
+    }
+}
+fn classes_count(classes: &Vec<ClassExpression>, index: usize, total: usize) -> usize {
+    if index < classes.len() {
+        classes_count(classes, index + 1, class_count(&classes[index], total))
+    } else {
+        total
+    }
+}
+fn members_count(members: &AtLeastTwo<ClassExpression>, total: usize) -> usize {
+    classes_count(
+        &members.rest,
+        0,
+        class_count(&members.second, class_count(&members.first, total)),
+    )
+}
+/// `total` plus the counts of the data restrictions of an axiom's class
+/// expressions.
+fn axiom_count(axiom: &Axiom, total: usize) -> usize {
+    match axiom {
+        Axiom::SubClassOf(sub, sup) => class_count(sup, class_count(sub, total)),
+        Axiom::EquivalentClasses(members)
+        | Axiom::DisjointClasses(members)
+        | Axiom::DisjointUnion(_, members) => members_count(members, total),
+        Axiom::ObjectPropertyDomain(_, class)
+        | Axiom::ObjectPropertyRange(_, class)
+        | Axiom::DataPropertyDomain(_, class)
+        | Axiom::ClassAssertion(class, _) => class_count(class, total),
+        _ => total,
+    }
+}
+pub(crate) fn items_count(items: &Vec<AnnotatedAxiom>, index: usize, total: usize) -> usize {
+    if index < items.len() {
+        items_count(items, index + 1, axiom_count(&items[index].axiom, total))
+    } else {
+        total
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The queries
+// ---------------------------------------------------------------------------
+
 /// A closure prepared for the queries: as it is when it has no data
-/// properties, literals or datatypes, and otherwise its context, the
-/// individuals it mentions and its encoding.
+/// properties, literals, datatypes or keys, otherwise its context, the
+/// individuals it mentions, its encoding and the room its encoding leaves for
+/// the counts of the data restrictions of a question, and for a closure with
+/// keys the same with its keys' class expressions included and its encoding
+/// with the keys (`key_ontology`).
 pub enum Prepared {
     Plain(shi_ontology::Prepared),
-    Encoded(Context, Vec<Individual>, shi_ontology::Prepared),
+    Encoded(Context, Vec<Individual>, shi_ontology::Prepared, usize),
+    Keyed(Context, Vec<Individual>, shi_ontology::Prepared, usize),
 }
 /// Whether the context has no data properties, literal values or datatypes.
 fn data_free(context: &Context) -> bool {
@@ -2249,38 +3123,51 @@ fn data_free(context: &Context) -> bool {
         && !context.kinds.string
         && !context.kinds.plain
         && !context.kinds.boolean
+        && !context.kinds.real
+        && !context.kinds.rational
+        && !context.kinds.ordered
 }
-/// The closure prepared in the context: as it is when the context has no data,
-/// and otherwise encoded.
-fn prepare_in(items: &Vec<AnnotatedAxiom>, context: Context) -> Option<Prepared> {
-    if data_free(&context) {
+/// The closure prepared in the context: encoded with its keys when it has
+/// keys, as it is when the context has no data, and otherwise encoded; with
+/// `room` for the counts of a question's data restrictions.
+fn prepare_in(items: &Vec<AnnotatedAxiom>, context: Context, room: usize) -> Option<Prepared> {
+    if key_ontology::has_keys(items, 0) {
+        key_ontology::prepare(items, context, room)
+    } else if data_free(&context) {
         match shi_ontology::prepare(items) {
             Some(prepared) => Some(Prepared::Plain(prepared)),
             None => None,
         }
     } else {
-        match (
-            encode(&context, items),
-            items_individuals(Vec::new(), items, 0),
-        ) {
-            (Some(encoded), Some(nodes)) => match shi_ontology::prepare(&encoded) {
-                Some(prepared) => Some(Prepared::Encoded(context, nodes, prepared)),
-                None => None,
-            },
-            _ => None,
+        let capacity = add_count(items_count(items, 0, 0), room);
+        if capacity < LIMIT {
+            match (
+                encode(&context, capacity, items),
+                items_individuals(Vec::new(), items, 0),
+            ) {
+                (Some(encoded), Some(nodes)) => match shi_ontology::prepare(&encoded) {
+                    Some(prepared) => Some(Prepared::Encoded(context, nodes, prepared, room)),
+                    None => None,
+                },
+                _ => None,
+            }
+        } else {
+            None
         }
     }
 }
 /// Prepare a closure for queries about it; a query that uses a literal value,
-/// datatype, object or data property outside the closure gets no answer.
+/// datatype, object or data property outside the closure, or whose data
+/// restrictions count more than 64 values, gets no answer.
 pub fn prepare(items: &Vec<AnnotatedAxiom>) -> Option<Prepared> {
-    prepare_in(items, with_truths(closure_context(items)))
+    prepare_in(items, finished(closure_context(items)), QUESTION_ROOM)
 }
 /// Whether the prepared closure has a model.
 pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
     match prepared {
         Prepared::Plain(prepared) => shi_ontology::prepared_consistent(prepared),
-        Prepared::Encoded(_, _, prepared) => shi_ontology::prepared_consistent(prepared),
+        Prepared::Encoded(_, _, prepared, _) => shi_ontology::prepared_consistent(prepared),
+        Prepared::Keyed(_, _, prepared, _) => shi_ontology::prepared_consistent(prepared),
     }
 }
 /// Whether some model of the prepared closure has an instance of the class
@@ -2288,8 +3175,26 @@ pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
 pub fn prepared_class_satisfiable(prepared: &Prepared, class: &ClassExpression) -> Option<bool> {
     match prepared {
         Prepared::Plain(prepared) => shi_ontology::prepared_class_satisfiable(prepared, class),
-        Prepared::Encoded(context, nodes, prepared) => {
+        Prepared::Encoded(context, nodes, prepared, room) => {
             if !class_known(nodes, class) {
+                return None;
+            }
+            if *room < class_count(class, 0) {
+                return None;
+            }
+            match encode_class(context, class) {
+                Some(encoded) => shi_ontology::prepared_class_satisfiable(
+                    prepared,
+                    &and(encoded, object_class()),
+                ),
+                None => None,
+            }
+        }
+        Prepared::Keyed(context, nodes, prepared, room) => {
+            if !class_known(nodes, class) {
+                return None;
+            }
+            if *room < class_count(class, 0) {
                 return None;
             }
             match encode_class(context, class) {
@@ -2311,8 +3216,25 @@ pub fn prepared_subsumed(
 ) -> Option<bool> {
     match prepared {
         Prepared::Plain(prepared) => shi_ontology::prepared_subsumed(prepared, sub, sup),
-        Prepared::Encoded(context, nodes, prepared) => {
+        Prepared::Encoded(context, nodes, prepared, room) => {
             if !(class_known(nodes, sub) && class_known(nodes, sup)) {
+                return None;
+            }
+            if *room < class_count(sup, class_count(sub, 0)) {
+                return None;
+            }
+            match (encode_class(context, sub), encode_class(context, sup)) {
+                (Some(sub), Some(sup)) => {
+                    shi_ontology::prepared_subsumed(prepared, &and(sub, object_class()), &sup)
+                }
+                _ => None,
+            }
+        }
+        Prepared::Keyed(context, nodes, prepared, room) => {
+            if !(class_known(nodes, sub) && class_known(nodes, sup)) {
+                return None;
+            }
+            if *room < class_count(sup, class_count(sub, 0)) {
                 return None;
             }
             match (encode_class(context, sub), encode_class(context, sup)) {
@@ -2325,7 +3247,9 @@ pub fn prepared_subsumed(
     }
 }
 /// Whether the named individual is an instance of the class expression in
-/// every model of the prepared closure.
+/// every model of the prepared closure; for a closure with keys only about an
+/// individual the closure names, since keys apply to the named individuals of
+/// the vocabulary.
 pub fn prepared_instance_of(
     prepared: &Prepared,
     individual: &NamedIndividual,
@@ -2335,8 +3259,27 @@ pub fn prepared_instance_of(
         Prepared::Plain(prepared) => {
             shi_ontology::prepared_instance_of(prepared, individual, class)
         }
-        Prepared::Encoded(context, nodes, prepared) => {
+        Prepared::Encoded(context, nodes, prepared, room) => {
             if reserved(&individual.iri.spelling) || !class_known(nodes, class) {
+                return None;
+            }
+            if *room < class_count(class, 0) {
+                return None;
+            }
+            match encode_class(context, class) {
+                Some(encoded) => shi_ontology::prepared_instance_of(
+                    prepared,
+                    individual,
+                    &or(encoded, data_class()),
+                ),
+                None => None,
+            }
+        }
+        Prepared::Keyed(context, nodes, prepared, room) => {
+            if !named_known(nodes, individual) || !class_known(nodes, class) {
+                return None;
+            }
+            if *room < class_count(class, 0) {
                 return None;
             }
             match encode_class(context, class) {
@@ -2351,17 +3294,17 @@ pub fn prepared_instance_of(
     }
 }
 /// Whether the closure has a model, for every datatype map that is the OWL 2
-/// map on the five datatypes.
+/// map on the datatypes of `datatypes`.
 pub fn consistent(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
-    match prepare(items) {
+    match prepare_in(items, finished(closure_context(items)), 0) {
         Some(prepared) => prepared_consistent(&prepared),
         None => None,
     }
 }
 /// Whether some model of the closure has an instance of the class expression.
 pub fn class_satisfiable(items: &Vec<AnnotatedAxiom>, class: &ClassExpression) -> Option<bool> {
-    let context = with_truths(class_context(closure_context(items), class));
-    match prepare_in(items, context) {
+    let context = finished(class_context(closure_context(items), class));
+    match prepare_in(items, context, class_count(class, 0)) {
         Some(prepared) => prepared_class_satisfiable(&prepared, class),
         None => None,
     }
@@ -2373,11 +3316,11 @@ pub fn subsumed(
     sub: &ClassExpression,
     sup: &ClassExpression,
 ) -> Option<bool> {
-    let context = with_truths(class_context(
+    let context = finished(class_context(
         class_context(closure_context(items), sub),
         sup,
     ));
-    match prepare_in(items, context) {
+    match prepare_in(items, context, class_count(sup, class_count(sub, 0))) {
         Some(prepared) => prepared_subsumed(&prepared, sub, sup),
         None => None,
     }
@@ -2389,8 +3332,8 @@ pub fn instance_of(
     individual: &NamedIndividual,
     class: &ClassExpression,
 ) -> Option<bool> {
-    let context = with_truths(class_context(closure_context(items), class));
-    match prepare_in(items, context) {
+    let context = finished(class_context(closure_context(items), class));
+    match prepare_in(items, context, class_count(class, 0)) {
         Some(prepared) => prepared_instance_of(&prepared, individual, class),
         None => None,
     }

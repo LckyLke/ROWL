@@ -1,7 +1,8 @@
 use rowl::reasoner::{default_limits, named, LoadError, Reasoner};
 
-const EXAMPLES: [&[u8]; 4] = [
+const EXAMPLES: [&[u8]; 5] = [
     include_bytes!("../../../examples/medication-safety.ofn"),
+    include_bytes!("../../../examples/medication-dose.ofn"),
     include_bytes!("../../../examples/maintenance-classes.ofn"),
     include_bytes!("../../../examples/maintenance-individuals.ofn"),
     include_bytes!("../../../examples/maintenance-roles.ofn"),
@@ -159,4 +160,36 @@ fn ntriples_loading_reports_why_it_fails() {
         Reasoner::from_ntriples(undeclared),
         Err(LoadError::Graph)
     ));
+}
+
+#[test]
+fn doses_are_checked_against_their_limits() {
+    let source = include_bytes!("../../../examples/medication-dose.ofn");
+    let Ok(reasoner) = Reasoner::from_functional(source, &default_limits()) else {
+        panic!("the example must load");
+    };
+    let dose = |local: &str| format!("https://example.org/dose/{local}");
+    assert_eq!(reasoner.consistent(), Some(true));
+    let alert = named(&dose("DoseAlert"));
+    // rx1: 3000 mg for a child of 8; rx3: 4000.5 mg; rx4: 8001/2 mg, the same.
+    for (rx, expected) in [("rx1", true), ("rx2", false), ("rx3", true), ("rx4", true)] {
+        assert_eq!(
+            reasoner.instance_of(&dose(rx), &alert),
+            Some(expected),
+            "{rx}"
+        );
+    }
+    assert_eq!(
+        reasoner.instance_of(&dose("rx1"), &named(&dose("Child"))),
+        Some(true)
+    );
+    // A hard daily maximum of 4000 mg makes the records inconsistent.
+    let text = std::str::from_utf8(source).expect("the example is UTF-8");
+    let limited = text.trim_end().trim_end_matches(')').to_string()
+        + "SubClassOf(:Paracetamol DataAllValuesFrom(:dailyDoseMg \
+           DatatypeRestriction(xsd:decimal xsd:maxInclusive \"4000\"^^xsd:decimal)))\n)\n";
+    let Ok(strict) = Reasoner::from_functional(limited.as_bytes(), &default_limits()) else {
+        panic!("the limited example must load");
+    };
+    assert_eq!(strict.consistent(), Some(false));
 }
