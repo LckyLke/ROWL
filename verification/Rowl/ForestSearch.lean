@@ -1152,13 +1152,52 @@ def NodeNeeds (P : completion.Problem) (F : forest.Forest) (x : Nat) (c : Usize)
   (∃ u ∈ P.unfoldings.val, HasAtom P.entries.val (labelOf F.nodes.val x) u.class ∧ c = u.concept) ∨
   (∃ n, F.nodes.val[x]? = some n ∧ (n.tree = true ∨ F.same.val.length ≤ x) ∧ c = n.seed)
 
-theorem missing_requirement_correct (P : completion.Problem) (F : forest.Forest) (label : alloc.vec.Vec Usize)
-    (x index : Usize) :
-    ∃ r, forest.missing_requirement P F label x index = .ok r ∧
-      (∀ c, r = some c → (∃ q ∈ P.requirements.val.drop index.val, rep F q.node = x ∧ q.concept = c) ∧
-        ¬ Holds P.entries.val label.val c.val) ∧
-      (r = none → ∀ q ∈ P.requirements.val.drop index.val, rep F q.node = x →
-        Holds P.entries.val label.val q.concept.val) := by
+/-- What a node needs apart from the requirements of individuals: the TBox
+    concept, the concept of an unfolding of an atom it has, and the seed of a
+    tree node or of a new named node. -/
+def LocalNeeds (P : completion.Problem) (F : forest.Forest) (x : Nat) (c : Usize) : Prop :=
+  c = P.axioms ∨
+  (∃ u ∈ P.unfoldings.val, HasAtom P.entries.val (labelOf F.nodes.val x) u.class ∧ c = u.concept) ∨
+  (∃ n, F.nodes.val[x]? = some n ∧ (n.tree = true ∨ F.same.val.length ≤ x) ∧ c = n.seed)
+
+/-- `unmet` decides whether `x` is an active node whose label does not satisfy
+    the concept `c`. -/
+private theorem unmet_correct (P : completion.Problem) (F : forest.Forest) (x c : Usize) :
+    forest.unmet P F x c =
+      .ok (decide (Active F.nodes.val x.val ∧ ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val)) := by
+  rw [forest.unmet]
+  by_cases inside : x.val < F.nodes.val.length
+  · have lookup : F.nodes.index_usize x = .ok F.nodes.val[x.val] := by
+      simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem inside]
+    have at_x : F.nodes.val[x.val]? = some F.nodes.val[x.val] := List.getElem?_eq_getElem inside
+    have labelIs : labelOf F.nodes.val x.val = F.nodes.val[x.val].label.val := by simp [labelOf,at_x]
+    have holdsRun := holds_correct P.entries F.nodes.val[x.val].label c.val c rfl
+    by_cases act : F.nodes.val[x.val].active = true
+    · have activeX : Active F.nodes.val x.val := ⟨_,at_x,act⟩
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,alloc.vec.Vec.index_slice_index,lookup,act,holdsRun,
+        activeX,labelIs]
+    · have notActive : ¬ Active F.nodes.val x.val := by
+        rintro ⟨n,at_n,yes⟩
+        rw [at_x] at at_n
+        cases at_n
+        exact act yes
+      simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,alloc.vec.Vec.index_slice_index,lookup,act,notActive]
+  · have notActive : ¬ Active F.nodes.val x.val := by
+      rintro ⟨n,at_n,-⟩
+      have := (List.getElem?_eq_some_iff.mp at_n).1
+      omega
+    simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,notActive]
+
+/-- One pass over the requirements: the first of `requirements[index..]` whose
+    individual's node is active and does not satisfy it, with that node, or
+    none when every such requirement holds at its node. -/
+theorem missing_requirement_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) :
+    ∃ r, forest.missing_requirement P F index = .ok r ∧
+      (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧
+        (∃ q ∈ P.requirements.val.drop index.val, rep F q.node = x ∧ q.concept = c) ∧
+        ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
+      (r = none → ∀ q ∈ P.requirements.val.drop index.val, Active F.nodes.val (rep F q.node).val →
+        Holds P.entries.val (labelOf F.nodes.val (rep F q.node).val) q.concept.val) := by
   rw [forest.missing_requirement]
   by_cases more : index.val < P.requirements.val.length
   · have lookup : P.requirements.index_usize index = .ok P.requirements.val[index.val] := by
@@ -1169,39 +1208,35 @@ theorem missing_requirement_correct (P : completion.Problem) (F : forest.Forest)
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    have holdsRun := holds_correct P.entries label P.requirements.val[index.val].concept.val
-      P.requirements.val[index.val].concept rfl
-    by_cases missing : rep F P.requirements.val[index.val].node = x ∧
-        ¬ Holds P.entries.val label.val P.requirements.val[index.val].concept.val
-    · refine ⟨some P.requirements.val[index.val].concept,?_,?_,by simp⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,lookup,representative_correct,missing.1,holdsRun,
-          missing.2]
-      · intro c same
-        cases same
-        rw [split]
-        exact ⟨⟨_,List.mem_cons_self ..,missing.1,rfl⟩,missing.2⟩
-    · obtain ⟨r,run,found,absent⟩ := missing_requirement_correct P F label x index'
+    have unmetRun := unmet_correct P F (rep F P.requirements.val[index.val].node)
+      P.requirements.val[index.val].concept
+    by_cases missing : Active F.nodes.val (rep F P.requirements.val[index.val].node).val ∧
+        ¬ Holds P.entries.val (labelOf F.nodes.val (rep F P.requirements.val[index.val].node).val)
+          P.requirements.val[index.val].concept.val
+    · have decided := decide_eq_true missing
+      refine ⟨some (rep F P.requirements.val[index.val].node, P.requirements.val[index.val].concept),?_,?_,
+        by simp⟩
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,representative_correct,unmetRun,decided]
+      · intro x c same
+        simp only [Option.some.injEq,Prod.mk.injEq] at same
+        obtain ⟨rfl,rfl⟩ := same
+        exact ⟨missing.1,⟨_,by rw [split]; exact List.mem_cons_self ..,rfl,rfl⟩,missing.2⟩
+    · have decided := decide_eq_false missing
+      obtain ⟨r,run,found,absent⟩ := missing_requirement_correct P F index'
       refine ⟨r,?_,?_,?_⟩
-      · have quiet : (if rep F P.requirements.val[index.val].node = x then
-            (do let b ← completion.holds P.entries label P.requirements.val[index.val].concept; ok (¬ b))
-            else ok false) = .ok false := by
-          by_cases at_x : rep F P.requirements.val[index.val].node = x
-          · have : Holds P.entries.val label.val P.requirements.val[index.val].concept.val := by
-              by_contra fails; exact missing ⟨at_x,fails⟩
-            simp [at_x,holdsRun,this]
-          · simp [at_x]
-        simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
-          lookup,bind_ok,representative_correct,quiet,Bool.false_eq_true,advance,run]
-      · intro c same
-        obtain ⟨⟨q,member,at_x,value⟩,fails⟩ := found c same
+      · simp only [alloc.vec.Vec.len_val,UScalar.lt_equiv,more,↓reduceIte,alloc.vec.Vec.index_slice_index,
+          lookup,bind_ok,representative_correct,unmetRun,decided,Bool.false_eq_true,advance,run]
+      · intro x c same
+        obtain ⟨act,⟨q,member,at_q,value⟩,fails⟩ := found x c same
         rw [nextIndex] at member
-        exact ⟨⟨q,by rw [split]; exact List.mem_cons_of_mem _ member,at_x,value⟩,fails⟩
-      · intro none q member at_x
+        exact ⟨act,⟨q,by rw [split]; exact List.mem_cons_of_mem _ member,at_q,value⟩,fails⟩
+      · intro none q member act
         rw [split] at member
         rcases List.mem_cons.mp member with rfl | later
         · by_contra fails
-          exact missing ⟨at_x,fails⟩
-        · exact absent none q (by rw [nextIndex]; exact later) at_x
+          exact missing ⟨act,fails⟩
+        · exact absent none q (by rw [nextIndex]; exact later) act
   · have empty : P.requirements.val.drop index.val = [] := List.drop_eq_nil_iff.mpr (by omega)
     refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,more],by simp,?_⟩
     intro _ q member
@@ -1212,8 +1247,8 @@ decreasing_by all_goals omega
 
 theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usize) (triggers : TriggersOk P) :
     ∃ r, forest.missing_at P F x = .ok r ∧
-      (∀ c, r = some c → NodeNeeds P F x.val c ∧ ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
-      (r = none → x.val < F.nodes.val.length → ∀ c, NodeNeeds P F x.val c →
+      (∀ c, r = some c → LocalNeeds P F x.val c ∧ ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
+      (r = none → x.val < F.nodes.val.length → ∀ c, LocalNeeds P F x.val c →
         Holds P.entries.val (labelOf F.nodes.val x.val) c.val) := by
   rw [forest.missing_at]
   by_cases inside : x.val < F.nodes.val.length
@@ -1222,87 +1257,75 @@ theorem missing_at_correct (P : completion.Problem) (F : forest.Forest) (x : Usi
     have at_x : F.nodes.val[x.val]? = some F.nodes.val[x.val] := List.getElem?_eq_getElem inside
     have labelIs : labelOf F.nodes.val x.val = F.nodes.val[x.val].label.val := by simp [labelOf,at_x]
     rw [labelIs]
-    obtain ⟨r1,run1,found1,absent1⟩ := missing_requirement_correct P F F.nodes.val[x.val].label x 0#usize
-    simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found1 absent1
-    cases r1 with
-    | some c =>
-      refine ⟨some c,?_,?_,by simp⟩
-      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1]
-      · intro c' same
-        cases same
-        obtain ⟨⟨q,member,at_q,value⟩,fails⟩ := found1 c rfl
-        exact ⟨.inl ⟨q,member,by rw [at_q],value.symm⟩,fails⟩
-    | none =>
-      have axiomsRun := holds_correct P.entries F.nodes.val[x.val].label P.axioms.val P.axioms rfl
-      by_cases axiomsHold : Holds P.entries.val F.nodes.val[x.val].label.val P.axioms.val
-      · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P F.nodes.val[x.val].label triggers 0#usize
-        simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found2 absent2
-        cases r2 with
-        | some c =>
-          refine ⟨some c,?_,?_,by simp⟩
-          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1,axiomsRun,axiomsHold,run2]
-          · intro c' same
-            cases same
-            obtain ⟨⟨u,member,atom,value⟩,fails⟩ := found2 c rfl
-            exact ⟨.inr (.inr (.inl ⟨u,member,by rw [labelIs]; exact atom,value.symm⟩)),fails⟩
-        | none =>
-          have seedRun := holds_correct P.entries F.nodes.val[x.val].label F.nodes.val[x.val].seed.val
-            F.nodes.val[x.val].seed rfl
-          have rest : ∀ c, NodeNeeds P F x.val c → (∀ n, F.nodes.val[x.val]? = some n →
-              (n.tree = true ∨ F.same.val.length ≤ x.val) →
-              c = n.seed → Holds P.entries.val F.nodes.val[x.val].label.val c.val) →
-              Holds P.entries.val F.nodes.val[x.val].label.val c.val := by
-            intro c needs seedHolds
-            rcases needs with ⟨q,member,at_q,rfl⟩ | rfl | ⟨u,member,atom,rfl⟩ | ⟨n,at_n,seeded,rfl⟩
-            · exact absent1 rfl q member (UScalar.eq_of_val_eq at_q)
-            · exact axiomsHold
-            · rw [labelIs] at atom; exact absent2 rfl u member atom
-            · exact seedHolds n at_n seeded rfl
-          by_cases seededX : Seeded F x.val
-          · have seededHere : F.nodes.val[x.val].tree = true ∨ F.same.val.length ≤ x.val := by
-              obtain ⟨n,at_n,cases⟩ := seededX
-              rw [at_x] at at_n
-              cases at_n
-              exact cases
-            by_cases seedHolds : Holds P.entries.val F.nodes.val[x.val].label.val F.nodes.val[x.val].seed.val
-            · refine ⟨none,?_,by simp,?_⟩
-              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1,axiomsRun,axiomsHold,run2,
-                  seeded_correct,seededX,seedRun,seedHolds]
-              · intro _ _ c needs
-                refine rest c needs ?_
-                intro n at_n _ rfl
-                rw [at_x] at at_n
-                cases at_n
-                exact seedHolds
-            · refine ⟨some F.nodes.val[x.val].seed,?_,?_,by simp⟩
-              · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1,axiomsRun,axiomsHold,run2,
-                  seeded_correct,seededX,seedRun,seedHolds]
-              · intro c same
-                cases same
-                exact ⟨.inr (.inr (.inr ⟨_,at_x,seededHere,rfl⟩)),seedHolds⟩
+    have axiomsRun := holds_correct P.entries F.nodes.val[x.val].label P.axioms.val P.axioms rfl
+    by_cases axiomsHold : Holds P.entries.val F.nodes.val[x.val].label.val P.axioms.val
+    · obtain ⟨r2,run2,found2,absent2⟩ := missing_unfolding_correct P F.nodes.val[x.val].label triggers 0#usize
+      simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found2 absent2
+      cases r2 with
+      | some c =>
+        refine ⟨some c,?_,?_,by simp⟩
+        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,axiomsRun,axiomsHold,run2]
+        · intro c' same
+          cases same
+          obtain ⟨⟨u,member,atom,value⟩,fails⟩ := found2 c rfl
+          exact ⟨.inr (.inl ⟨u,member,by rw [labelIs]; exact atom,value.symm⟩),fails⟩
+      | none =>
+        have seedRun := holds_correct P.entries F.nodes.val[x.val].label F.nodes.val[x.val].seed.val
+          F.nodes.val[x.val].seed rfl
+        have rest : ∀ c, LocalNeeds P F x.val c → (∀ n, F.nodes.val[x.val]? = some n →
+            (n.tree = true ∨ F.same.val.length ≤ x.val) →
+            c = n.seed → Holds P.entries.val F.nodes.val[x.val].label.val c.val) →
+            Holds P.entries.val F.nodes.val[x.val].label.val c.val := by
+          intro c needs seedHolds
+          rcases needs with rfl | ⟨u,member,atom,rfl⟩ | ⟨n,at_n,seeded,rfl⟩
+          · exact axiomsHold
+          · rw [labelIs] at atom; exact absent2 rfl u member atom
+          · exact seedHolds n at_n seeded rfl
+        by_cases seededX : Seeded F x.val
+        · have seededHere : F.nodes.val[x.val].tree = true ∨ F.same.val.length ≤ x.val := by
+            obtain ⟨n,at_n,cases⟩ := seededX
+            rw [at_x] at at_n
+            cases at_n
+            exact cases
+          by_cases seedHolds : Holds P.entries.val F.nodes.val[x.val].label.val F.nodes.val[x.val].seed.val
           · refine ⟨none,?_,by simp,?_⟩
-            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1,axiomsRun,axiomsHold,run2,
-                seeded_correct,seededX]
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,axiomsRun,axiomsHold,run2,
+                seeded_correct,seededX,seedRun,seedHolds]
             · intro _ _ c needs
               refine rest c needs ?_
-              intro n at_n isSeeded _
-              exact absurd ⟨n,at_n,isSeeded⟩ seededX
-      · refine ⟨some P.axioms,?_,?_,by simp⟩
-        · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,run1,axiomsRun,axiomsHold]
-        · intro c same
-          cases same
-          exact ⟨.inr (.inl rfl),axiomsHold⟩
+              intro n at_n _ rfl
+              rw [at_x] at at_n
+              cases at_n
+              exact seedHolds
+          · refine ⟨some F.nodes.val[x.val].seed,?_,?_,by simp⟩
+            · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,axiomsRun,axiomsHold,run2,
+                seeded_correct,seededX,seedRun,seedHolds]
+            · intro c same
+              cases same
+              exact ⟨.inr (.inr ⟨_,at_x,seededHere,rfl⟩),seedHolds⟩
+        · refine ⟨none,?_,by simp,?_⟩
+          · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,axiomsRun,axiomsHold,run2,
+              seeded_correct,seededX]
+          · intro _ _ c needs
+            refine rest c needs ?_
+            intro n at_n isSeeded _
+            exact absurd ⟨n,at_n,isSeeded⟩ seededX
+    · refine ⟨some P.axioms,?_,?_,by simp⟩
+      · simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside,lookup,axiomsRun,axiomsHold]
+      · intro c same
+        cases same
+        exact ⟨.inl rfl,axiomsHold⟩
   · refine ⟨none,by simp [alloc.vec.Vec.len_val,UScalar.lt_equiv,inside],by simp,?_⟩
     intro _ within
     exact absurd within inside
 
-theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) (triggers : TriggersOk P) :
-    ∃ r, forest.missing_node P F index = .ok r ∧
-      (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧ NodeNeeds P F x.val c ∧
+private theorem missing_local_correct (P : completion.Problem) (F : forest.Forest) (index : Usize) (triggers : TriggersOk P) :
+    ∃ r, forest.missing_local P F index = .ok r ∧
+      (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧ LocalNeeds P F x.val c ∧
         ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
-      (r = none → ∀ y, index.val ≤ y → Active F.nodes.val y → ∀ c, NodeNeeds P F y c →
+      (r = none → ∀ y, index.val ≤ y → Active F.nodes.val y → ∀ c, LocalNeeds P F y c →
         Holds P.entries.val (labelOf F.nodes.val y) c.val) := by
-  rw [forest.missing_node]
+  rw [forest.missing_local]
   by_cases more : index.val < F.nodes.val.length
   · have lookup : F.nodes.index_usize index = .ok F.nodes.val[index.val] := by
       simp [alloc.vec.Vec.index_usize,List.getElem?_eq_getElem more]
@@ -1310,7 +1333,7 @@ theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index
     obtain ⟨index',advance,indexValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : index'.val = index.val+1 := by simpa using indexValue
-    obtain ⟨r,run,found,absent⟩ := missing_node_correct P F index' triggers
+    obtain ⟨r,run,found,absent⟩ := missing_local_correct P F index' triggers
     by_cases active : F.nodes.val[index.val].active = true
     · obtain ⟨here,hereRun,hereFound,hereAbsent⟩ := missing_at_correct P F index triggers
       cases here with
@@ -1345,6 +1368,39 @@ theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (index
     omega
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
+
+/-- An active node that misses something, and what: an unmet requirement of an
+    individual, found in one pass over the requirements, or else what the first
+    active node misses locally; none when every active node has all it needs. -/
+theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (triggers : TriggersOk P) :
+    ∃ r, forest.missing_node P F = .ok r ∧
+      (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧ NodeNeeds P F x.val c ∧
+        ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
+      (r = none → ∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c →
+        Holds P.entries.val (labelOf F.nodes.val y) c.val) := by
+  rw [forest.missing_node]
+  obtain ⟨r1,run1,found1,absent1⟩ := missing_requirement_correct P F 0#usize
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found1 absent1
+  cases r1 with
+  | some pair =>
+    obtain ⟨x,c⟩ := pair
+    refine ⟨some (x,c),by simp [run1],?_,by simp⟩
+    intro x' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    obtain ⟨act,⟨q,member,at_q,value⟩,fails⟩ := found1 x c rfl
+    exact ⟨act,.inl ⟨q,member,by rw [at_q],value.symm⟩,fails⟩
+  | none =>
+    obtain ⟨r2,run2,found2,absent2⟩ := missing_local_correct P F 0#usize triggers
+    refine ⟨r2,by simp [run1,run2],?_,?_⟩
+    · intro x c same
+      obtain ⟨act,needs,fails⟩ := found2 x c same
+      exact ⟨act,.inr needs,fails⟩
+    · intro none y act c needs
+      rcases needs with ⟨q,member,at_q,rfl⟩ | localNeeds
+      · rw [← at_q] at act ⊢
+        exact absent1 rfl q member act
+      · exact absent2 none y (Nat.zero_le _) act c localNeeds
 
 /-- The search along one edge returns a node at either end with an entry the
     other end requires and it lacks, or nothing when both directions are
@@ -3437,7 +3493,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
       (r = some .Done → Complete P h F) := by
   rw [forest.next_step]
   have zero : (0#usize).val = 0 := rfl
-  obtain ⟨r0,run0,found0,absent0⟩ := missing_node_correct P F 0#usize triggers
+  obtain ⟨r0,run0,found0,absent0⟩ := missing_node_correct P F triggers
   cases r0 with
   | some pair =>
     obtain ⟨y,c⟩ := pair
@@ -3605,7 +3661,7 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
     ?_⟩
   intro _
   rw [zero] at absent2 absent3
-  refine ⟨fun y isActive c needs => absent0 rfl y (Nat.zero_le _) isActive c needs,
+  refine ⟨fun y isActive c needs => absent0 rfl y isActive c needs,
     fun child n at_child tree active parentIn s member =>
       absent1 rfl child n (Nat.zero_le _) at_child tree active parentIn s member,
     by simpa using absent2 rfl,by simpa using absent3 rfl,

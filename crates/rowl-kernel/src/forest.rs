@@ -497,26 +497,25 @@ fn satisfying(
         Some(out)
     }
 }
-/// The first requirement of `requirements[index..]` of an individual merged
-/// into `node` that the label does not satisfy.
-fn missing_requirement(
-    problem: &Problem,
-    graph: &Forest,
-    label: &Vec<usize>,
-    node: usize,
-    index: usize,
-) -> Option<usize> {
+/// Whether `node` is an active node whose label does not satisfy `concept`.
+fn unmet(problem: &Problem, graph: &Forest, node: usize, concept: usize) -> bool {
+    if node < graph.nodes.len() {
+        graph.nodes[node].active && !holds(&problem.entries, &graph.nodes[node].label, concept)
+    } else {
+        false
+    }
+}
+/// The first requirement of `requirements[index..]` that the label of the
+/// active node its individual is merged into does not satisfy, with that node.
+/// Each requirement is checked once, at its own node, so finding the work of
+/// all individuals takes one pass over the requirements.
+fn missing_requirement(problem: &Problem, graph: &Forest, index: usize) -> Option<(usize, usize)> {
     if index < problem.requirements.len() {
-        let requirement = &problem.requirements[index];
-        let missing = if representative(graph, requirement.node) == node {
-            !holds(&problem.entries, label, requirement.concept)
+        let node = representative(graph, problem.requirements[index].node);
+        if unmet(problem, graph, node, problem.requirements[index].concept) {
+            Some((node, problem.requirements[index].concept))
         } else {
-            false
-        };
-        if missing {
-            Some(requirement.concept)
-        } else {
-            missing_requirement(problem, graph, label, node, index + 1)
+            missing_requirement(problem, graph, index + 1)
         }
     } else {
         None
@@ -537,28 +536,23 @@ fn seeded(graph: &Forest, node: usize) -> bool {
         false
     }
 }
-/// What the label of the active node `node` misses: a requirement, the TBox
-/// concept, an unfolding, or the seed of a tree node or of a new named node.
+/// What the label of the active node `node` misses locally: the TBox concept,
+/// an unfolding, or the seed of a tree node or of a new named node.
 fn missing_at(problem: &Problem, graph: &Forest, node: usize) -> Option<usize> {
     if node < graph.nodes.len() {
         let label = &graph.nodes[node].label;
-        match missing_requirement(problem, graph, label, node, 0) {
-            Some(concept) => Some(concept),
-            None => {
-                if !holds(&problem.entries, label, problem.axioms) {
-                    Some(problem.axioms)
-                } else {
-                    match missing_unfolding(problem, label, 0) {
-                        Some(concept) => Some(concept),
-                        None => {
-                            if seeded(graph, node) {
-                                if !holds(&problem.entries, label, graph.nodes[node].seed) {
-                                    return Some(graph.nodes[node].seed);
-                                }
-                            }
-                            None
+        if !holds(&problem.entries, label, problem.axioms) {
+            Some(problem.axioms)
+        } else {
+            match missing_unfolding(problem, label, 0) {
+                Some(concept) => Some(concept),
+                None => {
+                    if seeded(graph, node) {
+                        if !holds(&problem.entries, label, graph.nodes[node].seed) {
+                            return Some(graph.nodes[node].seed);
                         }
                     }
+                    None
                 }
             }
         }
@@ -566,8 +560,9 @@ fn missing_at(problem: &Problem, graph: &Forest, node: usize) -> Option<usize> {
         None
     }
 }
-/// The first active node of `nodes[index..]` that misses something, and what.
-fn missing_node(problem: &Problem, graph: &Forest, index: usize) -> Option<(usize, usize)> {
+/// The first active node of `nodes[index..]` that misses something locally,
+/// and what.
+fn missing_local(problem: &Problem, graph: &Forest, index: usize) -> Option<(usize, usize)> {
     if index < graph.nodes.len() {
         let found = if graph.nodes[index].active {
             missing_at(problem, graph, index)
@@ -576,10 +571,18 @@ fn missing_node(problem: &Problem, graph: &Forest, index: usize) -> Option<(usiz
         };
         match found {
             Some(concept) => Some((index, concept)),
-            None => missing_node(problem, graph, index + 1),
+            None => missing_local(problem, graph, index + 1),
         }
     } else {
         None
+    }
+}
+/// An active node that misses something, and what: an unmet requirement of an
+/// individual, or else what the first active node misses locally.
+fn missing_node(problem: &Problem, graph: &Forest) -> Option<(usize, usize)> {
+    match missing_requirement(problem, graph, 0) {
+        Some(found) => Some(found),
+        None => missing_local(problem, graph, 0),
     }
 }
 /// What an edge from `from` to `to` along `role` requires in either direction
@@ -1448,7 +1451,7 @@ fn nominal_node(problem: &Problem, graph: &Forest, index: usize) -> Option<Optio
 /// neighbours (`Stuck` when one has not); `None` when there is no room or a
 /// nominal has no named node.
 fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option<Step> {
-    match missing_node(problem, graph, 0) {
+    match missing_node(problem, graph) {
         Some((node, concept)) => return Some(Step::Add { node, concept }),
         None => {}
     }

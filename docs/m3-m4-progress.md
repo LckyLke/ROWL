@@ -6263,3 +6263,27 @@ reads documents of a few hundred MB.
 
 This block adds no public theorems or definitions. Totals are 5398 audited
 theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.
+
+## Performance: one pass over the requirements in the tableaux
+
+Both tableaux looked for missing work node by node: for every node,
+`missing_at` scanned all requirements of all individuals to find the few at
+that node, so each search step cost the number of nodes times the number of
+requirements. A profile of a consistency check of a generated medication-dose
+ontology with 100 prescriptions put 91% of the time in
+`forest::missing_requirement`. Now `missing_requirement` checks every
+requirement once, at the node its individual is merged into (`unmet`), and
+`missing_node` falls back to the node-by-node search (`missing_local`) only for
+the local needs: the TBox concept, the unfoldings and the seeds. The same change
+applies to the completion graph of `completion`. `missing_requirement_correct`,
+`missing_at_correct` (now about `LocalNeeds`) and `missing_node_correct` are
+restated for the new functions in `ForestSearch` and `CompletionSearch`;
+`missing_node_correct` gives the same guarantee as before, so `next_step` and
+every theorem above it keep their statements.
+
+The consistency check of the dose ontology with 100 prescriptions takes 0.55 s
+instead of 7.9 s; listing its 11 overdoses takes 72 s instead of more than
+300 s, since every instance question still runs its own tableau.
+
+This block adds no public theorems or definitions. Totals are 5398 audited
+theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.

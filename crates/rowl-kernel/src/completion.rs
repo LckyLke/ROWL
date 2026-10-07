@@ -214,25 +214,36 @@ fn is_atom(entry: &Entry, class: &Class) -> bool {
         _ => false,
     }
 }
-/// The first requirement of `requirements[index..]` at `node` that the label
-/// does not satisfy.
+/// Whether `node` is a node whose label does not satisfy `concept`.
+fn unmet(problem: &Problem, nodes: &Vec<Node>, node: usize, concept: usize) -> bool {
+    if node < nodes.len() {
+        !holds(&problem.entries, &nodes[node].label, concept)
+    } else {
+        false
+    }
+}
+/// The first requirement of `requirements[index..]` that the label of its node
+/// does not satisfy, with that node. Each requirement is checked once, at its
+/// own node, so finding the work of all individuals takes one pass over the
+/// requirements.
 fn missing_requirement(
     problem: &Problem,
-    label: &Vec<usize>,
-    node: usize,
+    nodes: &Vec<Node>,
     index: usize,
-) -> Option<usize> {
+) -> Option<(usize, usize)> {
     if index < problem.requirements.len() {
-        let requirement = &problem.requirements[index];
-        let missing = if requirement.node == node {
-            !holds(&problem.entries, label, requirement.concept)
+        if unmet(
+            problem,
+            nodes,
+            problem.requirements[index].node,
+            problem.requirements[index].concept,
+        ) {
+            Some((
+                problem.requirements[index].node,
+                problem.requirements[index].concept,
+            ))
         } else {
-            false
-        };
-        if missing {
-            Some(requirement.concept)
-        } else {
-            missing_requirement(problem, label, node, index + 1)
+            missing_requirement(problem, nodes, index + 1)
         }
     } else {
         None
@@ -285,29 +296,31 @@ pub(crate) fn missing_unfolding(
         None
     }
 }
-/// What the label of `node` misses: a requirement, the TBox concept, or an
-/// unfolding.
-fn missing_at(problem: &Problem, label: &Vec<usize>, node: usize) -> Option<usize> {
-    match missing_requirement(problem, label, node, 0) {
-        Some(concept) => Some(concept),
-        None => {
-            if holds(&problem.entries, label, problem.axioms) {
-                missing_unfolding(problem, label, 0)
-            } else {
-                Some(problem.axioms)
-            }
-        }
+/// What a label misses locally: the TBox concept or an unfolding.
+fn missing_at(problem: &Problem, label: &Vec<usize>) -> Option<usize> {
+    if holds(&problem.entries, label, problem.axioms) {
+        missing_unfolding(problem, label, 0)
+    } else {
+        Some(problem.axioms)
     }
 }
-/// The first node of `nodes[index..]` that misses something, and what.
-fn missing_node(problem: &Problem, nodes: &Vec<Node>, index: usize) -> Option<(usize, usize)> {
+/// The first node of `nodes[index..]` that misses something locally, and what.
+fn missing_local(problem: &Problem, nodes: &Vec<Node>, index: usize) -> Option<(usize, usize)> {
     if index < nodes.len() {
-        match missing_at(problem, &nodes[index].label, index) {
+        match missing_at(problem, &nodes[index].label) {
             Some(concept) => Some((index, concept)),
-            None => missing_node(problem, nodes, index + 1),
+            None => missing_local(problem, nodes, index + 1),
         }
     } else {
         None
+    }
+}
+/// A node that misses something, and what: an unmet requirement of an
+/// individual, or else what the first node misses locally.
+fn missing_node(problem: &Problem, nodes: &Vec<Node>) -> Option<(usize, usize)> {
+    match missing_requirement(problem, nodes, 0) {
+        Some(found) => Some(found),
+        None => missing_local(problem, nodes, 0),
     }
 }
 /// Whether `label[index..]` has an entry `∀role.filler`.
@@ -837,7 +850,7 @@ fn missing_successor(
 /// The next rule: a missing concept of a node or an edge, else a missing
 /// successor, else none.
 fn next_step(problem: &Problem, roles: &RoleHierarchy, nodes: &Vec<Node>) -> Step {
-    match missing_node(problem, nodes, 0) {
+    match missing_node(problem, nodes) {
         Some((node, concept)) => return Step::Add { node, concept },
         None => {}
     }
