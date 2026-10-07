@@ -115,6 +115,8 @@ pub struct Kinds {
     pub nmtoken: bool,
     pub name: bool,
     pub ncname: bool,
+    pub datetime: bool,
+    pub stamp: bool,
     pub ordered: bool,
 }
 /// What the encoding of a closure and its questions knows: the distinct
@@ -303,6 +305,8 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::NmToken => 25,
         Kind::Name => 26,
         Kind::NcName => 27,
+        Kind::DateTime => 28,
+        Kind::DateTimeStamp => 29,
     }
 }
 /// The class of a kind.
@@ -373,10 +377,13 @@ fn no_kinds() -> Kinds {
         nmtoken: false,
         name: false,
         ncname: false,
+        datetime: false,
+        stamp: false,
         ordered: false,
     }
 }
-/// Whether the kind is in use; `xsd:string` is when one of its subtypes is.
+/// Whether the kind is in use; `xsd:string` is when one of its subtypes is,
+/// and `xsd:dateTime` when `xsd:dateTimeStamp` is.
 fn used(kinds: &Kinds, kind: Kind) -> bool {
     match kind {
         Kind::Integer => kinds.integer,
@@ -403,6 +410,8 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::NmToken => kinds.nmtoken,
         Kind::Name => kinds.name,
         Kind::NcName => kinds.ncname,
+        Kind::DateTime => kinds.datetime | kinds.stamp,
+        Kind::DateTimeStamp => kinds.stamp,
         _ => false,
     }
 }
@@ -425,6 +434,8 @@ fn bounded(kind: Kind) -> bool {
         Kind::NmToken => false,
         Kind::Name => false,
         Kind::NcName => false,
+        Kind::DateTime => false,
+        Kind::DateTimeStamp => false,
         _ => true,
     }
 }
@@ -443,6 +454,8 @@ fn numeric_kind(kind: Kind) -> bool {
         Kind::NmToken => false,
         Kind::Name => false,
         Kind::NcName => false,
+        Kind::DateTime => false,
+        Kind::DateTimeStamp => false,
         _ => true,
     }
 }
@@ -505,6 +518,14 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
         },
         Kind::NcName => Kinds {
             ncname: true,
+            ..kinds
+        },
+        Kind::DateTime => Kinds {
+            datetime: true,
+            ..kinds
+        },
+        Kind::DateTimeStamp => Kinds {
+            stamp: true,
             ..kinds
         },
         _ => Kinds {
@@ -2341,8 +2362,8 @@ fn apart_axioms(
     };
     kinds_axiom(kinds, kind, Kind::Boolean, false, out)
 }
-/// `out` with a kind of IRIs or octets in use apart from the numbers, the
-/// strings, the plain literals and the booleans.
+/// `out` with a kind of IRIs, octets or time instants in use apart from the
+/// numbers, the strings, the plain literals and the booleans.
 fn distinct_axioms(
     kinds: &Kinds,
     kind: Kind,
@@ -2390,6 +2411,27 @@ fn sequence_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         None => return None,
     };
     kinds_axiom(kinds, Kind::HexBinary, Kind::Base64Binary, false, out)
+}
+/// `out` with the time instants in use: those with a time zone among them,
+/// and apart from every other kind.
+fn moment_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match kinds_axiom(kinds, Kind::DateTimeStamp, Kind::DateTime, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match distinct_axioms(kinds, Kind::DateTime, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::DateTime, Kind::AnyUri, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::DateTime, Kind::HexBinary, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, Kind::DateTime, Kind::Base64Binary, false, out)
 }
 /// The kind at a rank of the chain of `xsd:string` and its subtypes, each a
 /// subtype of the ones before it: `xsd:string`, `xsd:normalizedString`,
@@ -2475,6 +2517,10 @@ fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         None => return None,
     };
     let out = match sequence_axioms(kinds, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match moment_axioms(kinds, out) {
         Some(out) => out,
         None => return None,
     };
@@ -2676,6 +2722,14 @@ fn value_axioms(
             None => return None,
         };
         let out = match kind_member(context, Kind::Base64Binary, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::DateTime, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::DateTimeStamp, index, out) {
             Some(out) => out,
             None => return None,
         };

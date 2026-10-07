@@ -6792,3 +6792,66 @@ answer.
 This block adds 20 public theorems and 6 definitions. Totals are 5552 audited
 theorems, 1874 definitions, 677 Rust regressions, 24 Python binding tests and
 5745 ledger obligations.
+
+## Time instants
+
+`xsd:dateTime` and `xsd:dateTimeStamp` are now read, compared and reasoned
+about, which makes 30 of the 33 OWL 2 datatypes.
+
+Specification. `Rowl.DatatypeMap` states the lexical forms after XML Schema
+1.1 §3.3.7 (`MomentForm`): a year of at least four digits with an optional
+minus sign and no leading zero beyond four (`YearForm`), a month and a day
+of that month in the proleptic Gregorian calendar, in which year zero is a
+leap year (`leapYear`, `daysIn`), hours, minutes and seconds with an
+optional decimal fraction (`fractionValue`), `24:00:00` as the start of the
+next day (`nextDate`), and an optional time zone `Z` or `±hh:mm` of at most
+fourteen hours (`ZoneForm`), which `xsd:dateTimeStamp` requires. The values
+are the seven-property moments (`Moment`, `Moment.Valid`): the date and the
+time as written and the offset in minutes. Following OWL 2 §4.7, one instant
+at two offsets is two values, equal but not identical, so a functional data
+property cannot take both. `Normative` gets an injective `moment` embedding
+apart from the reals, strings, tagged strings, truth values and coded values,
+the value spaces (every valid moment, and those with an offset for the time
+stamps) and the lexical-to-value mappings; the model map satisfies them.
+
+Kernel. `moments::moment_value` reads a form in one pass: the year's digits
+up to the first `-`, the date checked against the month's length, with leap
+years read from the last four digits of the year (`leap_correct`,
+`month_days_correct`), the time, the fraction without its trailing zeros
+and the zone, with `24:00:00` moved to the next day, across the year when
+needed (`next_day_correct`, `next_year_spec`). `moment_value_correct`
+proves that it returns a value exactly for the forms of `MomentForm` (with a
+time zone for a time stamp), up to forms of `usize::MAX / 16` bytes, and
+that the value is the form's moment written canonically (`CanonicalMoment`:
+the year without a leading zero, `-00:00` as `Z`, and so on); each form
+writes one moment (`momentForm_unique`). Canonical moments of one moment are
+one (`moment_canonical_injective`), so `same_value`, now with `same_moment`,
+stays exact, and a moment is in `xsd:dateTimeStamp` exactly when it has a
+time zone.
+
+Encoding. The two datatypes get classes (`Kinds.datetime`, `Kinds.stamp`;
+`xsd:dateTime` counts as in use with the time stamps), the class of the time
+stamps lies inside that of the time instants, and the time instants are
+apart from every other datatype (`moment_axioms_spec`, `MomentFacts`). An OWL
+model lifts as before (`moment_apart`, `stamp_datetime`). A model of the
+encoding gives a data node in the class of `xsd:dateTime`, and of no
+numeric, string, plain, IRI or binary class, a region of its own
+(`Region.moment`): midnight on the first of January of a year, at offset
+zero where the class of `xsd:dateTimeStamp` holds (`momentAt`,
+`moment_space`). Its classes are exactly those of its region's values
+(`text_profile`, with `moment_alone`). Facets on time instants and their
+order get no answer.
+
+The regressions check the kernel's values (time zones kept, `-00:00` as `Z`,
+fractions without trailing zeros, negative years, year zero, leap years,
+`24:00:00` across months and years, and 27 malformed forms), that one instant
+at two offsets is two values for a functional property, that lexical forms of
+one value are one value, that a time stamp needs a time zone, that time
+instants are no strings, that three instants without a time zone fit a
+minimum cardinality, the subsumption of the time stamps under the time
+instants with instance checks, and that facets and invalid dates such as
+`2023-02-29` get no answer.
+
+This block adds 75 public theorems (62 in the new module `Rowl.Moments`) and
+33 definitions. Totals are 5627 audited theorems, 1907 definitions, 680 Rust
+regressions, 24 Python binding tests and 5820 ledger obligations.

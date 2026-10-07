@@ -20,7 +20,7 @@ namespace Rowl.DataComplete
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl
 open Rowl.DatatypeMap (Normative IsInteger IsDecimal integerType decimalType stringType plainType booleanType
-  realType)
+  realType Moment dateTimeType dateTimeStampType)
 open Rowl.Datatypes (Canonical valueOf typeOf kindOf InKind)
 open Rowl.AlcOntology (RoleOf)
 open Rowl.DataEncoding
@@ -173,6 +173,8 @@ theorem value_datatype (N : Normative D) {x : datatypes.DataValue} (canonical : 
       (Rowl.Datatypes.normative_in_kind N canonical .HexBinary).mp (by simp [InKind])⟩
   | Base64 o => exact ⟨typeOf .Base64Binary, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .Base64Binary).mp (by simp [InKind])⟩
+  | Moment x => exact ⟨typeOf .DateTime, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .DateTime).mp (by simp [InKind])⟩
 
 theorem integer_decimal (N : Normative D) (y : Native) :
     D.valueSpace integerType y → D.valueSpace decimalType y := by
@@ -290,6 +292,12 @@ theorem not_coded (N : Normative D) {k : datatypes.Kind} (ck : ¬ IsCoded k) {y 
     case Boolean =>
       obtain ⟨b, rfl⟩ := (N.boolean_space _).mp inside
       exact N.truth_coded b c valid
+    case DateTime =>
+      obtain ⟨m, mv, rfl⟩ := (N.datetime_space _).mp inside
+      exact fun e => N.coded_moment c m valid mv e.symm
+    case DateTimeStamp =>
+      obtain ⟨m, mv, _, rfl⟩ := (N.stamp_space _).mp inside
+      exact fun e => N.coded_moment c m valid mv e.symm
     all_goals
       obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
       exact N.text_coded t c (Rowl.Strings.form_xml f) valid
@@ -324,6 +332,61 @@ theorem coded_apart (N : Normative D) {a b : datatypes.Kind} (ca : IsCoded a) (n
     subst this
     exact ne (kindIs.symm.trans kindIs')
   · exact not_coded N cb inB c valid rfl
+
+/-- The kinds whose values are time instants. -/
+def IsMomentKind : datatypes.Kind → Prop
+  | .DateTime | .DateTimeStamp => True
+  | _ => False
+
+/-- The values of a kind of time instants are moments proper. -/
+theorem moment_of_kind (N : Normative D) {k : datatypes.Kind} (mk : IsMomentKind k) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) : ∃ m : Moment, m.Valid ∧ y = N.moment m := by
+  cases k <;> simp only [IsMomentKind] at mk
+  case DateTime =>
+    obtain ⟨m, mv, rfl⟩ := (N.datetime_space _).mp inside
+    exact ⟨m, mv, rfl⟩
+  case DateTimeStamp =>
+    obtain ⟨m, mv, _, rfl⟩ := (N.stamp_space _).mp inside
+    exact ⟨m, mv, rfl⟩
+
+/-- No value of another kind is a moment proper. -/
+theorem not_moment (N : Normative D) {k : datatypes.Kind} (mk : ¬ IsMomentKind k) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) (m : Moment) (valid : m.Valid) : y ≠ N.moment m := by
+  by_cases numeric : Rowl.Datatypes.IsNumeric k
+  · obtain ⟨r, rfl⟩ := real_of_numeric N numeric inside
+    exact N.real_moment r m valid
+  · by_cases ck : IsCoded k
+    · obtain ⟨c, cv, _, rfl⟩ := coded_of_kind N ck inside
+      exact N.coded_moment c m cv valid
+    · cases k <;> simp only [IsMomentKind, IsCoded, Rowl.Datatypes.IsNumeric, not_true_eq_false,
+        not_false_eq_true] at mk ck numeric
+      case String =>
+        obtain ⟨s, xs, rfl⟩ := (N.string_space _).mp inside
+        exact N.text_moment s m xs valid
+      case Plain =>
+        rcases (N.plain_space _).mp inside with ⟨s, xs, rfl⟩ | ⟨s, l, xs, tl, rfl⟩
+        · exact N.text_moment s m xs valid
+        · exact N.tagged_moment s l m xs tl valid
+      case Boolean =>
+        obtain ⟨b, rfl⟩ := (N.boolean_space _).mp inside
+        exact N.truth_moment b m valid
+      all_goals
+        obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
+        exact N.text_moment t m (Rowl.Strings.form_xml f) valid
+
+/-- A kind of time instants is apart from every other kind. -/
+theorem moment_apart (N : Normative D) {a b : datatypes.Kind} (ma : IsMomentKind a) (mb : ¬ IsMomentKind b)
+    (y : Native) : ¬ (D.valueSpace (typeOf a) y ∧ D.valueSpace (typeOf b) y) := by
+  rintro ⟨inA, inB⟩
+  obtain ⟨m, mv, rfl⟩ := moment_of_kind N ma inA
+  exact not_moment N mb inB m mv rfl
+
+/-- The time stamps are time instants. -/
+theorem stamp_datetime (N : Normative D) (y : Native) :
+    D.valueSpace dateTimeStampType y → D.valueSpace dateTimeType y := by
+  rw [N.stamp_space, N.datetime_space]
+  rintro ⟨m, mv, _, rfl⟩
+  exact ⟨m, mv, rfl⟩
 
 end Values
 
@@ -949,6 +1012,12 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
           fun ca ne _ _ y => lifted_apart N x0 interp (coded_apart N ca ne) y
         refine ⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;>
           exact coded trivial (by simp)
+      moments := by
+        have apartM : ∀ {b : datatypes.Kind}, ¬ IsMomentKind b →
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) x0) .DateTime b :=
+          fun mb _ _ y => lifted_apart N x0 interp (moment_apart N (a := .DateTime) trivial mb) y
+        refine ⟨fun _ _ y => lifted_included N x0 interp (a := .DateTimeStamp) (b := .DateTime) (stamp_datetime N) y,
+          ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;> exact apartM (by simp [IsMomentKind])
       truths := fun boolean y holds => by
         obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
         cases y with

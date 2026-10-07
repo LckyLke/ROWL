@@ -210,7 +210,7 @@ private theorem number_real {Native : Type w} {D : DatatypeMap Native} (N : Norm
   cases v with
   | Number n whole fraction => exact ⟨_, Rowl.Datatypes.real_rat N _⟩
   | Fraction n a b => exact ⟨_, Rowl.Datatypes.real_rat N _⟩
-  | Text _ | Tagged _ _ | Truth _ | Uri _ | Hex _ | Base64 _ => simp [Rowl.Datatypes.IsNumber] at number
+  | Text _ | Tagged _ _ | Truth _ | Uri _ | Hex _ | Base64 _ | Moment _ => simp [Rowl.Datatypes.IsNumber] at number
 
 /-- The facet value of a range facet with a real bound has only datatype values. -/
 private theorem range_values {Native : Type w} {D : DatatypeMap Native} (N : Normative D) {iri : Iri} (range : iri ∈ rangeFacets)

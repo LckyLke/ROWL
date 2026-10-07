@@ -189,6 +189,7 @@ import Rowl.ShiOntology
 import Rowl.DatatypeMap
 import Rowl.Numbers
 import Rowl.Strings
+import Rowl.Moments
 import Rowl.Datatypes
 import Rowl.Regions
 import Rowl.DataEncoding

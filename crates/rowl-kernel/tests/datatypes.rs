@@ -1,6 +1,6 @@
 use rowl_kernel::datatypes::{
     compare_values, facet_applies, facet_holds, facet_of, in_kind, kind_of, literal_value,
-    same_value, DataValue, Facet, Kind,
+    same_value, DataValue, Facet, Kind, Moment,
 };
 use rowl_kernel::model::{Datatype, Iri, Literal};
 
@@ -516,4 +516,158 @@ fn the_subtypes_of_strings_hold_the_strings_of_their_lexical_forms() {
     assert!(in_kind(&colon, Kind::Name) && !in_kind(&colon, Kind::NcName));
     assert!(!in_kind(&number(false, b"1", b""), Kind::Token));
     assert!(!facet_applies(Kind::Token, &number(false, b"1", b"")));
+}
+
+const DATE_TIME: &[u8] = b"http://www.w3.org/2001/XMLSchema#dateTime";
+const STAMP: &[u8] = b"http://www.w3.org/2001/XMLSchema#dateTimeStamp";
+
+/// The moment with these parts, the year given with its sign.
+fn moment(
+    year: &str,
+    date: (u8, u8),
+    time: (u8, u8, u8),
+    fraction: &[u8],
+    zone: Option<(bool, u8, u8)>,
+) -> DataValue {
+    let (negative, digits) = match year.strip_prefix('-') {
+        Some(digits) => (true, digits),
+        None => (false, year),
+    };
+    DataValue::Moment(Moment {
+        negative,
+        year: digits.as_bytes().to_vec(),
+        month: date.0,
+        day: date.1,
+        hour: time.0,
+        minute: time.1,
+        second: time.2,
+        fraction: fraction.to_vec(),
+        zone,
+    })
+}
+
+#[test]
+fn time_instants_keep_their_time_zones() {
+    assert!(matches!(
+        kind_of(&datatype(DATE_TIME)),
+        Some(Kind::DateTime)
+    ));
+    assert!(matches!(
+        kind_of(&datatype(STAMP)),
+        Some(Kind::DateTimeStamp)
+    ));
+    let local = moment("2001", (10, 26), (21, 32, 52), b"", None);
+    assert!(same(&value(b"2001-10-26T21:32:52", DATE_TIME), &local));
+    let east = moment("2001", (10, 26), (21, 32, 52), b"", Some((false, 2, 0)));
+    assert!(same(&value(b"2001-10-26T21:32:52+02:00", DATE_TIME), &east));
+    let utc = moment("2001", (10, 26), (19, 32, 52), b"", Some((false, 0, 0)));
+    assert!(same(&value(b"2001-10-26T19:32:52Z", DATE_TIME), &utc));
+    assert!(same(&value(b"2001-10-26T19:32:52+00:00", DATE_TIME), &utc));
+    assert!(same(&value(b"2001-10-26T19:32:52-00:00", DATE_TIME), &utc));
+    // One instant at two offsets: equal in time, but two values.
+    assert!(!same_value(&east, &utc));
+    assert!(!same_value(&local, &east));
+    let west = moment("2001", (10, 26), (9, 2, 5), b"", Some((true, 13, 30)));
+    assert!(same(&value(b"2001-10-26T09:02:05-13:30", DATE_TIME), &west));
+    assert!(same(
+        &value(b"2001-10-26T09:02:05+14:00", DATE_TIME),
+        &moment("2001", (10, 26), (9, 2, 5), b"", Some((false, 14, 0)))
+    ));
+    // Fractions of a second are decimals.
+    let fine = moment("2001", (10, 26), (21, 32, 52), b"12", None);
+    assert!(same(&value(b"2001-10-26T21:32:52.12", DATE_TIME), &fine));
+    assert!(same(&value(b"2001-10-26T21:32:52.1200", DATE_TIME), &fine));
+    assert!(same(&value(b"2001-10-26T21:32:52.000", DATE_TIME), &local));
+    // Years: four digits or more, negative ones and year zero.
+    assert!(same(
+        &value(b"12345-01-01T00:00:00", DATE_TIME),
+        &moment("12345", (1, 1), (0, 0, 0), b"", None)
+    ));
+    assert!(same(
+        &value(b"-0044-03-15T12:00:00", DATE_TIME),
+        &moment("-44", (3, 15), (12, 0, 0), b"", None)
+    ));
+    let zero = moment("", (1, 1), (0, 0, 0), b"", None);
+    assert!(same(&value(b"0000-01-01T00:00:00", DATE_TIME), &zero));
+    assert!(same(&value(b"-0000-01-01T00:00:00", DATE_TIME), &zero));
+    // Leap years of the proleptic Gregorian calendar.
+    for leap in [
+        &b"2000-02-29T00:00:00"[..],
+        b"2004-02-29T00:00:00",
+        b"0000-02-29T00:00:00",
+        b"-0004-02-29T00:00:00",
+        b"-0400-02-29T00:00:00",
+        b"2400-02-29T00:00:00",
+    ] {
+        assert!(
+            value(leap, DATE_TIME).is_some(),
+            "{}",
+            String::from_utf8_lossy(leap)
+        );
+    }
+    // The end of a day is the start of the next.
+    assert!(same(
+        &value(b"2001-12-31T24:00:00Z", DATE_TIME),
+        &moment("2002", (1, 1), (0, 0, 0), b"", Some((false, 0, 0)))
+    ));
+    assert!(same(
+        &value(b"2001-02-28T24:00:00.000", DATE_TIME),
+        &moment("2001", (3, 1), (0, 0, 0), b"", None)
+    ));
+    assert!(same(
+        &value(b"2000-02-28T24:00:00", DATE_TIME),
+        &moment("2000", (2, 29), (0, 0, 0), b"", None)
+    ));
+    assert!(same(
+        &value(b"-0001-12-31T24:00:00", DATE_TIME),
+        &moment("", (1, 1), (0, 0, 0), b"", None)
+    ));
+    assert!(same(
+        &value(b"9999-12-31T24:00:00", DATE_TIME),
+        &moment("10000", (1, 1), (0, 0, 0), b"", None)
+    ));
+    for bad in [
+        &b"2001-02-29T00:00:00"[..],
+        b"1900-02-29T00:00:00",
+        b"-0100-02-29T00:00:00",
+        b"2001-04-31T00:00:00",
+        b"2001-00-10T00:00:00",
+        b"2001-13-10T00:00:00",
+        b"2001-10-00T00:00:00",
+        b"2001-10-26T24:00:01",
+        b"2001-10-26T24:00:00.1",
+        b"2001-10-26T25:00:00",
+        b"2001-10-26T21:60:00",
+        b"2001-10-26T21:32:60",
+        b"2001-10-26T21:32:52+14:01",
+        b"2001-10-26T21:32:52+15:00",
+        b"2001-10-26T21:32:52+1:00",
+        b"2001-10-26T21:32:52+01:60",
+        b"2001-10-26T21:32:52z",
+        b"2001-10-26T21:32:52Z ",
+        b"2001-10-26T21:32:52.",
+        b"2001-10-26T21:32",
+        b"2001-10-26",
+        b"201-10-26T21:32:52",
+        b"02001-10-26T21:32:52",
+        b"+2001-10-26T21:32:52",
+        b"2001-1-26T21:32:52",
+        b"2001-10-26 21:32:52",
+        b"",
+    ] {
+        assert!(
+            value(bad, DATE_TIME).is_none(),
+            "{}",
+            String::from_utf8_lossy(bad)
+        );
+    }
+    // A time stamp needs its time zone.
+    assert!(value(b"2001-10-26T21:32:52", STAMP).is_none());
+    assert!(same(&value(b"2001-10-26T19:32:52Z", STAMP), &utc));
+    assert!(in_kind(&utc, Kind::DateTime) && in_kind(&utc, Kind::DateTimeStamp));
+    assert!(in_kind(&local, Kind::DateTime) && !in_kind(&local, Kind::DateTimeStamp));
+    assert!(!in_kind(&local, Kind::String) && !in_kind(&local, Kind::Real));
+    let text = value(b"2001-10-26T21:32:52", STRING).expect("a string");
+    assert!(!same_value(&text, &local));
+    assert!(!facet_applies(Kind::DateTime, &number(false, b"1", b"")));
 }

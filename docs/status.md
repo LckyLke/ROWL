@@ -3,7 +3,7 @@
 M0, M1 feasibility probes and M2 structural representation/independent semantics
 are complete. M3 and M4 have verified components; both milestones remain in
 progress. Functional Syntax, Turtle, N-Triples and RDF/XML documents are read,
-and SROIQ with twenty-eight datatypes is decided, with proofs (below); a decision
+and SROIQ with thirty datatypes is decided, with proofs (below); a decision
 procedure for all of OWL 2 DL, its other datatypes and facets and the other
 formats are future work.
 
@@ -1112,6 +1112,23 @@ formats are future work.
   class holds there (`Rowl.Strings.stringAt_form`, `chain_profile`),
   infinitely many at each level. The length and pattern facets get no
   answer.
+- M5 time instants: Normative also specifies `xsd:dateTime` and
+  `xsd:dateTimeStamp` (OWL 2 §4.7, XML Schema 1.1 §3.3.7–3.3.8): lexical forms
+  `-?yyyy-mm-ddThh:mm:ss(.s+)?` with an optional time zone `Z` or `±hh:mm` of
+  at most fourteen hours, which `xsd:dateTimeStamp` requires, days within
+  their month of the proleptic Gregorian calendar (year zero is a leap year)
+  and `24:00:00` as the start of the next day (`MomentForm`). The values are
+  the seven-property moments (`Moment`): one instant at two offsets is two
+  values, equal but not identical, and the moments with an offset are the
+  time stamps. `literal_value` reads both datatypes
+  (`Rowl.Moments.moment_value_correct`; each form writes one moment:
+  `momentForm_unique`) into canonical kernel moments, so equal values are
+  equal kernel values. The ontology queries take them: `xsd:dateTimeStamp`
+  in use lies inside `xsd:dateTime`, which is apart from every other datatype
+  (`moment_axioms_spec`), and a model of the encoding gives a time node the
+  first of January of a year at midnight, at offset zero where the class of
+  `xsd:dateTimeStamp` holds, infinitely many (`moment_space`). Facets on time
+  instants and their order get no answer.
 - M5 numeric data ranges and range facets in the ontology queries: data ranges
   of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
   restrictions of every numeric datatype by the four range facets with numeric
@@ -1318,7 +1335,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5453 audited public theorems and 1818 audited semantic definitions. Consistency,
+- 5627 audited public theorems and 1907 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1330,14 +1347,14 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over twenty-eight datatypes, with the range facets on the numeric ones, and data
+  over thirty datatypes, with the range facets on the numeric ones, and data
   assertions with their literals under the OWL 2 datatype map, and keys with
   object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 677 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 680 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1433,7 +1450,7 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on twenty-eight datatypes and the
+external solver. Agreement with the OWL 2 map on thirty datatypes and the
 four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
 and the data queries, range facets included, are proved under every such map;
 the complete normative OWL map, its other datatypes and facets are

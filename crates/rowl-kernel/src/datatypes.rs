@@ -54,6 +54,7 @@
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::langtag::well_formed;
 use crate::model::{Datatype, Iri, Literal};
+use crate::moments::moment_value;
 use crate::numbers::{
     canonical, compare_naturals, divide_naturals, gcd_naturals, multiply_naturals, ten_power,
     times_power,
@@ -82,6 +83,29 @@ pub enum DataValue {
     Hex(Vec<u8>),
     /// The octets of an `xsd:base64Binary` value.
     Base64(Vec<u8>),
+    /// A time instant of `xsd:dateTime`.
+    Moment(Moment),
+}
+
+/// A time instant of `xsd:dateTime` (XML Schema 1.1 Part 2 §D.2.1): the date
+/// and the time as written in its time zone, if it has one.
+pub struct Moment {
+    /// Whether the year is negative.
+    pub negative: bool,
+    /// The ASCII digits of the year without leading zeros: year zero has none
+    /// and is not negative.
+    pub year: Vec<u8>,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    /// The whole seconds.
+    pub second: u8,
+    /// The ASCII digits of the fraction of a second without trailing zeros.
+    pub fraction: Vec<u8>,
+    /// The time zone offset: whether it is west of UTC, its hours and its
+    /// minutes. An offset of zero is not west.
+    pub zone: Option<(bool, u8, u8)>,
 }
 
 /// The datatypes.
@@ -115,6 +139,8 @@ pub enum Kind {
     NmToken,
     Name,
     NcName,
+    DateTime,
+    DateTimeStamp,
 }
 
 /// The range facets.
@@ -166,7 +192,9 @@ fn kind_at(index: u8) -> Kind {
         24 => Kind::Language,
         25 => Kind::NmToken,
         26 => Kind::Name,
-        _ => Kind::NcName,
+        27 => Kind::NcName,
+        28 => Kind::DateTime,
+        _ => Kind::DateTimeStamp,
     }
 }
 /// Whether the IRI is the kind's datatype.
@@ -213,11 +241,13 @@ fn is_type(iri: &Vec<u8>, kind: Kind) -> bool {
         Kind::NmToken => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#NMTOKEN"),
         Kind::Name => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#Name"),
         Kind::NcName => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#NCName"),
+        Kind::DateTime => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#dateTime"),
+        Kind::DateTimeStamp => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#dateTimeStamp"),
     }
 }
 /// The first kind from the position `index` on whose datatype the IRI is.
 fn kind_from(iri: &Vec<u8>, index: u8) -> Option<Kind> {
-    if index < 28 {
+    if index < 30 {
         if is_type(iri, kind_at(index)) {
             Some(kind_at(index))
         } else {
@@ -634,6 +664,8 @@ fn number_in_kind(value: &DataValue, whole: bool, kind: Kind) -> bool {
         Kind::NmToken => false,
         Kind::Name => false,
         Kind::NcName => false,
+        Kind::DateTime => false,
+        Kind::DateTimeStamp => false,
         _ => whole & above_lower(value, kind) & below_upper(value, kind),
     }
 }
@@ -997,6 +1029,8 @@ pub fn kind_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
         Kind::NmToken => string_value(kind, lexical),
         Kind::Name => string_value(kind, lexical),
         Kind::NcName => string_value(kind, lexical),
+        Kind::DateTime => moment_value(lexical, false),
+        Kind::DateTimeStamp => moment_value(lexical, true),
         _ => bounded_value(kind, lexical),
     }
 }
@@ -1053,9 +1087,42 @@ pub fn same_value(left: &DataValue, right: &DataValue) -> bool {
             DataValue::Base64(b) => same_bytes(a, b),
             _ => false,
         },
+        DataValue::Moment(a) => match right {
+            DataValue::Moment(b) => same_moment(a, b),
+            _ => false,
+        },
     }
 }
+/// Whether two time zones are the same.
+#[allow(clippy::redundant_pattern_matching)] // Explicit branches match the source-linked proof.
+fn same_zone(left: &Option<(bool, u8, u8)>, right: &Option<(bool, u8, u8)>) -> bool {
+    match left {
+        Some((west, hours, minutes)) => match right {
+            Some((west2, hours2, minutes2)) => {
+                (*west == *west2) & (*hours == *hours2) & (*minutes == *minutes2)
+            }
+            None => false,
+        },
+        None => match right {
+            Some(_) => false,
+            None => true,
+        },
+    }
+}
+/// Whether two moments are the same.
+fn same_moment(left: &Moment, right: &Moment) -> bool {
+    (left.negative == right.negative)
+        & same_bytes(&left.year, &right.year)
+        & (left.month == right.month)
+        & (left.day == right.day)
+        & (left.hour == right.hour)
+        & (left.minute == right.minute)
+        & (left.second == right.second)
+        & same_bytes(&left.fraction, &right.fraction)
+        & same_zone(&left.zone, &right.zone)
+}
 /// Whether the value is in the value space of the datatype of the kind.
+#[allow(clippy::redundant_pattern_matching)] // Explicit branches match the source-linked proof.
 pub fn in_kind(value: &DataValue, kind: Kind) -> bool {
     match value {
         DataValue::Number(_, _, fraction) => number_in_kind(value, fraction.len() == 0, kind),
@@ -1083,6 +1150,14 @@ pub fn in_kind(value: &DataValue, kind: Kind) -> bool {
         },
         DataValue::Base64(_) => match kind {
             Kind::Base64Binary => true,
+            _ => false,
+        },
+        DataValue::Moment(moment) => match kind {
+            Kind::DateTime => true,
+            Kind::DateTimeStamp => match moment.zone {
+                Some(_) => true,
+                None => false,
+            },
             _ => false,
         },
     }
@@ -1308,6 +1383,8 @@ pub fn facet_applies(kind: Kind, bound: &DataValue) -> bool {
             Kind::NmToken => false,
             Kind::Name => false,
             Kind::NcName => false,
+            Kind::DateTime => false,
+            Kind::DateTimeStamp => false,
             _ => in_kind(bound, kind),
         }
     } else {

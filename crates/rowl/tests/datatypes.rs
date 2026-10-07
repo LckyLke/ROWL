@@ -207,3 +207,81 @@ DataPropertyAssertion(:code :b \"x:y\")
         Some(false)
     );
 }
+
+#[test]
+fn time_instants_are_reasoned_about_by_value() {
+    // OWL 2 Structural Specification, section 4.7: one instant at two offsets is
+    // two values, so a functional property cannot take both.
+    assert_eq!(
+        consistent("FunctionalDataProperty(:admitted)\nDataPropertyAssertion(:admitted :a \"1956-06-25T04:00:00-05:00\"^^xsd:dateTime)\nDataPropertyAssertion(:admitted :a \"1956-06-25T10:00:00+01:00\"^^xsd:dateTime)"),
+        Some(false)
+    );
+    // Lexical forms of one value: fractions of zero, -00:00 for Z and the end of a day.
+    assert_eq!(
+        consistent("FunctionalDataProperty(:admitted)\nDataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00Z\"^^xsd:dateTime)\nDataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00.000-00:00\"^^xsd:dateTimeStamp)"),
+        Some(true)
+    );
+    assert_eq!(
+        consistent("FunctionalDataProperty(:admitted)\nDataPropertyAssertion(:admitted :a \"2024-02-29T24:00:00Z\"^^xsd:dateTime)\nDataPropertyAssertion(:admitted :a \"2024-03-01T00:00:00Z\"^^xsd:dateTime)"),
+        Some(true)
+    );
+    // A time stamp needs a time zone; time instants are no strings.
+    assert_eq!(
+        consistent("DataPropertyRange(:admitted xsd:dateTimeStamp)\nDataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00\"^^xsd:dateTime)"),
+        Some(false)
+    );
+    assert_eq!(
+        consistent("DataPropertyRange(:admitted xsd:dateTimeStamp)\nDataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00+01:00\"^^xsd:dateTime)"),
+        Some(true)
+    );
+    assert_eq!(
+        consistent("DataPropertyRange(:admitted xsd:dateTime)\nDataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00Z\"^^xsd:string)"),
+        Some(false)
+    );
+    // Infinitely many instants, with a time zone or without one.
+    assert_eq!(
+        consistent("SubClassOf(:Stay DataMinCardinality(3 :visit DataIntersectionOf(xsd:dateTime DataComplementOf(xsd:dateTimeStamp))))\nClassAssertion(:Stay :s)"),
+        Some(true)
+    );
+    // Restrictions of time instants by facets, and literals outside the
+    // lexical space, get no answer.
+    assert_eq!(
+        consistent("DataPropertyRange(:admitted DatatypeRestriction(xsd:dateTime xsd:minInclusive \"2000-01-01T00:00:00Z\"^^xsd:dateTime))"),
+        None
+    );
+    assert_eq!(
+        consistent("DataPropertyAssertion(:admitted :a \"2023-02-29T00:00:00Z\"^^xsd:dateTime)"),
+        None
+    );
+}
+
+#[test]
+fn subsumption_follows_the_time_stamps() {
+    let text = "Prefix(:=<https://example.org/d/>)
+Ontology(<https://example.org/d/onto>
+EquivalentClasses(:Stamped DataSomeValuesFrom(:admitted xsd:dateTimeStamp))
+EquivalentClasses(:Dated DataSomeValuesFrom(:admitted xsd:dateTime))
+DataPropertyAssertion(:admitted :a \"2024-03-01T08:30:00Z\"^^xsd:dateTime)
+DataPropertyAssertion(:admitted :b \"2024-03-01T08:30:00\"^^xsd:dateTime)
+)
+";
+    let Ok(reasoner) = Reasoner::from_functional(text.as_bytes(), &default_limits()) else {
+        panic!("the document must load");
+    };
+    let stamped = rowl::reasoner::named("https://example.org/d/Stamped");
+    let dated = rowl::reasoner::named("https://example.org/d/Dated");
+    assert_eq!(reasoner.subsumed(&stamped, &dated), Some(true));
+    assert_eq!(reasoner.subsumed(&dated, &stamped), Some(false));
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/a", &stamped),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &dated),
+        Some(true)
+    );
+    assert_eq!(
+        reasoner.instance_of("https://example.org/d/b", &stamped),
+        Some(false)
+    );
+}

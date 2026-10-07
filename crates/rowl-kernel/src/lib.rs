@@ -95,6 +95,8 @@ pub mod shi_ontology;
 
 pub mod numbers;
 
+pub mod moments;
+
 pub mod datatypes;
 
 pub mod regions;

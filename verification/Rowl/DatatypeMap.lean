@@ -95,6 +95,10 @@ def nmtokenType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 
 def nameType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 78#u8, 97#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:NCName` -/
 def ncnameType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 78#u8, 67#u8, 78#u8, 97#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:dateTime` -/
+def dateTimeType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 97#u8, 116#u8, 101#u8, 84#u8, 105#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:dateTimeStamp` -/
+def dateTimeStampType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 97#u8, 116#u8, 101#u8, 84#u8, 105#u8, 109#u8, 101#u8, 83#u8, 116#u8, 97#u8, 109#u8, 112#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:minInclusive` -/
 def minInclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 73#u8, 110#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- `xsd:maxInclusive` -/
@@ -306,6 +310,82 @@ def StringSubtype.Form : StringSubtype → List U8 → Prop
   | .name, t => ∃ c cps, TextChars t (c :: cps) ∧ NameStartChar c ∧ ∀ c' ∈ cps, NameChar c'
   | .ncname, t => (∃ c cps, TextChars t (c :: cps) ∧ NameStartChar c ∧ ∀ c' ∈ cps, NameChar c') ∧ 58#u8 ∉ t
 
+/-- A time instant of `xsd:dateTime` (XML Schema 1.1 Part 2 §D.2.1, the
+    seven-property model): the date and the time as written, and the time zone
+    offset in minutes when there is one. Two values of one instant at
+    different offsets are different values (OWL 2 Structural Specification
+    §4.7: equal, but not identical). -/
+structure Moment where
+  year : ℤ
+  month : ℕ
+  day : ℕ
+  hour : ℕ
+  minute : ℕ
+  second : ℚ
+  zone : Option ℤ
+deriving DecidableEq
+
+/-- A leap year of the proleptic Gregorian calendar, in which year zero is one
+    (XML Schema 1.1 Part 2 §D.3.2, ·daysInMonth·). -/
+def leapYear (year : ℤ) : Bool := year % 400 = 0 || (year % 4 = 0 && year % 100 ≠ 0)
+
+/-- The number of days of a month in a year. -/
+def daysIn (year : ℤ) (month : ℕ) : ℕ :=
+  if month = 2 then (if leapYear year then 29 else 28)
+  else if month = 4 ∨ month = 6 ∨ month = 9 ∨ month = 11 then 30 else 31
+
+/-- A time instant proper: a month of the year, a day of the month, an hour of
+    the day, a minute of the hour, seconds a decimal number below 60, and an
+    offset of at most fourteen hours. -/
+def Moment.Valid (m : Moment) : Prop :=
+  1 ≤ m.month ∧ m.month ≤ 12 ∧ 1 ≤ m.day ∧ m.day ≤ daysIn m.year m.month ∧ m.hour < 24 ∧ m.minute < 60 ∧
+    0 ≤ m.second ∧ m.second < 60 ∧ IsDecimal m.second ∧ ∀ z, m.zone = some z → -840 ≤ z ∧ z ≤ 840
+
+/-- `text` is two digits that write `n`. -/
+def TwoDigits (text : List U8) (n : ℕ) : Prop := text.length = 2 ∧ Digits text ∧ n = digitsValue text
+
+/-- `text` is a year `-?([1-9][0-9]{3,}|0[0-9]{3})` that writes `year`. -/
+def YearForm (text : List U8) (year : ℤ) : Prop :=
+  ∃ (negative : Bool) (digits : List U8), text = (if negative then [45#u8] else []) ++ digits ∧ Digits digits ∧
+    4 ≤ digits.length ∧ (4 < digits.length → digits.head? ≠ some 48#u8) ∧
+    year = (if negative then -1 else 1) * (digitsValue digits : ℤ)
+
+/-- `text` is a time zone `Z` or `(+|-)hh:mm` of at most fourteen hours that
+    writes the offset `zone` in minutes. -/
+def ZoneForm (text : List U8) (zone : ℤ) : Prop :=
+  (text = [90#u8] ∧ zone = 0) ∨
+  ∃ (west : Bool) (hh mm : List U8) (h m : ℕ), text = (if west then 45#u8 else 43#u8) :: hh ++ 58#u8 :: mm ∧
+    TwoDigits hh h ∧ TwoDigits mm m ∧ ((h ≤ 13 ∧ m ≤ 59) ∨ (h = 14 ∧ m = 0)) ∧
+    zone = (if west then -1 else 1) * ((60 * h + m : ℕ) : ℤ)
+
+/-- The value of the digits of a fraction of a second. -/
+def fractionValue (digits : List U8) : ℚ := (digitsValue digits : ℚ) / 10 ^ digits.length
+
+/-- The day after a date. -/
+def nextDate (year : ℤ) (month day : ℕ) : ℤ × ℕ × ℕ :=
+  if day < daysIn year month then (year, month, day + 1)
+  else if month < 12 then (year, month + 1, 1) else (year + 1, 1, 1)
+
+/-- `text` is a lexical form of `xsd:dateTime` for the moment `m` (XML Schema
+    1.1 Part 2 §3.3.7): a year, `-`, a month, `-`, a day of the month, `T`, a
+    time `hh:mm:ss` with an optional fraction `.d+` of a second, and an optional
+    time zone. The value is the date and the time as written when the hours are
+    below 24 and the minutes and seconds below 60, and `24:00:00` with a
+    fraction of zero is the first instant of the next day. -/
+def MomentForm (text : List U8) (m : Moment) : Prop :=
+  ∃ (yearText mm dd hh mi ss fraction zoneText : List U8) (year : ℤ) (month day hour minute second : ℕ)
+    (zone : Option ℤ),
+    text = yearText ++ 45#u8 :: mm ++ 45#u8 :: dd ++ 84#u8 :: hh ++ 58#u8 :: mi ++ 58#u8 :: ss ++
+      (if fraction = [] then [] else 46#u8 :: fraction) ++ zoneText ∧
+    YearForm yearText year ∧ TwoDigits mm month ∧ 1 ≤ month ∧ month ≤ 12 ∧ TwoDigits dd day ∧ 1 ≤ day ∧
+    day ≤ daysIn year month ∧ TwoDigits hh hour ∧ TwoDigits mi minute ∧ TwoDigits ss second ∧ Digits fraction ∧
+    ((zoneText = [] ∧ zone = none) ∨ ∃ z, ZoneForm zoneText z ∧ zone = some z) ∧
+    ((hour < 24 ∧ minute < 60 ∧ second < 60 ∧
+        m = ⟨year, month, day, hour, minute, second + fractionValue fraction, zone⟩) ∨
+     (hour = 24 ∧ minute = 0 ∧ second = 0 ∧ fractionValue fraction = 0 ∧
+        m = ⟨(nextDate year month day).1, (nextDate year month day).2.1, (nextDate year month day).2.2, 0, 0, 0,
+          zone⟩))
+
 /-- A datatype map that is the OWL 2 datatype map on the datatypes here: they
     are supported, with these lexical spaces and lexical-to-value mappings; a
     number is the image of a real number, the rationals' images agreeing with
@@ -322,9 +402,12 @@ def StringSubtype.Form : StringSubtype → List U8 → Prop
     the values of `xsd:anyURI` (the XML texts, with the identity as lexical
     mapping), `xsd:hexBinary` and `xsd:base64Binary` (the octet sequences) are
     the images of their `Coded` values, injectively and apart from the
-    numbers, plain literals and truth values; and each subtype of `xsd:string`
+    numbers, plain literals and truth values; each subtype of `xsd:string`
     has the strings of its lexical forms as values, each the value of its own
-    form. -/
+    form; and the values of `xsd:dateTime` are the images of the valid moments,
+    injectively and apart from every other value, those of
+    `xsd:dateTimeStamp` the images of the moments with a time zone, and each
+    lexical form has the value of its moment. -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -414,5 +497,20 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   string_subtype_space : ∀ (s : StringSubtype) x, D.valueSpace s.datatype x ↔ ∃ t, s.Form t ∧ x = text t
   string_subtype_lexical : ∀ (s : StringSubtype) t, D.lexicalSpace s.datatype t ↔ s.Form t
   string_subtype_value : ∀ (s : StringSubtype) t, s.Form t → D.lexicalValue s.datatype t = text t
+  moment : Moment → Native
+  moment_injective : ∀ a b, a.Valid → b.Valid → moment a = moment b → a = b
+  real_moment : ∀ r a, a.Valid → real r ≠ moment a
+  text_moment : ∀ s a, XmlText s → a.Valid → text s ≠ moment a
+  tagged_moment : ∀ s l a, XmlText s → TagValue l → a.Valid → tagged s l ≠ moment a
+  truth_moment : ∀ b a, a.Valid → truth b ≠ moment a
+  coded_moment : ∀ c a, c.Valid → a.Valid → coded c ≠ moment a
+  datetime_supported : D.supported dateTimeType
+  stamp_supported : D.supported dateTimeStampType
+  datetime_space : ∀ x, D.valueSpace dateTimeType x ↔ ∃ m, m.Valid ∧ x = moment m
+  stamp_space : ∀ x, D.valueSpace dateTimeStampType x ↔ ∃ m, m.Valid ∧ m.zone ≠ none ∧ x = moment m
+  datetime_lexical : ∀ t, D.lexicalSpace dateTimeType t ↔ ∃ m, MomentForm t m
+  datetime_value : ∀ t m, MomentForm t m → D.lexicalValue dateTimeType t = moment m
+  stamp_lexical : ∀ t, D.lexicalSpace dateTimeStampType t ↔ ∃ m, MomentForm t m ∧ m.zone ≠ none
+  stamp_value : ∀ t m, MomentForm t m → m.zone ≠ none → D.lexicalValue dateTimeStampType t = moment m
 
 end Rowl.DatatypeMap

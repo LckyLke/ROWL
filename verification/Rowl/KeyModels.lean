@@ -298,8 +298,8 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value
     rw [liftedN_data_class, liftedN_data_class]
     exact data p mem role run y y' related
   · cases kinds
-    constructor <;> simp only [Included, Apart, StringFacts, SequenceFacts, DistinctFacts, Truths, liftedN_kind_class,
-      liftedN_named] <;>
+    constructor <;> simp only [Included, Apart, StringFacts, SequenceFacts, MomentFacts, DistinctFacts, Truths,
+      liftedN_kind_class, liftedN_named] <;>
       assumption
   · intro ordered
     obtain ⟨first, chain, super⟩ := regions ordered

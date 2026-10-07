@@ -17,7 +17,7 @@
     clippy::redundant_pattern_matching
 )]
 // Indexed operations and explicit pushes for the pinned extraction subset.
-use crate::datatypes::{compare_values, same_value, DataValue};
+use crate::datatypes::{compare_values, same_value, DataValue, Moment};
 use crate::nnf::copy_bytes;
 use crate::numbers::{
     add_naturals, canonical, compare_naturals, divide_naturals, subtract_naturals,
@@ -29,6 +29,14 @@ pub struct Cut {
     pub open: bool,
 }
 
+/// A copy of a time zone.
+#[allow(clippy::manual_map)] // Explicit first-order branches match the source-linked proof.
+fn copy_zone(zone: &Option<(bool, u8, u8)>) -> Option<(bool, u8, u8)> {
+    match zone {
+        Some((west, hours, minutes)) => Some((*west, *hours, *minutes)),
+        None => None,
+    }
+}
 /// A copy of a value.
 pub fn copy_value(value: &DataValue) -> DataValue {
     match value {
@@ -44,6 +52,17 @@ pub fn copy_value(value: &DataValue) -> DataValue {
         DataValue::Uri(text) => DataValue::Uri(copy_bytes(text)),
         DataValue::Hex(octets) => DataValue::Hex(copy_bytes(octets)),
         DataValue::Base64(octets) => DataValue::Base64(copy_bytes(octets)),
+        DataValue::Moment(moment) => DataValue::Moment(Moment {
+            negative: moment.negative,
+            year: copy_bytes(&moment.year),
+            month: moment.month,
+            day: moment.day,
+            hour: moment.hour,
+            minute: moment.minute,
+            second: moment.second,
+            fraction: copy_bytes(&moment.fraction),
+            zone: copy_zone(&moment.zone),
+        }),
     }
 }
 /// The index of the cut of `value` on the side `open` in `cuts[index..]`.

@@ -1,4 +1,5 @@
 import Rowl.Strings
+import Rowl.Moments
 import Mathlib.Data.Rat.Floor
 
 /-!
@@ -105,15 +106,16 @@ def kindList : List datatypes.Kind :=
   [.Integer, .Decimal, .String, .Plain, .Boolean, .Real, .Rational, .NonNegativeInteger, .NonPositiveInteger,
    .PositiveInteger, .NegativeInteger, .Long, .Int, .Short, .Byte, .UnsignedLong, .UnsignedInt, .UnsignedShort,
    .UnsignedByte, .AnyUri, .HexBinary, .Base64Binary, .NormalizedString, .Token, .Language, .NmToken, .Name,
-   .NcName]
+   .NcName, .DateTime, .DateTimeStamp]
 
 /-- The kind at each position of the list. -/
-theorem kind_at_eq (i : U8) (h : i.val < 28) :
-    datatypes.kind_at i = .ok (kindList.getD i.val .NcName) := by
+theorem kind_at_eq (i : U8) (h : i.val < 30) :
+    datatypes.kind_at i = .ok (kindList.getD i.val .DateTimeStamp) := by
   obtain ⟨⟨⟨n, hn⟩⟩⟩ := i
-  have hv : n < 28 := h
-  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18 ∨ n = 19 ∨ n = 20 ∨ n = 21 ∨ n = 22 ∨ n = 23 ∨ n = 24 ∨ n = 25 ∨ n = 26 ∨ n = 27) with
-    e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;> subst e <;> rfl
+  have hv : n < 30 := h
+  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18 ∨ n = 19 ∨ n = 20 ∨ n = 21 ∨ n = 22 ∨ n = 23 ∨ n = 24 ∨ n = 25 ∨ n = 26 ∨ n = 27 ∨ n = 28 ∨ n = 29) with
+    e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;>
+    subst e <;> rfl
 
 /-- The datatype of a kind. -/
 def typeOf : datatypes.Kind → Datatype
@@ -145,6 +147,8 @@ def typeOf : datatypes.Kind → Datatype
   | .NmToken => nmtokenType
   | .Name => nameType
   | .NcName => ncnameType
+  | .DateTime => dateTimeType
+  | .DateTimeStamp => dateTimeStampType
 
 theorem is_type_correct (iri : alloc.vec.Vec U8) (k : datatypes.Kind) :
     datatypes.is_type iri k = .ok (decide (iri.val = (typeOf k).iri.spelling.val)) := by
@@ -152,20 +156,21 @@ theorem is_type_correct (iri : alloc.vec.Vec U8) (k : datatypes.Kind) :
     decimalType, stringType, plainType, booleanType, realType, rationalType, nonNegativeIntegerType,
     nonPositiveIntegerType, positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType,
     unsignedLongType, unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType,
-    base64BinaryType, normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType]
+    base64BinaryType, normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType,
+    dateTimeType, dateTimeStampType]
 
 /-- Whether the IRI is the spelling of the kind's datatype. -/
 def Spelled (iri : List U8) (k : datatypes.Kind) : Bool := decide (iri = (typeOf k).iri.spelling.val)
 
-theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 28) :
+theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 30) :
     datatypes.kind_from iri i = .ok ((kindList.drop i.val).find? (Spelled iri.val)) := by
   rw [datatypes.kind_from]
-  by_cases more : i.val < 28
-  · have more' : i < (28#u8) := by simp only [UScalar.lt_equiv]; simpa using more
-    have split : kindList.drop i.val = kindList.getD i.val .NcName :: kindList.drop (i.val + 1) := by
+  by_cases more : i.val < 30
+  · have more' : i < (30#u8) := by simp only [UScalar.lt_equiv]; simpa using more
+    have split : kindList.drop i.val = kindList.getD i.val .DateTimeStamp :: kindList.drop (i.val + 1) := by
       rw [List.drop_eq_getElem_cons (by simp [kindList]; omega), List.getD_eq_getElem]
     rw [split, List.find?_cons, if_pos more', kind_at_eq i more]
-    generalize kindList.getD i.val .NcName = k
+    generalize kindList.getD i.val .DateTimeStamp = k
     by_cases found : iri.val = (typeOf k).iri.spelling.val
     · have spelled : Spelled iri.val k = true := by simp [Spelled, found]
       have decided : decide (iri.val = (typeOf k).iri.spelling.val) = true := by simp [found]
@@ -176,10 +181,10 @@ theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 28) :
       have ih := kind_from_correct iri next (by omega)
       rw [nextIs] at ih
       simp only [bind_ok, is_type_correct, found, decide_false, Bool.false_eq_true, ↓reduceIte, spelled, advance, ih]
-  · have done : i.val = 28 := by omega
-    have notMore : ¬ i < (28#u8) := by simp only [UScalar.lt_equiv]; simp; omega
+  · have done : i.val = 30 := by omega
+    have notMore : ¬ i < (30#u8) := by simp only [UScalar.lt_equiv]; simp; omega
     simp [notMore, done, kindList]
-termination_by 28 - i.val
+termination_by 30 - i.val
 decreasing_by omega
 
 /-- The kind of one of the datatypes: the first in the list. -/
@@ -196,7 +201,7 @@ theorem kindOf_typeOf (k : datatypes.Kind) : kindOf (typeOf k) = some k := by
     booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType, positiveIntegerType,
     negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType, unsignedIntType,
     unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType, normalizedStringType,
-    tokenType, languageType, nmtokenType, nameType, ncnameType]
+    tokenType, languageType, nmtokenType, nameType, ncnameType, dateTimeType, dateTimeStampType]
 
 theorem kindOf_some {dt : Datatype} {k : datatypes.Kind} (h : kindOf dt = some k) : dt = typeOf k := by
   have := List.find?_some h
@@ -2287,6 +2292,7 @@ theorem parts_of (v : datatypes.DataValue) (c : CanonicalNumeric v) (small : dig
   | Uri _ => exact absurd c (by simp [CanonicalNumeric])
   | Hex _ => exact absurd c (by simp [CanonicalNumeric])
   | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
+  | Moment _ => exact absurd c (by simp [CanonicalNumeric])
 
 theorem order_cross (a b c d : ℕ) (hb : 0 < b) (hd : 0 < d) :
     Rowl.Numbers.order (a * d) (c * b) = orderOf ((a : ℚ) / b) ((c : ℚ) / d) := by
@@ -2333,6 +2339,7 @@ theorem compare_magnitudes_spec (l r : datatypes.DataValue) (cl : CanonicalNumer
     | Uri _ => exact absurd cr (by simp [CanonicalNumeric])
     | Hex _ => exact absurd cr (by simp [CanonicalNumeric])
     | Base64 _ => exact absurd cr (by simp [CanonicalNumeric])
+    | Moment _ => exact absurd cr (by simp [CanonicalNumeric])
   | Fraction n a b =>
     have small' : 2 * (digitWidth (.Fraction n a b) + digitWidth r) + 8 < Usize.max := by
       rcases small with ⟨_, _, _, _, _, _, h, _⟩ | h
@@ -2346,6 +2353,7 @@ theorem compare_magnitudes_spec (l r : datatypes.DataValue) (cl : CanonicalNumer
   | Uri _ => exact absurd cl (by simp [CanonicalNumeric])
   | Hex _ => exact absurd cl (by simp [CanonicalNumeric])
   | Base64 _ => exact absurd cl (by simp [CanonicalNumeric])
+  | Moment _ => exact absurd cl (by simp [CanonicalNumeric])
 
 theorem negative_correct (v : datatypes.DataValue) : datatypes.negative v = .ok (negativeOf v) := by
   cases v <;> rfl
@@ -2364,6 +2372,7 @@ theorem magnitude_nonneg (v : datatypes.DataValue) : 0 ≤ magnitude v := by
   | Uri _ => simp [magnitude]
   | Hex _ => simp [magnitude]
   | Base64 _ => simp [magnitude]
+  | Moment _ => simp [magnitude]
 
 /-- A number is its sign times its magnitude, and a negative number is not zero. -/
 theorem numValue_sign (v : datatypes.DataValue) (c : CanonicalNumeric v) :
@@ -2399,6 +2408,7 @@ theorem numValue_sign (v : datatypes.DataValue) (c : CanonicalNumeric v) :
   | Uri _ => exact absurd c (by simp [CanonicalNumeric])
   | Hex _ => exact absurd c (by simp [CanonicalNumeric])
   | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
+  | Moment _ => exact absurd c (by simp [CanonicalNumeric])
 
 /-- The kernel orders canonical numbers exactly. -/
 theorem compare_numbers_spec (l r : datatypes.DataValue) (cl : CanonicalNumeric l) (cr : CanonicalNumeric r)
@@ -2483,6 +2493,7 @@ theorem width_spec (v : datatypes.DataValue) :
   | Uri _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
   | Hex _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
   | Base64 _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
+  | Moment _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
 
 /-- The kernel's comparison of values: the exact order of two canonical
     numbers, and no answer for a value that is no number or for numbers too
@@ -2553,7 +2564,7 @@ def upperOf : datatypes.Kind → Option ℤ
 /-- The integer subtypes of `xsd:integer`. -/
 def IsSubtype : datatypes.Kind → Prop
   | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary
-  | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName => False
+  | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName | .DateTime | .DateTimeStamp => False
   | _ => True
 
 /-- Whether a number, an integer when `whole`, is in the value space of a
@@ -2576,6 +2587,8 @@ def NumberIn (k : datatypes.Kind) (whole : Prop) (q : ℚ) : Prop :=
   | .NmToken => False
   | .Name => False
   | .NcName => False
+  | .DateTime => False
+  | .DateTimeStamp => False
   | k => whole ∧ (∀ l, lowerOf k = some l → (l : ℚ) ≤ q) ∧ (∀ u, upperOf k = some u → q ≤ (u : ℚ))
 
 /-- The subtypes are those of the specification with their bounds. -/
@@ -2664,6 +2677,8 @@ theorem lower_bound_correct (k : datatypes.Kind) :
   | NmToken => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | Name => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | NcName => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | DateTime => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | DateTimeStamp => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | NonNegativeInteger =>
     obtain ⟨v, run, bound⟩ := positive_number_value (Std.Array.empty U8).to_slice
       (by simp [Array.to_slice, Array.make, Std.Array.empty, Digits, Digit]) (by simp [Array.to_slice, Array.make, Std.Array.empty, Digits, Digit])
@@ -2757,6 +2772,8 @@ theorem upper_bound_correct (k : datatypes.Kind) :
   | NmToken => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | Name => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | NcName => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | DateTime => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | DateTimeStamp => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | NonNegativeInteger => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | NonPositiveInteger =>
     obtain ⟨v, run, bound⟩ := positive_number_value (Std.Array.empty U8).to_slice
@@ -2929,7 +2946,7 @@ theorem bounded_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) 
 
 /-- The values that `literal_value` returns: canonical numbers and fractions,
     strings of XML characters, such strings with a lower-case well-formed
-    language tag, and truth values. -/
+    language tag, truth values, IRIs, octets and canonical moments. -/
 def Canonical : datatypes.DataValue → Prop
   | .Number n w f => CanonicalNumber n w.val f.val
   | .Fraction _ a b => CanonicalFraction a.val b.val
@@ -2939,6 +2956,7 @@ def Canonical : datatypes.DataValue → Prop
   | .Uri t => XmlText t.val
   | .Hex _ => True
   | .Base64 _ => True
+  | .Moment x => Rowl.Moments.CanonicalMoment x
 
 /-- The lexical space of the datatype of a kind. -/
 def LexicalForm : datatypes.Kind → List U8 → Prop
@@ -2958,12 +2976,14 @@ def LexicalForm : datatypes.Kind → List U8 → Prop
   | .NmToken, t => StringSubtype.nmtoken.Form t
   | .Name, t => StringSubtype.name.Form t
   | .NcName, t => StringSubtype.ncname.Form t
+  | .DateTime, t => ∃ m, MomentForm t m
+  | .DateTimeStamp, t => ∃ m, MomentForm t m ∧ m.zone ≠ none
   | k, t => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ IntegerForm t (z : ℚ)
 
 /-- The numeric datatypes. -/
 def IsNumeric : datatypes.Kind → Prop
   | .String | .Plain | .Boolean | .AnyUri | .HexBinary | .Base64Binary | .NormalizedString | .Token | .Language
-  | .NmToken | .Name | .NcName => False
+  | .NmToken | .Name | .NcName | .DateTime | .DateTimeStamp => False
   | _ => True
 
 theorem subtypeOf_type {k : datatypes.Kind} {s : StringSubtype} (h : subtypeOf k = some s) :
@@ -3002,6 +3022,8 @@ def RealIn (k : datatypes.Kind) (r : ℝ) : Prop :=
   | .NmToken => False
   | .Name => False
   | .NcName => False
+  | .DateTime => False
+  | .DateTimeStamp => False
   | k => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ r = z
 
 variable {Native : Type w} {D : DatatypeMap Native}
@@ -3017,6 +3039,7 @@ def valueOf (N : Normative D) : datatypes.DataValue → Native
   | .Uri t => N.coded (.uri t.val)
   | .Hex o => N.coded (.hex o.val)
   | .Base64 o => N.coded (.base64 o.val)
+  | .Moment x => N.moment (Rowl.Moments.momentOf x)
 
 theorem real_rat (N : Normative D) (q : ℚ) : N.number q = N.real q := (N.real_number q).symm
 
@@ -3059,6 +3082,8 @@ theorem numeric_space (N : Normative D) (k : datatypes.Kind) (numeric : IsNumeri
   | NmToken => exact absurd numeric (by simp [IsNumeric])
   | Name => exact absurd numeric (by simp [IsNumeric])
   | NcName => exact absurd numeric (by simp [IsNumeric])
+  | DateTime => exact absurd numeric (by simp [IsNumeric])
+  | DateTimeStamp => exact absurd numeric (by simp [IsNumeric])
   | Real => simp only [typeOf, N.real_space, RealIn, and_true]
   | Rational =>
     simp only [typeOf, N.rational_space, RealIn]
@@ -3100,6 +3125,8 @@ theorem normative_lexical (N : Normative D) (k : datatypes.Kind) (t : List U8) :
   | NmToken => exact N.string_subtype_lexical .nmtoken t
   | Name => exact N.string_subtype_lexical .«name» t
   | NcName => exact N.string_subtype_lexical .ncname t
+  | DateTime => exact N.datetime_lexical t
+  | DateTimeStamp => exact N.stamp_lexical t
   | NonNegativeInteger => exact subtype _ trivial
   | NonPositiveInteger => exact subtype _ trivial
   | PositiveInteger => exact subtype _ trivial
@@ -3133,6 +3160,8 @@ theorem normative_supported (N : Normative D) (k : datatypes.Kind) : D.supported
   | NmToken => exact N.string_subtype_supported .nmtoken
   | Name => exact N.string_subtype_supported .«name»
   | NcName => exact N.string_subtype_supported .ncname
+  | DateTime => exact N.datetime_supported
+  | DateTimeStamp => exact N.stamp_supported
   | _ => exact subtype _ trivial
 
 theorem number_value_canonical {v : datatypes.DataValue} {q : ℚ} (h : NumberValue v q) : Canonical v := by
@@ -4013,13 +4042,15 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
       (∀ v, r = some v → Canonical v ∧ LexicalForm k lexical.val ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (N : Normative D),
           D.lexicalValue (typeOf k) lexical.val = valueOf N v) ∧
-      (r = none → ¬ LexicalForm k lexical.val ∨ (k = .Rational ∧ Usize.max / 16 ≤ lexical.val.length)) := by
+      (r = none → ¬ LexicalForm k lexical.val ∨
+        ((k = .Rational ∨ k = .DateTime ∨ k = .DateTimeStamp) ∧ Usize.max / 16 ≤ lexical.val.length)) := by
   have size := lexical.property
   have subtype : IsSubtype k → ∃ r, datatypes.bounded_value k lexical = .ok r ∧
       (∀ v, r = some v → Canonical v ∧ LexicalForm k lexical.val ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (N : Normative D),
           D.lexicalValue (typeOf k) lexical.val = valueOf N v) ∧
-      (r = none → ¬ LexicalForm k lexical.val ∨ (k = .Rational ∧ Usize.max / 16 ≤ lexical.val.length)) := by
+      (r = none → ¬ LexicalForm k lexical.val ∨
+        ((k = .Rational ∨ k = .DateTime ∨ k = .DateTimeStamp) ∧ Usize.max / 16 ≤ lexical.val.length)) := by
     intro sub
     obtain ⟨r, run, someCase, noneCase⟩ := bounded_value_correct k lexical
     refine ⟨r, run, fun v hv => ?_, fun hn => .inl ?_⟩
@@ -4076,7 +4107,7 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
         rw [N.rational_value _ _ form, number_value_of N value]⟩
     · rcases none' hn with no | long
       · exact .inl fun ⟨q, form⟩ => no q form
-      · exact .inr ⟨rfl, long⟩
+      · exact .inr ⟨.inl rfl, long⟩
   | NonNegativeInteger => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
   | NonPositiveInteger => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
   | PositiveInteger => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
@@ -4141,6 +4172,27 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
   | NcName =>
     obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .NcName) (s := .ncname) rfl lexical
     exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | DateTime =>
+    obtain ⟨r, run, someCase, completeCase⟩ := Rowl.Moments.moment_value_correct lexical false
+    refine ⟨r, by rw [datatypes.kind_value]; exact run, fun v hv => ?_, fun hn => ?_⟩
+    · obtain ⟨x, rfl, cx, form, _⟩ := someCase v hv
+      exact ⟨cx, ⟨_, form⟩, fun D N => by simp only [typeOf, valueOf]; exact N.datetime_value _ _ form⟩
+    · by_cases long : lexical.val.length < Usize.max / 16
+      · refine .inl fun ⟨m, form⟩ => ?_
+        obtain ⟨x, hx, _⟩ := completeCase long m form (fun h => (by cases h))
+        rw [hn] at hx; cases hx
+      · exact .inr ⟨.inr (.inl rfl), by omega⟩
+  | DateTimeStamp =>
+    obtain ⟨r, run, someCase, completeCase⟩ := Rowl.Moments.moment_value_correct lexical true
+    refine ⟨r, by rw [datatypes.kind_value]; exact run, fun v hv => ?_, fun hn => ?_⟩
+    · obtain ⟨x, rfl, cx, form, zone⟩ := someCase v hv
+      exact ⟨cx, ⟨_, form, zone rfl⟩, fun D N => by
+        simp only [typeOf, valueOf]; exact N.stamp_value _ _ form (zone rfl)⟩
+    · by_cases long : lexical.val.length < Usize.max / 16
+      · refine .inl fun ⟨m, form, zone⟩ => ?_
+        obtain ⟨x, hx, _⟩ := completeCase long m form (fun _ => zone)
+        rw [hn] at hx; cases hx
+      · exact .inr ⟨.inr (.inr rfl), by omega⟩
 
 /-- A literal has a value exactly when its datatype is one of the datatypes and
     its lexical form is in the lexical space, except an `owl:rational` form too
@@ -4155,7 +4207,8 @@ theorem literal_value_correct (lt : Literal) :
             D.lexicalValue lt.datatype lt.lexical.val = valueOf N v) ∧
       (r = none → kindOf lt.datatype = none ∨
         ∃ k, kindOf lt.datatype = some k ∧
-          (¬ LexicalForm k lt.lexical.val ∨ (k = .Rational ∧ Usize.max / 16 ≤ lt.lexical.val.length))) := by
+          (¬ LexicalForm k lt.lexical.val ∨
+            ((k = .Rational ∨ k = .DateTime ∨ k = .DateTimeStamp) ∧ Usize.max / 16 ≤ lt.lexical.val.length))) := by
   rw [datatypes.literal_value, kind_of_correct]
   cases kind : kindOf lt.datatype with
   | none => exact ⟨none, by simp, by simp, fun _ => .inl rfl⟩
@@ -4208,10 +4261,27 @@ theorem same_bytes_correct (left right : alloc.vec.Vec U8) :
       simpa using congrArg UScalar.val same)
     simp [lengths', eq, unequal]
 
+theorem same_zone_correct (left right : Option (Bool × U8 × U8)) :
+    datatypes.same_zone left right = .ok (decide (left = right)) := by
+  rcases left with _ | ⟨w, h, m⟩ <;> rcases right with _ | ⟨w', h', m'⟩ <;> simp [datatypes.same_zone, Bool.and_assoc]
+
+theorem same_moment_correct (left right : datatypes.Moment) :
+    datatypes.same_moment left right = .ok (decide (left = right)) := by
+  rw [datatypes.same_moment]
+  simp only [same_bytes_correct, same_zone_correct, bind_ok]
+  congr 1
+  obtain ⟨n, y, mo, d, h, mi, se, f, z⟩ := left
+  obtain ⟨n', y', mo', d', h', mi', se', f', z'⟩ := right
+  simp only [datatypes.Moment.mk.injEq, alloc.vec.Vec.eq_iff, Bool.and_eq_true, decide_eq_true_eq,
+    Bool.decide_and]
+  by_cases a1 : n = n' <;> by_cases a2 : y.val = y'.val <;> by_cases a3 : mo = mo' <;> by_cases a4 : d = d' <;>
+    by_cases a5 : h = h' <;> by_cases a6 : mi = mi' <;> by_cases a7 : se = se' <;> by_cases a8 : f.val = f'.val <;>
+    by_cases a9 : z = z' <;> simp [a1, a2, a3, a4, a5, a6, a7, a8, a9]
+
 /-- The kernel compares values exactly. -/
 theorem same_value_correct (left right : datatypes.DataValue) :
     datatypes.same_value left right = .ok (decide (left = right)) := by
-  cases left <;> cases right <;> simp [datatypes.same_value, same_bytes_correct] <;>
+  cases left <;> cases right <;> simp [datatypes.same_value, same_bytes_correct, same_moment_correct] <;>
     split_ifs <;> simp_all [same_bytes_correct]
 
 /-- Membership of a value in the value space of a kind's datatype, as the
@@ -4225,6 +4295,7 @@ def InKind : datatypes.DataValue → datatypes.Kind → Prop
   | .Uri _, k => k = .AnyUri
   | .Hex _, k => k = .HexBinary
   | .Base64 _, k => k = .Base64Binary
+  | .Moment x, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ x.zone ≠ none)
 
 theorem in_kind_correct (v : datatypes.DataValue) (canonical : Canonical v) (k : datatypes.Kind) :
     datatypes.in_kind v k = .ok (decide (InKind v k)) := by
@@ -4243,6 +4314,7 @@ theorem in_kind_correct (v : datatypes.DataValue) (canonical : Canonical v) (k :
   | Uri t => cases k <;> simp [datatypes.in_kind, InKind]
   | Hex o => cases k <;> simp [datatypes.in_kind, InKind]
   | Base64 o => cases k <;> simp [datatypes.in_kind, InKind]
+  | Moment x => rcases hz : x.zone with _ | z <;> cases k <;> simp [datatypes.in_kind, InKind, hz]
 
 /-- The reals of a numeric kind's value space that are canonical decimal
     numbers are those the kernel reads off them. -/
@@ -4290,6 +4362,8 @@ theorem number_realIn {n : Bool} {w f : List U8} (c : CanonicalNumber n w f) (k 
   | NmToken => exact absurd numeric (by simp [IsNumeric])
   | Name => exact absurd numeric (by simp [IsNumeric])
   | NcName => exact absurd numeric (by simp [IsNumeric])
+  | DateTime => exact absurd numeric (by simp [IsNumeric])
+  | DateTimeStamp => exact absurd numeric (by simp [IsNumeric])
   | _ => exact subtype trivial
 
 theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (k : datatypes.Kind)
@@ -4327,6 +4401,8 @@ theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (
   | NmToken => exact absurd numeric (by simp [IsNumeric])
   | Name => exact absurd numeric (by simp [IsNumeric])
   | NcName => exact absurd numeric (by simp [IsNumeric])
+  | DateTime => exact absurd numeric (by simp [IsNumeric])
+  | DateTimeStamp => exact absurd numeric (by simp [IsNumeric])
   | _ => simp only [reduceCtorEq, or_self, iff_false]; exact subtype trivial
 
 /-- A number is no value of an IRI or of octets. -/
@@ -4399,13 +4475,20 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       constructor
       · rintro rfl; exact absurd numeric (by simp [IsNumeric])
       · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_coded r (.base64 o.val) trivial)
+    | Moment x =>
+      have valid : (Rowl.Moments.momentOf x).Valid := (canonical : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2
+      simp only [InKind, valueOf]
+      constructor
+      · rintro (rfl | ⟨rfl, _⟩) <;> exact absurd numeric (by simp [IsNumeric])
+      · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_moment r _ valid)
   · by_cases sub : ∃ s, subtypeOf k = some s
     · obtain ⟨s, hs⟩ := sub
       rw [subtype_space_iff N hs]
       have others : k ≠ .String ∧ k ≠ .Plain ∧ k ≠ .Real ∧ k ≠ .Rational ∧ k ≠ .Boolean ∧ k ≠ .AnyUri ∧
-          k ≠ .HexBinary ∧ k ≠ .Base64Binary ∧ ∀ (w : Prop) q, ¬ NumberIn k w q := by
+          k ≠ .HexBinary ∧ k ≠ .Base64Binary ∧ k ≠ .DateTime ∧ k ≠ .DateTimeStamp ∧
+          ∀ (w : Prop) q, ¬ NumberIn k w q := by
         cases k <;> simp [subtypeOf, NumberIn] at hs ⊢
-      obtain ⟨nS, nP, nR, nQ, nB, nU, nH, n64, nN⟩ := others
+      obtain ⟨nS, nP, nR, nQ, nB, nU, nH, n64, nD, nDS, nN⟩ := others
       have xmlOf : ∀ {t}, s.Form t → XmlText t := fun f => Rowl.Strings.form_xml f
       cases v with
       | Number n w f =>
@@ -4440,17 +4523,24 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
         simp only [InKind, valueOf]
         exact ⟨fun h => absurd h n64,
           fun ⟨t', f', same⟩ => absurd same.symm (N.text_coded _ (.base64 o.val) (xmlOf f') trivial)⟩
+      | Moment x =>
+        have valid : (Rowl.Moments.momentOf x).Valid := (canonical : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2
+        simp only [InKind, valueOf]
+        exact ⟨fun h => by rcases h with h | ⟨h, _⟩; exacts [absurd h nD, absurd h nDS],
+          fun ⟨t', f', same⟩ => absurd same.symm (N.text_moment _ _ (xmlOf f') valid)⟩
     have numberNot : ∀ q, ¬ D.valueSpace (typeOf k) (N.number q) := by
       intro q
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [typeOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, not_exists, not_and, not_or]
+        simp only [typeOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space, not_exists, not_and, not_or]
       · exact fun s xs e => N.number_text q s xs e
       · exact ⟨fun s xs e => N.number_text q s xs e, fun s l xs tl e => N.number_tagged q s l xs tl e⟩
       · exact fun b e => N.number_truth q b e
       · exact fun s xs e => number_coded N q (.uri s) xs e
       · exact fun o e => number_coded N q (.hex o) trivial e
       · exact fun o e => number_coded N q (.base64 o) trivial e
+      · exact fun m valid e => N.real_moment q m valid ((real_rat N q).symm.trans e)
+      · exact fun m valid _ e => N.real_moment q m valid ((real_rat N q).symm.trans e)
     cases v with
     | Number n w f =>
       simp only [InKind, valueOf]
@@ -4471,19 +4561,21 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
           exacts [.inl h, .inr (.inl h)]
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, classic, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, classic, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · exact ⟨fun _ => ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · exact ⟨fun _ => .inl ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same (N.text_truth _ b xt)⟩
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same (N.text_coded _ (.uri s) xt xs)⟩
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.text_coded _ (.hex o) xt trivial)⟩
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.text_coded _ (.base64 o) xt trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, same⟩ => absurd same (N.text_moment _ m xt mv)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, _, same⟩ => absurd same (N.text_moment _ m xt mv)⟩
     | Tagged t m =>
       have xt : XmlText t.val := canonical.1
       have tm : TagValue m.val := canonical.2
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_tagged s _ _ xs xt tm)⟩
       · exact ⟨fun _ => .inr ⟨_, _, xt, tm, rfl⟩, fun _ => by simp⟩
       · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same (N.tagged_truth _ _ b xt tm)⟩
@@ -4491,10 +4583,12 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.tagged_coded _ _ (.hex o) xt tm trivial)⟩
       · refine ⟨fun h => by simp at h,
           fun ⟨o, same⟩ => absurd same (N.tagged_coded _ _ (.base64 o) xt tm trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, same⟩ => absurd same (N.tagged_moment _ _ m xt tm mv)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, _, same⟩ => absurd same (N.tagged_moment _ _ m xt tm mv)⟩
     | Truth b =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_truth s b xs)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
         rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
@@ -4504,11 +4598,13 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same (N.truth_coded _ (.uri s) xs)⟩
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.truth_coded _ (.hex o) trivial)⟩
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.truth_coded _ (.base64 o) trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, same⟩ => absurd same (N.truth_moment _ m mv)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, _, same⟩ => absurd same (N.truth_moment _ m mv)⟩
     | Uri t =>
       have xt : XmlText t.val := canonical
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.uri t.val) xs xt)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
         rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
@@ -4522,10 +4618,12 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => ?_⟩
         have := N.coded_injective (.uri t.val) (.base64 o) xt trivial same
         cases this
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, same⟩ => absurd same (N.coded_moment (.uri t.val) m xt mv)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, _, same⟩ => absurd same (N.coded_moment (.uri t.val) m xt mv)⟩
     | Hex o =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.hex o.val) xs trivial)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
         rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
@@ -4539,10 +4637,13 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       · refine ⟨fun h => by simp at h, fun ⟨o', same⟩ => ?_⟩
         have := N.coded_injective (.hex o.val) (.base64 o') trivial trivial same
         cases this
+      · refine ⟨fun h => by simp at h, fun ⟨m, mv, same⟩ => absurd same (N.coded_moment (.hex o.val) m trivial mv)⟩
+      · refine ⟨fun h => by simp at h,
+          fun ⟨m, mv, _, same⟩ => absurd same (N.coded_moment (.hex o.val) m trivial mv)⟩
     | Base64 o =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
         (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, N.datetime_space, N.stamp_space]
       · refine ⟨fun h => by simp at h,
           fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.base64 o.val) xs trivial)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
@@ -4558,14 +4659,106 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
         have := N.coded_injective (.base64 o.val) (.hex o') trivial trivial same
         cases this
       · exact ⟨fun _ => ⟨_, rfl⟩, fun _ => trivial⟩
+      · refine ⟨fun h => by simp at h,
+          fun ⟨m, mv, same⟩ => absurd same (N.coded_moment (.base64 o.val) m trivial mv)⟩
+      · refine ⟨fun h => by simp at h,
+          fun ⟨m, mv, _, same⟩ => absurd same (N.coded_moment (.base64 o.val) m trivial mv)⟩
+    | Moment x =>
+      have cx : Rowl.Moments.CanonicalMoment x := canonical
+      have valid : (Rowl.Moments.momentOf x).Valid := cx.2.2.2.2.2.2
+      have zoneIff : (Rowl.Moments.momentOf x).zone ≠ none ↔ x.zone ≠ none := by
+        simp [Rowl.Moments.momentOf]
+      cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space,
+          N.base64_space, N.datetime_space, N.stamp_space]
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_moment s _ xs valid)⟩
+      · refine ⟨fun h => by simp at h, ?_⟩
+        rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
+        · exact absurd same.symm (N.text_moment s _ xs valid)
+        · exact absurd same.symm (N.tagged_moment s l _ xs tl valid)
+      · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same.symm (N.truth_moment b _ valid)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.coded_moment (.uri s) _ xs valid)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same.symm (N.coded_moment (.hex o) _ trivial valid)⟩
+      · refine ⟨fun h => by simp at h,
+          fun ⟨o, same⟩ => absurd same.symm (N.coded_moment (.base64 o) _ trivial valid)⟩
+      · exact ⟨fun _ => ⟨_, valid, rfl⟩, fun _ => .inl trivial⟩
+      · constructor
+        · rintro (h | ⟨_, z⟩)
+          · cases h
+          · exact ⟨_, valid, zoneIff.mpr z, rfl⟩
+        · rintro ⟨m, mv, mz, same⟩
+          have e := N.moment_injective _ _ valid mv same
+          rw [← e] at mz
+          exact .inr ⟨trivial, zoneIff.mp mz⟩
 
 private theorem vec_ext {a b : alloc.vec.Vec U8} (h : a.val = b.val) : a = b := by
   simpa [alloc.vec.Vec.eq_iff] using h
+
+/-- Canonical kernel moments of one moment are one. -/
+theorem moment_canonical_injective {x y : datatypes.Moment} (cx : Rowl.Moments.CanonicalMoment x)
+    (cy : Rowl.Moments.CanonicalMoment y) (same : Rowl.Moments.momentOf x = Rowl.Moments.momentOf y) : x = y := by
+  obtain ⟨xYear, xSign, xFd, xFl, xS, xZone, _⟩ := cx
+  obtain ⟨yYear, ySign, yFd, yFl, yS, yZone, _⟩ := cy
+  simp only [Rowl.Moments.momentOf, Moment.mk.injEq] at same
+  obtain ⟨eYear, eMonth, eDay, eHour, eMinute, eSecond, eZone⟩ := same
+  have years : x.negative = y.negative ∧ x.year = y.year := by
+    have zx := Rowl.Numbers.canonical_zero x.year.val xYear
+    have zy := Rowl.Numbers.canonical_zero y.year.val yYear
+    cases hx : x.negative <;> cases hy : y.negative <;> simp only [hx, hy, Bool.false_eq_true, ↓reduceIte,
+      one_mul, neg_mul, neg_inj, Nat.cast_inj] at eYear xSign ySign
+    · exact ⟨rfl, vec_ext (Rowl.Numbers.canonical_unique _ _ xYear yYear eYear)⟩
+    · have : digitsValue y.year.val = 0 := by omega
+      exact absurd (zy.mp this) (ySign trivial)
+    · have : digitsValue x.year.val = 0 := by omega
+      exact absurd (zx.mp this) (xSign trivial)
+    · exact ⟨rfl, vec_ext (Rowl.Numbers.canonical_unique _ _ xYear yYear eYear)⟩
+  have fx := fraction_bounds x.fraction.val xFd
+  have fy := fraction_bounds y.fraction.val yFd
+  simp only [fractionValue] at eSecond
+  have seconds : x.second.val = y.second.val := by
+    by_contra ne
+    rcases Nat.lt_or_gt_of_ne ne with less | more
+    · have : (x.second.val : ℚ) + 1 ≤ y.second.val := by exact_mod_cast less
+      linarith [fx.2, fy.1]
+    · have : (y.second.val : ℚ) + 1 ≤ x.second.val := by exact_mod_cast more
+      linarith [fx.1, fy.2]
+  have fractions : x.fraction = y.fraction := by
+    rw [seconds] at eSecond
+    have e : (digitsValue x.fraction.val : ℚ) / 10 ^ x.fraction.val.length =
+        (digitsValue y.fraction.val : ℚ) / 10 ^ y.fraction.val.length := by linarith
+    rw [div_eq_div_iff (by positivity) (by positivity)] at e
+    apply vec_ext
+    apply fraction_unique _ _ xFd yFd xFl yFl
+    exact_mod_cast e
+  have zones : x.zone = y.zone := by
+    rcases hx : x.zone with _ | ⟨w, h, m⟩ <;> rcases hy : y.zone with _ | ⟨w', h', m'⟩
+    · rfl
+    · rw [hx, hy] at eZone; simp at eZone
+    · rw [hx, hy] at eZone; simp at eZone
+    · rw [hx, hy] at eZone
+      simp only [Option.map_some, Option.some.injEq] at eZone
+      obtain ⟨m60, wnz⟩ := xZone w h m hx
+      obtain ⟨m60', wnz'⟩ := yZone w' h' m' hy
+      have parts : w = w' ∧ h.val = h'.val ∧ m.val = m'.val := by
+        cases w <;> cases w' <;> simp only [Bool.false_eq_true, ↓reduceIte, one_mul, neg_mul, true_and,
+          forall_const, IsEmpty.forall_iff, false_implies] at eZone wnz wnz' ⊢ <;> omega
+      obtain ⟨rfl, eh, em⟩ := parts
+      rw [UScalar.eq_of_val_eq eh, UScalar.eq_of_val_eq em]
+  obtain ⟨n, yr, mo, d, hr, mi, se, fr, z⟩ := x
+  obtain ⟨n', yr', mo', d', hr', mi', se', fr', z'⟩ := y
+  simp only at years fractions zones seconds eMonth eDay eHour eMinute
+  obtain ⟨rfl, rfl⟩ := years
+  subst fractions zones
+  rw [UScalar.eq_of_val_eq eMonth, UScalar.eq_of_val_eq eDay, UScalar.eq_of_val_eq eHour,
+    UScalar.eq_of_val_eq eMinute, UScalar.eq_of_val_eq seconds]
 
 /-- Under every datatype map that is the OWL 2 map on the datatypes here,
     distinct canonical values are distinct values. -/
 theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Canonical a) (cb : Canonical b)
     (same : valueOf N a = valueOf N b) : a = b := by
+  have momentValid : ∀ {x : datatypes.Moment}, Canonical (.Moment x) → (Rowl.Moments.momentOf x).Valid :=
+    fun c => (c : Rowl.Moments.CanonicalMoment _).2.2.2.2.2.2
   cases a with
   | Number n w f =>
     cases b with
@@ -4580,6 +4773,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Uri t => exact absurd same (number_coded N _ (.uri t.val) cb)
     | Hex o => exact absurd same (number_coded N _ (.hex o.val) trivial)
     | Base64 o => exact absurd same (number_coded N _ (.base64 o.val) trivial)
+    | Moment x => exact absurd same (fun e => N.real_moment _ _ (momentValid cb) ((real_rat N _).symm.trans e))
   | Fraction n a' b' =>
     cases b with
     | Number n' w f => exact absurd (N.number_injective same) (fraction_ne_number (negative := n) ca)
@@ -4592,6 +4786,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Uri t => exact absurd same (number_coded N _ (.uri t.val) cb)
     | Hex o => exact absurd same (number_coded N _ (.hex o.val) trivial)
     | Base64 o => exact absurd same (number_coded N _ (.base64 o.val) trivial)
+    | Moment x => exact absurd same (fun e => N.real_moment _ _ (momentValid cb) ((real_rat N _).symm.trans e))
   | Text t =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_text _ _ ca)
@@ -4602,6 +4797,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Uri t' => exact absurd same (N.text_coded _ (.uri t'.val) ca cb)
     | Hex o => exact absurd same (N.text_coded _ (.hex o.val) ca trivial)
     | Base64 o => exact absurd same (N.text_coded _ (.base64 o.val) ca trivial)
+    | Moment x => exact absurd same (N.text_moment _ _ ca (momentValid cb))
   | Tagged t m =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_tagged _ _ _ ca.1 ca.2)
@@ -4614,6 +4810,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Uri t' => exact absurd same (N.tagged_coded _ _ (.uri t'.val) ca.1 ca.2 cb)
     | Hex o => exact absurd same (N.tagged_coded _ _ (.hex o.val) ca.1 ca.2 trivial)
     | Base64 o => exact absurd same (N.tagged_coded _ _ (.base64 o.val) ca.1 ca.2 trivial)
+    | Moment x => exact absurd same (N.tagged_moment _ _ _ ca.1 ca.2 (momentValid cb))
   | Truth x =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_truth _ _)
@@ -4624,6 +4821,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Uri t => exact absurd same (N.truth_coded _ (.uri t.val) cb)
     | Hex o => exact absurd same (N.truth_coded _ (.hex o.val) trivial)
     | Base64 o => exact absurd same (N.truth_coded _ (.base64 o.val) trivial)
+    | Moment x => exact absurd same (N.truth_moment _ _ (momentValid cb))
   | Uri t =>
     cases b with
     | Number n w f => exact absurd same.symm (number_coded N _ (.uri t.val) ca)
@@ -4637,6 +4835,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
       rw [vec_ext this]
     | Hex o => have := N.coded_injective (.uri t.val) (.hex o.val) ca trivial same; cases this
     | Base64 o => have := N.coded_injective (.uri t.val) (.base64 o.val) ca trivial same; cases this
+    | Moment x => exact absurd same (N.coded_moment (.uri t.val) _ ca (momentValid cb))
   | Hex o =>
     cases b with
     | Number n w f => exact absurd same.symm (number_coded N _ (.hex o.val) trivial)
@@ -4650,6 +4849,7 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
       simp only [Coded.hex.injEq] at this
       rw [vec_ext this]
     | Base64 o' => have := N.coded_injective (.hex o.val) (.base64 o'.val) trivial trivial same; cases this
+    | Moment x => exact absurd same (N.coded_moment (.hex o.val) _ trivial (momentValid cb))
   | Base64 o =>
     cases b with
     | Number n w f => exact absurd same.symm (number_coded N _ (.base64 o.val) trivial)
@@ -4663,6 +4863,20 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
       have := N.coded_injective (.base64 o.val) (.base64 o'.val) trivial trivial same
       simp only [Coded.base64.injEq] at this
       rw [vec_ext this]
+    | Moment x => exact absurd same (N.coded_moment (.base64 o.val) _ trivial (momentValid cb))
+  | Moment x =>
+    have va := momentValid ca
+    cases b with
+    | Number n w f => exact absurd same.symm (fun e => N.real_moment _ _ va ((real_rat N _).symm.trans e))
+    | Fraction n a' b' => exact absurd same.symm (fun e => N.real_moment _ _ va ((real_rat N _).symm.trans e))
+    | Text t' => exact absurd same.symm (N.text_moment _ _ cb va)
+    | Tagged t' m => exact absurd same.symm (N.tagged_moment _ _ _ cb.1 cb.2 va)
+    | Truth y => exact absurd same.symm (N.truth_moment _ _ va)
+    | Uri t' => exact absurd same.symm (N.coded_moment (.uri t'.val) _ cb va)
+    | Hex o => exact absurd same.symm (N.coded_moment (.hex o.val) _ trivial va)
+    | Base64 o => exact absurd same.symm (N.coded_moment (.base64 o.val) _ trivial va)
+    | Moment y =>
+      rw [moment_canonical_injective ca cb (N.moment_injective _ _ va (momentValid cb) same)]
 
 /-! ### The range facets -/
 
@@ -4787,7 +5001,7 @@ theorem normative_facet (N : Normative D) (F : datatypes.Facet) {bound value : d
 /-- The numeric datatypes of XML Schema here. -/
 def IsXsdNumeric : datatypes.Kind → Prop
   | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary | .NormalizedString
-  | .Token | .Language | .NmToken | .Name | .NcName => False
+  | .Token | .Language | .NmToken | .Name | .NcName | .DateTime | .DateTimeStamp => False
   | _ => True
 
 theorem xsd_listed (k : datatypes.Kind) (h : IsXsdNumeric k) : typeOf k ∈ xsdNumericTypes := by
@@ -4821,6 +5035,7 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
     | Uri t => exact N.real_coded r (.uri t.val) c same.symm
     | Hex o => exact N.real_coded r (.hex o.val) trivial same.symm
     | Base64 o => exact N.real_coded r (.base64 o.val) trivial same.symm
+    | Moment x => exact N.real_moment r _ (c : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2 same.symm
   by_cases xsd : IsXsdNumeric k
   · rw [facet_applies_xsd k xsd, numeric_correct]
     by_cases nb : IsNumber bound
@@ -4832,8 +5047,8 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
       simp only [Bool.false_eq_true, false_iff, not_and]
       intro _ inKind
       apply nb
-      cases bound <;> simp_all [InKind, IsNumber, IsXsdNumeric, TextIn, subtypeOf]
-      cases k <;> simp_all [IsXsdNumeric]
+      cases bound <;> simp_all [InKind, IsNumber, IsXsdNumeric, TextIn, subtypeOf] <;>
+        cases k <;> simp_all [IsXsdNumeric]
   · cases k with
     | Real =>
       simp only [datatypes.facet_applies, numeric_correct]
@@ -4887,6 +5102,12 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | NcName =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | DateTime =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | DateTimeStamp =>
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | _ => exact absurd trivial xsd
@@ -5029,6 +5250,7 @@ inductive ModelValue where
   | tagged (s l : List U8)
   | truth (b : Bool)
   | coded (a : Coded)
+  | moment (m : Moment)
   | other
 
 /-- The ASCII lower case of a byte. -/
@@ -5069,6 +5291,8 @@ noncomputable def modelValue (k : datatypes.Kind) (t : List U8) : ModelValue :=
   | .HexBinary => if h : ∃ o, HexForm t o then .coded (.hex (Classical.choose h)) else .other
   | .Base64Binary => if h : ∃ o, Base64Form t o then .coded (.base64 (Classical.choose h)) else .other
   | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName => .text t
+  | .DateTime => if h : ∃ m, MomentForm t m then .moment (Classical.choose h) else .other
+  | .DateTimeStamp => if h : ∃ m, MomentForm t m ∧ m.zone ≠ none then .moment (Classical.choose h) else .other
   | _ => if h : ∃ q, NumberForm true t q then .real ((Classical.choose h : ℚ) : ℝ) else .other
 
 /-- The value space of the datatype of a kind in the model map. -/
@@ -5085,6 +5309,8 @@ def ModelSpace : datatypes.Kind → ModelValue → Prop
   | .NmToken, x => ∃ s, StringSubtype.nmtoken.Form s ∧ x = .text s
   | .Name, x => ∃ s, StringSubtype.name.Form s ∧ x = .text s
   | .NcName, x => ∃ s, StringSubtype.ncname.Form s ∧ x = .text s
+  | .DateTime, x => ∃ m, m.Valid ∧ x = .moment m
+  | .DateTimeStamp, x => ∃ m, m.Valid ∧ m.zone ≠ none ∧ x = .moment m
   | k, x => ∃ r, x = .real r ∧ RealIn k r
 
 /-- The facet space of the datatype of a kind in the model map. -/
@@ -5102,6 +5328,8 @@ def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   | .NmToken => False
   | .Name => False
   | .NcName => False
+  | .DateTime => False
+  | .DateTimeStamp => False
   | .Real => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | .Rational => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | k => f ∈ rangeFacets ∧ ModelSpace k v
@@ -5304,7 +5532,54 @@ theorem modelValue_space (k : datatypes.Kind) (t : List U8) (form : LexicalForm 
   | NmToken => exact ⟨t, form, rfl⟩
   | Name => exact ⟨t, form, rfl⟩
   | NcName => exact ⟨t, form, rfl⟩
+  | DateTime =>
+    have h : ∃ m, MomentForm t m := form
+    simp only [modelValue, h, ↓reduceDIte, ModelSpace]
+    exact ⟨_, Rowl.Moments.momentForm_valid (Classical.choose_spec h), rfl⟩
+  | DateTimeStamp =>
+    have h : ∃ m, MomentForm t m ∧ m.zone ≠ none := form
+    simp only [modelValue, h, ↓reduceDIte, ModelSpace]
+    exact ⟨_, Rowl.Moments.momentForm_valid (Classical.choose_spec h).1, (Classical.choose_spec h).2, rfl⟩
   | _ => exact subtype trivial
+
+private theorem ascii_concat {a b : List U8} (ha : ∀ x ∈ a, x.val < 128) (hb : ∀ x ∈ b, x.val < 128) :
+    ∀ x ∈ a ++ b, x.val < 128 := by
+  intro x m; rcases List.mem_append.mp m with m | m; exacts [ha x m, hb x m]
+
+private theorem ascii_cons {c : U8} {b : List U8} (hc : c.val < 128) (hb : ∀ x ∈ b, x.val < 128) :
+    ∀ x ∈ c :: b, x.val < 128 := by
+  intro x m; rcases List.mem_cons.mp m with rfl | m; exacts [hc, hb x m]
+
+private theorem digits_ascii {l : List U8} (d : Digits l) : ∀ x ∈ l, x.val < 128 := fun x m => by
+  have := (d x m).2; omega
+
+/-- A lexical form of `xsd:dateTime` is ASCII. -/
+private theorem moment_form_ascii {t : List U8} {m : Moment} (form : MomentForm t m) : ∀ b ∈ t, b.val < 128 := by
+  obtain ⟨yearText, mm, dd, hh, mi, ss, fraction, zoneText, year, month, day, hour, minute, second, zone, rfl,
+    ⟨neg, ds, rfl, dds, _, _, _⟩, tmm, _, _, tdd, _, _, thh, tmi, tss, fd, zoneCase, _⟩ := form
+  have signAscii : ∀ x ∈ (if neg = true then [45#u8] else []), x.val < 128 := by
+    split
+    · exact ascii_cons (by simp) (fun x m => by cases m)
+    · exact fun x m => by cases m
+  have fracAscii : ∀ x ∈ (if fraction = [] then [] else 46#u8 :: fraction), x.val < 128 := by
+    split
+    · exact fun x m => by cases m
+    · exact ascii_cons (by simp) (digits_ascii fd)
+  have zoneAscii : ∀ x ∈ zoneText, x.val < 128 := by
+    rcases zoneCase with ⟨rfl, _⟩ | ⟨z, ⟨rfl, _⟩ | ⟨west, hh', mm', _, _, rfl, th, tm, _, _⟩, _⟩
+    · exact fun x m => by cases m
+    · exact ascii_cons (by simp) (fun x m => by cases m)
+    · refine ascii_cons (by cases west <;> simp) (ascii_concat (digits_ascii th.2.1)
+        (ascii_cons (by simp) (digits_ascii tm.2.1)))
+  have hds := digits_ascii dds
+  have hmm := digits_ascii tmm.2.1
+  have hdd := digits_ascii tdd.2.1
+  have hhh := digits_ascii thh.2.1
+  have hmi := digits_ascii tmi.2.1
+  have hss := digits_ascii tss.2.1
+  simp only [List.forall_mem_append, List.forall_mem_cons]
+  and_intros
+  all_goals first | assumption | simp
 
 /-- The model map: the datatypes here with the specification's spaces, values,
     facet spaces and facet values, and every other datatype unsupported. -/
@@ -5324,7 +5599,8 @@ noncomputable def modelMap : DatatypeMap ModelValue where
       plainType, booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType,
       positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType,
       unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType,
-      normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType]
+      normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType, dateTimeType,
+      dateTimeStampType]
   lexicalUtf8 := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
     rw [kind] at kind'; cases kind'
@@ -5357,6 +5633,8 @@ noncomputable def modelMap : DatatypeMap ModelValue where
     | NmToken => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .nmtoken) form; simpa using text_utf8 f
     | Name => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .«name») form; simpa using text_utf8 f
     | NcName => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .ncname) form; simpa using text_utf8 f
+    | DateTime => obtain ⟨m, f⟩ := form; exact ascii_utf8 _ (moment_form_ascii f)
+    | DateTimeStamp => obtain ⟨m, f, _⟩ := form; exact ascii_utf8 _ (moment_form_ascii f)
     | _ => exact subtype trivial
   lexicalInSpace := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
@@ -5623,5 +5901,28 @@ noncomputable def modelNormative : Normative modelMap where
   string_subtype_space := fun s x => by rw [← typeOf_subtypeKind, model_space]; cases s <;> rfl
   string_subtype_lexical := fun s t => by rw [← typeOf_subtypeKind, model_lexical]; cases s <;> rfl
   string_subtype_value := fun s t _ => by rw [← typeOf_subtypeKind, model_value]; cases s <;> rfl
+  moment := .moment
+  moment_injective := fun _ _ _ _ h => by cases h; rfl
+  real_moment := fun _ _ _ h => by cases h
+  text_moment := fun _ _ _ _ h => by cases h
+  tagged_moment := fun _ _ _ _ _ _ h => by cases h
+  truth_moment := fun _ _ _ h => by cases h
+  coded_moment := fun _ _ _ _ h => by cases h
+  datetime_supported := model_supported .DateTime
+  stamp_supported := model_supported .DateTimeStamp
+  datetime_space := fun x => by rw [show dateTimeType = typeOf .DateTime from rfl, model_space]; rfl
+  stamp_space := fun x => by rw [show dateTimeStampType = typeOf .DateTimeStamp from rfl, model_space]; rfl
+  datetime_lexical := fun t => by rw [show dateTimeType = typeOf .DateTime from rfl, model_lexical]; rfl
+  datetime_value := fun t m form => by
+    rw [show dateTimeType = typeOf .DateTime from rfl, model_value]
+    have h : ∃ m, MomentForm t m := ⟨m, form⟩
+    simp only [modelValue, h, ↓reduceDIte]
+    rw [Rowl.Moments.momentForm_unique (Classical.choose_spec h) form]
+  stamp_lexical := fun t => by rw [show dateTimeStampType = typeOf .DateTimeStamp from rfl, model_lexical]; rfl
+  stamp_value := fun t m form zone => by
+    rw [show dateTimeStampType = typeOf .DateTimeStamp from rfl, model_value]
+    have h : ∃ m, MomentForm t m ∧ m.zone ≠ none := ⟨m, form, zone⟩
+    simp only [modelValue, h, ↓reduceDIte]
+    rw [Rowl.Moments.momentForm_unique (Classical.choose_spec h).1 form]
 
 end Rowl.Datatypes

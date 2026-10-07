@@ -179,11 +179,29 @@ theorem sequence_injective {s s' : Sequence} {n n' : ℕ} (same : codedAt s n = 
 theorem sequence_kind (s : Sequence) (n : ℕ) : codedKind (codedAt s n) = sequenceKind s := by
   cases s <;> rfl
 
+/-- The values of a region of time instants: midnight on the first of January
+    of a year, at offset zero in the region of the time stamps. -/
+def momentAt (stamped : Bool) (n : ℕ) : DatatypeMap.Moment :=
+  ⟨n, 1, 1, 0, 0, 0, if stamped then some 0 else none⟩
+
+theorem momentAt_valid (stamped : Bool) (n : ℕ) : (momentAt stamped n).Valid := by
+  refine ⟨le_rfl, by simp [momentAt], le_rfl, by simp [momentAt, DatatypeMap.daysIn], by simp [momentAt],
+    by simp [momentAt], le_rfl, by simp [momentAt], ⟨0, 0, by simp [momentAt]⟩, fun z hz => ?_⟩
+  cases stamped <;> simp [momentAt] at hz
+  omega
+
+theorem momentAt_injective {s s' : Bool} {n n' : ℕ} (same : momentAt s n = momentAt s' n') : s = s' ∧ n = n' := by
+  simp only [momentAt, DatatypeMap.Moment.mk.injEq, Nat.cast_inj, true_and] at same
+  refine ⟨?_, same.1⟩
+  cases s <;> cases s' <;> simp_all
+
 /-- The regions of values that data nodes get: the reals of a level in the
     interval at a position of the cuts, strings of the letter a, tagged
-    strings, IRIs and octet sequences, and values outside every datatype. -/
+    strings, IRIs and octet sequences, time instants without and with a time
+    zone, and values outside every datatype. -/
 inductive Region where
-  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence) | other
+  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence) | moment (stamped : Bool)
+  | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
@@ -209,6 +227,7 @@ noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : 
   | .string ℓ, n => embedValue (N.text (Rowl.Strings.stringAt ℓ.val n))
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
   | .coded s, n => embedValue (N.coded (codedAt s n))
+  | .moment st, n => embedValue (N.moment (momentAt st n))
   | .other, n => ULift.up (.inr n)
 
 theorem level_unique {ℓ ℓ' : Nat} (h : ℓ ≤ 3) (h' : ℓ' ≤ 3) {r : ℝ} (a : AtLevel ℓ r) (a' : AtLevel ℓ' r) :
@@ -263,6 +282,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_coded _ _ (sequence_valid s' n'))
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.real_moment _ _ (momentAt_valid st' n'))
     | other => simp [regionValue, embedValue] at same
   | string ℓ =>
     cases r' with
@@ -280,6 +302,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (sequence_valid s' n'))
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (momentAt_valid st' n'))
     | other => simp [regionValue, embedValue] at same
   | tagged =>
     cases r' with
@@ -295,6 +320,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.tagged_coded _ _ _ (aText_xml n) tag (sequence_valid s' n'))
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.tagged_moment _ _ _ (aText_xml n) tag (momentAt_valid st' n'))
     | other => simp [regionValue, embedValue] at same
   | coded s =>
     cases r' with
@@ -311,6 +339,29 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       obtain ⟨rfl, rfl⟩ := sequence_injective (N.coded_injective _ _ (sequence_valid s n) (sequence_valid s' n') same)
       exact ⟨rfl, rfl⟩
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.coded_moment _ _ (sequence_valid s n) (momentAt_valid st' n'))
+    | other => simp [regionValue, embedValue] at same
+  | moment st =>
+    cases r' with
+    | number p' ℓ' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.real_moment _ _ (momentAt_valid st n))
+    | string ℓ' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (momentAt_valid st n))
+    | tagged =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.tagged_moment _ _ _ (aText_xml n') tag (momentAt_valid st n))
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.coded_moment _ _ (sequence_valid s' n') (momentAt_valid st n))
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      obtain ⟨rfl, rfl⟩ :=
+        momentAt_injective (N.moment_injective _ _ (momentAt_valid st n) (momentAt_valid st' n') same)
+      exact ⟨rfl, rfl⟩
     | other => simp [regionValue, embedValue] at same
   | other =>
     cases r' with
@@ -318,6 +369,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | string ℓ' => simp [regionValue, embedValue] at same
     | tagged => simp [regionValue, embedValue] at same
     | coded s' => simp [regionValue, embedValue] at same
+    | moment st' => simp [regionValue, embedValue] at same
     | other =>
       simp only [regionValue, ULift.up.injEq, Sum.inr.injEq] at same
       exact ⟨rfl, same⟩
@@ -340,6 +392,9 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | coded s =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact (sequence_injective (N.coded_injective _ _ (sequence_valid s a) (sequence_valid s b) same)).2
+  | moment st =>
+    simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+    exact (momentAt_injective (N.moment_injective _ _ (momentAt_valid st a) (momentAt_valid st b) same)).2
   | other =>
     simpa [regionValue] using same
 
@@ -365,6 +420,7 @@ def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datat
   | .string ℓ, n, k => Rowl.Strings.TextIn k (Rowl.Strings.stringAt ℓ.val n)
   | .tagged, _, k => k = .Plain
   | .coded s, _, k => k = sequenceKind s
+  | .moment st, _, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true)
   | .other, _, _ => False
 
 theorem embedded_space {k : datatypes.Kind} (y0 : Native) :
@@ -388,7 +444,11 @@ theorem real_space (N : Normative D) (r : ℝ) (k : datatypes.Kind) :
       rw [Rowl.Datatypes.subtype_space_iff N hs]
       rintro ⟨t, f, same⟩
       exact N.real_text r t (Rowl.Strings.form_xml f) same
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+    by_cases mk : IsMomentKind k
+    · intro inside
+      obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
+      exact N.real_moment r m mv same
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
       (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · rw [typeOf, N.string_space]
       rintro ⟨s, xs, same⟩
@@ -430,7 +490,13 @@ theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatyp
         obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
         exact absurd same (N.text_coded t c xs valid)
       · rintro (rfl | rfl) <;> simp [IsCoded] at ck
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+    by_cases mk : IsMomentKind k
+    · constructor
+      · intro inside
+        obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
+        exact absurd same (N.text_moment t m xs mv)
+      · rintro (rfl | rfl) <;> simp [IsMomentKind] at mk
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
       (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · simp only [typeOf, N.string_space, true_or, iff_true]
       exact ⟨t, xs, rfl⟩
@@ -458,7 +524,13 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
         obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
         exact absurd same (N.tagged_coded t l c xs tl valid)
       · rintro rfl; simp [IsCoded] at ck
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+    by_cases mk : IsMomentKind k
+    · constructor
+      · intro inside
+        obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
+        exact absurd same (N.tagged_moment t l m xs tl mv)
+      · rintro rfl; simp [IsMomentKind] at mk
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
       (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · simp only [typeOf, N.string_space, reduceCtorEq, iff_false, not_exists, not_and]
       exact fun s xs' e => N.text_tagged s t l xs' xs tl e.symm
@@ -488,6 +560,33 @@ theorem coded_space (N : Normative D) (s : Sequence) (n : ℕ) (k : datatypes.Ki
     · rintro rfl
       exact absurd (by cases s <;> trivial) ck
 
+/-- A time instant of a region is in `xsd:dateTime`, and in
+    `xsd:dateTimeStamp` when it has a time zone. -/
+theorem moment_space (N : Normative D) (st : Bool) (n : ℕ) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (N.moment (momentAt st n)) ↔ k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true) := by
+  have valid := momentAt_valid st n
+  by_cases mk : IsMomentKind k
+  · cases k <;> simp only [IsMomentKind] at mk
+    case DateTime =>
+      simp only [true_or, iff_true]
+      exact (N.datetime_space _).mpr ⟨_, valid, rfl⟩
+    case DateTimeStamp =>
+      simp only [reduceCtorEq, true_and, false_or]
+      constructor
+      · intro inside
+        obtain ⟨m, mv, zone, same⟩ := (N.stamp_space _).mp inside
+        have := N.moment_injective _ _ valid mv same
+        subst this
+        cases st
+        · simp [momentAt] at zone
+        · rfl
+      · rintro rfl
+        exact (N.stamp_space _).mpr ⟨_, valid, by simp [momentAt], rfl⟩
+  · constructor
+    · intro inside
+      exact absurd rfl (not_moment N mk inside _ valid)
+    · rintro (rfl | ⟨rfl, _⟩) <;> exact absurd trivial mk
+
 /-- A region's values are in the datatypes of the kinds `RegionIn` names. -/
 theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) (r : Region) (n : ℕ)
     (k : datatypes.Kind) :
@@ -497,6 +596,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
   | string ℓ => rw [regionValue, embedded_space, text_space N _ (Rowl.Strings.stringAt_xml ℓ.isLt n)]; rfl
   | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
   | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
+  | moment st => rw [regionValue, embedded_space, moment_space N st n]; rfl
   | other =>
     simp only [regionValue, embedValue, ULift.up.injEq, reduceCtorEq, and_false, exists_false, false_iff]
     exact id
@@ -555,6 +655,7 @@ noncomputable def regionOf (d : Object') : Region :=
   else if InUse context J .AnyUri d then .coded .uri
   else if InUse context J .HexBinary d then .coded .hex
   else if InUse context J .Base64Binary d then .coded .base64
+  else if InUse context J .DateTime d then .moment (decide (InUse context J .DateTimeStamp d))
   else .other
 
 theorem level_le (d : Object') : levelOf context J d ≤ 3 := by
@@ -594,6 +695,40 @@ theorem subtype_string (kinds : KindFacts context J) {k : datatypes.Kind} {y : O
     (h : J.classes (kindClass k) y) {s : DatatypeMap.StringSubtype} (hs : Rowl.Strings.subtypeOf k = some s)
     (used : Used context.kinds k = true) : Used context.kinds .String = true ∧ J.classes (kindClass .String) y :=
   ⟨used_string hs used, subtype_in_string kinds hs used h⟩
+
+/-- A node in the class of `xsd:dateTimeStamp` in use is in the class of
+    `xsd:dateTime`, which is in use. -/
+theorem stamp_in_datetime (kinds : KindFacts context J) {y : Object'}
+    (used : Used context.kinds .DateTimeStamp = true) (h : J.classes (kindClass .DateTimeStamp) y) :
+    Used context.kinds .DateTime = true ∧ J.classes (kindClass .DateTime) y := by
+  have usedT : Used context.kinds .DateTime = true := by simp_all [Used]
+  exact ⟨usedT, kinds.moments.1 used usedT y h⟩
+
+/-- A node in the class of a kind of time instants in use is in the class of
+    no other kind in use. -/
+theorem moment_alone (kinds : KindFacts context J) {k k' : datatypes.Kind} (mk : IsMomentKind k)
+    (mk' : ¬ IsMomentKind k') (used : Used context.kinds k = true) (used' : Used context.kinds k' = true)
+    {y : Object'} (h : J.classes (kindClass k) y) : ¬ J.classes (kindClass k') y := by
+  obtain ⟨usedT, inT⟩ : Used context.kinds .DateTime = true ∧ J.classes (kindClass .DateTime) y := by
+    cases k <;> simp only [IsMomentKind] at mk
+    · exact ⟨used, h⟩
+    · exact stamp_in_datetime kinds used h
+  have facts := kinds.moments.2.1
+  intro h'
+  cases k' <;> simp only [Used, Bool.false_eq_true, IsMomentKind, not_true_eq_false] at used' mk'
+  · exact facts.1 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.1 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.2.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.2.2.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.2.2.2.2.2 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact facts.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact kinds.moments.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact kinds.moments.2.2.2.1 usedT used' y ⟨inT, h'⟩
+  · exact kinds.moments.2.2.2.2 usedT used' y ⟨inT, h'⟩
+  all_goals
+    obtain ⟨usedString, inString⟩ := subtype_string kinds h' rfl used'
+    exact facts.2.2.2.2.1 usedT usedString y ⟨inT, inString⟩
 
 /-- The kinds of the chain after `xsd:string` hold a string exactly as its
     forms. -/
@@ -655,6 +790,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.1 used ui d ⟨h, ai⟩
     · exact fun h => kinds.sequences.2.1.1 used ui d ⟨h, ai⟩
     · exact fun h => kinds.sequences.2.2.1.1 used ui d ⟨h, ai⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ui h ai
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ui h ai
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -675,6 +813,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.2.1 used ud d ⟨h, ad⟩
     · exact fun h => kinds.sequences.2.1.2.1 used ud d ⟨h, ad⟩
     · exact fun h => kinds.sequences.2.2.1.2.1 used ud d ⟨h, ad⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ud h ad
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ud h ad
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -695,6 +836,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.2.2.1 used uq d ⟨h, aq⟩
     · exact fun h => kinds.sequences.2.1.2.2.1 used uq d ⟨h, aq⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.1 used uq d ⟨h, aq⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uq h aq
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uq h aq
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -721,6 +865,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
   · exact fun h => kinds.sequences.1.2.2.2.1 used ur d ⟨h, ar⟩
   · exact fun h => kinds.sequences.2.1.2.2.2.1 used ur d ⟨h, ar⟩
   · exact fun h => kinds.sequences.2.2.1.2.2.2.1 used ur d ⟨h, ar⟩
+  case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ur h ar
+  case DateTimeStamp =>
+    exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ur h ar
   all_goals
     intro h
     obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -771,6 +918,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.sequences.1.2.2.2.2.1 used us d ⟨h, ast⟩
     · exact fun h => kinds.sequences.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
+    · exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used us h ast
+    · exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used us h ast
   have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
       Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
     fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
@@ -788,6 +937,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.sequences.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
     · exact fun h => kinds.sequences.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used up h ap
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used up h ap
     all_goals exact fun h => notSub h rfl used
   by_cases hu : InUse context J .AnyUri d
   · simp only [hs, hp, hu, ↓reduceIte, RegionIn, sequenceKind]
@@ -804,6 +956,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact au
     · exact fun h => kinds.sequences.2.2.2.1 uu used d ⟨au, h⟩
     · exact fun h => kinds.sequences.2.2.2.2.1 uu used d ⟨au, h⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uu h au
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uu h au
     all_goals exact fun h => notSub h rfl used
   by_cases hh : InUse context J .HexBinary d
   · simp only [hs, hp, hu, hh, ↓reduceIte, RegionIn, sequenceKind]
@@ -820,6 +975,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact ah
     · exact fun h => kinds.sequences.2.2.2.2.2 uh used d ⟨ah, h⟩
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uh h ah
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uh h ah
     all_goals exact fun h => notSub h rfl used
   by_cases hb : InUse context J .Base64Binary d
   · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, sequenceKind]
@@ -836,8 +994,30 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact notIn _ hh used
     · exact ab
+    case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ub h ab
+    case DateTimeStamp =>
+      exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ub h ab
     all_goals exact fun h => notSub h rfl used
-  · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, iff_false]
+  by_cases hm : InUse context J .DateTime d
+  · simp only [hs, hp, hu, hh, hb, hm, ↓reduceIte, RegionIn, decide_eq_true_eq]
+    obtain ⟨um, am⟩ := hm
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, eq_self_iff_true, iff_false, iff_true, false_or, or_false, false_and, true_and,
+        true_or]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact am
+    case DateTimeStamp => exact ⟨fun h => ⟨used, h⟩, fun h => h.2⟩
+    all_goals exact fun h => notSub h rfl used
+  · simp only [hs, hp, hu, hh, hb, hm, ↓reduceIte, RegionIn, iff_false]
     cases k <;> simp only [Used, Bool.false_eq_true] at used
     · exact notIn _ ni used
     · exact notIn _ nd used
@@ -849,6 +1029,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact notIn _ hh used
     · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
     all_goals exact fun h => notSub h rfl used
 
 end Profile
@@ -1306,6 +1488,7 @@ theorem real_ne_value (N : Normative D) {val : datatypes.DataValue} (canonical :
   | Uri t => exact N.real_coded r _ canonical
   | Hex o => exact N.real_coded r _ trivial
   | Base64 o => exact N.real_coded r _ trivial
+  | Moment x => exact N.real_moment r _ (canonical : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2
 
 theorem literal_value_at (setting : Setting context capacity bits order J) (i : Usize)
     (h : i.val < context.values.val.length) (n : ℕ) :
@@ -1695,7 +1878,9 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
             reduceCtorEq] at same
           · exact absurd same.symm (N.real_text r _ (Rowl.Strings.stringAt_xml (stringLevel context J d).isLt _))
           · exact absurd same.symm (N.real_tagged r _ _ (aText_xml _) enTag_value)
-          all_goals exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
+          all_goals first
+            | exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
+            | exact absurd same.symm (N.real_moment r _ (momentAt_valid _ _))
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by
