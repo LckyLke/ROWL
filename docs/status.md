@@ -125,8 +125,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   `read_with_limits_total_correct` and `read_with_limits_accepted_iff` prove that
   `turtle::read_with_limits` returns exactly the triples a document denotes, in
   order, or its first error, and a graph exactly for Turtle documents within the
-  limits. All 313 W3C RDF 1.1 Turtle cases pass. Reading Turtle into ontologies
-  and Turtle export remain pending.
+  limits. All 313 W3C RDF 1.1 Turtle cases pass. The reasoner, the CLI and the
+  Python package read the OWL ontologies of Turtle graphs through the RDF
+  mapping below; Turtle export remains pending.
 - M3 exact byte-key symbol table: duplicates reuse their first symbol, new keys
   receive stable consecutive symbols and count-capacity errors preserve the table.
   Forward/reverse lookup, unique-key invariants and old-symbol preservation are
@@ -1020,7 +1021,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   one with 20 000 classes in 2.2 s from N-Triples and 12 s from Functional
   Syntax, where lexing takes most of the time.
 - Python bindings: the `rowl` package in `bindings/python` reads a
-  Functional Syntax or N-Triples document once and answers consistency, satisfiability,
+  Functional Syntax, N-Triples or Turtle document once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
   verified `Reasoner` through the C interface of the `rowl-python` crate with
   `ctypes`, needs no third-party Python or Rust packages, and installs with
@@ -1037,9 +1038,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   exactly those blank nodes, gives the input graph: every triple instantiates
   one of its triple patterns and every pattern is instantiated by a triple.
   That every such ontology is read back, annotated axioms, imports and distinct
-  blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
-  `classify` and `instances` commands for `.nt` files and the Python package
-  read N-Triples documents through the verified reader and this mapping.
+  blank nodes are not proved. `Reasoner::from_ntriples` and
+  `Reasoner::from_turtle`, the CLI's `check`, `classify` and `instances`
+  commands for `.nt` and `.ttl` files and the Python package read N-Triples and
+  Turtle documents through the verified readers and this mapping.
 - 2973 audited public theorems and 1360 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
@@ -1057,7 +1059,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 535 Rust regression tests and 11 Python binding tests, plus separately fetched
+- 539 Rust regression tests and 13 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use

@@ -34,6 +34,7 @@ pub mod experimental {
     pub use rowl_frontend::rdf;
     pub use rowl_frontend::regular;
     pub use rowl_frontend::snapshot;
+    pub use rowl_frontend::turtle;
     pub use rowl_frontend::unicode;
     pub use rowl_kernel::abox;
     pub use rowl_kernel::alc_ontology;

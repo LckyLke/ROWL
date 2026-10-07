@@ -4621,3 +4621,36 @@ planned. The 140 Turtle functions extract to 5.5 MB of LLBC; the largest body,
 This block adds 303 public theorems and 149 definitions. Totals are 2973
 audited theorems, 1360 definitions, 535 Rust regressions and 3166 ledger
 obligations.
+
+## Reasoning over Turtle documents
+
+`Reasoner::from_turtle` reads a Turtle document with the verified reader of the
+previous section and the OWL ontology its graph encodes with the verified
+reverse RDF mapping (`rdf_mapping::map_graph`), exactly as
+`Reasoner::from_ntriples` does for N-Triples; a rejected document is
+`LoadError::Turtle` with the reader's error. The document gets the scope
+`document` and no base of its own, so a relative IRI needs an `@base` or `BASE`
+directive before it; `Reasoner::from_turtle_with_base` supplies a base. The
+CLI's `check`, `classify` and `instances` commands read `.ttl` files this way,
+the C interface has `rowl_reasoner_from_turtle`, and the Python package reads
+Turtle with `syntax="turtle"` and `.ttl` files in `Reasoner.from_file`.
+`examples/medication-safety.ttl` is the medication-safety example in compact
+Turtle, with prefixes, `a`, object and predicate-object lists, blank node
+property lists and a collection; like `medication-safety.nt` it leaves out the
+two axiom annotations, which the mapping does not read. Rust and Python tests
+check that it gives the same classes, individuals, classification and instance
+answers as `medication-safety.ofn`, that the reasons for rejected documents are
+reported, and that the CLI answers from it and reports the offset of a Turtle
+error.
+
+This glue adds no reasoning and no proof; the answers are those of the verified
+reader, mapping and queries. Classifying the generated EL ontology with 20 000
+classes takes 2.1 s from N-Triples, 3.3 s from the same graph in compact,
+subject-grouped Turtle (1.7 MB instead of 7.0 MB) and 14.7 s from Functional
+Syntax, with the same answers. Reading takes 0.14 s of the 3.3 s (the N-Triples
+reader needs 0.12 s for the N-Triples file, and the Turtle reader 0.20 s for the
+same bytes); the rest is mostly the RDF mapping, which takes 1.9 s for the
+triples in N-Triples order and 3.8 s in subject-grouped order.
+
+This block adds 0 public theorems and 0 definitions. Totals are 2973 audited
+theorems, 1360 definitions, 539 Rust regressions and 3166 ledger obligations.

@@ -165,6 +165,16 @@ form with the datatype `xsd:integer`, `xsd:decimal` or `xsd:double`.
 order, or the first error) and `read_with_limits_accepted_iff` (a graph exactly
 for Turtle documents within the limits). See m3-m4-progress.md for the parts.
 
+`Reasoner::from_turtle` reads the OWL ontology that a Turtle graph encodes
+through the verified reverse RDF mapping, with the scope `document` and no base
+of its own (`from_turtle_with_base` supplies one); the CLI's `check`, `classify`
+and `instances` commands read `.ttl` files this way, and the Python package
+reads Turtle with `syntax="turtle"` or from a `.ttl` file.
+
+```sh
+cargo run -p rowl-cli -- classify examples/medication-safety.ttl
+```
+
 ```sh
 python3 scripts/fetch-turtle-suite.py /tmp/rowl-turtle-suite
 ROWL_TURTLE_SUITE_DIR=/tmp/rowl-turtle-suite \

@@ -10,11 +10,14 @@ fn answer(value: Option<bool>) -> &'static str {
     }
 }
 
-/// Read a document: N-Triples for a `.nt` file, Functional Syntax otherwise.
+/// Read a document: N-Triples for a `.nt` file, Turtle for a `.ttl` file and
+/// Functional Syntax otherwise.
 fn load(path: &str) -> Result<Reasoner, String> {
     let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
     let loaded = if path.ends_with(".nt") {
         Reasoner::from_ntriples(&source)
+    } else if path.ends_with(".ttl") {
+        Reasoner::from_turtle(&source)
     } else {
         Reasoner::from_functional(&source, &default_limits())
     };
@@ -25,6 +28,10 @@ fn load(path: &str) -> Result<Reasoner, String> {
         )),
         Err(LoadError::Triples(error)) => Err(format!(
             "{path}: N-Triples parse error at byte {}",
+            error.offset
+        )),
+        Err(LoadError::Turtle(error)) => Err(format!(
+            "{path}: Turtle parse error at byte {}",
             error.offset
         )),
         Err(LoadError::Graph) => Err(format!(
@@ -112,11 +119,12 @@ fn main() -> std::process::ExitCode {
         [command] if command == "status" => {
             println!("ROWL development version: M1/M2; M3 indexed closure, UTF-8/XML text checks and exact byte-key symbols; M4 integrated raw-ontology declaration checking with implicit built-ins and ordered axiom preparation.");
             println!("Also: raw RDF datasets with explicit lossless graph selection, and raw-ontology reserved-vocabulary/header checks.");
-            println!("Complete RFC 3987 IRI and IRI-reference lexical validation from bytes is also proved; base resolution remains pending.");
+            println!("Complete RFC 3987 IRI and IRI-reference lexical validation from bytes is also proved, and so is RFC 3986 reference resolution against a base.");
             println!("Public bounded N-Triples reading now has composed byte-to-graph totality and complete-acceptance proofs, exact term values, ordered occurrences and first diagnostics.");
             println!("The top-data-property occurrence restriction is checked over the supplied complete axiom closure, with exact first-violation and acceptance proofs.");
             println!("N-Triples reading and experimental export are available; writer laws and canonical import scopes remain pending.");
             println!("The OWL ontology of an N-Triples graph is read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns for axioms without annotations; check, classify and instances accept .nt files.");
+            println!("RDF 1.1 Turtle documents are read with proved byte-to-graph totality and complete acceptance, relative IRIs resolved against the base in force; all 313 W3C Turtle cases pass. check, classify and instances accept .ttl files through the same RDF mapping.");
             println!("Complete raw role-fact collection is proved: oriented nodes, hierarchy edges, composite seeds, nested simple-role requirements and ordered chains. Non-simple classification and the whole-closure simple-role restriction checker are proved total and complete; full property-hierarchy regularity is also proved, returning a concrete permitted order or an unavoidable conflict.");
             println!("Anonymous positional checking includes recursive annotations on prohibited axiom types. The raw-closure forest checker is proved exact, with scoped byte identities, self-loop and undirected-cycle diagnostics. Distinct annotated-assertion multiplicity and the component-wide named-boundary rule are proved exact, using recursive unordered annotation equivalence. The composed check_anonymous library operation decides all anonymous-individual restrictions and preserves diagnostic priority; byte-derived scopes and other DL validity remain pending.");
             println!("All six raw data-range constructors have total exact structural comparisons with recursive unordered associations. Datatype definitions have proved availability/uniqueness and exact dependency-order checking. The full custom-datatype positional traversal is proved, including literal and restriction-base positions, nested classes/ranges, all axiom forms and recursive annotations. check_structural_datatypes composes definition rules and positions with exact acceptance, original failures and checked priority. Supplied ontology annotations are included; imported ontology annotations require the same complete definition closure. Concrete lexical/facet/value validation remains pending.");
@@ -185,7 +193,7 @@ fn main() -> std::process::ExitCode {
         }
         _ => {
             eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|check-nt FILE|export-nt FILE>");
-            eprintln!("check, classify and instances read N-Triples for a .nt FILE and Functional Syntax otherwise.");
+            eprintln!("check, classify and instances read N-Triples for a .nt FILE, Turtle for a .ttl FILE and Functional Syntax otherwise.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;
         }

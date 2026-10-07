@@ -1,9 +1,9 @@
-//! A convenience interface over the verified pipeline: read a Functional Syntax
-//! or N-Triples document once and ask questions about it by IRI.
+//! A convenience interface over the verified pipeline: read a Functional
+//! Syntax, N-Triples or Turtle document once and ask questions about it by IRI.
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
-//! the mapping into the raw OWL model (for N-Triples, the reverse OWL RDF
-//! mapping of `rdf_mapping`), the prepared queries of `data_ontology`, the
+//! the mapping into the raw OWL model (for N-Triples and Turtle, the reverse
+//! OWL RDF mapping of `rdf_mapping`), the prepared queries of `data_ontology`, the
 //! classification of `classification` and, for EL ontologies, the saturation of
 //! `saturation`. `None` means the question or the
 //! document is outside the reasoner's supported fragment, or a limit was
@@ -24,6 +24,7 @@ use rowl_kernel::ntriples::{read, ReadError, ReadResult};
 use rowl_kernel::rdf_mapping::map_graph;
 use rowl_kernel::saturation;
 use rowl_kernel::source_reasoning::source_ontology;
+use rowl_kernel::turtle;
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
@@ -76,6 +77,8 @@ pub enum LoadError {
     Document(DocumentError),
     /// The verified N-Triples reader rejected the document.
     Triples(ReadError),
+    /// The verified Turtle reader rejected the document.
+    Turtle(turtle::ReadError),
     /// The graph is not the RDF mapping of an ontology that the verified
     /// reverse mapping reads: an undeclared entity, an incomplete expression,
     /// an annotated axiom or a triple left over.
@@ -178,6 +181,28 @@ impl Reasoner {
             let graph = match read(&bytes.to_vec(), &scope) {
                 ReadResult::Graph(graph) => graph,
                 ReadResult::Error(error) => return Err(LoadError::Triples(error)),
+            };
+            match map_graph(&graph) {
+                Some(mapped) => Ok(Reasoner::new(mapped.ontology)),
+                None => Err(LoadError::Graph),
+            }
+        })
+    }
+    /// Read a Turtle document from its bytes and the OWL ontology its graph
+    /// encodes by the verified reverse RDF mapping. The document has no base
+    /// IRI of its own, so a relative IRI needs an `@base` or `BASE` directive
+    /// before it; [`Reasoner::from_turtle_with_base`] supplies one.
+    pub fn from_turtle(bytes: &[u8]) -> Result<Reasoner, LoadError> {
+        Reasoner::from_turtle_with_base(bytes, b"")
+    }
+    /// Read a Turtle document whose relative IRIs resolve against `base`
+    /// until the document declares a base of its own.
+    pub fn from_turtle_with_base(bytes: &[u8], base: &[u8]) -> Result<Reasoner, LoadError> {
+        on_kernel_stack(|| {
+            let scope = b"document".to_vec();
+            let graph = match turtle::read(&bytes.to_vec(), &scope, &base.to_vec()) {
+                turtle::ReadResult::Graph(graph) => graph,
+                turtle::ReadResult::Error(error) => return Err(LoadError::Turtle(error)),
             };
             match map_graph(&graph) {
                 Some(mapped) => Ok(Reasoner::new(mapped.ontology)),

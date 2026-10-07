@@ -38,4 +38,5 @@ pub use rowl_kernel::prefixes;
 pub use rowl_kernel::rdf;
 pub use rowl_kernel::regular;
 pub use rowl_kernel::snapshot;
+pub use rowl_kernel::turtle;
 pub use rowl_kernel::unicode;
