@@ -40,10 +40,9 @@ use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 /// The stack the verified kernel runs on. Its readers, mapping and queries
-/// recurse over the length of their input (the XML reader once per character,
-/// about 160 bytes of stack per byte of an RDF/XML document), so a large
-/// document needs far more than a thread's default stack; the memory is only
-/// committed as it is used. 4 GiB reads RDF/XML documents of about 25 MB.
+/// recurse over the length of their input (the XML reader once per sibling
+/// element, about 1.6 KB each), so a large document needs far more than a
+/// thread's default stack; the memory is only committed as it is used.
 #[cfg(target_pointer_width = "64")]
 const KERNEL_STACK: usize = 4 << 30;
 #[cfg(not(target_pointer_width = "64"))]

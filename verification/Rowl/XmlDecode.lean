@@ -187,13 +187,14 @@ theorem stripOrderMark_ne (c : Nat) (rest : Word) (h : c ≠ 0xFEFF) : stripOrde
   · rename_i e; simp at e; exact absurd e.1 h
   · rfl
 
-theorem decode_from_spec (bytes : alloc.vec.Vec U8) (offset : Usize) (chars : alloc.vec.Vec U32) (cr : Bool)
-    (pos : 0 < offset.val) (room : chars.val.length + (bytes.val.length - offset.val) ≤ Usize.max) :
-    ∃ r, xml.decode_from bytes offset chars cr = .ok r ∧
+/-- The decoding loop: the characters from `offset` on, after `chars`. -/
+private theorem decode_from_loop_spec (bytes : alloc.vec.Vec U8) (offset : Usize) (chars : alloc.vec.Vec U32)
+    (cr : Bool) (pos : 0 < offset.val) (room : chars.val.length + (bytes.val.length - offset.val) ≤ Usize.max) :
+    ∃ r, xml.decode_from_loop offset bytes chars cr = .ok r ∧
       (∀ cs, r = .Ok cs → ∃ units, TextFrom bytes.val offset.val units ∧
         word cs = word chars ++ norm cr (units.map (·.1))) ∧
       (∀ units, TextFrom bytes.val offset.val units → ∃ cs, r = .Ok cs) := by
-  rw [xml.decode_from]
+  rw [xml.decode_from_loop]
   obtain ⟨d, hd, hstep⟩ := decode_next_total_correct bytes offset
   simp only [hd, bind_ok]
   cases d with
@@ -228,7 +229,7 @@ theorem decode_from_spec (bytes : alloc.vec.Vec U8) (offset : Usize) (chars : al
     · rw [if_pos (decide_eq_true xc)]
       have r1 : chars.val.length < Usize.max := by omega
       obtain ⟨chars', ht, hlen, hnorm⟩ := take_spec chars cp offset cr (fun h => by omega) r1
-      obtain ⟨r, hr, sound, complete⟩ := decode_from_spec bytes next chars' (decide (cp.val = 13)) (by omega)
+      obtain ⟨r, hr, sound, complete⟩ := decode_from_loop_spec bytes next chars' (decide (cp.val = 13)) (by omega)
         (by omega)
       refine ⟨r, by simp [ht, core.result.Result.Insts.CoreOpsTry.branch, cr13, hr], ?_, ?_⟩
       · intro cs e
@@ -252,13 +253,22 @@ theorem decode_from_spec (bytes : alloc.vec.Vec U8) (offset : Usize) (chars : al
 termination_by bytes.val.length - offset.val
 decreasing_by omega
 
+theorem decode_from_spec (bytes : alloc.vec.Vec U8) (offset : Usize) (chars : alloc.vec.Vec U32) (cr : Bool)
+    (pos : 0 < offset.val) (room : chars.val.length + (bytes.val.length - offset.val) ≤ Usize.max) :
+    ∃ r, xml.decode_from bytes offset chars cr = .ok r ∧
+      (∀ cs, r = .Ok cs → ∃ units, TextFrom bytes.val offset.val units ∧
+        word cs = word chars ++ norm cr (units.map (·.1))) ∧
+      (∀ units, TextFrom bytes.val offset.val units → ∃ cs, r = .Ok cs) := by
+  rw [xml.decode_from]
+  exact decode_from_loop_spec bytes offset chars cr pos room
+
 /-- The first character: a byte order mark there is dropped. -/
 theorem decode_start (bytes : alloc.vec.Vec U8) :
     ∃ r, xml.decode_from bytes 0#usize (alloc.vec.Vec.new U32) false = .ok r ∧
       (∀ cs, r = .Ok cs → ∃ units, TextFrom bytes.val 0 units ∧
         word cs = norm false (stripOrderMark (units.map (·.1)))) ∧
       (∀ units, TextFrom bytes.val 0 units → ∃ cs, r = .Ok cs) := by
-  rw [xml.decode_from]
+  rw [xml.decode_from, xml.decode_from_loop]
   obtain ⟨d, hd, hstep⟩ := decode_next_total_correct bytes 0#usize
   simp only [hd, bind_ok]
   have blen := bytes.property
@@ -298,7 +308,7 @@ theorem decode_start (bytes : alloc.vec.Vec U8) :
       by_cases bom : cp.val = 0xFEFF
       · have ht : xml.take (alloc.vec.Vec.new U32) cp 0#usize false = .ok (.Ok (alloc.vec.Vec.new U32)) := by
           unfold xml.take; simp [order_mark_eq, bom]
-        obtain ⟨r, hr, sound, complete⟩ := decode_from_spec bytes next (alloc.vec.Vec.new U32) false adv
+        obtain ⟨r, hr, sound, complete⟩ := decode_from_loop_spec bytes next (alloc.vec.Vec.new U32) false adv
           (by simp; omega)
         have c13 : decide (cp.val = 13) = false := by simp [bom]
         refine ⟨r, by simp [ht, core.result.Result.Insts.CoreOpsTry.branch, cr13, c13, hr], ?_, ?_⟩
@@ -315,7 +325,7 @@ theorem decode_start (bytes : alloc.vec.Vec U8) :
       · obtain ⟨chars', ht, hlen, hnorm⟩ := take_spec (alloc.vec.Vec.new U32) cp 0#usize false
           (fun h => bom h.2) (by simp; scalar_tac)
         simp at hlen
-        obtain ⟨r, hr, sound, complete⟩ := decode_from_spec bytes next chars' (decide (cp.val = 13)) adv
+        obtain ⟨r, hr, sound, complete⟩ := decode_from_loop_spec bytes next chars' (decide (cp.val = 13)) adv
           (by omega)
         refine ⟨r, by simp [ht, core.result.Result.Insts.CoreOpsTry.branch, cr13, hr], ?_, ?_⟩
         · intro cs e

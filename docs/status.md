@@ -129,8 +129,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   grammars, and `Reasoner::from_rdfxml`, the CLI (`.owl` and `.rdf` files,
   relative IRIs resolved against the file's `file:` IRI), the C interface and
   Python read RDF/XML through it. The W3C RDF/XML evaluation and negative cases
-  pass except the three with XML literals. The XML reader recurses once per
-  character, so the kernel stack (4 GiB) bounds documents to about 25 MB.
+  pass except the three with XML literals. XML decoding is a loop; element
+  content recurses once per sibling (about 1.6 KB of stack each), which the
+  4 GiB kernel stack bounds to documents of a few hundred MB.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against

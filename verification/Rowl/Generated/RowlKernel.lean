@@ -64542,7 +64542,7 @@ def import_catalog.rdfxml_ontology
     ok (core.result.Result.Err (import_catalog.SourceError.RdfXml kind))
 
 /-- [rowl_kernel::xml::starts_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 371:0-385:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 377:0-391:1 -/
 def xml.starts_from
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (word : Slice Std.U8)
   (k : Std.Usize) :
@@ -64570,7 +64570,7 @@ def xml.starts_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::starts]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 388:0-390:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 394:0-396:1 -/
 def xml.starts
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (word : Slice Std.U8) :
   Result Bool
@@ -64578,7 +64578,7 @@ def xml.starts
   xml.starts_from cs i word 0#usize
 
 /-- [rowl_kernel::xml::other_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2155:0-2157:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2161:0-2163:1 -/
 def xml.other_declaration
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
   let s ←
@@ -64602,7 +64602,7 @@ def xml.other_declaration
   ok ((b || b1) || b2)
 
 /-- [rowl_kernel::xml::SubsetRule]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2144:0-2151:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2150:0-2157:1 -/
 @[discriminant isize]
 inductive xml.SubsetRule where
 | Close : xml.SubsetRule
@@ -64613,7 +64613,7 @@ inductive xml.SubsetRule where
 | Invalid : xml.SubsetRule
 
 /-- [rowl_kernel::xml::declaration_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2159:0-2165:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2165:0-2171:1 -/
 def xml.declaration_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.SubsetRule := do
   let b ← xml.other_declaration cs i
@@ -64622,7 +64622,7 @@ def xml.declaration_rule
   else ok xml.SubsetRule.Invalid
 
 /-- [rowl_kernel::xml::at]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 244:0-250:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 250:0-256:1 -/
 def xml.at (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.U32 := do
   let i1 := alloc.vec.Vec.len cs
   if i < i1
@@ -64630,7 +64630,7 @@ def xml.at (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.U32 := do
   else ok 0#u32
 
 /-- [rowl_kernel::xml::subset_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2167:0-2181:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2173:0-2187:1 -/
 def xml.subset_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.SubsetRule := do
   let i1 ← xml.at cs i
@@ -64664,12 +64664,12 @@ def xml.subset_rule
           else xml.declaration_rule cs i
 
 /-- [rowl_kernel::xml::space]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 253:0-255:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 259:0-261:1 -/
 def xml.space (c : Std.U32) : Result Bool := do
   ok ((((c = 32#u32) || (c = 9#u32)) || (c = 13#u32)) || (c = 10#u32))
 
 /-- [rowl_kernel::xml::skip_spaces]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 289:0-295:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 295:0-301:1 -/
 def xml.skip_spaces
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
   let i1 ← xml.at cs i
@@ -64687,7 +64687,7 @@ def xml.fail
   ok { kind, offset }
 
 /-- [rowl_kernel::xml::declaration_close]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2095:0-2102:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2101:0-2108:1 -/
 def xml.declaration_close
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -64702,7 +64702,7 @@ def xml.declaration_close
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::ndata_follows]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2053:0-2055:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2059:0-2061:1 -/
 def xml.ndata_follows
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
   Result Bool
@@ -64714,7 +64714,7 @@ def xml.ndata_follows
   ok ((i < j) && b)
 
 /-- [rowl_kernel::xml::colon]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 325:0-335:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 331:0-341:1 -/
 def xml.colon
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize) :
   Result Std.Usize
@@ -64730,7 +64730,7 @@ def xml.colon
 partial_fixpoint
 
 /-- [rowl_kernel::xml::name_start]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 258:0-275:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 264:0-281:1 -/
 def xml.name_start (c : Std.U32) : Result Bool := do
   ok ((((((((((((((((c = 58#u32) || ((c >= 65#u32) && (c <= 90#u32))) || (c =
     95#u32)) || ((c >= 97#u32) && (c <= 122#u32))) || ((c >= 192#u32) && (c <=
@@ -64743,7 +64743,7 @@ def xml.name_start (c : Std.U32) : Result Bool := do
     65536#u32) && (c <= 983039#u32)))
 
 /-- [rowl_kernel::xml::name_char]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 278:0-286:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 284:0-292:1 -/
 def xml.name_char (c : Std.U32) : Result Bool := do
   let b ← xml.name_start c
   ok ((((((b || (c = 45#u32)) || (c = 46#u32)) || ((c >= 48#u32) && (c <=
@@ -64751,7 +64751,7 @@ def xml.name_char (c : Std.U32) : Result Bool := do
     >= 8255#u32) && (c <= 8256#u32)))
 
 /-- [rowl_kernel::xml::names_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 307:0-313:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 313:0-319:1 -/
 def xml.names_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
   let i1 ← xml.at cs i
@@ -64763,7 +64763,7 @@ def xml.names_end
 partial_fixpoint
 
 /-- [rowl_kernel::xml::name]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 316:0-322:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 322:0-328:1 -/
 def xml.name
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -64780,7 +64780,7 @@ def xml.name
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::ncname]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 361:0-368:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 367:0-374:1 -/
 def xml.ncname
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -64800,7 +64800,7 @@ def xml.ncname
       Std.Usize (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::spaces]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 298:0-304:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 304:0-310:1 -/
 def xml.spaces
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -64826,7 +64826,7 @@ inductive xml.EntityKind where
 | Unparsed : xml.EntityKind
 
 /-- [rowl_kernel::xml::external_rest]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2059:0-2068:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2065:0-2074:1 -/
 def xml.external_rest
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (xml.EntityKind × Std.Usize) xml.XmlError)
@@ -64871,7 +64871,7 @@ def xml.push_char
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::copy_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 463:0-470:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 469:0-476:1 -/
 def xml.copy_from
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize)
   (out : alloc.vec.Vec Std.U32) :
@@ -64893,7 +64893,7 @@ def xml.copy_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::bypass]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2009:0-2011:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2015:0-2017:1 -/
 def xml.bypass
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
   (out : alloc.vec.Vec Std.U32) :
@@ -64902,7 +64902,7 @@ def xml.bypass
   xml.copy_from cs i j out
 
 /-- [rowl_kernel::xml::entity_name]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 704:0-711:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 710:0-717:1 -/
 def xml.entity_name
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (Std.Usize × Std.Usize) xml.XmlError)
@@ -64924,12 +64924,12 @@ def xml.entity_name
       (Std.Usize × Std.Usize) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::digit]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 601:0-603:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 607:0-609:1 -/
 def xml.digit (c : Std.U32) : Result Bool := do
   ok ((c >= 48#u32) && (c <= 57#u32))
 
 /-- [rowl_kernel::xml::hex_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 606:0-616:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 612:0-622:1 -/
 def xml.hex_value (c : Std.U32) : Result Std.U32 := do
   let b ← xml.digit c
   if b
@@ -64942,7 +64942,7 @@ def xml.hex_value (c : Std.U32) : Result Std.U32 := do
          else ok 16#u32
 
 /-- [rowl_kernel::xml::hexadecimal]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 643:0-663:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 649:0-669:1 -/
 def xml.hexadecimal
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
   (value : Std.U32) (origin : Std.Usize) :
@@ -64969,7 +64969,7 @@ def xml.hexadecimal
 partial_fixpoint
 
 /-- [rowl_kernel::xml::decimal]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 620:0-640:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 626:0-646:1 -/
 def xml.decimal
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
   (value : Std.U32) (origin : Std.Usize) :
@@ -64997,7 +64997,7 @@ def xml.decimal
 partial_fixpoint
 
 /-- [rowl_kernel::xml::reference_digits]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 666:0-672:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 672:0-678:1 -/
 def xml.reference_digits
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
@@ -65010,7 +65010,7 @@ def xml.reference_digits
   else xml.decimal cs i1 i1 0#u32 i
 
 /-- [rowl_kernel::xml::char_reference]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 675:0-684:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 681:0-690:1 -/
 def xml.char_reference
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (Std.U32 × Std.Usize) xml.XmlError)
@@ -65038,7 +65038,7 @@ def xml.char_reference
       (Std.U32 × Std.Usize) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::value_reference]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2015:0-2025:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2021:0-2031:1 -/
 def xml.value_reference
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
   Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
@@ -65087,7 +65087,7 @@ def xml.value_reference
         xml.XmlError) residual
 
 /-- [rowl_kernel::xml::entity_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2030:0-2050:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2036:0-2056:1 -/
 def xml.entity_value
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32)
   (text : alloc.vec.Vec Std.U32) :
@@ -65134,12 +65134,12 @@ def xml.entity_value
 partial_fixpoint
 
 /-- [rowl_kernel::xml::ascii_letter]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1727:0-1729:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1733:0-1735:1 -/
 def xml.ascii_letter (c : Std.U32) : Result Bool := do
   ok (((c >= 65#u32) && (c <= 90#u32)) || ((c >= 97#u32) && (c <= 122#u32)))
 
 /-- [rowl_kernel::xml::pubid_char]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1930:0-1955:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1936:0-1961:1 -/
 def xml.pubid_char (c : Std.U32) : Result Bool := do
   let b ← xml.ascii_letter c
   let b1 ← xml.digit c
@@ -65151,7 +65151,7 @@ def xml.pubid_char (c : Std.U32) : Result Bool := do
     64#u32)) || (c = 36#u32)) || (c = 95#u32)) || (c = 37#u32))
 
 /-- [rowl_kernel::xml::pubid_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1957:0-1966:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1963:0-1972:1 -/
 def xml.pubid_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65171,12 +65171,12 @@ def xml.pubid_end
 partial_fixpoint
 
 /-- [rowl_kernel::xml::quote]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 909:0-911:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 915:0-917:1 -/
 def xml.quote (c : Std.U32) : Result Bool := do
   ok ((c = 34#u32) || (c = 39#u32))
 
 /-- [rowl_kernel::xml::pubid_literal]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1969:0-1976:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1975:0-1982:1 -/
 def xml.pubid_literal
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65191,7 +65191,7 @@ def xml.pubid_literal
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::literal_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1918:0-1927:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1924:0-1933:1 -/
 def xml.literal_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (q : Std.U32) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65210,7 +65210,7 @@ def xml.literal_end
 partial_fixpoint
 
 /-- [rowl_kernel::xml::system_literal]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1908:0-1915:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1914:0-1921:1 -/
 def xml.system_literal
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65225,7 +65225,7 @@ def xml.system_literal
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::external_id]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1979:0-1991:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1985:0-1997:1 -/
 def xml.external_id
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65280,7 +65280,7 @@ def xml.external_id
       ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::entity_definition]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2071:0-2081:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2077:0-2087:1 -/
 def xml.entity_definition
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (xml.EntityKind × (alloc.vec.Vec Std.U32) ×
@@ -65331,7 +65331,7 @@ structure xml.Entity where
   text : alloc.vec.Vec Std.U32
 
 /-- [rowl_kernel::xml::push_entity]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1998:0-2005:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2004:0-2011:1 -/
 def xml.push_entity
   (env : alloc.vec.Vec xml.Entity) (e : xml.Entity) (offset : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec xml.Entity) xml.XmlError)
@@ -65345,7 +65345,7 @@ def xml.push_entity
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::copy_span]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 473:0-475:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 479:0-481:1 -/
 def xml.copy_span
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
@@ -65353,7 +65353,7 @@ def xml.copy_span
   xml.copy_from cs start «end» (alloc.vec.Vec.new Std.U32)
 
 /-- [rowl_kernel::xml::general_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2114:0-2127:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2120:0-2133:1 -/
 def xml.general_declaration
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
   (env : alloc.vec.Vec xml.Entity) :
@@ -65412,7 +65412,7 @@ def xml.general_declaration
       xml.XmlError) residual
 
 /-- [rowl_kernel::xml::parameter_definition]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2084:0-2092:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2090:0-2098:1 -/
 def xml.parameter_definition
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65435,7 +65435,7 @@ def xml.parameter_definition
   else xml.external_id cs i
 
 /-- [rowl_kernel::xml::parameter_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2105:0-2111:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2111:0-2117:1 -/
 def xml.parameter_declaration
   (cs : alloc.vec.Vec Std.U32) (j : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65472,7 +65472,7 @@ def xml.parameter_declaration
       Std.Usize (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::entity_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2130:0-2142:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2136:0-2148:1 -/
 def xml.entity_declaration
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   :
@@ -65503,13 +65503,13 @@ def xml.entity_declaration
       xml.XmlError) residual
 
 /-- [rowl_kernel::xml::pi_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 515:0-517:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 521:0-523:1 -/
 def xml.pi_end (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
   let s ← lift (Array.to_slice (Array.make 2#usize [ 63#u8, 62#u8 ]))
   xml.starts cs i s
 
 /-- [rowl_kernel::xml::pi_body]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 519:0-527:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 525:0-533:1 -/
 def xml.pi_body
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65529,7 +65529,7 @@ def xml.pi_body
 partial_fixpoint
 
 /-- [rowl_kernel::xml::pi_rest]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 530:0-538:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 536:0-544:1 -/
 def xml.pi_rest
   (cs : alloc.vec.Vec Std.U32) («end» : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65549,13 +65549,13 @@ def xml.pi_rest
       ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::caseless]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 398:0-400:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 404:0-406:1 -/
 def xml.caseless (c : Std.U32) (lower : Std.U32) : Result Bool := do
   let i ← lower - 32#u32
   ok ((c = lower) || (c = i))
 
 /-- [rowl_kernel::xml::xml_letters]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 403:0-407:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 409:0-413:1 -/
 def xml.xml_letters
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) : Result Bool := do
   let i ← xml.at cs start
@@ -65569,7 +65569,7 @@ def xml.xml_letters
   ok ((b && b1) && b2)
 
 /-- [rowl_kernel::xml::reserved_target]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 410:0-416:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 416:0-422:1 -/
 def xml.reserved_target
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
   Result Bool
@@ -65580,7 +65580,7 @@ def xml.reserved_target
   else ok false
 
 /-- [rowl_kernel::xml::pi]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 542:0-549:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 548:0-555:1 -/
 def xml.pi
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65603,7 +65603,7 @@ def xml.pi
 mutual
 
 /-- [rowl_kernel::xml::comment_body]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 485:0-494:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 491:0-500:1 -/
 def xml.comment_body
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65621,7 +65621,7 @@ def xml.comment_body
 partial_fixpoint
 
 /-- [rowl_kernel::xml::comment_dash]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 497:0-507:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 503:0-513:1 -/
 def xml.comment_dash
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65644,7 +65644,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::xml::comment]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 510:0-512:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 516:0-518:1 -/
 def xml.comment
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65653,7 +65653,7 @@ def xml.comment
   xml.comment_body cs i1
 
 /-- [rowl_kernel::xml::internal_subset]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2185:0-2208:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2191:0-2214:1 -/
 def xml.internal_subset
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   :
@@ -65704,7 +65704,7 @@ def xml.internal_subset
 partial_fixpoint
 
 /-- [rowl_kernel::xml::doctype_rest]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2223:0-2234:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2229:0-2240:1 -/
 def xml.doctype_rest
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
@@ -65744,7 +65744,7 @@ def xml.doctype_rest
       ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::external_follows]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1994:0-1996:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2000:0-2002:1 -/
 def xml.external_follows
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
   Result Bool
@@ -65760,7 +65760,7 @@ def xml.external_follows
   ok ((i < j) && (b || b1))
 
 /-- [rowl_kernel::xml::doctype_external]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2212:0-2219:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2218:0-2225:1 -/
 def xml.doctype_external
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65772,7 +65772,7 @@ def xml.doctype_external
   else ok (core.result.Result.Ok i)
 
 /-- [rowl_kernel::xml::prefixed]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 339:0-344:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 345:0-350:1 -/
 def xml.prefixed
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) (mark : Std.Usize)
   («end» : Std.Usize) :
@@ -65785,7 +65785,7 @@ def xml.prefixed
   ok ((((start < mark) && (i < «end»)) && b) && (i2 = «end»))
 
 /-- [rowl_kernel::xml::qname]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 348:0-358:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 354:0-364:1 -/
 def xml.qname
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (Std.Usize × Std.Usize) xml.XmlError)
@@ -65809,7 +65809,7 @@ def xml.qname
       (Std.Usize × Std.Usize) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::doctype]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2238:0-2247:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2244:0-2253:1 -/
 def xml.doctype
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result ((alloc.vec.Vec xml.Entity) × Std.Usize)
@@ -65853,7 +65853,7 @@ def xml.doctype
   else ok (core.result.Result.Ok (alloc.vec.Vec.new xml.Entity, i))
 
 /-- [rowl_kernel::xml::MiscRule]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1875:0-1879:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1881:0-1885:1 -/
 @[discriminant isize]
 inductive xml.MiscRule where
 | Comment : xml.MiscRule
@@ -65861,7 +65861,7 @@ inductive xml.MiscRule where
 | Other : xml.MiscRule
 
 /-- [rowl_kernel::xml::misc_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1881:0-1889:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1887:0-1895:1 -/
 def xml.misc_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.MiscRule := do
   let s ←
@@ -65877,7 +65877,7 @@ def xml.misc_rule
     else ok xml.MiscRule.Other
 
 /-- [rowl_kernel::xml::misc]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1892:0-1905:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1898:0-1911:1 -/
 def xml.misc
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65905,7 +65905,7 @@ def xml.misc
 partial_fixpoint
 
 /-- [rowl_kernel::xml::keyword_follows]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1816:0-1818:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1822:0-1824:1 -/
 def xml.keyword_follows
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize)
   (word : Slice Std.U8) :
@@ -65915,7 +65915,7 @@ def xml.keyword_follows
   ok ((i < j) && b)
 
 /-- [rowl_kernel::xml::standalone_close]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1805:0-1813:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1811:0-1819:1 -/
 def xml.standalone_close
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) («end» : Std.Usize)
   (q : Std.U32) :
@@ -65936,7 +65936,7 @@ def xml.standalone_close
       ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::yes_no_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1782:0-1790:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1788:0-1796:1 -/
 def xml.yes_no_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
   let s ←
@@ -65952,7 +65952,7 @@ def xml.yes_no_end
     else ok i
 
 /-- [rowl_kernel::xml::standalone_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1793:0-1801:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1799:0-1807:1 -/
 def xml.standalone_value
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65969,7 +65969,7 @@ def xml.standalone_value
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::eq]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 914:0-921:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 920:0-927:1 -/
 def xml.eq
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -65986,7 +65986,7 @@ def xml.eq
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::standalone_part]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1832:0-1840:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1838:0-1846:1 -/
 def xml.standalone_part
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66013,7 +66013,7 @@ def xml.standalone_part
   else ok (core.result.Result.Ok i)
 
 /-- [rowl_kernel::xml::utf8_letters]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1745:0-1751:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1751:0-1757:1 -/
 def xml.utf8_letters
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) : Result Bool := do
   let i ← xml.at cs start
@@ -66031,7 +66031,7 @@ def xml.utf8_letters
   ok ((((b && b1) && b2) && (i6 = 45#u32)) && (i8 = 56#u32))
 
 /-- [rowl_kernel::xml::utf8_name]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1754:0-1760:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1760:0-1766:1 -/
 def xml.utf8_name
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
   Result Bool
@@ -66042,14 +66042,14 @@ def xml.utf8_name
   else ok false
 
 /-- [rowl_kernel::xml::enc_char]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1732:0-1734:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1738:0-1740:1 -/
 def xml.enc_char (c : Std.U32) : Result Bool := do
   let b ← xml.ascii_letter c
   let b1 ← xml.digit c
   ok ((((b || b1) || (c = 46#u32)) || (c = 95#u32)) || (c = 45#u32))
 
 /-- [rowl_kernel::xml::enc_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1736:0-1742:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1742:0-1748:1 -/
 def xml.enc_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Std.Usize := do
   let i1 ← xml.at cs i
@@ -66061,7 +66061,7 @@ def xml.enc_end
 partial_fixpoint
 
 /-- [rowl_kernel::xml::encoding_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1763:0-1779:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1769:0-1785:1 -/
 def xml.encoding_value
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66098,7 +66098,7 @@ def xml.encoding_value
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::encoding_part]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1821:0-1829:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1827:0-1835:1 -/
 def xml.encoding_part
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66124,7 +66124,7 @@ def xml.encoding_part
   else ok (core.result.Result.Ok i)
 
 /-- [rowl_kernel::xml::version_digits]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1702:0-1713:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1708:0-1719:1 -/
 def xml.version_digits
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
   (q : Std.U32) :
@@ -66150,7 +66150,7 @@ def xml.version_digits
 partial_fixpoint
 
 /-- [rowl_kernel::xml::version_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1716:0-1725:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1722:0-1731:1 -/
 def xml.version_value
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66173,7 +66173,7 @@ def xml.version_value
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::declaration_body]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1848:0-1864:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1854:0-1870:1 -/
 def xml.declaration_body
   (cs : alloc.vec.Vec Std.U32) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66229,7 +66229,7 @@ def xml.declaration_body
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::declaration_start]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1843:0-1845:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1849:0-1851:1 -/
 def xml.declaration_start (cs : alloc.vec.Vec Std.U32) : Result Bool := do
   let s ←
     lift (Array.to_slice
@@ -66240,7 +66240,7 @@ def xml.declaration_start (cs : alloc.vec.Vec Std.U32) : Result Bool := do
   ok (b && b1)
 
 /-- [rowl_kernel::xml::xml_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1867:0-1873:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1873:0-1879:1 -/
 def xml.xml_declaration
   (cs : alloc.vec.Vec Std.U32) :
   Result (core.result.Result Std.Usize xml.XmlError)
@@ -66251,7 +66251,7 @@ def xml.xml_declaration
   else ok (core.result.Result.Ok 0#usize)
 
 /-- [rowl_kernel::xml::local_start]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1609:0-1615:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1615:0-1621:1 -/
 def xml.local_start
   (start : Std.Usize) (mark : Std.Usize) («end» : Std.Usize) :
   Result Std.Usize
@@ -66261,7 +66261,7 @@ def xml.local_start
   else mark + 1#usize
 
 /-- [rowl_kernel::xml::same_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 419:0-429:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 425:0-435:1 -/
 def xml.same_from
   (cs : alloc.vec.Vec Std.U32) (a : Std.Usize) (b : Std.Usize) (n : Std.Usize)
   (k : Std.Usize) :
@@ -66281,7 +66281,7 @@ def xml.same_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::end_name]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1577:0-1594:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1583:0-1600:1 -/
 def xml.end_name
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (stop : Std.Usize)
   (start : Std.Usize) («end» : Std.Usize) :
@@ -66305,7 +66305,7 @@ def xml.end_name
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::fits]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1571:0-1573:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1577:0-1579:1 -/
 def xml.fits
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (n : Std.Usize) :
   Result Bool
@@ -66315,7 +66315,7 @@ def xml.fits
   ok (n <= i2)
 
 /-- [rowl_kernel::xml::end_tag]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1597:0-1605:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1603:0-1611:1 -/
 def xml.end_tag
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (start : Std.Usize)
   («end» : Std.Usize) :
@@ -66339,7 +66339,7 @@ def xml.end_tag
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::tag_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1555:0-1568:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1561:0-1574:1 -/
 def xml.tag_end
   (cs : alloc.vec.Vec Std.U32) (j : Std.Usize) :
   Result (core.result.Result (Bool × Std.Usize) xml.XmlError)
@@ -66519,7 +66519,7 @@ theorem xml.Element.children._simpLemma_ (ns_prefix : Option (alloc.vec.Vec
     children := by rfl
 
 /-- [rowl_kernel::xml::push_node]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1452:0-1459:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1458:0-1465:1 -/
 def xml.push_node
   (nodes : alloc.vec.Vec xml.Node) (node : xml.Node) (offset : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec xml.Node) xml.XmlError)
@@ -66534,7 +66534,7 @@ def xml.push_node
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::flush]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1462:0-1468:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1468:0-1474:1 -/
 def xml.flush
   (nodes : alloc.vec.Vec xml.Node) (text : alloc.vec.Vec Std.U32)
   (offset : Std.Usize) :
@@ -66546,7 +66546,7 @@ def xml.flush
   else xml.push_node nodes (xml.Node.Text text) offset
 
 /-- [rowl_kernel::xml::Rule]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1404:0-1414:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1410:0-1420:1 -/
 @[discriminant isize]
 inductive xml.Rule where
 | End : xml.Rule
@@ -66560,7 +66560,7 @@ inductive xml.Rule where
 | Invalid : xml.Rule
 
 /-- [rowl_kernel::xml::bang_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1416:0-1424:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1422:0-1430:1 -/
 def xml.bang_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
   let s ←
@@ -66580,7 +66580,7 @@ def xml.bang_rule
     else ok xml.Rule.Invalid
 
 /-- [rowl_kernel::xml::markup_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1426:0-1437:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1432:0-1443:1 -/
 def xml.markup_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
   let i1 ← i + 1#usize
@@ -66595,7 +66595,7 @@ def xml.markup_rule
          else ok xml.Rule.Element
 
 /-- [rowl_kernel::xml::content_rule]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1439:0-1450:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1445:0-1456:1 -/
 def xml.content_rule
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result xml.Rule := do
   let c ← xml.at cs i
@@ -66609,7 +66609,7 @@ def xml.content_rule
          else ok xml.Rule.Chars
 
 /-- [rowl_kernel::xml::same_word_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1350:0-1360:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1356:0-1366:1 -/
 def xml.same_word_from
   (a : alloc.vec.Vec Std.U32) (b : alloc.vec.Vec Std.U32) (k : Std.Usize) :
   Result Bool
@@ -66629,7 +66629,7 @@ def xml.same_word_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::same_word]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1362:0-1368:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1368:0-1374:1 -/
 def xml.same_word
   (a : alloc.vec.Vec Std.U32) (b : alloc.vec.Vec Std.U32) : Result Bool := do
   let i := alloc.vec.Vec.len a
@@ -66639,7 +66639,7 @@ def xml.same_word
   else ok false
 
 /-- [rowl_kernel::xml::same_option]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1342:0-1348:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1348:0-1354:1 -/
 def xml.same_option
   (a : Option (alloc.vec.Vec Std.U32)) (b : Option (alloc.vec.Vec Std.U32)) :
   Result Bool
@@ -66653,7 +66653,7 @@ def xml.same_option
               | some y => xml.same_word x y
 
 /-- [rowl_kernel::xml::same_expanded]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1371:0-1373:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1377:0-1379:1 -/
 def xml.same_expanded
   (a : xml.Attribute) (b : xml.Attribute) : Result Bool := do
   let b1 ← xml.same_option a.ns_name b.ns_name
@@ -66661,7 +66661,7 @@ def xml.same_expanded
   ok (b1 && b2)
 
 /-- [rowl_kernel::xml::expanded_distinct_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1375:0-1385:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1381:0-1391:1 -/
 def xml.expanded_distinct_from
   (attrs : alloc.vec.Vec xml.Attribute) (k : Std.Usize) (m : Std.Usize) :
   Result Bool
@@ -66684,7 +66684,7 @@ def xml.expanded_distinct_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::unique_expanded]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1388:0-1398:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1394:0-1404:1 -/
 def xml.unique_expanded
   (attrs : alloc.vec.Vec xml.Attribute) (k : Std.Usize) (origin : Std.Usize) :
   Result (core.result.Result Unit xml.XmlError)
@@ -66703,7 +66703,7 @@ def xml.unique_expanded
 partial_fixpoint
 
 /-- [rowl_kernel::xml::word_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 441:0-451:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 447:0-457:1 -/
 def xml.word_from
   (word : alloc.vec.Vec Std.U32) (cs : alloc.vec.Vec Std.U32)
   (start : Std.Usize) (k : Std.Usize) :
@@ -66725,7 +66725,7 @@ def xml.word_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::word_is]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 454:0-460:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 460:0-466:1 -/
 def xml.word_is
   (word : alloc.vec.Vec Std.U32) (cs : alloc.vec.Vec Std.U32)
   (start : Std.Usize) («end» : Std.Usize) :
@@ -66738,7 +66738,7 @@ def xml.word_is
   else ok false
 
 /-- [rowl_kernel::xml::binds]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1190:0-1195:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1196:0-1201:1 -/
 def xml.binds
   (b : xml.Binding) (cs : alloc.vec.Vec Std.U32) (start : Std.Usize)
   («end» : Std.Usize) :
@@ -66749,7 +66749,7 @@ def xml.binds
   | some p => xml.word_is p cs start «end»
 
 /-- [rowl_kernel::xml::copy_all]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 478:0-480:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 484:0-486:1 -/
 def xml.copy_all
   (word : alloc.vec.Vec Std.U32) :
   Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
@@ -66758,7 +66758,7 @@ def xml.copy_all
   xml.copy_from word 0#usize i (alloc.vec.Vec.new Std.U32)
 
 /-- [rowl_kernel::xml::lookup_prefix]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1199:0-1216:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1205:0-1222:1 -/
 def xml.lookup_prefix
   (ctx : alloc.vec.Vec xml.Binding) (cs : alloc.vec.Vec Std.U32)
   (start : Std.Usize) («end» : Std.Usize) (k : Std.Usize) :
@@ -66790,7 +66790,7 @@ def xml.lookup_prefix
 partial_fixpoint
 
 /-- [rowl_kernel::xml::ascii_word]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1066:0-1073:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1072:0-1079:1 -/
 def xml.ascii_word
   (text : Slice Std.U8) (k : Std.Usize) (out : alloc.vec.Vec Std.U32) :
   Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
@@ -66813,7 +66813,7 @@ def xml.ascii_word
 partial_fixpoint
 
 /-- [rowl_kernel::xml::XML_NAMESPACE]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1036:0-1036:69 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1042:0-1042:69 -/
 @[global_simps, irreducible]
 def xml.XML_NAMESPACE : Slice Std.U8 :=
   Array.to_slice
@@ -66825,7 +66825,7 @@ def xml.XML_NAMESPACE : Slice Std.U8 :=
       ])
 
 /-- [rowl_kernel::xml::span_is]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 393:0-395:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 399:0-401:1 -/
 def xml.span_is
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
   (word : Slice Std.U8) :
@@ -66837,7 +66837,7 @@ def xml.span_is
   ok ((i = i1) && b)
 
 /-- [rowl_kernel::xml::prefix_namespace]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1243:0-1257:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1249:0-1263:1 -/
 def xml.prefix_namespace
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
   (ctx : alloc.vec.Vec xml.Binding) :
@@ -66864,7 +66864,7 @@ def xml.prefix_namespace
         (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::Raw]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 902:0-907:1
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 908:0-913:1
     Visibility: public -/
 structure xml.Raw where
   start : Std.Usize
@@ -66873,7 +66873,7 @@ structure xml.Raw where
   value : alloc.vec.Vec Std.U32
 
 /-- [rowl_kernel::xml::resolved_attribute]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1295:0-1316:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1301:0-1322:1 -/
 def xml.resolved_attribute
   (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw)
   (ctx : alloc.vec.Vec xml.Binding) :
@@ -66934,7 +66934,7 @@ def xml.resolved_attribute
       xml.Attribute (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::push_attribute]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1280:0-1291:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1286:0-1297:1 -/
 def xml.push_attribute
   (out : alloc.vec.Vec xml.Attribute) (a : xml.Attribute) (offset : Std.Usize)
   :
@@ -66949,7 +66949,7 @@ def xml.push_attribute
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::NsKind]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1012:0-1019:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1018:0-1025:1 -/
 @[discriminant isize]
 inductive xml.NsKind where
 | Default : xml.NsKind
@@ -66957,7 +66957,7 @@ inductive xml.NsKind where
 | Plain : xml.NsKind
 
 /-- [rowl_kernel::xml::ns_kind]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1021:0-1033:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1027:0-1039:1 -/
 def xml.ns_kind
   (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw) : Result xml.NsKind := do
   if raw.mark = raw.stop
@@ -66979,7 +66979,7 @@ def xml.ns_kind
     else ok xml.NsKind.Plain
 
 /-- [rowl_kernel::xml::resolve_attributes]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1320:0-1339:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1326:0-1345:1 -/
 def xml.resolve_attributes
   (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
   (ctx : alloc.vec.Vec xml.Binding) (out : alloc.vec.Vec xml.Attribute) :
@@ -67022,12 +67022,12 @@ def xml.resolve_attributes
 partial_fixpoint
 
 /-- [rowl_kernel::xml::is_default]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1219:0-1221:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1225:0-1227:1 -/
 def xml.is_default (b : xml.Binding) : Result Bool := do
   ok (core.option.Option.is_none b.ns_prefix)
 
 /-- [rowl_kernel::xml::lookup_default]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1225:0-1240:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1231:0-1246:1 -/
 def xml.lookup_default
   (ctx : alloc.vec.Vec xml.Binding) (k : Std.Usize) :
   Result (core.result.Result (Option (alloc.vec.Vec Std.U32)) xml.XmlError)
@@ -67065,7 +67065,7 @@ def xml.lookup_default
 partial_fixpoint
 
 /-- [rowl_kernel::xml::element_namespace]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1261:0-1278:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1267:0-1284:1 -/
 def xml.element_namespace
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) (mark : Std.Usize)
   («end» : Std.Usize) (ctx : alloc.vec.Vec xml.Binding) :
@@ -67113,7 +67113,7 @@ def xml.element_namespace
           Std.U32))) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::copy_option]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1158:0-1166:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1164:0-1172:1 -/
 def xml.copy_option
   (word : Option (alloc.vec.Vec Std.U32)) :
   Result (core.result.Result (Option (alloc.vec.Vec Std.U32)) xml.XmlError)
@@ -67132,7 +67132,7 @@ def xml.copy_option
         residual
 
 /-- [rowl_kernel::xml::push_binding]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1075:0-1086:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1081:0-1092:1 -/
 def xml.push_binding
   (decls : alloc.vec.Vec xml.Binding) (b : xml.Binding) (offset : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
@@ -67147,7 +67147,7 @@ def xml.push_binding
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::copy_bindings]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1168:0-1181:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1174:0-1187:1 -/
 def xml.copy_bindings
   (ctx : alloc.vec.Vec xml.Binding) (i : Std.Usize)
   (out : alloc.vec.Vec xml.Binding) :
@@ -67190,7 +67190,7 @@ def xml.copy_bindings
 partial_fixpoint
 
 /-- [rowl_kernel::xml::extend]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1184:0-1187:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1190:0-1193:1 -/
 def xml.extend
   (ctx : alloc.vec.Vec xml.Binding) (decls : alloc.vec.Vec xml.Binding) :
   Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
@@ -67205,7 +67205,7 @@ def xml.extend
       (alloc.vec.Vec xml.Binding) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::word_eq_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1045:0-1059:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1051:0-1065:1 -/
 def xml.word_eq_from
   (word : alloc.vec.Vec Std.U32) (text : Slice Std.U8) (k : Std.Usize) :
   Result Bool
@@ -67230,7 +67230,7 @@ def xml.word_eq_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::word_eq]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1041:0-1043:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1047:0-1049:1 -/
 def xml.word_eq
   (word : alloc.vec.Vec Std.U32) (text : Slice Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len word
@@ -67239,7 +67239,7 @@ def xml.word_eq
   ok ((i = i1) && b)
 
 /-- [rowl_kernel::xml::XMLNS_NAMESPACE]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1038:0-1038:64 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1044:0-1044:64 -/
 @[global_simps, irreducible]
 def xml.XMLNS_NAMESPACE : Slice Std.U8 :=
   Array.to_slice
@@ -67251,14 +67251,14 @@ def xml.XMLNS_NAMESPACE : Slice Std.U8 :=
       ])
 
 /-- [rowl_kernel::xml::reserved_value]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1062:0-1064:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1068:0-1070:1 -/
 def xml.reserved_value (value : alloc.vec.Vec Std.U32) : Result Bool := do
   let b ← xml.word_eq value xml.XML_NAMESPACE
   let b1 ← xml.word_eq value xml.XMLNS_NAMESPACE
   ok (b || b1)
 
 /-- [rowl_kernel::xml::prefix_allowed]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1107:0-1115:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1113:0-1121:1 -/
 def xml.prefix_allowed
   (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw) : Result Bool := do
   let i ← raw.mark + 1#usize
@@ -67280,7 +67280,7 @@ def xml.prefix_allowed
       ok ((0#usize < i1) && (¬ b2))
 
 /-- [rowl_kernel::xml::prefixed_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1118:0-1137:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1124:0-1143:1 -/
 def xml.prefixed_declaration
   (cs : alloc.vec.Vec Std.U32) (raw : xml.Raw)
   (decls : alloc.vec.Vec xml.Binding) :
@@ -67313,7 +67313,7 @@ def xml.prefixed_declaration
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::default_declaration]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1089:0-1103:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1095:0-1109:1 -/
 def xml.default_declaration
   (raw : xml.Raw) (decls : alloc.vec.Vec xml.Binding) :
   Result (core.result.Result (alloc.vec.Vec xml.Binding) xml.XmlError)
@@ -67335,7 +67335,7 @@ def xml.default_declaration
         residual
 
 /-- [rowl_kernel::xml::declarations]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1140:0-1156:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1146:0-1162:1 -/
 def xml.declarations
   (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
   (decls : alloc.vec.Vec xml.Binding) :
@@ -67378,7 +67378,7 @@ def xml.declarations
 partial_fixpoint
 
 /-- [rowl_kernel::xml::same_span]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 432:0-438:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 438:0-444:1 -/
 def xml.same_span
   (cs : alloc.vec.Vec Std.U32) (a : Std.Usize) (a_end : Std.Usize)
   (b : Std.Usize) (b_end : Std.Usize) :
@@ -67391,7 +67391,7 @@ def xml.same_span
   else ok false
 
 /-- [rowl_kernel::xml::distinct_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 986:0-996:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 992:0-1002:1 -/
 def xml.distinct_from
   (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize)
   (m : Std.Usize) :
@@ -67415,7 +67415,7 @@ def xml.distinct_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::unique_names]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 999:0-1009:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1005:0-1015:1 -/
 def xml.unique_names
   (cs : alloc.vec.Vec Std.U32) (raws : alloc.vec.Vec xml.Raw) (k : Std.Usize) :
   Result (core.result.Result Unit xml.XmlError)
@@ -67437,7 +67437,7 @@ def xml.unique_names
 partial_fixpoint
 
 /-- [rowl_kernel::xml::push_raw]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 956:0-963:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 962:0-969:1 -/
 def xml.push_raw
   (raws : alloc.vec.Vec xml.Raw) (raw : xml.Raw) (offset : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec xml.Raw) xml.XmlError)
@@ -67452,7 +67452,7 @@ def xml.push_raw
     ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::attribute_follows]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 952:0-954:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 958:0-960:1 -/
 def xml.attribute_follows
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (j : Std.Usize) :
   Result Bool
@@ -67462,7 +67462,7 @@ def xml.attribute_follows
   ok ((i < j) && b)
 
 /-- [rowl_kernel::xml::normalized]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 833:0-839:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 839:0-845:1 -/
 def xml.normalized (c : Std.U32) : Result Std.U32 := do
   let b ← xml.space c
   if b
@@ -67470,7 +67470,7 @@ def xml.normalized (c : Std.U32) : Result Std.U32 := do
   else ok c
 
 /-- [rowl_kernel::xml::spend]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 820:0-827:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 826:0-833:1 -/
 def xml.spend
   (env : alloc.vec.Vec xml.Entity) (k : Std.Usize) (budget : Std.Usize)
   (origin : Std.Usize) :
@@ -67490,7 +67490,7 @@ def xml.spend
     ok (core.result.Result.Ok i1)
 
 /-- [rowl_kernel::xml::copy_stack]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 805:0-816:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 811:0-822:1 -/
 def xml.copy_stack
   (stack : alloc.vec.Vec Std.Usize) (i : Std.Usize)
   (out : alloc.vec.Vec Std.Usize) :
@@ -67515,7 +67515,7 @@ def xml.copy_stack
 partial_fixpoint
 
 /-- [rowl_kernel::xml::pushed]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 795:0-803:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 801:0-809:1 -/
 def xml.pushed
   (stack : alloc.vec.Vec Std.Usize) (k : Std.Usize) (origin : Std.Usize) :
   Result (core.result.Result (alloc.vec.Vec Std.Usize) xml.XmlError)
@@ -67536,7 +67536,7 @@ def xml.pushed
       (alloc.vec.Vec Std.Usize) (core.convert.FromSame xml.XmlError) residual
 
 /-- [rowl_kernel::xml::internal]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 766:0-768:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 772:0-774:1 -/
 def xml.internal
   (env : alloc.vec.Vec xml.Entity) (k : Std.Usize) : Result Bool := do
   let e ←
@@ -67548,7 +67548,7 @@ def xml.internal
   | xml.EntityKind.Unparsed => ok false
 
 /-- [rowl_kernel::xml::on_stack]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 753:0-763:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 759:0-769:1 -/
 def xml.on_stack
   (stack : alloc.vec.Vec Std.Usize) (k : Std.Usize) (i : Std.Usize) :
   Result Bool
@@ -67567,7 +67567,7 @@ def xml.on_stack
 partial_fixpoint
 
 /-- [rowl_kernel::xml::find_entity]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 734:0-750:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 740:0-756:1 -/
 def xml.find_entity
   (env : alloc.vec.Vec xml.Entity) (cs : alloc.vec.Vec Std.U32)
   (start : Std.Usize) («end» : Std.Usize) (k : Std.Usize) :
@@ -67588,7 +67588,7 @@ def xml.find_entity
 partial_fixpoint
 
 /-- [rowl_kernel::xml::expandable]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 772:0-792:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 778:0-798:1 -/
 def xml.expandable
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize)
   (env : alloc.vec.Vec xml.Entity) (stack : alloc.vec.Vec Std.Usize)
@@ -67615,7 +67615,7 @@ def xml.expandable
       ok (core.result.Result.Err xe)
 
 /-- [rowl_kernel::xml::predefined]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 687:0-701:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 693:0-707:1 -/
 def xml.predefined
   (cs : alloc.vec.Vec Std.U32) (start : Std.Usize) («end» : Std.Usize) :
   Result Std.U32
@@ -67652,7 +67652,7 @@ def xml.predefined
           else ok 0#u32
 
 /-- [rowl_kernel::xml::Reference]
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 596:0-599:1
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 602:0-605:1
     Visibility: public -/
 @[discriminant isize]
 inductive xml.Reference where
@@ -67660,7 +67660,7 @@ inductive xml.Reference where
 | Entity : Std.Usize → Std.Usize → xml.Reference
 
 /-- [rowl_kernel::xml::reference]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 715:0-728:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 721:0-734:1 -/
 def xml.reference
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) :
   Result (core.result.Result (xml.Reference × Std.Usize) xml.XmlError)
@@ -67697,7 +67697,7 @@ def xml.reference
 mutual
 
 /-- [rowl_kernel::xml::att_text]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 844:0-867:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 850:0-873:1 -/
 def xml.att_text
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (quote : Std.U32)
   (env : alloc.vec.Vec xml.Entity) (stack : alloc.vec.Vec Std.Usize)
@@ -67746,7 +67746,7 @@ def xml.att_text
 partial_fixpoint
 
 /-- [rowl_kernel::xml::att_reference]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 871:0-895:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 877:0-901:1 -/
 def xml.att_reference
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize)
@@ -67815,7 +67815,7 @@ partial_fixpoint
 end
 
 /-- [rowl_kernel::xml::attribute]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 924:0-949:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 930:0-955:1 -/
 def xml.attribute
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize) :
@@ -67861,7 +67861,7 @@ def xml.attribute
       residual
 
 /-- [rowl_kernel::xml::attributes]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 967:0-983:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 973:0-989:1 -/
 def xml.attributes
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (budget : Std.Usize)
@@ -67895,19 +67895,19 @@ def xml.attributes
 partial_fixpoint
 
 /-- [rowl_kernel::xml::data_stop]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 574:0-576:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 580:0-582:1 -/
 def xml.data_stop (c : Std.U32) : Result Bool := do
   ok (((c = 0#u32) || (c = 60#u32)) || (c = 38#u32))
 
 /-- [rowl_kernel::xml::cdata_end]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 552:0-554:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 558:0-560:1 -/
 def xml.cdata_end
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) : Result Bool := do
   let s ← lift (Array.to_slice (Array.make 3#usize [ 93#u8, 93#u8, 62#u8 ]))
   xml.starts cs i s
 
 /-- [rowl_kernel::xml::char_data]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 580:0-589:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 586:0-595:1 -/
 def xml.char_data
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
   Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
@@ -67937,7 +67937,7 @@ def xml.char_data
 partial_fixpoint
 
 /-- [rowl_kernel::xml::cdata_body]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 556:0-565:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 562:0-571:1 -/
 def xml.cdata_body
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
   Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
@@ -67967,7 +67967,7 @@ def xml.cdata_body
 partial_fixpoint
 
 /-- [rowl_kernel::xml::cdata]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 569:0-571:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 575:0-577:1 -/
 def xml.cdata
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (text : alloc.vec.Vec Std.U32) :
   Result (core.result.Result ((alloc.vec.Vec Std.U32) × Std.Usize)
@@ -67979,7 +67979,7 @@ def xml.cdata
 mutual
 
 /-- [rowl_kernel::xml::content]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1473:0-1515:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1479:0-1521:1 -/
 def xml.content
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
@@ -68079,7 +68079,7 @@ def xml.content
 partial_fixpoint
 
 /-- [rowl_kernel::xml::content_reference]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1519:0-1551:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1525:0-1557:1 -/
 def xml.content_reference
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
@@ -68152,7 +68152,7 @@ def xml.content_reference
 partial_fixpoint
 
 /-- [rowl_kernel::xml::element_in]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1620:0-1669:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1626:0-1675:1 -/
 def xml.element_in
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (name_end : Std.Usize)
   (mark : Std.Usize) (after : Std.Usize) (empty : Bool)
@@ -68236,7 +68236,7 @@ def xml.element_in
 partial_fixpoint
 
 /-- [rowl_kernel::xml::element]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 1673:0-1696:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 1679:0-1702:1 -/
 def xml.element
   (cs : alloc.vec.Vec Std.U32) (i : Std.Usize) (env : alloc.vec.Vec xml.Entity)
   (stack : alloc.vec.Vec Std.Usize) (ctx : alloc.vec.Vec xml.Binding)
@@ -68318,7 +68318,7 @@ structure xml.Document where
   root : xml.Element
 
 /-- [rowl_kernel::xml::document]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2250:0-2266:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2256:0-2272:1 -/
 def xml.document
   (cs : alloc.vec.Vec Std.U32) (budget : Std.Usize) :
   Result (core.result.Result xml.Document xml.XmlError)
@@ -68394,7 +68394,7 @@ def xml.order_mark
   ok ((offset = 0#usize) && (codepoint = 65279#u32))
 
 /-- [rowl_kernel::xml::emitted]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 214:0-216:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 220:0-222:1 -/
 def xml.emitted
   (offset : Std.Usize) (codepoint : Std.U32) (cr : Bool) : Result Bool := do
   let b ← xml.order_mark offset codepoint
@@ -68402,7 +68402,7 @@ def xml.emitted
   ok (¬ (b || b1))
 
 /-- [rowl_kernel::xml::offset_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 218:0-233:1 -/
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 224:0-239:1 -/
 def xml.offset_from
   (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize) (count : Std.Usize)
   (index : Std.Usize) (cr : Bool) :
@@ -68425,7 +68425,7 @@ def xml.offset_from
 partial_fixpoint
 
 /-- [rowl_kernel::xml::byte_offset]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 236:0-238:1
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 242:0-244:1
     Visibility: public -/
 def xml.byte_offset
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
@@ -68450,10 +68450,11 @@ def xml.take
       then ok (core.result.Result.Ok chars)
       else xml.push_char chars codepoint offset
 
-/-- [rowl_kernel::xml::decode_from]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 187:0-205:1 -/
-def xml.decode_from
-  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize)
+/-- [rowl_kernel::xml::decode_from]: loop 0:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 196:4-210:5 -/
+@[rust_loop]
+def xml.decode_from_loop
+  (offset : Std.Usize) (bytes : alloc.vec.Vec Std.U8)
   (chars : alloc.vec.Vec Std.U32) (cr : Bool) :
   Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
   := do
@@ -68468,7 +68469,7 @@ def xml.decode_from
       let cf ← core.result.Result.Insts.CoreOpsTry.branch r
       match cf with
       | core.ops.control_flow.ControlFlow.Continue val =>
-        xml.decode_from bytes next val (codepoint = 13#u32)
+        xml.decode_from_loop next bytes val (codepoint = 13#u32)
       | core.ops.control_flow.ControlFlow.Break residual =>
         core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
           (alloc.vec.Vec Std.U32) (core.convert.FromSame xml.XmlError) residual
@@ -68480,8 +68481,18 @@ def xml.decode_from
     ok (core.result.Result.Err xe)
 partial_fixpoint
 
+/-- [rowl_kernel::xml::decode_from]:
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 190:0-211:1 -/
+@[reducible]
+def xml.decode_from
+  (bytes : alloc.vec.Vec Std.U8) (offset : Std.Usize)
+  (chars : alloc.vec.Vec Std.U32) (cr : Bool) :
+  Result (core.result.Result (alloc.vec.Vec Std.U32) xml.XmlError)
+  := do
+  xml.decode_from_loop offset bytes chars cr
+
 /-- [rowl_kernel::xml::decode]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 209:0-211:1
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 215:0-217:1
     Visibility: public -/
 def xml.decode
   (bytes : alloc.vec.Vec Std.U8) :
@@ -68504,7 +68515,7 @@ inductive xml.ReadResult where
 | Error : xml.XmlError → xml.ReadResult
 
 /-- [rowl_kernel::xml::read]:
-    Source: 'crates/rowl-kernel/src/xml.rs', lines 2270:0-2278:1
+    Source: 'crates/rowl-kernel/src/xml.rs', lines 2276:0-2284:1
     Visibility: public -/
 def xml.read
   (bytes : alloc.vec.Vec Std.U8) (limits : xml.Limits) :

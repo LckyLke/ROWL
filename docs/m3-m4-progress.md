@@ -6245,3 +6245,21 @@ input, is the next step for large documents.
 
 This block adds no public theorems or definitions. Totals are 5398 audited
 theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.
+
+## Performance: XML decoding in constant stack
+
+`xml::decode_from`, which decodes a document into code points, recursed once per
+character; the compiler does not turn that recursion into a loop, so reading an
+RDF/XML document took about 160 bytes of stack per byte. It is now a Rust
+`loop`, which Aeneas extracts as the recursive `xml.decode_from_loop` with the
+same body, so its proof carries over unchanged (`decode_from_loop_spec`) and
+`decode_from_spec` and every theorem above it keep their statements. Element
+content still recurses once per sibling element, about 1.6 KB of stack each.
+
+Reading the 7.9 MB RDF/XML form of the generated 20 000-class EL ontology now
+needs less than 64 MB of stack instead of more than 1 GiB; classifying it takes
+1.33 s and 334 MB instead of 2.13 s and 1.3 GB, and the 4 GiB kernel stack
+reads documents of a few hundred MB.
+
+This block adds no public theorems or definitions. Totals are 5398 audited
+theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.

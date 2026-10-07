@@ -184,21 +184,27 @@ fn take(chars: Vec<u32>, codepoint: u32, offset: usize, cr: bool) -> Result<Vec<
     }
 }
 
+/// The characters decoded from `offset` on, after `chars`; `cr` says whether
+/// the previous code point was a carriage return. A loop, so that the stack
+/// does not grow with the length of the document.
 fn decode_from(
     bytes: &Vec<u8>,
-    offset: usize,
-    chars: Vec<u32>,
-    cr: bool,
+    mut offset: usize,
+    mut chars: Vec<u32>,
+    mut cr: bool,
 ) -> Result<Vec<u32>, XmlError> {
-    match decode_next(bytes, offset) {
-        Decoded::End => Ok(chars),
-        Decoded::Error(_) => Err(fail(ErrorKind::MalformedUtf8, offset)),
-        Decoded::Scalar { codepoint, next } => {
-            if xml_character(codepoint) {
-                let chars = take(chars, codepoint, offset, cr)?;
-                decode_from(bytes, next, chars, codepoint == 13)
-            } else {
-                Err(fail(ErrorKind::NonXmlCharacter, offset))
+    loop {
+        match decode_next(bytes, offset) {
+            Decoded::End => return Ok(chars),
+            Decoded::Error(_) => return Err(fail(ErrorKind::MalformedUtf8, offset)),
+            Decoded::Scalar { codepoint, next } => {
+                if xml_character(codepoint) {
+                    chars = take(chars, codepoint, offset, cr)?;
+                    cr = codepoint == 13;
+                    offset = next;
+                } else {
+                    return Err(fail(ErrorKind::NonXmlCharacter, offset));
+                }
             }
         }
     }
