@@ -5,17 +5,23 @@
 //! table (named classes, their complements, and existential and universal
 //! restrictions); conjunctions are split, disjunctions branch on a copy of the
 //! graph, and a literal whose complement is already there is a clash the moment
-//! it is inserted. Rules are searched in a fixed order, deterministic ones first:
+//! it is inserted. Rules are searched in a fixed order:
 //!
-//! 1. every node satisfies its requirements (the facts at named nodes), the TBox
-//!    concept, and every unfolding `A ⊑ C` whose class `A` it has (lazy
-//!    unfolding, instead of `¬A ⊔ C` everywhere);
+//! 1. every node satisfies its requirements (the facts at named nodes);
 //! 2. along every edge, in both directions, every universal restriction `∀q.d`
 //!    with the edge's role included in `q` requires `d`, and `∀t.d` for every
 //!    transitive role `t` in between;
-//! 3. every existential restriction of an unblocked node needs a neighbour along
+//! 3. every node satisfies the TBox concept and every unfolding `A ⊑ C` whose
+//!    class `A` it has (lazy unfolding, instead of `¬A ⊔ C` everywhere);
+//! 4. every existential restriction of an unblocked node needs a neighbour along
 //!    an included role that satisfies its filler; otherwise a new tree node is
 //!    created.
+//!
+//! The edges come before the TBox concept, so what the choices at one node
+//! require of its neighbours is added, and a clash they cause is found, before
+//! the next node branches. With the TBox concept first, every node would branch
+//! before any edge is used, and a clash found then would undo the choices of
+//! all the nodes in between.
 //!
 //! A tree node is blocked when its parent is, or when an earlier unblocked tree
 //! node anywhere in the graph has the same label (anywhere equality blocking,
@@ -313,14 +319,6 @@ fn missing_local(problem: &Problem, nodes: &Vec<Node>, index: usize) -> Option<(
         }
     } else {
         None
-    }
-}
-/// A node that misses something, and what: an unmet requirement of an
-/// individual, or else what the first node misses locally.
-fn missing_node(problem: &Problem, nodes: &Vec<Node>) -> Option<(usize, usize)> {
-    match missing_requirement(problem, nodes, 0) {
-        Some(found) => Some(found),
-        None => missing_local(problem, nodes, 0),
     }
 }
 /// Whether `label[index..]` has an entry `∀role.filler`.
@@ -849,16 +847,30 @@ fn missing_successor(
 }
 /// The next rule: a missing concept of a node or an edge, else a missing
 /// successor, else none.
-fn next_step(problem: &Problem, roles: &RoleHierarchy, nodes: &Vec<Node>) -> Step {
-    match missing_node(problem, nodes) {
-        Some((node, concept)) => return Step::Add { node, concept },
+/// A node that misses something, and what: an unmet requirement of an
+/// individual, else what an edge requires of one of its ends, else what the
+/// first node misses locally.
+fn missing_work(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    nodes: &Vec<Node>,
+) -> Option<(usize, usize)> {
+    match missing_requirement(problem, nodes, 0) {
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_link(problem, roles, nodes, 0) {
-        Some((node, concept)) => return Step::Add { node, concept },
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_tree(problem, roles, nodes, 0) {
+        Some(found) => return Some(found),
+        None => {}
+    }
+    missing_local(problem, nodes, 0)
+}
+fn next_step(problem: &Problem, roles: &RoleHierarchy, nodes: &Vec<Node>) -> Step {
+    match missing_work(problem, roles, nodes) {
         Some((node, concept)) => return Step::Add { node, concept },
         None => {}
     }

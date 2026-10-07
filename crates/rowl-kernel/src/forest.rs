@@ -6,32 +6,36 @@
 //! list of roles. Rules are searched in a fixed order:
 //!
 //! 1. every active node satisfies the requirements of the individuals merged
-//!    into it, the TBox concept and the unfoldings of its classes, and a tree
-//!    node or a new named node the filler it was created for (its seed);
+//!    into it;
 //! 2. along every edge, in both directions, universal restrictions pass their
 //!    filler on, and through transitive roles the restriction itself; a self
 //!    restriction `∃s.Self` of a node is a loop, an edge from the node to
 //!    itself along `s`;
-//! 3. a node with `¬∃r.Self` that is its own neighbour along `r` is a clash,
+//! 3. every active node satisfies the TBox concept and the unfoldings of its
+//!    classes, and a tree node or a new named node the filler it was created
+//!    for (its seed); the edges come before the TBox concept, so what the
+//!    choices at one node require of its neighbours is added, and a clash they
+//!    cause is found, before the next node branches;
+//! 4. a node with `¬∃r.Self` that is its own neighbour along `r` is a clash,
 //!    and so is a node with one neighbour along both roles of a disjoint pair
 //!    of the role hierarchy, such as an asymmetric role and its inverse;
-//! 4. a node whose label has the nominal `{a}` is merged into the named node of
+//! 5. a node whose label has the nominal `{a}` is merged into the named node of
 //!    `a`, the node of the first requirement with `{a}`, unless they are known
 //!    to differ, which is a clash; a nominal or the complement of one whose
 //!    individual has no named node gives no answer;
-//! 5. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
+//! 6. for every `≤n r.C` of a node, every neighbour along `r` decides `C`
 //!    (the choose rule);
-//! 6. when `≤n r.C` of a named node counts a tree node that is not its child,
+//! 7. when `≤n r.C` of a named node counts a tree node that is not its child,
 //!    which the model may repeat, new named nodes take the place of such
 //!    nodes: the rule guesses how many neighbours along `r` satisfy `C`, from
 //!    1 up to `n`, trying each guess in turn, and creates that many new named
 //!    nodes with the seed `C`, an added edge from the node and the guess as a
 //!    bound on those neighbours; once the bound exists, the tree node is
 //!    merged with one of the first `bound` counted named neighbours;
-//! 7. when more than `n` of those neighbours satisfy `C`, two of the first
+//! 8. when more than `n` of those neighbours satisfy `C`, two of the first
 //!    `n + 1` that are not known to differ are merged, trying each such pair in
 //!    turn; when all of them differ, it is a clash;
-//! 8. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
+//! 9. every `∃r.C` and `≥n r.C` of an unblocked node that has fewer
 //!    neighbours along `r` satisfying `C` than it requires, and was not
 //!    expanded yet, creates new tree nodes with the filler as their seed,
 //!    pairwise different.
@@ -575,14 +579,6 @@ fn missing_local(problem: &Problem, graph: &Forest, index: usize) -> Option<(usi
         }
     } else {
         None
-    }
-}
-/// An active node that misses something, and what: an unmet requirement of an
-/// individual, or else what the first active node misses locally.
-fn missing_node(problem: &Problem, graph: &Forest) -> Option<(usize, usize)> {
-    match missing_requirement(problem, graph, 0) {
-        Some(found) => Some(found),
-        None => missing_local(problem, graph, 0),
     }
 }
 /// What an edge from `from` to `to` along `role` requires in either direction
@@ -1450,24 +1446,38 @@ fn nominal_node(problem: &Problem, graph: &Forest, index: usize) -> Option<Optio
 /// expand; when none applies, the check that every restriction has enough
 /// neighbours (`Stuck` when one has not); `None` when there is no room or a
 /// nominal has no named node.
-fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option<Step> {
-    match missing_node(problem, graph) {
-        Some((node, concept)) => return Some(Step::Add { node, concept }),
+/// An active node that misses something, and what: an unmet requirement of an
+/// individual, else what a tree edge, a link, an added edge or a loop requires
+/// of a node, else what the first active node misses locally.
+fn missing_work(
+    problem: &Problem,
+    roles: &RoleHierarchy,
+    graph: &Forest,
+) -> Option<(usize, usize)> {
+    match missing_requirement(problem, graph, 0) {
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_tree(problem, roles, graph, 0) {
-        Some((node, concept)) => return Some(Step::Add { node, concept }),
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_link(problem, roles, graph, 0) {
-        Some((node, concept)) => return Some(Step::Add { node, concept }),
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_added(problem, roles, graph, 0) {
-        Some((node, concept)) => return Some(Step::Add { node, concept }),
+        Some(found) => return Some(found),
         None => {}
     }
     match missing_loops(problem, roles, graph, 0) {
+        Some(found) => return Some(found),
+        None => {}
+    }
+    missing_local(problem, graph, 0)
+}
+fn next_step(problem: &Problem, roles: &RoleHierarchy, graph: &Forest) -> Option<Step> {
+    match missing_work(problem, roles, graph) {
         Some((node, concept)) => return Some(Step::Add { node, concept }),
         None => {}
     }

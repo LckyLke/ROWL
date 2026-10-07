@@ -639,39 +639,6 @@ private theorem missing_local_correct (P : completion.Problem) (nodes : alloc.ve
 termination_by nodes.val.length - index.val
 decreasing_by omega
 
-/-- The node search returns a node and something it needs and lacks, or nothing
-    when every node satisfies what it needs: an unmet requirement of an
-    individual, found in one pass over the requirements, or else what the first
-    node misses locally. -/
-theorem missing_node_correct (P : completion.Problem) (nodes : alloc.vec.Vec completion.Node)
-    (triggers : TriggersOk P) :
-    ∃ r, completion.missing_node P nodes = .ok r ∧
-      (∀ x c, r = some (x,c) → x.val < nodes.val.length ∧ NodeNeeds P (labelOf nodes.val x.val) x.val c ∧
-        ¬ Holds P.entries.val (labelOf nodes.val x.val) c.val) ∧
-      (r = none → ∀ y, y < nodes.val.length → NodeOk P (labelOf nodes.val y) y) := by
-  rw [completion.missing_node]
-  obtain ⟨r1,run1,found1,absent1⟩ := missing_requirement_correct P nodes 0#usize
-  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found1 absent1
-  cases r1 with
-  | some pair =>
-    obtain ⟨x,c⟩ := pair
-    refine ⟨some (x,c),by simp [run1],?_,by simp⟩
-    intro x' c' same
-    simp only [Option.some.injEq,Prod.mk.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    obtain ⟨inside,⟨q,member,at_q,value⟩,fails⟩ := found1 x c rfl
-    exact ⟨inside,.inl ⟨q,member,by rw [at_q],value⟩,fails⟩
-  | none =>
-    obtain ⟨r2,run2,found2,absent2⟩ := missing_local_correct P nodes 0#usize triggers
-    refine ⟨r2,by simp [run1,run2],?_,?_⟩
-    · intro x c same
-      obtain ⟨inside,needs,fails⟩ := found2 x c same
-      exact ⟨inside,.inr needs,fails⟩
-    · intro none y inside c needs
-      rcases needs with ⟨q,member,at_q,rfl⟩ | localNeeds
-      · rw [← at_q] at inside ⊢
-        exact absent1 rfl q member inside
-      · exact absent2 none y (Nat.zero_le _) inside c localNeeds
 /-- The label lists an entry `∀t.f`. -/
 def HasUniversal (entries : List concept_table.Entry) (label : List Usize) (t : ObjectPropertyExpression)
     (f : Usize) : Prop :=
@@ -1984,6 +1951,82 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (nodes : Lis
   (∀ x < nodes.length, ¬ Blocked nodes x → ∀ i ∈ labelOf nodes x, ∀ r f,
     P.entries.val[i.val]? = some (.Exists r f) → Witnessed P h nodes x r f)
 
+/-- The search for missing work returns a node and an entry it needs and lacks:
+    an unmet requirement of an individual, found in one pass over the
+    requirements, else what a link or a tree edge requires of one of its ends,
+    else what the first node misses locally; when it returns nothing, every node
+    has what it needs and every edge is satisfied in both directions. -/
+theorem missing_work_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
+    (nodes : alloc.vec.Vec completion.Node) (triggers : TriggersOk P) :
+    ∃ r, completion.missing_work P h nodes = .ok r ∧
+      (∀ x c, r = some (x,c) → x.val < nodes.val.length ∧ Needs P h nodes.val x.val c ∧
+        ¬ Holds P.entries.val (labelOf nodes.val x.val) c.val) ∧
+      (r = none → (∀ y < nodes.val.length, NodeOk P (labelOf nodes.val y) y) ∧
+        (∀ l ∈ P.links.val, l.from.val < nodes.val.length → l.to.val < nodes.val.length →
+          EdgeOk P.entries.val h (labelOf nodes.val l.from.val) l.role (labelOf nodes.val l.to.val) ∧
+          EdgeOk P.entries.val h (labelOf nodes.val l.to.val) (inv l.role) (labelOf nodes.val l.from.val)) ∧
+        (∀ y n s, nodes.val[y]? = some n → n.tree = true → createdRole P.entries.val n = some s →
+          n.parent.val < nodes.val.length →
+          EdgeOk P.entries.val h (labelOf nodes.val n.parent.val) s (labelOf nodes.val y) ∧
+          EdgeOk P.entries.val h (labelOf nodes.val y) (inv s) (labelOf nodes.val n.parent.val))) := by
+  rw [completion.missing_work]
+  obtain ⟨r1,run1,found1,absent1⟩ := missing_requirement_correct P nodes 0#usize
+  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found1 absent1
+  cases r1 with
+  | some pair =>
+    obtain ⟨x,c⟩ := pair
+    refine ⟨some (x,c),by simp [run1],?_,by simp⟩
+    intro x' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    obtain ⟨inside,⟨q,member,at_q,value⟩,fails⟩ := found1 x c rfl
+    exact ⟨inside,.inl (.inl ⟨q,member,by rw [at_q],value⟩),fails⟩
+  | none =>
+    obtain ⟨link,linkRun,linkFound,linkAbsent⟩ := missing_link_correct P h nodes 0#usize
+    simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at linkFound linkAbsent
+    cases link with
+    | some pair =>
+      obtain ⟨x,c⟩ := pair
+      refine ⟨some (x,c),by simp [run1,linkRun],?_,by simp⟩
+      intro x' c' same
+      simp only [Option.some.injEq,Prod.mk.injEq] at same
+      obtain ⟨rfl,rfl⟩ := same
+      obtain ⟨l,member,sourceIn,targetIn,kind⟩ := linkFound x c rfl
+      rcases kind with ⟨rfl,needs,missing⟩ | ⟨rfl,needs,missing⟩
+      · exact ⟨targetIn,.inr (.inl ⟨l,member,sourceIn,targetIn,.inl ⟨rfl,needs⟩⟩),missing⟩
+      · exact ⟨sourceIn,.inr (.inl ⟨l,member,sourceIn,targetIn,.inr ⟨rfl,needs⟩⟩),missing⟩
+    | none =>
+      have linksOk := linkAbsent rfl
+      obtain ⟨tree,treeRun,treeFound,treeAbsent⟩ := missing_tree_correct P h nodes 0#usize
+      cases tree with
+      | some pair =>
+        obtain ⟨x,c⟩ := pair
+        refine ⟨some (x,c),by simp [run1,linkRun,treeRun],?_,by simp⟩
+        intro x' c' same
+        simp only [Option.some.injEq,Prod.mk.injEq] at same
+        obtain ⟨rfl,rfl⟩ := same
+        obtain ⟨y,n,s,_,at_y,isTree,role,parentIn,kind⟩ := treeFound x c rfl
+        have yIn : y < nodes.val.length := (List.getElem?_eq_some_iff.mp at_y).1
+        rcases kind with ⟨same,needs,missing⟩ | ⟨rfl,needs,missing⟩
+        · refine ⟨by rw [same]; exact yIn,.inr (.inr ⟨y,n,s,at_y,isTree,role,parentIn,.inl ⟨same,needs⟩⟩),?_⟩
+          rw [same]; exact missing
+        · exact ⟨parentIn,.inr (.inr ⟨y,n,s,at_y,isTree,role,parentIn,.inr ⟨rfl,needs⟩⟩),missing⟩
+      | none =>
+        have treesOk := treeAbsent rfl
+        obtain ⟨r2,run2,found2,absent2⟩ := missing_local_correct P nodes 0#usize triggers
+        refine ⟨r2,by simp [run1,linkRun,treeRun,run2],?_,?_⟩
+        · intro x c same
+          obtain ⟨inside,needs,fails⟩ := found2 x c same
+          exact ⟨inside,.inl (.inr needs),fails⟩
+        · intro none
+          refine ⟨?_,linksOk,fun y n s at_y isTree role parentIn =>
+            treesOk y n s (Nat.zero_le _) at_y isTree role parentIn⟩
+          intro y inside c needs
+          rcases needs with ⟨q,member,at_q,rfl⟩ | localNeeds
+          · rw [← at_q] at inside ⊢
+            exact absent1 rfl q member inside
+          · exact absent2 none y (Nat.zero_le _) inside c localNeeds
+
 /-- The rule search returns a node and an entry it needs and lacks, else an
     unblocked node with an existential restriction without a witness, else
     `Done`, and then no rule applies. -/
@@ -1996,67 +2039,33 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
         ∃ r f, P.entries.val[i.val]? = some (.Exists r f) ∧ ¬ Witnessed P h nodes.val x.val r f) ∧
       (s = .Done → Complete P h nodes.val) := by
   rw [completion.next_step]
-  obtain ⟨node,nodeRun,nodeFound,nodeAbsent⟩ := missing_node_correct P nodes triggers
-  cases node with
+  obtain ⟨work,workRun,workFound,workAbsent⟩ := missing_work_correct P h nodes triggers
+  cases work with
   | some pair =>
     obtain ⟨x,c⟩ := pair
-    refine ⟨.Add x c,by simp [nodeRun],?_,by simp,by simp⟩
+    refine ⟨.Add x c,by simp [workRun],?_,by simp,by simp⟩
     intro x' c' same
     simp only [completion.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
-    obtain ⟨inside,needs,missing⟩ := nodeFound x c rfl
-    exact ⟨inside,.inl needs,missing⟩
+    exact workFound x c rfl
   | none =>
-    have nodesOk := nodeAbsent rfl
-    obtain ⟨link,linkRun,linkFound,linkAbsent⟩ := missing_link_correct P h nodes 0#usize
-    simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at linkFound linkAbsent
-    cases link with
+    obtain ⟨nodesOk,linksOk,treesOk⟩ := workAbsent rfl
+    obtain ⟨flags,flagsRun,flagsOk⟩ := blocking_correct nodes 0#usize (alloc.vec.Vec.new Bool) (by simp)
+      (by intro y low; simp at low)
+    obtain ⟨successor,successorRun,successorFound,successorAbsent⟩ :=
+      missing_successor_correct P h nodes flags flagsOk 0#usize
+    cases successor with
     | some pair =>
-      obtain ⟨x,c⟩ := pair
-      refine ⟨.Add x c,by simp [nodeRun,linkRun],?_,by simp,by simp⟩
-      intro x' c' same
-      simp only [completion.Step.Add.injEq] at same
+      obtain ⟨x,i⟩ := pair
+      refine ⟨.Create x i,by simp [workRun,flagsRun,successorRun],by simp,?_,by simp⟩
+      intro x' i' same
+      simp only [completion.Step.Create.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
-      obtain ⟨l,member,sourceIn,targetIn,kind⟩ := linkFound x c rfl
-      rcases kind with ⟨rfl,needs,missing⟩ | ⟨rfl,needs,missing⟩
-      · exact ⟨targetIn,.inr (.inl ⟨l,member,sourceIn,targetIn,.inl ⟨rfl,needs⟩⟩),missing⟩
-      · exact ⟨sourceIn,.inr (.inl ⟨l,member,sourceIn,targetIn,.inr ⟨rfl,needs⟩⟩),missing⟩
+      obtain ⟨_,rest⟩ := successorFound x i rfl
+      exact rest
     | none =>
-      have linksOk := linkAbsent rfl
-      obtain ⟨tree,treeRun,treeFound,treeAbsent⟩ := missing_tree_correct P h nodes 0#usize
-      cases tree with
-      | some pair =>
-        obtain ⟨x,c⟩ := pair
-        refine ⟨.Add x c,by simp [nodeRun,linkRun,treeRun],?_,by simp,by simp⟩
-        intro x' c' same
-        simp only [completion.Step.Add.injEq] at same
-        obtain ⟨rfl,rfl⟩ := same
-        obtain ⟨y,n,s,_,at_y,isTree,role,parentIn,kind⟩ := treeFound x c rfl
-        have yIn : y < nodes.val.length := (List.getElem?_eq_some_iff.mp at_y).1
-        rcases kind with ⟨same,needs,missing⟩ | ⟨rfl,needs,missing⟩
-        · refine ⟨by rw [same]; exact yIn,.inr (.inr ⟨y,n,s,at_y,isTree,role,parentIn,.inl ⟨same,needs⟩⟩),?_⟩
-          rw [same]; exact missing
-        · exact ⟨parentIn,.inr (.inr ⟨y,n,s,at_y,isTree,role,parentIn,.inr ⟨rfl,needs⟩⟩),missing⟩
-      | none =>
-        have treesOk := treeAbsent rfl
-        obtain ⟨flags,flagsRun,flagsOk⟩ := blocking_correct nodes 0#usize (alloc.vec.Vec.new Bool) (by simp)
-          (by intro y low; simp at low)
-        obtain ⟨successor,successorRun,successorFound,successorAbsent⟩ :=
-          missing_successor_correct P h nodes flags flagsOk 0#usize
-        cases successor with
-        | some pair =>
-          obtain ⟨x,i⟩ := pair
-          refine ⟨.Create x i,by simp [nodeRun,linkRun,treeRun,flagsRun,successorRun],by simp,?_,by simp⟩
-          intro x' i' same
-          simp only [completion.Step.Create.injEq] at same
-          obtain ⟨rfl,rfl⟩ := same
-          obtain ⟨_,rest⟩ := successorFound x i rfl
-          exact rest
-        | none =>
-          refine ⟨.Done,by simp [nodeRun,linkRun,treeRun,flagsRun,successorRun],by simp,by simp,?_⟩
-          intro _
-          refine ⟨fun y yIn => nodesOk y yIn,linksOk,?_,
-            fun x xIn notBlocked => successorAbsent rfl x (Nat.zero_le _) xIn notBlocked⟩
-          intro y n s at_y isTree role parentIn
-          exact treesOk y n s (Nat.zero_le _) at_y isTree role parentIn
+      refine ⟨.Done,by simp [workRun,flagsRun,successorRun],by simp,by simp,?_⟩
+      intro _
+      exact ⟨nodesOk,linksOk,treesOk,
+        fun x xIn notBlocked => successorAbsent rfl x (Nat.zero_le _) xIn notBlocked⟩
 end Rowl.CompletionSearch

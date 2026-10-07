@@ -1291,7 +1291,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   lazy unfolding with absorption (unfoldings indexed by their triggering
   entry), a concept table prepared once per ontology, clash detection on
   insertion, anywhere equality blocking and backjumping, the queries that count or have nominals a
-  completion forest with pairwise blocking and backjumping over merges, and a
+  completion forest with pairwise blocking and backjumping over merges; both
+  pass restrictions along edges before giving nodes the TBox concept, so a
+  choice that clashes with a neighbour fails before other nodes branch, and a
   closure or document
   prepared once answers any number of queries.
 - Exact-source linkage covering Rust, proof sources and audit/inventory gates.

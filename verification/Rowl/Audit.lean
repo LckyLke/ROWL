@@ -1234,7 +1234,6 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.CompletionSearch.same_label_correct
 #print axioms Rowl.CompletionSearch.missing_unfolding_correct
 #print axioms Rowl.CompletionSearch.missing_at_correct
-#print axioms Rowl.CompletionSearch.missing_node_correct
 #print axioms Rowl.CompletionSearch.holds_listed
 #print axioms Rowl.CompletionSearch.has_universal_correct
 #print axioms Rowl.CompletionSearch.missing_along_correct
@@ -1250,6 +1249,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.CompletionSearch.blocked_at_correct
 #print axioms Rowl.CompletionSearch.blocking_correct
 #print axioms Rowl.CompletionSearch.missing_successor_correct
+#print axioms Rowl.CompletionSearch.missing_work_correct
 #print axioms Rowl.CompletionSearch.next_step_correct
 #print axioms Rowl.CompletionModel.holds_same
 #print axioms Rowl.CompletionModel.edgeOk_same
@@ -1462,7 +1462,6 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.ForestSearch.seeded_correct
 #print axioms Rowl.ForestSearch.missing_requirement_correct
 #print axioms Rowl.ForestSearch.missing_at_correct
-#print axioms Rowl.ForestSearch.missing_node_correct
 #print axioms Rowl.ForestSearch.missing_edge_correct
 #print axioms Rowl.ForestSearch.missing_roles_correct
 #print axioms Rowl.ForestSearch.missing_tree_correct
@@ -1497,6 +1496,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.ForestSearch.common_correct
 #print axioms Rowl.ForestSearch.overlap_from_correct
 #print axioms Rowl.ForestSearch.overlap_node_correct
+#print axioms Rowl.ForestSearch.missing_work_correct
 #print axioms Rowl.ForestSearch.next_step_correct
 #print axioms Rowl.ForestOps.copy_roles_correct
 #print axioms Rowl.ForestOps.copy_nodes_correct

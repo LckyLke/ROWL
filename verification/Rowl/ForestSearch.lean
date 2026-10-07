@@ -1369,39 +1369,6 @@ private theorem missing_local_correct (P : completion.Problem) (F : forest.Fores
 termination_by F.nodes.val.length - index.val
 decreasing_by all_goals omega
 
-/-- An active node that misses something, and what: an unmet requirement of an
-    individual, found in one pass over the requirements, or else what the first
-    active node misses locally; none when every active node has all it needs. -/
-theorem missing_node_correct (P : completion.Problem) (F : forest.Forest) (triggers : TriggersOk P) :
-    ∃ r, forest.missing_node P F = .ok r ∧
-      (∀ x c, r = some (x,c) → Active F.nodes.val x.val ∧ NodeNeeds P F x.val c ∧
-        ¬ Holds P.entries.val (labelOf F.nodes.val x.val) c.val) ∧
-      (r = none → ∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c →
-        Holds P.entries.val (labelOf F.nodes.val y) c.val) := by
-  rw [forest.missing_node]
-  obtain ⟨r1,run1,found1,absent1⟩ := missing_requirement_correct P F 0#usize
-  simp only [show (0#usize).val = 0 from rfl,List.drop_zero] at found1 absent1
-  cases r1 with
-  | some pair =>
-    obtain ⟨x,c⟩ := pair
-    refine ⟨some (x,c),by simp [run1],?_,by simp⟩
-    intro x' c' same
-    simp only [Option.some.injEq,Prod.mk.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    obtain ⟨act,⟨q,member,at_q,value⟩,fails⟩ := found1 x c rfl
-    exact ⟨act,.inl ⟨q,member,by rw [at_q],value.symm⟩,fails⟩
-  | none =>
-    obtain ⟨r2,run2,found2,absent2⟩ := missing_local_correct P F 0#usize triggers
-    refine ⟨r2,by simp [run1,run2],?_,?_⟩
-    · intro x c same
-      obtain ⟨act,needs,fails⟩ := found2 x c same
-      exact ⟨act,.inr needs,fails⟩
-    · intro none y act c needs
-      rcases needs with ⟨q,member,at_q,rfl⟩ | localNeeds
-      · rw [← at_q] at act ⊢
-        exact absent1 rfl q member act
-      · exact absent2 none y (Nat.zero_le _) act c localNeeds
-
 /-- The search along one edge returns a node at either end with an entry the
     other end requires and it lacks, or nothing when both directions are
     satisfied. -/
@@ -3468,6 +3435,102 @@ def Complete (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.
   (∀ y, Active F.nodes.val y → LoopsOk P.entries.val h F y) ∧ (∀ y, Active F.nodes.val y → ¬ Looped P h F y) ∧
   (∀ y, Active F.nodes.val y → ¬ Overlap P h F y)
 
+/-- The search for missing work returns a node and a concept it lacks that it
+    needs: an unmet requirement of an individual, found in one pass over the
+    requirements, else what a tree edge, a link, an added edge or a loop
+    requires of a node, else what the first active node misses locally; when it
+    returns nothing, every active node has what it needs and every tree edge,
+    link, added edge and loop is satisfied. -/
+theorem missing_work_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy) (F : forest.Forest)
+    (triggers : TriggersOk P) :
+    ∃ r, forest.missing_work P h F = .ok r ∧
+      (∀ y c, r = some (y,c) → y.val < F.nodes.val.length ∧ AddNeeds P h F y.val c ∧
+        ¬ Holds P.entries.val (labelOf F.nodes.val y.val) c.val) ∧
+      (r = none →
+        (∀ y, Active F.nodes.val y → ∀ c, NodeNeeds P F y c → Holds P.entries.val (labelOf F.nodes.val y) c.val) ∧
+        (∀ child n, F.nodes.val[child]? = some n → n.tree = true → n.active = true →
+          n.parent.val < F.nodes.val.length → ∀ s ∈ n.roles.val,
+            EdgeOk P.entries.val h (labelOf F.nodes.val n.parent.val) s (labelOf F.nodes.val child) ∧
+            EdgeOk P.entries.val h (labelOf F.nodes.val child) (inv s) (labelOf F.nodes.val n.parent.val)) ∧
+        LinksOk P.entries.val h F (linkEnds P.links.val) ∧
+        LinksOk P.entries.val h F (edgeEnds (liveEdges F F.edges.val)) ∧
+        (∀ y, Active F.nodes.val y → LoopsOk P.entries.val h F y)) := by
+  rw [forest.missing_work]
+  have zero : (0#usize).val = 0 := rfl
+  obtain ⟨r0,run0,found0,absent0⟩ := missing_requirement_correct P F 0#usize
+  simp only [zero,List.drop_zero] at found0 absent0
+  cases r0 with
+  | some pair =>
+    obtain ⟨y,c⟩ := pair
+    obtain ⟨⟨n,at_y,act⟩,⟨q,member,at_q,value⟩,fails⟩ := found0 y c rfl
+    refine ⟨some (y,c),by simp [run0],?_,by simp⟩
+    intro y' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    exact ⟨(List.getElem?_eq_some_iff.mp at_y).1,
+      .inl ⟨⟨n,at_y,act⟩,.inl ⟨q,member,by rw [at_q],value.symm⟩⟩,fails⟩
+  | none =>
+  obtain ⟨r1,run1,found1,absent1⟩ := missing_tree_correct P h F 0#usize
+  cases r1 with
+  | some pair =>
+    obtain ⟨y,c⟩ := pair
+    obtain ⟨inside,needs,fails⟩ := found1 y c rfl
+    refine ⟨some (y,c),by simp [run0,run1],?_,by simp⟩
+    intro y' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    exact ⟨inside,.inr (.inl needs),fails⟩
+  | none =>
+  obtain ⟨r2,run2,found2,absent2⟩ := missing_link_correct P h F 0#usize
+  cases r2 with
+  | some pair =>
+    obtain ⟨y,c⟩ := pair
+    obtain ⟨inside,needs,fails⟩ := found2 y c rfl
+    refine ⟨some (y,c),by simp [run0,run1,run2],?_,by simp⟩
+    intro y' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    exact ⟨inside,.inr (.inr (.inl needs)),fails⟩
+  | none =>
+  obtain ⟨r3,run3,found3,absent3⟩ := missing_added_correct P h F 0#usize
+  cases r3 with
+  | some pair =>
+    obtain ⟨y,c⟩ := pair
+    obtain ⟨inside,needs,fails⟩ := found3 y c rfl
+    refine ⟨some (y,c),by simp [run0,run1,run2,run3],?_,by simp⟩
+    intro y' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    exact ⟨inside,.inr (.inr (.inr (.inl needs))),fails⟩
+  | none =>
+  obtain ⟨r14,run14,found14,absent14⟩ := missing_loops_correct P h F 0#usize
+  cases r14 with
+  | some pair =>
+    obtain ⟨y,c⟩ := pair
+    obtain ⟨inside,needs,fails⟩ := found14 y c rfl
+    refine ⟨some (y,c),by simp [run0,run1,run2,run3,run14],?_,by simp⟩
+    intro y' c' same
+    simp only [Option.some.injEq,Prod.mk.injEq] at same
+    obtain ⟨rfl,rfl⟩ := same
+    exact ⟨inside,.inr (.inr (.inr (.inr needs))),fails⟩
+  | none =>
+  obtain ⟨r19,run19,found19,absent19⟩ := missing_local_correct P F 0#usize triggers
+  refine ⟨r19,by simp [run0,run1,run2,run3,run14,run19],?_,?_⟩
+  · intro y c same
+    obtain ⟨⟨n,at_y,act⟩,needs,fails⟩ := found19 y c same
+    exact ⟨(List.getElem?_eq_some_iff.mp at_y).1,.inl ⟨⟨n,at_y,act⟩,.inr needs⟩,fails⟩
+  · intro none
+    rw [zero] at absent2 absent3
+    refine ⟨?_,fun child n at_child tree active parentIn s member =>
+      absent1 rfl child n (Nat.zero_le _) at_child tree active parentIn s member,
+      by simpa using absent2 rfl,by simpa using absent3 rfl,
+      fun y isActive => absent14 rfl y (Nat.zero_le _) isActive⟩
+    intro y act c needs
+    rcases needs with ⟨q,member,at_q,rfl⟩ | localNeeds
+    · rw [← at_q] at act ⊢
+      exact absent0 rfl q member act
+    · exact absent19 none y (Nat.zero_le _) act c localNeeds
+
 /-- The rule search returns a concept that a node lacks and that a node or edge
     requires, a nominal of an active node that names another node, a neighbour
     to decide, a maximum restriction with too many neighbours, or a restriction
@@ -3492,71 +3555,25 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
         generatorOf e = some (role,n,c) ∧ i ∉ doneOf F.nodes.val x.val ∧ ¬ Enough P h F x.val role c n) ∧
       (r = some .Done → Complete P h F) := by
   rw [forest.next_step]
-  have zero : (0#usize).val = 0 := rfl
-  obtain ⟨r0,run0,found0,absent0⟩ := missing_node_correct P F triggers
-  cases r0 with
+  obtain ⟨rW,runW,foundW,absentW⟩ := missing_work_correct P h F triggers
+  cases rW with
   | some pair =>
     obtain ⟨y,c⟩ := pair
-    obtain ⟨⟨n,at_y,act⟩,needs,fails⟩ := found0 y c rfl
-    refine ⟨some (.Add y c),by simp [run0],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Add y c),by simp [runW],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' c' same
     simp only [Option.some.injEq,forest.Step.Add.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
-    exact ⟨(List.getElem?_eq_some_iff.mp at_y).1,.inl ⟨⟨n,at_y,act⟩,needs⟩,fails⟩
+    exact foundW y c rfl
   | none =>
-  obtain ⟨r1,run1,found1,absent1⟩ := missing_tree_correct P h F 0#usize
-  cases r1 with
-  | some pair =>
-    obtain ⟨y,c⟩ := pair
-    obtain ⟨inside,needs,fails⟩ := found1 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
-    intro y' c' same
-    simp only [Option.some.injEq,forest.Step.Add.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    exact ⟨inside,.inr (.inl needs),fails⟩
-  | none =>
-  obtain ⟨r2,run2,found2,absent2⟩ := missing_link_correct P h F 0#usize
-  cases r2 with
-  | some pair =>
-    obtain ⟨y,c⟩ := pair
-    obtain ⟨inside,needs,fails⟩ := found2 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
-    intro y' c' same
-    simp only [Option.some.injEq,forest.Step.Add.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    exact ⟨inside,.inr (.inr (.inl needs)),fails⟩
-  | none =>
-  obtain ⟨r3,run3,found3,absent3⟩ := missing_added_correct P h F 0#usize
-  cases r3 with
-  | some pair =>
-    obtain ⟨y,c⟩ := pair
-    obtain ⟨inside,needs,fails⟩ := found3 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
-    intro y' c' same
-    simp only [Option.some.injEq,forest.Step.Add.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    exact ⟨inside,.inr (.inr (.inr (.inl needs))),fails⟩
-  | none =>
-  obtain ⟨r14,run14,found14,absent14⟩ := missing_loops_correct P h F 0#usize
-  cases r14 with
-  | some pair =>
-    obtain ⟨y,c⟩ := pair
-    obtain ⟨inside,needs,fails⟩ := found14 y c rfl
-    refine ⟨some (.Add y c),by simp [run0,run1,run2,run3,run14],?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
-      by simp,by simp⟩
-    intro y' c' same
-    simp only [Option.some.injEq,forest.Step.Add.injEq] at same
-    obtain ⟨rfl,rfl⟩ := same
-    exact ⟨inside,.inr (.inr (.inr (.inr needs))),fails⟩
-  | none =>
+  obtain ⟨nodesOk,treesOk,linksOk,addedOk,loopsOk⟩ := absentW rfl
   obtain ⟨r15,run15,found15,absent15⟩ := looped_node_correct P h F 0#usize
   cases r15 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15],by simp,by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [runW,run15],by simp,by simp,by simp,by simp,by simp,by simp,
       by simp,by simp,by simp,by simp⟩
   | some r16 =>
   cases r16 with
   | some x =>
-    refine ⟨some (.Loop x),by simp [run0,run1,run2,run3,run14,run15],by simp,by simp,by simp,by simp,by simp,by simp,
+    refine ⟨some (.Loop x),by simp [runW,run15],by simp,by simp,by simp,by simp,by simp,by simp,
       ?_,by simp,by simp,by simp⟩
     intro x' same
     simp only [Option.some.injEq,forest.Step.Loop.injEq] at same
@@ -3565,12 +3582,12 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r17,run17,found17,absent17⟩ := overlap_node_correct P h F 0#usize
   cases r17 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17],by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [runW,run15,run17],by simp,by simp,by simp,by simp,by simp,
       by simp,by simp,by simp,by simp,by simp⟩
   | some r18 =>
   cases r18 with
   | some x =>
-    refine ⟨some (.Overlap x),by simp [run0,run1,run2,run3,run14,run15,run17],by simp,by simp,by simp,by simp,
+    refine ⟨some (.Overlap x),by simp [runW,run15,run17],by simp,by simp,by simp,by simp,
       by simp,by simp,by simp,?_,by simp,by simp⟩
     intro x' same
     simp only [Option.some.injEq,forest.Step.Overlap.injEq] at same
@@ -3579,12 +3596,12 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r12,run12,found12,absent12⟩ := nominal_node_correct P F 0#usize
   cases r12 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [runW,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r13 =>
   cases r13 with
   | some pair =>
     obtain ⟨x,root⟩ := pair
-    refine ⟨some (.Nominal x root),by simp [run0,run1,run2,run3,run14,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,?_,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Nominal x root),by simp [runW,run15,run17,run12],by simp,by simp,by simp,by simp,by simp,?_,by simp,by simp,by simp,by simp⟩
     intro x' root' same
     simp only [Option.some.injEq,forest.Step.Nominal.injEq] at same
     obtain ⟨rfl,rfl⟩ := same
@@ -3592,13 +3609,13 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r4,run4,found4,absent4⟩ := counting_correct P h F true 0#usize
   cases r4 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [runW,run15,run17,run12,run4],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r5 =>
   cases r5 with
   | some step =>
     obtain ⟨x,active,i,member,n,role,c,c',at_i,y,isChoose,neighbour,one,two⟩ := found4 step rfl
     subst isChoose
-    refine ⟨some (.Choose y c c'),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4],by simp,?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+    refine ⟨some (.Choose y c c'),by simp [runW,run15,run17,run12,run4],by simp,?_,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
     intro y' d d' same
     simp only [Option.some.injEq,forest.Step.Choose.injEq] at same
     obtain ⟨rfl,rfl,rfl⟩ := same
@@ -3606,26 +3623,26 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r6,run6,found6,absent6⟩ := counting_correct P h F false 0#usize
   cases r6 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
+  | none => exact ⟨none,by simp [runW,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp⟩
   | some r7 =>
   cases r7 with
   | some step =>
     obtain ⟨x,active,i,member,n,role,c,c',at_i,cases⟩ := found6 step rfl
     have counted : CountStep P h F false x step := ⟨i,member,n,role,c,c',at_i,cases⟩
     rcases cases with ⟨rfl,_⟩ | ⟨_,⟨rfl,_⟩ | ⟨rfl,_⟩⟩
-    · refine ⟨some (.Merge x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,?_,by simp,by simp,
+    · refine ⟨some (.Merge x i),by simp [runW,run15,run17,run12,run4,run6],by simp,by simp,?_,by simp,by simp,
         by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Merge.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
       exact ⟨active,counted⟩
-    · refine ⟨some (.Name x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,?_,by simp,
+    · refine ⟨some (.Name x i),by simp [runW,run15,run17,run12,run4,run6],by simp,by simp,by simp,?_,by simp,
         by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Name.injEq] at same
       obtain ⟨rfl,rfl⟩ := same
       exact ⟨active,counted⟩
-    · refine ⟨some (.Capped x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,?_,
+    · refine ⟨some (.Capped x i),by simp [runW,run15,run17,run12,run4,run6],by simp,by simp,by simp,by simp,?_,
         by simp,by simp,by simp,by simp,by simp⟩
       intro x' i' same
       simp only [Option.some.injEq,forest.Step.Capped.injEq] at same
@@ -3634,13 +3651,13 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r8,run8,found8,absent8⟩ := missing_successor_correct P h F true 0#usize
   cases r8 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [runW,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
       by simp⟩
   | some r9 =>
   cases r9 with
   | some pair =>
     obtain ⟨x,i⟩ := pair
-    refine ⟨some (.Create x i),by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,?_,
+    refine ⟨some (.Create x i),by simp [runW,run15,run17,run12,run4,run6,run8],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,?_,
       by simp⟩
     intro x' i' same
     simp only [Option.some.injEq,forest.Step.Create.injEq] at same
@@ -3650,27 +3667,23 @@ theorem next_step_correct (P : completion.Problem) (h : hierarchy.RoleHierarchy)
   | none =>
   obtain ⟨r10,run10,found10,absent10⟩ := missing_successor_correct P h F false 0#usize
   cases r10 with
-  | none => exact ⟨none,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  | none => exact ⟨none,by simp [runW,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
       by simp,by simp⟩
   | some r11 =>
   cases r11 with
-  | some pair => exact ⟨some .Stuck,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,
+  | some pair => exact ⟨some .Stuck,by simp [runW,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,
       by simp,by simp,by simp,by simp,by simp⟩
   | none =>
-  refine ⟨some .Done,by simp [run0,run1,run2,run3,run14,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
+  refine ⟨some .Done,by simp [runW,run15,run17,run12,run4,run6,run8,run10],by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,by simp,
     ?_⟩
   intro _
-  rw [zero] at absent2 absent3
-  refine ⟨fun y isActive c needs => absent0 rfl y isActive c needs,
-    fun child n at_child tree active parentIn s member =>
-      absent1 rfl child n (Nat.zero_le _) at_child tree active parentIn s member,
-    by simpa using absent2 rfl,by simpa using absent3 rfl,
+  refine ⟨nodesOk,treesOk,linksOk,addedOk,
     fun y isActive => absent4 rfl y (Nat.zero_le _) isActive,
     fun y isActive => absent6 rfl y (Nat.zero_le _) isActive,
     fun y isActive free i member e role c n at_i gen =>
       absent10 rfl y (Nat.zero_le _) isActive free i member e role c n at_i gen (by simp),
     fun y isActive => absent12 rfl y (Nat.zero_le _) isActive,
-    fun y isActive => absent14 rfl y (Nat.zero_le _) isActive,
+    loopsOk,
     fun y isActive => absent15 rfl y (Nat.zero_le _) isActive,
     fun y isActive => absent17 rfl y (Nat.zero_le _) isActive⟩
 

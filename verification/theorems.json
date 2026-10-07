@@ -1638,7 +1638,6 @@
         "Rowl.CompletionSearch.same_label_correct",
         "Rowl.CompletionSearch.missing_unfolding_correct",
         "Rowl.CompletionSearch.missing_at_correct",
-        "Rowl.CompletionSearch.missing_node_correct",
         "Rowl.CompletionSearch.holds_listed",
         "Rowl.CompletionSearch.has_universal_correct",
         "Rowl.CompletionSearch.missing_along_correct",
@@ -1654,6 +1653,7 @@
         "Rowl.CompletionSearch.blocked_at_correct",
         "Rowl.CompletionSearch.blocking_correct",
         "Rowl.CompletionSearch.missing_successor_correct",
+        "Rowl.CompletionSearch.missing_work_correct",
         "Rowl.CompletionSearch.next_step_correct"
       ]
     },
@@ -1902,7 +1902,6 @@
         "Rowl.ForestSearch.seeded_correct",
         "Rowl.ForestSearch.missing_requirement_correct",
         "Rowl.ForestSearch.missing_at_correct",
-        "Rowl.ForestSearch.missing_node_correct",
         "Rowl.ForestSearch.missing_edge_correct",
         "Rowl.ForestSearch.missing_roles_correct",
         "Rowl.ForestSearch.missing_tree_correct",
@@ -1937,6 +1936,7 @@
         "Rowl.ForestSearch.common_correct",
         "Rowl.ForestSearch.overlap_from_correct",
         "Rowl.ForestSearch.overlap_node_correct",
+        "Rowl.ForestSearch.missing_work_correct",
         "Rowl.ForestSearch.next_step_correct"
       ]
     },

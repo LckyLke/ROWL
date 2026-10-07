@@ -6313,3 +6313,41 @@ answers.
 This block adds one public theorem (`Rowl.Names.full_iri_correct`). Totals are
 5399 audited theorems, 1793 definitions, 650 Rust regressions and 5592 ledger
 obligations.
+
+## Performance: edges before the TBox concept in the tableaux
+
+Both tableaux searched for work in a fixed order that gave every node its TBox
+concept and unfoldings before any universal restriction was passed along an
+edge. With the TBox concept every node branches on its disjunctions, so all
+nodes made their choices before any edge was used. A choice that clashes only
+with a neighbour, such as `∀age.¬(<12)` at a prescription for a child, was then
+found to fail only after every later node had branched, and backjumping to it
+discarded all their work: checking the consistency of a generated
+medication-dose ontology took 0.54 s for 100 prescriptions and 40 s for 300.
+
+The search now runs in three parts (`missing_work` in both `completion` and
+`forest`): the requirements of the individuals, then what the edges require of
+their ends (links and tree edges, and in the forest added edges and loops), and
+only then the TBox concept, the unfoldings and the seeds of the nodes. What the
+choices at one node require of its neighbours is added, and a clash they cause
+is found, before the next node branches. `missing_work_correct` replaces
+`missing_node_correct` in `CompletionSearch` and `ForestSearch`, with the same
+guarantee for the combined search: what it returns is something a node lacks
+and needs, and when it returns nothing every node has what it needs and every
+edge is satisfied. `next_step_correct` keeps its statement, so the tableaux and
+every theorem above them keep theirs.
+
+| Consistency check | before | after |
+| --- | --- | --- |
+| medication doses, 100 prescriptions (forest) | 0.54 s | 0.23 s |
+| medication doses, 300 prescriptions (forest) | 40.4 s | 1.58 s |
+| prescriptions with age and dose groups, 200 records (completion graph) | 1.32 s | 0.34 s |
+| the same, 400 records | 11.1 s | 1.60 s |
+| the same, 800 records | 101.8 s | 5.68 s |
+
+Listing the 11 overdoses among 100 prescriptions takes 53 s instead of 72 s,
+and the 37 instances among the 100 records of the second ontology 26 s instead
+of 50 s: every instance question still runs a tableau over the whole ABox.
+
+This block adds no public theorems or definitions. Totals are 5399 audited
+theorems, 1793 definitions, 650 Rust regressions and 5592 ledger obligations.
