@@ -1,4 +1,5 @@
 import Rowl.Iri
+import Rowl.SourceSpans
 
 namespace Rowl.Names
 open Aeneas Aeneas.Std RowlRust Rowl.Regular
@@ -98,6 +99,11 @@ position and require a colon right after it; for PNAME_LN they read the run
 after the colon and back off over its trailing dots. They decline (`none`) when
 a byte outside ASCII ends a run, since such a byte may continue a name. Every
 answer they give is the greatest candidate endpoint for the languages above.
+
+`names::full_iri` does the same for a full IRI `<…>`: no IRI contains `>`, so
+every such word ends just after the first `>` byte. The scanner finds that byte
+and validates the bytes before it as an IRI once, instead of trying every
+endpoint.
 -/
 
 section Scan
@@ -982,6 +988,426 @@ theorem ascii_abbreviated_correct (bytes : alloc.vec.Vec U8) (position : Usize) 
           exact ⟨(m ++ [58]) ++ v, span_append labelSpan span, Language.append_mem_mul (prefix_of label) member⟩
       rw [same]
       exact maximal
+
+/-! ### Full IRIs -/
+
+section NoGt
+open Rowl.Iri
+
+/-- A language whose words never contain the code point `>`. -/
+private def NoGt (L : Language Nat) : Prop := ∀ w ∈ L, 62 ∉ w
+
+private theorem noGt_range {lower upper : Nat} (outside : upper < 62 ∨ 62 < lower) :
+    NoGt (Range lower upper) := by
+  intro w member
+  obtain ⟨cp, rfl, low, high⟩ := member
+  simp only [List.mem_singleton]
+  omega
+
+private theorem noGt_ch {c : Nat} (ne : c ≠ 62) : NoGt (Ch c) := by
+  apply noGt_range
+  omega
+
+private theorem noGt_one : NoGt (1 : Language Nat) := by
+  intro w member
+  rw [Language.mem_one] at member
+  subst member
+  simp
+
+private theorem noGt_add {a b : Language Nat} (ha : NoGt a) (hb : NoGt b) : NoGt (a + b) := by
+  intro w member
+  rcases (Language.mem_add a b w).mp member with h | h
+  · exact ha w h
+  · exact hb w h
+
+private theorem noGt_mul {a b : Language Nat} (ha : NoGt a) (hb : NoGt b) : NoGt (a * b) := by
+  intro w member
+  obtain ⟨x, hx, y, hy, rfl⟩ := Language.mem_mul.mp member
+  simp only [List.mem_append, not_or]
+  exact ⟨ha x hx, hb y hy⟩
+
+private theorem noGt_star {a : Language Nat} (ha : NoGt a) : NoGt a∗ := by
+  intro w member
+  obtain ⟨S, rfl, all⟩ := Language.mem_kstar.mp member
+  simp only [List.mem_flatten, not_exists, not_and]
+  intro y hy
+  exact ha y (all y hy)
+
+private theorem noGt_pow {a : Language Nat} (ha : NoGt a) : ∀ n, NoGt (a ^ n)
+  | 0 => by rw [pow_zero]; exact noGt_one
+  | n + 1 => by rw [pow_succ]; exact noGt_mul (noGt_pow ha n) ha
+
+private theorem noGt_optional {a : Language Nat} (ha : NoGt a) : NoGt (Optional a) :=
+  noGt_add noGt_one ha
+
+private theorem noGt_positive {a : Language Nat} (ha : NoGt a) : NoGt (Positive a) :=
+  noGt_mul ha (noGt_star ha)
+
+private theorem noGt_atMost {a : Language Nat} (ha : NoGt a) : ∀ n, NoGt (AtMost a n)
+  | 0 => noGt_one
+  | n + 1 => noGt_add noGt_one (noGt_mul ha (noGt_atMost ha n))
+
+/-- Closes `NoGt` goals built from the combinators and the given lemmas. -/
+local macro "no_gt" : tactic => `(tactic| repeat (first
+  | assumption
+  | exact noGt_one
+  | (apply noGt_ch; decide)
+  | (apply noGt_range; omega)
+  | apply noGt_add | apply noGt_mul | apply noGt_star | apply noGt_pow
+  | apply noGt_optional | apply noGt_positive | apply noGt_atMost))
+
+private theorem noGt_alpha : NoGt Alpha := by unfold Alpha; no_gt
+private theorem noGt_digit : NoGt Digit := by unfold Digit; no_gt
+private theorem noGt_hex : NoGt Hex := by have := noGt_digit; unfold Hex; no_gt
+private theorem noGt_unreserved : NoGt Unreserved := by
+  have := noGt_alpha; have := noGt_digit; unfold Unreserved; no_gt
+private theorem noGt_subDelims : NoGt SubDelims := by unfold SubDelims; no_gt
+private theorem noGt_pctEncoded : NoGt PctEncoded := by have := noGt_hex; unfold PctEncoded; no_gt
+private theorem noGt_ucschar : NoGt Ucschar := by unfold Ucschar; no_gt
+private theorem noGt_iprivate : NoGt Iprivate := by unfold Iprivate; no_gt
+private theorem noGt_iunreserved : NoGt Iunreserved := by
+  have := noGt_unreserved; have := noGt_ucschar; unfold Iunreserved; no_gt
+private theorem noGt_ipchar : NoGt Ipchar := by
+  have := noGt_iunreserved; have := noGt_pctEncoded; have := noGt_subDelims; unfold Ipchar; no_gt
+private theorem noGt_segment : NoGt Segment := by have := noGt_ipchar; unfold Segment; no_gt
+private theorem noGt_segmentNz : NoGt SegmentNz := by have := noGt_ipchar; unfold SegmentNz; no_gt
+private theorem noGt_segmentNzNc : NoGt SegmentNzNc := by
+  have := noGt_iunreserved; have := noGt_pctEncoded; have := noGt_subDelims; unfold SegmentNzNc; no_gt
+private theorem noGt_pathTail : NoGt PathTail := by have := noGt_segment; unfold PathTail; no_gt
+private theorem noGt_pathAbsolute : NoGt PathAbsolute := by
+  have := noGt_segmentNz; have := noGt_pathTail; unfold PathAbsolute; no_gt
+private theorem noGt_pathRootless : NoGt PathRootless := by
+  have := noGt_segmentNz; have := noGt_pathTail; unfold PathRootless; no_gt
+private theorem noGt_query : NoGt Query := by
+  have := noGt_ipchar; have := noGt_iprivate; unfold Query; no_gt
+private theorem noGt_fragment : NoGt Fragment := by have := noGt_ipchar; unfold Fragment; no_gt
+private theorem noGt_scheme : NoGt Scheme := by
+  have := noGt_alpha; have := noGt_digit; unfold Scheme; no_gt
+private theorem noGt_userinfo : NoGt Userinfo := by
+  have := noGt_iunreserved; have := noGt_pctEncoded; have := noGt_subDelims; unfold Userinfo; no_gt
+private theorem noGt_regName : NoGt RegName := by
+  have := noGt_iunreserved; have := noGt_pctEncoded; have := noGt_subDelims; unfold RegName; no_gt
+private theorem noGt_decOctet : NoGt DecOctet := by have := noGt_digit; unfold DecOctet; no_gt
+private theorem noGt_ipv4 : NoGt Ipv4 := by have := noGt_decOctet; unfold Ipv4; no_gt
+private theorem noGt_h16 : NoGt H16 := by have := noGt_hex; unfold H16; no_gt
+private theorem noGt_ls32 : NoGt Ls32 := by have := noGt_h16; have := noGt_ipv4; unfold Ls32; no_gt
+private theorem noGt_colonPair : NoGt ColonPair := by unfold ColonPair; no_gt
+private theorem noGt_h16Colon : NoGt H16Colon := by have := noGt_h16; unfold H16Colon; no_gt
+private theorem noGt_compressedPrefix (n : Nat) : NoGt (CompressedPrefix n) := by
+  have := noGt_h16; have := noGt_h16Colon; unfold CompressedPrefix; no_gt
+private theorem noGt_ipv6 : NoGt Ipv6 := by
+  have := noGt_h16; have := noGt_h16Colon; have := noGt_ls32; have := noGt_colonPair
+  have c1 := noGt_compressedPrefix 1; have c2 := noGt_compressedPrefix 2
+  have c3 := noGt_compressedPrefix 3; have c4 := noGt_compressedPrefix 4
+  have c5 := noGt_compressedPrefix 5; have c6 := noGt_compressedPrefix 6
+  unfold Ipv6; no_gt
+private theorem noGt_ipvFuture : NoGt IpvFuture := by
+  have := noGt_hex; have := noGt_unreserved; have := noGt_subDelims; unfold IpvFuture; no_gt
+private theorem noGt_ipLiteral : NoGt IpLiteral := by
+  have := noGt_ipv6; have := noGt_ipvFuture; unfold IpLiteral; no_gt
+private theorem noGt_host : NoGt Host := by
+  have := noGt_ipLiteral; have := noGt_ipv4; have := noGt_regName; unfold Host; no_gt
+private theorem noGt_authority : NoGt Authority := by
+  have := noGt_userinfo; have := noGt_host; have := noGt_digit; unfold Authority; no_gt
+private theorem noGt_doubleSlash : NoGt DoubleSlash := by unfold DoubleSlash; no_gt
+private theorem noGt_authorityPath : NoGt AuthorityPath := by
+  have := noGt_doubleSlash; have := noGt_authority; have := noGt_pathTail; unfold AuthorityPath; no_gt
+private theorem noGt_hierPart : NoGt HierPart := by
+  have := noGt_authorityPath; have := noGt_pathAbsolute; have := noGt_pathRootless; unfold HierPart; no_gt
+private theorem noGt_suffix : NoGt Suffix := by
+  have := noGt_query; have := noGt_fragment; unfold Suffix; no_gt
+
+/-- No IRI contains `>`. -/
+private theorem noGt_iri : NoGt IriLanguage := by
+  have := noGt_scheme; have := noGt_hierPart; have := noGt_suffix; unfold IriLanguage; no_gt
+
+end NoGt
+
+/-- A UTF-8 unit is one ASCII byte, or a scalar of at least 128 made of bytes of at least 128. -/
+private theorem prefix_cases {bs : List U8} {i cp width : Nat}
+    (unit : Rowl.Unicode.Prefix bs i = some (cp, width)) :
+    (∃ a, bs[i]? = some a ∧ a.val < 128 ∧ cp = a.val ∧ width = 1) ∨
+    (128 ≤ cp ∧ ∀ j, i ≤ j → j < i + width → ∀ b, bs[j]? = some b → 128 ≤ b.val) := by
+  unfold Rowl.Unicode.Prefix at unit
+  cases first : bs[i]? with
+  | none => simp [first] at unit
+  | some a =>
+    by_cases ascii : a.val < 128
+    · simp only [first, ascii, Option.bind_eq_bind, Option.bind_some, if_true, Option.some.injEq,
+        Prod.mk.injEq] at unit
+      exact .inl ⟨a, rfl, ascii, unit.1.symm, unit.2.symm⟩
+    · right
+      have ranges := Rowl.Unicode.byte_grammar_scalar_ranges
+      by_cases lt224 : a.val < 224
+      · cases second : bs[i + 1]? with
+        | none => simp [first, ascii, lt224, second] at unit
+        | some b =>
+          by_cases pair : Rowl.Unicode.Pair a.val b.val
+          · simp only [first, second, ascii, lt224, pair, Option.bind_eq_bind, Option.bind_some, if_true,
+              if_false, Option.some.injEq, Prod.mk.injEq] at unit
+            obtain ⟨rfl, rfl⟩ := unit
+            refine ⟨((ranges a.val b.val 0 0).1 pair).1, ?_⟩
+            intro j low high c found
+            have cases : j = i ∨ j = i + 1 := by omega
+            rcases cases with rfl | rfl
+            · rw [first] at found; cases found; omega
+            · rw [second] at found; cases found; exact pair.2.2.1
+          · simp [first, second, ascii, lt224, pair] at unit
+      · by_cases lt240 : a.val < 240
+        · cases second : bs[i + 1]? with
+          | none => simp [first, ascii, lt224, lt240, second] at unit
+          | some b =>
+            cases third : bs[i + 2]? with
+            | none => simp [first, ascii, lt224, lt240, second, third] at unit
+            | some c =>
+              by_cases triple : Rowl.Unicode.Triple a.val b.val c.val
+              · simp only [first, second, third, ascii, lt224, lt240, triple, Option.bind_eq_bind,
+                  Option.bind_some, if_true, if_false, Option.some.injEq, Prod.mk.injEq] at unit
+                obtain ⟨rfl, rfl⟩ := unit
+                refine ⟨by have := (ranges a.val b.val c.val 0).2.1 triple; omega, ?_⟩
+                intro j low high d found
+                have cases : j = i ∨ j = i + 1 ∨ j = i + 2 := by omega
+                simp only [Rowl.Unicode.Triple, Rowl.Unicode.Tail] at triple
+                rcases cases with rfl | rfl | rfl
+                · rw [first] at found; cases found; omega
+                · rw [second] at found; cases found; omega
+                · rw [third] at found; cases found; omega
+              · simp [first, second, third, ascii, lt224, lt240, triple] at unit
+        · cases second : bs[i + 1]? with
+          | none => simp [first, ascii, lt224, lt240, second] at unit
+          | some b =>
+            cases third : bs[i + 2]? with
+            | none => simp [first, ascii, lt224, lt240, second, third] at unit
+            | some c =>
+              cases fourth : bs[i + 3]? with
+              | none => simp [first, ascii, lt224, lt240, second, third, fourth] at unit
+              | some d =>
+                by_cases quad : Rowl.Unicode.Quad a.val b.val c.val d.val
+                · simp only [first, second, third, fourth, ascii, lt224, lt240, quad, Option.bind_eq_bind,
+                    Option.bind_some, if_true, if_false, Option.some.injEq, Prod.mk.injEq] at unit
+                  obtain ⟨rfl, rfl⟩ := unit
+                  refine ⟨by have := ((ranges a.val b.val c.val d.val).2.2 quad).1; omega, ?_⟩
+                  intro j low high e found
+                  have cases : j = i ∨ j = i + 1 ∨ j = i + 2 ∨ j = i + 3 := by omega
+                  simp only [Rowl.Unicode.Quad, Rowl.Unicode.Tail] at quad
+                  rcases cases with rfl | rfl | rfl | rfl
+                  · rw [first] at found; cases found; omega
+                  · rw [second] at found; cases found; omega
+                  · rw [third] at found; cases found; omega
+                  · rw [fourth] at found; cases found; omega
+                · simp [first, second, third, fourth, ascii, lt224, lt240, quad] at unit
+
+/-- A span whose word avoids `>` has no `>` byte. -/
+private theorem span_avoids {bs : List U8} {i e : Nat} {w : List Nat} (span : Utf8Span bs i e w)
+    (avoid : 62 ∉ w) : ∀ j, i ≤ j → j < e → ∀ b, bs[j]? = some b → b.val ≠ 62 := by
+  revert avoid
+  induction span with
+  | empty _ => intro _ j low high; omega
+  | @character position cp width endpoint tail unit positive fits rest ih =>
+    intro avoid j low high b found gt
+    by_cases inner : j < position + width
+    · rcases prefix_cases unit with ⟨a, first, _, same, one⟩ | ⟨_, high⟩
+      · have here : j = position := by omega
+        subst here
+        rw [first] at found
+        cases found
+        exact avoid (by simp [same, gt])
+      · have := high j low inner b found
+        omega
+    · exact ih (fun member => avoid (List.mem_cons_of_mem _ member)) j (by omega) high b found gt
+
+private theorem span_range {bs : List U8} {start finish : Nat} {word : List Nat}
+    (span : Utf8Span bs start finish word) : start ≤ finish ∧ finish ≤ bs.length := by
+  induction span with
+  | empty bound => exact ⟨le_rfl, bound⟩
+  | character _ positive _ _ ih => constructor <;> omega
+
+/-- The full-IRI words: `<`, an IRI and `>`. -/
+private abbrev FullLanguage : Language Nat :=
+  Rowl.Iri.Range 60 60 * (Rowl.Iri.IriLanguage * Rowl.Iri.Range 62 62)
+
+/-- After `<`, every full-IRI word ends just after the first `>` byte, and the bytes
+    before that byte read as an IRI. -/
+private theorem full_candidate {bs : List U8} {p close e : Nat} (opening : bs[p]? = some 60#u8)
+    (after : p + 1 ≤ close)
+    (clear : ∀ j, p + 1 ≤ j → j < close → ∀ b, bs[j]? = some b → b.val ≠ 62)
+    (stop : close < bs.length → bs[close]? = some 62#u8)
+    (candidate : Candidate bs p FullLanguage e) :
+    close < bs.length ∧ e = close + 1 ∧ ∃ w, Utf8Span bs (p + 1) close w ∧ w ∈ Rowl.Iri.IriLanguage := by
+  obtain ⟨word, span, member⟩ := candidate
+  obtain ⟨x, ⟨c, rfl, c1, c2⟩, y, member', rfl⟩ := Language.mem_mul.mp member
+  obtain ⟨w, iri, z, ⟨d, rfl, d1, d2⟩, rfl⟩ := Language.mem_mul.mp member'
+  obtain rfl : c = 60 := by omega
+  obtain rfl : d = 62 := by omega
+  obtain ⟨-, inner⟩ := span_ascii (by simpa using span) opening (by simp)
+  obtain ⟨m, body, last⟩ := Rowl.SourceSpans.source_split w [62] inner
+  cases last with
+  | character unit positive fits rest =>
+    rcases prefix_cases unit with ⟨a, at_m, _, same, rfl⟩ | ⟨big, _⟩
+    · cases rest
+      have avoid := noGt_iri w iri
+      have start := (span_range body).1
+      rcases Nat.lt_trichotomy m close with lt | rfl | gt
+      · exact absurd same.symm (clear m start lt a at_m)
+      · exact ⟨by omega, rfl, w, body, iri⟩
+      · have found := stop (by omega)
+        exact absurd (by simp) (span_avoids body avoid close after gt 62#u8 found)
+    · omega
+
+/-- `<`, an IRI and `>` make a full-IRI word. -/
+private theorem full_found {bs : List U8} {p close : Nat} {w : List Nat} (opening : bs[p]? = some 60#u8)
+    (closing : bs[close]? = some 62#u8) (span : Utf8Span bs (p + 1) close w) (iri : w ∈ Rowl.Iri.IriLanguage) :
+    Candidate bs p FullLanguage (close + 1) := by
+  have inside : close < bs.length := (List.getElem?_eq_some_iff.mp closing).1
+  have pInside : p < bs.length := (List.getElem?_eq_some_iff.mp opening).1
+  have last : Utf8Span bs close (close + 1) [62] :=
+    .character (ascii_unit closing (by simp)) (by omega) (by omega) (.empty (by omega))
+  refine ⟨60 :: (w ++ [62]), .character (ascii_unit opening (by simp)) (by omega) (by omega)
+    (span_append span last), ?_⟩
+  exact Language.mem_mul.mpr ⟨[60], ⟨60, rfl, le_rfl, le_rfl⟩, w ++ [62],
+    Language.mem_mul.mpr ⟨w, iri, [62], ⟨62, rfl, le_rfl, le_rfl⟩, rfl⟩, rfl⟩
+
+/-- The scan for `>` stops at the first `>` byte from `index`, or at the end. -/
+private theorem gt_from_loop_spec (bytes : alloc.vec.Vec U8) (index : Usize) :
+    ∃ close, names.gt_from_loop bytes index = .ok close ∧ index.val ≤ close.val ∧
+      (∀ j, index.val ≤ j → j < close.val → ∀ b, bytes.val[j]? = some b → b.val ≠ 62) ∧
+      (close.val < bytes.val.length → bytes.val[close.val]? = some 62#u8) := by
+  rw [names.gt_from_loop]
+  by_cases more : index.val < bytes.val.length
+  · have lookup : bytes.index_usize index = .ok bytes.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    by_cases gt : bytes.val[index.val] = 62#u8
+    · refine ⟨index, by simp [UScalar.lt_equiv, more, lookup, gt], le_rfl,
+        fun j low high => by omega, fun _ => by rw [List.getElem?_eq_getElem more, gt]⟩
+    · have gtValue : ¬ bytes.val[index.val].val = 62 := fun value => gt (UScalar.eq_of_val_eq (by simp [value]))
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨close, run, after, clear, stop⟩ := gt_from_loop_spec bytes next
+      refine ⟨close, by simp [UScalar.lt_equiv, more, lookup, gt, gtValue, advance, run],
+        by omega, ?_, stop⟩
+      intro j low high b found
+      by_cases here : j = index.val
+      · subst here
+        rw [List.getElem?_eq_getElem more] at found
+        obtain rfl := Option.some.inj found
+        intro value
+        exact gtValue value
+      · exact clear j (by omega) high b found
+  · exact ⟨index, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more], le_rfl,
+      fun j low high => by omega, fun inside => absurd inside more⟩
+termination_by bytes.val.length - index.val
+decreasing_by omega
+
+/-- Copying from `index` to `finish` appends the bytes in between. -/
+private theorem copy_between_loop_spec (bytes : alloc.vec.Vec U8) (finish : Usize) (out : alloc.vec.Vec U8)
+    (index : Usize) (room : out.val.length + (finish.val - index.val) ≤ Usize.max) :
+    ∃ v, names.copy_between_loop bytes finish out index = .ok v ∧
+      v.val = out.val ++ (bytes.val.drop index.val).take (finish.val - index.val) := by
+  rw [names.copy_between_loop]
+  by_cases more : index.val < finish.val
+  · by_cases inside : index.val < bytes.val.length
+    · have lookup : bytes.index_usize index = .ok bytes.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+      obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+        (alloc.vec.Vec.push_spec out bytes.val[index.val] (by omega))
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      obtain ⟨v, run, copied⟩ := copy_between_loop_spec bytes finish pushed next
+        (by rw [contents, nextIs]; simp; omega)
+      refine ⟨v, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, inside, lookup, push, advance, run], ?_⟩
+      rw [copied, contents, nextIs, List.drop_eq_getElem_cons inside,
+        show finish.val - index.val = (finish.val - (index.val + 1)) + 1 by omega, List.take_succ_cons]
+      simp
+    · refine ⟨out, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, more, inside], ?_⟩
+      simp [List.drop_eq_nil_of_le (Nat.le_of_not_lt inside)]
+  · refine ⟨out, by simp [UScalar.lt_equiv, more], ?_⟩
+    simp [show finish.val - index.val = 0 by omega]
+termination_by bytes.val.length - index.val
+decreasing_by omega
+
+/-- The IRI test reads the bytes from `start` to `close` before a byte at `close`. -/
+private theorem iri_until_spec (bytes : alloc.vec.Vec U8) (start close : Usize) (after : start.val ≤ close.val) :
+    ∃ b, names.iri_until bytes start close = .ok b ∧
+      (b = true ↔ close.val < bytes.val.length ∧
+        ∃ w, Utf8Span bytes.val start.val close.val w ∧ w ∈ Rowl.Iri.IriLanguage) := by
+  by_cases inside : close.val < bytes.val.length
+  · obtain ⟨v, copy, copied⟩ := copy_between_loop_spec bytes close (alloc.vec.Vec.new U8) start
+      (by simp; scalar_tac)
+    have same : v.val = Rowl.SourceSpans.Bytes bytes.val start.val close.val := by
+      simpa [Rowl.SourceSpans.Bytes] using copied
+    have spans : ∀ w, Utf8From v.val 0 w ↔ Utf8Span bytes.val start.val close.val w := by
+      intro w
+      rw [same]
+      exact (Rowl.SourceSpans.utf8_source_iff bytes.val start.val close.val w ⟨after, by omega⟩).symm
+    obtain ⟨mr, validated, -⟩ := Rowl.Iri.validate_iri_total_correct v
+    have accepted := Rowl.Iri.validate_iri_accepted_iff v
+    rw [validated] at accepted
+    cases mr with
+    | Matched b =>
+      refine ⟨b, by cases b <;> simp [names.iri_until, names.copy_between, alloc.vec.Vec.len_val,
+        UScalar.lt_equiv, inside, copy, validated], ?_⟩
+      simp only [ok.injEq, regular.MatchResult.Matched.injEq] at accepted
+      rw [accepted]
+      simp only [inside, true_and, spans]
+    | MalformedUtf8 err =>
+      refine ⟨false, by simp [names.iri_until, names.copy_between, alloc.vec.Vec.len_val, UScalar.lt_equiv,
+        inside, copy, validated], ?_⟩
+      simp only [ok.injEq, reduceCtorEq, false_iff] at accepted
+      simp only [Bool.false_eq_true, false_iff, not_and]
+      intro _ ⟨w, span, iri⟩
+      exact accepted ⟨w, (spans w).mpr span, iri⟩
+  · exact ⟨false, by simp [names.iri_until, alloc.vec.Vec.len_val, UScalar.lt_equiv, inside], by simp [inside]⟩
+
+/-- Whenever the full-IRI scanner answers, its answer is the greatest endpoint of
+    a `<`, an IRI and a `>` from the position, or no endpoint when none has one. -/
+theorem full_iri_correct (bytes : alloc.vec.Vec U8) (position : Usize) :
+    ∃ r, names.full_iri bytes position = .ok r ∧
+      ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
+        Maximal (Candidate bytes.val position.val
+          (Rowl.Iri.Range 60 60 * (Rowl.Iri.IriLanguage * Rowl.Iri.Range 62 62))) endpoint := by
+  by_cases inside : position.val < bytes.val.length
+  · have lookup : bytes.index_usize position = .ok bytes.val[position.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inside]
+    by_cases opens : bytes.val[position.val] = 60#u8
+    · have opening : bytes.val[position.val]? = some 60#u8 := by
+        rw [List.getElem?_eq_getElem inside, opens]
+      obtain ⟨start, advance, startValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := position) (y := 1#usize) (by scalar_tac))
+      have startIs : start.val = position.val + 1 := by simpa using startValue
+      obtain ⟨close, scan, after, clear, stop⟩ := gt_from_loop_spec bytes start
+      rw [startIs] at after clear
+      obtain ⟨b, check, accepted⟩ := iri_until_spec bytes start close (by omega)
+      rw [startIs] at accepted
+      cases b with
+      | true =>
+        obtain ⟨bound, w, span, iri⟩ := accepted.mp rfl
+        obtain ⟨finish, advance', finishValue⟩ := WP.spec_imp_exists
+          (Usize.add_spec (x := close) (y := 1#usize) (by scalar_tac))
+        have finishIs : finish.val = close.val + 1 := by simpa using finishValue
+        refine ⟨some (.Matched (some finish)), by simp [names.full_iri, names.full_iri_from, names.gt_from,
+          alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, opens, advance, scan, check, advance'], ?_⟩
+        rintro result equal
+        obtain rfl := Option.some.inj equal
+        refine ⟨some finish, rfl, ?_, ?_⟩
+        · rw [finishIs]
+          exact full_found opening (stop bound) span iri
+        · intro other candidate
+          obtain ⟨-, rfl, -⟩ := full_candidate opening after clear stop candidate
+          omega
+      | false =>
+        refine ⟨some (.Matched none), by simp [names.full_iri, names.full_iri_from, names.gt_from,
+          alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, opens, advance, scan, check], ?_⟩
+        rintro result equal
+        obtain rfl := Option.some.inj equal
+        refine ⟨none, rfl, ?_⟩
+        intro e candidate
+        obtain ⟨bound, -, w, span, iri⟩ := full_candidate opening after clear stop candidate
+        exact absurd (accepted.mpr ⟨bound, w, span, iri⟩) (by simp)
+    · exact ⟨none, by simp [names.full_iri, alloc.vec.Vec.len_val, UScalar.lt_equiv, inside, lookup, opens],
+        by simp⟩
+  · exact ⟨none, by simp [names.full_iri, alloc.vec.Vec.len_val, UScalar.lt_equiv, inside], by simp⟩
 
 end Scan
 

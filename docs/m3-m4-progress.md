@@ -6287,3 +6287,29 @@ instead of 7.9 s; listing its 11 overdoses takes 72 s instead of more than
 
 This block adds no public theorems or definitions. Totals are 5398 audited
 theorems, 1793 definitions, 649 Rust regressions and 5591 ledger obligations.
+
+## Performance: full IRIs read up to their first `>`
+
+Functional Syntax documents that write every name as a full IRI `<…>` were read
+about 240 times slower than the same documents with prefixed names: the lexer
+matched the full-IRI grammar at every token start and tried every endpoint.
+`names::full_iri` now finds the greatest full-IRI endpoint directly. No RFC 3987
+IRI contains `>` (`noGt_iri`, by induction over the IRI grammar), and every byte
+of a multi-byte UTF-8 unit is at least 128, so a full-IRI word from a `<` ends
+just after the first `>` byte. The scanner looks for that byte (`gt_from`) and
+validates the bytes before it once with `iri::validate_iri`.
+`full_iri_correct` proves that the answer is the greatest candidate endpoint of
+the independent full-IRI language `<` IRI `>`, or no endpoint when there is
+none. `functional::ascii_name` asks it for the `FullIri` terminal before the
+grammar matcher, and `ascii_name_correct` gains the corresponding case, so
+`longest_valid_eq` and every lexer theorem above it keep their statements. The
+regression `full_iri_scanner_agrees_with_the_grammar` compares the scanner with
+the grammar matcher on 3000 generated token-shaped texts.
+
+Classifying the generated 5000-class EL ontology written with full IRIs takes
+0.40 s instead of 93 s, the same as with prefixed names (0.38 s), with the same
+answers.
+
+This block adds one public theorem (`Rowl.Names.full_iri_correct`). Totals are
+5399 audited theorems, 1793 definitions, 650 Rust regressions and 5592 ledger
+obligations.

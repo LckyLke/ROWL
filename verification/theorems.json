@@ -652,6 +652,7 @@
         "Rowl.Names.node_grammar_total_correct",
         "Rowl.Names.ascii_prefix_correct",
         "Rowl.Names.ascii_abbreviated_correct",
+        "Rowl.Names.full_iri_correct",
         "Rowl.Names.whole_total_correct",
         "Rowl.Names.whole_scan_accepted",
         "Rowl.Names.validate_prefix_total_correct",

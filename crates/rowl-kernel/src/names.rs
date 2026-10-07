@@ -4,7 +4,10 @@
 //! BLANK_NODE_LABEL. They preserve strict UTF-8 diagnostics. They do not apply
 //! the broader Turtle/SPARQL 1.1 local-name escape grammar or tokenize a document.
 //! The ASCII scanners find the longest PNAME_NS and PNAME_LN at a position
-//! without the grammars when the bytes that decide it are ASCII.
+//! without the grammars when the bytes that decide it are ASCII, and
+//! `full_iri` the longest full IRI token `<…>` from the first `>` after it,
+//! which no IRI contains.
+use crate::iri::validate_iri;
 use crate::longest::PrefixResult;
 use crate::regular::{matches_utf8, Expression, MatchResult};
 
@@ -263,5 +266,58 @@ pub fn ascii_abbreviated(bytes: &Vec<u8>, position: usize) -> Option<PrefixResul
         Some(Some(start)) => ascii_local(bytes, start),
         Some(None) => Some(PrefixResult::Matched(None)),
         None => None,
+    }
+}
+
+/// The first index of `bytes[index..]` that holds `>`, or the length.
+#[allow(clippy::ptr_arg)]
+fn gt_from(bytes: &Vec<u8>, mut index: usize) -> usize {
+    while index < bytes.len() && bytes[index] != 62 {
+        index += 1;
+    }
+    index
+}
+
+/// The bytes `bytes[start..end]`, for `start ≤ end ≤ bytes.len()`.
+#[allow(clippy::ptr_arg)]
+fn copy_between(bytes: &Vec<u8>, start: usize, end: usize) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut index = start;
+    while index < end && index < bytes.len() {
+        out.push(bytes[index]);
+        index += 1;
+    }
+    out
+}
+
+/// Whether `close` is inside the bytes and `bytes[start..close]` spells an
+/// RFC 3987 IRI.
+fn iri_until(bytes: &Vec<u8>, start: usize, close: usize) -> bool {
+    close < bytes.len()
+        && matches!(
+            validate_iri(&copy_between(bytes, start, close)),
+            MatchResult::Matched(true)
+        )
+}
+
+/// The full IRI from `position`, whose content ends at `close`: the first `>`
+/// after it, or the length when there is none.
+fn full_iri_from(bytes: &Vec<u8>, position: usize, close: usize) -> PrefixResult {
+    if iri_until(bytes, position + 1, close) {
+        PrefixResult::Matched(Some(close + 1))
+    } else {
+        PrefixResult::Matched(None)
+    }
+}
+
+/// The longest full IRI token from `position`: `<`, an IRI and `>`. No IRI
+/// contains `>`, so a token can only end at the first `>` after the `<`, and
+/// it exists exactly when the bytes between spell an IRI; `None` when the byte
+/// at `position` is not `<`.
+pub fn full_iri(bytes: &Vec<u8>, position: usize) -> Option<PrefixResult> {
+    if position < bytes.len() && bytes[position] == 60 {
+        Some(full_iri_from(bytes, position, gt_from(bytes, position + 1)))
+    } else {
+        None
     }
 }

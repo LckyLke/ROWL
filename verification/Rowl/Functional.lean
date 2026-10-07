@@ -260,8 +260,8 @@ theorem grammar_nonempty (terminal : Terminal) : ¬ [] ∈ TerminalLanguage term
   | Comment => simp [TerminalLanguage, CommentLanguage]
   | _ => simp [TerminalLanguage]
 
-/-- Whenever the ASCII name scanners answer for a terminal, the answer is the
-    greatest candidate endpoint of the terminal's language. -/
+/-- Whenever the name scanners (ASCII names and bracketed full IRIs) answer for a
+    terminal, the answer is the greatest candidate endpoint of the terminal's language. -/
 theorem ascii_name_correct (terminal : Terminal) (bytes : alloc.vec.Vec U8) (position : Usize) :
     ∃ r, functional.ascii_name terminal bytes position = .ok r ∧
       ∀ result, r = some result → ∃ endpoint, result = .Matched endpoint ∧
@@ -273,6 +273,9 @@ theorem ascii_name_correct (terminal : Terminal) (bytes : alloc.vec.Vec U8) (pos
     exact ⟨r, by rw [functional.ascii_name, run], correct⟩
   | AbbreviatedIri =>
     obtain ⟨r, run, correct⟩ := Rowl.Names.ascii_abbreviated_correct bytes position
+    exact ⟨r, by rw [functional.ascii_name, run], correct⟩
+  | FullIri =>
+    obtain ⟨r, run, correct⟩ := Rowl.Names.full_iri_correct bytes position
     exact ⟨r, by rw [functional.ascii_name, run], correct⟩
   | _ => exact ⟨none, by rw [functional.ascii_name], by simp⟩
 

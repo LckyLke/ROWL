@@ -6440,6 +6440,17 @@
       "implementation_scope": "Whole names over ASCII bytes: names::validate_prefix, validate_local and validate_abbreviated, and functional::recognize for the two prefixed-name terminals, accept a buffer that the ASCII scan from its start reads whole (names::whole) without matching the grammar, and match the grammar otherwise. A span from the start that ends at the end of the bytes decodes all of them, so such a buffer is a well-encoded word of the language (whole_scan_accepted); the total-correctness and acceptance theorems of the validators and of recognize keep their statements."
     },
     {
+      "id": "m3.Names.full_iri_correct",
+      "requirement": "Full IRIs scanned to the first '>': full_iri_correct",
+      "owner": "rowl-frontend/verification",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-syntax-20121211/#IRIs",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::names::full_iri",
+      "theorem": "Rowl.Names.full_iri_correct",
+      "regression": "crates/rowl-frontend/tests/names_ascii.rs::full_iri_scanner_agrees_with_the_grammar",
+      "implementation_scope": "Full IRIs scanned to the first '>': names::full_iri finds the greatest fullIRI endpoint at a position without the grammar, by finding the first '>' byte after the '<' and validating the bytes in between once with iri::validate_iri. No RFC 3987 IRI contains '>' and no byte of a multi-byte UTF-8 unit is below 128, so every fullIRI word from the position ends just after that byte; full_iri_correct proves the answer is the greatest candidate endpoint, or no endpoint, of the independent fullIRI language. functional::ascii_name asks it for the FullIri terminal before the grammar matcher, and longest_valid_eq keeps its statement, so the lexer's correctness theorems are unchanged."
+    },
+    {
       "id": "m3.Prefixes.standard_total_correct",
       "requirement": "Verified Functional Syntax lexical component: standard_total_correct",
       "owner": "rowl-frontend/verification",

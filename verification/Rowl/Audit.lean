@@ -572,6 +572,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Names.node_grammar_total_correct
 #print axioms Rowl.Names.ascii_prefix_correct
 #print axioms Rowl.Names.ascii_abbreviated_correct
+#print axioms Rowl.Names.full_iri_correct
 #print axioms Rowl.Names.whole_total_correct
 #print axioms Rowl.Names.whole_scan_accepted
 #print axioms Rowl.Names.validate_prefix_total_correct

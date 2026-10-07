@@ -290,13 +290,14 @@ pub fn longest(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> PrefixRe
     longest_prefix(grammar(terminal), bytes, position)
 }
 /// The longest prefix name or abbreviated IRI from `position` when the bytes
-/// that decide it are ASCII; `None` for the other terminals and when a byte
-/// outside ASCII must be decoded first.
+/// that decide it are ASCII, and the longest full IRI from a `<`; `None` for
+/// the other terminals and when a byte outside ASCII must be decoded first.
 #[allow(clippy::ptr_arg)]
 fn ascii_name(terminal: Terminal, bytes: &Vec<u8>, position: usize) -> Option<PrefixResult> {
     match terminal {
         Terminal::PrefixName => names::ascii_prefix(bytes, position),
         Terminal::AbbreviatedIri => names::ascii_abbreviated(bytes, position),
+        Terminal::FullIri => names::full_iri(bytes, position),
         _ => None,
     }
 }

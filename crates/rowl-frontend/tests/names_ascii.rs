@@ -7,7 +7,8 @@ use rowl_frontend::functional::{
 };
 use rowl_frontend::longest::PrefixResult;
 use rowl_frontend::names::{
-    ascii_abbreviated, ascii_prefix, validate_abbreviated, validate_local, validate_prefix,
+    ascii_abbreviated, ascii_prefix, full_iri, validate_abbreviated, validate_local,
+    validate_prefix,
 };
 use rowl_frontend::regular::{matches_utf8, MatchResult};
 use rowl_frontend::unicode::TextError;
@@ -204,4 +205,81 @@ fn whole_name_recognition_agrees_with_the_grammars() {
         }
     }
     assert!(accepted > 200, "{accepted} accepted");
+}
+
+/// Pieces of full IRI tokens: brackets, scheme and authority delimiters, path,
+/// query and fragment characters, percent escapes (valid and not), IP literal
+/// brackets, characters outside ASCII (`é` is allowed, U+E000 only in queries,
+/// U+FFFE nowhere) and characters no IRI has (space, `"`, `{`, `|`).
+const IRI_PIECES: [&str; 30] = [
+    "<", ">", "<>", "http:", "a:", "//", "/", "a", "Z9", ".", "-", "~", "?", "#", "%20", "%G1",
+    "@", ":", "[", "]", "::1", "é", "\u{e000}", "\u{fffe}", " ", "\"", "{", "|", "x:y", "\n",
+];
+
+#[test]
+fn full_iri_scanner_agrees_with_the_grammar() {
+    let mut seed = Seed(11);
+    let mut matched = 0;
+    let mut refused = 0;
+    for _ in 0..3000 {
+        // Mostly token-shaped text: `<`, a scheme, random pieces and `>`.
+        let mut text = String::new();
+        if seed.next(4) != 0 {
+            text.push('<');
+            text.push_str(["http:", "a:", "urn:x:", "x+y.z-1:"][seed.next(4)]);
+        }
+        for _ in 0..seed.next(8) {
+            text.push_str(IRI_PIECES[seed.next(IRI_PIECES.len())]);
+        }
+        if seed.next(3) != 0 {
+            text.push('>');
+        }
+        for _ in 0..seed.next(3) {
+            text.push_str(IRI_PIECES[seed.next(IRI_PIECES.len())]);
+        }
+        let bytes = text.as_bytes().to_vec();
+        let starts = text
+            .char_indices()
+            .map(|(index, _)| index)
+            .chain(std::iter::once(text.len()));
+        for position in starts {
+            let expected = endpoint(longest(Terminal::FullIri, &bytes, position));
+            let actual = endpoint(longest_valid(Terminal::FullIri, &bytes, position));
+            assert_eq!(actual, expected, "{text:?} at {position}");
+            if let Some(result) = full_iri(&bytes, position) {
+                assert_eq!(endpoint(result), expected, "{text:?} at {position}");
+                if expected.is_some() {
+                    matched += 1;
+                } else {
+                    refused += 1;
+                }
+            }
+        }
+    }
+    assert!(
+        matched > 500 && refused > 500,
+        "{matched} matched, {refused} refused"
+    );
+    for (text, end) in [
+        ("<http://example.org/a#b> ", Some(24)),
+        ("<urn:x>>", Some(7)),
+        ("<a:b c>", None),
+        ("<a:b", None),
+        ("<a:%G1>", None),
+        ("<http://[::1]/é?q#f>", Some(21)),
+        ("<rel/ative>", None),
+    ] {
+        let bytes = text.as_bytes().to_vec();
+        assert_eq!(
+            endpoint(longest(Terminal::FullIri, &bytes, 0)),
+            end,
+            "{text:?}"
+        );
+        assert_eq!(
+            endpoint(full_iri(&bytes, 0).expect("a `<` decides")),
+            end,
+            "{text:?}"
+        );
+    }
+    assert!(full_iri(&b"a:b".to_vec(), 0).is_none());
 }

@@ -408,7 +408,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   grammar. Actual grammar equivalence, totality, exact acceptance and malformed
   UTF-8 diagnostics are proved; broader Turtle/SPARQL 1.1 escapes are separate.
   Prefix names, local names and abbreviated IRIs that an ASCII scan reads whole
-  are accepted without matching the grammar, with the same theorems.
+  are accepted without matching the grammar, with the same theorems. Full IRIs
+  `<…>` end at the first `>` byte and are validated once as RFC 3987 IRIs.
 - M3 actual immutable prefix-table checking and expansion. Every declaration is
   validated, including unused ones; reserved and duplicate names are rejected
   with exact original evidence. The four implicit namespaces, exact lookup,
@@ -472,8 +473,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   (prefix names and abbreviated IRIs only at `:`, ASCII letters and code points
   outside ASCII); both shortcuts are proved equal to the standard greatest
   selection. Prefix names and abbreviated IRIs are first scanned over ASCII
-  bytes without their grammars; whenever the scanners answer, the answer is
-  proved to be the greatest candidate endpoint of the independent languages.
+  bytes without their grammars, and full IRIs up to their first `>` byte;
+  whenever the scanners answer, the answer is proved to be the greatest
+  candidate endpoint of the independent languages.
 - M3 complete terminal-language disjointness and priority-free standard selection.
   All 71 keyword spellings are injective, and no two distinct terminal kinds
   accept the same arbitrary Unicode word. Canonical UTF-8 spans with equal byte
@@ -1262,7 +1264,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5398 audited public theorems and 1793 audited semantic definitions. Consistency,
+- 5399 audited public theorems and 1793 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1281,7 +1283,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 649 Rust regression tests and 21 Python binding tests, plus separately fetched
+- 650 Rust regression tests and 21 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1299,7 +1301,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 5591-obligation release ledger and separate checked constructor and built-in inventories.
+- A 5592-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

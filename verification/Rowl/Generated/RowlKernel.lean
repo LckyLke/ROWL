@@ -40064,7 +40064,7 @@ def functional.comment : Result regular.Expression := do
   functional.cat e e2
 
 /-- [rowl_kernel::names::alt]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 17:0-19:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 20:0-22:1 -/
 def names.alt
   (left : regular.Expression) (right : regular.Expression) :
   Result regular.Expression
@@ -40072,13 +40072,13 @@ def names.alt
   ok (regular.Expression.Alternative left right)
 
 /-- [rowl_kernel::names::range]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 11:0-13:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 14:0-16:1 -/
 def names.range
   (lower : Std.U32) (upper : Std.U32) : Result regular.Expression := do
   ok (regular.Expression.Interval lower upper)
 
 /-- [rowl_kernel::names::base]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 29:0-70:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 32:0-73:1 -/
 def names.base : Result regular.Expression := do
   let e ← names.range 65#u32 90#u32
   let e1 ← names.range 97#u32 122#u32
@@ -40109,19 +40109,19 @@ def names.base : Result regular.Expression := do
   names.alt e e25
 
 /-- [rowl_kernel::names::ch]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 14:0-16:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 17:0-19:1 -/
 def names.ch (codepoint : Std.U32) : Result regular.Expression := do
   names.range codepoint codepoint
 
 /-- [rowl_kernel::names::chars_u]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 71:0-73:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 74:0-76:1 -/
 def names.chars_u : Result regular.Expression := do
   let e ← names.base
   let e1 ← names.ch 95#u32
   names.alt e e1
 
 /-- [rowl_kernel::names::chars]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 74:0-85:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 77:0-88:1 -/
 def names.chars : Result regular.Expression := do
   let e ← names.chars_u
   let e1 ← names.ch 45#u32
@@ -40136,17 +40136,17 @@ def names.chars : Result regular.Expression := do
   names.alt e e9
 
 /-- [rowl_kernel::names::star]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 26:0-28:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 29:0-31:1 -/
 def names.star (value : regular.Expression) : Result regular.Expression := do
   ok (regular.Expression.Repeat value)
 
 /-- [rowl_kernel::names::opt]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 23:0-25:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 26:0-28:1 -/
 def names.opt (value : regular.Expression) : Result regular.Expression := do
   names.alt regular.Expression.Epsilon value
 
 /-- [rowl_kernel::names::cat]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 20:0-22:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 23:0-25:1 -/
 def names.cat
   (left : regular.Expression) (right : regular.Expression) :
   Result regular.Expression
@@ -40154,7 +40154,7 @@ def names.cat
   ok (regular.Expression.Sequence left right)
 
 /-- [rowl_kernel::names::ending]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 86:0-88:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 89:0-91:1 -/
 def names.ending : Result regular.Expression := do
   let e ← names.chars
   let e1 ← names.ch 46#u32
@@ -40164,7 +40164,7 @@ def names.ending : Result regular.Expression := do
   names.opt e4
 
 /-- [rowl_kernel::names::local_word]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 92:0-94:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 95:0-97:1 -/
 def names.local_word : Result regular.Expression := do
   let e ← names.chars_u
   let e1 ← names.range 48#u32 57#u32
@@ -40173,7 +40173,7 @@ def names.local_word : Result regular.Expression := do
   names.cat e2 e3
 
 /-- [rowl_kernel::names::node_grammar]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 101:0-103:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 104:0-106:1 -/
 def names.node_grammar : Result regular.Expression := do
   let e ← names.ch 95#u32
   let e1 ← names.ch 58#u32
@@ -40182,14 +40182,14 @@ def names.node_grammar : Result regular.Expression := do
   names.cat e2 e3
 
 /-- [rowl_kernel::names::prefix_word]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 89:0-91:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 92:0-94:1 -/
 def names.prefix_word : Result regular.Expression := do
   let e ← names.base
   let e1 ← names.ending
   names.cat e e1
 
 /-- [rowl_kernel::names::prefix_grammar]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 95:0-97:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 98:0-100:1 -/
 def names.prefix_grammar : Result regular.Expression := do
   let e ← names.prefix_word
   let e1 ← names.opt e
@@ -40197,7 +40197,7 @@ def names.prefix_grammar : Result regular.Expression := do
   names.cat e1 e2
 
 /-- [rowl_kernel::names::abbreviated_grammar]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 98:0-100:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 101:0-103:1 -/
 def names.abbreviated_grammar : Result regular.Expression := do
   let e ← names.prefix_grammar
   let e1 ← names.local_word
@@ -40767,7 +40767,7 @@ def functional.grammar
   | functional.Terminal.Comment => functional.comment
 
 /-- [rowl_kernel::names::whole]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 107:0-112:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 110:0-115:1 -/
 def names.whole
   (result : Option longest.PrefixResult) (length : Std.Usize) :
   Result Bool
@@ -40782,8 +40782,332 @@ def names.whole
       | some «end» => ok («end» = length)
     | longest.PrefixResult.MalformedUtf8 _ => ok false
 
+/-- [rowl_kernel::names::copy_between]: loop 0:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 286:4-289:5 -/
+@[rust_loop]
+def names.copy_between_loop
+  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) (index : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  if index < «end»
+  then
+    let i := alloc.vec.Vec.len bytes
+    if index < i
+    then
+      let i1 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+          bytes index
+      let out1 ← alloc.vec.Vec.push out i1
+      let index1 ← index + 1#usize
+      names.copy_between_loop bytes «end» out1 index1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::names::copy_between]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 283:0-291:1 -/
+@[reducible]
+def names.copy_between
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  names.copy_between_loop bytes «end» (alloc.vec.Vec.new Std.U8) start
+
+/-- [rowl_kernel::iri::ascii_digit]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1 -/
+def iri.ascii_digit (byte : Std.U8) : Result Bool := do
+  if 48#u8 <= byte
+  then ok (byte <= 57#u8)
+  else ok false
+
+/-- [rowl_kernel::iri::ascii_letter]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 339:0-341:1 -/
+def iri.ascii_letter (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::iri::plain]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 348:0-350:1 -/
+def iri.plain (byte : Std.U8) : Result Bool := do
+  let b ← iri.ascii_letter byte
+  if b
+  then ok true
+  else
+    let b1 ← iri.ascii_digit byte
+    if b1
+    then ok true
+    else
+      if byte = 45#u8
+      then ok true
+      else
+        if byte = 46#u8
+        then ok true
+        else if byte = 95#u8
+             then ok true
+             else ok (byte = 126#u8)
+
+/-- [rowl_kernel::iri::fragment_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 383:0-393:1 -/
+def iri.fragment_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.plain i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.fragment_end bytes i2
+    else
+      if i1 = 47#u8
+      then let i2 ← index + 1#usize
+           iri.fragment_end bytes i2
+      else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 370:0-380:1 -/
+def iri.plain_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.plain i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.plain_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_path]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 397:0-409:1 -/
+def iri.plain_path
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 = 47#u8
+    then
+      let i2 ← index + 1#usize
+      let i3 ← iri.plain_end bytes i2
+      iri.plain_path bytes i3
+    else
+      if i1 = 35#u8
+      then
+        let i2 ← index + 1#usize
+        let i3 ← iri.fragment_end bytes i2
+        let i4 := alloc.vec.Vec.len bytes
+        ok (i3 = i4)
+      else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::iri::scheme_char]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 352:0-354:1 -/
+def iri.scheme_char (byte : Std.U8) : Result Bool := do
+  let b ← iri.ascii_letter byte
+  if b
+  then ok true
+  else
+    let b1 ← iri.ascii_digit byte
+    if b1
+    then ok true
+    else
+      if byte = 43#u8
+      then ok true
+      else if byte = 45#u8
+           then ok true
+           else ok (byte = 46#u8)
+
+/-- [rowl_kernel::iri::scheme_end]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 357:0-367:1 -/
+def iri.scheme_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← iri.scheme_char i1
+    if b
+    then let i2 ← index + 1#usize
+         iri.scheme_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::iri::plain_iri]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 415:0-438:1 -/
+def iri.plain_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if 0#usize < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        0#usize
+    let b ← iri.ascii_letter i1
+    if b
+    then
+      let colon ← iri.scheme_end bytes 1#usize
+      let i2 := alloc.vec.Vec.len bytes
+      if colon < i2
+      then
+        let i3 := alloc.vec.Vec.len bytes
+        let i4 ← i3 - colon
+        if i4 > 2#usize
+        then
+          let i5 ←
+            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+              bytes colon
+          if i5 = 58#u8
+          then
+            let i6 ← colon + 1#usize
+            let i7 ←
+              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                Std.U8) bytes i6
+            if i7 = 47#u8
+            then
+              let i8 ← colon + 2#usize
+              let i9 ←
+                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+                  Std.U8) bytes i8
+              if i9 = 47#u8
+              then
+                let i10 ← colon + 3#usize
+                let i11 ← iri.plain_end bytes i10
+                iri.plain_path bytes i11
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::iri::validate]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 329:0-336:1 -/
+def iri.validate
+  (grammar : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
+  Result regular.MatchResult
+  := do
+  let nodes ← compiled.table
+  let (root, nodes1) ← compiled.compile nodes grammar
+  let o ← compiled.matches nodes1 root bytes
+  match o with
+  | none => regular.matches_utf8 grammar bytes
+  | some result => ok result
+
+/-- [rowl_kernel::iri::validate_iri]:
+    Source: 'crates/rowl-kernel/src/iri.rs', lines 442:0-448:1
+    Visibility: public -/
+def iri.validate_iri
+  (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
+  let b ← iri.plain_iri bytes
+  if b
+  then ok (regular.MatchResult.Matched true)
+  else let e ← iri.iri
+       iri.validate e bytes
+
+/-- [rowl_kernel::names::iri_until]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 295:0-301:1 -/
+def names.iri_until
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (close : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if close < i
+  then
+    let v ← names.copy_between bytes start close
+    let mr ← iri.validate_iri v
+    match mr with
+    | regular.MatchResult.Matched b => if b
+                                       then ok true
+                                       else ok false
+    | regular.MatchResult.MalformedUtf8 _ => ok false
+  else ok false
+
+/-- [rowl_kernel::names::full_iri_from]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 305:0-311:1 -/
+def names.full_iri_from
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (close : Std.Usize) :
+  Result longest.PrefixResult
+  := do
+  let i ← position + 1#usize
+  let b ← names.iri_until bytes i close
+  if b
+  then let i1 ← close + 1#usize
+       ok (longest.PrefixResult.Matched (some i1))
+  else ok (longest.PrefixResult.Matched none)
+
+/-- [rowl_kernel::names::gt_from]: loop 0:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 275:4-277:5 -/
+@[rust_loop]
+def names.gt_from_loop
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 != 62#u8
+    then let index1 ← index + 1#usize
+         names.gt_from_loop bytes index1
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::names::gt_from]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 274:0-279:1 -/
+@[reducible]
+def names.gt_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  names.gt_from_loop bytes index
+
+/-- [rowl_kernel::names::full_iri]:
+    Source: 'crates/rowl-kernel/src/names.rs', lines 317:0-323:1
+    Visibility: public -/
+def names.full_iri
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (Option longest.PrefixResult)
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if position < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        position
+    if i1 = 60#u8
+    then
+      let i2 ← position + 1#usize
+      let i3 ← names.gt_from bytes i2
+      let pr ← names.full_iri_from bytes position i3
+      ok (some pr)
+    else ok none
+  else ok none
+
 /-- [rowl_kernel::names::ascii_at]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 232:0-238:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 235:0-241:1 -/
 def names.ascii_at
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
   let i := alloc.vec.Vec.len bytes
@@ -40796,7 +41120,7 @@ def names.ascii_at
   else ok true
 
 /-- [rowl_kernel::names::trim_dots]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 204:0-214:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 207:0-217:1 -/
 def names.trim_dots
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
   Result Std.Usize
@@ -40815,7 +41139,7 @@ def names.trim_dots
 partial_fixpoint
 
 /-- [rowl_kernel::names::ascii_letter]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 146:0-148:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 149:0-151:1 -/
 def names.ascii_letter (byte : Std.U8) : Result Bool := do
   if 65#u8 <= byte
   then
@@ -40829,7 +41153,7 @@ def names.ascii_letter (byte : Std.U8) : Result Bool := do
        else ok false
 
 /-- [rowl_kernel::names::local_start]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 151:0-153:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 154:0-156:1 -/
 def names.local_start (byte : Std.U8) : Result Bool := do
   let b ← names.ascii_letter byte
   if b
@@ -40842,7 +41166,7 @@ def names.local_start (byte : Std.U8) : Result Bool := do
          else ok false
 
 /-- [rowl_kernel::names::local_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 219:0-229:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 222:0-232:1 -/
 def names.local_end
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize) :
   Result (Option Std.Usize)
@@ -40860,7 +41184,7 @@ def names.local_end
   else ok none
 
 /-- [rowl_kernel::names::label_byte]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 156:0-158:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 159:0-161:1 -/
 def names.label_byte (byte : Std.U8) : Result Bool := do
   let b ← names.local_start byte
   if b
@@ -40870,7 +41194,7 @@ def names.label_byte (byte : Std.U8) : Result Bool := do
        else ok (byte = 46#u8)
 
 /-- [rowl_kernel::names::label_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 161:0-171:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 164:0-174:1 -/
 def names.label_end
   (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
   let i := alloc.vec.Vec.len bytes
@@ -40888,7 +41212,7 @@ def names.label_end
 partial_fixpoint
 
 /-- [rowl_kernel::names::ascii_local]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 241:0-248:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 244:0-251:1 -/
 def names.ascii_local
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
   Result (Option longest.PrefixResult)
@@ -40902,7 +41226,7 @@ def names.ascii_local
   else ok none
 
 /-- [rowl_kernel::names::prefix_label]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 175:0-177:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 178:0-180:1 -/
 def names.prefix_label
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (colon : Std.Usize) :
   Result Bool
@@ -40924,7 +41248,7 @@ def names.prefix_label
     else ok false
 
 /-- [rowl_kernel::names::ascii_prefix_end]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 183:0-200:1 -/
+    Source: 'crates/rowl-kernel/src/names.rs', lines 186:0-203:1 -/
 def names.ascii_prefix_end
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
   Result (Option (Option Std.Usize))
@@ -40949,7 +41273,7 @@ def names.ascii_prefix_end
   else ok (some none)
 
 /-- [rowl_kernel::names::ascii_abbreviated]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 261:0-267:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 264:0-270:1
     Visibility: public -/
 def names.ascii_abbreviated
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -40964,7 +41288,7 @@ def names.ascii_abbreviated
     | some start => names.ascii_local bytes start
 
 /-- [rowl_kernel::names::ascii_prefix]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 252:0-257:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 255:0-260:1
     Visibility: public -/
 def names.ascii_prefix
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -40976,7 +41300,7 @@ def names.ascii_prefix
   | some «end» => ok (some (longest.PrefixResult.Matched «end»))
 
 /-- [rowl_kernel::functional::ascii_name]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 296:0-302:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 296:0-303:1 -/
 def functional.ascii_name
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -40992,7 +41316,7 @@ def functional.ascii_name
   | functional.Terminal.QuotedString => ok none
   | functional.Terminal.LanguageTag => ok none
   | functional.Terminal.NodeId => ok none
-  | functional.Terminal.FullIri => ok none
+  | functional.Terminal.FullIri => names.full_iri bytes position
   | functional.Terminal.PrefixName => names.ascii_prefix bytes position
   | functional.Terminal.AbbreviatedIri =>
     names.ascii_abbreviated bytes position
@@ -41103,7 +41427,7 @@ def longest.longest_valid_prefix
   longest.scan_valid expression bytes offset none
 
 /-- [rowl_kernel::functional::longest_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 306:0-311:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 307:0-312:1
     Visibility: public -/
 def functional.longest_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
@@ -41118,7 +41442,7 @@ def functional.longest_valid
   | some result => ok result
 
 /-- [rowl_kernel::functional::Token]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 314:0-318:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 315:0-319:1
     Visibility: public -/
 structure functional.Token where
   terminal : functional.Terminal
@@ -41126,7 +41450,7 @@ structure functional.Token where
   «end» : Std.Usize
 
 /-- [rowl_kernel::functional::Selection]
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 319:0-323:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 320:0-324:1
     Visibility: public -/
 @[discriminant isize]
 inductive functional.Selection where
@@ -41135,7 +41459,7 @@ inductive functional.Selection where
 | MalformedUtf8 : unicode.TextError → functional.Selection
 
 /-- [rowl_kernel::functional::seed]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 324:0-334:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 325:0-335:1 -/
 def functional.seed
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -41152,7 +41476,7 @@ def functional.seed
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 335:0-355:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 336:0-356:1 -/
 def functional.extend
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -41177,7 +41501,7 @@ def functional.extend
   | functional.Selection.MalformedUtf8 _ => ok previous
 
 /-- [rowl_kernel::functional::next_terminal]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 360:0-780:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 361:0-781:1
     Visibility: public -/
 def functional.next_terminal
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -41427,7 +41751,7 @@ def functional.next_terminal
   functional.extend functional.Terminal.Comment bytes position choice82
 
 /-- [rowl_kernel::functional::seed_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1850:0-1860:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1851:0-1861:1 -/
 def functional.seed_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) :
@@ -41444,7 +41768,7 @@ def functional.seed_valid
     ok (functional.Selection.MalformedUtf8 error)
 
 /-- [rowl_kernel::functional::extend_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1861:0-1886:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1862:0-1887:1 -/
 def functional.extend_valid
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (previous : functional.Selection) :
@@ -41470,7 +41794,7 @@ def functional.extend_valid
   | functional.Selection.MalformedUtf8 _ => ok previous
 
 /-- [rowl_kernel::functional::next_terminal_valid]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 784:0-1204:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 785:0-1205:1
     Visibility: public -/
 def functional.next_terminal_valid
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -41724,7 +42048,7 @@ def functional.next_terminal_valid
   functional.extend_valid functional.Terminal.Comment bytes position choice82
 
 /-- [rowl_kernel::functional::keyword_first]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1207:0-1281:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1208:0-1282:1 -/
 def functional.keyword_first
   (keyword : functional.Keyword) : Result Std.U32 := do
   match keyword with
@@ -41801,7 +42125,7 @@ def functional.keyword_first
   | functional.Keyword.NegativeDataPropertyAssertion => ok 78#u32
 
 /-- [rowl_kernel::functional::name_start]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1286:0-1291:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1287:0-1292:1 -/
 def functional.name_start (codepoint : Std.U32) : Result Bool := do
   if codepoint = 58#u32
   then ok true
@@ -41825,7 +42149,7 @@ def functional.name_start (codepoint : Std.U32) : Result Bool := do
       else ok (128#u32 <= codepoint)
 
 /-- [rowl_kernel::functional::may_start]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1295:0-1314:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1296:0-1315:1 -/
 def functional.may_start
   (terminal : functional.Terminal) (codepoint : Std.U32) : Result Bool := do
   match terminal with
@@ -41858,7 +42182,7 @@ def functional.may_start
   | functional.Terminal.Comment => ok (codepoint = 35#u32)
 
 /-- [rowl_kernel::functional::seed_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1315:0-1321:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1316:0-1322:1 -/
 def functional.seed_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) :
@@ -41870,7 +42194,7 @@ def functional.seed_from
   else ok functional.Selection.NoMatch
 
 /-- [rowl_kernel::functional::extend_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1322:0-1334:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1323:0-1335:1 -/
 def functional.extend_from
   (terminal : functional.Terminal) (bytes : alloc.vec.Vec Std.U8)
   (position : Std.Usize) (first : Std.U32) (previous : functional.Selection) :
@@ -41882,7 +42206,7 @@ def functional.extend_from
   else ok previous
 
 /-- [rowl_kernel::functional::next_terminal_from]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1335:0-1840:1 -/
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1336:0-1841:1 -/
 def functional.next_terminal_from
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (first : Std.U32) :
   Result functional.Selection
@@ -42151,7 +42475,7 @@ def functional.next_terminal_from
     choice82
 
 /-- [rowl_kernel::functional::next_terminal_fast]:
-    Source: 'crates/rowl-kernel/src/functional.rs', lines 1844:0-1849:1
+    Source: 'crates/rowl-kernel/src/functional.rs', lines 1845:0-1850:1
     Visibility: public -/
 def functional.next_terminal_fast
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
@@ -43057,7 +43381,7 @@ inductive prefixes.Expansion where
 | InvalidExpandedIri : prefixes.Expansion
 
 /-- [rowl_kernel::names::validate_local]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 124:0-130:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 127:0-133:1
     Visibility: public -/
 def names.validate_local
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
@@ -43070,7 +43394,7 @@ def names.validate_local
        regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::names::validate_prefix]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 115:0-121:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 118:0-124:1
     Visibility: public -/
 def names.validate_prefix
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
@@ -43081,220 +43405,6 @@ def names.validate_prefix
   then ok (regular.MatchResult.Matched true)
   else let e ← names.prefix_grammar
        regular.matches_utf8 e bytes
-
-/-- [rowl_kernel::iri::ascii_digit]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 344:0-346:1 -/
-def iri.ascii_digit (byte : Std.U8) : Result Bool := do
-  if 48#u8 <= byte
-  then ok (byte <= 57#u8)
-  else ok false
-
-/-- [rowl_kernel::iri::ascii_letter]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 339:0-341:1 -/
-def iri.ascii_letter (byte : Std.U8) : Result Bool := do
-  if 65#u8 <= byte
-  then
-    if byte <= 90#u8
-    then ok true
-    else if 97#u8 <= byte
-         then ok (byte <= 122#u8)
-         else ok false
-  else if 97#u8 <= byte
-       then ok (byte <= 122#u8)
-       else ok false
-
-/-- [rowl_kernel::iri::plain]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 348:0-350:1 -/
-def iri.plain (byte : Std.U8) : Result Bool := do
-  let b ← iri.ascii_letter byte
-  if b
-  then ok true
-  else
-    let b1 ← iri.ascii_digit byte
-    if b1
-    then ok true
-    else
-      if byte = 45#u8
-      then ok true
-      else
-        if byte = 46#u8
-        then ok true
-        else if byte = 95#u8
-             then ok true
-             else ok (byte = 126#u8)
-
-/-- [rowl_kernel::iri::fragment_end]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 383:0-393:1 -/
-def iri.fragment_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← iri.plain i1
-    if b
-    then let i2 ← index + 1#usize
-         iri.fragment_end bytes i2
-    else
-      if i1 = 47#u8
-      then let i2 ← index + 1#usize
-           iri.fragment_end bytes i2
-      else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::iri::plain_end]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 370:0-380:1 -/
-def iri.plain_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← iri.plain i1
-    if b
-    then let i2 ← index + 1#usize
-         iri.plain_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::iri::plain_path]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 397:0-409:1 -/
-def iri.plain_path
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    if i1 = 47#u8
-    then
-      let i2 ← index + 1#usize
-      let i3 ← iri.plain_end bytes i2
-      iri.plain_path bytes i3
-    else
-      if i1 = 35#u8
-      then
-        let i2 ← index + 1#usize
-        let i3 ← iri.fragment_end bytes i2
-        let i4 := alloc.vec.Vec.len bytes
-        ok (i3 = i4)
-      else ok false
-  else ok true
-partial_fixpoint
-
-/-- [rowl_kernel::iri::scheme_char]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 352:0-354:1 -/
-def iri.scheme_char (byte : Std.U8) : Result Bool := do
-  let b ← iri.ascii_letter byte
-  if b
-  then ok true
-  else
-    let b1 ← iri.ascii_digit byte
-    if b1
-    then ok true
-    else
-      if byte = 43#u8
-      then ok true
-      else if byte = 45#u8
-           then ok true
-           else ok (byte = 46#u8)
-
-/-- [rowl_kernel::iri::scheme_end]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 357:0-367:1 -/
-def iri.scheme_end
-  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
-  let i := alloc.vec.Vec.len bytes
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        index
-    let b ← iri.scheme_char i1
-    if b
-    then let i2 ← index + 1#usize
-         iri.scheme_end bytes i2
-    else ok index
-  else ok index
-partial_fixpoint
-
-/-- [rowl_kernel::iri::plain_iri]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 415:0-438:1 -/
-def iri.plain_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
-  let i := alloc.vec.Vec.len bytes
-  if 0#usize < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        0#usize
-    let b ← iri.ascii_letter i1
-    if b
-    then
-      let colon ← iri.scheme_end bytes 1#usize
-      let i2 := alloc.vec.Vec.len bytes
-      if colon < i2
-      then
-        let i3 := alloc.vec.Vec.len bytes
-        let i4 ← i3 - colon
-        if i4 > 2#usize
-        then
-          let i5 ←
-            alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
-              bytes colon
-          if i5 = 58#u8
-          then
-            let i6 ← colon + 1#usize
-            let i7 ←
-              alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                Std.U8) bytes i6
-            if i7 = 47#u8
-            then
-              let i8 ← colon + 2#usize
-              let i9 ←
-                alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-                  Std.U8) bytes i8
-              if i9 = 47#u8
-              then
-                let i10 ← colon + 3#usize
-                let i11 ← iri.plain_end bytes i10
-                iri.plain_path bytes i11
-              else ok false
-            else ok false
-          else ok false
-        else ok false
-      else ok false
-    else ok false
-  else ok false
-
-/-- [rowl_kernel::iri::validate]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 329:0-336:1 -/
-def iri.validate
-  (grammar : regular.Expression) (bytes : alloc.vec.Vec Std.U8) :
-  Result regular.MatchResult
-  := do
-  let nodes ← compiled.table
-  let (root, nodes1) ← compiled.compile nodes grammar
-  let o ← compiled.matches nodes1 root bytes
-  match o with
-  | none => regular.matches_utf8 grammar bytes
-  | some result => ok result
-
-/-- [rowl_kernel::iri::validate_iri]:
-    Source: 'crates/rowl-kernel/src/iri.rs', lines 442:0-448:1
-    Visibility: public -/
-def iri.validate_iri
-  (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
-  let b ← iri.plain_iri bytes
-  if b
-  then ok (regular.MatchResult.Matched true)
-  else let e ← iri.iri
-       iri.validate e bytes
 
 /-- [rowl_kernel::prefixes::expand_parts]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 166:0-191:1
@@ -72393,7 +72503,7 @@ def model.invert
     ok (model.ObjectPropertyExpression.Property p)
 
 /-- [rowl_kernel::names::validate_abbreviated]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 133:0-139:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 136:0-142:1
     Visibility: public -/
 def names.validate_abbreviated
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
@@ -72406,7 +72516,7 @@ def names.validate_abbreviated
        regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::names::validate_node]:
-    Source: 'crates/rowl-kernel/src/names.rs', lines 140:0-142:1
+    Source: 'crates/rowl-kernel/src/names.rs', lines 143:0-145:1
     Visibility: public -/
 def names.validate_node
   (bytes : alloc.vec.Vec Std.U8) : Result regular.MatchResult := do
