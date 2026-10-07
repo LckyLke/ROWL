@@ -57,7 +57,17 @@ fn implicit_standards_have_exact_names_and_namespaces() {
             expanded(expand(&table, name, "Thing", usize::MAX)),
             format!("{ns}Thing").as_bytes()
         );
-        let reserved = vec![declaration(name, ns)];
+        // OWL 2 forbids declaring the name; with exactly its own namespace the
+        // declaration changes nothing and is accepted, as OWL API tools write it.
+        let restated = vec![declaration(name, ns)];
+        let restated_table = checked(&restated);
+        assert_eq!(
+            prefixes::lookup(&restated_table, &name.as_bytes().to_vec()).as_deref(),
+            Some(ns.as_bytes())
+        );
+        let twice = vec![declaration(name, ns), declaration(name, ns)];
+        assert!(matches!(prefixes::check(&twice), Check::Duplicate { .. }));
+        let reserved = vec![declaration(name, "urn:other:")];
         assert!(
             matches!(prefixes::check(&reserved), Check::ReservedName(row) if std::ptr::eq(row, &reserved[0]))
         );

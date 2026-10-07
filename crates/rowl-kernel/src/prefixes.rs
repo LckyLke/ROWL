@@ -63,7 +63,10 @@ fn copy_from(bytes: &[u8], index: usize, mut output: Vec<u8>) -> Vec<u8> {
 pub(crate) fn copy(bytes: &[u8]) -> Vec<u8> {
     copy_from(bytes, 0, Vec::new())
 }
-/// These four exact lower-case prefix names are implicit and cannot be declared.
+/// These four exact lower-case prefix names are implicit. OWL 2 forbids
+/// declaring them (Structural Specification, section 3.7); a declaration that
+/// gives one exactly its own namespace changes no expansion and is accepted,
+/// since tools built on the OWL API write one for each.
 pub fn standard(name: &Vec<u8>) -> Option<Standard> {
     if same(name, b"rdf:") {
         Some(Standard::Rdf)
@@ -83,6 +86,14 @@ pub fn namespace(standard: Standard) -> Vec<u8> {
         Standard::Rdfs => copy(b"http://www.w3.org/2000/01/rdf-schema#"),
         Standard::Xsd => copy(b"http://www.w3.org/2001/XMLSchema#"),
         Standard::Owl => copy(b"http://www.w3.org/2002/07/owl#"),
+    }
+}
+/// Whether a declaration gives one of the four implicit prefix names a
+/// namespace other than its own.
+fn reserved(declaration: &Declaration) -> bool {
+    match standard(&declaration.name) {
+        Some(key) => !same(&declaration.namespace, &namespace(key)),
+        None => false,
     }
 }
 fn find_from<'a>(
@@ -106,7 +117,7 @@ fn check_from(declarations: &Vec<Declaration>, index: usize) -> Check<'_> {
         let declaration = &declarations[index];
         if !accepted(validate_prefix(&declaration.name)) {
             Check::InvalidName(declaration)
-        } else if standard(&declaration.name).is_some() {
+        } else if reserved(declaration) {
             Check::ReservedName(declaration)
         } else if !accepted(validate_iri(&declaration.namespace)) {
             Check::InvalidNamespace(declaration)

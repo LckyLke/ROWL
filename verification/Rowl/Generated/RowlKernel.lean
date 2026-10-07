@@ -44805,7 +44805,7 @@ structure prefixes.PrefixTable where
   declarations : alloc.vec.Vec prefixes.Declaration
 
 /-- [rowl_kernel::prefixes::append_from]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 145:0-156:1 -/
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 156:0-167:1 -/
 def prefixes.append_from
   (bytes : Slice Std.U8) (index : Std.Usize) (output : alloc.vec.Vec Std.U8)
   (limit : Std.Usize) :
@@ -44826,7 +44826,7 @@ def prefixes.append_from
 partial_fixpoint
 
 /-- [rowl_kernel::prefixes::join]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 157:0-162:1 -/
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 168:0-173:1 -/
 def prefixes.join
   («namespace» : alloc.vec.Vec Std.U8) («local» : alloc.vec.Vec Std.U8)
   (limit : Std.Usize) :
@@ -44869,7 +44869,7 @@ def prefixes.same
   else ok false
 
 /-- [rowl_kernel::prefixes::find_from]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 88:0-103:1 -/
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 99:0-114:1 -/
 def prefixes.find_from
   (declarations : alloc.vec.Vec prefixes.Declaration)
   («name» : alloc.vec.Vec Std.U8) (stop : Std.Usize) (index : Std.Usize) :
@@ -44923,7 +44923,7 @@ inductive prefixes.Standard where
 | Owl : prefixes.Standard
 
 /-- [rowl_kernel::prefixes::namespace]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 80:0-87:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 83:0-90:1
     Visibility: public -/
 def prefixes.namespace
   (standard : prefixes.Standard) : Result (alloc.vec.Vec Std.U8) := do
@@ -44972,7 +44972,7 @@ def prefixes.namespace
     prefixes.copy s
 
 /-- [rowl_kernel::prefixes::standard]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 67:0-79:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 70:0-82:1
     Visibility: public -/
 def prefixes.standard
   («name» : alloc.vec.Vec Std.U8) : Result (Option prefixes.Standard) := do
@@ -45010,7 +45010,7 @@ def prefixes.standard
         else ok none
 
 /-- [rowl_kernel::prefixes::lookup]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 136:0-144:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 147:0-155:1
     Visibility: public -/
 def prefixes.lookup
   (table : prefixes.PrefixTable) («name» : alloc.vec.Vec Std.U8) :
@@ -45078,7 +45078,7 @@ def names.validate_prefix
        regular.matches_utf8 e bytes
 
 /-- [rowl_kernel::prefixes::expand_parts]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 166:0-191:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 177:0-202:1
     Visibility: public -/
 def prefixes.expand_parts
   (table : prefixes.PrefixTable) («prefix» : alloc.vec.Vec Std.U8)
@@ -52657,8 +52657,21 @@ def functional_document.table_error
     ok functional_document.TableError.InvalidNamespace
   | prefixes.Check.Duplicate _ _ => ok functional_document.TableError.Duplicate
 
+/-- [rowl_kernel::prefixes::reserved]:
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 93:0-98:1 -/
+def prefixes.reserved (declaration : prefixes.Declaration) : Result Bool := do
+  let o ← prefixes.standard declaration.name
+  match o with
+  | none => ok false
+  | some key =>
+    let s := alloc.vec.Vec.deref declaration.namespace
+    let v ← prefixes.namespace key
+    let s1 := alloc.vec.Vec.deref v
+    let b ← prefixes.same s s1
+    ok (¬ b)
+
 /-- [rowl_kernel::prefixes::check_from]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 104:0-125:1 -/
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 115:0-136:1 -/
 def prefixes.check_from
   (declarations : alloc.vec.Vec prefixes.Declaration) (index : Std.Usize) :
   Result prefixes.Check
@@ -52673,8 +52686,7 @@ def prefixes.check_from
     let b ← prefixes.accepted mr
     if b
     then
-      let o ← prefixes.standard declaration.name
-      let b1 := core.option.Option.is_some o
+      let b1 ← prefixes.reserved declaration
       if b1
       then ok (prefixes.Check.ReservedName declaration)
       else
@@ -52682,9 +52694,9 @@ def prefixes.check_from
         let b2 ← prefixes.accepted mr1
         if b2
         then
-          let o1 ←
+          let o ←
             prefixes.find_from declarations declaration.name index 0#usize
-          match o1 with
+          match o with
           | none =>
             let i1 ← index + 1#usize
             prefixes.check_from declarations i1
@@ -52695,7 +52707,7 @@ def prefixes.check_from
 partial_fixpoint
 
 /-- [rowl_kernel::prefixes::check]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 127:0-129:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 138:0-140:1
     Visibility: public -/
 def prefixes.check
   (declarations : alloc.vec.Vec prefixes.Declaration) :
@@ -75015,7 +75027,7 @@ def ntriples.write
   rdf_write.write_graph graph false max_output_bytes
 
 /-- [rowl_kernel::prefixes::declarations]:
-    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 131:0-133:1
+    Source: 'crates/rowl-kernel/src/prefixes.rs', lines 142:0-144:1
     Visibility: public -/
 def prefixes.declarations
   (table : prefixes.PrefixTable) :

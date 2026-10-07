@@ -671,6 +671,7 @@
       "theorems": [
         "Rowl.Prefixes.standard_total_correct",
         "Rowl.Prefixes.namespace_total_correct",
+        "Rowl.Prefixes.reserved_total_correct",
         "Rowl.Prefixes.lookup_total_correct",
         "Rowl.Prefixes.check_total_correct",
         "Rowl.Prefixes.declarations_total_correct",
@@ -8373,6 +8374,7 @@
     "Rowl.Components.TableOf",
     "Rowl.Components.Names",
     "Rowl.Components.Checked",
-    "Rowl.Components.checked"
+    "Rowl.Components.checked",
+    "Rowl.Prefixes.Reserved"
   ]
 }

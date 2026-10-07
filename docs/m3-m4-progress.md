@@ -6518,3 +6518,27 @@ This block adds 11 public theorems (`consistent_inside`, `consistent_cover` and
 `mark_spec`, `parts_from_correct` and `consistent_by_parts_correct` in
 `Rowl.Components`) and 5 definitions. Totals are 5444 audited theorems, 1814
 definitions, 659 Rust regressions and 5637 ledger obligations.
+
+## Glue: documents that declare the standard prefixes, and error words
+
+OWL 2 forbids an ontology document to declare the standard prefix names `rdf:`,
+`rdfs:`, `xsd:` and `owl:` (Structural Specification, §3.7), and the reader
+rejected every such document. Tools built on the OWL API, Protégé among them,
+write a declaration for each of them with its own namespace into every
+Functional Syntax document they save, so none of their documents could be read.
+The reader now accepts a declaration of one of the four names with exactly its
+own namespace, which changes no expansion, and still rejects any other
+namespace for them (`Rowl.Prefixes.Reserved`, `reserved_total_correct`; the
+table check, its acceptance theorem and the document reader are proved with
+the new condition). A second declaration of the same name is still a duplicate.
+
+A rejected Functional Syntax document was reported as "not a Functional Syntax
+document the verified reader accepts". `rowl::reasoner::document_error_words`
+now names what the reader found and the byte where, for instance
+`Functional Syntax error at byte 474: a prefix name without a Prefix
+declaration`. The CLI uses it, and so do the Python bindings for catalog loads
+(`Reasoner.from_documents`, and `from_file` with `imports`).
+
+This block adds 1 public theorem and 1 definition. Totals are 5445 audited
+theorems, 1815 definitions, 661 Rust regressions and 5638 ledger obligations.
+

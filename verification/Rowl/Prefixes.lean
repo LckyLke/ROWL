@@ -34,9 +34,16 @@ def LocalAccepted (bytes : List U8) : Prop :=
   ∃ word, Rowl.Regular.Utf8From bytes 0 word ∧ word ∈ Rowl.Names.Local
 def IriAccepted (bytes : List U8) : Prop :=
   ∃ word, Rowl.Regular.Utf8From bytes 0 word ∧ word ∈ Rowl.Iri.IriLanguage
+/-- A declaration that gives one of the four implicit names a namespace other
+    than its own. OWL 2 forbids declaring them at all (Structural
+    Specification, section 3.7); a declaration with exactly the name's own
+    namespace changes no expansion, and the reader accepts it, since tools built
+    on the OWL API write one for each. -/
+def Reserved (row : Declaration) : Prop :=
+  ∃ key, StandardFor row.name.val = some key ∧ row.namespace.val ≠ Namespace key
 /-- All lexical/reservation requirements on one supplied declaration. -/
 def DeclarationValid (row : Declaration) : Prop :=
-  PrefixAccepted row.name.val ∧ StandardFor row.name.val = none ∧ IriAccepted row.namespace.val
+  PrefixAccepted row.name.val ∧ ¬ Reserved row ∧ IriAccepted row.namespace.val
 /-- Complete table requirements; repeated label names are forbidden even when
     the associated namespaces are identical. -/
 def TableValid (rows : List Declaration) : Prop :=
@@ -51,7 +58,7 @@ noncomputable def Scan (source : alloc.vec.Vec Declaration) (prior : List Declar
   | [] => .Ready ⟨source⟩
   | row :: tail =>
     if ¬ PrefixAccepted row.name.val then .InvalidName row else
-    if (StandardFor row.name.val).isSome then .ReservedName row else
+    if Reserved row then .ReservedName row else
     if ¬ IriAccepted row.namespace.val then .InvalidNamespace row else
     match prior.find? (matchesName row.name.val) with
     | some first => .Duplicate first row
@@ -190,6 +197,15 @@ theorem namespace_total_correct (key : Standard) :
   cases key <;> apply WP.spec_imp_exists <;> unfold prefixes.namespace <;> simp only [lift]
   all_goals step*; simp_all [Namespace]
 
+/-- The actual reservation check: a standard name with another namespace. -/
+theorem reserved_total_correct (row : Declaration) : reserved row = .ok (decide (Reserved row)) := by
+  rw [reserved, standard_total_correct]
+  cases standardCase : StandardFor row.name.val with
+  | none => simp [Reserved, standardCase]
+  | some key =>
+    obtain ⟨bytes, copied, spelling⟩ := namespace_total_correct key
+    simp [copied, same_literal_total, Reserved, standardCase, spelling]
+
 private theorem find_total (rows : alloc.vec.Vec Declaration) (keyBytes : alloc.vec.Vec U8)
     (stop index : Usize) (bound : stop.val ≤ rows.val.length) :
     find_from rows keyBytes stop index =
@@ -306,11 +322,10 @@ private theorem check_from_total (rows : alloc.vec.Vec Declaration) (index : Usi
     rw [← Aeneas.Std.bind_assoc, prefix_bool, bind_ok]
     by_cases goodName : PrefixAccepted rows.val[index.val].name.val
     · simp only [goodName, decide_true, ↓reduceIte, not_true_eq_false]
-      rw [standard_total_correct, bind_ok]
-      cases standardCase : StandardFor rows.val[index.val].name.val with
-      | some key => simp [standardCase, core.option.Option.is_some]
-      | none =>
-        simp only [standardCase, core.option.Option.is_some, Option.isSome_none, Bool.false_eq_true, ↓reduceIte]
+      rw [reserved_total_correct, bind_ok]
+      by_cases reservedRow : Reserved rows.val[index.val]
+      · simp [reservedRow]
+      · simp only [reservedRow, decide_false, Bool.false_eq_true, ↓reduceIte]
         rw [← Aeneas.Std.bind_assoc, iri_bool, bind_ok]
         by_cases goodIri : IriAccepted rows.val[index.val].namespace.val
         · simp only [goodIri, decide_true, not_true_eq_false, ↓reduceIte]
@@ -354,10 +369,9 @@ private theorem scan_ready (source : alloc.vec.Vec Declaration) (prior remaining
     rw [Scan]
     by_cases nameValid : PrefixAccepted row.name.val
     · simp only [nameValid, not_true_eq_false, ↓reduceIte]
-      cases standardCase : StandardFor row.name.val with
-      | some key => simp [DeclarationValid, standardCase]
-      | none =>
-        simp only [Option.isSome_none, Bool.false_eq_true, ↓reduceIte]
+      by_cases reservedRow : Reserved row
+      · simp [DeclarationValid, reservedRow]
+      · simp only [reservedRow, ↓reduceIte]
         by_cases iriValid : IriAccepted row.namespace.val
         · simp only [iriValid, not_true_eq_false, ↓reduceIte]
           cases found : prior.find? (matchesName row.name.val) with
@@ -376,7 +390,7 @@ private theorem scan_ready (source : alloc.vec.Vec Declaration) (prior remaining
             rw [ih]
             have absent : ∀ old ∈ prior, old.name.val ≠ row.name.val := by
               simpa [matchesName] using List.find?_eq_none.mp found
-            simp [DeclarationValid, nameValid, iriValid, standardCase, absent,
+            simp [DeclarationValid, nameValid, iriValid, reservedRow, absent,
               List.nodup_cons, List.mem_map, and_assoc, and_left_comm, and_comm]
             aesop
         · simp [DeclarationValid, iriValid]

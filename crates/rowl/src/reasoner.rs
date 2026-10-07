@@ -374,6 +374,306 @@ pub fn xml_error_words(error: &XmlError) -> String {
     format!("XML error at byte {}: {what}", error.offset)
 }
 
+/// The words for why the verified Functional Syntax reader rejected a
+/// document: what the reader found and, when it names one, the byte where.
+pub fn document_error_words(error: &DocumentError) -> String {
+    let (what, offset) = document_error_parts(error);
+    match offset {
+        Some(offset) => format!("Functional Syntax error at byte {offset}: {what}"),
+        None => format!("Functional Syntax error: {what}"),
+    }
+}
+
+/// What a reader found, and the byte where, when it names one.
+type Found = (&'static str, Option<usize>);
+
+fn document_error_parts(error: &DocumentError) -> Found {
+    use rowl_kernel::functional_document::{DocumentExpected, TableError};
+    match error {
+        DocumentError::Prefix(error) => prefix_error_parts(error),
+        DocumentError::Table(kind) => (
+            match kind {
+                TableError::InvalidName => "a prefix declaration with an invalid prefix name",
+                TableError::ReservedName => {
+                    "a declaration that binds one of the standard prefix names rdf:, rdfs:, xsd: \
+                     and owl: to a namespace other than its own"
+                }
+                TableError::InvalidNamespace => {
+                    "a prefix declaration whose namespace is not an absolute IRI"
+                }
+                TableError::Duplicate => "a prefix name declared twice",
+            },
+            None,
+        ),
+        DocumentError::Header(error) => header_error_parts(error),
+        DocumentError::Annotation(error) => annotation_error_parts(error),
+        DocumentError::Declaration(error) => declaration_error_parts(error),
+        DocumentError::AnnotationAxiom(error) => annotation_axiom_error_parts(error),
+        DocumentError::ClassAxiom(error) => class_axiom_error_parts(error),
+        DocumentError::PropertyAxiom(error) => property_axiom_error_parts(error),
+        DocumentError::DataAxiom(error) => data_axiom_error_parts(error),
+        DocumentError::Assertion(error) => assertion_error_parts(error),
+        DocumentError::AxiomLimit { offset } => {
+            ("more axioms than the reader's limit", Some(*offset))
+        }
+        DocumentError::Expected { expected, offset } => (
+            match expected {
+                DocumentExpected::Axiom => {
+                    "an axiom or the closing parenthesis of the ontology was expected \
+                     (rules and other constructs outside OWL 2 are not read)"
+                }
+                DocumentExpected::Close => "the closing parenthesis of the ontology was expected",
+                DocumentExpected::End => "text after the closing parenthesis of the ontology",
+            },
+            Some(*offset),
+        ),
+    }
+}
+
+fn prefix_error_parts(error: &rowl_kernel::functional_prefixes::PrefixReadError) -> Found {
+    use rowl_kernel::functional_prefixes::{PrefixReadError, PrefixSyntaxError};
+    match error {
+        PrefixReadError::Syntax(PrefixSyntaxError::Expected { offset, .. }) => (
+            "a malformed prefix declaration or ontology opening",
+            Some(*offset),
+        ),
+        PrefixReadError::Syntax(PrefixSyntaxError::Name(error)) => name_error_parts(error),
+        PrefixReadError::Syntax(PrefixSyntaxError::DeclarationLimit { offset }) => (
+            "more prefix declarations than the reader's limit",
+            Some(*offset),
+        ),
+        PrefixReadError::InvalidText(error) => text_error_parts(error),
+        PrefixReadError::NoToken { offset } => {
+            ("text that is no Functional Syntax token", Some(*offset))
+        }
+        PrefixReadError::MissingSeparator { offset } => (
+            "two tokens without white space or a parenthesis between them",
+            Some(*offset),
+        ),
+        PrefixReadError::TokenLimit { offset } => {
+            ("more tokens than the reader's limit", Some(*offset))
+        }
+        PrefixReadError::InvalidSpan { offset } => ("a malformed token", Some(*offset)),
+    }
+}
+
+fn text_error_parts(error: &rowl_kernel::unicode::TextError) -> Found {
+    use rowl_kernel::unicode::TextError;
+    match error {
+        TextError::InvalidPosition { offset } => ("a position inside a character", Some(*offset)),
+        TextError::InvalidUtf8 { offset } => ("bytes that are not UTF-8", Some(*offset)),
+        TextError::NonXmlCharacter { offset, .. } => {
+            ("a character that the syntax does not allow", Some(*offset))
+        }
+    }
+}
+
+fn name_error_parts(error: &rowl_kernel::functional_names::NameError) -> Found {
+    use rowl_kernel::functional_names::NameError;
+    match error {
+        NameError::InvalidSpan { offset } | NameError::InvalidToken { offset } => {
+            ("a malformed name or IRI", Some(*offset))
+        }
+        NameError::ResourceLimit { offset } => {
+            ("a name longer than the reader's limit", Some(*offset))
+        }
+    }
+}
+
+fn iri_error_parts(error: &rowl_kernel::functional_iris::SourceIriError) -> Found {
+    use rowl_kernel::functional_iris::SourceIriError;
+    match error {
+        SourceIriError::Name(error) => name_error_parts(error),
+        SourceIriError::InvalidParts { offset } => ("a malformed IRI", Some(*offset)),
+        SourceIriError::UndeclaredPrefix { offset } => {
+            ("a prefix name without a Prefix declaration", Some(*offset))
+        }
+        SourceIriError::ResourceLimit { offset } => {
+            ("an IRI longer than the reader's limit", Some(*offset))
+        }
+        SourceIriError::InvalidExpandedIri { offset } => (
+            "an abbreviated IRI that does not expand to an absolute IRI",
+            Some(*offset),
+        ),
+    }
+}
+
+fn literal_error_parts(error: &rowl_kernel::functional_literals::SourceLiteralError) -> Found {
+    use rowl_kernel::functional_literals::SourceLiteralError;
+    match error {
+        SourceLiteralError::Expected { offset, .. }
+        | SourceLiteralError::InvalidSpan { offset } => ("a malformed literal", Some(*offset)),
+        SourceLiteralError::Quoted(error) => ("a malformed quoted string", Some(error.offset)),
+        SourceLiteralError::Language(error) => {
+            let (_, offset) = name_error_parts(error);
+            ("a malformed language tag", offset)
+        }
+        SourceLiteralError::Datatype(error) => iri_error_parts(error),
+        SourceLiteralError::LexicalLimit { offset } => {
+            ("a literal longer than the reader's limit", Some(*offset))
+        }
+        SourceLiteralError::DatatypeLimit { offset } => (
+            "a datatype IRI longer than the reader's limit",
+            Some(*offset),
+        ),
+    }
+}
+
+fn individual_error_parts(error: &rowl_kernel::functional_individuals::IndividualError) -> Found {
+    use rowl_kernel::functional_individuals::IndividualError;
+    match error {
+        IndividualError::Expected { offset } => ("an individual was expected", Some(*offset)),
+        IndividualError::Iri(error) => iri_error_parts(error),
+        IndividualError::Anonymous(error) => name_error_parts(error),
+        IndividualError::CountLimit { offset } => {
+            ("more individuals than the reader's limit", Some(*offset))
+        }
+    }
+}
+
+fn range_error_parts(error: &rowl_kernel::functional_ranges::RangeError) -> Found {
+    use rowl_kernel::functional_ranges::RangeError;
+    match error {
+        RangeError::Expected { offset, .. } => ("a malformed data range", Some(*offset)),
+        RangeError::Iri(error) => iri_error_parts(error),
+        RangeError::Literal(error) => literal_error_parts(error),
+        RangeError::DepthLimit { offset } => (
+            "a data range nested deeper than the reader's limit",
+            Some(*offset),
+        ),
+        RangeError::CountLimit { offset } => {
+            ("more members than the reader's limit", Some(*offset))
+        }
+    }
+}
+
+fn class_error_parts(error: &rowl_kernel::functional_classes::ClassError) -> Found {
+    use rowl_kernel::functional_classes::ClassError;
+    match error {
+        ClassError::Expected { offset, .. } => ("a malformed class expression", Some(*offset)),
+        ClassError::Iri(error) => iri_error_parts(error),
+        ClassError::Individual(error) => individual_error_parts(error),
+        ClassError::Range(error) => range_error_parts(error),
+        ClassError::Literal(error) => literal_error_parts(error),
+        ClassError::DepthLimit { offset } => (
+            "a class expression nested deeper than the reader's limit",
+            Some(*offset),
+        ),
+        ClassError::CountLimit { offset } => (
+            "more members, or a larger number, than the reader's limit",
+            Some(*offset),
+        ),
+    }
+}
+
+fn annotation_error_parts(error: &rowl_kernel::functional_annotations::AnnotationError) -> Found {
+    use rowl_kernel::functional_annotations::AnnotationError;
+    match error {
+        AnnotationError::Expected { offset, .. } => ("a malformed annotation", Some(*offset)),
+        AnnotationError::Property(error) | AnnotationError::Iri(error) => iri_error_parts(error),
+        AnnotationError::Anonymous(error) => name_error_parts(error),
+        AnnotationError::Literal(error) => literal_error_parts(error),
+        AnnotationError::DepthLimit { offset } => (
+            "annotations nested deeper than the reader's limit",
+            Some(*offset),
+        ),
+        AnnotationError::CountLimit { offset } => {
+            ("more annotations than the reader's limit", Some(*offset))
+        }
+    }
+}
+
+fn header_error_parts(error: &rowl_kernel::functional_header::HeaderError) -> Found {
+    use rowl_kernel::functional_header::HeaderError;
+    match error {
+        HeaderError::Expected { offset, .. } => ("a malformed ontology header", Some(*offset)),
+        HeaderError::Iri(error) => iri_error_parts(error),
+        HeaderError::ImportLimit { offset } => {
+            ("more imports than the reader's limit", Some(*offset))
+        }
+    }
+}
+
+fn declaration_error_parts(
+    error: &rowl_kernel::functional_declarations::DeclarationError,
+) -> Found {
+    use rowl_kernel::functional_declarations::DeclarationError;
+    match error {
+        DeclarationError::Expected { offset, .. } => ("a malformed declaration", Some(*offset)),
+        DeclarationError::Annotation(error) => annotation_error_parts(error),
+        DeclarationError::Iri(error) => iri_error_parts(error),
+    }
+}
+
+fn annotation_axiom_error_parts(
+    error: &rowl_kernel::functional_annotation_axioms::AnnotationAxiomError,
+) -> Found {
+    use rowl_kernel::functional_annotation_axioms::AnnotationAxiomError;
+    match error {
+        AnnotationAxiomError::Expected { offset, .. } => {
+            ("a malformed annotation axiom", Some(*offset))
+        }
+        AnnotationAxiomError::Annotation(error) | AnnotationAxiomError::Value(error) => {
+            annotation_error_parts(error)
+        }
+        AnnotationAxiomError::Iri(error) => iri_error_parts(error),
+        AnnotationAxiomError::Anonymous(error) => name_error_parts(error),
+    }
+}
+
+fn class_axiom_error_parts(error: &rowl_kernel::functional_class_axioms::ClassAxiomError) -> Found {
+    use rowl_kernel::functional_class_axioms::ClassAxiomError;
+    match error {
+        ClassAxiomError::Expected { offset, .. } => ("a malformed class axiom", Some(*offset)),
+        ClassAxiomError::Annotation(error) => annotation_error_parts(error),
+        ClassAxiomError::Class(error) => class_error_parts(error),
+        ClassAxiomError::Iri(error) => iri_error_parts(error),
+    }
+}
+
+fn property_axiom_error_parts(
+    error: &rowl_kernel::functional_property_axioms::PropertyAxiomError,
+) -> Found {
+    use rowl_kernel::functional_property_axioms::PropertyAxiomError;
+    match error {
+        PropertyAxiomError::Expected { offset, .. } => {
+            ("a malformed object property axiom", Some(*offset))
+        }
+        PropertyAxiomError::CountLimit { offset } => {
+            ("more properties than the reader's limit", Some(*offset))
+        }
+        PropertyAxiomError::Annotation(error) => annotation_error_parts(error),
+        PropertyAxiomError::Class(error) => class_error_parts(error),
+    }
+}
+
+fn data_axiom_error_parts(error: &rowl_kernel::functional_data_axioms::DataAxiomError) -> Found {
+    use rowl_kernel::functional_data_axioms::DataAxiomError;
+    match error {
+        DataAxiomError::Expected { offset, .. } => {
+            ("a malformed data property axiom", Some(*offset))
+        }
+        DataAxiomError::CountLimit { offset } => {
+            ("more properties than the reader's limit", Some(*offset))
+        }
+        DataAxiomError::Iri(error) => iri_error_parts(error),
+        DataAxiomError::Annotation(error) => annotation_error_parts(error),
+        DataAxiomError::Class(error) => class_error_parts(error),
+        DataAxiomError::Range(error) => range_error_parts(error),
+    }
+}
+
+fn assertion_error_parts(error: &rowl_kernel::functional_assertions::AssertionError) -> Found {
+    use rowl_kernel::functional_assertions::AssertionError;
+    match error {
+        AssertionError::Expected { offset, .. } => ("a malformed assertion", Some(*offset)),
+        AssertionError::Annotation(error) => annotation_error_parts(error),
+        AssertionError::Class(error) => class_error_parts(error),
+        AssertionError::Individual(error) => individual_error_parts(error),
+        AssertionError::Literal(error) => literal_error_parts(error),
+    }
+}
+
 /// The words for why an XML document has no RDF/XML graph.
 pub fn rdfxml_error_words(kind: rdfxml::ErrorKind) -> &'static str {
     use rdfxml::ErrorKind;

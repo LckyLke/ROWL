@@ -415,7 +415,12 @@ formats are future work.
   `<…>` end at the first `>` byte and are validated once as RFC 3987 IRIs.
 - M3 actual immutable prefix-table checking and expansion. Every declaration is
   validated, including unused ones; reserved and duplicate names are rejected
-  with exact original evidence. The four implicit namespaces, exact lookup,
+  with exact original evidence. OWL 2 forbids declaring the four standard
+  prefix names `rdf:`, `rdfs:`, `xsd:` and `owl:` (Structural Specification,
+  §3.7), but tools built on the OWL API, Protégé among them, write a
+  declaration for each with its own namespace. The reader accepts exactly such
+  a restatement, which changes no expansion, and rejects any other namespace
+  for these names (`Rowl.Prefixes.Reserved`). The four implicit namespaces, exact lookup,
   preservation of all declaration bytes and complete construction invariant are
   proved. Expansion rechecks both supplied byte parts, bounds the mathematical
   output byte length and validates the final absolute IRI. Exact concatenation,
@@ -1267,7 +1272,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5444 audited public theorems and 1814 audited semantic definitions. Consistency,
+- 5445 audited public theorems and 1815 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1286,7 +1291,7 @@ formats are future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 659 Rust regression tests and 21 Python binding tests, plus separately fetched
+- 661 Rust regression tests and 21 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1314,7 +1319,7 @@ formats are future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 5637-obligation release ledger and separate checked constructor and built-in inventories.
+- A 5638-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

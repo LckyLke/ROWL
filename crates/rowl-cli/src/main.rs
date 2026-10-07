@@ -1,8 +1,8 @@
 use rowl::experimental::ntriples;
 use rowl::experimental::{decide, Atom, Decision, Formula};
 use rowl::reasoner::{
-    default_limits, named, rdfxml_error_words, xml_error_words, Document, LoadError, Reasoner,
-    Syntax,
+    default_limits, document_error_words, named, rdfxml_error_words, xml_error_words, Document,
+    LoadError, Reasoner, Syntax,
 };
 
 fn answer(value: Option<bool>) -> &'static str {
@@ -45,9 +45,7 @@ fn syntax_of(path: &std::path::Path) -> Syntax {
 /// The words for why the document at `path` could not be loaded.
 fn load_message(path: &str, error: LoadError) -> String {
     match error {
-        LoadError::Document(_) => {
-            format!("{path}: not a Functional Syntax document the verified reader accepts")
-        }
+        LoadError::Document(error) => format!("{path}: {}", document_error_words(&error)),
         LoadError::Triples(error) => format!("{path}: N-Triples parse error at byte {}", error.offset),
         LoadError::Turtle(error) => format!("{path}: Turtle parse error at byte {}", error.offset),
         LoadError::Xml(error) => format!("{path}: {}", xml_error_words(&error)),

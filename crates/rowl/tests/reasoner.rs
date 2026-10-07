@@ -215,3 +215,48 @@ fn individuals_include_those_named_in_class_expressions() {
         Some(true)
     );
 }
+
+#[test]
+fn a_document_declaring_the_standard_prefixes_as_protege_does_is_read() {
+    let header = "Prefix(:=<http://www.semanticweb.org/example/ontologies/2026/10/pets#>)
+Prefix(owl:=<http://www.w3.org/2002/07/owl#>)
+Prefix(rdf:=<http://www.w3.org/1999/02/22-rdf-syntax-ns#>)
+Prefix(xml:=<http://www.w3.org/XML/1998/namespace>)
+Prefix(xsd:=<http://www.w3.org/2001/XMLSchema#>)
+Prefix(rdfs:=<http://www.w3.org/2000/01/rdf-schema#>)
+";
+    let body = "
+
+Ontology(<http://www.semanticweb.org/example/ontologies/2026/10/pets>
+
+Declaration(Class(:Cat))
+Declaration(Class(:Pet))
+Declaration(DataProperty(:age))
+Declaration(NamedIndividual(:tom))
+SubClassOf(:Cat :Pet)
+DataPropertyRange(:age xsd:integer)
+ClassAssertion(:Cat :tom)
+DataPropertyAssertion(:age :tom \"3\"^^xsd:integer)
+AnnotationAssertion(rdfs:label :tom \"Tom\"@en)
+)
+";
+    let source = format!("{header}{body}");
+    let Ok(reasoner) = Reasoner::from_functional(source.as_bytes(), &default_limits()) else {
+        panic!("the standard prefixes with their own namespaces must be accepted");
+    };
+    assert_eq!(reasoner.consistent(), Some(true));
+    let pets = "http://www.semanticweb.org/example/ontologies/2026/10/pets#";
+    assert_eq!(
+        reasoner.instance_of(&format!("{pets}tom"), &named(&format!("{pets}Pet"))),
+        Some(true)
+    );
+    // A standard prefix bound to another namespace is still rejected.
+    let renamed = source.replace(
+        "Prefix(xsd:=<http://www.w3.org/2001/XMLSchema#>)",
+        "Prefix(xsd:=<https://example.org/not-xsd#>)",
+    );
+    assert!(matches!(
+        Reasoner::from_functional(renamed.as_bytes(), &default_limits()),
+        Err(LoadError::Document(_))
+    ));
+}

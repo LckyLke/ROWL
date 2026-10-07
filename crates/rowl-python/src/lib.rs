@@ -12,8 +12,8 @@
 //! is not UTF-8). Lists and the OWL 2 DL verdict come back as JSON text that
 //! the caller releases with [`rowl_string_free`].
 use rowl::reasoner::{
-    default_limits, named, rdfxml_error_words, xml_error_words, Classified, Document, LoadError,
-    Reasoner, Syntax,
+    default_limits, document_error_words, named, rdfxml_error_words, xml_error_words, Classified,
+    Document, LoadError, Reasoner, Syntax,
 };
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
@@ -181,7 +181,7 @@ fn status_of(error: &LoadError) -> i32 {
 /// A load error in words.
 fn load_message(error: &LoadError) -> String {
     match error {
-        LoadError::Document(_) => "not a Functional Syntax document the verified reader accepts".into(),
+        LoadError::Document(error) => document_error_words(error),
         LoadError::Triples(error) => format!("N-Triples parse error at byte {}", error.offset),
         LoadError::Turtle(error) => format!("Turtle parse error at byte {}", error.offset),
         LoadError::Xml(error) => xml_error_words(error),

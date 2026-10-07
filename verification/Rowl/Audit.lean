@@ -587,6 +587,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Names.validate_node_accepted_iff
 #print axioms Rowl.Prefixes.standard_total_correct
 #print axioms Rowl.Prefixes.namespace_total_correct
+#print axioms Rowl.Prefixes.reserved_total_correct
 #print axioms Rowl.Prefixes.lookup_total_correct
 #print axioms Rowl.Prefixes.check_total_correct
 #print axioms Rowl.Prefixes.declarations_total_correct
@@ -7443,3 +7444,4 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.Names
 #print axioms Rowl.Components.Checked
 #print axioms Rowl.Components.checked
+#print axioms Rowl.Prefixes.Reserved

@@ -59,3 +59,19 @@ fn an_inconsistent_ontology_lists_nothing_and_fails() {
         .unwrap()
         .contains("The ontology is inconsistent"));
 }
+
+#[test]
+fn a_rejected_functional_syntax_document_is_explained_with_its_byte() {
+    let text = "Prefix(:=<https://example.org/e/>)\nOntology(<https://example.org/e/onto>\nClassAssertion(dc:Agent :x)\n)\n";
+    let file = document("undeclared.ofn", text);
+    let output = instances(&file, "https://example.org/e/Agent");
+    assert!(!output.status.success());
+    let offset = text.find("dc:Agent").unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains(&format!(
+            "Functional Syntax error at byte {offset}: a prefix name without a Prefix declaration"
+        )),
+        "{stderr}"
+    );
+}
