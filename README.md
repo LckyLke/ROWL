@@ -114,10 +114,10 @@ every one of them its meaning. The verified reasoner covers a growing fragment:
 
 | | ✅ Proved today | 🔜 Next |
 | --- | --- | --- |
-| **Input** | OWL Functional Syntax documents: prefixes, header, annotations and every one of the 37 axiom forms, with all 18 class expressions and all data ranges; N-Triples, passing all 68 W3C syntax tests, and Turtle, passing all 313 W3C Turtle tests, and the OWL ontologies their graphs encode, read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns, annotated axioms and annotations included, and, for EL ontologies of declarations and subclass axioms, to read the graph of every such ontology, listed in the order of the mapping, back to it | imports, RDF/XML and the other required formats |
+| **Input** | OWL Functional Syntax documents: prefixes, header, annotations and every one of the 37 axiom forms, with all 18 class expressions and all data ranges; N-Triples, passing all 68 W3C syntax tests, and Turtle, passing all 313 W3C Turtle tests, and the OWL ontologies their graphs encode, read by the reverse OWL RDF mapping, proved to read back exactly the graph of the ontology it returns, annotated axioms and annotations included, and, for EL ontologies of declarations and subclass axioms, to read the graph of every such ontology, listed in the order of the mapping, back to it; import closures from a catalog of documents (`--imports DIR`, `Reasoner.from_file(..., imports=...)`), with ontology and version IRIs, cycles, missing and ambiguous imports, every document's anonymous individuals kept apart and every axiom's document, proved to have exactly the models of the import closure; nothing is fetched | RDF/XML and the other required formats; RDF documents that use declarations of the documents they import |
 | **Logic** | ALC (and, or, not, some, only) with named individuals, equal and different individuals, inverse roles, role hierarchies, transitive roles, number restrictions, including functional properties, nominals of named individuals, such as enumerations and value restrictions (SHOIQ), self restrictions, reflexive, irreflexive, asymmetric and disjoint properties, role chains and the universal and empty roles (SROIQ); data properties, data restrictions and literals of `xsd:integer`, `xsd:decimal`, `xsd:string`, `rdf:PlainLiteral` and `xsd:boolean` | datatype facets, the other datatypes and keys, up to full OWL 2 DL (SROIQ(D)) |
 | **Questions** | consistency, class satisfiability, subsumption, instance checking, classification of the named classes | query answering |
-| **Validation** | whether a document is OWL 2 DL: keys and arities, the reserved vocabulary, declarations and typing, and the global restrictions on simple roles, property hierarchies, datatypes and anonymous individuals, with the first violation in words (`rowl validate FILE`, `Reasoner.dl_violation()`) | the lexical forms of literals, facet values and imports |
+| **Validation** | whether a document is OWL 2 DL: keys and arities, the reserved vocabulary, declarations and typing, and the global restrictions on simple roles, property hierarchies, datatypes and anonymous individuals, with the first violation in words (`rowl validate FILE [--imports DIR]`, `Reasoner.dl_violation()`), over a whole import closure with the imported declarations | the lexical forms of literals and facet values |
 | **Scale** | a completion graph tableau with lazy unfolding, absorption, early clash detection, anywhere equality blocking and backjumping, and a completion forest with pairwise blocking for counting, nominals and self restrictions; a document read once, with its queries prepared once when first needed, answers any number of queries; classification settles what told subclass axioms and earlier answers decide and tests the rest in groups, and classifies EL ontologies by saturation in one pass | model-based pruning and incremental rule search |
 
 There is no release yet: v0.1 requires all of OWL 2 DL, the normative datatypes
@@ -135,7 +135,10 @@ python3 scripts/verify.py           # re-translate the Rust code and re-check ev
 ```
 
 [`crates/rowl/examples`](crates/rowl/examples) has one runnable example per
-stage, from IRI checks to the `tbox`, `alc_ontology` and `shi_ontology` reasoners.
+stage, from IRI checks to the `tbox`, `alc_ontology` and `shi_ontology` reasoners;
+`medication_imports` reads the medication example split into a vocabulary and
+prescriptions that import it (`examples/imports`), as does
+`rowl instances examples/imports/medication-prescriptions.ofn https://example.org/medication/AllergyAlert --imports examples/imports`.
 
 ## Python
 

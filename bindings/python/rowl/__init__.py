@@ -1,12 +1,13 @@
 """Python bindings for ROWL, an OWL 2 reasoner with proved answers.
 
 A :class:`Reasoner` reads an OWL Functional Syntax, N-Triples or Turtle
-document once and answers any number of questions about it by IRI. Every answer
-comes from the verified Rust pipeline (the document reader, the mapping into the
-OWL model — for N-Triples and Turtle the reverse OWL RDF mapping — and the
-prepared queries), which is
-proved against the OWL 2 Direct Semantics; this package only passes text across
-the C interface of the ``rowl-python`` crate.
+document, or the import closure of one from a catalog of documents, once and
+answers any number of questions about it by IRI. Every answer comes from the
+verified Rust pipeline (the document reader, the mapping into the OWL model —
+for N-Triples and Turtle the reverse OWL RDF mapping —, the assembly of the
+import closure and the prepared queries), which is proved against the OWL 2
+Direct Semantics; this package only passes text across the C interface of the
+``rowl-python`` crate.
 
 An answer is ``True`` or ``False``, or ``None`` when the question is outside
 the supported fragment or a limit was reached. ``False`` means *not entailed*,
@@ -20,11 +21,12 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 __all__ = [
     "Classified",
     "DocumentRejected",
+    "ImportUnresolved",
     "Reasoner",
     "RowlError",
     "UnsupportedOntology",
@@ -43,6 +45,11 @@ class DocumentRejected(RowlError):
 
 class UnsupportedOntology(RowlError):
     """The read document does not map into the OWL model."""
+
+
+class ImportUnresolved(RowlError):
+    """A document of the import closure imports an IRI that is the ontology IRI
+    or version IRI of no document of the catalog, or of several."""
 
 
 @dataclass(frozen=True)
@@ -100,6 +107,11 @@ _lib.rowl_reasoner_from_ntriples.argtypes = [_text, _size, ctypes.POINTER(ctypes
 _lib.rowl_reasoner_from_ntriples.restype = _handle
 _lib.rowl_reasoner_from_turtle.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
 _lib.rowl_reasoner_from_turtle.restype = _handle
+_lib.rowl_reasoner_from_documents.argtypes = [
+    ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_size), ctypes.POINTER(ctypes.c_int32),
+    ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_size), _size, _size,
+    ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_void_p)]
+_lib.rowl_reasoner_from_documents.restype = _handle
 _lib.rowl_reasoner_free.argtypes = [_handle]
 _lib.rowl_reasoner_free.restype = None
 _lib.rowl_consistent.argtypes = [_handle]
@@ -117,6 +129,13 @@ _lib.rowl_string_free.argtypes = [ctypes.c_void_p]
 _lib.rowl_string_free.restype = None
 
 _LOADED, _REJECTED, _UNSUPPORTED, _UNMAPPED = 0, 1, 2, 4
+_MISSING_IMPORT, _AMBIGUOUS_IMPORT, _CLOSURE = 5, 6, 7
+_SYNTAX_CODES = {"functional": 0, "ntriples": 1, "turtle": 2}
+_SUFFIXES = {".ofn": "functional", ".nt": "ntriples", ".ttl": "turtle"}
+
+
+def _syntax_of(path: Path) -> str:
+    return {".nt": "ntriples", ".ttl": "turtle"}.get(path.suffix, "functional")
 
 
 def library_version() -> str:
@@ -180,14 +199,75 @@ class Reasoner:
         self._handle = handle
 
     @classmethod
-    def from_file(cls, path: Union[str, os.PathLike], syntax: Optional[str] = None) -> "Reasoner":
+    def from_file(
+        cls,
+        path: Union[str, os.PathLike],
+        syntax: Optional[str] = None,
+        imports: Optional[Iterable[Union[str, os.PathLike]]] = None,
+    ) -> "Reasoner":
         """Read a document from a file: N-Triples for a ``.nt`` file, Turtle
         for a ``.ttl`` file and Functional Syntax otherwise, unless ``syntax``
-        says which."""
+        says which.
+
+        With ``imports``, read the import closure of the document instead, from
+        a catalog of it and the given files; a directory contributes its
+        ``.ofn``, ``.nt`` and ``.ttl`` files. An import IRI must be the ontology
+        IRI or version IRI of exactly one document of the catalog; nothing is
+        fetched."""
         path = Path(path)
-        if syntax is None:
-            syntax = {".nt": "ntriples", ".ttl": "turtle"}.get(path.suffix, "functional")
-        return cls(path.read_bytes(), syntax)
+        if imports is None:
+            return cls(path.read_bytes(), syntax or _syntax_of(path))
+        documents = [(str(path), path.read_bytes(), syntax or _syntax_of(path))]
+        root = path.resolve()
+        for entry in imports:
+            entry = Path(entry)
+            files = sorted(child for child in entry.iterdir()
+                           if child.suffix in _SUFFIXES and child.is_file()) if entry.is_dir() else [entry]
+            for file in files:
+                if file.resolve() != root:
+                    documents.append((str(file), file.read_bytes(), _syntax_of(file)))
+        return cls.from_documents(documents)
+
+    @classmethod
+    def from_documents(cls, documents: Sequence[Tuple[str, Union[str, bytes], str]],
+                       root: int = 0) -> "Reasoner":
+        """Read the import closure of ``documents[root]`` from a catalog of
+        ``(name, content, syntax)`` documents, ``syntax`` being
+        ``"functional"``, ``"ntriples"`` or ``"turtle"`` (Turtle without a base
+        IRI). The verified assembly follows the import IRIs through the catalog
+        and keeps each document's anonymous individuals apart; nothing is
+        fetched. Errors name the document and, for an import, the IRI."""
+        count = len(documents)
+        names = [name.encode("utf-8") for name, _, _ in documents]
+        datas = [data.encode("utf-8") if isinstance(data, str) else bytes(data) for _, data, _ in documents]
+        codes = []
+        for _, _, syntax in documents:
+            if syntax not in _SYNTAX_CODES:
+                raise ValueError("syntax must be 'functional', 'ntriples' or 'turtle'")
+            codes.append(_SYNTAX_CODES[syntax])
+        status = ctypes.c_int32(-1)
+        message = ctypes.c_void_p()
+        handle = _lib.rowl_reasoner_from_documents(
+            (ctypes.c_char_p * count)(*datas), (_size * count)(*map(len, datas)),
+            (ctypes.c_int32 * count)(*codes), (ctypes.c_char_p * count)(*names),
+            (_size * count)(*map(len, names)), count, root, ctypes.byref(status), ctypes.byref(message))
+        text = "the import closure could not be read"
+        if message.value:
+            try:
+                text = ctypes.string_at(message.value).decode("utf-8")
+            finally:
+                _lib.rowl_string_free(message.value)
+        if not handle:
+            if status.value in (_REJECTED, _UNMAPPED):
+                raise DocumentRejected(text)
+            if status.value == _UNSUPPORTED:
+                raise UnsupportedOntology(text)
+            if status.value in (_MISSING_IMPORT, _AMBIGUOUS_IMPORT):
+                raise ImportUnresolved(text)
+            raise RowlError(text)
+        reasoner = cls.__new__(cls)
+        reasoner._handle = handle
+        return reasoner
 
     def close(self) -> None:
         """Release the document; further questions raise ``ValueError``."""
@@ -261,8 +341,9 @@ class Reasoner:
         """The first OWL 2 DL restriction the document violates, in words, or
         ``None`` when the verified OWL 2 DL check accepts it. The check covers
         keys and arities, the reserved vocabulary, declarations and typing, and
-        the global restrictions of the OWL 2 Structural Specification; the
-        lexical forms of literals, facet values and imports are not checked."""
+        the global restrictions of the OWL 2 Structural Specification; for an
+        import closure it covers the axioms of all its documents. The lexical
+        forms of literals and facet values are not checked."""
         found = self._json(_lib.rowl_dl_violation)
         return None if found is None else str(found)
 

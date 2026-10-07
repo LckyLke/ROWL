@@ -49,6 +49,16 @@ progress. Full OWL parsing and executable reasoning are still future work.
   satisfiability, subsumption and instances, and every axiom is proved to be the
   one at its recorded origin. The imported documents' ontology and version IRIs
   are not checked against the reserved vocabulary.
+- Import closures in the reasoner: `Reasoner::from_documents` reads the import
+  closure of a root document from a catalog with the verified `source_closure`
+  and reasons over its axiom closure; missing and ambiguous imports are errors
+  naming the document and the IRI. The CLI's `check`, `classify`, `instances`
+  and `validate` take `--imports DIR` (every `.ofn`, `.nt` and `.ttl` file of the
+  directory joins the catalog), the C interface has
+  `rowl_reasoner_from_documents` and Python `Reasoner.from_file(path,
+  imports=...)` and `Reasoner.from_documents`. `dl_violation` then checks the
+  whole closure, imported declarations included, and names an offending axiom's
+  document. RDF documents are read with their own declarations only.
 - M3 strict RFC 3629 UTF-8 decoding with exact byte offsets and XML character
   checking. Complete text acceptance is proved in both directions; malformed
   units and forbidden characters return the first unit offset.
@@ -340,11 +350,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   agrees with the symbol-indexed checker. Declaration consistency (§5.8.2)
   is decided separately, the built-in vocabulary restrictions and punning are
   characterized, and annotations are proved to have no logical effect on
-  models, consistency and entailment. The lexical forms of literals (§5.7),
-  facet values (§7.5) and imports are not checked. `Reasoner::dl_violation`,
+  models, consistency and entailment. The lexical forms of literals (§5.7) and
+  facet values (§7.5) are not checked; the check takes the axioms it is given,
+  which for an import closure are those `import_closure` assembles. `Reasoner::dl_violation`,
   the CLI's `validate` command, the C interface's `rowl_dl_violation` and the
   Python `Reasoner.dl_violation()` report this verdict for a loaded document
-  in words, computed when asked; loading never rejects a document for it.
+  or import closure in words, computed when asked; loading never rejects a
+  document for it.
 - M3 complete Functional Syntax name recognition from bytes: prefix names,
   local names, abbreviated IRIs and node IDs use the referenced SPARQL 2008
   grammar. Actual grammar equivalence, totality, exact acceptance and malformed
@@ -1073,7 +1085,8 @@ progress. Full OWL parsing and executable reasoning are still future work.
   mapping's lookups were indexed) and 12 s from Functional Syntax, where lexing
   takes most of the time.
 - Python bindings: the `rowl` package in `bindings/python` reads a
-  Functional Syntax, N-Triples or Turtle document once and answers consistency, satisfiability,
+  Functional Syntax, N-Triples or Turtle document, or the import closure of one
+  from a catalog of documents, once and answers consistency, satisfiability,
   subsumption, instance and classification questions by IRI. It calls the
   verified `Reasoner` through the C interface of the `rowl-python` crate with
   `ctypes`, needs no third-party Python or Rust packages, and installs with
@@ -1126,7 +1139,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 579 Rust regression tests and 15 Python binding tests, plus separately fetched
+- 586 Rust regression tests and 18 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use

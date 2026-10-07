@@ -1,6 +1,6 @@
 use rowl::experimental::ntriples;
 use rowl::experimental::{decide, Atom, Decision, Formula};
-use rowl::reasoner::{default_limits, named, LoadError, Reasoner};
+use rowl::reasoner::{default_limits, named, Document, LoadError, Reasoner, Syntax};
 
 fn answer(value: Option<bool>) -> &'static str {
     match value {
@@ -10,41 +10,141 @@ fn answer(value: Option<bool>) -> &'static str {
     }
 }
 
-/// Read a document: N-Triples for a `.nt` file, Turtle for a `.ttl` file and
-/// Functional Syntax otherwise.
-fn load(path: &str) -> Result<Reasoner, String> {
-    let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
-    let loaded = if path.ends_with(".nt") {
-        Reasoner::from_ntriples(&source)
-    } else if path.ends_with(".ttl") {
-        Reasoner::from_turtle(&source)
-    } else {
-        Reasoner::from_functional(&source, &default_limits())
-    };
-    match loaded {
-        Ok(reasoner) => Ok(reasoner),
-        Err(LoadError::Document(_)) => Err(format!(
-            "{path}: not a Functional Syntax document the verified reader accepts"
-        )),
-        Err(LoadError::Triples(error)) => Err(format!(
-            "{path}: N-Triples parse error at byte {}",
-            error.offset
-        )),
-        Err(LoadError::Turtle(error)) => Err(format!(
-            "{path}: Turtle parse error at byte {}",
-            error.offset
-        )),
-        Err(LoadError::Graph) => Err(format!(
-            "{path}: the graph is not the RDF mapping of an OWL ontology the verified mapping reads"
-        )),
-        Err(LoadError::Unsupported) => Err(format!(
-            "{path}: the document does not map into the OWL model"
-        )),
+/// The syntax of a file: N-Triples for a `.nt` file, Turtle for a `.ttl` file
+/// and Functional Syntax otherwise.
+fn syntax_of(path: &std::path::Path) -> Syntax {
+    match path.extension().and_then(|extension| extension.to_str()) {
+        Some("nt") => Syntax::NTriples,
+        Some("ttl") => Syntax::Turtle(Vec::new()),
+        _ => Syntax::Functional,
     }
 }
 
-fn reasoning_command(command: &str, path: &str, extra: &[String]) -> Result<(), String> {
-    let reasoner = load(path)?;
+/// The words for why the document at `path` could not be loaded.
+fn load_message(path: &str, error: LoadError) -> String {
+    match error {
+        LoadError::Document(_) => {
+            format!("{path}: not a Functional Syntax document the verified reader accepts")
+        }
+        LoadError::Triples(error) => format!("{path}: N-Triples parse error at byte {}", error.offset),
+        LoadError::Turtle(error) => format!("{path}: Turtle parse error at byte {}", error.offset),
+        LoadError::Graph => format!(
+            "{path}: the graph is not the RDF mapping of an OWL ontology the verified mapping reads"
+        ),
+        LoadError::Unsupported => format!("{path}: the document does not map into the OWL model"),
+        LoadError::InDocument { document, error } => load_message(&document, *error),
+        LoadError::MissingImport { document, iri } => format!(
+            "{document}: imports {iri}, which is the ontology IRI or version IRI of no document of the \
+             catalog (nothing is fetched)"
+        ),
+        LoadError::AmbiguousImport {
+            document,
+            iri,
+            first,
+            second,
+        } => format!(
+            "{document}: imports {iri}, which is the ontology IRI or version IRI of both {first} and {second}"
+        ),
+        LoadError::Closure(reason) => format!("{path}: {reason}"),
+    }
+}
+
+/// The `.ofn`, `.nt` and `.ttl` files of a directory, sorted by name.
+fn catalog_files(directory: &str) -> Result<Vec<std::path::PathBuf>, String> {
+    let entries = std::fs::read_dir(directory).map_err(|e| format!("{directory}: {e}"))?;
+    let mut files = Vec::new();
+    for entry in entries {
+        let path = entry.map_err(|e| format!("{directory}: {e}"))?.path();
+        let known = matches!(
+            path.extension().and_then(|extension| extension.to_str()),
+            Some("ofn" | "nt" | "ttl")
+        );
+        if known && path.is_file() {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
+/// Read a document. With `--imports` directories, read the import closure of
+/// the document from a catalog of it and every `.ofn`, `.nt` and `.ttl` file of
+/// the directories; nothing is fetched.
+fn load(path: &str, imports: &[String]) -> Result<Reasoner, String> {
+    let source = std::fs::read(path).map_err(|e| format!("{path}: {e}"))?;
+    let root = std::path::Path::new(path);
+    if imports.is_empty() {
+        let loaded = match syntax_of(root) {
+            Syntax::NTriples => Reasoner::from_ntriples(&source),
+            Syntax::Turtle(_) => Reasoner::from_turtle(&source),
+            Syntax::Functional => Reasoner::from_functional(&source, &default_limits()),
+        };
+        let reasoner = loaded.map_err(|error| load_message(path, error))?;
+        let count = reasoner.ontology().imports.len();
+        if count > 0 {
+            eprintln!(
+                "{path} has {count} import(s); without --imports DIR only its own axioms are read."
+            );
+        }
+        return Ok(reasoner);
+    }
+    let canonical = std::fs::canonicalize(root).map_err(|e| format!("{path}: {e}"))?;
+    let mut documents = vec![Document {
+        name: path.to_string(),
+        syntax: syntax_of(root),
+        bytes: source,
+    }];
+    for directory in imports {
+        for file in catalog_files(directory)? {
+            if std::fs::canonicalize(&file).ok().as_ref() == Some(&canonical) {
+                continue;
+            }
+            let bytes = std::fs::read(&file).map_err(|e| format!("{}: {e}", file.display()))?;
+            documents.push(Document {
+                name: file.display().to_string(),
+                syntax: syntax_of(&file),
+                bytes,
+            });
+        }
+    }
+    let count = documents.len();
+    let reasoner = Reasoner::from_documents(documents, 0, &default_limits())
+        .map_err(|error| load_message(path, error))?;
+    eprintln!(
+        "The import closure of {path} has {} of the {count} catalog document(s): {}.",
+        reasoner.documents().len(),
+        reasoner.documents().join(", ")
+    );
+    Ok(reasoner)
+}
+
+/// Every `--imports DIR` option and the other arguments, in order.
+fn split_imports(arguments: &[String]) -> Result<(Vec<String>, Vec<String>), String> {
+    let mut rest = Vec::new();
+    let mut imports = Vec::new();
+    let mut iterator = arguments.iter();
+    while let Some(argument) = iterator.next() {
+        if argument == "--imports" {
+            match iterator.next() {
+                Some(directory) => imports.push(directory.clone()),
+                None => return Err("--imports needs a directory".into()),
+            }
+        } else if let Some(directory) = argument.strip_prefix("--imports=") {
+            imports.push(directory.to_string());
+        } else {
+            rest.push(argument.clone());
+        }
+    }
+    Ok((rest, imports))
+}
+
+fn reasoning_command(
+    command: &str,
+    path: &str,
+    extra: &[String],
+    imports: &[String],
+) -> Result<(), String> {
+    let reasoner = load(path, imports)?;
     match (command, extra) {
         ("check", []) => {
             println!("consistent: {}", answer(reasoner.consistent()));
@@ -81,9 +181,10 @@ fn reasoning_command(command: &str, path: &str, extra: &[String]) -> Result<(), 
     Ok(())
 }
 
-/// Print whether the document's axioms are OWL 2 DL; `Ok(false)` when not.
-fn validate_command(path: &str) -> Result<bool, String> {
-    let reasoner = load(path)?;
+/// Print whether the document's axioms, or those of its import closure, are
+/// OWL 2 DL; `Ok(false)` when not.
+fn validate_command(path: &str, imports: &[String]) -> Result<bool, String> {
+    let reasoner = load(path, imports)?;
     let valid = match reasoner.dl_violation() {
         None => {
             println!("OWL 2 DL: valid");
@@ -94,9 +195,8 @@ fn validate_command(path: &str) -> Result<bool, String> {
             false
         }
     };
-    let imports = reasoner.ontology().imports.len();
-    if imports > 0 {
-        eprintln!("The document has {imports} import(s); imported ontologies are not read, so only its own axioms are checked.");
+    if !imports.is_empty() {
+        eprintln!("The axioms of every document of the import closure are checked together; of the ontology and version IRIs only the root's are checked.");
     }
     eprintln!("The verdict comes from the verified OWL 2 DL check: keys and arities, the reserved vocabulary, declarations and typing, and the global restrictions of the 2012 Structural Specification. The lexical forms of literals and facet values are not checked yet.");
     Ok(valid)
@@ -136,6 +236,21 @@ fn nt_command(path: &str, export: bool) -> Result<(), String> {
 
 fn main() -> std::process::ExitCode {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
+    let (arguments, imports) = match split_imports(&arguments) {
+        Ok(split) => split,
+        Err(error) => {
+            eprintln!("{error}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let reads = matches!(
+        arguments.first().map(String::as_str),
+        Some("check" | "classify" | "instances" | "validate")
+    );
+    if !imports.is_empty() && !reads {
+        eprintln!("--imports applies to check, classify, instances and validate");
+        return std::process::ExitCode::FAILURE;
+    }
     match arguments.as_slice() {
         [command] if command == "status" => {
             println!("ROWL development version: M1/M2; M3 indexed closure, UTF-8/XML text checks and exact byte-key symbols; M4 integrated raw-ontology declaration checking with implicit built-ins and ordered axiom preparation.");
@@ -179,7 +294,8 @@ fn main() -> std::process::ExitCode {
             println!("A verified completion for named individuals decides concepts at nodes related by named object properties under the TBox and role axioms: proved total, sound (explicit models with a successor model per existential restriction) and complete in every universe. Consistency, satisfiability, subsumption and instance checking now take class and positive and negative object property assertions, also from source text, with each answer proved against the Direct Semantics.");
             println!("Role axioms are read from ontologies and source text: SubObjectPropertyOf between named properties, EquivalentObjectProperties and TransitiveObjectProperty become a role box closed under composition, proved exact for those axioms, and every query decides under it with its answer proved against the Direct Semantics.");
             println!("The queries now cover SROIQ: inverse roles, number restrictions, nominals of named individuals, self restrictions, reflexive, irreflexive, asymmetric and disjoint properties, role chains and the universal and empty roles, decided by a completion forest whose answers are proved against the Direct Semantics. See docs/status.md.");
-            println!("validate decides the OWL 2 DL restrictions on keys, arities, the reserved vocabulary, declarations and typing, and the global restrictions of §11 by a verified check proved exact against their conjunction; literal lexical forms, facet values and imports are not checked.");
+            println!("Import closures are read from a catalog of documents (--imports DIR): import IRIs name documents by their ontology or version IRI, cycles are resolved, missing and ambiguous imports are errors naming the IRI, every document's anonymous individuals are kept apart and every axiom keeps its document; the assembled axioms are proved to have exactly the models of the import closure. Nothing is fetched.");
+            println!("validate decides the OWL 2 DL restrictions on keys, arities, the reserved vocabulary, declarations and typing, and the global restrictions of §11 by a verified check proved exact against their conjunction, over the whole import closure with --imports DIR; literal lexical forms and facet values are not checked.");
             println!("Full OWL 2 DL parsing and reasoning are not implemented.");
         }
         [command] if command == "demo" => {
@@ -202,12 +318,12 @@ fn main() -> std::process::ExitCode {
         [command, path, extra @ ..]
             if command == "check" || command == "classify" || command == "instances" =>
         {
-            if let Err(error) = reasoning_command(command, path, extra) {
+            if let Err(error) = reasoning_command(command, path, extra, &imports) {
                 eprintln!("{error}");
                 return std::process::ExitCode::FAILURE;
             }
         }
-        [command, path] if command == "validate" => match validate_command(path) {
+        [command, path] if command == "validate" => match validate_command(path, &imports) {
             Ok(true) => {}
             Ok(false) => return std::process::ExitCode::FAILURE,
             Err(error) => {
@@ -222,8 +338,9 @@ fn main() -> std::process::ExitCode {
             }
         }
         _ => {
-            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE>");
+            eprintln!("Usage: rowl <status|demo|check FILE|classify FILE|instances FILE CLASS|validate FILE|check-nt FILE|export-nt FILE> [--imports DIR]...");
             eprintln!("check, classify, instances and validate read N-Triples for a .nt FILE, Turtle for a .ttl FILE and Functional Syntax otherwise.");
+            eprintln!("With --imports DIR they read the import closure of FILE from a catalog of FILE and every .ofn, .nt and .ttl file of each DIR; an import IRI must be the ontology or version IRI of exactly one of them. Nothing is fetched.");
             eprintln!("validate prints whether the document is OWL 2 DL or its first violation, and exits with status 1 when it is not.");
             eprintln!("export-nt writes N-Triples to standard output.");
             return std::process::ExitCode::FAILURE;

@@ -11,7 +11,7 @@
 //! supported fragment or a limit was reached) or -2 (a null handle or text that
 //! is not UTF-8). Lists and the OWL 2 DL verdict come back as JSON text that
 //! the caller releases with [`rowl_string_free`].
-use rowl::reasoner::{default_limits, named, Classified, LoadError, Reasoner};
+use rowl::reasoner::{default_limits, named, Classified, Document, LoadError, Reasoner, Syntax};
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 
@@ -31,6 +31,21 @@ pub const ROWL_INVALID: i32 = 3;
 /// The N-Triples or Turtle graph is not the RDF mapping of an OWL ontology
 /// that the verified reverse mapping reads.
 pub const ROWL_UNMAPPED: i32 = 4;
+/// A document of the import closure imports an IRI that is the ontology IRI
+/// or version IRI of no document of the catalog.
+pub const ROWL_MISSING_IMPORT: i32 = 5;
+/// A document of the import closure imports an IRI that several documents of
+/// the catalog have as their ontology IRI or version IRI.
+pub const ROWL_AMBIGUOUS_IMPORT: i32 = 6;
+/// The import closure could not be assembled for another reason.
+pub const ROWL_CLOSURE: i32 = 7;
+
+/// The syntax code of a Functional Syntax document of a catalog.
+pub const ROWL_SYNTAX_FUNCTIONAL: i32 = 0;
+/// The syntax code of an N-Triples document of a catalog.
+pub const ROWL_SYNTAX_NTRIPLES: i32 = 1;
+/// The syntax code of a Turtle document of a catalog, read without a base IRI.
+pub const ROWL_SYNTAX_TURTLE: i32 = 2;
 
 const INVALID_ARGUMENT: i32 = -2;
 
@@ -139,15 +154,50 @@ fn json_classification(classified: &[Classified]) -> String {
     out
 }
 
+/// The status code of a load error.
+fn status_of(error: &LoadError) -> i32 {
+    match error {
+        LoadError::Document(_) | LoadError::Triples(_) | LoadError::Turtle(_) => ROWL_REJECTED,
+        LoadError::Graph => ROWL_UNMAPPED,
+        LoadError::Unsupported => ROWL_UNSUPPORTED,
+        LoadError::InDocument { error, .. } => status_of(error),
+        LoadError::MissingImport { .. } => ROWL_MISSING_IMPORT,
+        LoadError::AmbiguousImport { .. } => ROWL_AMBIGUOUS_IMPORT,
+        LoadError::Closure(_) => ROWL_CLOSURE,
+    }
+}
+
+/// A load error in words.
+fn load_message(error: &LoadError) -> String {
+    match error {
+        LoadError::Document(_) => "not a Functional Syntax document the verified reader accepts".into(),
+        LoadError::Triples(error) => format!("N-Triples parse error at byte {}", error.offset),
+        LoadError::Turtle(error) => format!("Turtle parse error at byte {}", error.offset),
+        LoadError::Graph => {
+            "the graph is not the RDF mapping of an OWL ontology the verified mapping reads".into()
+        }
+        LoadError::Unsupported => "the document does not map into the OWL model".into(),
+        LoadError::InDocument { document, error } => format!("{document}: {}", load_message(error)),
+        LoadError::MissingImport { document, iri } => format!(
+            "{document}: imports {iri}, which is the ontology IRI or version IRI of no document of the catalog"
+        ),
+        LoadError::AmbiguousImport {
+            document,
+            iri,
+            first,
+            second,
+        } => format!(
+            "{document}: imports {iri}, which is the ontology IRI or version IRI of both {first} and {second}"
+        ),
+        LoadError::Closure(reason) => reason.clone(),
+    }
+}
+
 /// The status code and handle of a load.
 fn loaded(result: Result<Reasoner, LoadError>) -> (i32, *mut RowlReasoner) {
     match result {
         Ok(inner) => (ROWL_LOADED, Box::into_raw(Box::new(RowlReasoner { inner }))),
-        Err(LoadError::Document(_)) | Err(LoadError::Triples(_)) | Err(LoadError::Turtle(_)) => {
-            (ROWL_REJECTED, ptr::null_mut())
-        }
-        Err(LoadError::Graph) => (ROWL_UNMAPPED, ptr::null_mut()),
-        Err(LoadError::Unsupported) => (ROWL_UNSUPPORTED, ptr::null_mut()),
+        Err(error) => (status_of(&error), ptr::null_mut()),
     }
 }
 
@@ -231,6 +281,116 @@ pub unsafe extern "C" fn rowl_reasoner_from_turtle(
         unsafe { *status = code };
     }
     reasoner
+}
+
+/// Read the import closure of the document at position `root` of a catalog
+/// of `count` documents: document `i` has the `lens[i]` bytes at `datas[i]`,
+/// the syntax code `syntaxes[i]` and, unless `names` is null, the UTF-8 name
+/// of `name_lens[i]` bytes at `names[i]`, which messages use. Every document is
+/// read by its verified reader, and the verified assembly follows the import
+/// IRIs through the catalog; nothing is fetched. Returns a handle, or null with
+/// `status` set to [`ROWL_REJECTED`], [`ROWL_UNMAPPED`], [`ROWL_UNSUPPORTED`],
+/// [`ROWL_MISSING_IMPORT`], [`ROWL_AMBIGUOUS_IMPORT`], [`ROWL_CLOSURE`] or
+/// [`ROWL_INVALID`] and, unless `message` is null, `*message` set to the reason
+/// in words, which the caller releases with [`rowl_string_free`].
+///
+/// # Safety
+/// `datas`, `lens` and `syntaxes` must point to `count` readable entries,
+/// each data pointer to its length of readable bytes (or be null with length
+/// zero); `names` and `name_lens` must be null or point to `count` entries
+/// likewise; `status` and `message` must be null or writable.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rowl_reasoner_from_documents(
+    datas: *const *const u8,
+    lens: *const usize,
+    syntaxes: *const i32,
+    names: *const *const u8,
+    name_lens: *const usize,
+    count: usize,
+    root: usize,
+    status: *mut i32,
+    message: *mut *mut c_char,
+) -> *mut RowlReasoner {
+    // SAFETY: forwarded from the caller.
+    let documents = unsafe { catalog(datas, lens, syntaxes, names, name_lens, count) };
+    let (code, reasoner, text) = match documents {
+        None => (ROWL_INVALID, ptr::null_mut(), None),
+        Some(documents) => match Reasoner::from_documents(documents, root, &default_limits()) {
+            Ok(inner) => (
+                ROWL_LOADED,
+                Box::into_raw(Box::new(RowlReasoner { inner })),
+                None,
+            ),
+            Err(error) => (
+                status_of(&error),
+                ptr::null_mut(),
+                Some(load_message(&error)),
+            ),
+        },
+    };
+    if !status.is_null() {
+        // SAFETY: the caller guarantees that a non-null `status` is writable.
+        unsafe { *status = code };
+    }
+    if !message.is_null() {
+        let text = match text {
+            Some(text) => into_c(text),
+            None => ptr::null_mut(),
+        };
+        // SAFETY: the caller guarantees that a non-null `message` is writable.
+        unsafe { *message = text };
+    }
+    reasoner
+}
+
+/// The documents of a catalog from C arrays; `None` for a null array, an
+/// unknown syntax code or a name that is not UTF-8.
+///
+/// # Safety
+/// As for [`rowl_reasoner_from_documents`].
+unsafe fn catalog(
+    datas: *const *const u8,
+    lens: *const usize,
+    syntaxes: *const i32,
+    names: *const *const u8,
+    name_lens: *const usize,
+    count: usize,
+) -> Option<Vec<Document>> {
+    if count > 0 && (datas.is_null() || lens.is_null() || syntaxes.is_null()) {
+        return None;
+    }
+    if !names.is_null() && name_lens.is_null() {
+        return None;
+    }
+    let mut documents = Vec::with_capacity(count);
+    for index in 0..count {
+        // SAFETY: the caller guarantees `count` readable entries in each array.
+        let (data, len, code) =
+            unsafe { (*datas.add(index), *lens.add(index), *syntaxes.add(index)) };
+        // SAFETY: the caller guarantees `len` readable bytes at `data`.
+        let bytes = unsafe { bytes(data, len) }?.to_vec();
+        let syntax = match code {
+            ROWL_SYNTAX_FUNCTIONAL => Syntax::Functional,
+            ROWL_SYNTAX_NTRIPLES => Syntax::NTriples,
+            ROWL_SYNTAX_TURTLE => Syntax::Turtle(Vec::new()),
+            _ => return None,
+        };
+        let name = if names.is_null() {
+            format!("document {index}")
+        } else {
+            // SAFETY: the caller guarantees `count` readable names with their lengths.
+            let (name, name_len) = unsafe { (*names.add(index), *name_lens.add(index)) };
+            // SAFETY: forwarded from the caller.
+            unsafe { text(name, name_len) }?.to_string()
+        };
+        documents.push(Document {
+            name,
+            syntax,
+            bytes,
+        });
+    }
+    Some(documents)
 }
 
 /// Release a handle. Null is ignored.

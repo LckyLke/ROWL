@@ -129,3 +129,80 @@ fn dl_violations_come_back_as_json_text() {
         assert!(rowl_dl_violation(ptr::null()).is_null());
     }
 }
+
+const PRESCRIPTIONS: &[u8] =
+    include_bytes!("../../../examples/imports/medication-prescriptions.ofn");
+const VOCABULARY: &[u8] = include_bytes!("../../../examples/imports/medication-vocabulary.ttl");
+
+/// Read a catalog through the C interface; the status, the handle and the message.
+fn load_catalog(documents: &[(&str, &[u8], i32)]) -> (i32, *mut RowlReasoner, Option<String>) {
+    let datas: Vec<*const u8> = documents.iter().map(|(_, data, _)| data.as_ptr()).collect();
+    let lens: Vec<usize> = documents.iter().map(|(_, data, _)| data.len()).collect();
+    let syntaxes: Vec<i32> = documents.iter().map(|(_, _, syntax)| *syntax).collect();
+    let names: Vec<*const u8> = documents.iter().map(|(name, _, _)| name.as_ptr()).collect();
+    let name_lens: Vec<usize> = documents.iter().map(|(name, _, _)| name.len()).collect();
+    let mut status = -1;
+    let mut message = ptr::null_mut();
+    // SAFETY: every array has `documents.len()` entries pointing to live buffers.
+    let reasoner = unsafe {
+        rowl_reasoner_from_documents(
+            datas.as_ptr(),
+            lens.as_ptr(),
+            syntaxes.as_ptr(),
+            names.as_ptr(),
+            name_lens.as_ptr(),
+            documents.len(),
+            0,
+            &mut status,
+            &mut message,
+        )
+    };
+    let message = if message.is_null() {
+        None
+    } else {
+        Some(take(message))
+    };
+    (status, reasoner, message)
+}
+
+#[test]
+fn import_closures_load_through_the_c_interface() {
+    let (status, reasoner, message) = load_catalog(&[
+        ("prescriptions", PRESCRIPTIONS, ROWL_SYNTAX_FUNCTIONAL),
+        ("vocabulary", VOCABULARY, ROWL_SYNTAX_TURTLE),
+    ]);
+    assert_eq!(status, ROWL_LOADED);
+    assert!(message.is_none());
+    // SAFETY: a live handle and readable text buffers.
+    unsafe {
+        let (alice, alert) = (iri("alice"), iri("AllergyAlert"));
+        assert_eq!(
+            rowl_instance_of(
+                reasoner,
+                alice.as_ptr(),
+                alice.len(),
+                alert.as_ptr(),
+                alert.len()
+            ),
+            1
+        );
+        assert_eq!(take(rowl_dl_violation(reasoner)), "null");
+        rowl_reasoner_free(reasoner);
+    }
+    let (status, reasoner, message) =
+        load_catalog(&[("prescriptions", PRESCRIPTIONS, ROWL_SYNTAX_FUNCTIONAL)]);
+    assert_eq!(status, ROWL_MISSING_IMPORT);
+    assert!(reasoner.is_null());
+    assert!(message
+        .unwrap()
+        .contains("https://example.org/medication/vocabulary/1.0"));
+    let (status, _, _) = load_catalog(&[
+        ("prescriptions", PRESCRIPTIONS, ROWL_SYNTAX_FUNCTIONAL),
+        ("vocabulary", VOCABULARY, ROWL_SYNTAX_TURTLE),
+        ("copy", VOCABULARY, ROWL_SYNTAX_TURTLE),
+    ]);
+    assert_eq!(status, ROWL_AMBIGUOUS_IMPORT);
+    let (status, _, message) = load_catalog(&[("prescriptions", PRESCRIPTIONS, 9)]);
+    assert_eq!(status, ROWL_INVALID);
+    assert!(message.is_none());
+}

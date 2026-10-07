@@ -17,6 +17,11 @@ fn every_example_document_is_owl_2_dl() {
     let mut checked = 0;
     for entry in std::fs::read_dir(&examples).expect("the examples directory") {
         let path = entry.expect("a directory entry").path();
+        // examples/imports holds documents that are OWL 2 DL only with their
+        // imports; the import tests check them.
+        if !path.is_file() {
+            continue;
+        }
         let bytes = std::fs::read(&path).expect("a readable example");
         let loaded = match path.extension().and_then(|extension| extension.to_str()) {
             Some("ofn") => Reasoner::from_functional(&bytes, &default_limits()),

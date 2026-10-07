@@ -5246,3 +5246,62 @@ functions of `anonymous_scopes` extract to 0.32 MB of LLBC and the 20 of
 
 This block adds 23 public theorems and 27 definitions. Totals are 3179 audited
 theorems, 1430 definitions, 579 Rust regressions and 3372 ledger obligations.
+
+## Reasoning over import closures
+
+`Reasoner::from_documents` reads the import closure of a root document from a
+catalog of documents, each a name for messages, a syntax (Functional Syntax,
+N-Triples, or Turtle with a base IRI) and its bytes, with the verified
+`import_closure::source_closure` of the previous section, and reasons over the
+assembled axiom closure exactly as over a single document. Nothing is fetched.
+`LoadError` gains `InDocument` (a document of the catalog the verified reader
+rejected, with the reader's error), `MissingImport` and `AmbiguousImport` (the
+importing document and the IRI, and for an ambiguous IRI the first two
+documents that have it) and `Closure` for the reasons the proofs exclude or
+that need more memory than exists. `Reasoner::documents` names the documents of
+the closure. `dl_violation` checks the whole axiom closure, so imported
+declarations count, and names an offending axiom by its document and its
+position there, from the provenance the assembly keeps; of the ontology and
+version IRIs only the root's are checked against the reserved vocabulary.
+
+The CLI's `check`, `classify`, `instances` and `validate` commands take
+`--imports DIR` (repeatable): the catalog is FILE and every `.ofn`, `.nt` and
+`.ttl` file of each DIR, sorted by name, FILE itself left out; the closure's
+documents are listed on standard error, and a missing or ambiguous import is an
+error naming the document and the IRI. Without `--imports`, a document with
+imports is read alone as before, with a note on standard error. The C interface
+has `rowl_reasoner_from_documents` with syntax codes, document names, the new
+status codes `ROWL_MISSING_IMPORT`, `ROWL_AMBIGUOUS_IMPORT` and `ROWL_CLOSURE`
+and the reason in words; the Python package reads closures with
+`Reasoner.from_file(path, imports=[...])` (files or directories) and
+`Reasoner.from_documents([(name, text, syntax), ...])` and raises
+`rowl.ImportUnresolved` for a missing or ambiguous import. Turtle documents of a
+catalog are read without a base IRI by the CLI, the C interface and Python.
+
+`examples/imports` splits the medication-safety example into a drug vocabulary
+with the alert rule, in Turtle, whose version IRI the prescriptions, in
+Functional Syntax, import; `crates/rowl/examples/medication_imports.rs` reads
+them. The closure gives the classes, individuals, classification and instance
+answers of `medication-safety.ofn`, and is OWL 2 DL, while the prescriptions
+read alone use undeclared classes and properties and are not. Regression tests
+cover that example, a cyclic closure of Functional Syntax and N-Triples
+documents read from two different roots, an import found by its version IRI,
+missing, ambiguous and unreadable documents, and colliding blank-node labels in
+two documents (Functional Syntax and N-Triples), whose individuals would be in
+two disjoint classes were they one: the closure is consistent. The CLI and
+Python tests run the same cases through their interfaces.
+
+This glue adds no reasoning and no proof; the answers are those of the verified
+readers, assembly and queries. The closure path costs nothing measurable:
+classifying the generated EL ontology with 20 000 classes takes 1.15 to 1.29 s
+from Functional Syntax and 0.41 to 0.54 s from N-Triples or Turtle on a shared
+machine, read alone or as a catalog of one document, with identical output.
+`frontend.ImportedDeclarations` stays planned: canonical parsing of an RDF
+document needs the declarations of the whole import closure (§3.6 of the
+Structural Specification), and the reverse RDF mapping reads each graph with its
+own declarations only, so an RDF document of a catalog must declare what it uses.
+Documents without an ontology header are not included unless imported or the
+root, so `imports.HeaderlessIncludes` stays planned too.
+
+This block adds 0 public theorems and 0 definitions. Totals are 3179 audited
+theorems, 1430 definitions, 586 Rust regressions and 3372 ledger obligations.

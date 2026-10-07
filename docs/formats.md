@@ -10,8 +10,9 @@ verified RDF/OWL frontend exists yet.
 The shared raw term/dataset representation and explicit graph-selection operation
 are now implemented. Lean proves exact graph-name comparison, total selection,
 whole-dataset retention, missing-graph acceptance iff and default-selection
-acceptance iff names are unique. Raw term lexical validity and assigning blank
-identities across imported documents remain proof obligations. N-Triples reads
+acceptance iff names are unique. Raw term lexical validity remains a proof
+obligation; the documents of an import closure are read with blank identities
+in a scope of their own (`import_catalog`, below). N-Triples reads
 exact scoped terms from bytes under a supplied immutable scope and explicit
 term/count limits; default limits are input sized. Its export laws and the full
 verified multi-format OWL frontend remain pending.
@@ -88,8 +89,9 @@ meet its full acceptance/correctness/termination obligations before v0.1.
 exports a graph with an explicit output-byte budget. It preserves term kinds,
 exact IRIs, lexical forms, datatype IRIs, language-tag case and repeated raw
 triple occurrences. Equal labels in a supplied document scope have one blank
-identity. The caller must assign distinct scopes to independent documents;
-canonical import scope assignment remains pending. Export labels injectively
+identity. The caller must assign distinct scopes to independent documents; an
+import closure gives each document the scope of its catalog position
+(`import_catalog::document_scope`). Export labels injectively
 encode both raw scope and label keys, including empty/non-UTF-8 opaque keys;
 blank labels therefore change on reload, with graph isomorphism as the contract.
 
@@ -123,8 +125,8 @@ triples, count-limit outcomes and first errors are checked. The RDF-to-OWL
 mapping is proved sound, annotated axioms and annotations included, and complete
 for the EL fragment: the graph of an ontology of declarations and subclass axioms
 between named classes and existential restrictions, listed in the order of the
-forward mapping, is read back to exactly that ontology. Canonical identity
-assignment across imports, the completeness of the mapping beyond that fragment
+forward mapping, is read back to exactly that ontology. The completeness of the
+mapping beyond that fragment
 and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 
@@ -189,3 +191,18 @@ pass: positive and negative syntax, negative evaluation, and evaluation cases
 whose graphs equal the expected N-Triples graphs up to blank-node isomorphism.
 Exact fetched-file hashes and the pinned `w3c/rdf-tests` commit are recorded in
 `turtle-suite.json`; the corpus stays outside this repository.
+
+## Import closures
+
+`import_catalog` and `import_closure` read the import closure of a document
+from a catalog of Functional Syntax, N-Triples and Turtle documents that the
+caller supplies, as the catalog rules above require: nothing is fetched, and an
+import IRI that is the ontology or version IRI of no document of the catalog, or
+of several, is a typed error naming the document and the IRI. Every document's
+blank nodes or node IDs are anonymous individuals of a scope of its own, so
+equal labels in different documents denote different individuals (§5.6.2 of
+the Structural Specification). The assembled axiom closure is proved to have
+exactly the models of the import closure (see `docs/status.md`). The reverse RDF
+mapping reads each RDF document with its own declarations only, not with those
+of the documents it imports, as the canonical parsing of the Structural
+Specification §3.6 would.

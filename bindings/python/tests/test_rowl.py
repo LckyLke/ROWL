@@ -134,3 +134,43 @@ class Validity(unittest.TestCase):
                 reasoner.dl_violation(),
                 "https://example.org/A is used as a class but not declared as one "
                 "(typing constraints, §5.8.1)")
+
+
+PRESCRIPTIONS = ROOT / "examples" / "imports" / "medication-prescriptions.ofn"
+
+
+class ImportClosures(unittest.TestCase):
+    def test_split_example_gives_the_same_answers(self):
+        alert = IRI + "AllergyAlert"
+        with rowl.Reasoner.from_file(PRESCRIPTIONS, imports=[PRESCRIPTIONS.parent]) as closure, \
+                rowl.Reasoner.from_file(MEDICATION) as whole:
+            for person in ("alice", "bob", "carol"):
+                self.assertIs(closure.instance_of(IRI + person, alert),
+                              whole.instance_of(IRI + person, alert))
+            self.assertIs(closure.instance_of(IRI + "alice", alert), True)
+            self.assertEqual(closure.classes(), whole.classes())
+            self.assertIsNone(closure.dl_violation())
+        with rowl.Reasoner.from_file(PRESCRIPTIONS) as alone:
+            self.assertIn("not declared", alone.dl_violation())
+
+    def test_missing_and_ambiguous_imports_are_named(self):
+        with self.assertRaises(rowl.ImportUnresolved) as raised:
+            rowl.Reasoner.from_file(PRESCRIPTIONS, imports=[])
+        self.assertIn("https://example.org/medication/vocabulary/1.0", str(raised.exception))
+        vocabulary = PRESCRIPTIONS.parent / "medication-vocabulary.ttl"
+        with self.assertRaises(rowl.ImportUnresolved):
+            rowl.Reasoner.from_file(PRESCRIPTIONS, imports=[vocabulary, vocabulary])
+
+    def test_documents_from_text_keep_node_ids_apart(self):
+        first = ("Prefix(:=<http://example.org/>)\n"
+                 "Ontology(<http://example.org/first> Import(<http://example.org/second>)\n"
+                 "Declaration(Class(:A)) Declaration(Class(:B)) DisjointClasses(:A :B)\n"
+                 "ClassAssertion(:A _:x))\n")
+        second = ("Prefix(:=<http://example.org/>)\n"
+                  "Ontology(<http://example.org/second> ClassAssertion(:B _:x))\n")
+        with rowl.Reasoner.from_documents([("first", first, "functional"),
+                                           ("second", second, "functional")]) as closure:
+            self.assertIs(closure.consistent(), True)
+        with self.assertRaises(rowl.DocumentRejected) as raised:
+            rowl.Reasoner.from_documents([("first", first, "functional"), ("broken", "Ontology(", "functional")])
+        self.assertIn("broken", str(raised.exception))

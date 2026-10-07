@@ -31,8 +31,10 @@ outside the supported fragment (see the repository's `docs/status.md`) or a
 limit was reached. `False` means *not entailed by the axioms*, not *proved
 false*. Loading raises `rowl.DocumentRejected` when the verified reader
 rejects the document or its RDF graph is not the mapping of an OWL ontology
-the verified reverse mapping reads, and `rowl.UnsupportedOntology` when the
-read document does not map into the OWL model.
+the verified reverse mapping reads, `rowl.UnsupportedOntology` when the
+read document does not map into the OWL model, and `rowl.ImportUnresolved`
+when an import of an import closure names no document of the catalog, or
+several.
 
 | Method | Question |
 | --- | --- |
@@ -49,8 +51,33 @@ read document does not map into the OWL model.
 arities, the reserved vocabulary, declarations and typing, and the global
 restrictions of the OWL 2 Structural Specification, proved exact against their
 conjunction. It is computed when called; loading never rejects a document for
-these restrictions. The lexical forms of literals, facet values and imports are
-not checked yet.
+these restrictions. For an import closure it checks the axioms of all its
+documents, so imported declarations count. The lexical forms of literals and
+facet values are not checked yet.
+
+## Import closures
+
+An ontology that imports others is read together with them from a catalog of
+documents; nothing is fetched:
+
+```python
+with rowl.Reasoner.from_file("examples/imports/medication-prescriptions.ofn",
+                             imports=["examples/imports"]) as r:
+    r.instance_of(med + "alice", med + "AllergyAlert")      # True
+    r.dl_violation()                                        # None: imported declarations count
+```
+
+`imports` lists further files of the catalog; a directory contributes its
+`.ofn`, `.nt` and `.ttl` files. `Reasoner.from_documents([(name, text, syntax),
+...], root=0)` takes the catalog as text, `syntax` being `"functional"`,
+`"ntriples"` or `"turtle"` (Turtle without a base IRI). Every import IRI of a
+document of the import closure must be the ontology IRI or version IRI of
+exactly one document of the catalog; otherwise loading raises
+`rowl.ImportUnresolved`, naming the document and the IRI. The verified assembly
+keeps every document's anonymous individuals apart, and the answers are proved
+to be those of the whole import closure. RDF documents are read without the
+declarations of the documents they import, so an N-Triples or Turtle document
+must declare what it uses.
 
 ## Installing
 

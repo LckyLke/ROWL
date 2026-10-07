@@ -1,0 +1,31 @@
+# The drug vocabulary and the alert rule of examples/medication-safety.ofn as
+# an ontology of their own. medication-prescriptions.ofn imports this ontology
+# by its version IRI.
+@prefix : <https://example.org/medication/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:vocabulary a owl:Ontology ;
+    owl:versionIRI <https://example.org/medication/vocabulary/1.0> ;
+    rdfs:label "Medication vocabulary" .
+
+:Penicillin a owl:Class ; owl:disjointWith :Macrolide .
+:Amoxicillin a owl:Class ; rdfs:subClassOf :Penicillin .
+:Macrolide a owl:Class .
+:Azithromycin a owl:Class ; rdfs:subClassOf :Macrolide .
+:PenicillinAllergy a owl:Class .
+:AllergyAlert a owl:Class .
+
+:contains a owl:ObjectProperty, owl:TransitiveProperty .
+:hasActiveIngredient a owl:ObjectProperty ; rdfs:subPropertyOf :contains .
+:receives a owl:ObjectProperty .
+:hasAllergy a owl:ObjectProperty .
+
+# A penicillin allergy and a medication containing a penicillin need an alert.
+[ a owl:Class ;
+  owl:intersectionOf (
+      [ a owl:Restriction ; owl:onProperty :hasAllergy ; owl:someValuesFrom :PenicillinAllergy ]
+      [ a owl:Restriction ; owl:onProperty :receives ;
+        owl:someValuesFrom [ a owl:Restriction ; owl:onProperty :contains ; owl:someValuesFrom :Penicillin ] ]
+  )
+] rdfs:subClassOf :AllergyAlert .

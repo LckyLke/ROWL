@@ -1,5 +1,6 @@
 //! A convenience interface over the verified pipeline: read a Functional
-//! Syntax, N-Triples or Turtle document once and ask questions about it by IRI.
+//! Syntax, N-Triples or Turtle document, or the import closure of one from a
+//! catalog of documents, once and ask questions about it by IRI.
 //!
 //! Every answer comes from the verified kernel functions: the document reader,
 //! the mapping into the raw OWL model (for N-Triples and Turtle, the reverse
@@ -7,9 +8,10 @@
 //! classification of `classification` and, for EL ontologies, the saturation of
 //! `saturation`. `None` means the question or the
 //! document is outside the reasoner's supported fragment, or a limit was
-//! reached. This module only collects names and lays out answers; it adds no
-//! reasoning of its own. `dl_violation` reports, in words, the verdict of the
-//! verified OWL 2 DL check `dl_validity::check_ontology`.
+//! reached. An import closure is read and assembled by the verified
+//! `import_closure::source_closure`. This module only collects names and lays
+//! out answers; it adds no reasoning of its own. `dl_violation` reports, in
+//! words, the verdict of the verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
@@ -19,6 +21,8 @@ use rowl_kernel::dl_validity::{check_ontology, DlCheck};
 use rowl_kernel::functional_annotations::AnnotationLimits;
 use rowl_kernel::functional_classes::ClassLimits;
 use rowl_kernel::functional_document::{DocumentError, DocumentLimits};
+use rowl_kernel::import_catalog::{Format, Source, SourceError};
+use rowl_kernel::import_closure::{source_closure, ClosureError, Origin};
 use rowl_kernel::model::{
     AnnotatedAxiom, AnonymousIndividual, Axiom, Class, ClassExpression, Entity, Individual, Iri,
     NamedIndividual, RawOntology,
@@ -90,6 +94,54 @@ pub enum LoadError {
     Graph,
     /// The read document does not map into the raw OWL model.
     Unsupported,
+    /// A document of a catalog could not be read; the inner error says why.
+    InDocument {
+        document: String,
+        error: Box<LoadError>,
+    },
+    /// A document of the import closure imports an IRI that is the ontology
+    /// IRI or version IRI of no document of the catalog. Nothing is fetched.
+    MissingImport { document: String, iri: String },
+    /// A document of the import closure imports an IRI that several documents
+    /// of the catalog have as their ontology IRI or version IRI; the first two
+    /// are named.
+    AmbiguousImport {
+        document: String,
+        iri: String,
+        first: String,
+        second: String,
+    },
+    /// The import closure could not be assembled, for the reason given.
+    Closure(String),
+}
+
+/// The syntax of a document of a catalog.
+pub enum Syntax {
+    /// OWL 2 Functional-Style Syntax.
+    Functional,
+    /// N-Triples, read as the OWL ontology its graph encodes.
+    NTriples,
+    /// Turtle, read as the OWL ontology its graph encodes; relative IRIs
+    /// resolve against this base IRI until the document declares its own.
+    Turtle(Vec<u8>),
+}
+
+/// A document of a catalog for [`Reasoner::from_documents`]: a name used in
+/// messages, such as its path, its syntax and its bytes.
+pub struct Document {
+    pub name: String,
+    pub syntax: Syntax,
+    pub bytes: Vec<u8>,
+}
+
+/// The documents of an import closure and where its axioms come from.
+struct Provenance {
+    /// The names of the catalog's documents.
+    names: Vec<String>,
+    /// The catalog positions of the documents of the closure.
+    documents: Vec<usize>,
+    /// The document and position of every axiom.
+    origins: Vec<Origin>,
 }
 
 /// A document read once. Its queries are prepared once, when the first
@@ -98,6 +150,7 @@ pub enum LoadError {
 /// first asked for.
 pub struct Reasoner {
     ontology: RawOntology,
+    provenance: Option<Provenance>,
     prepared: OnceLock<Option<Prepared>>,
     violation: OnceLock<Option<String>>,
 }
@@ -238,25 +291,97 @@ fn axiom_name(axiom: &Axiom) -> &'static str {
     }
 }
 
-/// An axiom by its kind and its position in the document's axioms, from 1.
-fn axiom_text(ontology: &RawOntology, item: &AnnotatedAxiom) -> String {
-    match ontology
+/// An axiom by its kind and its position, from 1, in the document's axioms or,
+/// for an import closure, in the axioms of the document it comes from.
+fn axiom_text(
+    ontology: &RawOntology,
+    provenance: Option<&Provenance>,
+    item: &AnnotatedAxiom,
+) -> String {
+    let index = ontology
         .axioms
         .iter()
-        .position(|candidate| std::ptr::eq(candidate, item))
-    {
-        Some(index) => format!(
+        .position(|candidate| std::ptr::eq(candidate, item));
+    let origin = provenance.and_then(|provenance| {
+        let origin = provenance.origins.get(index?)?;
+        Some((provenance.names.get(origin.document)?, origin.position))
+    });
+    match (index, origin) {
+        (_, Some((name, position))) => format!(
+            "the {} axiom at position {} of {}",
+            axiom_name(&item.axiom),
+            position + 1,
+            name
+        ),
+        (Some(index), None) => format!(
             "the {} axiom at position {}",
             axiom_name(&item.axiom),
             index + 1
         ),
-        None => format!("a {} axiom", axiom_name(&item.axiom)),
+        (None, None) => format!("a {} axiom", axiom_name(&item.axiom)),
+    }
+}
+
+/// Why the verified assembly found no import closure, as a load error.
+fn closure_error(error: ClosureError, names: &[String]) -> LoadError {
+    let name = |document: usize| {
+        names
+            .get(document)
+            .cloned()
+            .unwrap_or_else(|| format!("document {document}"))
+    };
+    match error {
+        ClosureError::Unread(unread) => LoadError::InDocument {
+            document: name(unread.document),
+            error: Box::new(match unread.error {
+                SourceError::Functional(error) => LoadError::Document(error),
+                SourceError::Unmapped => LoadError::Unsupported,
+                SourceError::Triples(error) => LoadError::Triples(error),
+                SourceError::Turtle(error) => LoadError::Turtle(error),
+                SourceError::Graph => LoadError::Graph,
+            }),
+        },
+        ClosureError::MissingImport { document, iri } => LoadError::MissingImport {
+            document: name(document),
+            iri: iri_text(&iri),
+        },
+        ClosureError::AmbiguousImport {
+            document,
+            iri,
+            first,
+            second,
+        } => LoadError::AmbiguousImport {
+            document: name(document),
+            iri: iri_text(&iri),
+            first: name(first),
+            second: name(second),
+        },
+        ClosureError::NoRoot => {
+            LoadError::Closure("the root is not a document of the catalog".into())
+        }
+        ClosureError::TooManyDocuments => {
+            LoadError::Closure("the catalog has more documents than 32-bit keys".into())
+        }
+        ClosureError::Unresolved => {
+            LoadError::Closure("the import closure was not resolved".into())
+        }
+        ClosureError::OutOfScope { document } => LoadError::Closure(format!(
+            "{} has an anonymous individual outside its own scope",
+            name(document)
+        )),
+        ClosureError::TooLarge => {
+            LoadError::Closure("the import closure has more axioms than a vector holds".into())
+        }
     }
 }
 
 /// The verified check's first violation in words, or `None` for `Valid`.
-fn describe_violation(ontology: &RawOntology, check: &DlCheck<'_>) -> Option<String> {
-    let axiom = |item: &AnnotatedAxiom| axiom_text(ontology, item);
+fn describe_violation(
+    ontology: &RawOntology,
+    provenance: Option<&Provenance>,
+    check: &DlCheck<'_>,
+) -> Option<String> {
+    let axiom = |item: &AnnotatedAxiom| axiom_text(ontology, provenance, item);
     Some(match check {
         DlCheck::Valid => return None,
         DlCheck::EmptyKey(item) => format!(
@@ -411,11 +536,64 @@ impl Reasoner {
             }
         })
     }
+    /// Read the import closure of the document at position `root` of a
+    /// catalog of documents (OWL 2 Structural Specification §3.4) and reason
+    /// over its axiom closure. The verified `import_closure::source_closure`
+    /// reads every document with its verified reader, each with its anonymous
+    /// individuals kept apart from the other documents' (§5.6.2), follows the
+    /// import IRIs, each of which must be the ontology IRI or version IRI of
+    /// exactly one document of the catalog, and gathers the axioms of the
+    /// documents it reaches, cycles included. Nothing is fetched.
+    pub fn from_documents(
+        documents: Vec<Document>,
+        root: usize,
+        limits: &DocumentLimits,
+    ) -> Result<Reasoner, LoadError> {
+        let mut names = Vec::new();
+        let mut sources = Vec::new();
+        for document in documents {
+            names.push(document.name);
+            sources.push(Source {
+                format: match document.syntax {
+                    Syntax::Functional => Format::Functional,
+                    Syntax::NTriples => Format::NTriples,
+                    Syntax::Turtle(base) => Format::Turtle(base),
+                },
+                bytes: document.bytes,
+            });
+        }
+        match on_kernel_stack(|| source_closure(&sources, root, limits)) {
+            Ok(closure) => Ok(Reasoner {
+                ontology: closure.ontology,
+                provenance: Some(Provenance {
+                    names,
+                    documents: closure.documents,
+                    origins: closure.origins,
+                }),
+                prepared: OnceLock::new(),
+                violation: OnceLock::new(),
+            }),
+            Err(error) => Err(closure_error(error, &names)),
+        }
+    }
     fn new(ontology: RawOntology) -> Reasoner {
         Reasoner {
             ontology,
+            provenance: None,
             prepared: OnceLock::new(),
             violation: OnceLock::new(),
+        }
+    }
+    /// The names of the documents of the import closure, in catalog order;
+    /// empty for a document read on its own.
+    pub fn documents(&self) -> Vec<String> {
+        match &self.provenance {
+            Some(provenance) => provenance
+                .documents
+                .iter()
+                .filter_map(|&document| provenance.names.get(document).cloned())
+                .collect(),
+            None => Vec::new(),
         }
     }
     /// The prepared queries, prepared on first use; `None` when the axioms are
@@ -463,14 +641,21 @@ impl Reasoner {
     /// the verified `dl_validity::check_ontology`, whose verdict is proved
     /// exact for the structural, reserved-vocabulary, typing and global
     /// restrictions of the 2012 Structural Specification; the lexical forms of
-    /// literals, facet values and imports are not checked. Loading never
-    /// rejects a document for these restrictions; the check runs on the first
-    /// call and its verdict is kept.
+    /// literals and facet values are not checked. For an import closure the
+    /// check covers its whole axiom closure, so imported declarations count,
+    /// and the ontology annotations of all its documents; of the ontology and
+    /// version IRIs only the root's are checked. A document read on its own is
+    /// checked without the ontologies it imports. Loading never rejects a
+    /// document for these restrictions; the check runs on the first call and
+    /// its verdict is kept.
     pub fn dl_violation(&self) -> Option<String> {
         let ontology = &self.ontology;
+        let provenance = self.provenance.as_ref();
         self.violation
             .get_or_init(|| {
-                on_kernel_stack(|| describe_violation(ontology, &check_ontology(ontology)))
+                on_kernel_stack(|| {
+                    describe_violation(ontology, provenance, &check_ontology(ontology))
+                })
             })
             .clone()
     }
