@@ -1734,7 +1734,7 @@
       "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
       "theorem": "Rowl.RdfMapping.map_graph_correct",
       "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
-      "implementation_scope": "Reverse mapping from raw RDF graphs proved sound for ontologies with annotated axioms, annotated annotations and annotated headers, with strict declarations: whenever map_graph returns an ontology and its blank nodes, the independently stated forward mapping of that ontology, allocating exactly those blank nodes, gives the input graph (map_graph_correct). The converse is proved for every ontology that the reverse mapping reads back exactly, without annotations: under the reserved-vocabulary and typing conditions of OWL 2 DL, with unannotated axioms of every kind and class expressions and data ranges of every kind (except equivalences and equalities of three or more members, inverse-property axioms whose first member is an inverse and object property assertions on an inverse, which the mapping writes as triples of other axioms), with version IRIs and imports, a graph that lists the forward mapping of the ontology in its order, with fresh blank nodes, is read back to exactly that ontology (Rowl.RdfReadOntology.map_graph_complete; Rowl.RdfMappingComplete.map_graph_complete for the EL fragment without the vocabulary conditions). Completeness for annotated axioms and ontology annotations, for graphs in another order, owl:imports closure and RDF datasets remain pending."
+      "implementation_scope": "Reverse mapping from raw RDF graphs proved sound for ontologies with annotated axioms, annotated annotations and annotated headers, with strict declarations: whenever map_graph returns an ontology and its blank nodes, the independently stated forward mapping of that ontology, allocating exactly those blank nodes, gives the input graph (map_graph_correct). The converse is proved for every ontology that the reverse mapping reads back exactly, without annotations: under the reserved-vocabulary and typing conditions of OWL 2 DL, with unannotated axioms of every kind and class expressions and data ranges of every kind (except equivalences and equalities of three or more members, inverse-property axioms whose first member is an inverse and object property assertions on an inverse, which the mapping writes as triples of other axioms), with version IRIs and imports, a graph that lists the forward mapping of the ontology in its order, with fresh blank nodes, is read back to exactly that ontology (Rowl.RdfReadOntology.map_graph_complete; Rowl.RdfMappingComplete.map_graph_complete for the EL fragment without the vocabulary conditions), and a graph that lists those triples in any order is read back to that ontology with its axioms and imports up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). Completeness for annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets remain pending."
     },
     {
       "id": "frontend.NoUnexplainedTriples",
@@ -37321,6 +37321,292 @@
       "theorem": "Rowl.RdfReadOntology.map_graph_complete",
       "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
       "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph beyond the EL fragment, against the independent relational statement of the forward mapping in RdfMapping.lean (TOntology): for every ontology that satisfies the reserved-vocabulary condition of OWL 2 DL (VocabularyOK) and the typing constraints the reverse mapping relies on (KindTyped: every property is declared or built in as one kind of property only, and no class is typed as a datatype), has no ontology annotations and no annotation assertion about its ontology IRI, and whose axioms are unannotated and readable (AxiomReadable: every kind of axiom, class expression and data range of OWL 2, except equivalences and equalities of three or more members, inverse-property axioms whose first member is an inverse and object property assertions on an inverse, which the mapping writes as triples of other axioms; literals other than rdf:PlainLiteral with an empty language tag, cardinalities up to 10000, the facets of OWL 2, and datatype definitions of declared or built-in datatypes) (ReadableOntology), a graph that lists the triples of its forward mapping in order, with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to exactly that ontology, with its version IRI and imports, and exactly those blank nodes (Rowl.RdfReadOntology.map_graph_complete). The proof shows every expression reader and every axiom reader complete for blocks of triples at arbitrary positions (class_reads, range_reads, axiom_reads) and the axiom loop complete for blocks in the order of their main triples (axioms_loop). Not covered: annotated axioms and ontology annotations, graphs in another order, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.side_predicates_structural",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: side_predicates_structural",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::structural",
+      "theorem": "Rowl.RdfReadPermuted.side_predicates_structural",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.structural_true",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: structural_true",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::structural",
+      "theorem": "Rowl.RdfReadPermuted.structural_true",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.read_axiom_structural",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: read_axiom_structural",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::read_axiom",
+      "theorem": "Rowl.RdfReadPermuted.read_axiom_structural",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.blank_subject_true",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: blank_subject_true",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::blank_subject",
+      "theorem": "Rowl.RdfReadPermuted.blank_subject_true",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.typing_blank",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: typing_blank",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::typing",
+      "theorem": "Rowl.RdfReadPermuted.typing_blank",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.side_skip",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: side_skip",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::read_axiom",
+      "theorem": "Rowl.RdfReadPermuted.side_skip",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.perm_positions",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: perm_positions",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
+      "theorem": "Rowl.RdfReadPermuted.perm_positions",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.position_blocks",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: position_blocks",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::axioms_from",
+      "theorem": "Rowl.RdfReadPermuted.position_blocks",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.sort_blocks_perm",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: sort_blocks_perm",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::axioms_from",
+      "theorem": "Rowl.RdfReadPermuted.sort_blocks_perm",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.sort_blocks_sorted",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: sort_blocks_sorted",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::axioms_from",
+      "theorem": "Rowl.RdfReadPermuted.sort_blocks_sorted",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_parts_passed",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_parts_passed",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_parts_passed",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_parts_elsewhere",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_parts_elsewhere",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_parts_elsewhere",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_parts_other",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_parts_other",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_parts_other",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_parts_import",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_parts_import",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_parts_import",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_rest_step",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_rest_step",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_rest_step",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_rest_end",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_rest_end",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_rest_end",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.header_parts_rest",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: header_parts_rest",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.header_parts_rest",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.find_header_first",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: find_header_first",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::find_header",
+      "theorem": "Rowl.RdfReadPermuted.find_header_first",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.forall2_perm",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: forall2_perm",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
+      "theorem": "Rowl.RdfReadPermuted.forall2_perm",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.sort_blocks_apart",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: sort_blocks_apart",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::axioms_from",
+      "theorem": "Rowl.RdfReadPermuted.sort_blocks_apart",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.at_zip",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: at_zip",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
+      "theorem": "Rowl.RdfReadPermuted.at_zip",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.mem_zip_of_mem",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: mem_zip_of_mem",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
+      "theorem": "Rowl.RdfReadPermuted.mem_zip_of_mem",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.block_not_ontology",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: block_not_ontology",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::find_header",
+      "theorem": "Rowl.RdfReadPermuted.block_not_ontology",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.block_not_header",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: block_not_header",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::header_parts",
+      "theorem": "Rowl.RdfReadPermuted.block_not_header",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.block_rest_skip",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: block_rest_skip",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::read_axiom",
+      "theorem": "Rowl.RdfReadPermuted.block_rest_skip",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
+    },
+    {
+      "id": "m3.RdfReadPermuted.map_graph_complete_perm",
+      "requirement": "Verified RDF mapping completeness for graphs in any order: map_graph_complete_perm",
+      "owner": "rowl-kernel",
+      "source": "https://www.w3.org/TR/2012/REC-owl2-mapping-to-rdf-20121211/",
+      "status": "verified",
+      "rust_symbol": "rowl_kernel::rdf_mapping::map_graph",
+      "theorem": "Rowl.RdfReadPermuted.map_graph_complete_perm",
+      "regression": "crates/rowl-kernel/tests/rdf_mapping.rs",
+      "implementation_scope": "Acceptance completeness of the reverse OWL 2 RDF mapping rdf_mapping::map_graph for graphs in any order: for every ontology that the reverse mapping reads back (ReadableOntology, as for Rowl.RdfReadOntology.map_graph_complete), a graph whose triples are a permutation of the triples of its forward mapping (TOntology), with blank nodes distinct from each other and from the anonymous individuals its assertions are about (FreshSupply), is mapped to that ontology: the same identity, version IRI and annotations, the same imports and axioms up to their order, and the blank nodes of the forward mapping up to their order (Rowl.RdfReadPermuted.map_graph_complete_perm). The reader is unchanged: read_axiom passes over the triples of expressions and lists met before the main triple of their axiom (side_skip, block_rest_skip), find_header finds the only header triple wherever it is (find_header_first) and header_parts takes the version and the imports wherever they are (header_parts_rest). Not covered: annotated axioms and ontology annotations, repeated triples, owl:imports closure and RDF datasets."
     }
   ]
 }

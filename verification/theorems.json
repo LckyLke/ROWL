@@ -4034,6 +4034,38 @@
         "Rowl.RdfReadOntology.graph_not_reifier",
         "Rowl.RdfReadOntology.map_graph_complete"
       ]
+    },
+    {
+      "module": "Rowl.RdfReadPermuted",
+      "namespace": "Rowl.RdfReadPermuted",
+      "theorems": [
+        "Rowl.RdfReadPermuted.side_predicates_structural",
+        "Rowl.RdfReadPermuted.structural_true",
+        "Rowl.RdfReadPermuted.read_axiom_structural",
+        "Rowl.RdfReadPermuted.blank_subject_true",
+        "Rowl.RdfReadPermuted.typing_blank",
+        "Rowl.RdfReadPermuted.side_skip",
+        "Rowl.RdfReadPermuted.perm_positions",
+        "Rowl.RdfReadPermuted.position_blocks",
+        "Rowl.RdfReadPermuted.sort_blocks_perm",
+        "Rowl.RdfReadPermuted.sort_blocks_sorted",
+        "Rowl.RdfReadPermuted.header_parts_passed",
+        "Rowl.RdfReadPermuted.header_parts_elsewhere",
+        "Rowl.RdfReadPermuted.header_parts_other",
+        "Rowl.RdfReadPermuted.header_parts_import",
+        "Rowl.RdfReadPermuted.header_rest_step",
+        "Rowl.RdfReadPermuted.header_rest_end",
+        "Rowl.RdfReadPermuted.header_parts_rest",
+        "Rowl.RdfReadPermuted.find_header_first",
+        "Rowl.RdfReadPermuted.forall2_perm",
+        "Rowl.RdfReadPermuted.sort_blocks_apart",
+        "Rowl.RdfReadPermuted.at_zip",
+        "Rowl.RdfReadPermuted.mem_zip_of_mem",
+        "Rowl.RdfReadPermuted.block_not_ontology",
+        "Rowl.RdfReadPermuted.block_not_header",
+        "Rowl.RdfReadPermuted.block_rest_skip",
+        "Rowl.RdfReadPermuted.map_graph_complete_perm"
+      ]
     }
   ],
   "specifications": [

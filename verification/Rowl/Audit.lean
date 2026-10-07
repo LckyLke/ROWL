@@ -27,6 +27,7 @@ import Rowl.RdfReadIndexes
 import Rowl.RdfReadExpressions
 import Rowl.RdfReadAxioms
 import Rowl.RdfReadOntology
+import Rowl.RdfReadPermuted
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.RoleClosure
@@ -3344,6 +3345,32 @@ import Rowl.Saturation
 #print axioms Rowl.RdfReadOntology.at_nth
 #print axioms Rowl.RdfReadOntology.graph_not_reifier
 #print axioms Rowl.RdfReadOntology.map_graph_complete
+#print axioms Rowl.RdfReadPermuted.side_predicates_structural
+#print axioms Rowl.RdfReadPermuted.structural_true
+#print axioms Rowl.RdfReadPermuted.read_axiom_structural
+#print axioms Rowl.RdfReadPermuted.blank_subject_true
+#print axioms Rowl.RdfReadPermuted.typing_blank
+#print axioms Rowl.RdfReadPermuted.side_skip
+#print axioms Rowl.RdfReadPermuted.perm_positions
+#print axioms Rowl.RdfReadPermuted.position_blocks
+#print axioms Rowl.RdfReadPermuted.sort_blocks_perm
+#print axioms Rowl.RdfReadPermuted.sort_blocks_sorted
+#print axioms Rowl.RdfReadPermuted.header_parts_passed
+#print axioms Rowl.RdfReadPermuted.header_parts_elsewhere
+#print axioms Rowl.RdfReadPermuted.header_parts_other
+#print axioms Rowl.RdfReadPermuted.header_parts_import
+#print axioms Rowl.RdfReadPermuted.header_rest_step
+#print axioms Rowl.RdfReadPermuted.header_rest_end
+#print axioms Rowl.RdfReadPermuted.header_parts_rest
+#print axioms Rowl.RdfReadPermuted.find_header_first
+#print axioms Rowl.RdfReadPermuted.forall2_perm
+#print axioms Rowl.RdfReadPermuted.sort_blocks_apart
+#print axioms Rowl.RdfReadPermuted.at_zip
+#print axioms Rowl.RdfReadPermuted.mem_zip_of_mem
+#print axioms Rowl.RdfReadPermuted.block_not_ontology
+#print axioms Rowl.RdfReadPermuted.block_not_header
+#print axioms Rowl.RdfReadPermuted.block_rest_skip
+#print axioms Rowl.RdfReadPermuted.map_graph_complete_perm
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote

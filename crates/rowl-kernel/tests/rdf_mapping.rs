@@ -745,3 +745,100 @@ fn readable_graphs_in_forward_order_read_back_exactly() {
     let allocated: Vec<Vec<u8>> = (1..=71).map(|n| format!("b{n}").into_bytes()).collect();
     assert_eq!(labels, allocated);
 }
+
+/// The lines of `source` in an order fixed by `seed` (a Fisher-Yates shuffle
+/// driven by a 64-bit linear congruential generator).
+fn shuffled_lines(source: &[u8], seed: u64) -> Vec<u8> {
+    let mut lines: Vec<&[u8]> = source
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    let mut state = seed;
+    for last in (1..lines.len()).rev() {
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        let pick = ((state >> 33) as usize) % (last + 1);
+        lines.swap(last, pick);
+    }
+    let mut out = Vec::new();
+    for line in lines {
+        out.extend_from_slice(line);
+        out.push(b'\n');
+    }
+    out
+}
+
+/// Whether `read` lists the axioms of `written` in some order.
+fn same_axioms_up_to_order(read: &[AnnotatedAxiom], written: &[AnnotatedAxiom]) -> bool {
+    if read.len() != written.len() {
+        return false;
+    }
+    let mut taken = vec![false; written.len()];
+    read.iter().all(|axiom| {
+        let found =
+            (0..written.len()).find(|&index| !taken[index] && same_axiom(axiom, &written[index]));
+        match found {
+            Some(index) => {
+                taken[index] = true;
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+#[test]
+fn readable_graphs_in_any_order_read_back_up_to_order() {
+    // RdfReadPermuted.map_graph_complete_perm: the triples of the forward
+    // mapping of examples/dosing.ofn in reverse order and in shuffled orders
+    // read back to the same ontology, its axioms and imports up to their order
+    // and the same blank nodes up to their order.
+    let expected = functional_ontology(DOSING_FUNCTIONAL);
+    let mut reversed: Vec<&[u8]> = DOSING
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .collect();
+    reversed.reverse();
+    let mut backwards = reversed.join(&b'\n');
+    backwards.push(b'\n');
+    let mut sources = vec![backwards];
+    for seed in [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233] {
+        sources.push(shuffled_lines(DOSING, seed));
+    }
+    let mut allocated: Vec<Vec<u8>> = (1..=71).map(|n| format!("b{n}").into_bytes()).collect();
+    allocated.sort();
+    for (round, source) in sources.iter().enumerate() {
+        assert_ne!(&source[..], DOSING, "round {round} reorders the triples");
+        let mapped = map_graph(&graph(source))
+            .unwrap_or_else(|| panic!("round {round}: the graph is the image of its ontology"));
+        let ontology = &mapped.ontology;
+        match (&ontology.identity, &expected.identity) {
+            (
+                OntologyIdentity::Named { ontology, version },
+                OntologyIdentity::Named {
+                    ontology: expected_ontology,
+                    version: Some(expected_version),
+                },
+            ) => {
+                assert!(same_iri(ontology, expected_ontology));
+                assert!(matches!(version, Some(version) if same_iri(version, expected_version)));
+            }
+            _ => panic!("round {round}: both are named with a version IRI"),
+        }
+        assert_eq!(ontology.imports.len(), 1);
+        assert!(same_iri(&ontology.imports[0], &expected.imports[0]));
+        assert!(ontology.annotations.is_empty());
+        assert!(
+            same_axioms_up_to_order(&ontology.axioms, &expected.axioms),
+            "round {round}: the same axioms"
+        );
+        let mut labels: Vec<Vec<u8>> = mapped
+            .blanks
+            .iter()
+            .map(|node| node.label.clone())
+            .collect();
+        labels.sort();
+        assert_eq!(labels, allocated, "round {round}: the same blank nodes");
+    }
+}

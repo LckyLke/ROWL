@@ -122,14 +122,14 @@ triples, count-limit outcomes and first errors are checked. The RDF-to-OWL
 mapping is proved sound, annotated axioms and annotations included, and complete
 for every ontology without annotations that it reads back exactly: the graph of
 such an ontology, with its version IRI and imports, listed in the order of the
-forward mapping, is read back to exactly that ontology. The ontologies are those
+forward mapping, is read back to exactly that ontology, and listed in any order,
+to that ontology up to the order of its axioms and imports. The ontologies are those
 that satisfy the reserved-vocabulary and typing conditions of OWL 2 DL, with
 axioms, class expressions and data ranges of every kind except equivalences and
 equalities of three or more members, inverse-property axioms whose first member
 is an inverse and object property assertions on an inverse, which the mapping
 writes as triples of other axioms. Canonical identity assignment across imports,
-the completeness of the mapping for annotations and for graphs in another order,
-and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
+the completeness of the mapping for annotations, and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 
 ```sh

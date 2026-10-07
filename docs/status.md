@@ -1033,16 +1033,20 @@ progress. Full OWL parsing and executable reasoning are still future work.
   must not be `rdf:PlainLiteral` with an empty language tag, cardinalities at
   most 10000 and facets those of OWL 2 (`ReadableOntology`). The EL theorem
   `RdfMappingComplete.map_graph_complete` stays, for EL ontologies without the
-  vocabulary conditions. Annotated axioms and ontology annotations, graphs in
-  another order, several reifications of one main triple, imports and distinct
-  blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
-  `classify` and `instances` commands for `.nt` files and the Python package
-  read N-Triples documents through the verified reader and this mapping. Its
+  vocabulary conditions. `RdfReadPermuted.map_graph_complete_perm` extends the
+  theorem to graphs that list those triples in any order: they are read back to
+  the same ontology with its axioms and imports up to their order, and to the
+  same blank nodes up to their order; the reader needed no change. Annotated
+  axioms and ontology annotations, repeated triples, several reifications of one
+  main triple, imports and distinct blank nodes are not proved.
+  `Reasoner::from_ntriples`, the CLI's `check`, `classify` and `instances`
+  commands for `.nt` files and the Python package read N-Triples documents
+  through the verified reader and this mapping. Its
   lookups of the triples about a blank node and of declarations go through
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3207 audited public theorems and 1196 audited semantic definitions. Consistency,
+- 3233 audited public theorems and 1196 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1059,7 +1063,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 522 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 523 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1076,7 +1080,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3400-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3426-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1112,8 +1116,8 @@ quoted-token, IRIREF, language/literal/object/triple and bounded whole-document
 composition. Public reading is proved from bytes to exact raw graph occurrences
 under its stated term/count limits. The RDF-to-OWL mapping is proved sound,
 annotated axioms included, and complete for every ontology without annotations
-that it reads back exactly; the writer, canonical import scope assignment, the
-completeness of that mapping for annotations and for graphs in another order and
+that it reads back exactly, its triples in any order; the writer, canonical import
+scope assignment, the completeness of that mapping for annotations and
 the full byte-to-ontology pipeline from RDF remain unproved. Correspondence to W3C prose/tables is
 a reviewed specification choice, not a mechanical proof of English. See
 m2-semantics.md for the mapping.

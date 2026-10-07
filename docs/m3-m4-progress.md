@@ -4728,3 +4728,50 @@ with the 71 blank nodes in allocation order.
 
 This block adds 479 public theorems and 15 definitions. Totals are 3207 audited
 theorems, 1196 definitions, 522 Rust regressions and 3400 ledger obligations.
+
+## M3: reading graphs in any order
+
+Real graphs list their triples in any order, while the completeness theorem of
+the last block asked for the order of the forward mapping. The new module
+`RdfReadPermuted.lean` proves `RdfReadPermuted.map_graph_complete_perm`: for
+every `ReadableOntology`, a graph whose triples are a permutation of triples
+that instantiate the forward mapping (`TOntology`) in order, with blank nodes
+as in `FreshSupply`, is mapped to that ontology, with the same identity, version
+IRI and (empty) annotations, the same imports and axioms up to their order, and
+the blank nodes of the forward mapping up to their order. The axioms come out in
+the order of their main triples and the imports in the order of their triples.
+The Rust code is unchanged: nothing in the reader depended on the order.
+
+The proof follows the reader. `perm_positions` turns the permutation into
+positions of the forward patterns in the graph, and `position_blocks` cuts the
+positions of the axioms into blocks, which `sortBlocks` orders by their main
+positions for `axioms_loop` of the last block. That loop needs the reader to
+pass over a triple of a block met before its main triple: such a triple belongs
+to an expression or a list, about one of the block's blank nodes, and
+`side_skip` shows that `read_axiom` returns `Skip` for it, through the
+reserved, non-dispatched predicates of expressions and lists
+(`side_predicates_structural`, `read_axiom_structural`), the typing of a
+restriction, class or datatype node (`typing_blank`) and inverse property
+expressions; `block_rest_skip` applies this to every block. For the header,
+`find_header_first` finds the one triple typing an IRI `owl:Ontology` wherever
+it is (the triples of axioms never type an IRI so, `block_not_ontology`), and
+`header_parts_rest` shows that `header_parts` takes the version IRI and the
+imports wherever they are and passes over every other triple
+(`header_parts_passed`, `header_parts_elsewhere`, `header_parts_other`,
+`header_parts_import`), using exactly their triples, with the imports up to
+order.
+
+Not proved: annotated axioms and ontology annotations (as before), graphs that
+repeat a triple, several reifications of one main triple, imports closure and
+RDF datasets.
+
+The regression test `readable_graphs_in_any_order_read_back_up_to_order` reads
+`examples/dosing.nt` in reverse order and in twelve shuffled orders and checks
+that each reads back to the ontology of `examples/dosing.ofn`: the same identity
+and version IRI, the import, the 80 axioms up to order (compared with
+`same_axiom`) and the 71 blank nodes up to order. Mapping the generated
+20 000-class graph `el20000.nt` (64 081 triples) takes about 0.09 s in its own
+order and in a shuffled one alike (median of five runs each, 87 ms and 86 ms).
+
+This block adds 26 public theorems and no definitions. Totals are 3233 audited
+theorems, 1196 definitions, 523 Rust regressions and 3426 ledger obligations.
