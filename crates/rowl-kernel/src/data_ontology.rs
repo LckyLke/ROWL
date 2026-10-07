@@ -225,7 +225,7 @@ fn object_class() -> ClassExpression {
     ClassExpression::ObjectComplementOf(Box::new(data_class()))
 }
 /// The index of a kind: integer 0, decimal 1, string 2, plain literal 3,
-/// boolean 4.
+/// boolean 4, and the further datatypes from 5 on.
 fn kind_index(kind: Kind) -> u8 {
     match kind {
         Kind::Integer => 0,
@@ -233,6 +233,20 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::String => 2,
         Kind::Plain => 3,
         Kind::Boolean => 4,
+        Kind::Real => 5,
+        Kind::Rational => 6,
+        Kind::NonNegativeInteger => 7,
+        Kind::NonPositiveInteger => 8,
+        Kind::PositiveInteger => 9,
+        Kind::NegativeInteger => 10,
+        Kind::Long => 11,
+        Kind::Int => 12,
+        Kind::Short => 13,
+        Kind::Byte => 14,
+        Kind::UnsignedLong => 15,
+        Kind::UnsignedInt => 16,
+        Kind::UnsignedShort => 17,
+        Kind::UnsignedByte => 18,
     }
 }
 /// The class of a kind.
@@ -290,6 +304,7 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::String => kinds.string,
         Kind::Plain => kinds.plain,
         Kind::Boolean => kinds.boolean,
+        _ => false,
     }
 }
 /// The kinds with `kind` in use too.
@@ -315,6 +330,7 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
             boolean: true,
             ..kinds
         },
+        _ => kinds,
     }
 }
 /// The index of the value in `values[index..]`.

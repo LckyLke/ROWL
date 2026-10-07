@@ -640,9 +640,10 @@ progress. Full OWL parsing and executable reasoning are still future work.
   outside the supported fragment or a `usize` limit was reached. An answer is
   proved equal to Consistent, ClassSatisfiable, Subsumed or InstanceOf of the
   read axioms for any valid vocabulary under every datatype map that is the OWL
-  2 map on the five datatypes, and a positive subsumption or instance answer
-  holds in every such model. Imports, datatype restrictions, datatype
-  definitions, keys, the other datatypes and performance remain pending.
+  2 map on the datatypes of `datatypes::literal_value`, and a positive
+  subsumption or instance answer holds in every such model. Imports, datatype
+  restrictions, datatype definitions, keys, data ranges of the other datatypes
+  and performance remain pending.
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
   procedure abox_satisfiable decides whether some interpretation in which the
   TBox concept holds at every element has an element for every node that
@@ -925,14 +926,31 @@ progress. Full OWL parsing and executable reasoning are still future work.
   exactly for a literal of these datatypes in its lexical space; under every
   normative map that is the literal's value, equal values are equal kernel
   values (`1`, `+01` and `1.000` are one), and datatype membership is exact.
-  Facets and the other datatypes remain pending.
+- M5 numeric datatypes and range facets on single values: Normative also
+  specifies `owl:real` (the reals, no literals), `owl:rational` (the rationals,
+  lexical forms `numerator/denominator`), and the twelve subtypes of
+  `xsd:integer` with their XML Schema bounds, and the facets `xsd:minInclusive`,
+  `xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive` (facet spaces
+  and facet values from OWL 2 §4.1 and XML Schema 1.1); a model map over the
+  reals satisfies it. Numbers can denote reals: Normative has an injective
+  `real` embedding whose restriction to the rationals is the number embedding.
+  `literal_value` reads literals of all nineteen datatypes, `owl:rational` ones
+  into fractions in lowest terms, the kernel orders numbers exactly by
+  arithmetic on decimal digit strings (`numbers`, Rowl.Numbers) and evaluates
+  the four facets on a number exactly (`compare_values_correct`,
+  `facet_holds_correct`, `normative_facet`, `facet_applies_correct`). The
+  ontology queries accept literals of all these datatypes but give no answer
+  for data ranges of the fourteen new ones or for datatype restrictions yet.
+  OwlSemantics' DatatypeMap no longer has the field `facetInSpace`, which read
+  literally contradicts Table 4 for `owl:real` (see m3-m4-progress.md).
 - M5 data properties and literals in the ontology queries: consistency, class
   satisfiability, subsumption and instance checking (`data_ontology`) take data
   properties with their domains, ranges, inclusions, equivalences,
   disjointness and functionality, data restrictions (existential, universal,
   value and number restrictions) over ranges of the five datatypes,
   `rdfs:Literal`, literal enumerations and their intersections, unions and
-  complements, and positive and negative data property assertions. An encoding
+  complements, and positive and negative data property assertions, with
+  literals of every datatype of `datatypes::literal_value`. An encoding
   turns them into classes, object properties and named individuals that the
   SROIQ queries decide: the data values become data nodes of a class `D`, each
   data property an object property into them, each datatype in use a class
@@ -943,8 +961,9 @@ progress. Full OWL parsing and executable reasoning are still future work.
   an OWL model in which each element takes its values from infinite regions of
   integers, decimals that are no integers, strings, tagged strings and values
   outside every datatype. Under every datatype map that is the OWL 2 map on the
-  five datatypes an answer is therefore the Direct Semantics answer. Datatype
-  restrictions, datatype definitions, keys, the other datatypes,
+  datatypes of `literal_value` an answer is therefore the Direct Semantics
+  answer. Datatype restrictions, datatype definitions, keys, data ranges of the
+  other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. Since the source reasoning stage these
@@ -1023,7 +1042,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   blank nodes are not proved. `Reasoner::from_ntriples`, the CLI's `check`,
   `classify` and `instances` commands for `.nt` files and the Python package
   read N-Triples documents through the verified reader and this mapping.
-- 2595 audited public theorems and 1171 audited semantic definitions. Consistency,
+- 2751 audited public theorems and 1226 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1035,12 +1054,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  and data assertions over the five datatypes under the OWL 2 datatype map;
+  over the five datatypes and data assertions with literals of nineteen
+  datatypes under the OWL 2 datatype map;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 519 Rust regression tests and 11 Python binding tests, plus a separately fetched
+- 529 Rust regression tests and 11 Python binding tests, plus a separately fetched
   68-case W3C syntax corpus;
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt commands. The SHI queries use
@@ -1057,7 +1077,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 2788-obligation release ledger and separate checked constructor and built-in inventories.
+- A 2944-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
@@ -1114,10 +1134,11 @@ queries compose with the reader and the mapping from the original bytes;
 canonical catalog/import construction remains pending.
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on five datatypes is specified
-(Rowl.DatatypeMap.Normative) and satisfiable, and the data queries are proved
-under every such map; the complete normative OWL map, its other datatypes and
-facets are unimplemented. Semantic
+external solver. Agreement with the OWL 2 map on nineteen datatypes and the
+four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
+and the data queries are proved under every such map; they do not use the
+facets yet, and the complete normative OWL map, its other datatypes and facets
+are unimplemented. Semantic
 predicates extend to raw terms; release callers must first establish lexical
 validity, vocabulary membership, canonical structure and DL restrictions.
 No ValidatedOntology or definitive OWL-query entry point exists yet.

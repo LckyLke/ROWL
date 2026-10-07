@@ -16,7 +16,6 @@ def emptyMap : DatatypeMap Unit where
   excludesLiteral := id
   lexicalUtf8 := by simp
   lexicalInSpace := by simp
-  facetInSpace := by simp
 
 def vocabulary : Vocabulary where
   classes := fun _ => True
@@ -37,7 +36,6 @@ def emptyNatMap : DatatypeMap Nat where
   excludesLiteral := id
   lexicalUtf8 := by simp
   lexicalInSpace := by simp
-  facetInSpace := by simp
 
 /-- An infinite unused carrier does not force an infinite data domain. -/
 theorem unused_native_values_do_not_expand_domain :

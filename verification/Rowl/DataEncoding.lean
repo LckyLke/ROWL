@@ -242,6 +242,20 @@ def kindByte : datatypes.Kind → U8
   | .String => 2#u8
   | .Plain => 3#u8
   | .Boolean => 4#u8
+  | .Real => 5#u8
+  | .Rational => 6#u8
+  | .NonNegativeInteger => 7#u8
+  | .NonPositiveInteger => 8#u8
+  | .PositiveInteger => 9#u8
+  | .NegativeInteger => 10#u8
+  | .Long => 11#u8
+  | .Int => 12#u8
+  | .Short => 13#u8
+  | .Byte => 14#u8
+  | .UnsignedLong => 15#u8
+  | .UnsignedInt => 16#u8
+  | .UnsignedShort => 17#u8
+  | .UnsignedByte => 18#u8
 /-- The name of the class of a kind. -/
 def kindName (k : datatypes.Kind) : List U8 := [0#u8, 65#u8, kindByte k]
 /-- The name of a bit class. -/
@@ -379,10 +393,19 @@ def Used (kinds : data_ontology.Kinds) : datatypes.Kind → Bool
   | .String => kinds.string
   | .Plain => kinds.plain
   | .Boolean => kinds.boolean
+  | _ => false
 
 theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
     data_ontology.used kinds k = .ok (Used kinds k) := by
   cases k <;> rfl
+
+/-- The five datatypes that the encoding of data ranges takes. -/
+def Classic : datatypes.Kind → Prop
+  | .Integer | .Decimal | .String | .Plain | .Boolean => True
+  | _ => False
+
+theorem used_classic {kinds : data_ontology.Kinds} {k : datatypes.Kind} (used : Used kinds k = true) : Classic k := by
+  cases k <;> simp_all [Used, Classic]
 
 /-- Canonical values, each once. -/
 def GoodValues (values : List datatypes.DataValue) : Prop := (∀ v ∈ values, Canonical v) ∧ values.Nodup

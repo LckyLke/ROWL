@@ -90,6 +90,8 @@ pub mod universal;
 
 pub mod shi_ontology;
 
+pub mod numbers;
+
 pub mod datatypes;
 
 pub mod data_ontology;

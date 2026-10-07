@@ -4588,3 +4588,94 @@ the lexer and in the reader.
 
 This block adds 3 public theorems and no definitions. Totals are 2595 audited
 theorems, 1171 definitions, 519 Rust regressions and 2788 ledger obligations.
+
+## M5: numeric datatypes and range facets on single values
+
+`Rowl.DatatypeMap.Normative` now also specifies the other OWL 2 numeric
+datatypes, from the OWL 2 Structural Specification §4.1 and XML Schema 1.1
+Part 2: `owl:real`, `owl:rational` and the twelve subtypes of `xsd:integer`
+(`xsd:nonNegativeInteger`, `xsd:nonPositiveInteger`, `xsd:positiveInteger`,
+`xsd:negativeInteger`, `xsd:long`, `xsd:int`, `xsd:short`, `xsd:byte`,
+`xsd:unsignedLong`, `xsd:unsignedInt`, `xsd:unsignedShort` and
+`xsd:unsignedByte`), and the range facets `xsd:minInclusive`,
+`xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive`. Numbers can now
+denote reals: a normative map has an injective embedding `real` of the reals,
+apart from strings, tagged strings and truth values, whose restriction to the
+rationals is the existing number embedding (`real_number`). `owl:real` has the
+reals as its value space and no lexical forms; `owl:rational` has the
+rationals, written `numerator/denominator` with an integer numeral and a
+positive digit string (RationalForm); each subtype has the integers within its
+XML Schema bounds (Bounded, integerSubtypes) and their integer numerals. The
+facet space of `owl:real` and `owl:rational` pairs the four facets with every
+real, that of the XML Schema numeric datatypes with the values of the datatype
+(xsdNumericTypes, rangeFacets), and the facet values are the same for every
+datatype: the reals at least, at most, above or below the bound. A model map
+over the reals satisfies the extended specification (modelMap,
+modelNormative), so it is not contradictory.
+
+The Direct Semantics specification (`OwlSemantics.lean`) changes in one point.
+Its `DatatypeMap` asked, after §2.1, that a facet value lie in the value space
+of every datatype whose facet space has the pair (`facetInSpace`). Read
+literally that is contradictory for numbers: the pair of `xsd:minInclusive` and
+0 is in the facet spaces of both `owl:real` and `owl:rational`, so its facet
+value would contain no irrational number, while `owl:real[>= 0]` must contain
+every nonnegative real. Table 4 intersects a datatype restriction with the
+datatype's value space anyway, so with facet values shared by all datatypes a
+restriction denotes exactly the facet values of §4.1. The field is removed. No
+theorem used it as a hypothesis, so every theorem about all datatype maps now
+covers more maps. The theorems stated under `Normative` keep their statements;
+`Normative` now also fixes the new datatypes and facets, as every OWL 2
+datatype map does.
+
+The kernel computes with numbers exactly. `numbers` works on natural numbers
+written as ASCII decimal digit strings, most significant digit first, and
+`Rowl.Numbers` proves every operation correct on their values (digitsValue):
+canonical forms without leading zeros (canonical_spec), comparison
+(compare_naturals_spec), addition and subtraction digit by digit, schoolbook
+multiplication, division with remainder by at most nine subtractions per
+digit, Euclid's greatest common divisor and multiplication by powers of ten
+(add_naturals_spec, subtract_naturals_spec, multiply_naturals_spec,
+divide_naturals_spec, gcd_naturals_spec, times_power_spec, ten_power_spec), for
+inputs whose lengths stay within a `usize` limit.
+
+`datatypes::literal_value` reads literals of nineteen datatypes (kind_of_correct;
+the kinds are tested one by one, kind_from_correct). The subtypes take integer
+numerals within their bounds (bounded_value_correct, lower_bound_correct,
+upper_bound_correct). An `owl:rational` literal is reduced to lowest terms
+with the greatest common divisor; it becomes a decimal number when its
+denominator then divides a power of ten, so `"1/4"^^owl:rational` and
+`"0.25"^^xsd:decimal` are one value, and otherwise a new kernel value
+`Fraction` of its sign, numerator and denominator (rational_value_correct,
+CanonicalFraction). Values stay canonical, so equal values are equal kernel
+values (value_injective), and membership of a value in each of the nineteen
+value spaces is exact (in_kind_correct, normative_in_kind). `compare_values`
+orders two numbers by their signs and then their magnitudes: two decimals digit
+by digit, otherwise by cross-multiplying numerators and denominators
+(compare_numbers_spec, compare_values_correct). `facet_holds` evaluates a range
+facet with a numeric bound on a number (facet_holds_correct), which under every
+normative map is membership in the facet value (normative_facet), and
+`facet_applies` decides whether a facet with a bound is in the facet space of a
+datatype (facet_applies_correct). The regressions compare the digit-string
+arithmetic with `u128` arithmetic on sampled operands and check the new
+literals, bounds, orders and facets (`tests/numbers.rs`, `tests/datatypes.rs`).
+
+Statements that changed: kind_value_correct and literal_value_correct allow no
+answer for an `owl:rational` lexical form of `usize::MAX / 16` bytes or more,
+where the kernel gives up before forming products; in_kind_correct assumes a
+canonical value, since a subtype's bounds are checked by comparison, and so do
+DataStructure's kind_member_spec and value_axioms_spec for the literal values
+of the context, which `Good` contexts have; DataSound's region lemmas
+(number_kind, text_kind, tagged_kind, region_space) are stated for the five
+datatypes the encoding uses (Classic).
+
+The ontology queries take literals of all nineteen datatypes as values: a data
+property assertion with `"300"^^xsd:short` or `"1/3"^^owl:rational` is
+answered, under every datatype map that is the OWL 2 map on these datatypes.
+Data ranges naming the fourteen new datatypes, and datatype restrictions, still
+get no answer, and the umbrella ledger entries of these datatypes and facets
+stay planned; encoding them is the next stage. Reasoning is otherwise
+unchanged, so there is nothing new to measure.
+
+This block adds 156 public theorems and 55 definitions. Totals are 2751
+audited theorems, 1226 definitions, 529 Rust regressions and 2944 ledger
+obligations.

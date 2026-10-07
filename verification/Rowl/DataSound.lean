@@ -153,9 +153,9 @@ def RegionKind : Region → datatypes.Kind → Prop
   | .tagged, .Plain => True
   | _, _ => False
 
-theorem number_kind (N : Normative D) (q : ℚ) (k : datatypes.Kind) :
+theorem number_kind (N : Normative D) (q : ℚ) (k : datatypes.Kind) (classic : Classic k) :
     D.valueSpace (typeOf k) (N.number q) ↔ (k = .Integer ∧ IsInteger q) ∨ (k = .Decimal ∧ IsDecimal q) := by
-  cases k
+  cases k <;> simp only [Classic] at classic
   · simp only [typeOf, N.integer_space, reduceCtorEq, false_and, or_false, true_and]
     constructor
     · rintro ⟨q', h, e⟩
@@ -175,9 +175,9 @@ theorem number_kind (N : Normative D) (q : ℚ) (k : datatypes.Kind) :
   · simp only [typeOf, N.boolean_space, reduceCtorEq, false_and, or_self, iff_false, not_exists]
     exact fun b e => N.number_truth q b e
 
-theorem text_kind (N : Normative D) (s : List U8) (xs : XmlText s) (k : datatypes.Kind) :
+theorem text_kind (N : Normative D) (s : List U8) (xs : XmlText s) (k : datatypes.Kind) (classic : Classic k) :
     D.valueSpace (typeOf k) (N.text s) ↔ k = .String ∨ k = .Plain := by
-  cases k
+  cases k <;> simp only [Classic] at classic
   · simp only [typeOf, N.integer_space, reduceCtorEq, or_self, iff_false, not_exists, not_and]
     exact fun q _ e => N.number_text q s xs e.symm
   · simp only [typeOf, N.decimal_space, reduceCtorEq, or_self, iff_false, not_exists, not_and]
@@ -189,9 +189,10 @@ theorem text_kind (N : Normative D) (s : List U8) (xs : XmlText s) (k : datatype
   · simp only [typeOf, N.boolean_space, reduceCtorEq, or_self, iff_false, not_exists]
     exact fun b e => N.text_truth s b xs e
 
-theorem tagged_kind (N : Normative D) (s l : List U8) (xs : XmlText s) (tl : TagValue l) (k : datatypes.Kind) :
+theorem tagged_kind (N : Normative D) (s l : List U8) (xs : XmlText s) (tl : TagValue l) (k : datatypes.Kind)
+    (classic : Classic k) :
     D.valueSpace (typeOf k) (N.tagged s l) ↔ k = .Plain := by
-  cases k
+  cases k <;> simp only [Classic] at classic
   · simp only [typeOf, N.integer_space, reduceCtorEq, iff_false, not_exists, not_and]
     exact fun q _ e => N.number_tagged q s l xs tl e.symm
   · simp only [typeOf, N.decimal_space, reduceCtorEq, iff_false, not_exists, not_and]
@@ -203,7 +204,7 @@ theorem tagged_kind (N : Normative D) (s l : List U8) (xs : XmlText s) (tl : Tag
   · simp only [typeOf, N.boolean_space, reduceCtorEq, iff_false, not_exists]
     exact fun b e => N.tagged_truth s l b xs tl e
 
-theorem region_space (N : Normative D) (r : Region) (n : ℕ) (k : datatypes.Kind) :
+theorem region_space (N : Normative D) (r : Region) (n : ℕ) (k : datatypes.Kind) (classic : Classic k) :
     (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = regionValue N r n) ↔ RegionKind r k := by
   have embedded : ∀ y0 : Native, (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = embedValue y0) ↔
       D.valueSpace (typeOf k) y0 := fun y0 =>
@@ -213,26 +214,26 @@ theorem region_space (N : Normative D) (r : Region) (n : ℕ) (k : datatypes.Kin
     simp only [regionValue, embedValue, ULift.up.injEq, reduceCtorEq, and_false, exists_false, false_iff]
     cases k <;> simp [RegionKind]
   | integer =>
-    rw [regionValue, embedded, number_kind]
-    cases k
+    rw [regionValue, embedded, number_kind N _ k classic]
+    cases k <;> simp only [Classic] at classic
     · simp only [RegionKind, true_and, reduceCtorEq, false_and, or_false, iff_true]
       exact ⟨n, by simp⟩
     · simp only [RegionKind, reduceCtorEq, false_and, true_and, false_or, iff_true]
       exact ⟨n, 0, by simp⟩
     all_goals simp [RegionKind]
   | decimal =>
-    rw [regionValue, embedded, number_kind]
-    cases k
+    rw [regionValue, embedded, number_kind N _ k classic]
+    cases k <;> simp only [Classic] at classic
     · simp only [RegionKind, true_and, reduceCtorEq, false_and, or_false, iff_false]
       exact half_not_integer n
     · simp only [RegionKind, reduceCtorEq, false_and, true_and, false_or, iff_true]
       exact half_decimal n
     all_goals simp [RegionKind]
   | string =>
-    rw [regionValue, embedded, text_kind N _ (aText_xml n)]
+    rw [regionValue, embedded, text_kind N _ (aText_xml n) k classic]
     cases k <;> simp [RegionKind]
   | tagged =>
-    rw [regionValue, embedded, tagged_kind N _ _ (aText_xml n) enTag_value]
+    rw [regionValue, embedded, tagged_kind N _ _ (aText_xml n) enTag_value k classic]
     cases k <;> simp [RegionKind]
 
 end Regions
@@ -257,11 +258,12 @@ theorem region_profile {context : data_ontology.Context} {J : Interpretation Obj
     (kinds : KindFacts context J) {d : Object'} (notBool : ¬ InUse context J .Boolean d)
     (k : datatypes.Kind) (used : Used context.kinds k = true) :
     J.classes (kindClass k) d ↔ RegionKind (regionOf context J d) k := by
+  have classic := used_classic used
   simp only [regionOf]
   by_cases hi : InUse context J .Integer d
   · simp only [hi, ↓reduceIte]
     obtain ⟨ui, ai⟩ := hi
-    cases k
+    cases k <;> simp only [Classic] at classic
     · simp [RegionKind, ai]
     · simp only [RegionKind, iff_true]; exact kinds.integerDecimal ui used d ai
     · simp only [RegionKind, iff_false]; exact fun h => kinds.integerString ui used d ⟨ai, h⟩
@@ -272,7 +274,7 @@ theorem region_profile {context : data_ontology.Context} {J : Interpretation Obj
   by_cases hd : InUse context J .Decimal d
   · simp only [hd, ↓reduceIte]
     obtain ⟨ud, ad⟩ := hd
-    cases k
+    cases k <;> simp only [Classic] at classic
     · simp only [RegionKind, iff_false]; exact ni used
     · simp [RegionKind, ad]
     · simp only [RegionKind, iff_false]; exact fun h => kinds.decimalString ud used d ⟨ad, h⟩
@@ -283,7 +285,7 @@ theorem region_profile {context : data_ontology.Context} {J : Interpretation Obj
   by_cases hs : InUse context J .String d
   · simp only [hs, ↓reduceIte]
     obtain ⟨us, ast⟩ := hs
-    cases k
+    cases k <;> simp only [Classic] at classic
     · simp only [RegionKind, iff_false]; exact ni used
     · simp only [RegionKind, iff_false]; exact nd used
     · simp [RegionKind, ast]
@@ -294,7 +296,7 @@ theorem region_profile {context : data_ontology.Context} {J : Interpretation Obj
   by_cases hp : InUse context J .Plain d
   · simp only [hp, ↓reduceIte]
     obtain ⟨up, ap⟩ := hp
-    cases k
+    cases k <;> simp only [Classic] at classic
     · simp only [RegionKind, iff_false]; exact ni used
     · simp only [RegionKind, iff_false]; exact nd used
     · simp only [RegionKind, iff_false]; exact ns used
@@ -302,7 +304,7 @@ theorem region_profile {context : data_ontology.Context} {J : Interpretation Obj
     · simp only [RegionKind, iff_false]; exact fun h => kinds.plainBoolean up used d ⟨ap, h⟩
   have np : Used context.kinds .Plain = true → ¬ J.classes (kindClass .Plain) d := fun u h => hp ⟨u, h⟩
   simp only [hp, ↓reduceIte]
-  cases k
+  cases k <;> simp only [Classic] at classic
   · simp only [RegionKind, iff_false]; exact ni used
   · simp only [RegionKind, iff_false]; exact nd used
   · simp only [RegionKind, iff_false]; exact ns used
@@ -479,7 +481,8 @@ theorem place_node (good : Good context) (frame : Frame context bits J)
       rw [literal_node_value frame enough z i hi, (frame.values i hi).2.1 k used,
         Rowl.Datatypes.normative_in_kind N (good.1.1 _ (List.getElem_mem hi)) k]
       exact ⟨fun inSpace => ⟨_, inSpace, rfl⟩, fun ⟨y0, inSpace, same⟩ => embedValue_injective same ▸ inSpace⟩
-    · rw [region_node_value z d ld, region_space N, region_profile frame.kinds (not_boolean_region frame ld) k used]
+    · rw [region_node_value z d ld, region_space N _ _ k (used_classic used),
+      region_profile frame.kinds (not_boolean_region frame ld) k used]
   values := fun i h => by
     by_cases ld : LiteralNode context J d
     · obtain ⟨i0, h0, rfl⟩ := ld

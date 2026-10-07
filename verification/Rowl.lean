@@ -147,6 +147,7 @@ import Rowl.ShiEquality
 import Rowl.ShiNominals
 import Rowl.ShiOntology
 import Rowl.DatatypeMap
+import Rowl.Numbers
 import Rowl.Datatypes
 import Rowl.DataEncoding
 import Rowl.DataMeaning

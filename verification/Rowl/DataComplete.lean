@@ -113,7 +113,9 @@ theorem value_datatype (N : Normative D) {x : datatypes.DataValue} (canonical : 
     isDatatypeValue D (valueOf N x) := by
   cases x with
   | Number n wh f => exact ⟨typeOf .Decimal, Rowl.Datatypes.normative_supported N _,
-      (Rowl.Datatypes.normative_in_kind N canonical .Decimal).mp (by simp [InKind])⟩
+      (Rowl.Datatypes.normative_in_kind N canonical .Decimal).mp (by simp [InKind, Rowl.Datatypes.NumberIn])⟩
+  | Fraction n a b => exact ⟨typeOf .Rational, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .Rational).mp (by simp [InKind])⟩
   | Text t => exact ⟨typeOf .String, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .String).mp (by simp [InKind])⟩
   | Tagged t m => exact ⟨typeOf .Plain, Rowl.Datatypes.normative_supported N _,
