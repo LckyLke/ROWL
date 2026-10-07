@@ -6,9 +6,11 @@ import Mathlib.Data.Real.Basic
 Independent specification of the OWL 2 datatype map on the datatypes the
 reasoner knows (2012 Structural Specification §4, XML Schema 1.1 Part 2 and the
 rdf:PlainLiteral specification): `owl:real`, `owl:rational`, `xsd:decimal`,
-`xsd:integer` and its twelve subtypes, `xsd:string`, `rdf:PlainLiteral`,
-`xsd:boolean`, `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`, with the
-four range facets `xsd:minInclusive`,
+`xsd:integer` and its twelve subtypes, `xsd:string` and its six subtypes
+`xsd:normalizedString`, `xsd:token`, `xsd:language`, `xsd:NMTOKEN`, `xsd:Name`
+and `xsd:NCName`, `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`,
+`xsd:hexBinary` and `xsd:base64Binary`, with the four range facets
+`xsd:minInclusive`,
 `xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive`.
 
 Numbers are real numbers: the value space of `owl:real` is the image of ℝ, and
@@ -81,6 +83,18 @@ def anyUriType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 1
 def hexBinaryType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 104#u8, 101#u8, 120#u8, 66#u8, 105#u8, 110#u8, 97#u8, 114#u8, 121#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:base64Binary` -/
 def base64BinaryType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8, 97#u8, 115#u8, 101#u8, 54#u8, 52#u8, 66#u8, 105#u8, 110#u8, 97#u8, 114#u8, 121#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:normalizedString` -/
+def normalizedStringType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 110#u8, 111#u8, 114#u8, 109#u8, 97#u8, 108#u8, 105#u8, 122#u8, 101#u8, 100#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:token` -/
+def tokenType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 116#u8, 111#u8, 107#u8, 101#u8, 110#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:language` -/
+def languageType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 108#u8, 97#u8, 110#u8, 103#u8, 117#u8, 97#u8, 103#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:NMTOKEN` -/
+def nmtokenType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 78#u8, 77#u8, 84#u8, 79#u8, 75#u8, 69#u8, 78#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:Name` -/
+def nameType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 78#u8, 97#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:NCName` -/
+def ncnameType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 78#u8, 67#u8, 78#u8, 97#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:minInclusive` -/
 def minInclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 73#u8, 110#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- `xsd:maxInclusive` -/
@@ -231,6 +245,67 @@ def Base64Chars : List U8 → List U8 → Prop
 /-- `text` is a lexical form of `xsd:base64Binary` for the octets `o`. -/
 def Base64Form (text o : List U8) : Prop := ∃ chars, Spaced text chars ∧ Base64Chars chars o
 
+/-- XML 1.1 `NameStartChar`, the same in XML 1.0, fifth edition. -/
+def NameStartChar (cp : Nat) : Prop :=
+  cp = 0x3A ∨ (0x41 ≤ cp ∧ cp ≤ 0x5A) ∨ cp = 0x5F ∨ (0x61 ≤ cp ∧ cp ≤ 0x7A) ∨ (0xC0 ≤ cp ∧ cp ≤ 0xD6) ∨
+    (0xD8 ≤ cp ∧ cp ≤ 0xF6) ∨ (0xF8 ≤ cp ∧ cp ≤ 0x2FF) ∨ (0x370 ≤ cp ∧ cp ≤ 0x37D) ∨
+    (0x37F ≤ cp ∧ cp ≤ 0x1FFF) ∨ (0x200C ≤ cp ∧ cp ≤ 0x200D) ∨ (0x2070 ≤ cp ∧ cp ≤ 0x218F) ∨
+    (0x2C00 ≤ cp ∧ cp ≤ 0x2FEF) ∨ (0x3001 ≤ cp ∧ cp ≤ 0xD7FF) ∨ (0xF900 ≤ cp ∧ cp ≤ 0xFDCF) ∨
+    (0xFDF0 ≤ cp ∧ cp ≤ 0xFFFD) ∨ (0x10000 ≤ cp ∧ cp ≤ 0xEFFFF)
+
+/-- XML 1.1 `NameChar`. -/
+def NameChar (cp : Nat) : Prop :=
+  NameStartChar cp ∨ cp = 0x2D ∨ cp = 0x2E ∨ (0x30 ≤ cp ∧ cp ≤ 0x39) ∨ cp = 0xB7 ∨
+    (0x300 ≤ cp ∧ cp ≤ 0x36F) ∨ (0x203F ≤ cp ∧ cp ≤ 0x2040)
+
+/-- `cps` are the code points of the XML characters that `bytes` encode. -/
+def TextChars (bytes : List U8) (cps : List Nat) : Prop :=
+  ∃ text, Rowl.Unicode.TextFrom bytes 0 text ∧ text.map Prod.fst = cps
+
+/-- An ASCII letter `[a-zA-Z]`. -/
+def Letter (byte : U8) : Prop := (65 ≤ byte.val ∧ byte.val ≤ 90) ∨ (97 ≤ byte.val ∧ byte.val ≤ 122)
+
+/-- A subtag of `xsd:language`: one to eight letters, and digits too unless it
+    is the first. -/
+def Subtag (first : Bool) (subtag : List U8) : Prop :=
+  1 ≤ subtag.length ∧ subtag.length ≤ 8 ∧
+    ∀ byte ∈ subtag, Letter byte ∨ (first = false ∧ 48 ≤ byte.val ∧ byte.val ≤ 57)
+
+/-- `text` matches `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*`. -/
+def LanguageForm (text : List U8) : Prop :=
+  ∃ (first : List U8) (rest : List (List U8)), Subtag true first ∧ (∀ subtag ∈ rest, Subtag false subtag) ∧
+    text = first ++ (rest.map (45#u8 :: ·)).flatten
+
+/-- The six subtypes of `xsd:string` (XML Schema 1.1 Part 2 §3.4). -/
+inductive StringSubtype where
+  | normalized | token | language | nmtoken | name | ncname
+deriving DecidableEq
+
+/-- The datatype of a subtype of `xsd:string`. -/
+def StringSubtype.datatype : StringSubtype → Datatype
+  | .normalized => normalizedStringType
+  | .token => tokenType
+  | .language => languageType
+  | .nmtoken => nmtokenType
+  | .name => nameType
+  | .ncname => ncnameType
+
+/-- The lexical forms of a subtype of `xsd:string`, which are also its values
+    (§3.4: the lexical space and the value space are the same set of
+    strings): no tab, line feed or carriage return in a normalized string; a
+    token also without a space first or last or two spaces in a row; a
+    language matching its pattern; the strings that match the XML 1.1
+    productions `Nmtoken` and `Name`; and the names without `:` for `NCName`
+    (Namespaces in XML 1.1). -/
+def StringSubtype.Form : StringSubtype → List U8 → Prop
+  | .normalized, t => XmlText t ∧ 9#u8 ∉ t ∧ 10#u8 ∉ t ∧ 13#u8 ∉ t
+  | .token, t => (XmlText t ∧ 9#u8 ∉ t ∧ 10#u8 ∉ t ∧ 13#u8 ∉ t) ∧ t.head? ≠ some 32#u8 ∧
+      t.getLast? ≠ some 32#u8 ∧ ∀ i, t[i]? = some 32#u8 → t[i + 1]? ≠ some 32#u8
+  | .language, t => LanguageForm t
+  | .nmtoken, t => ∃ cps, TextChars t cps ∧ cps ≠ [] ∧ ∀ c ∈ cps, NameChar c
+  | .name, t => ∃ c cps, TextChars t (c :: cps) ∧ NameStartChar c ∧ ∀ c' ∈ cps, NameChar c'
+  | .ncname, t => (∃ c cps, TextChars t (c :: cps) ∧ NameStartChar c ∧ ∀ c' ∈ cps, NameChar c') ∧ 58#u8 ∉ t
+
 /-- A datatype map that is the OWL 2 datatype map on the datatypes here: they
     are supported, with these lexical spaces and lexical-to-value mappings; a
     number is the image of a real number, the rationals' images agreeing with
@@ -247,7 +322,9 @@ def Base64Form (text o : List U8) : Prop := ∃ chars, Spaced text chars ∧ Bas
     the values of `xsd:anyURI` (the XML texts, with the identity as lexical
     mapping), `xsd:hexBinary` and `xsd:base64Binary` (the octet sequences) are
     the images of their `Coded` values, injectively and apart from the
-    numbers, plain literals and truth values. -/
+    numbers, plain literals and truth values; and each subtype of `xsd:string`
+    has the strings of its lexical forms as values, each the value of its own
+    form. -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -333,5 +410,9 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   hex_value : ∀ t o, HexForm t o → D.lexicalValue hexBinaryType t = coded (.hex o)
   base64_lexical : ∀ t, D.lexicalSpace base64BinaryType t ↔ ∃ o, Base64Form t o
   base64_value : ∀ t o, Base64Form t o → D.lexicalValue base64BinaryType t = coded (.base64 o)
+  string_subtype_supported : ∀ s : StringSubtype, D.supported s.datatype
+  string_subtype_space : ∀ (s : StringSubtype) x, D.valueSpace s.datatype x ↔ ∃ t, s.Form t ∧ x = text t
+  string_subtype_lexical : ∀ (s : StringSubtype) t, D.lexicalSpace s.datatype t ↔ s.Form t
+  string_subtype_value : ∀ (s : StringSubtype) t, s.Form t → D.lexicalValue s.datatype t = text t
 
 end Rowl.DatatypeMap

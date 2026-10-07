@@ -162,7 +162,7 @@ theorem value_datatype (N : Normative D) {x : datatypes.DataValue} (canonical : 
   | Fraction n a b => exact ⟨typeOf .Rational, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .Rational).mp (by simp [InKind])⟩
   | Text t => exact ⟨typeOf .String, Rowl.Datatypes.normative_supported N _,
-      (Rowl.Datatypes.normative_in_kind N canonical .String).mp (by simp [InKind])⟩
+      (Rowl.Datatypes.normative_in_kind N canonical .String).mp (by simp [InKind, Rowl.Strings.TextIn])⟩
   | Tagged t m => exact ⟨typeOf .Plain, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .Plain).mp (by simp [InKind])⟩
   | Truth b => exact ⟨typeOf .Boolean, Rowl.Datatypes.normative_supported N _,
@@ -290,6 +290,28 @@ theorem not_coded (N : Normative D) {k : datatypes.Kind} (ck : ¬ IsCoded k) {y 
     case Boolean =>
       obtain ⟨b, rfl⟩ := (N.boolean_space _).mp inside
       exact N.truth_coded b c valid
+    all_goals
+      obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
+      exact N.text_coded t c (Rowl.Strings.form_xml f) valid
+
+/-- The value space of a kind of the chain: the strings of its lexical forms. -/
+theorem chain_space (N : Normative D) {i : Nat} (hi : i < 7) (y : Native) :
+    D.valueSpace (typeOf (chainKind i)) y ↔ ∃ t, Rowl.Strings.ChainForm i t ∧ y = N.text t := by
+  match i, hi with
+  | 0, _ => exact N.string_space y
+  | 1, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .NormalizedString) rfl y
+  | 2, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .Token) rfl y
+  | 3, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .NmToken) rfl y
+  | 4, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .Name) rfl y
+  | 5, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .NcName) rfl y
+  | 6, _ => exact Rowl.Datatypes.subtype_space_iff N (k := .Language) rfl y
+
+/-- A kind of the chain is included in the kinds before it. -/
+theorem chain_included (N : Normative D) {i j : Nat} (lt : j < i) (hi : i < 7) (y : Native) :
+    D.valueSpace (typeOf (chainKind i)) y → D.valueSpace (typeOf (chainKind j)) y := by
+  intro inside
+  obtain ⟨t, f, rfl⟩ := (chain_space N hi y).mp inside
+  exact (chain_space N (by omega) _).mpr ⟨t, Rowl.Strings.chain_form_mono (by omega) f, rfl⟩
 
 /-- A kind of IRIs or octet sequences is apart from every other kind. -/
 theorem coded_apart (N : Normative D) {a b : datatypes.Kind} (ca : IsCoded a) (ne : a ≠ b) (y : Native) :
@@ -899,6 +921,8 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         (numeric_included N (by simp [Rowl.Datatypes.IsNumeric]) (by simp [Rowl.Datatypes.IsNumeric])
           (fun _ _ => trivial)) y
       stringPlain := fun _ _ y => lifted_included N x0 interp (a := .String) (b := .Plain) (string_plain N) y
+      strings := fun i j lt hi _ _ y => lifted_included N x0 interp (a := chainKind i) (b := chainKind j)
+        (chain_included N lt hi) y
       integerString := fun _ _ y => lifted_apart N x0 interp (a := .Integer) (b := .String) (fun y => (apart y).1) y
       integerPlain := fun _ _ y => lifted_apart N x0 interp (a := .Integer) (b := .Plain) (fun y => (apart y).2.1) y
       integerBoolean := fun _ _ y => lifted_apart N x0 interp (a := .Integer) (b := .Boolean) (fun y => (apart y).2.2.1) y

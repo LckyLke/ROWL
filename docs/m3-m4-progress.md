@@ -6677,3 +6677,67 @@ gets no answer, and instance questions over ranges of the new datatypes.
 This block adds 20 public theorems and 18 definitions. Totals are 5473
 audited theorems, 1836 definitions, 669 Rust regressions, 24 Python binding
 tests and 5666 ledger obligations.
+
+## Datatypes: the subtypes of strings
+
+`xsd:normalizedString`, `xsd:token`, `xsd:language`, `xsd:NMTOKEN`, `xsd:Name`
+and `xsd:NCName` complete the strings. XML Schema 1.1 Part 2 §3.4 gives each
+the same set as lexical space and value space, so the value of a literal of
+any of them is its string: `"abc"^^xsd:token` is the string `"abc"`, and a
+string in one subtype is the same value in every datatype that has it. The
+name productions are those of XML 1.1 (the same as XML 1.0, fifth edition),
+which XML Schema leaves to the implementation.
+
+Specification. `Rowl.DatatypeMap.StringSubtype` enumerates the six with their
+datatypes and lexical forms (`StringSubtype.Form`): no tab, line feed or
+carriage return; additionally no space first, last or after another space;
+`[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*` (`LanguageForm`, a first subtag of
+letters and further subtags after dashes); one or more `NameChar`s; a
+`NameStartChar` and `NameChar`s; and a name without `:`. Characters are
+those of the decoded XML text (`TextChars`). Normative gains four fields
+quantified over the six, and the model map satisfies them.
+
+Kernel. `datatypes::text_in_kind` decides whether XML text is in a kind
+(`Rowl.Strings.text_in_kind_correct`): `unbroken` and `spaced_once` scan
+bytes (`token_form_iff` turns "every space followed by a byte that is no
+space" into the three conditions of XML Schema), `subtags_from` reads the
+language grammar (`language_form_iff`, from `subtags_rest_iff`), and
+`xml_name` and `name_token` test the code points that `unicode::read_text`
+decodes (`xml_name_correct`, `name_token_correct`; decoded text is unique,
+`text_from_unique`). `string_value` returns the string of a lexical form
+exactly when it is XML text in the kind (`string_value_correct`,
+`subtype_value_correct`), and `in_kind` uses the same test on values.
+
+The six nest: an ASCII byte of decoded text is a character of its own
+(`ascii_char`), so name tokens have no tab, line feed, carriage return or
+space and are tokens (`token_of_nmtoken`); names are name tokens; language
+tags, made of letters, digits and dashes and starting with a letter, are
+NCNames (`ncname_of_language`). `ChainForm` ranks the chain from
+`xsd:string` down to `xsd:language`, and `chain_form_mono` gives every
+inclusion.
+
+Encoding. `xsd:string` counts as in use when one of its subtypes is
+(`Used`), so the subtypes inherit its disjointness from every other datatype
+through the inclusions that `string_axioms` adds between the kinds of the
+chain in use (`string_axioms_spec`, `StringFacts`), and `string_members`
+places each literal value in the classes of the subtypes in use or their
+complements. In a model of the encoding, a string node takes strings at the
+level of the deepest subtype whose class holds there (`stringLevel`,
+`chain_profile`). `Rowl.Strings.stringAt` gives infinitely many strings for
+each level, in exactly the kinds up to it (`stringAt_form`): a tab first, a
+space first, a space between letters, a digit first, a colon first, an
+underscore first, and language tags of one-letter subtags; `levelCount`
+reads level and count back, so the strings of different levels and counts
+differ (`stringAt_injective`).
+
+The regressions check membership of each form in exactly its subtypes
+(including a private-use subtag, a nine-letter word, `xml:lang`, letters
+beyond ASCII and a combining mark first), that a language range rejects a
+string with a space, that `"abc"^^xsd:token` and `"abc"^^xsd:string` are one
+value, the six differences of neighbouring subtypes that are not empty and
+three that are, subsumption and instance questions along the chain, and
+that a lexical form outside its subtype gets no answer.
+
+This block adds 59 public theorems (39 in the new module `Rowl.Strings`) and
+32 definitions. Totals are 5532 audited theorems, 1868 definitions, 672 Rust
+regressions, 24 Python binding tests and 5725 ledger obligations.

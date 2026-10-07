@@ -1,4 +1,4 @@
-import Rowl.Numbers
+import Rowl.Strings
 import Mathlib.Data.Rat.Floor
 
 /-!
@@ -16,6 +16,7 @@ namespace Rowl.Datatypes
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl (DatatypeMap)
 open Rowl.DatatypeMap
+open Rowl.Strings (subtypeOf TextIn)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
@@ -103,14 +104,16 @@ theorem datatype_eq_iff (a b : Datatype) : a = b ↔ a.iri.spelling.val = b.iri.
 def kindList : List datatypes.Kind :=
   [.Integer, .Decimal, .String, .Plain, .Boolean, .Real, .Rational, .NonNegativeInteger, .NonPositiveInteger,
    .PositiveInteger, .NegativeInteger, .Long, .Int, .Short, .Byte, .UnsignedLong, .UnsignedInt, .UnsignedShort,
-   .UnsignedByte, .AnyUri, .HexBinary, .Base64Binary]
+   .UnsignedByte, .AnyUri, .HexBinary, .Base64Binary, .NormalizedString, .Token, .Language, .NmToken, .Name,
+   .NcName]
 
 /-- The kind at each position of the list. -/
-theorem kind_at_eq (i : U8) (h : i.val < 22) :
-    datatypes.kind_at i = .ok (kindList.getD i.val .Base64Binary) := by
+theorem kind_at_eq (i : U8) (h : i.val < 28) :
+    datatypes.kind_at i = .ok (kindList.getD i.val .NcName) := by
   obtain ⟨⟨⟨n, hn⟩⟩⟩ := i
-  have hv : n < 22 := h
-  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18 ∨ n = 19 ∨ n = 20 ∨ n = 21) with e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;> subst e <;> rfl
+  have hv : n < 28 := h
+  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18 ∨ n = 19 ∨ n = 20 ∨ n = 21 ∨ n = 22 ∨ n = 23 ∨ n = 24 ∨ n = 25 ∨ n = 26 ∨ n = 27) with
+    e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;> subst e <;> rfl
 
 /-- The datatype of a kind. -/
 def typeOf : datatypes.Kind → Datatype
@@ -136,6 +139,12 @@ def typeOf : datatypes.Kind → Datatype
   | .AnyUri => anyUriType
   | .HexBinary => hexBinaryType
   | .Base64Binary => base64BinaryType
+  | .NormalizedString => normalizedStringType
+  | .Token => tokenType
+  | .Language => languageType
+  | .NmToken => nmtokenType
+  | .Name => nameType
+  | .NcName => ncnameType
 
 theorem is_type_correct (iri : alloc.vec.Vec U8) (k : datatypes.Kind) :
     datatypes.is_type iri k = .ok (decide (iri.val = (typeOf k).iri.spelling.val)) := by
@@ -143,20 +152,20 @@ theorem is_type_correct (iri : alloc.vec.Vec U8) (k : datatypes.Kind) :
     decimalType, stringType, plainType, booleanType, realType, rationalType, nonNegativeIntegerType,
     nonPositiveIntegerType, positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType,
     unsignedLongType, unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType,
-    base64BinaryType]
+    base64BinaryType, normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType]
 
 /-- Whether the IRI is the spelling of the kind's datatype. -/
 def Spelled (iri : List U8) (k : datatypes.Kind) : Bool := decide (iri = (typeOf k).iri.spelling.val)
 
-theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 22) :
+theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 28) :
     datatypes.kind_from iri i = .ok ((kindList.drop i.val).find? (Spelled iri.val)) := by
   rw [datatypes.kind_from]
-  by_cases more : i.val < 22
-  · have more' : i < (22#u8) := by simp only [UScalar.lt_equiv]; simpa using more
-    have split : kindList.drop i.val = kindList.getD i.val .Base64Binary :: kindList.drop (i.val + 1) := by
+  by_cases more : i.val < 28
+  · have more' : i < (28#u8) := by simp only [UScalar.lt_equiv]; simpa using more
+    have split : kindList.drop i.val = kindList.getD i.val .NcName :: kindList.drop (i.val + 1) := by
       rw [List.drop_eq_getElem_cons (by simp [kindList]; omega), List.getD_eq_getElem]
     rw [split, List.find?_cons, if_pos more', kind_at_eq i more]
-    generalize kindList.getD i.val .Base64Binary = k
+    generalize kindList.getD i.val .NcName = k
     by_cases found : iri.val = (typeOf k).iri.spelling.val
     · have spelled : Spelled iri.val k = true := by simp [Spelled, found]
       have decided : decide (iri.val = (typeOf k).iri.spelling.val) = true := by simp [found]
@@ -167,10 +176,10 @@ theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 22) :
       have ih := kind_from_correct iri next (by omega)
       rw [nextIs] at ih
       simp only [bind_ok, is_type_correct, found, decide_false, Bool.false_eq_true, ↓reduceIte, spelled, advance, ih]
-  · have done : i.val = 22 := by omega
-    have notMore : ¬ i < (22#u8) := by simp only [UScalar.lt_equiv]; simp; omega
+  · have done : i.val = 28 := by omega
+    have notMore : ¬ i < (28#u8) := by simp only [UScalar.lt_equiv]; simp; omega
     simp [notMore, done, kindList]
-termination_by 22 - i.val
+termination_by 28 - i.val
 decreasing_by omega
 
 /-- The kind of one of the datatypes: the first in the list. -/
@@ -186,7 +195,8 @@ theorem kindOf_typeOf (k : datatypes.Kind) : kindOf (typeOf k) = some k := by
   cases k <;> simp [kindOf, kindList, typeOf, datatype_eq_iff, integerType, decimalType, stringType, plainType,
     booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType, positiveIntegerType,
     negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType, unsignedIntType,
-    unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType]
+    unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType, normalizedStringType,
+    tokenType, languageType, nmtokenType, nameType, ncnameType]
 
 theorem kindOf_some {dt : Datatype} {k : datatypes.Kind} (h : kindOf dt = some k) : dt = typeOf k := by
   have := List.find?_some h
@@ -2542,8 +2552,8 @@ def upperOf : datatypes.Kind → Option ℤ
 
 /-- The integer subtypes of `xsd:integer`. -/
 def IsSubtype : datatypes.Kind → Prop
-  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary =>
-    False
+  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary
+  | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName => False
   | _ => True
 
 /-- Whether a number, an integer when `whole`, is in the value space of a
@@ -2560,6 +2570,12 @@ def NumberIn (k : datatypes.Kind) (whole : Prop) (q : ℚ) : Prop :=
   | .AnyUri => False
   | .HexBinary => False
   | .Base64Binary => False
+  | .NormalizedString => False
+  | .Token => False
+  | .Language => False
+  | .NmToken => False
+  | .Name => False
+  | .NcName => False
   | k => whole ∧ (∀ l, lowerOf k = some l → (l : ℚ) ≤ q) ∧ (∀ u, upperOf k = some u → q ≤ (u : ℚ))
 
 /-- The subtypes are those of the specification with their bounds. -/
@@ -2642,6 +2658,12 @@ theorem lower_bound_correct (k : datatypes.Kind) :
   | Boolean => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | Real => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | Rational => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | NormalizedString => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | Token => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | Language => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | NmToken => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | Name => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | NcName => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | NonNegativeInteger =>
     obtain ⟨v, run, bound⟩ := positive_number_value (Std.Array.empty U8).to_slice
       (by simp [Array.to_slice, Array.make, Std.Array.empty, Digits, Digit]) (by simp [Array.to_slice, Array.make, Std.Array.empty, Digits, Digit])
@@ -2729,6 +2751,12 @@ theorem upper_bound_correct (k : datatypes.Kind) :
   | Boolean => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | Real => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | Rational => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | NormalizedString => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | Token => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | Language => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | NmToken => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | Name => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | NcName => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | NonNegativeInteger => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | NonPositiveInteger =>
     obtain ⟨v, run, bound⟩ := positive_number_value (Std.Array.empty U8).to_slice
@@ -2924,12 +2952,36 @@ def LexicalForm : datatypes.Kind → List U8 → Prop
   | .AnyUri, t => XmlText t
   | .HexBinary, t => ∃ o, HexForm t o
   | .Base64Binary, t => ∃ o, Base64Form t o
+  | .NormalizedString, t => StringSubtype.normalized.Form t
+  | .Token, t => StringSubtype.token.Form t
+  | .Language, t => StringSubtype.language.Form t
+  | .NmToken, t => StringSubtype.nmtoken.Form t
+  | .Name, t => StringSubtype.name.Form t
+  | .NcName, t => StringSubtype.ncname.Form t
   | k, t => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ IntegerForm t (z : ℚ)
 
 /-- The numeric datatypes. -/
 def IsNumeric : datatypes.Kind → Prop
-  | .String | .Plain | .Boolean | .AnyUri | .HexBinary | .Base64Binary => False
+  | .String | .Plain | .Boolean | .AnyUri | .HexBinary | .Base64Binary | .NormalizedString | .Token | .Language
+  | .NmToken | .Name | .NcName => False
   | _ => True
+
+theorem subtypeOf_type {k : datatypes.Kind} {s : StringSubtype} (h : subtypeOf k = some s) :
+    typeOf k = s.datatype := by
+  cases k <;> simp [subtypeOf] at h <;> subst h <;> rfl
+
+/-- The kind of a subtype of `xsd:string`. -/
+def subtypeKind : StringSubtype → datatypes.Kind
+  | .normalized => .NormalizedString
+  | .token => .Token
+  | .language => .Language
+  | .nmtoken => .NmToken
+  | .name => .Name
+  | .ncname => .NcName
+
+theorem typeOf_subtypeKind (s : StringSubtype) : typeOf (subtypeKind s) = s.datatype := by cases s <;> rfl
+
+theorem subtypeOf_subtypeKind (s : StringSubtype) : subtypeOf (subtypeKind s) = some s := by cases s <;> rfl
 
 /-- The real numbers of the value space of a numeric kind's datatype. -/
 def RealIn (k : datatypes.Kind) (r : ℝ) : Prop :=
@@ -2944,6 +2996,12 @@ def RealIn (k : datatypes.Kind) (r : ℝ) : Prop :=
   | .AnyUri => False
   | .HexBinary => False
   | .Base64Binary => False
+  | .NormalizedString => False
+  | .Token => False
+  | .Language => False
+  | .NmToken => False
+  | .Name => False
+  | .NcName => False
   | k => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ r = z
 
 variable {Native : Type w} {D : DatatypeMap Native}
@@ -2995,6 +3053,12 @@ theorem numeric_space (N : Normative D) (k : datatypes.Kind) (numeric : IsNumeri
   | AnyUri => exact absurd numeric (by simp [IsNumeric])
   | HexBinary => exact absurd numeric (by simp [IsNumeric])
   | Base64Binary => exact absurd numeric (by simp [IsNumeric])
+  | NormalizedString => exact absurd numeric (by simp [IsNumeric])
+  | Token => exact absurd numeric (by simp [IsNumeric])
+  | Language => exact absurd numeric (by simp [IsNumeric])
+  | NmToken => exact absurd numeric (by simp [IsNumeric])
+  | Name => exact absurd numeric (by simp [IsNumeric])
+  | NcName => exact absurd numeric (by simp [IsNumeric])
   | Real => simp only [typeOf, N.real_space, RealIn, and_true]
   | Rational =>
     simp only [typeOf, N.rational_space, RealIn]
@@ -3030,6 +3094,12 @@ theorem normative_lexical (N : Normative D) (k : datatypes.Kind) (t : List U8) :
   | AnyUri => exact N.uri_lexical t
   | HexBinary => exact N.hex_lexical t
   | Base64Binary => exact N.base64_lexical t
+  | NormalizedString => exact N.string_subtype_lexical .normalized t
+  | Token => exact N.string_subtype_lexical .token t
+  | Language => exact N.string_subtype_lexical .language t
+  | NmToken => exact N.string_subtype_lexical .nmtoken t
+  | Name => exact N.string_subtype_lexical .«name» t
+  | NcName => exact N.string_subtype_lexical .ncname t
   | NonNegativeInteger => exact subtype _ trivial
   | NonPositiveInteger => exact subtype _ trivial
   | PositiveInteger => exact subtype _ trivial
@@ -3057,6 +3127,12 @@ theorem normative_supported (N : Normative D) (k : datatypes.Kind) : D.supported
   | AnyUri => exact N.uri_supported
   | HexBinary => exact N.hex_supported
   | Base64Binary => exact N.base64_supported
+  | NormalizedString => exact N.string_subtype_supported .normalized
+  | Token => exact N.string_subtype_supported .token
+  | Language => exact N.string_subtype_supported .language
+  | NmToken => exact N.string_subtype_supported .nmtoken
+  | Name => exact N.string_subtype_supported .«name»
+  | NcName => exact N.string_subtype_supported .ncname
   | _ => exact subtype _ trivial
 
 theorem number_value_canonical {v : datatypes.DataValue} {q : ℚ} (h : NumberValue v q) : Canonical v := by
@@ -3884,6 +3960,49 @@ theorem base64_value_correct (lexical : alloc.vec.Vec U8) :
       rw [same] at groups
       exact noneCase2 hn o groups
 
+/-- The kernel's value of a string or of a literal of a subtype of
+    `xsd:string`: the string itself, exactly when it is XML text in the kind. -/
+theorem string_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
+    datatypes.string_value k lexical =
+      .ok (if XmlText lexical.val ∧ TextIn k lexical.val then some (.Text lexical) else none) := by
+  rw [datatypes.string_value, xml_text_correct]
+  by_cases xml : XmlText lexical.val
+  · rw [Rowl.Strings.text_in_kind_correct lexical xml k]
+    by_cases inK : TextIn k lexical.val
+    · obtain ⟨copy, copyRun, copyValue⟩ := copy_range_correct lexical 0#usize (alloc.vec.Vec.len lexical)
+        (alloc.vec.Vec.new U8) (by simp) (by simp [new_val])
+      have same : copy = lexical := by
+        have h : copy.val = lexical.val := by
+          rw [copyValue, new_val, List.nil_append, alloc.vec.Vec.len_val, show ((0#usize : Usize).val) = 0 from rfl,
+            segment_take]
+          simp
+        simpa [alloc.vec.Vec.eq_iff] using h
+      simp [xml, inK, copyRun, same]
+    · simp [xml, inK]
+  · simp [xml]
+
+/-- A literal of a subtype of `xsd:string` has the string of its lexical form
+    as value, exactly when the form is in the subtype. -/
+theorem subtype_value_correct {k : datatypes.Kind} {s : StringSubtype} (hs : subtypeOf k = some s)
+    (lexical : alloc.vec.Vec U8) :
+    ∃ r, datatypes.string_value k lexical = .ok r ∧
+      (∀ v, r = some v → Canonical v ∧ LexicalForm k lexical.val ∧
+        ∀ {Native : Type w} (D : DatatypeMap Native) (N : Normative D),
+          D.lexicalValue (typeOf k) lexical.val = valueOf N v) ∧
+      (r = none → ¬ LexicalForm k lexical.val) := by
+  have form : LexicalForm k lexical.val ↔ s.Form lexical.val := by
+    cases k <;> simp [subtypeOf] at hs <;> subst hs <;> rfl
+  have inK : TextIn k lexical.val ↔ s.Form lexical.val := by
+    have : k ≠ .String ∧ k ≠ .Plain := by cases k <;> simp [subtypeOf] at hs ⊢
+    simp [TextIn, hs, this.1, this.2]
+  rw [string_value_correct]
+  by_cases f : s.Form lexical.val
+  · have xml := Rowl.Strings.form_xml f
+    refine ⟨some (.Text lexical), by simp [xml, inK.mpr f], ?_, by simp⟩
+    rintro v ⟨⟩
+    exact ⟨xml, form.mpr f, fun D N => by rw [subtypeOf_type hs, N.string_subtype_value s _ f]; rfl⟩
+  · exact ⟨none, by simp [inK, f], by simp, fun _ h => f (form.mp h)⟩
+
 /-- The kernel's reading of a lexical form is exact: a canonical value exactly
     for a lexical form in the lexical space of the kind's datatype, except an
     `owl:rational` form too long for the kernel's arithmetic, and then, under
@@ -3930,16 +4049,10 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
     exact ⟨canonical, ⟨_, form⟩, fun D N => N.decimal_value _ _ form⟩
   | String =>
     by_cases xml : XmlText lexical.val
-    · obtain ⟨copy, copyRun, copyValue⟩ := copy_range_correct lexical 0#usize (alloc.vec.Vec.len lexical)
-        (alloc.vec.Vec.new U8) (by simp) (by simp [new_val])
-      have same : copy.val = lexical.val := by
-        rw [copyValue, new_val, List.nil_append, alloc.vec.Vec.len_val, show ((0#usize : Usize).val) = 0 from rfl,
-          segment_take]
-        simp
-      refine ⟨some (.Text copy), by simp [datatypes.kind_value, xml_text_correct, xml, copyRun], ?_, by simp⟩
+    · refine ⟨some (.Text lexical), by simp [datatypes.kind_value, string_value_correct, xml, TextIn], ?_, by simp⟩
       rintro v ⟨⟩
-      exact ⟨by simp [Canonical, same, xml], xml, fun D N => by simp [valueOf, same, typeOf, N.string_value _ xml]⟩
-    · exact ⟨none, by simp [datatypes.kind_value, xml_text_correct, xml], by simp, fun _ => .inl xml⟩
+      exact ⟨xml, xml, fun D N => by simp [valueOf, typeOf, N.string_value _ xml]⟩
+    · exact ⟨none, by simp [datatypes.kind_value, string_value_correct, xml], by simp, fun _ => .inl xml⟩
   | Plain =>
     obtain ⟨r, run, some', none'⟩ := plain_value_correct lexical
     refine ⟨r, by rw [datatypes.kind_value]; exact run, fun v hv => ?_, fun hn => .inl (none' hn)⟩
@@ -4010,6 +4123,24 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
       refine ⟨some (.Base64 octets), by simp [datatypes.kind_value, run], ?_, by simp⟩
       rintro v ⟨⟩
       exact ⟨trivial, ⟨_, form⟩, fun D N => by simp [valueOf, typeOf, N.base64_value _ _ form]⟩
+  | NormalizedString =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .NormalizedString) (s := .normalized) rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | Token =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .Token) (s := .token) rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | Language =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .Language) (s := .language) rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | NmToken =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .NmToken) (s := .nmtoken) rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | Name =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .Name) (s := .«name») rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
+  | NcName =>
+    obtain ⟨r, run, someCase, noneCase⟩ := subtype_value_correct (k := .NcName) (s := .ncname) rfl lexical
+    exact ⟨r, by rw [datatypes.kind_value]; exact run, someCase, fun hn => .inl (noneCase hn)⟩
 
 /-- A literal has a value exactly when its datatype is one of the datatypes and
     its lexical form is in the lexical space, except an `owl:rational` form too
@@ -4088,7 +4219,7 @@ theorem same_value_correct (left right : datatypes.DataValue) :
 def InKind : datatypes.DataValue → datatypes.Kind → Prop
   | .Number n w f, k => NumberIn k (f.val = []) (numberOf n w.val f.val)
   | .Fraction _ _ _, k => k = .Real ∨ k = .Rational
-  | .Text _, k => k = .String ∨ k = .Plain
+  | .Text t, k => TextIn k t.val
   | .Tagged _ _, k => k = .Plain
   | .Truth _, k => k = .Boolean
   | .Uri _, k => k = .AnyUri
@@ -4106,7 +4237,7 @@ theorem in_kind_correct (v : datatypes.DataValue) (canonical : Canonical v) (k :
       · intro h; apply UScalar.eq_of_val_eq; simp [h]
     simp [InKind, this]
   | Fraction n a b => cases k <;> simp [datatypes.in_kind, InKind]
-  | Text t => cases k <;> simp [datatypes.in_kind, InKind]
+  | Text t => rw [datatypes.in_kind, Rowl.Strings.text_in_kind_correct t canonical k]; rfl
   | Tagged t m => cases k <;> simp [datatypes.in_kind, InKind]
   | Truth b => cases k <;> simp [datatypes.in_kind, InKind]
   | Uri t => cases k <;> simp [datatypes.in_kind, InKind]
@@ -4153,6 +4284,12 @@ theorem number_realIn {n : Bool} {w f : List U8} (c : CanonicalNumber n w f) (k 
   | AnyUri => exact absurd numeric (by simp [IsNumeric])
   | HexBinary => exact absurd numeric (by simp [IsNumeric])
   | Base64Binary => exact absurd numeric (by simp [IsNumeric])
+  | NormalizedString => exact absurd numeric (by simp [IsNumeric])
+  | Token => exact absurd numeric (by simp [IsNumeric])
+  | Language => exact absurd numeric (by simp [IsNumeric])
+  | NmToken => exact absurd numeric (by simp [IsNumeric])
+  | Name => exact absurd numeric (by simp [IsNumeric])
+  | NcName => exact absurd numeric (by simp [IsNumeric])
   | _ => exact subtype trivial
 
 theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (k : datatypes.Kind)
@@ -4184,11 +4321,22 @@ theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (
   | AnyUri => exact absurd numeric (by simp [IsNumeric])
   | HexBinary => exact absurd numeric (by simp [IsNumeric])
   | Base64Binary => exact absurd numeric (by simp [IsNumeric])
+  | NormalizedString => exact absurd numeric (by simp [IsNumeric])
+  | Token => exact absurd numeric (by simp [IsNumeric])
+  | Language => exact absurd numeric (by simp [IsNumeric])
+  | NmToken => exact absurd numeric (by simp [IsNumeric])
+  | Name => exact absurd numeric (by simp [IsNumeric])
+  | NcName => exact absurd numeric (by simp [IsNumeric])
   | _ => simp only [reduceCtorEq, or_self, iff_false]; exact subtype trivial
 
 /-- A number is no value of an IRI or of octets. -/
 private theorem number_coded (N : Normative D) (q : ℚ) (a : Coded) (valid : a.Valid) : N.number q ≠ N.coded a :=
   fun e => N.real_coded q a valid (by rw [← real_rat]; exact e)
+
+/-- The value space of a subtype of `xsd:string`: the strings of its forms. -/
+theorem subtype_space_iff (N : Normative D) {k : datatypes.Kind} {s : StringSubtype} (hs : subtypeOf k = some s)
+    (x : Native) : D.valueSpace (typeOf k) x ↔ ∃ t, s.Form t ∧ x = N.text t := by
+  rw [subtypeOf_type hs]; exact N.string_subtype_space s x
 
 /-- Under every datatype map that is the OWL 2 map on the datatypes here, a
     canonical value is in the value space of a kind's datatype exactly as the
@@ -4216,7 +4364,12 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       have xt : XmlText t.val := canonical
       simp only [InKind, valueOf]
       constructor
-      · rintro (rfl | rfl) <;> exact absurd numeric (by simp [IsNumeric])
+      · intro h
+        exfalso
+        rcases h with rfl | rfl | ⟨s, hs, _⟩
+        · simp [IsNumeric] at numeric
+        · simp [IsNumeric] at numeric
+        · cases k <;> simp [subtypeOf] at hs <;> simp [IsNumeric] at numeric
       · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_text r _ xt)
     | Tagged t m =>
       have xt : XmlText t.val := canonical.1
@@ -4246,9 +4399,51 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       constructor
       · rintro rfl; exact absurd numeric (by simp [IsNumeric])
       · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_coded r (.base64 o.val) trivial)
-  · have numberNot : ∀ q, ¬ D.valueSpace (typeOf k) (N.number q) := by
+  · by_cases sub : ∃ s, subtypeOf k = some s
+    · obtain ⟨s, hs⟩ := sub
+      rw [subtype_space_iff N hs]
+      have others : k ≠ .String ∧ k ≠ .Plain ∧ k ≠ .Real ∧ k ≠ .Rational ∧ k ≠ .Boolean ∧ k ≠ .AnyUri ∧
+          k ≠ .HexBinary ∧ k ≠ .Base64Binary ∧ ∀ (w : Prop) q, ¬ NumberIn k w q := by
+        cases k <;> simp [subtypeOf, NumberIn] at hs ⊢
+      obtain ⟨nS, nP, nR, nQ, nB, nU, nH, n64, nN⟩ := others
+      have xmlOf : ∀ {t}, s.Form t → XmlText t := fun f => Rowl.Strings.form_xml f
+      cases v with
+      | Number n w f =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h (nN _ _), fun ⟨t, f', same⟩ => absurd same (N.number_text _ _ (xmlOf f'))⟩
+      | Fraction n a b =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => by rcases h with h | h <;> contradiction,
+          fun ⟨t, f', same⟩ => absurd same (N.number_text _ _ (xmlOf f'))⟩
+      | Text t =>
+        have xt : XmlText t.val := canonical
+        simp only [InKind, TextIn, valueOf, hs, nS, nP, false_or, Option.some.injEq, exists_eq_left']
+        constructor
+        · intro f'; exact ⟨_, f', rfl⟩
+        · rintro ⟨t', f', same⟩; rw [N.text_injective _ _ xt (xmlOf f') same]; exact f'
+      | Tagged t m =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h nP,
+          fun ⟨t', f', same⟩ => absurd same.symm (N.text_tagged _ _ _ (xmlOf f') canonical.1 canonical.2)⟩
+      | Truth b =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h nB, fun ⟨t', f', same⟩ => absurd same.symm (N.text_truth _ b (xmlOf f'))⟩
+      | Uri t =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h nU,
+          fun ⟨t', f', same⟩ => absurd same.symm (N.text_coded _ (.uri t.val) (xmlOf f') canonical)⟩
+      | Hex o =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h nH,
+          fun ⟨t', f', same⟩ => absurd same.symm (N.text_coded _ (.hex o.val) (xmlOf f') trivial)⟩
+      | Base64 o =>
+        simp only [InKind, valueOf]
+        exact ⟨fun h => absurd h n64,
+          fun ⟨t', f', same⟩ => absurd same.symm (N.text_coded _ (.base64 o.val) (xmlOf f') trivial)⟩
+    have numberNot : ∀ q, ¬ D.valueSpace (typeOf k) (N.number q) := by
       intro q
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [typeOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, not_exists, not_and, not_or]
       · exact fun s xs e => N.number_text q s xs e
       · exact ⟨fun s xs e => N.number_text q s xs e, fun s l xs tl e => N.number_tagged q s l xs tl e⟩
@@ -4260,15 +4455,23 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
     | Number n w f =>
       simp only [InKind, valueOf]
       refine ⟨fun h => ?_, fun h => absurd h (numberNot _)⟩
-      cases k <;> simp_all [IsNumeric, NumberIn]
+      cases k <;> simp_all [IsNumeric, NumberIn, subtypeOf]
     | Fraction n a b =>
       simp only [InKind, valueOf]
       refine ⟨fun h => ?_, fun h => absurd h (numberNot _)⟩
       rcases h with rfl | rfl <;> exact absurd trivial numeric
     | Text t =>
       have xt : XmlText t.val := canonical
+      have classic : TextIn k t.val ↔ k = .String ∨ k = .Plain := by
+        simp only [TextIn]
+        constructor
+        · rintro (h | h | ⟨s, hs, _⟩)
+          exacts [.inl h, .inr h, absurd ⟨s, hs⟩ sub]
+        · rintro (h | h)
+          exacts [.inl h, .inr (.inl h)]
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+        simp only [InKind, classic, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · exact ⟨fun _ => ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · exact ⟨fun _ => .inl ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same (N.text_truth _ b xt)⟩
@@ -4279,6 +4482,7 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       have xt : XmlText t.val := canonical.1
       have tm : TagValue m.val := canonical.2
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_tagged s _ _ xs xt tm)⟩
       · exact ⟨fun _ => .inr ⟨_, _, xt, tm, rfl⟩, fun _ => by simp⟩
@@ -4289,6 +4493,7 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
           fun ⟨o, same⟩ => absurd same (N.tagged_coded _ _ (.base64 o) xt tm trivial)⟩
     | Truth b =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_truth s b xs)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
@@ -4302,6 +4507,7 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
     | Uri t =>
       have xt : XmlText t.val := canonical
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.uri t.val) xs xt)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
@@ -4318,6 +4524,7 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
         cases this
     | Hex o =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.hex o.val) xs trivial)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
@@ -4334,6 +4541,7 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
         cases this
     | Base64 o =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        (try simp only [subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
         simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h,
           fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.base64 o.val) xs trivial)⟩
@@ -4578,7 +4786,8 @@ theorem normative_facet (N : Normative D) (F : datatypes.Facet) {bound value : d
 
 /-- The numeric datatypes of XML Schema here. -/
 def IsXsdNumeric : datatypes.Kind → Prop
-  | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary => False
+  | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary | .NormalizedString
+  | .Token | .Language | .NmToken | .Name | .NcName => False
   | _ => True
 
 theorem xsd_listed (k : datatypes.Kind) (h : IsXsdNumeric k) : typeOf k ∈ xsdNumericTypes := by
@@ -4623,7 +4832,7 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
       simp only [Bool.false_eq_true, false_iff, not_and]
       intro _ inKind
       apply nb
-      cases bound <;> simp_all [InKind, IsNumber, IsXsdNumeric]
+      cases bound <;> simp_all [InKind, IsNumber, IsXsdNumeric, TextIn, subtypeOf]
       cases k <;> simp_all [IsXsdNumeric]
   · cases k with
     | Real =>
@@ -4660,6 +4869,24 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Base64Binary =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | NormalizedString =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | Token =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | Language =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | NmToken =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | Name =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | NcName =>
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | _ => exact absurd trivial xsd
@@ -4841,6 +5068,7 @@ noncomputable def modelValue (k : datatypes.Kind) (t : List U8) : ModelValue :=
   | .AnyUri => .coded (.uri t)
   | .HexBinary => if h : ∃ o, HexForm t o then .coded (.hex (Classical.choose h)) else .other
   | .Base64Binary => if h : ∃ o, Base64Form t o then .coded (.base64 (Classical.choose h)) else .other
+  | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName => .text t
   | _ => if h : ∃ q, NumberForm true t q then .real ((Classical.choose h : ℚ) : ℝ) else .other
 
 /-- The value space of the datatype of a kind in the model map. -/
@@ -4851,6 +5079,12 @@ def ModelSpace : datatypes.Kind → ModelValue → Prop
   | .AnyUri, x => ∃ s, XmlText s ∧ x = .coded (.uri s)
   | .HexBinary, x => ∃ o, x = .coded (.hex o)
   | .Base64Binary, x => ∃ o, x = .coded (.base64 o)
+  | .NormalizedString, x => ∃ s, StringSubtype.normalized.Form s ∧ x = .text s
+  | .Token, x => ∃ s, StringSubtype.token.Form s ∧ x = .text s
+  | .Language, x => ∃ s, StringSubtype.language.Form s ∧ x = .text s
+  | .NmToken, x => ∃ s, StringSubtype.nmtoken.Form s ∧ x = .text s
+  | .Name, x => ∃ s, StringSubtype.name.Form s ∧ x = .text s
+  | .NcName, x => ∃ s, StringSubtype.ncname.Form s ∧ x = .text s
   | k, x => ∃ r, x = .real r ∧ RealIn k r
 
 /-- The facet space of the datatype of a kind in the model map. -/
@@ -4862,6 +5096,12 @@ def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   | .AnyUri => False
   | .HexBinary => False
   | .Base64Binary => False
+  | .NormalizedString => False
+  | .Token => False
+  | .Language => False
+  | .NmToken => False
+  | .Name => False
+  | .NcName => False
   | .Real => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | .Rational => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | k => f ∈ rangeFacets ∧ ModelSpace k v
@@ -5058,6 +5298,12 @@ theorem modelValue_space (k : datatypes.Kind) (t : List U8) (form : LexicalForm 
     have h : ∃ o, Base64Form t o := form
     simp only [modelValue, h, ↓reduceDIte, ModelSpace]
     exact ⟨_, rfl⟩
+  | NormalizedString => exact ⟨t, form, rfl⟩
+  | Token => exact ⟨t, form, rfl⟩
+  | Language => exact ⟨t, form, rfl⟩
+  | NmToken => exact ⟨t, form, rfl⟩
+  | Name => exact ⟨t, form, rfl⟩
+  | NcName => exact ⟨t, form, rfl⟩
   | _ => exact subtype trivial
 
 /-- The model map: the datatypes here with the specification's spaces, values,
@@ -5077,7 +5323,8 @@ noncomputable def modelMap : DatatypeMap ModelValue where
     cases k <;> simp_all [typeOf, datatype_eq_iff, Rowl.Owl.literalDatatype, integerType, decimalType, stringType,
       plainType, booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType,
       positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType,
-      unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType]
+      unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType,
+      normalizedStringType, tokenType, languageType, nmtokenType, nameType, ncnameType]
   lexicalUtf8 := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
     rw [kind] at kind'; cases kind'
@@ -5104,6 +5351,12 @@ noncomputable def modelMap : DatatypeMap ModelValue where
     | AnyUri => simpa using text_utf8 (Classical.choose_spec form)
     | HexBinary => obtain ⟨o, f⟩ := form; exact ascii_utf8 _ (hex_form_ascii f)
     | Base64Binary => obtain ⟨o, f⟩ := form; exact ascii_utf8 _ (base64_form_ascii f)
+    | NormalizedString => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .normalized) form; simpa using text_utf8 f
+    | Token => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .token) form; simpa using text_utf8 f
+    | Language => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .language) form; simpa using text_utf8 f
+    | NmToken => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .nmtoken) form; simpa using text_utf8 f
+    | Name => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .«name») form; simpa using text_utf8 f
+    | NcName => obtain ⟨scalars, f⟩ := Rowl.Strings.form_xml (s := .ncname) form; simpa using text_utf8 f
     | _ => exact subtype trivial
   lexicalInSpace := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
@@ -5366,5 +5619,9 @@ noncomputable def modelNormative : Normative modelMap where
     have h : ∃ o, Base64Form t o := ⟨o, form⟩
     simp only [modelValue, h, ↓reduceDIte]
     rw [base64_form_unique (Classical.choose_spec h) form]
+  string_subtype_supported := fun s => by rw [← typeOf_subtypeKind]; exact model_supported _
+  string_subtype_space := fun s x => by rw [← typeOf_subtypeKind, model_space]; cases s <;> rfl
+  string_subtype_lexical := fun s t => by rw [← typeOf_subtypeKind, model_lexical]; cases s <;> rfl
+  string_subtype_value := fun s t _ => by rw [← typeOf_subtypeKind, model_value]; cases s <;> rfl
 
 end Rowl.Datatypes

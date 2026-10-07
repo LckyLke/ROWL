@@ -139,7 +139,7 @@ theorem run_value_number {low high : regions.Cut} {v : datatypes.DataValue} (run
     IsNumber v := by
   have := run.1
   revert this
-  cases v <;> simp [InKind, IsNumber]
+  cases v <;> simp [InKind, IsNumber, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf]
 
 theorem run_value_integer {low high : regions.Cut} {v : datatypes.DataValue} (c : CanonicalNumeric v)
     (run : RunValue low high v) : numValue v = (⌊numValue v⌋ : ℚ) := by
@@ -293,7 +293,8 @@ theorem in_run_spec (low high : regions.Cut) (fl : Fit low) (fh : Fit high) (v :
     simp [RunValue, Bool.and_assoc]
   · obtain ⟨b1, run1⟩ := Rowl.Regions.in_cut_ok low fl v (fun h => absurd h number)
     obtain ⟨b2, run2⟩ := Rowl.Regions.in_cut_ok high fh v (fun h => absurd h number)
-    have notInt : ¬ InKind v .Integer := by revert number; cases v <;> simp [InKind, IsNumber]
+    have notInt : ¬ InKind v .Integer := by
+      revert number; cases v <;> simp [InKind, IsNumber, Rowl.Strings.TextIn, Rowl.Strings.subtypeOf]
     simp [run1, run2, notInt, RunValue]
 
 /-- The individuals of an optional list. -/

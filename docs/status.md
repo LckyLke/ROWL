@@ -3,7 +3,7 @@
 M0, M1 feasibility probes and M2 structural representation/independent semantics
 are complete. M3 and M4 have verified components; both milestones remain in
 progress. Functional Syntax, Turtle, N-Triples and RDF/XML documents are read,
-and SROIQ with twenty-two datatypes is decided, with proofs (below); a decision
+and SROIQ with twenty-eight datatypes is decided, with proofs (below); a decision
 procedure for all of OWL 2 DL, its other datatypes and facets and the other
 formats are future work.
 
@@ -1095,6 +1095,23 @@ formats are future work.
   encoding gives their data nodes IRIs of letters `a` or octet sequences of
   zeros, infinitely many of each (`coded_space`). Facets on them get no
   answer.
+- M5 subtypes of strings: Normative also specifies `xsd:normalizedString`,
+  `xsd:token`, `xsd:language`, `xsd:NMTOKEN`, `xsd:Name` and `xsd:NCName`
+  (XML Schema 1.1 §3.4: each lexical space is its value space, a set of
+  strings; the XML 1.1 name productions, which XML Schema lets an
+  implementation choose), whose values are the strings themselves, so that
+  `"abc"^^xsd:token` is the string `"abc"`. The kernel decides each subtype
+  on XML text, the name productions over the decoded characters
+  (`Rowl.Strings.text_in_kind_correct`). The six nest: language tags are
+  NCNames, NCNames names, names name tokens, name tokens tokens and tokens
+  normalized strings (`chain_form_mono`). The encoding gives each subtype in
+  use a class inside the classes of the kinds above it (`string_axioms_spec`)
+  and counts `xsd:string` as in use with any of them, so the subtypes inherit
+  its disjointness from the other datatypes; a model of the encoding gives a
+  string node strings in exactly the subtypes up to the deepest one whose
+  class holds there (`Rowl.Strings.stringAt_form`, `chain_profile`),
+  infinitely many at each level. The length and pattern facets get no
+  answer.
 - M5 numeric data ranges and range facets in the ontology queries: data ranges
   of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
   restrictions of every numeric datatype by the four range facets with numeric
@@ -1301,14 +1318,14 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over twenty-two datatypes, with the range facets on the numeric ones, and data
+  over twenty-eight datatypes, with the range facets on the numeric ones, and data
   assertions with their literals under the OWL 2 datatype map, and keys with
   object properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 669 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 672 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1404,7 +1421,7 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on twenty-two datatypes and the
+external solver. Agreement with the OWL 2 map on twenty-eight datatypes and the
 four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
 and the data queries, range facets included, are proved under every such map;
 the complete normative OWL map, its other datatypes and facets are

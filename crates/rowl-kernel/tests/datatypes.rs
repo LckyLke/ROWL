@@ -402,3 +402,118 @@ fn iris_and_octets_are_values_of_their_own() {
     assert!(in_kind(&base64, Kind::Base64Binary) && !in_kind(&base64, Kind::HexBinary));
     assert!(!facet_applies(Kind::HexBinary, &number(false, b"1", b"")));
 }
+
+const NORMALIZED: &[u8] = b"http://www.w3.org/2001/XMLSchema#normalizedString";
+const TOKEN: &[u8] = b"http://www.w3.org/2001/XMLSchema#token";
+const LANGUAGE: &[u8] = b"http://www.w3.org/2001/XMLSchema#language";
+const NMTOKEN: &[u8] = b"http://www.w3.org/2001/XMLSchema#NMTOKEN";
+const NAME: &[u8] = b"http://www.w3.org/2001/XMLSchema#Name";
+const NCNAME: &[u8] = b"http://www.w3.org/2001/XMLSchema#NCName";
+
+/// The subtypes of `xsd:string` whose lexical space holds `lexical`.
+fn string_kinds(lexical: &[u8]) -> Vec<&'static str> {
+    [
+        (NORMALIZED, "normalizedString"),
+        (TOKEN, "token"),
+        (LANGUAGE, "language"),
+        (NMTOKEN, "NMTOKEN"),
+        (NAME, "Name"),
+        (NCNAME, "NCName"),
+    ]
+    .into_iter()
+    .filter(|(iri, _)| value(lexical, iri).is_some())
+    .map(|(_, name)| name)
+    .collect()
+}
+
+#[test]
+fn the_subtypes_of_strings_hold_the_strings_of_their_lexical_forms() {
+    assert!(matches!(
+        kind_of(&datatype(NORMALIZED)),
+        Some(Kind::NormalizedString)
+    ));
+    assert!(matches!(kind_of(&datatype(TOKEN)), Some(Kind::Token)));
+    assert!(matches!(kind_of(&datatype(LANGUAGE)), Some(Kind::Language)));
+    assert!(matches!(kind_of(&datatype(NMTOKEN)), Some(Kind::NmToken)));
+    assert!(matches!(kind_of(&datatype(NAME)), Some(Kind::Name)));
+    assert!(matches!(kind_of(&datatype(NCNAME)), Some(Kind::NcName)));
+    // The value is the string itself: equal to the xsd:string literal.
+    let token = value(b"en-GB", TOKEN).expect("a token");
+    assert!(same(&value(b"en-GB", STRING), &token));
+    assert!(same(&value(b"en-GB", LANGUAGE), &token));
+    assert!(same(&value(b"en-GB@", PLAIN), &token));
+    // Language codes keep their case: "MN" and "mn" are distinct values.
+    assert!(!same(
+        &value(b"MN", LANGUAGE),
+        &value(b"mn", LANGUAGE).expect("a language")
+    ));
+    // Each lexical form lies in exactly the subtypes it matches, from the
+    // narrowest on: language, NCName, Name, NMTOKEN, token, normalizedString.
+    let all = vec![
+        "normalizedString",
+        "token",
+        "language",
+        "NMTOKEN",
+        "Name",
+        "NCName",
+    ];
+    assert_eq!(string_kinds(b"en-GB"), all);
+    assert_eq!(
+        string_kinds(b"x-a1b2c3d4"),
+        all,
+        "a private-use subtag is a language subtag"
+    );
+    let names = vec!["normalizedString", "token", "NMTOKEN", "Name", "NCName"];
+    assert_eq!(string_kinds(b"_id"), names);
+    assert_eq!(
+        string_kinds(b"abcdefghi"),
+        names,
+        "nine letters are no subtag"
+    );
+    assert_eq!(string_kinds(b"en--GB"), names);
+    assert_eq!(
+        string_kinds(b"1en"),
+        vec!["normalizedString", "token", "NMTOKEN"],
+        "a digit is no name start character"
+    );
+    assert_eq!(
+        string_kinds(b"\xc3\xa9t\xc3\xa9"),
+        names,
+        "letters beyond ASCII"
+    );
+    assert_eq!(
+        string_kinds(b"xml:lang"),
+        vec!["normalizedString", "token", "NMTOKEN", "Name"]
+    );
+    assert_eq!(
+        string_kinds(b"-1.5"),
+        vec!["normalizedString", "token", "NMTOKEN"]
+    );
+    assert_eq!(
+        string_kinds(b"\xcc\x80a"),
+        vec!["normalizedString", "token", "NMTOKEN"],
+        "a combining mark is no name start character"
+    );
+    assert_eq!(string_kinds(b"a b"), vec!["normalizedString", "token"]);
+    assert_eq!(string_kinds(b""), vec!["normalizedString", "token"]);
+    assert_eq!(string_kinds(b" a"), vec!["normalizedString"]);
+    assert_eq!(string_kinds(b"a "), vec!["normalizedString"]);
+    assert_eq!(string_kinds(b"a  b"), vec!["normalizedString"]);
+    assert_eq!(string_kinds(b"a\tb"), Vec::<&str>::new());
+    assert_eq!(string_kinds(b"a\nb"), Vec::<&str>::new());
+    assert_eq!(string_kinds(b"a\rb"), Vec::<&str>::new());
+    assert_eq!(
+        string_kinds(b"\x01"),
+        Vec::<&str>::new(),
+        "no XML character"
+    );
+    // Membership of values follows the same tests.
+    let tab = value(b"a\tb", STRING).expect("a string");
+    assert!(in_kind(&tab, Kind::String) && in_kind(&tab, Kind::Plain));
+    assert!(!in_kind(&tab, Kind::NormalizedString));
+    assert!(in_kind(&token, Kind::Language) && in_kind(&token, Kind::NcName));
+    let colon = value(b"xml:lang", STRING).expect("a string");
+    assert!(in_kind(&colon, Kind::Name) && !in_kind(&colon, Kind::NcName));
+    assert!(!in_kind(&number(false, b"1", b""), Kind::Token));
+    assert!(!facet_applies(Kind::Token, &number(false, b"1", b"")));
+}

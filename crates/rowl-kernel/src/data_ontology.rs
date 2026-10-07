@@ -109,6 +109,12 @@ pub struct Kinds {
     pub uri: bool,
     pub hex: bool,
     pub base64: bool,
+    pub normalized: bool,
+    pub token: bool,
+    pub language: bool,
+    pub nmtoken: bool,
+    pub name: bool,
+    pub ncname: bool,
     pub ordered: bool,
 }
 /// What the encoding of a closure and its questions knows: the distinct
@@ -291,6 +297,12 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::AnyUri => 19,
         Kind::HexBinary => 20,
         Kind::Base64Binary => 21,
+        Kind::NormalizedString => 22,
+        Kind::Token => 23,
+        Kind::Language => 24,
+        Kind::NmToken => 25,
+        Kind::Name => 26,
+        Kind::NcName => 27,
     }
 }
 /// The class of a kind.
@@ -355,15 +367,29 @@ fn no_kinds() -> Kinds {
         uri: false,
         hex: false,
         base64: false,
+        normalized: false,
+        token: false,
+        language: false,
+        nmtoken: false,
+        name: false,
+        ncname: false,
         ordered: false,
     }
 }
-/// Whether the kind is in use.
+/// Whether the kind is in use; `xsd:string` is when one of its subtypes is.
 fn used(kinds: &Kinds, kind: Kind) -> bool {
     match kind {
         Kind::Integer => kinds.integer,
         Kind::Decimal => kinds.decimal,
-        Kind::String => kinds.string,
+        Kind::String => {
+            kinds.string
+                | kinds.normalized
+                | kinds.token
+                | kinds.language
+                | kinds.nmtoken
+                | kinds.name
+                | kinds.ncname
+        }
         Kind::Plain => kinds.plain,
         Kind::Boolean => kinds.boolean,
         Kind::Real => kinds.real,
@@ -371,6 +397,12 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::AnyUri => kinds.uri,
         Kind::HexBinary => kinds.hex,
         Kind::Base64Binary => kinds.base64,
+        Kind::NormalizedString => kinds.normalized,
+        Kind::Token => kinds.token,
+        Kind::Language => kinds.language,
+        Kind::NmToken => kinds.nmtoken,
+        Kind::Name => kinds.name,
+        Kind::NcName => kinds.ncname,
         _ => false,
     }
 }
@@ -387,6 +419,12 @@ fn bounded(kind: Kind) -> bool {
         Kind::AnyUri => false,
         Kind::HexBinary => false,
         Kind::Base64Binary => false,
+        Kind::NormalizedString => false,
+        Kind::Token => false,
+        Kind::Language => false,
+        Kind::NmToken => false,
+        Kind::Name => false,
+        Kind::NcName => false,
         _ => true,
     }
 }
@@ -399,6 +437,12 @@ fn numeric_kind(kind: Kind) -> bool {
         Kind::AnyUri => false,
         Kind::HexBinary => false,
         Kind::Base64Binary => false,
+        Kind::NormalizedString => false,
+        Kind::Token => false,
+        Kind::Language => false,
+        Kind::NmToken => false,
+        Kind::Name => false,
+        Kind::NcName => false,
         _ => true,
     }
 }
@@ -437,6 +481,30 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
         Kind::HexBinary => Kinds { hex: true, ..kinds },
         Kind::Base64Binary => Kinds {
             base64: true,
+            ..kinds
+        },
+        Kind::NormalizedString => Kinds {
+            normalized: true,
+            ..kinds
+        },
+        Kind::Token => Kinds {
+            token: true,
+            ..kinds
+        },
+        Kind::Language => Kinds {
+            language: true,
+            ..kinds
+        },
+        Kind::NmToken => Kinds {
+            nmtoken: true,
+            ..kinds
+        },
+        Kind::Name => Kinds {
+            name: true,
+            ..kinds
+        },
+        Kind::NcName => Kinds {
+            ncname: true,
             ..kinds
         },
         _ => Kinds {
@@ -2320,6 +2388,49 @@ fn sequence_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
     };
     kinds_axiom(kinds, Kind::HexBinary, Kind::Base64Binary, false, out)
 }
+/// The kind at a rank of the chain of `xsd:string` and its subtypes, each a
+/// subtype of the ones before it: `xsd:string`, `xsd:normalizedString`,
+/// `xsd:token`, `xsd:NMTOKEN`, `xsd:Name`, `xsd:NCName` and `xsd:language`.
+fn chain_kind(rank: u8) -> Kind {
+    match rank {
+        0 => Kind::String,
+        1 => Kind::NormalizedString,
+        2 => Kind::Token,
+        3 => Kind::NmToken,
+        4 => Kind::Name,
+        5 => Kind::NcName,
+        _ => Kind::Language,
+    }
+}
+/// `out` with the kind at `rank` of the chain included in the kinds of the
+/// ranks below `below`, where both are in use.
+fn above_axioms(
+    kinds: &Kinds,
+    rank: u8,
+    below: u8,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if 0 < below {
+        match kinds_axiom(kinds, chain_kind(rank), chain_kind(below - 1), true, out) {
+            Some(out) => above_axioms(kinds, rank, below - 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` with the kinds of the chain from `rank` on included in the kinds
+/// before them, where both are in use.
+fn string_axioms(kinds: &Kinds, rank: u8, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    if rank < 7 {
+        match above_axioms(kinds, rank, rank, out) {
+            Some(out) => string_axioms(kinds, rank + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
 /// `out` with the inclusions and disjointness of the kinds in use and the
 /// booleans.
 fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
@@ -2329,6 +2440,10 @@ fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         None => return None,
     };
     let out = match kinds_axiom(kinds, Kind::String, Kind::Plain, true, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match string_axioms(kinds, 1, out) {
         Some(out) => out,
         None => return None,
     };
@@ -2482,6 +2597,23 @@ fn cut_members(
         Some(out)
     }
 }
+/// `out` with the literal value at `index` in the class of each kind of the
+/// chain of `xsd:string` from `rank` on that is in use, or in its complement.
+fn string_members(
+    context: &Context,
+    index: usize,
+    rank: u8,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    if rank < 7 {
+        match kind_member(context, chain_kind(rank), index, out) {
+            Some(out) => string_members(context, index, rank + 1, out),
+            None => None,
+        }
+    } else {
+        Some(out)
+    }
+}
 fn number_members(
     context: &Context,
     index: usize,
@@ -2541,6 +2673,10 @@ fn value_axioms(
             None => return None,
         };
         let out = match kind_member(context, Kind::Base64Binary, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match string_members(context, index, 1, out) {
             Some(out) => out,
             None => return None,
         };

@@ -162,6 +162,7 @@ import Rowl.ShiNominals
 import Rowl.ShiOntology
 import Rowl.DatatypeMap
 import Rowl.Numbers
+import Rowl.Strings
 import Rowl.Datatypes
 import Rowl.Regions
 import Rowl.DataEncoding
@@ -2050,6 +2051,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.below_upper_correct
 #print axioms Rowl.Datatypes.number_in_kind_correct
 #print axioms Rowl.Datatypes.bounded_value_correct
+#print axioms Rowl.Datatypes.subtypeOf_type
+#print axioms Rowl.Datatypes.typeOf_subtypeKind
+#print axioms Rowl.Datatypes.subtypeOf_subtypeKind
 #print axioms Rowl.Datatypes.real_rat
 #print axioms Rowl.Datatypes.real_int
 #print axioms Rowl.Datatypes.numeric_space
@@ -2072,6 +2076,8 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.unspaced_correct
 #print axioms Rowl.Datatypes.base64_from_correct
 #print axioms Rowl.Datatypes.base64_value_correct
+#print axioms Rowl.Datatypes.string_value_correct
+#print axioms Rowl.Datatypes.subtype_value_correct
 #print axioms Rowl.Datatypes.kind_value_correct
 #print axioms Rowl.Datatypes.literal_value_correct
 #print axioms Rowl.Datatypes.same_bytes_correct
@@ -2079,6 +2085,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Datatypes.in_kind_correct
 #print axioms Rowl.Datatypes.number_realIn
 #print axioms Rowl.Datatypes.fraction_realIn
+#print axioms Rowl.Datatypes.subtype_space_iff
 #print axioms Rowl.Datatypes.normative_in_kind
 #print axioms Rowl.Datatypes.value_injective
 #print axioms Rowl.Datatypes.iri_eq_iff
@@ -2342,10 +2349,13 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataStructure.kinds_axiom_spec
 #print axioms Rowl.DataStructure.value_index_unique
 #print axioms Rowl.DataStructure.truth_axiom_spec
+#print axioms Rowl.DataStructure.chain_kind_eq
 #print axioms Rowl.DataStructure.number_axioms_spec
 #print axioms Rowl.DataStructure.apart_axioms_spec
 #print axioms Rowl.DataStructure.distinct_axioms_spec
 #print axioms Rowl.DataStructure.sequence_axioms_spec
+#print axioms Rowl.DataStructure.above_axioms_spec
+#print axioms Rowl.DataStructure.string_axioms_spec
 #print axioms Rowl.DataStructure.kind_axioms_spec
 #print axioms Rowl.DataStructure.bit_correct
 #print axioms Rowl.DataStructure.bits_for_spec
@@ -2353,6 +2363,7 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataStructure.member_spec
 #print axioms Rowl.DataStructure.member_holds
 #print axioms Rowl.DataStructure.kind_member_spec
+#print axioms Rowl.DataStructure.string_members_spec
 #print axioms Rowl.DataStructure.bit_members_spec
 #print axioms Rowl.DataStructure.cut_unique
 #print axioms Rowl.DataStructure.cut_memberships_spec
@@ -2402,6 +2413,8 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataComplete.kinds_apart
 #print axioms Rowl.DataComplete.coded_of_kind
 #print axioms Rowl.DataComplete.not_coded
+#print axioms Rowl.DataComplete.chain_space
+#print axioms Rowl.DataComplete.chain_included
 #print axioms Rowl.DataComplete.coded_apart
 #print axioms Rowl.DataComplete.lifted_value
 #print axioms Rowl.DataComplete.lifted_plain_name
@@ -2459,6 +2472,14 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.region_space
 #print axioms Rowl.DataSound.level_le
 #print axioms Rowl.DataSound.position_le
+#print axioms Rowl.DataSound.chain_rank
+#print axioms Rowl.DataSound.used_string
+#print axioms Rowl.DataSound.subtype_in_string
+#print axioms Rowl.DataSound.subtype_string
+#print axioms Rowl.DataSound.chain_textIn
+#print axioms Rowl.DataSound.le_stringLevel
+#print axioms Rowl.DataSound.stringLevel_holds
+#print axioms Rowl.DataSound.chain_profile
 #print axioms Rowl.DataSound.number_profile
 #print axioms Rowl.DataSound.text_profile
 #print axioms Rowl.DataSound.order_in
@@ -5659,6 +5680,45 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Facts.meaningful_spec
 #print axioms Rowl.Facts.consistent_closure_correct
 #print axioms Rowl.Facts.entails_fact_correct
+#print axioms Rowl.Strings.unbroken_correct
+#print axioms Rowl.Strings.spaced_once_correct
+#print axioms Rowl.Strings.spaced_once_iff
+#print axioms Rowl.Strings.tokenized_correct
+#print axioms Rowl.Strings.token_form_iff
+#print axioms Rowl.Strings.is_letter_correct
+#print axioms Rowl.Strings.subtags_from_correct
+#print axioms Rowl.Strings.subtags_rest_iff
+#print axioms Rowl.Strings.language_form_iff
+#print axioms Rowl.Strings.text_from_unique
+#print axioms Rowl.Strings.text_chars_iff
+#print axioms Rowl.Strings.name_start_correct
+#print axioms Rowl.Strings.name_character_correct
+#print axioms Rowl.Strings.name_characters_correct
+#print axioms Rowl.Strings.xml_name_correct
+#print axioms Rowl.Strings.name_token_correct
+#print axioms Rowl.Strings.find_byte_end
+#print axioms Rowl.Strings.text_in_kind_correct
+#print axioms Rowl.Strings.ascii_char
+#print axioms Rowl.Strings.name_char_breaks
+#print axioms Rowl.Strings.token_of_nmtoken
+#print axioms Rowl.Strings.nmtoken_of_name
+#print axioms Rowl.Strings.xml_ascii_chars
+#print axioms Rowl.Strings.ascii_chars
+#print axioms Rowl.Strings.ascii_name
+#print axioms Rowl.Strings.ascii_token
+#print axioms Rowl.Strings.ncname_of_language
+#print axioms Rowl.Strings.form_xml
+#print axioms Rowl.Strings.chain_form_step
+#print axioms Rowl.Strings.chain_form_mono
+#print axioms Rowl.Strings.stringAt_vals
+#print axioms Rowl.Strings.stringAt_ascii
+#print axioms Rowl.Strings.stringAt_xml
+#print axioms Rowl.Strings.levelCount_stringAt
+#print axioms Rowl.Strings.stringAt_injective
+#print axioms Rowl.Strings.language_head
+#print axioms Rowl.Strings.stringAt_in
+#print axioms Rowl.Strings.stringAt_not
+#print axioms Rowl.Strings.stringAt_form
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7495,3 +7555,35 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataSound.Sequence
 #print axioms Rowl.DataSound.codedAt
 #print axioms Rowl.DataSound.sequenceKind
+#print axioms Rowl.DatatypeMap.StringSubtype.datatype
+#print axioms Rowl.DatatypeMap.StringSubtype.Form
+#print axioms Rowl.DatatypeMap.normalizedStringType
+#print axioms Rowl.DatatypeMap.tokenType
+#print axioms Rowl.DatatypeMap.languageType
+#print axioms Rowl.DatatypeMap.nmtokenType
+#print axioms Rowl.DatatypeMap.nameType
+#print axioms Rowl.DatatypeMap.ncnameType
+#print axioms Rowl.DatatypeMap.NameStartChar
+#print axioms Rowl.DatatypeMap.NameChar
+#print axioms Rowl.DatatypeMap.TextChars
+#print axioms Rowl.DatatypeMap.Letter
+#print axioms Rowl.DatatypeMap.Subtag
+#print axioms Rowl.DatatypeMap.LanguageForm
+#print axioms Rowl.DatatypeMap.StringSubtype
+#print axioms Rowl.Strings.subtypeOf
+#print axioms Rowl.Strings.TextIn
+#print axioms Rowl.Strings.Unbroken
+#print axioms Rowl.Strings.SpacedOnce
+#print axioms Rowl.Strings.SubtagByte
+#print axioms Rowl.Strings.SubtagsRest
+#print axioms Rowl.Strings.NameText
+#print axioms Rowl.Strings.TokenText
+#print axioms Rowl.Strings.ChainForm
+#print axioms Rowl.Strings.letters
+#print axioms Rowl.Strings.dashes
+#print axioms Rowl.Strings.stringAt
+#print axioms Rowl.Strings.levelCount
+#print axioms Rowl.Datatypes.subtypeKind
+#print axioms Rowl.DataStructure.chainKind
+#print axioms Rowl.DataStructure.StringFacts
+#print axioms Rowl.DataSound.stringLevel

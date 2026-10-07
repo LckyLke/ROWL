@@ -261,6 +261,12 @@ def kindByte : datatypes.Kind → U8
   | .AnyUri => 19#u8
   | .HexBinary => 20#u8
   | .Base64Binary => 21#u8
+  | .NormalizedString => 22#u8
+  | .Token => 23#u8
+  | .Language => 24#u8
+  | .NmToken => 25#u8
+  | .Name => 26#u8
+  | .NcName => 27#u8
 /-- The name of the class of a kind. -/
 def kindName (k : datatypes.Kind) : List U8 := [0#u8, 65#u8, kindByte k]
 /-- The name of a bit class. -/
@@ -428,11 +434,12 @@ theorem universal_correct (r : ObjectPropertyExpression) :
 
 /-! ### The context -/
 
-/-- Whether a kind is in use. -/
+/-- Whether a kind is in use; `xsd:string` is when one of its subtypes is. -/
 def Used (kinds : data_ontology.Kinds) : datatypes.Kind → Bool
   | .Integer => kinds.integer
   | .Decimal => kinds.decimal
-  | .String => kinds.string
+  | .String => kinds.string || kinds.normalized || kinds.token || kinds.language || kinds.nmtoken || kinds.name ||
+      kinds.ncname
   | .Plain => kinds.plain
   | .Boolean => kinds.boolean
   | .Real => kinds.real
@@ -440,6 +447,12 @@ def Used (kinds : data_ontology.Kinds) : datatypes.Kind → Bool
   | .AnyUri => kinds.uri
   | .HexBinary => kinds.hex
   | .Base64Binary => kinds.base64
+  | .NormalizedString => kinds.normalized
+  | .Token => kinds.token
+  | .Language => kinds.language
+  | .NmToken => kinds.nmtoken
+  | .Name => kinds.name
+  | .NcName => kinds.ncname
   | _ => false
 
 theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
@@ -447,12 +460,12 @@ theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
   cases k <;> rfl
 
 /-- The datatypes that the encoding gives a class: the five of the first
-    stage, the reals and the rationals, and `xsd:anyURI`, `xsd:hexBinary` and
-    `xsd:base64Binary`; the subtypes of `xsd:integer` are integers between
-    cuts. -/
+    stage, the reals and the rationals, `xsd:anyURI`, `xsd:hexBinary` and
+    `xsd:base64Binary`, and the six subtypes of `xsd:string`; the subtypes of
+    `xsd:integer` are integers between cuts. -/
 def Classic : datatypes.Kind → Prop
-  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary =>
-    True
+  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary
+  | .NormalizedString | .Token | .Language | .NmToken | .Name | .NcName => True
   | _ => False
 
 theorem used_classic {kinds : data_ontology.Kinds} {k : datatypes.Kind} (used : Used kinds k = true) : Classic k := by
@@ -1115,7 +1128,8 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ r, data_ontology.closure_context items = .ok r ∧ Good r := by
   rw [data_ontology.closure_context]
   have empty : Good (data_ontology.Context.mk (alloc.vec.Vec.new datatypes.DataValue)
-      (data_ontology.Kinds.mk false false false false false false false false false false false)
+      (data_ontology.Kinds.mk false false false false false false false false false false false false false false
+        false false false)
       (alloc.vec.Vec.new ObjectProperty)
       (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut)) := by
     simp [Good, GoodValues, GoodCuts, new_val]

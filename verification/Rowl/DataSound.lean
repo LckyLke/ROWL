@@ -14,9 +14,11 @@ irrational numbers (`regionOf`), without the numbers of the literal values.
 Every such region but a bounded run of integers is infinite; a bounded run's
 integers that are no literal values have room for the node's distinct
 neighbours, by the axiom on the run or because the counts of the data
-restrictions are at most their number. Strings of the letter a, tagged strings,
-IRIs of letters a, octet sequences of zeros and values outside every datatype
-serve the other data nodes. When the
+restrictions are at most their number. Strings serve the string nodes, at the
+level of the deepest subtype of `xsd:string` whose class holds there
+(`Rowl.Strings.stringAt`: strings in exactly the subtypes up to the level);
+tagged strings, IRIs of letters a, octet sequences of zeros and values outside
+every datatype serve the other data nodes. When the
 interpretation of the encoding satisfies a closure's encoding, the OWL
 interpretation satisfies the closure (`sound_satisfies`), and every class
 expression holds at an element exactly when its encoding does (`sound_class`).
@@ -181,7 +183,7 @@ theorem sequence_kind (s : Sequence) (n : ℕ) : codedKind (codedAt s n) = seque
     interval at a position of the cuts, strings of the letter a, tagged
     strings, IRIs and octet sequences, and values outside every datatype. -/
 inductive Region where
-  | number (position level : Nat) | string | tagged | coded (s : Sequence) | other
+  | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence) | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
@@ -204,7 +206,7 @@ variable {Native : Type w} {D : DatatypeMap Native}
 noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) :
     Region → ℕ → Values.{v,w} Native
   | .number p ℓ, n => embedValue (N.real (enumerate (regionSet cs lits p ℓ) n))
-  | .string, n => embedValue (N.text (aText n))
+  | .string ℓ, n => embedValue (N.text (Rowl.Strings.stringAt ℓ.val n))
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
   | .coded s, n => embedValue (N.coded (codedAt s n))
   | .other, n => ULift.up (.inr n)
@@ -252,9 +254,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       have positions := interval_unique sorted (bounded p ℓ rfl) (bounded' p' ℓ' rfl) m.1 m'.1
       subst levels positions
       exact ⟨rfl, enumerate_injective _ vr.2 vr'.2 values⟩
-    | string =>
+    | string ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.real_text _ _ (aText_xml n'))
+      exact absurd same (N.real_text _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n'))
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_tagged _ _ _ (aText_xml n') tag)
@@ -262,29 +264,31 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_coded _ _ (sequence_valid s' n'))
     | other => simp [regionValue, embedValue] at same
-  | string =>
+  | string ℓ =>
     cases r' with
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.real_text _ _ (aText_xml n))
-    | string =>
+      exact absurd same.symm (N.real_text _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n))
+    | string ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact ⟨rfl, aText_injective (N.text_injective _ _ (aText_xml n) (aText_xml n') same)⟩
+      obtain ⟨levels, counts⟩ := Rowl.Strings.stringAt_injective ℓ.isLt ℓ'.isLt
+        (N.text_injective _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (Rowl.Strings.stringAt_xml ℓ'.isLt n') same)
+      exact ⟨by rw [Fin.ext levels], counts⟩
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_tagged _ _ _ (aText_xml n) (aText_xml n') tag)
+      exact absurd same (N.text_tagged _ _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (aText_xml n') tag)
     | coded s' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same (N.text_coded _ _ (aText_xml n) (sequence_valid s' n'))
+      exact absurd same (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (sequence_valid s' n'))
     | other => simp [regionValue, embedValue] at same
   | tagged =>
     cases r' with
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (N.real_tagged _ _ _ (aText_xml n) tag)
-    | string =>
+    | string ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_tagged _ _ _ (aText_xml n') (aText_xml n) tag)
+      exact absurd same.symm (N.text_tagged _ _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (aText_xml n) tag)
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact ⟨rfl, aText_injective (N.tagged_injective _ _ _ _ (aText_xml n) (aText_xml n') tag tag same).1⟩
@@ -297,9 +301,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | number p' ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (N.real_coded _ _ (sequence_valid s n))
-    | string =>
+    | string ℓ' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-      exact absurd same.symm (N.text_coded _ _ (aText_xml n') (sequence_valid s n))
+      exact absurd same.symm (N.text_coded _ _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') (sequence_valid s n))
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same.symm (N.tagged_coded _ _ _ (aText_xml n') tag (sequence_valid s n))
@@ -311,7 +315,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
   | other =>
     cases r' with
     | number p' ℓ' => simp [regionValue, embedValue] at same
-    | string => simp [regionValue, embedValue] at same
+    | string ℓ' => simp [regionValue, embedValue] at same
     | tagged => simp [regionValue, embedValue] at same
     | coded s' => simp [regionValue, embedValue] at same
     | other =>
@@ -326,9 +330,10 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | number p ℓ =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact enumerate_injective _ (.inl infinite.2) (.inl infinite.2) (N.real_injective same)
-  | string =>
+  | string ℓ =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
-    exact aText_injective (N.text_injective _ _ (aText_xml a) (aText_xml b) same)
+    exact (Rowl.Strings.stringAt_injective ℓ.isLt ℓ.isLt
+      (N.text_injective _ _ (Rowl.Strings.stringAt_xml ℓ.isLt a) (Rowl.Strings.stringAt_xml ℓ.isLt b) same)).2
   | tagged =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact aText_injective (N.tagged_injective _ _ _ _ (aText_xml a) (aText_xml b) enTag_value enTag_value same).1
@@ -357,7 +362,7 @@ variable {Native : Type w} {D : DatatypeMap Native}
 /-- The kinds whose datatypes a region's value at an index is in. -/
 def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datatypes.Kind → Prop
   | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs lits p ℓ) n)
-  | .string, _, k => k = .String ∨ k = .Plain
+  | .string ℓ, n, k => Rowl.Strings.TextIn k (Rowl.Strings.stringAt ℓ.val n)
   | .tagged, _, k => k = .Plain
   | .coded s, _, k => k = sequenceKind s
   | .other, _, _ => False
@@ -378,7 +383,13 @@ theorem real_space (N : Normative D) (r : ℝ) (k : datatypes.Kind) :
     · intro inside
       obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
       exact N.real_coded r c valid same
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
+    by_cases sub : ∃ s, Rowl.Strings.subtypeOf k = some s
+    · obtain ⟨s, hs⟩ := sub
+      rw [Rowl.Datatypes.subtype_space_iff N hs]
+      rintro ⟨t, f, same⟩
+      exact N.real_text r t (Rowl.Strings.form_xml f) same
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · rw [typeOf, N.string_space]
       rintro ⟨s, xs, same⟩
       exact N.real_text r s xs same
@@ -391,7 +402,23 @@ theorem real_space (N : Normative D) (r : ℝ) (k : datatypes.Kind) :
       exact N.real_truth r b same
 
 theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatypes.Kind) :
-    D.valueSpace (typeOf k) (N.text t) ↔ k = .String ∨ k = .Plain := by
+    D.valueSpace (typeOf k) (N.text t) ↔ Rowl.Strings.TextIn k t := by
+  by_cases sub : ∃ s, Rowl.Strings.subtypeOf k = some s
+  · obtain ⟨s, hs⟩ := sub
+    rw [Rowl.Datatypes.subtype_space_iff N hs]
+    have others : k ≠ .String ∧ k ≠ .Plain := by cases k <;> simp [Rowl.Strings.subtypeOf] at hs ⊢
+    simp only [Rowl.Strings.TextIn, others.1, others.2, false_or, hs, Option.some.injEq, exists_eq_left']
+    constructor
+    · rintro ⟨t', f, same⟩; rw [N.text_injective _ _ xs (Rowl.Strings.form_xml f) same]; exact f
+    · intro f; exact ⟨t, f, rfl⟩
+  have classic : Rowl.Strings.TextIn k t ↔ k = .String ∨ k = .Plain := by
+    simp only [Rowl.Strings.TextIn]
+    constructor
+    · rintro (h | h | ⟨s, hs, _⟩)
+      exacts [.inl h, .inr h, absurd ⟨s, hs⟩ sub]
+    · rintro (h | h)
+      exacts [.inl h, .inr (.inl h)]
+  rw [classic]
   by_cases numeric : Rowl.Datatypes.IsNumeric k
   · rw [Rowl.Datatypes.numeric_space N k numeric]
     constructor
@@ -403,7 +430,8 @@ theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatyp
         obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
         exact absurd same (N.text_coded t c xs valid)
       · rintro (rfl | rfl) <;> simp [IsCoded] at ck
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · simp only [typeOf, N.string_space, true_or, iff_true]
       exact ⟨t, xs, rfl⟩
     · simp only [typeOf, N.plain_space, or_true, iff_true]
@@ -413,6 +441,12 @@ theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatyp
 
 theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : TagValue l) (k : datatypes.Kind) :
     D.valueSpace (typeOf k) (N.tagged t l) ↔ k = .Plain := by
+  by_cases sub : ∃ s, Rowl.Strings.subtypeOf k = some s
+  · obtain ⟨s, hs⟩ := sub
+    rw [Rowl.Datatypes.subtype_space_iff N hs]
+    have notPlain : k ≠ .Plain := by cases k <;> simp [Rowl.Strings.subtypeOf] at hs ⊢
+    simp only [notPlain, iff_false, not_exists, not_and]
+    exact fun t' f same => N.text_tagged t' t l (Rowl.Strings.form_xml f) xs tl same.symm
   by_cases numeric : Rowl.Datatypes.IsNumeric k
   · rw [Rowl.Datatypes.numeric_space N k numeric]
     constructor
@@ -424,7 +458,8 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
         obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
         exact absurd same (N.tagged_coded t l c xs tl valid)
       · rintro rfl; simp [IsCoded] at ck
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck <;>
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
     · simp only [typeOf, N.string_space, reduceCtorEq, iff_false, not_exists, not_and]
       exact fun s xs' e => N.text_tagged s t l xs' xs tl e.symm
     · simp only [typeOf, N.plain_space, iff_true]
@@ -459,7 +494,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
     (∃ y, D.valueSpace (typeOf k) y ∧ embedValue.{v,w} y = regionValue N cs lits r n) ↔ RegionIn cs lits r n k := by
   cases r with
   | number p ℓ => rw [regionValue, embedded_space, real_space N]; rfl
-  | string => rw [regionValue, embedded_space, text_space N _ (aText_xml n)]; rfl
+  | string ℓ => rw [regionValue, embedded_space, text_space N _ (Rowl.Strings.stringAt_xml ℓ.isLt n)]; rfl
   | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
   | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
   | other =>
@@ -501,10 +536,21 @@ noncomputable def positionOf (d : Object') : Nat :=
     Nat.find h
   else (orderedCuts context order).length
 
+/-- The level of a string node: the rank of the deepest subtype of
+    `xsd:string` in use whose class holds at it, and 0 for none. -/
+noncomputable def stringLevel (d : Object') : Fin 7 :=
+  if InUse context J (chainKind 6) d then 6
+  else if InUse context J (chainKind 5) d then 5
+  else if InUse context J (chainKind 4) d then 4
+  else if InUse context J (chainKind 3) d then 3
+  else if InUse context J (chainKind 2) d then 2
+  else if InUse context J (chainKind 1) d then 1
+  else 0
+
 /-- The region of a node's values. -/
 noncomputable def regionOf (d : Object') : Region :=
   if NumericNode context J d then .number (positionOf context J order d) (levelOf context J d)
-  else if InUse context J .String d then .string
+  else if InUse context J .String d then .string (stringLevel context J d)
   else if InUse context J .Plain d then .tagged
   else if InUse context J .AnyUri d then .coded .uri
   else if InUse context J .HexBinary d then .coded .hex
@@ -521,6 +567,68 @@ theorem position_le (d : Object') : positionOf context J order d ≤ (orderedCut
   · exact le_rfl
 
 variable {context J}
+
+/-- A subtype of `xsd:string` is a kind of the chain after `xsd:string`. -/
+theorem chain_rank {k : datatypes.Kind} {s : DatatypeMap.StringSubtype} (hs : Rowl.Strings.subtypeOf k = some s) :
+    ∃ r, chainKind r = k ∧ 1 ≤ r ∧ r < 7 := by
+  cases k <;> simp [Rowl.Strings.subtypeOf] at hs
+  exacts [⟨1, rfl, by omega, by omega⟩, ⟨2, rfl, by omega, by omega⟩, ⟨6, rfl, by omega, by omega⟩,
+    ⟨3, rfl, by omega, by omega⟩, ⟨4, rfl, by omega, by omega⟩, ⟨5, rfl, by omega, by omega⟩]
+
+/-- A subtype of `xsd:string` in use puts `xsd:string` in use. -/
+theorem used_string {kinds : data_ontology.Kinds} {k : datatypes.Kind} {s : DatatypeMap.StringSubtype}
+    (hs : Rowl.Strings.subtypeOf k = some s) (used : Used kinds k = true) : Used kinds .String = true := by
+  cases k <;> simp [Rowl.Strings.subtypeOf] at hs <;> simp_all [Used]
+
+/-- The class of a subtype of `xsd:string` in use lies in the class of
+    `xsd:string`. -/
+theorem subtype_in_string (kinds : KindFacts context J) {k : datatypes.Kind} {s : DatatypeMap.StringSubtype}
+    (hs : Rowl.Strings.subtypeOf k = some s) (used : Used context.kinds k = true) {y : Object'}
+    (h : J.classes (kindClass k) y) : J.classes (kindClass .String) y := by
+  obtain ⟨r, rfl, lo, hi⟩ := chain_rank hs
+  exact kinds.strings r 0 lo hi used (used_string hs used) y h
+
+/-- A node in the class of a subtype of `xsd:string` in use is in the class
+    of `xsd:string`, which is in use. -/
+theorem subtype_string (kinds : KindFacts context J) {k : datatypes.Kind} {y : Object'}
+    (h : J.classes (kindClass k) y) {s : DatatypeMap.StringSubtype} (hs : Rowl.Strings.subtypeOf k = some s)
+    (used : Used context.kinds k = true) : Used context.kinds .String = true ∧ J.classes (kindClass .String) y :=
+  ⟨used_string hs used, subtype_in_string kinds hs used h⟩
+
+/-- The kinds of the chain after `xsd:string` hold a string exactly as its
+    forms. -/
+theorem chain_textIn {r : Nat} (lo : 1 ≤ r) (hi : r < 7) (t : List U8) :
+    Rowl.Strings.TextIn (chainKind r) t ↔ Rowl.Strings.ChainForm r t := by
+  interval_cases r <;> simp [Rowl.Strings.TextIn, Rowl.Strings.subtypeOf, chainKind, Rowl.Strings.ChainForm]
+
+/-- A class of the chain after `xsd:string` that holds at a node in use is
+    at most the node's level. -/
+theorem le_stringLevel {d : Object'} {i : Nat} (lo : 1 ≤ i) (hi : i < 7) (h : InUse context J (chainKind i) d) :
+    i ≤ (stringLevel context J d).val := by
+  unfold stringLevel
+  interval_cases i <;> split_ifs <;> simp_all
+
+/-- The class of the chain at the level of a string node holds there. -/
+theorem stringLevel_holds {d : Object'} (string : InUse context J .String d) :
+    InUse context J (chainKind (stringLevel context J d).val) d := by
+  unfold stringLevel
+  split_ifs <;> assumption
+
+/-- At a string node, a class of the chain in use holds exactly up to the
+    node's level. -/
+theorem chain_profile (kinds : KindFacts context J) {d : Object'} (string : InUse context J .String d) {i : Nat}
+    (hi : i < 7) (used : Used context.kinds (chainKind i) = true) :
+    J.classes (kindClass (chainKind i)) d ↔ i ≤ (stringLevel context J d).val := by
+  constructor
+  · intro h
+    rcases Nat.eq_zero_or_pos i with rfl | pos
+    · exact Nat.zero_le _
+    · exact le_stringLevel pos hi ⟨used, h⟩
+  · intro le
+    obtain ⟨usedAt, holdsAt⟩ := stringLevel_holds string
+    rcases Nat.eq_or_lt_of_le le with same | lt
+    · rw [same]; exact holdsAt
+    · exact kinds.strings _ i lt (stringLevel context J d).isLt usedAt used d holdsAt
 
 /-- A numeric node's classes of numeric datatypes in use hold exactly as
     the datatypes contain a real of its level. -/
@@ -547,6 +655,10 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.1 used ui d ⟨h, ai⟩
     · exact fun h => kinds.sequences.2.1.1 used ui d ⟨h, ai⟩
     · exact fun h => kinds.sequences.2.2.1.1 used ui d ⟨h, ai⟩
+    all_goals
+      intro h
+      obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
+      exact kinds.integerString ui usedString d ⟨ai, inString⟩
   by_cases hd : InUse context J .Decimal d
   · simp only [hi, hd, ↓reduceIte, AtLevel] at atLevel
     obtain ⟨ud, ad⟩ := hd
@@ -563,6 +675,10 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.2.1 used ud d ⟨h, ad⟩
     · exact fun h => kinds.sequences.2.1.2.1 used ud d ⟨h, ad⟩
     · exact fun h => kinds.sequences.2.2.1.2.1 used ud d ⟨h, ad⟩
+    all_goals
+      intro h
+      obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
+      exact kinds.decimalString ud usedString d ⟨ad, inString⟩
   by_cases hq : InUse context J .Rational d
   · simp only [hi, hd, hq, ↓reduceIte, AtLevel] at atLevel
     obtain ⟨uq, aq⟩ := hq
@@ -579,6 +695,10 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.sequences.1.2.2.1 used uq d ⟨h, aq⟩
     · exact fun h => kinds.sequences.2.1.2.2.1 used uq d ⟨h, aq⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.1 used uq d ⟨h, aq⟩
+    all_goals
+      intro h
+      obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
+      exact kinds.rationalString uq usedString d ⟨aq, inString⟩
   have hr : InUse context J .Real d := by
     rcases numeric with h | h | h | h
     · exact absurd h hi
@@ -601,6 +721,10 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
   · exact fun h => kinds.sequences.1.2.2.2.1 used ur d ⟨h, ar⟩
   · exact fun h => kinds.sequences.2.1.2.2.2.1 used ur d ⟨h, ar⟩
   · exact fun h => kinds.sequences.2.2.1.2.2.2.1 used ur d ⟨h, ar⟩
+  all_goals
+    intro h
+    obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
+    exact kinds.realString ur usedString d ⟨ar, inString⟩
 
 /-- A node that is no number has the classes of the strings, the plain
     literals and the values outside every datatype as its region says. -/
@@ -618,9 +742,25 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
   simp only [notNumeric, ↓reduceIte]
   by_cases hs : InUse context J .String d
   · simp only [hs, ↓reduceIte, RegionIn]
+    have string := hs
     obtain ⟨us, ast⟩ := hs
-    cases k <;> simp only [Used, Bool.false_eq_true] at used <;> simp only [reduceCtorEq, or_false, false_or, or_self, iff_true,
-      iff_false, true_or, or_true]
+    have level := (stringLevel context J d).isLt
+    by_cases sub : ∃ s, Rowl.Strings.subtypeOf k = some s
+    · obtain ⟨s, hsub⟩ := sub
+      obtain ⟨r, rfl, lo, hi⟩ := chain_rank hsub
+      rw [chain_profile kinds string hi used, chain_textIn lo hi, Rowl.Strings.stringAt_form level hi]
+    have classic : ∀ t, Rowl.Strings.TextIn k t ↔ k = .String ∨ k = .Plain := by
+      intro t
+      simp only [Rowl.Strings.TextIn]
+      constructor
+      · rintro (h | h | ⟨s, hs, _⟩)
+        exacts [.inl h, .inr h, absurd ⟨s, hs⟩ sub]
+      · rintro (h | h)
+        exacts [.inl h, .inr (.inl h)]
+    rw [classic]
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+      simp only [reduceCtorEq, or_false, false_or, or_self, iff_true, iff_false, true_or, or_true]
     · exact notIn _ ni used
     · exact notIn _ nd used
     · exact ast
@@ -631,6 +771,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.sequences.1.2.2.2.2.1 used us d ⟨h, ast⟩
     · exact fun h => kinds.sequences.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
+  have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
+      Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
+    fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
   by_cases hp : InUse context J .Plain d
   · simp only [hs, hp, ↓reduceIte, RegionIn]
     obtain ⟨up, ap⟩ := hp
@@ -645,6 +788,7 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.sequences.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
     · exact fun h => kinds.sequences.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
     · exact fun h => kinds.sequences.2.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
+    all_goals exact fun h => notSub h rfl used
   by_cases hu : InUse context J .AnyUri d
   · simp only [hs, hp, hu, ↓reduceIte, RegionIn, sequenceKind]
     obtain ⟨uu, au⟩ := hu
@@ -660,6 +804,7 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact au
     · exact fun h => kinds.sequences.2.2.2.1 uu used d ⟨au, h⟩
     · exact fun h => kinds.sequences.2.2.2.2.1 uu used d ⟨au, h⟩
+    all_goals exact fun h => notSub h rfl used
   by_cases hh : InUse context J .HexBinary d
   · simp only [hs, hp, hu, hh, ↓reduceIte, RegionIn, sequenceKind]
     obtain ⟨uh, ah⟩ := hh
@@ -675,6 +820,7 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact ah
     · exact fun h => kinds.sequences.2.2.2.2.2 uh used d ⟨ah, h⟩
+    all_goals exact fun h => notSub h rfl used
   by_cases hb : InUse context J .Base64Binary d
   · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, sequenceKind]
     obtain ⟨ub, ab⟩ := hb
@@ -690,6 +836,7 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact notIn _ hh used
     · exact ab
+    all_goals exact fun h => notSub h rfl used
   · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, iff_false]
     cases k <;> simp only [Used, Bool.false_eq_true] at used
     · exact notIn _ ni used
@@ -702,6 +849,7 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hu used
     · exact notIn _ hh used
     · exact notIn _ hb used
+    all_goals exact fun h => notSub h rfl used
 
 end Profile
 
@@ -875,7 +1023,8 @@ theorem literal_no_cut (setting : Setting context capacity bits order J) (ordere
   intro inK
   have real := ((setting.frame.values i hi).2.1 .Real (real_used setting ordered)).mp (cut_real setting ordered hk inK)
   revert notNumber real
-  cases context.values.val[i.val] <;> simp [InKind, Rowl.Datatypes.IsNumber]
+  cases context.values.val[i.val] <;> simp [InKind, Rowl.Datatypes.IsNumber, Rowl.Strings.TextIn,
+    Rowl.Strings.subtypeOf]
 
 theorem usize_index {α : Type} (l : alloc.vec.Vec α) (j : Nat) (h : j < l.val.length) : ∃ i : Usize, i.val = j := by
   have bound := l.property
@@ -1536,7 +1685,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
           simp only [numeric, ↓reduceIte] at same
           split_ifs at same <;> simp only [regionValue, realValue, embedValue, ULift.up.injEq, Sum.inl.injEq,
             reduceCtorEq] at same
-          · exact absurd same.symm (N.real_text r _ (aText_xml _))
+          · exact absurd same.symm (N.real_text r _ (Rowl.Strings.stringAt_xml (stringLevel context J d).isLt _))
           · exact absurd same.symm (N.real_tagged r _ _ (aText_xml _) enTag_value)
           all_goals exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
 

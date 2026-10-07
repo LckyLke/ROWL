@@ -1,7 +1,9 @@
 //! The data values of the literals of the OWL 2 datatypes the reasoner knows:
 //! `owl:real`, `owl:rational`, `xsd:decimal`, `xsd:integer` and its twelve
-//! subtypes, `xsd:string`, `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`,
-//! `xsd:hexBinary` and `xsd:base64Binary`.
+//! subtypes, `xsd:string` and its six subtypes `xsd:normalizedString`,
+//! `xsd:token`, `xsd:language`, `xsd:NMTOKEN`, `xsd:Name` and `xsd:NCName`,
+//! `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`, `xsd:hexBinary` and
+//! `xsd:base64Binary`.
 //!
 //! A literal of one of them whose lexical form is in the datatype's lexical
 //! space has a value:
@@ -17,7 +19,12 @@
 //!   form, `/` and digits for a positive denominator, is the quotient: a number
 //!   when it is a decimal, and otherwise a fraction in lowest terms;
 //!   `owl:real` has no lexical forms;
-//! - a string is its UTF-8 bytes, which must encode XML characters;
+//! - a string is its UTF-8 bytes, which must encode XML characters; a literal
+//!   of a subtype of `xsd:string` is the string of its lexical form, which
+//!   must be in the subtype (XML Schema 1.1 §3.4: no tab, line feed or carriage
+//!   return in a normalized string; no space first, last or twice in a row in
+//!   a token; `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*` for a language; the XML 1.1
+//!   productions `Nmtoken` and `Name`, and `Name` without `:` for `NCName`);
 //! - a plain literal `text@tag` is the string `text` when the tag after the
 //!   last `@` is empty, and otherwise the pair of `text` and the tag in lower
 //!   case, which must be a well-formed language tag;
@@ -51,7 +58,7 @@ use crate::numbers::{
     canonical, compare_naturals, divide_naturals, gcd_naturals, multiply_naturals, ten_power,
     times_power,
 };
-use crate::unicode::{read_text, TextScan};
+use crate::unicode::{read_text, Scalars, TextScan};
 
 /// A data value.
 pub enum DataValue {
@@ -102,6 +109,12 @@ pub enum Kind {
     AnyUri,
     HexBinary,
     Base64Binary,
+    NormalizedString,
+    Token,
+    Language,
+    NmToken,
+    Name,
+    NcName,
 }
 
 /// The range facets.
@@ -147,7 +160,13 @@ fn kind_at(index: u8) -> Kind {
         18 => Kind::UnsignedByte,
         19 => Kind::AnyUri,
         20 => Kind::HexBinary,
-        _ => Kind::Base64Binary,
+        21 => Kind::Base64Binary,
+        22 => Kind::NormalizedString,
+        23 => Kind::Token,
+        24 => Kind::Language,
+        25 => Kind::NmToken,
+        26 => Kind::Name,
+        _ => Kind::NcName,
     }
 }
 /// Whether the IRI is the kind's datatype.
@@ -186,11 +205,19 @@ fn is_type(iri: &Vec<u8>, kind: Kind) -> bool {
         Kind::AnyUri => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#anyURI"),
         Kind::HexBinary => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#hexBinary"),
         Kind::Base64Binary => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#base64Binary"),
+        Kind::NormalizedString => {
+            same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#normalizedString")
+        }
+        Kind::Token => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#token"),
+        Kind::Language => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#language"),
+        Kind::NmToken => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#NMTOKEN"),
+        Kind::Name => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#Name"),
+        Kind::NcName => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#NCName"),
     }
 }
 /// The first kind from the position `index` on whose datatype the IRI is.
 fn kind_from(iri: &Vec<u8>, index: u8) -> Option<Kind> {
-    if index < 22 {
+    if index < 28 {
         if is_type(iri, kind_at(index)) {
             Some(kind_at(index))
         } else {
@@ -601,6 +628,12 @@ fn number_in_kind(value: &DataValue, whole: bool, kind: Kind) -> bool {
         Kind::AnyUri => false,
         Kind::HexBinary => false,
         Kind::Base64Binary => false,
+        Kind::NormalizedString => false,
+        Kind::Token => false,
+        Kind::Language => false,
+        Kind::NmToken => false,
+        Kind::Name => false,
+        Kind::NcName => false,
         _ => whole & above_lower(value, kind) & below_upper(value, kind),
     }
 }
@@ -795,24 +828,145 @@ fn base64_value(lexical: &Vec<u8>) -> Option<Vec<u8>> {
         None => None,
     }
 }
+/// Whether no byte of `text[index..]` is a tab, a line feed or a carriage
+/// return.
+fn unbroken(text: &Vec<u8>, index: usize) -> bool {
+    if index < text.len() {
+        let byte = text[index];
+        (byte != 9) & (byte != 10) & (byte != 13) && unbroken(text, index + 1)
+    } else {
+        true
+    }
+}
+/// Whether every space of `text[index..]` is followed by a byte that is no
+/// space.
+fn spaced_once(text: &Vec<u8>, index: usize) -> bool {
+    if index < text.len() {
+        if text[index] == 32 {
+            index + 1 < text.len() && text[index + 1] != 32 && spaced_once(text, index + 1)
+        } else {
+            spaced_once(text, index + 1)
+        }
+    } else {
+        true
+    }
+}
+/// Whether the text is a token: no tab, line feed or carriage return, and no
+/// space first, last or after another space.
+fn tokenized(text: &Vec<u8>) -> bool {
+    unbroken(text, 0) && (text.len() == 0 || text[0] != 32) && spaced_once(text, 0)
+}
+fn is_letter(byte: u8) -> bool {
+    ((65 <= byte) & (byte <= 90)) | ((97 <= byte) & (byte <= 122))
+}
+/// Whether `text[index..]` ends a language tag
+/// `[a-zA-Z]{1,8}(-[a-zA-Z0-9]{1,8})*` whose current subtag has `count`
+/// characters, digits allowed after the first subtag.
+fn subtags_from(text: &Vec<u8>, index: usize, count: usize, first: bool) -> bool {
+    if index < text.len() {
+        let byte = text[index];
+        if byte == 45 {
+            (0 < count) && subtags_from(text, index + 1, 0, false)
+        } else {
+            (count < 8) & (is_letter(byte) | (!first & is_digit(byte)))
+                && subtags_from(text, index + 1, count + 1, first)
+        }
+    } else {
+        0 < count
+    }
+}
+/// XML 1.1 `NameStartChar`, also that of XML 1.0, fifth edition.
+fn name_start(codepoint: u32) -> bool {
+    (codepoint == 58)
+        | ((65 <= codepoint) & (codepoint <= 90))
+        | (codepoint == 95)
+        | ((97 <= codepoint) & (codepoint <= 122))
+        | ((0xC0 <= codepoint) & (codepoint <= 0xD6))
+        | ((0xD8 <= codepoint) & (codepoint <= 0xF6))
+        | ((0xF8 <= codepoint) & (codepoint <= 0x2FF))
+        | ((0x370 <= codepoint) & (codepoint <= 0x37D))
+        | ((0x37F <= codepoint) & (codepoint <= 0x1FFF))
+        | ((0x200C <= codepoint) & (codepoint <= 0x200D))
+        | ((0x2070 <= codepoint) & (codepoint <= 0x218F))
+        | ((0x2C00 <= codepoint) & (codepoint <= 0x2FEF))
+        | ((0x3001 <= codepoint) & (codepoint <= 0xD7FF))
+        | ((0xF900 <= codepoint) & (codepoint <= 0xFDCF))
+        | ((0xFDF0 <= codepoint) & (codepoint <= 0xFFFD))
+        | ((0x10000 <= codepoint) & (codepoint <= 0xEFFFF))
+}
+/// XML 1.1 `NameChar`.
+fn name_character(codepoint: u32) -> bool {
+    name_start(codepoint)
+        | (codepoint == 45)
+        | (codepoint == 46)
+        | ((48 <= codepoint) & (codepoint <= 57))
+        | (codepoint == 0xB7)
+        | ((0x300 <= codepoint) & (codepoint <= 0x36F))
+        | ((0x203F <= codepoint) & (codepoint <= 0x2040))
+}
+/// Whether every character is a name character.
+fn name_characters(scalars: &Scalars) -> bool {
+    match scalars {
+        Scalars::Empty => true,
+        Scalars::Cons {
+            codepoint, next, ..
+        } => name_character(*codepoint) && name_characters(next),
+    }
+}
+/// Whether the text matches `Nmtoken`: one or more name characters.
+fn name_token(text: &Vec<u8>) -> bool {
+    match read_text(text) {
+        TextScan::Valid(Scalars::Cons {
+            codepoint, next, ..
+        }) => name_character(codepoint) && name_characters(&next),
+        _ => false,
+    }
+}
+/// Whether the text matches `Name`: a name start character and name
+/// characters.
+fn xml_name(text: &Vec<u8>) -> bool {
+    match read_text(text) {
+        TextScan::Valid(Scalars::Cons {
+            codepoint, next, ..
+        }) => name_start(codepoint) && name_characters(&next),
+        _ => false,
+    }
+}
+/// Whether the XML text is in the value space of the kind's datatype.
+fn text_in_kind(text: &Vec<u8>, kind: Kind) -> bool {
+    match kind {
+        Kind::String => true,
+        Kind::Plain => true,
+        Kind::NormalizedString => unbroken(text, 0),
+        Kind::Token => tokenized(text),
+        Kind::Language => subtags_from(text, 0, 0, true),
+        Kind::NmToken => name_token(text),
+        Kind::Name => xml_name(text),
+        Kind::NcName => xml_name(text) && find_byte(text, 58, 0) == text.len(),
+        _ => false,
+    }
+}
+/// The value of a lexical form of `xsd:string` or one of its subtypes: the
+/// string itself, if it is XML text in the kind.
+fn string_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
+    if xml_text(lexical) && text_in_kind(lexical, kind) {
+        Some(DataValue::Text(copy_range(
+            lexical,
+            0,
+            lexical.len(),
+            Vec::new(),
+        )))
+    } else {
+        None
+    }
+}
 /// The value of a lexical form of the datatype of the kind, if it is in the
 /// lexical space.
 pub fn kind_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
     match kind {
         Kind::Integer => number_value(lexical, true),
         Kind::Decimal => number_value(lexical, false),
-        Kind::String => {
-            if xml_text(lexical) {
-                Some(DataValue::Text(copy_range(
-                    lexical,
-                    0,
-                    lexical.len(),
-                    Vec::new(),
-                )))
-            } else {
-                None
-            }
-        }
+        Kind::String => string_value(kind, lexical),
         Kind::Plain => plain_value(lexical),
         Kind::Boolean => truth_value(lexical),
         Kind::Real => None,
@@ -837,6 +991,12 @@ pub fn kind_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
             Some(octets) => Some(DataValue::Base64(octets)),
             None => None,
         },
+        Kind::NormalizedString => string_value(kind, lexical),
+        Kind::Token => string_value(kind, lexical),
+        Kind::Language => string_value(kind, lexical),
+        Kind::NmToken => string_value(kind, lexical),
+        Kind::Name => string_value(kind, lexical),
+        Kind::NcName => string_value(kind, lexical),
         _ => bounded_value(kind, lexical),
     }
 }
@@ -904,11 +1064,7 @@ pub fn in_kind(value: &DataValue, kind: Kind) -> bool {
             Kind::Rational => true,
             _ => false,
         },
-        DataValue::Text(_) => match kind {
-            Kind::String => true,
-            Kind::Plain => true,
-            _ => false,
-        },
+        DataValue::Text(text) => text_in_kind(text, kind),
         DataValue::Tagged(_, _) => match kind {
             Kind::Plain => true,
             _ => false,
@@ -1146,6 +1302,12 @@ pub fn facet_applies(kind: Kind, bound: &DataValue) -> bool {
             Kind::AnyUri => false,
             Kind::HexBinary => false,
             Kind::Base64Binary => false,
+            Kind::NormalizedString => false,
+            Kind::Token => false,
+            Kind::Language => false,
+            Kind::NmToken => false,
+            Kind::Name => false,
+            Kind::NcName => false,
             _ => in_kind(bound, kind),
         }
     } else {
