@@ -97,6 +97,8 @@ pub mod numbers;
 
 pub mod moments;
 
+pub mod floats;
+
 pub mod datatypes;
 
 pub mod regions;

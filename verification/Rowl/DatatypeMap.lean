@@ -1,6 +1,8 @@
 import Rowl.OwlSemantics
 import Rowl.LangTag
 import Mathlib.Data.Real.Basic
+import Mathlib.Data.Int.Log
+import Mathlib.Data.Rat.Floor
 
 /-!
 Independent specification of the OWL 2 datatype map on the datatypes the
@@ -99,6 +101,10 @@ def ncnameType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 1
 def dateTimeType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 97#u8, 116#u8, 101#u8, 84#u8, 105#u8, 109#u8, 101#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:dateTimeStamp` -/
 def dateTimeStampType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 97#u8, 116#u8, 101#u8, 84#u8, 105#u8, 109#u8, 101#u8, 83#u8, 116#u8, 97#u8, 109#u8, 112#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:double` -/
+def doubleType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 100#u8, 111#u8, 117#u8, 98#u8, 108#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:float` -/
+def floatType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 102#u8, 108#u8, 111#u8, 97#u8, 116#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:minInclusive` -/
 def minInclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 73#u8, 110#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- `xsd:maxInclusive` -/
@@ -386,6 +392,89 @@ def MomentForm (text : List U8) (m : Moment) : Prop :=
         m = ⟨(nextDate year month day).1, (nextDate year month day).2.1, (nextDate year month day).2.2, 0, 0, 0,
           zone⟩))
 
+/-- A floating-point format of XML Schema (§3.3.4, §3.3.5): the digits of the
+    significand and the least and the greatest exponent of 2. -/
+structure FloatFormat where
+  precision : ℕ
+  least : ℤ
+  most : ℤ
+
+/-- The format of `xsd:double`. -/
+def doubleFormat : FloatFormat := ⟨53, -1074, 971⟩
+/-- The format of `xsd:float`. -/
+def floatFormat : FloatFormat := ⟨24, -149, 104⟩
+
+/-- A value of `xsd:double` or `xsd:float` (XML Schema 1.1 Part 2 §3.3.5): a
+    nonzero number, a zero with its sign, an infinity with its sign, or NaN.
+    The two zeros are different values, equal but not identical (OWL 2
+    Structural Specification §4.2), and NaN is one value. -/
+inductive Binary where
+  | finite (value : ℚ)
+  | zero (negative : Bool)
+  | infinity (negative : Bool)
+  | nan
+deriving DecidableEq
+
+/-- A value of the format: a nonzero number is `m × 2^e` with `0 < |m| < 2^p`
+    and an exponent between the least and the greatest. -/
+def Binary.Valid (f : FloatFormat) : Binary → Prop
+  | .finite q => ∃ (m e : ℤ), q = m * (2 : ℚ) ^ e ∧ 0 < abs m ∧ abs m < 2 ^ f.precision ∧ f.least ≤ e ∧ e ≤ f.most
+  | _ => True
+
+/-- `floatingPointRound` of XML Schema 1.1 Part 2 (§E.1.1, the auxiliary
+    functions for binary floating-point lexical mappings) for a nonzero
+    number: the exponent `e` with `2^(p−1) ≤ |v| / 2^e < 2^p`, or the least
+    exponent where that is below it, and an infinity above the greatest;
+    otherwise the nearer of the multiples of `2^e` around `|v|`, at a tie the
+    one with the even quotient, a zero when that is zero, and an infinity when
+    it is `2^p × 2^eMax` or more. -/
+noncomputable def roundBinary (f : FloatFormat) (v : ℚ) : Binary :=
+  if f.most < Int.log 2 (abs v) - f.precision + 1 then .infinity (decide (v < 0))
+  else
+    let e := max (Int.log 2 (abs v) - f.precision + 1) f.least
+    let c := Int.floor (abs v / (2 : ℚ) ^ e) + 1
+    let middle := c * (2 : ℚ) ^ e - (2 : ℚ) ^ (e - 1)
+    let n : ℚ := if middle < abs v then c * (2 : ℚ) ^ e else if abs v < middle then (c - 1) * (2 : ℚ) ^ e
+      else if c % 2 = 0 then c * (2 : ℚ) ^ e else (c - 1) * (2 : ℚ) ^ e
+    if n = 0 then .zero (decide (v < 0))
+    else if n < (2 : ℚ) ^ f.precision * (2 : ℚ) ^ f.most then .finite (if v < 0 then -n else n)
+    else .infinity (decide (v < 0))
+
+/-- `text` is an optional sign, `+` or `-`: negative for `-`. -/
+def SignForm (text : List U8) (negative : Bool) : Prop :=
+  (text = [] ∧ negative = false) ∨ (text = [43#u8] ∧ negative = false) ∨ (text = [45#u8] ∧ negative = true)
+
+/-- `text` is an unsigned decimal numeral `[0-9]+(\.[0-9]*)?|\.[0-9]+` whose
+    digits without the point are `digits`, `places` of them after the point. -/
+def UnsignedForm (text digits : List U8) (places : ℕ) : Prop :=
+  ∃ whole fraction, Digits whole ∧ Digits fraction ∧ digits = whole ++ fraction ∧ places = fraction.length ∧
+    ((text = whole ∧ whole ≠ [] ∧ fraction = []) ∨ (text = whole ++ 46#u8 :: fraction ∧ (whole ≠ [] ∨ fraction ≠ [])))
+
+/-- `text` is an optional exponent `[Ee](\+|-)?[0-9]+` that writes `x`, or
+    nothing for 0. -/
+def ExponentForm (text : List U8) (x : ℤ) : Prop :=
+  (text = [] ∧ x = 0) ∨ ∃ (mark : U8) (sign digits : List U8) (negative : Bool),
+    (mark = 69#u8 ∨ mark = 101#u8) ∧ SignForm sign negative ∧ Digits digits ∧ digits ≠ [] ∧
+    text = mark :: sign ++ digits ∧ x = (if negative then -1 else 1) * (digitsValue digits : ℤ)
+
+/-- `text` is a numeral of `xsd:double` and `xsd:float` (§3.3.5.2:
+    `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)([Ee](\+|-)?[0-9]+)?`), negative after
+    `-`, for the decimal number `v`. -/
+def NumeralForm (text : List U8) (negative : Bool) (v : ℚ) : Prop :=
+  ∃ sign unsigned exponent digits places x, text = sign ++ unsigned ++ exponent ∧ SignForm sign negative ∧
+    UnsignedForm unsigned digits places ∧ ExponentForm exponent x ∧
+    v = (if negative then -1 else 1) * (digitsValue digits : ℚ) * (10 : ℚ) ^ (x - places)
+
+/-- `text` is a lexical form of the format for the value `b` (§3.3.4.2 and
+    §3.3.5.2, `floatLexicalMap` and `doubleLexicalMap`): `INF` or `+INF`,
+    `-INF` and `NaN` for the special values, a numeral of zero for the zero of
+    its sign, and a numeral of another number for its rounding. -/
+def BinaryForm (f : FloatFormat) (text : List U8) (b : Binary) : Prop :=
+  ((text = [73#u8, 78#u8, 70#u8] ∨ text = [43#u8, 73#u8, 78#u8, 70#u8]) ∧ b = .infinity false) ∨
+  (text = [45#u8, 73#u8, 78#u8, 70#u8] ∧ b = .infinity true) ∨
+  (text = [78#u8, 97#u8, 78#u8] ∧ b = .nan) ∨
+  ∃ negative v, NumeralForm text negative v ∧ ((v = 0 ∧ b = .zero negative) ∨ (v ≠ 0 ∧ b = roundBinary f v))
+
 /-- A datatype map that is the OWL 2 datatype map on the datatypes here: they
     are supported, with these lexical spaces and lexical-to-value mappings; a
     number is the image of a real number, the rationals' images agreeing with
@@ -407,7 +496,11 @@ def MomentForm (text : List U8) (m : Moment) : Prop :=
     form; and the values of `xsd:dateTime` are the images of the valid moments,
     injectively and apart from every other value, those of
     `xsd:dateTimeStamp` the images of the moments with a time zone, and each
-    lexical form has the value of its moment. -/
+    lexical form has the value of its moment; and the values of `xsd:double`
+    and `xsd:float` are the images of the values of their formats, injectively,
+    the two datatypes apart from each other and from every other value
+    (OWL 2 Structural Specification §4.2), each lexical form with the value
+    that `BinaryForm` gives it. -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -512,5 +605,30 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   datetime_value : ∀ t m, MomentForm t m → D.lexicalValue dateTimeType t = moment m
   stamp_lexical : ∀ t, D.lexicalSpace dateTimeStampType t ↔ ∃ m, MomentForm t m ∧ m.zone ≠ none
   stamp_value : ∀ t m, MomentForm t m → m.zone ≠ none → D.lexicalValue dateTimeStampType t = moment m
+  double : Binary → Native
+  float : Binary → Native
+  double_injective : ∀ a b, a.Valid doubleFormat → b.Valid doubleFormat → double a = double b → a = b
+  float_injective : ∀ a b, a.Valid floatFormat → b.Valid floatFormat → float a = float b → a = b
+  double_float : ∀ a b, a.Valid doubleFormat → b.Valid floatFormat → double a ≠ float b
+  real_double : ∀ r a, a.Valid doubleFormat → real r ≠ double a
+  real_float : ∀ r a, a.Valid floatFormat → real r ≠ float a
+  text_double : ∀ s a, XmlText s → a.Valid doubleFormat → text s ≠ double a
+  text_float : ∀ s a, XmlText s → a.Valid floatFormat → text s ≠ float a
+  tagged_double : ∀ s l a, XmlText s → TagValue l → a.Valid doubleFormat → tagged s l ≠ double a
+  tagged_float : ∀ s l a, XmlText s → TagValue l → a.Valid floatFormat → tagged s l ≠ float a
+  truth_double : ∀ b a, a.Valid doubleFormat → truth b ≠ double a
+  truth_float : ∀ b a, a.Valid floatFormat → truth b ≠ float a
+  coded_double : ∀ c a, c.Valid → a.Valid doubleFormat → coded c ≠ double a
+  coded_float : ∀ c a, c.Valid → a.Valid floatFormat → coded c ≠ float a
+  moment_double : ∀ m a, m.Valid → a.Valid doubleFormat → moment m ≠ double a
+  moment_float : ∀ m a, m.Valid → a.Valid floatFormat → moment m ≠ float a
+  double_supported : D.supported doubleType
+  float_supported : D.supported floatType
+  double_space : ∀ x, D.valueSpace doubleType x ↔ ∃ b, b.Valid doubleFormat ∧ x = double b
+  float_space : ∀ x, D.valueSpace floatType x ↔ ∃ b, b.Valid floatFormat ∧ x = float b
+  double_lexical : ∀ t, D.lexicalSpace doubleType t ↔ ∃ b, BinaryForm doubleFormat t b
+  double_value : ∀ t b, BinaryForm doubleFormat t b → D.lexicalValue doubleType t = double b
+  float_lexical : ∀ t, D.lexicalSpace floatType t ↔ ∃ b, BinaryForm floatFormat t b
+  float_value : ∀ t b, BinaryForm floatFormat t b → D.lexicalValue floatType t = float b
 
 end Rowl.DatatypeMap

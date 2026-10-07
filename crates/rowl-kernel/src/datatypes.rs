@@ -52,6 +52,7 @@
     clippy::manual_map,
     clippy::manual_is_multiple_of
 )] // Indexed operations and explicit branches for the pinned extraction subset.
+use crate::floats::binary_value;
 use crate::langtag::well_formed;
 use crate::model::{Datatype, Iri, Literal};
 use crate::moments::moment_value;
@@ -85,6 +86,19 @@ pub enum DataValue {
     Base64(Vec<u8>),
     /// A time instant of `xsd:dateTime`.
     Moment(Moment),
+    /// A value of `xsd:double`.
+    Double(Binary),
+    /// A value of `xsd:float`.
+    Float(Binary),
+}
+
+/// A value of `xsd:double` or `xsd:float` (XML Schema 1.1 Part 2 §3.3.5): a
+/// finite value `±m × 2^(scale − floats::BIAS)` with an odd `m` (zero for the
+/// two zeros, whose scale is `floats::BIAS`), an infinity, or NaN.
+pub enum Binary {
+    Finite(bool, u64, usize),
+    Infinite(bool),
+    NotANumber,
 }
 
 /// A time instant of `xsd:dateTime` (XML Schema 1.1 Part 2 §D.2.1): the date
@@ -141,6 +155,8 @@ pub enum Kind {
     NcName,
     DateTime,
     DateTimeStamp,
+    Double,
+    Float,
 }
 
 /// The range facets.
@@ -194,7 +210,9 @@ fn kind_at(index: u8) -> Kind {
         26 => Kind::Name,
         27 => Kind::NcName,
         28 => Kind::DateTime,
-        _ => Kind::DateTimeStamp,
+        29 => Kind::DateTimeStamp,
+        30 => Kind::Double,
+        _ => Kind::Float,
     }
 }
 /// Whether the IRI is the kind's datatype.
@@ -243,11 +261,13 @@ fn is_type(iri: &Vec<u8>, kind: Kind) -> bool {
         Kind::NcName => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#NCName"),
         Kind::DateTime => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#dateTime"),
         Kind::DateTimeStamp => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#dateTimeStamp"),
+        Kind::Double => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#double"),
+        Kind::Float => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#float"),
     }
 }
 /// The first kind from the position `index` on whose datatype the IRI is.
 fn kind_from(iri: &Vec<u8>, index: u8) -> Option<Kind> {
-    if index < 30 {
+    if index < 32 {
         if is_type(iri, kind_at(index)) {
             Some(kind_at(index))
         } else {
@@ -666,6 +686,8 @@ fn number_in_kind(value: &DataValue, whole: bool, kind: Kind) -> bool {
         Kind::NcName => false,
         Kind::DateTime => false,
         Kind::DateTimeStamp => false,
+        Kind::Double => false,
+        Kind::Float => false,
         _ => whole & above_lower(value, kind) & below_upper(value, kind),
     }
 }
@@ -1031,6 +1053,14 @@ pub fn kind_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
         Kind::NcName => string_value(kind, lexical),
         Kind::DateTime => moment_value(lexical, false),
         Kind::DateTimeStamp => moment_value(lexical, true),
+        Kind::Double => match binary_value(lexical, true) {
+            Some(value) => Some(DataValue::Double(value)),
+            None => None,
+        },
+        Kind::Float => match binary_value(lexical, false) {
+            Some(value) => Some(DataValue::Float(value)),
+            None => None,
+        },
         _ => bounded_value(kind, lexical),
     }
 }
@@ -1089,6 +1119,31 @@ pub fn same_value(left: &DataValue, right: &DataValue) -> bool {
         },
         DataValue::Moment(a) => match right {
             DataValue::Moment(b) => same_moment(a, b),
+            _ => false,
+        },
+        DataValue::Double(a) => match right {
+            DataValue::Double(b) => same_binary(a, b),
+            _ => false,
+        },
+        DataValue::Float(a) => match right {
+            DataValue::Float(b) => same_binary(a, b),
+            _ => false,
+        },
+    }
+}
+/// Whether two values of `xsd:double` or of `xsd:float` are the same.
+fn same_binary(left: &Binary, right: &Binary) -> bool {
+    match left {
+        Binary::Finite(a, b, c) => match right {
+            Binary::Finite(d, e, f) => (*a == *d) & (*b == *e) & (*c == *f),
+            _ => false,
+        },
+        Binary::Infinite(a) => match right {
+            Binary::Infinite(b) => *a == *b,
+            _ => false,
+        },
+        Binary::NotANumber => match right {
+            Binary::NotANumber => true,
             _ => false,
         },
     }
@@ -1158,6 +1213,14 @@ pub fn in_kind(value: &DataValue, kind: Kind) -> bool {
                 Some(_) => true,
                 None => false,
             },
+            _ => false,
+        },
+        DataValue::Double(_) => match kind {
+            Kind::Double => true,
+            _ => false,
+        },
+        DataValue::Float(_) => match kind {
+            Kind::Float => true,
             _ => false,
         },
     }
@@ -1385,6 +1448,8 @@ pub fn facet_applies(kind: Kind, bound: &DataValue) -> bool {
             Kind::NcName => false,
             Kind::DateTime => false,
             Kind::DateTimeStamp => false,
+            Kind::Double => false,
+            Kind::Float => false,
             _ => in_kind(bound, kind),
         }
     } else {

@@ -1,5 +1,6 @@
 import Rowl.DataComplete
 import Rowl.DataReals
+import Mathlib.Data.Nat.Nth
 
 /-!
 OWL models made from models of `data_ontology`'s encoding. The elements of an
@@ -195,22 +196,104 @@ theorem momentAt_injective {s s' : Bool} {n n' : ℕ} (same : momentAt s n = mom
   refine ⟨?_, same.1⟩
   cases s <;> cases s' <;> simp_all
 
+/-- The integers from 1 below `2^24` whose values as floating-point numbers
+    are not in `avoid`. -/
+def FreeInt (avoid : Set DatatypeMap.Binary) (k : ℕ) : Prop :=
+  1 ≤ k ∧ k < 16777216 ∧ DatatypeMap.Binary.finite (k : ℚ) ∉ avoid
+
+theorem freeInt_finite (avoid : Set DatatypeMap.Binary) : (setOf (FreeInt avoid)).Finite :=
+  (Set.finite_lt_nat 16777216).subset (fun _ h => h.2.1)
+
+/-- The values of a region of floating-point numbers: the integers from 1
+    below `2^24` that are not in `avoid`, in order (and 1 past them). -/
+noncomputable def binaryAt (avoid : Set DatatypeMap.Binary) (n : ℕ) : DatatypeMap.Binary :=
+  .finite ((max 1 (Nat.nth (FreeInt avoid) n) : ℕ) : ℚ)
+
+theorem binaryAt_range (avoid : Set DatatypeMap.Binary) (n : ℕ) :
+    1 ≤ max 1 (Nat.nth (FreeInt avoid) n) ∧ max 1 (Nat.nth (FreeInt avoid) n) < 16777216 := by
+  refine ⟨le_max_left _ _, ?_⟩
+  by_cases inside : n < (freeInt_finite avoid).toFinset.card
+  · have := (Nat.nth_mem_of_lt_card (freeInt_finite avoid) inside).2.1
+    omega
+  · have zero : Nat.nth (FreeInt avoid) n = 0 := Nat.nth_eq_zero.mpr (.inr ⟨freeInt_finite avoid, by omega⟩)
+    rw [zero]; norm_num
+
+/-- The values of a region of floating-point numbers are values of both
+    formats. -/
+theorem binaryAt_valid (avoid : Set DatatypeMap.Binary) (n : ℕ) (double : Bool) :
+    (binaryAt avoid n).Valid (Rowl.Floats.fmt double) := by
+  obtain ⟨lo, hi⟩ := binaryAt_range avoid n
+  refine ⟨(max 1 (Nat.nth (FreeInt avoid) n) : ℕ), 0, by simp [binaryAt], ?_, ?_, ?_, ?_⟩
+  · simp; omega
+  · rw [Rowl.Floats.fmt_precision]
+    have : (16777216 : ℤ) ≤ 2 ^ Rowl.Floats.prec double := by
+      cases double <;> simp [Rowl.Floats.prec]
+    simp only [Nat.cast_max, Nat.cast_one, abs_of_nonneg (show (0 : ℤ) ≤ max 1 _ from le_trans zero_le_one
+      (le_max_left _ _))]
+    have : ((max 1 (Nat.nth (FreeInt avoid) n) : ℕ) : ℤ) < 16777216 := by exact_mod_cast hi
+    push_cast at this
+    omega
+  · rw [Rowl.Floats.fmt_least]; cases double <;> simp [Rowl.Floats.lo]
+  · rw [Rowl.Floats.fmt_most]; cases double <;> simp [Rowl.Floats.hi]
+
+/-- The values of a region of floating-point numbers at the indices that have
+    values of their own are not in `avoid`, and distinct. -/
+theorem binaryAt_avoids (avoid : Set DatatypeMap.Binary) {n : ℕ} (valid : n < (setOf (FreeInt avoid)).ncard) :
+    binaryAt avoid n ∉ avoid := by
+  rw [Set.ncard_eq_toFinset_card _ (freeInt_finite avoid)] at valid
+  have mem := Nat.nth_mem_of_lt_card (freeInt_finite avoid) valid
+  have : max 1 (Nat.nth (FreeInt avoid) n) = Nat.nth (FreeInt avoid) n := max_eq_right mem.1
+  rw [binaryAt, this]
+  exact mem.2.2
+
+theorem binaryAt_injective (avoid : Set DatatypeMap.Binary) {m n : ℕ} (vm : m < (setOf (FreeInt avoid)).ncard)
+    (vn : n < (setOf (FreeInt avoid)).ncard) (same : binaryAt avoid m = binaryAt avoid n) : m = n := by
+  rw [Set.ncard_eq_toFinset_card _ (freeInt_finite avoid)] at vm vn
+  have memM := Nat.nth_mem_of_lt_card (freeInt_finite avoid) vm
+  have memN := Nat.nth_mem_of_lt_card (freeInt_finite avoid) vn
+  simp only [binaryAt, DatatypeMap.Binary.finite.injEq, Nat.cast_inj, max_eq_right memM.1, max_eq_right memN.1] at same
+  exact Nat.nth_injOn (freeInt_finite avoid) vm vn same
+
+/-- There are at least as many such integers as `2^24 − 1` less the values to
+    avoid. -/
+theorem freeInt_count (avoid : Set DatatypeMap.Binary) (finite : avoid.Finite) :
+    16777215 - avoid.ncard ≤ (setOf (FreeInt avoid)).ncard := by
+  set hits := {k : ℕ | DatatypeMap.Binary.finite (k : ℚ) ∈ avoid} with hHits
+  have injective : Function.Injective (fun k : ℕ => DatatypeMap.Binary.finite (k : ℚ)) := by
+    intro a b e; simpa using e
+  have hitsFinite : hits.Finite := finite.preimage injective.injOn
+  have split : setOf (FreeInt avoid) = Set.Icc 1 16777215 \ hits := by
+    ext k
+    simp only [FreeInt, hHits, Set.mem_setOf_eq, Set.mem_sdiff, Set.mem_Icc]
+    constructor
+    · rintro ⟨a, b, c⟩; exact ⟨⟨a, by omega⟩, c⟩
+    · rintro ⟨⟨a, b⟩, c⟩; exact ⟨a, by omega, c⟩
+  have hitsLe : hits.ncard ≤ avoid.ncard :=
+    Set.ncard_le_ncard_of_injOn _ (fun k h => h) injective.injOn finite
+  have full : (Set.Icc 1 16777215 : Set ℕ).ncard = 16777215 := by
+    rw [Set.ncard_eq_toFinset_card']; simp
+  rw [split]
+  have := Set.le_ncard_sdiff hits (Set.Icc 1 16777215) hitsFinite
+  omega
+
 /-- The regions of values that data nodes get: the reals of a level in the
     interval at a position of the cuts, strings of the letter a, tagged
     strings, IRIs and octet sequences, time instants without and with a time
     zone, and values outside every datatype. -/
 inductive Region where
   | number (position level : Nat) | string (level : Fin 7) | tagged | coded (s : Sequence) | moment (stamped : Bool)
-  | other
+  | binary (double : Bool) (avoid : Set DatatypeMap.Binary) | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
   | .number p ℓ, n => ℓ ≤ 3 ∧ ((regionSet cs lits p ℓ).Infinite ∨ n < (regionSet cs lits p ℓ).ncard)
+  | .binary _ avoid, n => n < (setOf (FreeInt avoid)).ncard
   | _, _ => True
 
 /-- Whether a region has a value for every index. -/
 def RegionInfinite (cs : List regions.Cut) (lits : Set ℝ) : Region → Prop
   | .number p ℓ => ℓ ≤ 3 ∧ (regionSet cs lits p ℓ).Infinite
+  | .binary _ _ => False
   | _ => True
 
 theorem valid_of_infinite {cs : List regions.Cut} {lits : Set ℝ} {r : Region} (h : RegionInfinite cs lits r) (n : ℕ) :
@@ -220,6 +303,11 @@ theorem valid_of_infinite {cs : List regions.Cut} {lits : Set ℝ} {r : Region} 
 section Regions
 variable {Native : Type w} {D : DatatypeMap Native}
 
+/-- A value of `xsd:double` (`double`) or of `xsd:float`. -/
+def formatValue (N : Normative D) : Bool → DatatypeMap.Binary → Native
+  | true, b => N.double b
+  | false, b => N.float b
+
 /-- The values of a region. -/
 noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) :
     Region → ℕ → Values.{v,w} Native
@@ -228,7 +316,48 @@ noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : 
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
   | .coded s, n => embedValue (N.coded (codedAt s n))
   | .moment st, n => embedValue (N.moment (momentAt st n))
+  | .binary dbl avoid, n => embedValue (formatValue N dbl (binaryAt avoid n))
   | .other, n => ULift.up (.inr n)
+
+/-- A real number is no floating-point number. -/
+theorem real_format (N : Normative D) (r : ℝ) (dbl : Bool) (avoid : Set DatatypeMap.Binary) (n : ℕ) :
+    N.real r ≠ formatValue N dbl (binaryAt avoid n) := by
+  cases dbl
+  · exact N.real_float r _ (binaryAt_valid avoid n false)
+  · exact N.real_double r _ (binaryAt_valid avoid n true)
+
+theorem text_format (N : Normative D) (t : List U8) (xt : XmlText t) (dbl : Bool) (avoid : Set DatatypeMap.Binary)
+    (n : ℕ) : N.text t ≠ formatValue N dbl (binaryAt avoid n) := by
+  cases dbl
+  · exact N.text_float t _ xt (binaryAt_valid avoid n false)
+  · exact N.text_double t _ xt (binaryAt_valid avoid n true)
+
+theorem tagged_format (N : Normative D) (t l : List U8) (xt : XmlText t) (tl : TagValue l) (dbl : Bool)
+    (avoid : Set DatatypeMap.Binary) (n : ℕ) : N.tagged t l ≠ formatValue N dbl (binaryAt avoid n) := by
+  cases dbl
+  · exact N.tagged_float t l _ xt tl (binaryAt_valid avoid n false)
+  · exact N.tagged_double t l _ xt tl (binaryAt_valid avoid n true)
+
+theorem coded_format (N : Normative D) (c : DatatypeMap.Coded) (cv : c.Valid) (dbl : Bool)
+    (avoid : Set DatatypeMap.Binary) (n : ℕ) : N.coded c ≠ formatValue N dbl (binaryAt avoid n) := by
+  cases dbl
+  · exact N.coded_float c _ cv (binaryAt_valid avoid n false)
+  · exact N.coded_double c _ cv (binaryAt_valid avoid n true)
+
+theorem moment_format (N : Normative D) (m : DatatypeMap.Moment) (mv : m.Valid) (dbl : Bool)
+    (avoid : Set DatatypeMap.Binary) (n : ℕ) : N.moment m ≠ formatValue N dbl (binaryAt avoid n) := by
+  cases dbl
+  · exact N.moment_float m _ mv (binaryAt_valid avoid n false)
+  · exact N.moment_double m _ mv (binaryAt_valid avoid n true)
+
+theorem format_injective (N : Normative D) {dbl dbl' : Bool} {avoid : Set DatatypeMap.Binary} {n n' : ℕ}
+    (same : formatValue N dbl (binaryAt avoid n) = formatValue N dbl' (binaryAt avoid n')) :
+    dbl = dbl' ∧ binaryAt avoid n = binaryAt avoid n' := by
+  cases dbl <;> cases dbl'
+  · exact ⟨rfl, N.float_injective _ _ (binaryAt_valid avoid n false) (binaryAt_valid avoid n' false) same⟩
+  · exact absurd same.symm (N.double_float _ _ (binaryAt_valid avoid n' true) (binaryAt_valid avoid n false))
+  · exact absurd same (N.double_float _ _ (binaryAt_valid avoid n true) (binaryAt_valid avoid n' false))
+  · exact ⟨rfl, N.double_injective _ _ (binaryAt_valid avoid n true) (binaryAt_valid avoid n' true) same⟩
 
 theorem level_unique {ℓ ℓ' : Nat} (h : ℓ ≤ 3) (h' : ℓ' ≤ 3) {r : ℝ} (a : AtLevel ℓ r) (a' : AtLevel ℓ' r) :
     ℓ = ℓ' := by
@@ -258,6 +387,7 @@ theorem interval_unique {cs : List regions.Cut} (sorted : cs.Pairwise CutBefore)
 theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits : Set ℝ}
     (sorted : cs.Pairwise CutBefore) {r r' : Region} {n n' : ℕ} (vr : Valid cs lits r n) (vr' : Valid cs lits r' n')
     (bounded : ∀ p ℓ, r = .number p ℓ → p ≤ cs.length) (bounded' : ∀ p ℓ, r' = .number p ℓ → p ≤ cs.length)
+    (coherent : ∀ dbl dbl' A A', r = .binary dbl A → r' = .binary dbl' A' → A = A')
     (same : regionValue.{v,w} N cs lits r n = regionValue N cs lits r' n') : r = r' ∧ n = n' := by
   have tag := enTag_value
   cases r with
@@ -285,6 +415,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | moment st' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_moment _ _ (momentAt_valid st' n'))
+    | binary dbl' A' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (real_format N _ dbl' A' n')
     | other => simp [regionValue, embedValue] at same
   | string ℓ =>
     cases r' with
@@ -305,6 +438,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | moment st' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.text_moment _ _ (Rowl.Strings.stringAt_xml ℓ.isLt n) (momentAt_valid st' n'))
+    | binary dbl' A' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (text_format N _ (Rowl.Strings.stringAt_xml ℓ.isLt n) dbl' A' n')
     | other => simp [regionValue, embedValue] at same
   | tagged =>
     cases r' with
@@ -323,6 +459,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | moment st' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.tagged_moment _ _ _ (aText_xml n) tag (momentAt_valid st' n'))
+    | binary dbl' A' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (tagged_format N _ _ (aText_xml n) tag dbl' A' n')
     | other => simp [regionValue, embedValue] at same
   | coded s =>
     cases r' with
@@ -342,6 +481,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | moment st' =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.coded_moment _ _ (sequence_valid s n) (momentAt_valid st' n'))
+    | binary dbl' A' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (coded_format N _ (sequence_valid s n) dbl' A' n')
     | other => simp [regionValue, embedValue] at same
   | moment st =>
     cases r' with
@@ -362,6 +504,33 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
       obtain ⟨rfl, rfl⟩ :=
         momentAt_injective (N.moment_injective _ _ (momentAt_valid st n) (momentAt_valid st' n') same)
       exact ⟨rfl, rfl⟩
+    | binary dbl' A' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (moment_format N _ (momentAt_valid st n) dbl' A' n')
+    | other => simp [regionValue, embedValue] at same
+  | binary dbl A =>
+    cases r' with
+    | number p' ℓ' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (real_format N _ dbl A n)
+    | string ℓ' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (text_format N _ (Rowl.Strings.stringAt_xml ℓ'.isLt n') dbl A n)
+    | tagged =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (tagged_format N _ _ (aText_xml n') tag dbl A n)
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (coded_format N _ (sequence_valid s' n') dbl A n)
+    | moment st' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (moment_format N _ (momentAt_valid st' n') dbl A n)
+    | binary dbl' A' =>
+      have e := coherent dbl dbl' A A' rfl rfl
+      subst e
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      obtain ⟨rfl, values⟩ := format_injective N same
+      exact ⟨rfl, binaryAt_injective A vr vr' values⟩
     | other => simp [regionValue, embedValue] at same
   | other =>
     cases r' with
@@ -370,6 +539,7 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | tagged => simp [regionValue, embedValue] at same
     | coded s' => simp [regionValue, embedValue] at same
     | moment st' => simp [regionValue, embedValue] at same
+    | binary dbl' A' => simp [regionValue, embedValue] at same
     | other =>
       simp only [regionValue, ULift.up.injEq, Sum.inr.injEq] at same
       exact ⟨rfl, same⟩
@@ -395,6 +565,7 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | moment st =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact (momentAt_injective (N.moment_injective _ _ (momentAt_valid st a) (momentAt_valid st b) same)).2
+  | binary dbl A => exact absurd infinite id
   | other =>
     simpa [regionValue] using same
 
@@ -414,6 +585,11 @@ end Regions
 section Spaces
 variable {Native : Type w} {D : DatatypeMap Native}
 
+/-- The kind of `xsd:double` (`double`) or of `xsd:float`. -/
+def formatKind : Bool → datatypes.Kind
+  | true => .Double
+  | false => .Float
+
 /-- The kinds whose datatypes a region's value at an index is in. -/
 def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datatypes.Kind → Prop
   | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs lits p ℓ) n)
@@ -421,6 +597,7 @@ def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datat
   | .tagged, _, k => k = .Plain
   | .coded s, _, k => k = sequenceKind s
   | .moment st, _, k => k = .DateTime ∨ (k = .DateTimeStamp ∧ st = true)
+  | .binary dbl _, _, k => k = formatKind dbl
   | .other, _, _ => False
 
 theorem embedded_space {k : datatypes.Kind} (y0 : Native) :
@@ -448,8 +625,13 @@ theorem real_space (N : Normative D) (r : ℝ) (k : datatypes.Kind) :
     · intro inside
       obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
       exact N.real_moment r m mv same
+    by_cases fk : k = .Double ∨ k = .Float
+    · rcases fk with rfl | rfl
+      · rw [typeOf, N.double_space]; rintro ⟨b, bv, same⟩; exact N.real_double r b bv same
+      · rw [typeOf, N.float_space]; rintro ⟨b, bv, same⟩; exact N.real_float r b bv same
     cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
-      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+      (try simp only [true_or, or_true, not_true_eq_false] at fk)
     · rw [typeOf, N.string_space]
       rintro ⟨s, xs, same⟩
       exact N.real_text r s xs same
@@ -496,8 +678,17 @@ theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatyp
         obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
         exact absurd same (N.text_moment t m xs mv)
       · rintro (rfl | rfl) <;> simp [IsMomentKind] at mk
+    by_cases fk : k = .Double ∨ k = .Float
+    · rcases fk with rfl | rfl
+      · constructor
+        · rw [typeOf, N.double_space]; rintro ⟨b, bv, same⟩; exact absurd same (N.text_double t b xs bv)
+        · rintro (h | h) <;> cases h
+      · constructor
+        · rw [typeOf, N.float_space]; rintro ⟨b, bv, same⟩; exact absurd same (N.text_float t b xs bv)
+        · rintro (h | h) <;> cases h
     cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
-      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+      (try simp only [true_or, or_true, not_true_eq_false] at fk)
     · simp only [typeOf, N.string_space, true_or, iff_true]
       exact ⟨t, xs, rfl⟩
     · simp only [typeOf, N.plain_space, or_true, iff_true]
@@ -530,8 +721,17 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
         obtain ⟨m, mv, same⟩ := moment_of_kind N mk inside
         exact absurd same (N.tagged_moment t l m xs tl mv)
       · rintro rfl; simp [IsMomentKind] at mk
+    by_cases fk : k = .Double ∨ k = .Float
+    · rcases fk with rfl | rfl
+      · constructor
+        · rw [typeOf, N.double_space]; rintro ⟨b, bv, same⟩; exact absurd same (N.tagged_double t l b xs tl bv)
+        · intro h; cases h
+      · constructor
+        · rw [typeOf, N.float_space]; rintro ⟨b, bv, same⟩; exact absurd same (N.tagged_float t l b xs tl bv)
+        · intro h; cases h
     cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, IsMomentKind, not_true_eq_false] at numeric ck mk <;>
-      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub)
+      (try simp only [Rowl.Strings.subtypeOf, Option.some.injEq, exists_eq', not_true_eq_false] at sub) <;>
+      (try simp only [true_or, or_true, not_true_eq_false] at fk)
     · simp only [typeOf, N.string_space, reduceCtorEq, iff_false, not_exists, not_and]
       exact fun s xs' e => N.text_tagged s t l xs' xs tl e.symm
     · simp only [typeOf, N.plain_space, iff_true]
@@ -587,6 +787,22 @@ theorem moment_space (N : Normative D) (st : Bool) (n : ℕ) (k : datatypes.Kind
       exact absurd rfl (not_moment N mk inside _ valid)
     · rintro (rfl | ⟨rfl, _⟩) <;> exact absurd trivial mk
 
+/-- A floating-point number of a region is in the datatype of its format
+    only. -/
+theorem binary_space (N : Normative D) (dbl : Bool) (avoid : Set DatatypeMap.Binary) (n : ℕ) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (formatValue N dbl (binaryAt avoid n)) ↔ k = formatKind dbl := by
+  cases dbl
+  · constructor
+    · intro inside
+      by_contra ne
+      exact Rowl.DataComplete.not_float N ne inside _ (binaryAt_valid avoid n false) rfl
+    · rintro rfl; exact (N.float_space _).mpr ⟨_, binaryAt_valid avoid n false, rfl⟩
+  · constructor
+    · intro inside
+      by_contra ne
+      exact Rowl.DataComplete.not_double N ne inside _ (binaryAt_valid avoid n true) rfl
+    · rintro rfl; exact (N.double_space _).mpr ⟨_, binaryAt_valid avoid n true, rfl⟩
+
 /-- A region's values are in the datatypes of the kinds `RegionIn` names. -/
 theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) (r : Region) (n : ℕ)
     (k : datatypes.Kind) :
@@ -597,6 +813,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
   | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
   | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
   | moment st => rw [regionValue, embedded_space, moment_space N st n]; rfl
+  | binary dbl A => rw [regionValue, embedded_space, binary_space N dbl A n]; rfl
   | other =>
     simp only [regionValue, embedValue, ULift.up.injEq, reduceCtorEq, and_false, exists_false, false_iff]
     exact id
@@ -647,6 +864,11 @@ noncomputable def stringLevel (d : Object') : Fin 7 :=
   else if InUse context J (chainKind 1) d then 1
   else 0
 
+/-- The values of the literal values of `xsd:double` and `xsd:float`. -/
+def binaryLits (values : List datatypes.DataValue) : Set DatatypeMap.Binary :=
+  {b | ∃ x, (datatypes.DataValue.Double x ∈ values ∨ datatypes.DataValue.Float x ∈ values) ∧
+    Rowl.Floats.binaryOf x = b}
+
 /-- The region of a node's values. -/
 noncomputable def regionOf (d : Object') : Region :=
   if NumericNode context J d then .number (positionOf context J order d) (levelOf context J d)
@@ -656,6 +878,8 @@ noncomputable def regionOf (d : Object') : Region :=
   else if InUse context J .HexBinary d then .coded .hex
   else if InUse context J .Base64Binary d then .coded .base64
   else if InUse context J .DateTime d then .moment (decide (InUse context J .DateTimeStamp d))
+  else if InUse context J .Double d then .binary true (binaryLits context.values.val)
+  else if InUse context J .Float d then .binary false (binaryLits context.values.val)
   else .other
 
 theorem level_le (d : Object') : levelOf context J d ≤ 3 := by
@@ -726,9 +950,48 @@ theorem moment_alone (kinds : KindFacts context J) {k k' : datatypes.Kind} (mk :
   · exact kinds.moments.2.2.1 usedT used' y ⟨inT, h'⟩
   · exact kinds.moments.2.2.2.1 usedT used' y ⟨inT, h'⟩
   · exact kinds.moments.2.2.2.2 usedT used' y ⟨inT, h'⟩
+  case Double => exact kinds.floats.1.2.2.2.2 used' usedT y ⟨h', inT⟩
+  case Float => exact kinds.floats.2.1.2.2.2.2 used' usedT y ⟨h', inT⟩
   all_goals
     obtain ⟨usedString, inString⟩ := subtype_string kinds h' rfl used'
     exact facts.2.2.2.2.1 usedT usedString y ⟨inT, inString⟩
+
+/-- A node in the class of a kind of floating-point numbers in use is in the
+    class of no other kind in use. -/
+theorem float_alone (kinds : KindFacts context J) {k k' : datatypes.Kind} (fk : k = .Double ∨ k = .Float)
+    (ne : k' ≠ k) (used : Used context.kinds k = true) (used' : Used context.kinds k' = true)
+    {y : Object'} (h : J.classes (kindClass k) y) : ¬ J.classes (kindClass k') y := by
+  have apart : FloatApart context.kinds J k := by
+    rcases fk with rfl | rfl
+    exacts [kinds.floats.1, kinds.floats.2.1]
+  obtain ⟨⟨ai, ad, aq, ar, aS, ap, ab⟩, au, ah, a64, adt⟩ := apart
+  intro h'
+  cases k' <;> simp only [Used, Bool.false_eq_true] at used'
+  case Integer => exact ai used used' y ⟨h, h'⟩
+  case Decimal => exact ad used used' y ⟨h, h'⟩
+  case Rational => exact aq used used' y ⟨h, h'⟩
+  case Real => exact ar used used' y ⟨h, h'⟩
+  case String => exact aS used used' y ⟨h, h'⟩
+  case Plain => exact ap used used' y ⟨h, h'⟩
+  case Boolean => exact ab used used' y ⟨h, h'⟩
+  case AnyUri => exact au used used' y ⟨h, h'⟩
+  case HexBinary => exact ah used used' y ⟨h, h'⟩
+  case Base64Binary => exact a64 used used' y ⟨h, h'⟩
+  case DateTime => exact adt used used' y ⟨h, h'⟩
+  case DateTimeStamp =>
+    obtain ⟨usedT, inT⟩ := stamp_in_datetime kinds used' h'
+    exact adt used usedT y ⟨h, inT⟩
+  case Double =>
+    rcases fk with rfl | rfl
+    · exact ne rfl
+    · exact kinds.floats.2.2 used' used y ⟨h', h⟩
+  case Float =>
+    rcases fk with rfl | rfl
+    · exact kinds.floats.2.2 used used' y ⟨h, h'⟩
+    · exact ne rfl
+  all_goals
+    obtain ⟨usedString, inString⟩ := subtype_string kinds h' rfl used'
+    exact aS used usedString y ⟨h, inString⟩
 
 /-- The kinds of the chain after `xsd:string` hold a string exactly as its
     forms. -/
@@ -793,6 +1056,8 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ui h ai
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ui h ai
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used ui h ai
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used ui h ai
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -816,6 +1081,8 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ud h ad
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ud h ad
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used ud h ad
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used ud h ad
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -839,6 +1106,8 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uq h aq
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uq h aq
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used uq h aq
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used uq h aq
     all_goals
       intro h
       obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -868,6 +1137,8 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
   case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ur h ar
   case DateTimeStamp =>
     exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ur h ar
+  case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used ur h ar
+  case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used ur h ar
   all_goals
     intro h
     obtain ⟨usedString, inString⟩ := subtype_string kinds h rfl used
@@ -920,6 +1191,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.sequences.2.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
     · exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used us h ast
     · exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used us h ast
+    · exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used us h ast
+    · exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used us h ast
   have notSub : ∀ {k' : datatypes.Kind}, J.classes (kindClass k') d → ∀ {s : DatatypeMap.StringSubtype},
       Rowl.Strings.subtypeOf k' = some s → Used context.kinds k' = true → False :=
     fun {_} h {_} hsub used => hs (subtype_string kinds h hsub used)
@@ -940,6 +1213,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used up h ap
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used up h ap
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used up h ap
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used up h ap
     all_goals exact fun h => notSub h rfl used
   by_cases hu : InUse context J .AnyUri d
   · simp only [hs, hp, hu, ↓reduceIte, RegionIn, sequenceKind]
@@ -959,6 +1234,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uu h au
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uu h au
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used uu h au
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used uu h au
     all_goals exact fun h => notSub h rfl used
   by_cases hh : InUse context J .HexBinary d
   · simp only [hs, hp, hu, hh, ↓reduceIte, RegionIn, sequenceKind]
@@ -978,6 +1255,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used uh h ah
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used uh h ah
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used uh h ah
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used uh h ah
     all_goals exact fun h => notSub h rfl used
   by_cases hb : InUse context J .Base64Binary d
   · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, sequenceKind]
@@ -997,6 +1276,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     case DateTime => exact fun h => moment_alone kinds (k := .DateTime) trivial (by simp [IsMomentKind]) used ub h ab
     case DateTimeStamp =>
       exact fun h => moment_alone kinds (k := .DateTimeStamp) trivial (by simp [IsMomentKind]) used ub h ab
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used ub h ab
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used ub h ab
     all_goals exact fun h => notSub h rfl used
   by_cases hm : InUse context J .DateTime d
   · simp only [hs, hp, hu, hh, hb, hm, ↓reduceIte, RegionIn, decide_eq_true_eq]
@@ -1016,8 +1297,50 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hb used
     case DateTime => exact am
     case DateTimeStamp => exact ⟨fun h => ⟨used, h⟩, fun h => h.2⟩
+    case Double => exact fun h => float_alone kinds (k := .Double) (.inl rfl) (fun e => by cases e) used um h am
+    case Float => exact fun h => float_alone kinds (k := .Float) (.inr rfl) (fun e => by cases e) used um h am
     all_goals exact fun h => notSub h rfl used
-  · simp only [hs, hp, hu, hh, hb, hm, ↓reduceIte, RegionIn, iff_false]
+  by_cases hdb : InUse context J .Double d
+  · simp only [hs, hp, hu, hh, hb, hm, hdb, ↓reduceIte, RegionIn, formatKind]
+    obtain ⟨udb, adb⟩ := hdb
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact adb
+    case Float => exact float_alone kinds (k := .Double) (k' := .Float) (.inl rfl) (fun e => by cases e) udb used adb
+    all_goals exact fun h => notSub h rfl used
+  by_cases hfl : InUse context J .Float d
+  · simp only [hs, hp, hu, hh, hb, hm, hdb, hfl, ↓reduceIte, RegionIn, formatKind]
+    obtain ⟨ufl, afl⟩ := hfl
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
+    case DateTime => exact notIn _ hm used
+    case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact notIn _ hdb used
+    case Float => exact afl
+    all_goals exact fun h => notSub h rfl used
+  · simp only [hs, hp, hu, hh, hb, hm, hdb, hfl, ↓reduceIte, RegionIn, iff_false]
     cases k <;> simp only [Used, Bool.false_eq_true] at used
     · exact notIn _ ni used
     · exact notIn _ nd used
@@ -1031,6 +1354,8 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ hb used
     case DateTime => exact notIn _ hm used
     case DateTimeStamp => exact fun h => hm (stamp_in_datetime kinds used h)
+    case Double => exact notIn _ hdb used
+    case Float => exact notIn _ hfl used
     all_goals exact fun h => notSub h rfl used
 
 end Profile
@@ -1055,6 +1380,7 @@ structure Setting (context : data_ontology.Context) (capacity : Nat) (bits : Usi
   thing : ∀ d, J.classes thing d
   top : ∀ y y', J.objectProperties topObject y y'
   bottom : ∀ y y', ¬ J.objectProperties bottomObject y y'
+  room : FloatRoom context capacity
 
 variable {context : data_ontology.Context} {capacity : Nat} {bits : Usize} {order : List Usize}
   {J : Interpretation Object' Value'}
@@ -1461,9 +1787,10 @@ variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap
   {shift : Object' → ℕ}
 
 /-- A shift of the indices of the elements' values that is none while numbers
-    are ordered, so that the bounded runs of integers keep their room. -/
+    are ordered or floating-point numbers are in use, so that the bounded runs
+    of integers and the floating-point numbers keep their room. -/
 def ShiftOk (context : data_ontology.Context) (shift : Object' → ℕ) : Prop :=
-  context.kinds.ordered = true → ∀ z, shift z = 0
+  (context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true) → ∀ z, shift z = 0
 
 theorem typeOf_not_literal (N : Normative D) (k : datatypes.Kind) : typeOf k ≠ literalDatatype := by
   intro same
@@ -1489,6 +1816,8 @@ theorem real_ne_value (N : Normative D) {val : datatypes.DataValue} (canonical :
   | Hex o => exact N.real_coded r _ trivial
   | Base64 o => exact N.real_coded r _ trivial
   | Moment x => exact N.real_moment r _ (canonical : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2
+  | Double x => exact N.real_double r _ canonical.2
+  | Float x => exact N.real_float r _ canonical.2
 
 theorem literal_value_at (setting : Setting context capacity bits order J) (i : Usize)
     (h : i.val < context.values.val.length) (n : ℕ) :
@@ -1516,6 +1845,13 @@ theorem region_numeric {d : Object'} (numeric : NumericNode context J d) :
     regionOf context J order d = .number (positionOf context J order d) (levelOf context J d) := by
   simp [regionOf, numeric]
 
+theorem region_binary_avoid {d : Object'} {dbl : Bool} {A : Set DatatypeMap.Binary}
+    (h : regionOf context J order d = .binary dbl A) : A = binaryLits context.values.val := by
+  unfold regionOf at h
+  split_ifs at h <;> simp only [reduceCtorEq, Region.binary.injEq] at h
+  · exact h.2.symm
+  · exact h.2.symm
+
 theorem level_zero {d : Object'} (zero : levelOf context J d = 0) : InUse context J .Integer d := by
   unfold levelOf at zero
   split_ifs at zero with h
@@ -1532,11 +1868,10 @@ theorem not_boolean_region (setting : Setting context capacity bits order J) {d 
     value for every index is an integer between two cuts of different
     numbers. -/
 theorem finite_run (setting : Setting context capacity bits order J) {d : Object'}
-    (notLiteral : ¬ LiteralNode context J d)
+    (notLiteral : ¬ LiteralNode context J d) (numeric : NumericNode context J d)
     (finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)) :
     context.kinds.ordered = true ∧ NumericNode context J d ∧ levelOf context J d = 0 ∧
       0 < positionOf context J order d ∧ positionOf context J order d < order.length := by
-  by_cases numeric : NumericNode context J d
   · rw [region_numeric numeric] at finite
     have notInf : ¬ (regionSet (orderedCuts context order) (literalReals context.values.val) (positionOf context J order d)
         (levelOf context J d)).Infinite := fun h => finite ⟨level_le context J d, h⟩
@@ -1555,11 +1890,56 @@ theorem finite_run (setting : Setting context capacity bits order J) {d : Object
           (fun _ inside => by rw [empty] at inside; simp at inside) with inf | ⟨_, _, inside⟩
       · exact notInf inf
       · rw [empty] at inside; simp at inside
-  · exfalso
-    apply finite
-    unfold regionOf
-    simp only [numeric, ↓reduceIte]
-    split_ifs <;> trivial
+
+/-- The region of a node that is no number: values for every index, or the
+    floating-point numbers of a format in use, without the literal values. -/
+theorem other_region {d : Object'} (numeric : ¬ NumericNode context J d) :
+    RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d) ∨
+      ∃ dbl, regionOf context J order d = .binary dbl (binaryLits context.values.val) ∧
+        (context.kinds.double = true ∨ context.kinds.float = true) := by
+  unfold regionOf
+  simp only [numeric, ↓reduceIte]
+  split_ifs with h1 h2 h3 h4 h5 h6 h7 h8
+  · exact .inl trivial
+  · exact .inl trivial
+  · exact .inl trivial
+  · exact .inl trivial
+  · exact .inl trivial
+  · exact .inl trivial
+  · exact .inr ⟨true, rfl, .inl (by simpa [Used] using h7.1)⟩
+  · exact .inr ⟨false, rfl, .inr (by simpa [Used] using h8.1)⟩
+  · exact .inl trivial
+
+/-- The values of the literal values of `xsd:double` and `xsd:float` are
+    finitely many, at most the literal values. -/
+theorem binary_lits_bound (values : List datatypes.DataValue) :
+    (binaryLits values).Finite ∧ (binaryLits values).ncard ≤ values.length := by
+  let f : datatypes.DataValue → DatatypeMap.Binary := fun v => match v with
+    | .Double x => Rowl.Floats.binaryOf x
+    | .Float x => Rowl.Floats.binaryOf x
+    | _ => .nan
+  have sub : binaryLits values ⊆ f '' {v | v ∈ values} := by
+    rintro b ⟨x, mem | mem, rfl⟩
+    · exact ⟨_, mem, rfl⟩
+    · exact ⟨_, mem, rfl⟩
+  have fin : ({v | v ∈ values} : Set datatypes.DataValue).Finite := values.finite_toSet
+  refine ⟨(fin.image f).subset sub, ?_⟩
+  calc (binaryLits values).ncard ≤ (f '' {v | v ∈ values}).ncard := Set.ncard_le_ncard sub (fin.image f)
+    _ ≤ ({v | v ∈ values} : Set datatypes.DataValue).ncard := Set.ncard_image_le fin
+    _ ≤ values.length := by
+      rw [show ({v | v ∈ values} : Set datatypes.DataValue) = ↑values.toFinset by ext; simp,
+        Set.ncard_coe_finset]
+      exact List.toFinset_card_le values
+
+/-- The floating-point numbers of a format leave room for every index below
+    the capacity. -/
+theorem binary_room (setting : Setting context capacity bits order J)
+    (used : context.kinds.double = true ∨ context.kinds.float = true) :
+    capacity < (setOf (FreeInt (binaryLits context.values.val))).ncard := by
+  obtain ⟨finite, few⟩ := binary_lits_bound context.values.val
+  have count := freeInt_count _ finite
+  have room := setting.room used
+  omega
 
 /-- The cuts around a run, among the context's cuts. -/
 theorem run_cuts (setting : Setting context capacity bits order J) (ordered : context.kinds.ordered = true)
@@ -1656,11 +2036,11 @@ theorem atMost_length {α : Type u} {n : Nat} {P : α → Prop} (most : AtMost n
     axiom on the run when it has fewer integers than the capacity, and
     otherwise because the witnesses are at most the capacity. -/
 theorem peers_bound (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    {z d : Object'} (notLiteral : ¬ LiteralNode context J d)
+    {z d : Object'} (notLiteral : ¬ LiteralNode context J d) (numericNode : NumericNode context J d)
     (finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)) :
     (peers context J order atoms z d).length ≤
       (regionSet (orderedCuts context order) (literalReals context.values.val) (positionOf context J order d) 0).ncard := by
-  obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral finite
+  obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral numericNode finite
   have integer : Used context.kinds .Integer = true := (level_zero level).1
   have differ := not_point setting ordered notLiteral pos inside
   have gap := run_gap setting ordered pos inside differ integer
@@ -1702,13 +2082,22 @@ theorem placed_valid (setting : Setting context capacity bits order J) (count : 
   by_cases infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
   · exact valid_of_infinite infinite _
   · rw [region_start_finite context N order _ infinite, zero_add]
-    obtain ⟨ordered, numeric, level, _, _⟩ := finite_run setting notLiteral infinite
-    rw [shiftOk ordered z, zero_add]
-    have bound := peers_bound setting count notLiteral infinite (z := z)
     have mem : d ∈ peers context J order atoms z d := mem_peers.mpr ⟨inList, succ, notLiteral, rfl⟩
     have idx := List.idxOf_lt_length_of_mem mem
-    rw [region_numeric numeric, level]
-    exact ⟨Nat.zero_le _, .inr (lt_of_lt_of_le idx bound)⟩
+    by_cases numericNode : NumericNode context J d
+    · obtain ⟨ordered, numeric, level, _, _⟩ := finite_run setting notLiteral numericNode infinite
+      rw [shiftOk (.inl ordered) z, zero_add]
+      have bound := peers_bound setting count notLiteral numericNode infinite (z := z)
+      rw [region_numeric numeric, level]
+      exact ⟨Nat.zero_le _, .inr (lt_of_lt_of_le idx bound)⟩
+    · rcases other_region (context := context) (J := J) (order := order) numericNode with inf | ⟨dbl, region, used⟩
+      · exact absurd inf infinite
+      · rw [shiftOk (.inr used) z, zero_add, region]
+        have room := binary_room setting used
+        have := peers_length (context := context) (J := J) (order := order) (atoms := atoms) z d
+        have := witness_list_length (context := context) (J := J) (atoms := atoms) z
+        show _ < _
+        omega
 
 /-- The first index of a node's region is one it has a value for. -/
 theorem alone_valid (setting : Setting context capacity bits order J) {d : Object'}
@@ -1718,7 +2107,15 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
   by_cases infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val) (regionOf context J order d)
   · exact valid_of_infinite infinite _
   · rw [region_start_finite context N order _ infinite, zero_add]
-    obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral infinite
+    by_cases numericNode : NumericNode context J d
+    swap
+    · rcases other_region (context := context) (J := J) (order := order) numericNode with inf | ⟨dbl, region, used⟩
+      · exact absurd inf infinite
+      · rw [region]
+        have room := binary_room setting used
+        show _ < _
+        omega
+    obtain ⟨ordered, numeric, level, pos, inside⟩ := finite_run setting notLiteral numericNode infinite
     have integer : Used context.kinds .Integer = true := (level_zero level).1
     have gap := run_gap setting ordered pos inside (not_point setting ordered notLiteral pos inside) integer
     have member := run_member setting ordered level pos inside rfl
@@ -1728,6 +2125,40 @@ theorem alone_valid (setting : Setting context capacity bits order J) {d : Objec
     by_contra zero
     obtain ⟨i, hi, _, same⟩ := gap.1 (by omega) d member
     exact notLiteral ⟨i, hi, same⟩
+
+/-- A floating-point number of a region that is a literal value's value is
+    among the values of the literal values. -/
+theorem format_literal (N : Normative D) {values : List datatypes.DataValue} {val : datatypes.DataValue}
+    (member : val ∈ values) (canonical : Canonical val) (dbl : Bool) (n : ℕ)
+    (same : formatValue N dbl (binaryAt (binaryLits values) n) = valueOf N val) :
+    binaryAt (binaryLits values) n ∈ binaryLits values := by
+  have valid := binaryAt_valid (binaryLits values) n
+  cases val with
+  | Number n' w f =>
+    simp only [valueOf, Rowl.Datatypes.real_rat] at same
+    exact absurd same.symm (real_format N _ dbl _ n)
+  | Fraction n' a b =>
+    simp only [valueOf, Rowl.Datatypes.real_rat] at same
+    exact absurd same.symm (real_format N _ dbl _ n)
+  | Text t => exact absurd same.symm (text_format N _ canonical dbl _ n)
+  | Tagged t m => exact absurd same.symm (tagged_format N _ _ canonical.1 canonical.2 dbl _ n)
+  | Truth b =>
+    cases dbl
+    · exact absurd same.symm (N.truth_float b _ (valid false))
+    · exact absurd same.symm (N.truth_double b _ (valid true))
+  | Uri t => exact absurd same.symm (coded_format N (.uri t.val) canonical dbl _ n)
+  | Hex o => exact absurd same.symm (coded_format N (.hex o.val) trivial dbl _ n)
+  | Base64 o => exact absurd same.symm (coded_format N (.base64 o.val) trivial dbl _ n)
+  | Moment x =>
+    exact absurd same.symm (moment_format N _ (canonical : Rowl.Moments.CanonicalMoment x).2.2.2.2.2.2 dbl _ n)
+  | Double x =>
+    cases dbl
+    · exact absurd same (fun e => N.double_float _ _ canonical.2 (valid false) e.symm)
+    · exact ⟨x, .inl member, (N.double_injective _ _ (valid true) canonical.2 same).symm⟩
+  | Float x =>
+    cases dbl
+    · exact ⟨x, .inr member, (N.float_injective _ _ (valid false) canonical.2 same).symm⟩
+    · exact absurd same (N.double_float _ _ (valid true) canonical.2)
 
 /-- The values of a node that is no literal value's individual are no
     literal values: a number region leaves the numbers of the literal values
@@ -1748,13 +2179,16 @@ theorem region_not_literal (setting : Setting context capacity bits order J) {d 
     · rw [Rowl.Datatypes.valueOf_number N number] at same
       exact mem.2.2 ⟨val, member, number, N.real_injective same⟩
     · exact real_ne_value N (setting.good.1.1 val member) number _ same
-  · have infinite : RegionInfinite (orderedCuts context order) (literalReals context.values.val)
-        (regionOf context J order d) := by
-      unfold regionOf
-      simp only [numeric, ↓reduceIte]
-      split_ifs <;> trivial
-    intro same
-    exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
+  · rcases other_region (context := context) (J := J) (order := order) numeric with infinite | ⟨dbl, region, used⟩
+    · intro same
+      exact region_start_spec context N order _ infinite _ (Nat.le_add_right _ _) ⟨val, member, same⟩
+    · have finite : ¬ RegionInfinite (orderedCuts context order) (literalReals context.values.val)
+          (regionOf context J order d) := by rw [region]; exact id
+      rw [region_start_finite context N order _ finite, zero_add, region] at valid
+      rw [region_start_finite context N order _ finite, zero_add, region]
+      intro same
+      simp only [regionValue, litValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact binaryAt_avoids _ valid (format_literal N member (setting.good.1.1 val member) dbl _ same)
 
 /-- Whether a real of an interval is in a cut: exactly for the cuts before the
     interval. -/
@@ -1881,6 +2315,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
           all_goals first
             | exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
             | exact absurd same.symm (N.real_moment r _ (momentAt_valid _ _))
+            | exact absurd same.symm (real_format N r _ _ _)
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by
@@ -1915,7 +2350,8 @@ theorem nodeValue_injective (setting : Setting context capacity bits order J) (c
       have len := position_le context J order
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
-        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d') same
+        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
+        (fun _ _ _ _ h h' => (region_binary_avoid h).trans (region_binary_avoid h').symm) same
       rw [sameRegion] at sameIndex
       rw [peers_same sameRegion] at sameIndex
       have index : (peers context J order atoms z d').idxOf d = (peers context J order atoms z d').idxOf d' := by
@@ -1966,7 +2402,8 @@ theorem nodeValue_shared (setting : Setting context capacity bits order J) (coun
       have len := position_le context J order
       obtain ⟨sameRegion, sameIndex⟩ := region_value_injective N (cuts_sorted setting) valid valid'
         (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d)
-        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d') same
+        (fun p ℓ h => by obtain ⟨_, rfl, _⟩ := region_number h; exact len d')
+        (fun _ _ _ _ h h' => (region_binary_avoid h).trans (region_binary_avoid h').symm) same
       rw [sameRegion] at sameIndex
       exact absurd (by omega) distinct
 
@@ -2194,12 +2631,12 @@ theorem sound_satisfies (N : Normative D) {context : data_ontology.Context} (goo
   obtain ⟨res, run', facts⟩ := encode_meaning.{u,max v w,u,x} context good capacity capSmall items
   rw [run] at run'
   cases Result.ok_injective run'
-  obtain ⟨fine, valuesCut, new, bits, order, means, enough, sorted, _, _, iff⟩ := facts enc rfl
+  obtain ⟨fine, valuesCut, room, new, bits, order, means, enough, sorted, _, _, iff⟩ := facts enc rfl
   obtain ⟨newHolds, frame⟩ := (iff J).mp holds
   let o : Element J := ⟨J.namedIndividuals objectIndividual, frame.object⟩
   have names := means.2.2 J newHolds
   have setting : Setting context capacity.val bits order J :=
-    ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom⟩
+    ⟨good, frame, enough, sorted, fine, valuesCut, jThing, jTop, jBottom, room⟩
   refine ⟨bits, order, o, setting, names, fun atoms covers count => ?_⟩
   exact (means.1 (sound.{u,v,w,x} context J N order atoms (fun _ => 0) o) J Subtype.val (Known J) atoms (litValue N)
     (realValue N) _ (sound_simulates setting count (fun _ _ => rfl) o) (sound_placed setting count (fun _ _ => rfl) o)

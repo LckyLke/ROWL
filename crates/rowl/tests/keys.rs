@@ -211,4 +211,13 @@ ClassAssertion(:Patient :a)"
         ),
         None
     );
+    // Floating-point numbers: their formats have finitely many values.
+    assert_eq!(
+        consistent(
+            "HasKey(:Patient () (:weight))
+DataPropertyRange(:weight xsd:double)
+ClassAssertion(:Patient :a)"
+        ),
+        None
+    );
 }

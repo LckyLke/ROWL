@@ -3,7 +3,7 @@
 M0, M1 feasibility probes and M2 structural representation/independent semantics
 are complete. M3 and M4 have verified components; both milestones remain in
 progress. Functional Syntax, Turtle, N-Triples and RDF/XML documents are read,
-and SROIQ with thirty datatypes is decided, with proofs (below); a decision
+and SROIQ with thirty-two datatypes is decided, with proofs (below); a decision
 procedure for all of OWL 2 DL, its other datatypes and facets and the other
 formats are future work.
 
@@ -779,7 +779,8 @@ formats are future work.
   read axioms for any valid vocabulary under every datatype map that is the OWL
   2 map on the datatypes of `datatypes::literal_value`, and a positive
   subsumption or instance answer holds in every such model. Imports, the other
-  facets, keys with a data property while numbers are ordered, data ranges of
+  facets, keys with a data property while numbers are ordered or
+  floating-point numbers are in use, data ranges of
   the other datatypes and performance remain pending; datatype definitions are
   unfolded first (see the M5 entry on them).
 - Reasoner track, sixth stage: ALC with named individuals. The actual kernel
@@ -1130,6 +1131,31 @@ formats are future work.
   first of January of a year at midnight, at offset zero where the class of
   `xsd:dateTimeStamp` holds, infinitely many (`moment_space`). Facets on time
   instants and their order get no answer.
+- M5 floating-point numbers: Normative also specifies `xsd:double` and
+  `xsd:float` (OWL 2 §4.2, XML Schema 1.1 §3.3.4–3.3.5): lexical forms
+  `(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)([Ee](\+|-)?[0-9]+)?`, `INF`, `+INF`, `-INF`
+  and `NaN` (`BinaryForm`), and values `m·2^e` with `|m| < 2^53` and
+  `-1074 ≤ e ≤ 971` for `xsd:double` and `|m| < 2^24` and `-149 ≤ e ≤ 104` for
+  `xsd:float`, the two zeros, the two infinities and one NaN (`Binary`); a
+  numeral denotes its exact value rounded as `floatingPointRound` rounds it, to
+  the nearest value with ties to an even significand, to an infinity beyond
+  the largest finite value and to a zero with the numeral's sign below the
+  least one (`roundBinary`). The two datatypes are copies of their own, apart
+  from the reals and from each other, and `+0` and `-0` are two values while
+  NaN is one, so a functional data property cannot take both zeros.
+  `literal_value` reads both datatypes with exact arithmetic on decimal digit
+  strings (`Rowl.Floats.binary_value_correct`; each form writes one value:
+  `binaryForm_unique`) into canonical kernel values with an odd significand
+  (`CanonicalBinary`), for forms shorter than 1024 bytes. The ontology queries take
+  them: each datatype in use is apart from every other datatype
+  (`float_axioms_spec`), and a model of the encoding gives a floating-point
+  node a positive integer below 2^24 that is no literal value, which both
+  datatypes have (`binary_space`). These are enough while the capacity and the
+  number of literal values together stay below 2^24 - 1 (`FloatRoom`,
+  `binary_room`); beyond, and
+  for keys with a data property while floating-point numbers are in use, the
+  queries give no answer. Facets on floating-point numbers and their order get
+  no answer.
 - M5 datatype definitions: a closure with `DatatypeDefinition` axioms is
   unfolded before the data queries (`unfolding`): each defined datatype in a
   data range of an axiom or of a question becomes the data range of its
@@ -1192,7 +1218,8 @@ formats are future work.
   datatypes of `literal_value` an answer is therefore the Direct Semantics
   answer. Datatype restrictions other than the range facets on the numeric
   datatypes, keys with a data property while numbers are
-  ordered (see the keys below), data ranges of the other datatypes,
+  ordered or floating-point numbers are in use (see the keys below), data
+  ranges of the other datatypes,
   `owl:topDataProperty` outside an inclusion into it and the universal role
   outside its own axioms get no answer, as does a question that names an
   individual the closure does not name. Since the source reasoning stage these
@@ -1232,8 +1259,9 @@ formats are future work.
   makes three distinct patients with a value inconsistent. Keys with no
   property, the universal role or the top or bottom data property get no
   answer, and so do keys with a data property while a datatype restriction or
-  a subtype of `xsd:integer` is in use: a bounded run of integers would then
-  have to be named value by value.
+  a subtype of `xsd:integer` is in use, since a bounded run of integers would
+  then have to be named value by value, or while `xsd:double` or `xsd:float`
+  is in use, whose values are finitely many (`PlainValues`).
 - Classification of named classes: `classification::classify` answers, for a
   prepared closure and a list of named classes, whether each class is
   satisfiable and, for every pair, whether the first is subsumed by the second.
@@ -1352,7 +1380,7 @@ formats are future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 5719 audited public theorems and 1922 audited semantic definitions. Consistency,
+- 5875 audited public theorems and 1964 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1364,14 +1392,14 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over thirty datatypes, with the range facets on the numeric ones, and data
+  over thirty-two datatypes, with the range facets on the numeric ones, and data
   assertions with their literals under the OWL 2 datatype map, datatype
   definitions, and keys with object and data properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 683 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 687 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1467,7 +1495,7 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on thirty datatypes and the
+external solver. Agreement with the OWL 2 map on thirty-two datatypes and the
 four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
 and the data queries, range facets included, are proved under every such map;
 the complete normative OWL map, its other datatypes and facets are

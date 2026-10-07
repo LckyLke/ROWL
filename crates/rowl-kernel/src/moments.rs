@@ -22,11 +22,11 @@
 use crate::datatypes::{DataValue, Moment};
 use crate::numbers::{add_naturals, subtract_naturals};
 
-fn is_digit(byte: u8) -> bool {
+pub(crate) fn is_digit(byte: u8) -> bool {
     (48 <= byte) & (byte <= 57)
 }
 /// The end of the digits of `bytes` from `index` on.
-fn digits_end(bytes: &Vec<u8>, index: usize) -> usize {
+pub(crate) fn digits_end(bytes: &Vec<u8>, index: usize) -> usize {
     if index < bytes.len() {
         if is_digit(bytes[index]) {
             digits_end(bytes, index + 1)
@@ -77,7 +77,7 @@ fn nonzero_start(bytes: &Vec<u8>, index: usize, end: usize) -> usize {
     }
 }
 /// The end of `bytes[start..end]` without its trailing `0`s.
-fn trimmed_end(bytes: &Vec<u8>, start: usize, end: usize) -> usize {
+pub(crate) fn trimmed_end(bytes: &Vec<u8>, start: usize, end: usize) -> usize {
     if (start < end) & (end <= bytes.len()) {
         if bytes[end - 1] == 48 {
             trimmed_end(bytes, start, end - 1)
@@ -89,7 +89,7 @@ fn trimmed_end(bytes: &Vec<u8>, start: usize, end: usize) -> usize {
     }
 }
 /// `out` followed by `bytes[index..end]`.
-fn copy_span(bytes: &Vec<u8>, index: usize, end: usize, mut out: Vec<u8>) -> Vec<u8> {
+pub(crate) fn copy_span(bytes: &Vec<u8>, index: usize, end: usize, mut out: Vec<u8>) -> Vec<u8> {
     if (index < end) & (end <= bytes.len()) {
         if out.len() < usize::MAX {
             out.push(bytes[index]);

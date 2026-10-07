@@ -9,7 +9,7 @@ const DECIMAL: &[u8] = b"http://www.w3.org/2001/XMLSchema#decimal";
 const STRING: &[u8] = b"http://www.w3.org/2001/XMLSchema#string";
 const PLAIN: &[u8] = b"http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral";
 const BOOLEAN: &[u8] = b"http://www.w3.org/2001/XMLSchema#boolean";
-const DOUBLE: &[u8] = b"http://www.w3.org/2001/XMLSchema#double";
+const XML_LITERAL: &[u8] = b"http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral";
 const REAL: &[u8] = b"http://www.w3.org/2002/07/owl#real";
 const RATIONAL: &[u8] = b"http://www.w3.org/2002/07/owl#rational";
 const BYTE: &[u8] = b"http://www.w3.org/2001/XMLSchema#byte";
@@ -49,8 +49,8 @@ fn the_five_datatypes_are_recognized_by_their_iris() {
     assert!(matches!(kind_of(&datatype(STRING)), Some(Kind::String)));
     assert!(matches!(kind_of(&datatype(PLAIN)), Some(Kind::Plain)));
     assert!(matches!(kind_of(&datatype(BOOLEAN)), Some(Kind::Boolean)));
-    assert!(kind_of(&datatype(DOUBLE)).is_none());
-    assert!(value(b"1", DOUBLE).is_none());
+    assert!(kind_of(&datatype(XML_LITERAL)).is_none());
+    assert!(value(b"<a/>", XML_LITERAL).is_none());
 }
 
 #[test]

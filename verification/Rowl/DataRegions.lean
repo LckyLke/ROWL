@@ -135,6 +135,8 @@ theorem integer_kind {v : datatypes.DataValue} (c : CanonicalNumeric v) :
   | Hex _ => simp [CanonicalNumeric] at c
   | Base64 _ => simp [CanonicalNumeric] at c
   | Moment _ => simp [CanonicalNumeric] at c
+  | Double _ => simp [CanonicalNumeric] at c
+  | Float _ => simp [CanonicalNumeric] at c
 
 theorem run_value_number {low high : regions.Cut} {v : datatypes.DataValue} (run : RunValue low high v) :
     IsNumber v := by

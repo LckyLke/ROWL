@@ -617,7 +617,7 @@ fn key_with(
 }
 /// `out` with the axioms of a key; `None` for a key with no property, the
 /// universal role or the top or bottom data property, or with a data property
-/// while numbers are ordered.
+/// while numbers are ordered or floating-point numbers are in use.
 fn key_axioms(
     context: &Context,
     class: &ClassExpression,
@@ -631,7 +631,9 @@ fn key_axioms(
         None
     } else if any_universal(objects, 0) {
         None
-    } else if (data.len() != 0) & context.kinds.ordered {
+    } else if (data.len() != 0)
+        & (context.kinds.ordered | context.kinds.double | context.kinds.float)
+    {
         None
     } else {
         match data_key_roles(context, data, 0, Vec::new()) {

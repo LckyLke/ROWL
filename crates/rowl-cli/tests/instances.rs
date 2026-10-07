@@ -36,7 +36,7 @@ fn individuals_named_only_in_class_expressions_are_asked_about() {
 fn undecided_individuals_are_named_and_fail_the_listing() {
     let file = document(
         "events.ofn",
-        "Prefix(:=<https://example.org/d/>)\nOntology(<https://example.org/d/onto>\nDeclaration(DataProperty(:at))\nDataPropertyAssertion(:at :e1 \"2.5E1\"^^xsd:double)\nClassAssertion(:Event :e1)\n)\n",
+        "Prefix(:=<https://example.org/d/>)\nOntology(<https://example.org/d/onto>\nDeclaration(DataProperty(:at))\nDataPropertyAssertion(:at :e1 \"<a/>\"^^rdf:XMLLiteral)\nClassAssertion(:Event :e1)\n)\n",
     );
     let output = instances(&file, "https://example.org/d/Event");
     assert!(!output.status.success());

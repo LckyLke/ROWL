@@ -375,6 +375,17 @@ def MomentFacts (kinds : data_ontology.Kinds) (J : Interpretation Object' Value'
   Included kinds J .DateTimeStamp .DateTime ∧ DistinctFacts kinds J .DateTime ∧ Apart kinds J .DateTime .AnyUri ∧
     Apart kinds J .DateTime .HexBinary ∧ Apart kinds J .DateTime .Base64Binary
 
+/-- A kind of floating-point numbers apart from every other kind but the other
+    kind of floating-point numbers, when in use. -/
+def FloatApart (kinds : data_ontology.Kinds) (J : Interpretation Object' Value') (k : datatypes.Kind) : Prop :=
+  DistinctFacts kinds J k ∧ Apart kinds J k .AnyUri ∧ Apart kinds J k .HexBinary ∧ Apart kinds J k .Base64Binary ∧
+    Apart kinds J k .DateTime
+
+/-- The kinds of floating-point numbers apart from every other kind and from
+    each other, when in use (OWL 2 Structural Specification §4.2). -/
+def FloatFacts (kinds : data_ontology.Kinds) (J : Interpretation Object' Value') : Prop :=
+  FloatApart kinds J .Double ∧ FloatApart kinds J .Float ∧ Apart kinds J .Double .Float
+
 /-- The kinds of the chain of `xsd:string` and its subtypes by rank, each a
     subtype of the ones before it. -/
 def chainKind : Nat → datatypes.Kind
@@ -423,6 +434,7 @@ structure KindFacts (context : data_ontology.Context) (J : Interpretation Object
   plainBoolean : Apart context.kinds J .Plain .Boolean
   sequences : SequenceFacts context.kinds J
   moments : MomentFacts context.kinds J
+  floats : FloatFacts context.kinds J
   truths : Truths context J
 
 theorem number_axioms_spec (kinds : data_ontology.Kinds) (out : alloc.vec.Vec AnnotatedAxiom) :
@@ -589,6 +601,60 @@ theorem moment_axioms_spec (kinds : data_ontology.Kinds) (out : alloc.vec.Vec An
   simp only [List.forall_mem_append, m1, m2, m3, m4, m5, ↓reduceIte, Bool.false_eq_true, MomentFacts]
   tauto
 
+theorem float_apart_spec (kinds : data_ontology.Kinds) (k : datatypes.Kind) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.float_apart kinds k out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ FloatApart kinds J k) := by
+  rw [data_ontology.float_apart]
+  obtain ⟨r1, run1, f1⟩ := distinct_axioms_spec.{w,x} kinds k out
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some o1 =>
+  obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
+  obtain ⟨r2, run2, f2⟩ := kinds_axiom_spec.{w,x} kinds k .AnyUri false o1
+  cases r2 with
+  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | some o2 =>
+  obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
+  obtain ⟨r3, run3, f3⟩ := kinds_axiom_spec.{w,x} kinds k .HexBinary false o2
+  cases r3 with
+  | none => exact ⟨none, by simp [run1, run2, run3], by simp⟩
+  | some o3 =>
+  obtain ⟨n3, c3, m3⟩ := f3 o3 rfl
+  obtain ⟨r4, run4, f4⟩ := kinds_axiom_spec.{w,x} kinds k .Base64Binary false o3
+  cases r4 with
+  | none => exact ⟨none, by simp [run1, run2, run3, run4], by simp⟩
+  | some o4 =>
+  obtain ⟨n4, c4, m4⟩ := f4 o4 rfl
+  obtain ⟨r5, run5, f5⟩ := kinds_axiom_spec.{w,x} kinds k .DateTime false o4
+  refine ⟨r5, by simp [run1, run2, run3, run4, run5], fun out' h => ?_⟩
+  obtain ⟨n5, c5, m5⟩ := f5 out' h
+  refine ⟨n1 ++ n2 ++ n3 ++ n4 ++ n5, by rw [c5, c4, c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3, m4, m5, ↓reduceIte, Bool.false_eq_true, FloatApart]
+  tauto
+
+theorem float_axioms_spec (kinds : data_ontology.Kinds) (out : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ res, data_ontology.float_axioms kinds out = .ok res ∧ ∀ out', res = some out' →
+      ∃ new, out'.val = out.val ++ new ∧ ∀ {Object' : Type w} {Value' : Type x} (J : Interpretation Object' Value'),
+        ((∀ y ∈ new, satisfies J y.axiom) ↔ FloatFacts kinds J) := by
+  rw [data_ontology.float_axioms]
+  obtain ⟨r1, run1, f1⟩ := float_apart_spec.{w,x} kinds .Double out
+  cases r1 with
+  | none => exact ⟨none, by simp [run1], by simp⟩
+  | some o1 =>
+  obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
+  obtain ⟨r2, run2, f2⟩ := float_apart_spec.{w,x} kinds .Float o1
+  cases r2 with
+  | none => exact ⟨none, by simp [run1, run2], by simp⟩
+  | some o2 =>
+  obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
+  obtain ⟨r3, run3, f3⟩ := kinds_axiom_spec.{w,x} kinds .Double .Float false o2
+  refine ⟨r3, by simp [run1, run2, run3], fun out' h => ?_⟩
+  obtain ⟨n3, c3, m3⟩ := f3 out' h
+  refine ⟨n1 ++ n2 ++ n3, by rw [c3, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, m3, ↓reduceIte, Bool.false_eq_true, FloatFacts]
+  tauto
+
 theorem above_axioms_spec (kinds : data_ontology.Kinds) (rank below : U8) (hr : rank.val < 7) (hb : below.val ≤ 7)
     (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.above_axioms kinds rank below out = .ok res ∧ ∀ out', res = some out' →
@@ -721,25 +787,30 @@ theorem kind_axioms_spec (context : data_ontology.Context) (good : Good context)
   | none => exact ⟨none, by simp [run1, run2, runs, run3, run4, run5, run6, run7, run8, run9, runm], by simp⟩
   | some om =>
   obtain ⟨nm, cm, mm⟩ := fm om rfl
-  obtain ⟨r10, run10, f10⟩ := truth_axiom_spec.{w,x} context good om
-  refine ⟨r10, by simp [run1, run2, runs, run3, run4, run5, run6, run7, run8, run9, runm, run10],
+  obtain ⟨rf, runf, ff⟩ := float_axioms_spec.{w,x} context.kinds om
+  cases rf with
+  | none => exact ⟨none, by simp [run1, run2, runs, run3, run4, run5, run6, run7, run8, run9, runm, runf], by simp⟩
+  | some of =>
+  obtain ⟨nf, cf, mf⟩ := ff of rfl
+  obtain ⟨r10, run10, f10⟩ := truth_axiom_spec.{w,x} context good of
+  refine ⟨r10, by simp [run1, run2, runs, run3, run4, run5, run6, run7, run8, run9, runm, runf, run10],
     fun out' h => ?_⟩
   obtain ⟨known, n10, c10, m10⟩ := f10 out' h
-  refine ⟨known, n1 ++ n2 ++ ns ++ n3 ++ n4 ++ n5 ++ n6 ++ n7 ++ n8 ++ n9 ++ nm ++ n10,
-    by rw [c10, cm, c9, c8, c7, c6, c5, c4, c3, cs, c2, c1]; simp, fun J => ?_⟩
-  simp only [List.forall_mem_append, m1, m2, ms, m3, m4, m5, m6, m7, m8, m9, mm, m10, ↓reduceIte,
+  refine ⟨known, n1 ++ n2 ++ ns ++ n3 ++ n4 ++ n5 ++ n6 ++ n7 ++ n8 ++ n9 ++ nm ++ nf ++ n10,
+    by rw [c10, cf, cm, c9, c8, c7, c6, c5, c4, c3, cs, c2, c1]; simp, fun J => ?_⟩
+  simp only [List.forall_mem_append, m1, m2, ms, m3, m4, m5, m6, m7, m8, m9, mm, mf, m10, ↓reduceIte,
     Bool.false_eq_true]
   have strings : (∀ i j, (1#u8 : U8).val ≤ i → j < i → i < 7 → Included context.kinds J (chainKind i) (chainKind j)) ↔
       StringFacts context.kinds J :=
     ⟨fun all i j lt hi => all i j (by simp; omega) lt hi, fun all i j _ lt hi => all i j lt hi⟩
   rw [strings]
   constructor
-  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, st⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩,
-      h⟩, s⟩, mo⟩, i⟩
-    exact ⟨a1, a2, a3, a4, a5, a6, b, st, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, s, mo, i⟩
-  · rintro ⟨a1, a2, a3, a4, a5, a6, b, st, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, s, mo, i⟩
-    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, st⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩,
-      h⟩, s⟩, mo⟩, i⟩
+  · rintro ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, st⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩,
+      h⟩, s⟩, mo⟩, fl⟩, i⟩
+    exact ⟨a1, a2, a3, a4, a5, a6, b, st, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, s, mo, fl, i⟩
+  · rintro ⟨a1, a2, a3, a4, a5, a6, b, st, c1, c2, c3, d1, d2, d3, e1, e2, e3, f1, f2, f3, g, h, s, mo, fl, i⟩
+    exact ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨a1, a2, a3, a4, a5, a6⟩, b⟩, st⟩, c1, c2, c3⟩, d1, d2, d3⟩, e1, e2, e3⟩, f1, f2, f3⟩, g⟩,
+      h⟩, s⟩, mo⟩, fl⟩, i⟩
 
 /-! ### The literal values -/
 
@@ -1181,29 +1252,41 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu,
         runh, runb, rundt, runds], by simp⟩
     | some ods =>
-    obtain ⟨rs, runs, fs⟩ := string_members_spec.{w,x} context canonical index 1#u8 (by simp) ods
+    obtain ⟨rdb, rundb, fdb⟩ := kind_member_spec.{w,x} context canonical .Double index ods
+    cases rdb with
+    | none =>
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu,
+        runh, runb, rundt, runds, rundb], by simp⟩
+    | some odb =>
+    obtain ⟨rfl', runfl, ffl⟩ := kind_member_spec.{w,x} context canonical .Float index odb
+    cases rfl' with
+    | none =>
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu,
+        runh, runb, rundt, runds, rundb, runfl], by simp⟩
+    | some ofl =>
+    obtain ⟨rs, runs, fs⟩ := string_members_spec.{w,x} context canonical index 1#u8 (by simp) ofl
     cases rs with
     | none =>
       exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu,
-        runh, runb, rundt, runds, runs], by simp⟩
+        runh, runb, rundt, runds, rundb, runfl, runs], by simp⟩
     | some os =>
     obtain ⟨r6, run6, f6⟩ := number_members_spec.{w,x} context good fine fit index os
     cases r6 with
     | none =>
-      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, runs, run6],
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6],
         by simp⟩
     | some o6 =>
     obtain ⟨r7, run7, f7⟩ := bit_members_spec.{w,x} index 0#usize bits o6
     cases r7 with
     | none =>
-      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, runs, run6,
+      exact ⟨none, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
         run7], by simp⟩
     | some o7 =>
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIndex : next.val = index.val + 1 := by simpa using nextValue
     obtain ⟨rest, restRun, restFacts⟩ := value_axioms_spec context good fine fit next bits o7
-    refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, runs, run6,
+    refine ⟨rest, by simp [inside', data_class_eq, value_individual_eq, run0, run1, run2, run3, run4, run5, runu, runh, runb, rundt, runds, rundb, runfl, runs, run6,
       run7, advance, restRun], fun out' h => ?_⟩
     obtain ⟨n1, c1, m1⟩ := f1 o1 rfl
     obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
@@ -1215,21 +1298,24 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
     obtain ⟨nb, cb, mb⟩ := fb ob rfl
     obtain ⟨ndt, cdt, mdt⟩ := fdt odt rfl
     obtain ⟨nds, cds, mds⟩ := fds ods rfl
+    obtain ⟨ndb, cdb, mdb⟩ := fdb odb rfl
+    obtain ⟨nfl, cfl, mfl⟩ := ffl ofl rfl
     obtain ⟨ns, cs, ms⟩ := fs os rfl
     obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
     obtain ⟨n7, c7, m7⟩ := f7 o7 rfl
     obtain ⟨n8, c8, m8⟩ := restFacts out' h
     refine ⟨bare (.ClassAssertion (.Class dataClass) (.Named (valueIndividual index))) ::
-      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ nu ++ nh ++ nb ++ ndt ++ nds ++ ns ++ n6 ++ n7 ++ n8),
-      by rw [c8, c7, c6, cs, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1, contents0 o0 rfl]; simp [bare], fun J => ?_⟩
-    simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, mu, mh, mb, mdt, mds, ms,
-      m6, m7, m8,
+      (n1 ++ n2 ++ n3 ++ n4 ++ n5 ++ nu ++ nh ++ nb ++ ndt ++ nds ++ ndb ++ nfl ++ ns ++ n6 ++ n7 ++ n8),
+      by rw [c8, c7, c6, cs, cfl, cdb, cds, cdt, cb, ch, cu, c5, c4, c3, c2, c1, contents0 o0 rfl]; simp [bare],
+      fun J => ?_⟩
+    simp only [List.mem_cons, forall_eq_or_imp, List.forall_mem_append, m1, m2, m3, m4, m5, mu, mh, mb, mdt, mds, mdb,
+      mfl, ms, m6, m7, m8,
       zero_val, Nat.zero_le, true_implies]
     simp only [bare, satisfies, classDenote, individual]
     rw [nextIndex]
     constructor
-    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, ks⟩, ⟨k6, k7, cutsHere⟩⟩, bitsHere⟩,
-        rest⟩ i low hi
+    · rintro ⟨data, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨k1, k2⟩, k3⟩, k4⟩, k5⟩, ku⟩, kh⟩, kb⟩, kdt⟩, kds⟩, kdb⟩, kfl⟩, ks⟩,
+        ⟨k6, k7, cutsHere⟩⟩, bitsHere⟩, rest⟩ i low hi
       by_cases same : i.val = index.val
       · have := UScalar.eq_of_val_eq same
         subst this
@@ -1253,14 +1339,17 @@ theorem value_axioms_spec (context : data_ontology.Context) (good : Good context
         case Language => exact ks 6 (by simp) (by omega) used hi
         case DateTime => exact kdt used hi
         case DateTimeStamp => exact kds used hi
+        case Double => exact kdb used hi
+        case Float => exact kfl used hi
         all_goals simp [Used] at used
       · exact rest i (by omega) hi
     · intro all
       have here := all index (le_refl _) inside
-      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
+      exact ⟨here.1, ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
         fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
-        fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
+        fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩, fun used _ => here.2.1 _ used⟩,
+        fun used _ => here.2.1 _ used⟩,
         fun i _ _ used _ => here.2.1 _ used⟩,
         ⟨fun used _ => here.2.1 _ used, fun used _ => here.2.1 _ used, fun h => here.2.2.2⟩⟩,
         fun j high => here.2.2.1 j high⟩, fun i low hi => all i (by omega) hi⟩
@@ -1288,6 +1377,32 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
   values : ∀ (i : Usize) (h : i.val < context.values.val.length), ValueFact context bits J i h
   object : ¬ J.classes dataClass (J.namedIndividuals objectIndividual)
 
+/-- The formats of floating-point numbers in use leave room for the data nodes
+    of an element apart from the literal values: when they are in use, the
+    counts of the data restrictions and the literal values together stay below
+    `2^24 − 1`, the positive integers below `2^24` that both formats have. -/
+def FloatRoom (context : data_ontology.Context) (capacity : Nat) : Prop :=
+  (context.kinds.double = true ∨ context.kinds.float = true) → capacity + context.values.val.length < 16777215
+
+theorem float_room_spec (context : data_ontology.Context) (capacity : Usize) :
+    ∃ b, data_ontology.float_room context capacity = .ok b ∧ (b = true → FloatRoom context capacity.val) := by
+  rw [data_ontology.float_room]
+  have roomVal : data_ontology.FLOAT_ROOM.val = 16777215 := by simp [data_ontology.FLOAT_ROOM]
+  by_cases used : (context.kinds.double || context.kinds.float) = true
+  · by_cases small : capacity.val < 16777215
+    · have smallB : capacity < data_ontology.FLOAT_ROOM := by rw [UScalar.lt_equiv, roomVal]; exact small
+      obtain ⟨d, dRun, dVal⟩ := WP.spec_imp_exists (Usize.sub_spec (x := data_ontology.FLOAT_ROOM) (y := capacity)
+        (by rw [roomVal]; omega))
+      have dIs : d.val = 16777215 - capacity.val := by rw [dVal.1, roomVal]
+      refine ⟨decide (context.values.val.length < d.val), by simp [used, smallB, dRun], fun h _ => ?_⟩
+      simp only [decide_eq_true_eq] at h
+      omega
+    · have smallB : ¬ capacity < data_ontology.FLOAT_ROOM := by rw [UScalar.lt_equiv, roomVal]; exact small
+      exact ⟨false, by simp [used, smallB], by simp⟩
+  · refine ⟨true, by simp only [Bool.not_eq_true] at used; simp [used], fun _ h => ?_⟩
+    simp only [Bool.or_eq_true] at used
+    exact absurd h used
+
 /-- The encoding of a closure in a context: what its axioms become, and the
     encoding's own axioms, with enough bit classes to tell the literal values
     apart, a role for every data property of the context, and, when numbers are
@@ -1296,7 +1411,7 @@ structure Frame (context : data_ontology.Context) (capacity : Nat) (bits : Usize
 theorem encode_meaning (context : data_ontology.Context) (good : Good context) (capacity : Usize)
     (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, data_ontology.encode context capacity items = .ok res ∧ ∀ enc, res = some enc →
-      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      FineCuts context.cuts.val ∧ ValuesFit context ∧ FloatRoom context capacity.val ∧
       ∃ (new : List AnnotatedAxiom) (bits : Usize) (order : List Usize), ItemsMeans.{u,v,w,x} context items.val new ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
         (context.kinds.ordered = true → Ordered context.cuts.val (order.map (·.val)) ∧ PointsNamed context order 1) ∧
@@ -1307,47 +1422,52 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
             (∀ b ∈ new, satisfies J b.axiom) ∧ Frame context capacity.val bits order J) := by
   rw [data_ontology.encode]
   obtain ⟨ok, okRun, okFacts⟩ := encodable_spec context good
+  obtain ⟨room, roomRun, roomFacts⟩ := float_room_spec context capacity
   cases ok with
-  | false => exact ⟨none, by simp [okRun], by simp⟩
+  | false => exact ⟨none, by simp [okRun, roomRun], by simp⟩
+  | true =>
+  cases room with
+  | false => exact ⟨none, by simp [okRun, roomRun], by simp⟩
   | true =>
   obtain ⟨fine, valuesFit⟩ := okFacts rfl
+  have floatRoom := roomFacts rfl
   obtain ⟨r1, run1, f1⟩ := encode_items_meaning.{u,v,w,x} context items 0#usize (alloc.vec.Vec.new AnnotatedAxiom)
   cases r1 with
-  | none => exact ⟨none, by simp [okRun, run1], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1], by simp⟩
   | some o1 =>
   obtain ⟨new, c1, m1⟩ := f1 o1 rfl
   obtain ⟨r2, run2, f2⟩ := role_axioms_spec.{w,x} context 0#usize o1
   cases r2 with
-  | none => exact ⟨none, by simp [okRun, run1, run2], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1, run2], by simp⟩
   | some o2 =>
   obtain ⟨n2, c2, m2⟩ := f2 o2 rfl
   obtain ⟨r3, run3, f3⟩ := data_axioms_spec.{w,x} context 0#usize o2
   cases r3 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1, run2, run3], by simp⟩
   | some o3 =>
   obtain ⟨roles3, n3, c3, m3⟩ := f3 o3 rfl
   obtain ⟨r4, run4, f4⟩ := kind_axioms_spec.{w,x} context good o3
   cases r4 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1, run2, run3, run4], by simp⟩
   | some o4 =>
   obtain ⟨known, n4, c4, m4⟩ := f4 o4 rfl
   obtain ⟨r5, run5, f5⟩ := region_axioms_spec.{w,x} context good fine valuesFit capacity capSmall o4
   cases r5 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1, run2, run3, run4, run5], by simp⟩
   | some o5 =>
   obtain ⟨order, sorted, n5, c5, m5⟩ := f5 o5 rfl
   obtain ⟨bits, bitsRun, bitsLe⟩ := bits_for_spec (alloc.vec.Vec.len context.values) 0#usize 1#usize (by simp)
   obtain ⟨r6, run6, f6⟩ := value_axioms_spec.{w,x} context good fine valuesFit 0#usize bits o5
   cases r6 with
-  | none => exact ⟨none, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6], by simp⟩
+  | none => exact ⟨none, by simp [okRun, roomRun, run1, run2, run3, run4, run5, bitsRun, run6], by simp⟩
   | some o6 =>
   obtain ⟨n6, c6, m6⟩ := f6 o6 rfl
   obtain ⟨r7, run7, c7⟩ := push_spec o6
     (.ClassAssertion (.ObjectComplementOf (.Class dataClass)) (.Named objectIndividual))
-  refine ⟨r7, by simp [okRun, run1, run2, run3, run4, run5, bitsRun, run6, object_class_eq, object_individual_eq,
-    run7], fun enc h => ?_⟩
+  refine ⟨r7, by simp [okRun, roomRun, run1, run2, run3, run4, run5, bitsRun, run6, object_class_eq,
+    object_individual_eq, run7], fun enc h => ?_⟩
   simp only [zero_val, List.drop_zero] at m1 roles3 m2 m3
-  refine ⟨fine, valuesFit, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
+  refine ⟨fine, valuesFit, floatRoom, new, bits, order, m1, by simpa using bitsLe, sorted, roles3, known, fun J => ?_⟩
   rw [c7 enc h, c6, c5, c4, c3, c2, c1]
   simp only [new_val, List.nil_append, List.forall_mem_append, m2 J, m3 J, m4 J, m5 J, m6 J, zero_val, Nat.zero_le,
     true_implies]

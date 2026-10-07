@@ -6907,3 +6907,81 @@ This block adds 92 public theorems (59 in the new module `Rowl.Unfolding`, 31
 in the new module `Rowl.Copies` of which three moved from `Rowl.Components`,
 and five in `Rowl.DataOntology`) and 15 definitions. Totals are 5719 audited theorems, 1922 definitions, 683 Rust
 regressions, 24 Python binding tests and 5912 ledger obligations.
+
+## Floating-point numbers
+
+`xsd:double` and `xsd:float` are now read, compared and reasoned about, which
+makes 32 of the 33 OWL 2 datatypes; `rdf:XMLLiteral` remains.
+
+Specification. `Rowl.DatatypeMap` states the lexical forms after XML Schema
+1.1 §3.3.4–3.3.5 (`BinaryForm`): a decimal numeral with an optional sign,
+fraction and exponent (`NumeralForm`, built from `SignForm`, `UnsignedForm`
+and `ExponentForm`), `INF`, `+INF`, `-INF` and `NaN`. The values (`Binary`,
+`Binary.Valid` for a `FloatFormat`) are the numbers `m·2^e` with `|m| < 2^53`
+and `-1074 ≤ e ≤ 971` for `xsd:double` (`doubleFormat`) and `|m| < 2^24` and
+`-149 ≤ e ≤ 104` for `xsd:float` (`floatFormat`), the two zeros, the two
+infinities and NaN. A numeral denotes its exact rational value rounded as
+`floatingPointRound` rounds it (`roundBinary`): to the nearest value, ties to
+the even significand, past the greatest value to an infinity, and to a zero
+that keeps the numeral's sign. `Normative` gets an injective `double` and
+`float` embedding, each apart from the reals, the other datatypes and the
+other floating-point datatype (OWL 2 §4.2), the value spaces and the
+lexical-to-value mappings; the model map satisfies them. As OWL 2 says, `+0`
+and `-0` are two values and NaN is one, so a functional data property cannot
+take both zeros but can take NaN twice.
+
+Kernel. `floats::binary_value` reads a form in one pass: the special forms,
+or the sign, the digits of the whole part and of the fraction, and the
+exponent, whose digits saturate at a hundred million. Numbers whose decimal
+order is past the greatest value or below the least are an infinity or a
+zero at once (`over`, `under`); the others are rounded exactly
+(`exact`): from an estimate of the exponent of 2 (`estimate`), the quotient of
+the number by that power of two is settled until its integer part has the
+precision's number of bits, or the least exponent is reached
+(`native_settle`, `wide_settle`), and
+rounded with its remainder (`native_round`, `wide_round`). Numbers that fit
+are computed in `u128` (`native`), the others on decimal digit strings with
+the arithmetic of `numbers` (`wide`). `Rowl.Floats` proves the settling and
+rounding against `roundBinary` (`settle_sound`, `settle_complete`,
+`settled_round_value`, `native_spec`, `wide_spec`, `exact_spec`, with
+`roundBinary_huge` and `roundBinary_tiny` for the shortcuts), the reading of
+the forms (`numeral_spec`, `numeral_value_spec`) and finally
+`binary_value_correct`: the kernel returns a value exactly for the forms of
+`BinaryForm` shorter than 1024 bytes, and the value is the form's value,
+written canonically with an odd significand or as a zero (`CanonicalBinary`).
+Each form writes one value (`binaryForm_unique`), canonical values of one value
+are one (`binary_canonical_injective`), and the values are valid
+(`roundBinary_valid`), so `same_value`, now with `same_binary`, stays exact.
+
+Encoding. The two datatypes get classes (`Kinds.double`, `Kinds.float`),
+apart from every other datatype and from each other (`float_axioms_spec`,
+`FloatFacts`). An OWL model lifts as before (`double_apart`, `float_apart`).
+The value spaces are finite, so the region of a floating-point data node in a
+model of the encoding (`Region.binary`) holds the positive integers below
+2^24 that are no literal value's number (`binaryAt`, `FreeInt`), which both
+formats have (`binary_space`, `float_alone`). There are enough of them while
+the capacity and the number of literal values together stay below 2^24 - 1,
+which the kernel checks before it encodes (`float_room`, `FloatRoom`,
+`binary_room`), and the shift that keeps the values of different elements
+apart is zero while floating-point numbers are in use (`ShiftOk`). Keys with a
+data property need such shifts, so they get no answer while floating-point
+numbers are in use (`PlainValues`). Facets on floating-point numbers and their
+order get no answer.
+
+The regressions compare the kernel's values with Rust's correctly rounded
+parsing of `f64` and `f32` for 48 chosen numerals (halfway cases, the least
+and greatest values of both formats, subnormals, long digit strings and
+exponents with leading zeros) and 3000 pseudo-random ones, and check the
+special values, the signed zeros, an underflow that keeps its sign, 21
+malformed forms and the length limit. In the ontology queries they check
+that a double is no integer, that the two zeros are two values for a
+functional property while NaN is one, that `1.0` and `1E0` are one double and
+`0.1` and `0.10000000149011612` one float but two doubles, that doubles,
+floats and decimals are pairwise disjoint, that three doubles fit a minimum
+cardinality, and that facets, ill-formed forms and keys with a data property
+next to doubles get no answer.
+
+This block adds 156 public theorems (128 in the new module `Rowl.Floats`, 19
+in `Rowl.DataSound`) and 42 definitions. Totals are 5875 audited theorems,
+1964 definitions, 687 Rust regressions, 24 Python binding tests and 6068
+ledger obligations.

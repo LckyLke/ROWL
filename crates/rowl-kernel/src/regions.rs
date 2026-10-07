@@ -17,7 +17,7 @@
     clippy::redundant_pattern_matching
 )]
 // Indexed operations and explicit pushes for the pinned extraction subset.
-use crate::datatypes::{compare_values, same_value, DataValue, Moment};
+use crate::datatypes::{compare_values, same_value, Binary, DataValue, Moment};
 use crate::nnf::copy_bytes;
 use crate::numbers::{
     add_naturals, canonical, compare_naturals, divide_naturals, subtract_naturals,
@@ -63,6 +63,18 @@ pub fn copy_value(value: &DataValue) -> DataValue {
             fraction: copy_bytes(&moment.fraction),
             zone: copy_zone(&moment.zone),
         }),
+        DataValue::Double(value) => DataValue::Double(copy_binary(value)),
+        DataValue::Float(value) => DataValue::Float(copy_binary(value)),
+    }
+}
+/// A copy of a value of `xsd:double` or `xsd:float`.
+fn copy_binary(value: &Binary) -> Binary {
+    match value {
+        Binary::Finite(negative, significand, scale) => {
+            Binary::Finite(*negative, *significand, *scale)
+        }
+        Binary::Infinite(negative) => Binary::Infinite(*negative),
+        Binary::NotANumber => Binary::NotANumber,
     }
 }
 /// The index of the cut of `value` on the side `open` in `cuts[index..]`.

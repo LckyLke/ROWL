@@ -298,8 +298,8 @@ theorem liftedN_frame {lit : datatypes.DataValue → Value} {num : ℝ → Value
     rw [liftedN_data_class, liftedN_data_class]
     exact data p mem role run y y' related
   · cases kinds
-    constructor <;> simp only [Included, Apart, StringFacts, SequenceFacts, MomentFacts, DistinctFacts, Truths,
-      liftedN_kind_class, liftedN_named] <;>
+    constructor <;> simp only [Included, Apart, StringFacts, SequenceFacts, MomentFacts, FloatFacts, FloatApart,
+      DistinctFacts, Truths, liftedN_kind_class, liftedN_named] <;>
       assumption
   · intro ordered
     obtain ⟨first, chain, super⟩ := regions ordered
@@ -444,17 +444,18 @@ variable {Object' : Type u} {Value' : Type x} {Native : Type w} {D : DatatypeMap
 
 /-- The shift of an element's values in the OWL interpretation made from a
     model of the key encoding: a slot of `atomCount atoms + 1` values for each
-    element of `names` up to its own, and none while numbers are ordered, so
+    element of `names` up to its own, and none while numbers are ordered or
+    floating-point numbers are in use, so
     that two elements of `names` have one value only at a common data node. -/
 noncomputable def slotShift (context : data_ontology.Context) (J : Interpretation Object' Value')
     (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) (z : Object') : ℕ :=
-  if context.kinds.ordered = true then 0
+  if context.kinds.ordered = true ∨ context.kinds.double = true ∨ context.kinds.float = true then 0
   else ((names.map J.namedIndividuals).idxOf z + 1) * (atomCount atoms + 1)
 
 theorem slotShift_ok (context : data_ontology.Context) (J : Interpretation Object' Value')
     (atoms : List (DataProperty × Option DataRange × Nat)) (names : List NamedIndividual) :
     ShiftOk context (slotShift context J atoms names) :=
-  fun ordered z => by simp only [slotShift, if_pos ordered]
+  fun blocked z => by simp only [slotShift, if_pos blocked]
 
 /-- Where the named individuals outside `names` are placed: at the first of
     `names`, or at `o` when there is none. -/
@@ -608,10 +609,10 @@ theorem slot_apart {B k k' i i' : ℕ} (hi : i < B) (hi' : i' < B) (same : (k + 
 
 /-- Two elements of `names` that have one value along the role of a data
     property in the OWL interpretation made from a model of the key encoding,
-    while numbers are not ordered, are equal or have it at a common data
+    while the data values are plain, are equal or have it at a common data
     node. -/
 theorem keyed_value_shared (setting : Setting context capacity bits order J) (count : atomCount atoms ≤ capacity)
-    (unordered : context.kinds.ordered = false) (o : Element J) {p : DataProperty} {role : ObjectPropertyExpression}
+    (plain : PlainValues context) (o : Element J) {p : DataProperty} {role : ObjectPropertyExpression}
     (run : data_ontology.data_role context p = .ok (some role)) {y y' : Element J}
     (inY : y.1 ∈ names.map J.namedIndividuals) (apart : y ≠ y') {v : Values.{v,w} Native}
     (hv : (keyedSound.{u,v,w,x} context J N order atoms names o).dataProperties p y v)
@@ -624,7 +625,7 @@ theorem keyed_value_shared (setting : Setting context capacity bits order J) (co
     intro same
     have i := peers_index (context := context) (J := J) (order := order) (atoms := atoms) y.1 d
     have i' := peers_index (context := context) (J := J) (order := order) (atoms := atoms) y'.1 d'
-    simp only [slotShift, unordered, Bool.false_eq_true, ↓reduceIte] at same
+    simp only [slotShift, plain.1, plain.2.1, plain.2.2, Bool.false_eq_true, or_self, ↓reduceIte] at same
     have slots := slot_apart (by omega) (by omega) same
     exact apart (Subtype.ext ((List.idxOf_inj inY).mp slots))
   have one := nodeValue_shared setting count (slotShift_ok context J atoms names) hd hd' distinct (vd.trans vd'.symm)
@@ -691,10 +692,11 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨fine, fit, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ := facts enc rfl
+  obtain ⟨fine, fit, room, _, newU, _, bits, order, _, meansU, enough, sorted, _, _, _, keysMeans, iff⟩ :=
+    facts enc rfl
   obtain ⟨⟨_, frame⟩, newUHolds, apart, held, marks, dataMarks, keysHold⟩ := (iff (withAnonymous J g)).mp jSat
   have setting : Setting context capacity.val bits order (withAnonymous J g) :=
-    ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1⟩
+    ⟨good, frame, enough, sorted, fine, fit, jInterp.1, jInterp.2.2.1, jInterp.2.2.2.1, room⟩
   let o : Element (withAnonymous J g) := ⟨(withAnonymous J g).namedIndividuals objectIndividual, frame.object⟩
   let names := namesOf nodes.val
   let atoms := itemAtoms items.val ++ items.val.flatMap (fun i => keyAtoms i.axiom) ++ questions.flatMap classAtoms
@@ -730,7 +732,7 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
     intro item mem key
     obtain ⟨e, ops, dps, shape⟩ : ∃ e ops dps, item.axiom = .HasKey e ops dps := by
       revert key; cases item.axiom <;> simp [IsKey]
-    obtain ⟨unordered, datas, roles, _, _, encoded⟩ := keysMeans.1 item mem e ops dps shape
+    obtain ⟨plain, datas, roles, _, _, encoded⟩ := keysMeans.1 item mem e ops dps shape
     rw [shape]
     simp only [satisfies]
     intro y y' inE ny inE' ny' sharedOps sharedData
@@ -772,7 +774,7 @@ theorem keyed_encoded_model {Object' : Type u} {Value' : Type (max w v)} {Native
         obtain ⟨v, hv, hv'⟩ := sharedData p pIn
         have inY : y.1 ∈ names.map (withAnonymous J g).namedIndividuals := by
           rw [ya]; exact List.mem_map_of_mem aIn
-        obtain ⟨d, dData, rd, rd'⟩ := keyed_value_shared setting atomsCount (unordered (List.ne_nil_of_mem pIn)) o
+        obtain ⟨d, dData, rd, rd'⟩ := keyed_value_shared setting atomsCount (plain (List.ne_nil_of_mem pIn)) o
           pRun inY one hv hv'
         rw [ya] at rd
         rw [yb] at rd'
@@ -831,7 +833,7 @@ theorem keyed_lifted_model {Object : Type u} {Value : Type (max w v)} {Native : 
     capSmall items nodes counting
   rw [encRun] at run
   cases Result.ok_injective run
-  obtain ⟨_, _, new0, newU, newK, bits, order, means0, meansU, _, sorted, _, truths, plainNodes, keysMeans, iff⟩ :=
+  obtain ⟨_, _, _, new0, newU, newK, bits, order, means0, meansU, _, sorted, _, truths, plainNodes, keysMeans, iff⟩ :=
     facts enc rfl
   have placed := liftedN_placed (context := context) N x0 vocab interp0
   have rangeFrame := liftedN_range_frame (context := context) N x0 vocab interp0

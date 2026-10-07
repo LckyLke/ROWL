@@ -118,6 +118,8 @@ pub struct Kinds {
     pub ncname: bool,
     pub datetime: bool,
     pub stamp: bool,
+    pub double: bool,
+    pub float: bool,
     pub ordered: bool,
 }
 /// What the encoding of a closure and its questions knows: the distinct
@@ -308,6 +310,8 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::NcName => 27,
         Kind::DateTime => 28,
         Kind::DateTimeStamp => 29,
+        Kind::Double => 30,
+        Kind::Float => 31,
     }
 }
 /// The class of a kind.
@@ -380,6 +384,8 @@ fn no_kinds() -> Kinds {
         ncname: false,
         datetime: false,
         stamp: false,
+        double: false,
+        float: false,
         ordered: false,
     }
 }
@@ -413,6 +419,8 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::NcName => kinds.ncname,
         Kind::DateTime => kinds.datetime | kinds.stamp,
         Kind::DateTimeStamp => kinds.stamp,
+        Kind::Double => kinds.double,
+        Kind::Float => kinds.float,
         _ => false,
     }
 }
@@ -437,6 +445,8 @@ fn bounded(kind: Kind) -> bool {
         Kind::NcName => false,
         Kind::DateTime => false,
         Kind::DateTimeStamp => false,
+        Kind::Double => false,
+        Kind::Float => false,
         _ => true,
     }
 }
@@ -457,6 +467,8 @@ fn numeric_kind(kind: Kind) -> bool {
         Kind::NcName => false,
         Kind::DateTime => false,
         Kind::DateTimeStamp => false,
+        Kind::Double => false,
+        Kind::Float => false,
         _ => true,
     }
 }
@@ -527,6 +539,14 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
         },
         Kind::DateTimeStamp => Kinds {
             stamp: true,
+            ..kinds
+        },
+        Kind::Double => Kinds {
+            double: true,
+            ..kinds
+        },
+        Kind::Float => Kinds {
+            float: true,
             ..kinds
         },
         _ => Kinds {
@@ -2434,6 +2454,40 @@ fn moment_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annotate
     };
     kinds_axiom(kinds, Kind::DateTime, Kind::Base64Binary, false, out)
 }
+/// `out` with a kind of floating-point numbers in use apart from every other
+/// kind but the other floating-point kind.
+fn float_apart(kinds: &Kinds, kind: Kind, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match distinct_axioms(kinds, kind, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::AnyUri, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::HexBinary, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::Base64Binary, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, kind, Kind::DateTime, false, out)
+}
+/// `out` with the floating-point numbers in use apart from every other kind
+/// and from each other (OWL 2 Structural Specification §4.2).
+fn float_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match float_apart(kinds, Kind::Double, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match float_apart(kinds, Kind::Float, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, Kind::Double, Kind::Float, false, out)
+}
 /// The kind at a rank of the chain of `xsd:string` and its subtypes, each a
 /// subtype of the ones before it: `xsd:string`, `xsd:normalizedString`,
 /// `xsd:token`, `xsd:NMTOKEN`, `xsd:Name`, `xsd:NCName` and `xsd:language`.
@@ -2522,6 +2576,10 @@ fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         None => return None,
     };
     let out = match moment_axioms(kinds, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match float_axioms(kinds, out) {
         Some(out) => out,
         None => return None,
     };
@@ -2731,6 +2789,14 @@ fn value_axioms(
             None => return None,
         };
         let out = match kind_member(context, Kind::DateTimeStamp, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::Double, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::Float, index, out) {
             Some(out) => out,
             None => return None,
         };
@@ -3024,6 +3090,24 @@ fn values_fit(context: &Context, index: usize) -> bool {
 fn encodable(context: &Context) -> bool {
     cuts_fit(&context.cuts, 0) & values_fit(context, 0)
 }
+/// The values of `xsd:double` and `xsd:float` that serve the data nodes of an
+/// element: the integers from 1 up to this bound, which both formats have.
+const FLOAT_ROOM: usize = 16_777_215;
+/// Whether the formats of floating-point numbers in use leave room for the
+/// data nodes of an element apart from the literal values: when they are in
+/// use, the counts of the data restrictions and the literal values together
+/// stay below `FLOAT_ROOM`.
+fn float_room(context: &Context, capacity: usize) -> bool {
+    if context.kinds.double | context.kinds.float {
+        if capacity < FLOAT_ROOM {
+            context.values.len() < FLOAT_ROOM - capacity
+        } else {
+            false
+        }
+    } else {
+        true
+    }
+}
 /// `out` with the axioms of the ordered numbers, when numbers are ordered: the
 /// first cut inside the reals and the chain of the cuts, and when the integers
 /// are in use, every data property below `U`.
@@ -3061,7 +3145,7 @@ pub fn encode(
     capacity: usize,
     items: &Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
-    if !encodable(context) {
+    if !(encodable(context) & float_room(context, capacity)) {
         return None;
     }
     let out = match encode_items(context, items, 0, Vec::new()) {

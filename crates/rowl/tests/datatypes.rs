@@ -285,3 +285,64 @@ DataPropertyAssertion(:admitted :b \"2024-03-01T08:30:00\"^^xsd:dateTime)
         Some(false)
     );
 }
+
+#[test]
+fn floating_point_numbers_are_reasoned_about_by_value() {
+    // OWL 2 Structural Specification, section 4.2: floating-point numbers are
+    // no integers, and the two zeros are two values.
+    assert_eq!(
+        consistent("DataPropertyRange(:hasAge xsd:integer)\nDataPropertyAssertion(:hasAge :Meg \"17\"^^xsd:double)"),
+        Some(false)
+    );
+    assert_eq!(
+        consistent("FunctionalDataProperty(:children)\nDataPropertyAssertion(:children :Meg \"+0\"^^xsd:float)\nDataPropertyAssertion(:children :Meg \"-0\"^^xsd:float)"),
+        Some(false)
+    );
+    // Lexical forms of one value are one value, after rounding.
+    assert_eq!(
+        consistent("FunctionalDataProperty(:dose)\nDataPropertyAssertion(:dose :a \"1.0\"^^xsd:double)\nDataPropertyAssertion(:dose :a \"1E0\"^^xsd:double)"),
+        Some(true)
+    );
+    assert_eq!(
+        consistent("FunctionalDataProperty(:dose)\nDataPropertyAssertion(:dose :a \"0.1\"^^xsd:float)\nDataPropertyAssertion(:dose :a \"0.10000000149011612\"^^xsd:float)"),
+        Some(true)
+    );
+    assert_eq!(
+        consistent("FunctionalDataProperty(:dose)\nDataPropertyAssertion(:dose :a \"0.1\"^^xsd:double)\nDataPropertyAssertion(:dose :a \"0.10000000149011612\"^^xsd:double)"),
+        Some(false)
+    );
+    assert_eq!(
+        consistent("FunctionalDataProperty(:dose)\nDataPropertyAssertion(:dose :a \"NaN\"^^xsd:double)\nDataPropertyAssertion(:dose :a \"NaN\"^^xsd:double)"),
+        Some(true)
+    );
+    // xsd:double, xsd:float and xsd:decimal are pairwise disjoint.
+    assert_eq!(
+        consistent(
+            "DataPropertyRange(:dose xsd:double)\nDataPropertyAssertion(:dose :a \"1\"^^xsd:float)"
+        ),
+        Some(false)
+    );
+    assert_eq!(
+        consistent("DataPropertyRange(:dose xsd:decimal)\nDataPropertyAssertion(:dose :a \"1\"^^xsd:double)"),
+        Some(false)
+    );
+    assert_eq!(
+        consistent("DataPropertyRange(:dose xsd:double)\nDataPropertyAssertion(:dose :a \"1.5e-3\"^^xsd:double)"),
+        Some(true)
+    );
+    // Many values: three different doubles fit a range of doubles.
+    assert_eq!(
+        consistent("SubClassOf(:Series DataMinCardinality(3 :reading xsd:double))\nClassAssertion(:Series :s)"),
+        Some(true)
+    );
+    // Facets on floating-point numbers and literals outside the lexical space
+    // get no answer.
+    assert_eq!(
+        consistent("DataPropertyRange(:dose DatatypeRestriction(xsd:double xsd:minInclusive \"0.0\"^^xsd:double))"),
+        None
+    );
+    assert_eq!(
+        consistent("DataPropertyAssertion(:dose :a \"1,5\"^^xsd:double)"),
+        None
+    );
+}

@@ -26,13 +26,17 @@ theorem new_val {α : Type} : (alloc.vec.Vec.new α).val = [] := rfl
 
 /-! ### Copies and lists of cuts -/
 
+/-- The kernel copies a floating-point value exactly. -/
+theorem copy_binary_eq (b : datatypes.Binary) : regions.copy_binary b = .ok b := by
+  cases b <;> rfl
+
 /-- The kernel copies a value exactly. -/
 theorem copy_value_eq (v : datatypes.DataValue) : regions.copy_value v = .ok v := by
   cases v
   case Moment x =>
     obtain ⟨n, y, mo, d, h, mi, s, f, z⟩ := x
     rcases z with _ | ⟨w, hh, mm⟩ <;> simp [regions.copy_value, regions.copy_zone, Rowl.Nnf.copy_bytes_identity]
-  all_goals simp [regions.copy_value, Rowl.Nnf.copy_bytes_identity]
+  all_goals simp [regions.copy_value, Rowl.Nnf.copy_bytes_identity, copy_binary_eq]
 
 /-- The reals a cut contains: those at or above its number, or above it. -/
 def InCut (c : regions.Cut) (r : ℝ) : Prop :=
@@ -207,6 +211,8 @@ theorem floor_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
   | Hex _ => exact absurd c (by simp [CanonicalNumeric])
   | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
   | Moment _ => exact absurd c (by simp [CanonicalNumeric])
+  | Double _ => exact absurd c (by simp [CanonicalNumeric])
+  | Float _ => exact absurd c (by simp [CanonicalNumeric])
 
 /-- The kernel rounds a number's magnitude up. -/
 theorem ceil_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
@@ -275,6 +281,8 @@ theorem ceil_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
   | Hex _ => exact absurd c (by simp [CanonicalNumeric])
   | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
   | Moment _ => exact absurd c (by simp [CanonicalNumeric])
+  | Double _ => exact absurd c (by simp [CanonicalNumeric])
+  | Float _ => exact absurd c (by simp [CanonicalNumeric])
 
 theorem below_zero_eq (v : datatypes.DataValue) : regions.below_zero v = .ok (negativeOf v) := by
   cases v <;> rfl

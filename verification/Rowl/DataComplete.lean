@@ -20,7 +20,7 @@ namespace Rowl.DataComplete
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl
 open Rowl.DatatypeMap (Normative IsInteger IsDecimal integerType decimalType stringType plainType booleanType
-  realType Moment dateTimeType dateTimeStampType)
+  realType Moment dateTimeType dateTimeStampType Binary doubleFormat floatFormat)
 open Rowl.Datatypes (Canonical valueOf typeOf kindOf InKind)
 open Rowl.AlcOntology (RoleOf)
 open Rowl.DataEncoding
@@ -175,6 +175,10 @@ theorem value_datatype (N : Normative D) {x : datatypes.DataValue} (canonical : 
       (Rowl.Datatypes.normative_in_kind N canonical .Base64Binary).mp (by simp [InKind])⟩
   | Moment x => exact ⟨typeOf .DateTime, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .DateTime).mp (by simp [InKind])⟩
+  | Double x => exact ⟨typeOf .Double, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .Double).mp (by simp [InKind])⟩
+  | Float x => exact ⟨typeOf .Float, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .Float).mp (by simp [InKind])⟩
 
 theorem integer_decimal (N : Normative D) (y : Native) :
     D.valueSpace integerType y → D.valueSpace decimalType y := by
@@ -298,6 +302,12 @@ theorem not_coded (N : Normative D) {k : datatypes.Kind} (ck : ¬ IsCoded k) {y 
     case DateTimeStamp =>
       obtain ⟨m, mv, _, rfl⟩ := (N.stamp_space _).mp inside
       exact fun e => N.coded_moment c m valid mv e.symm
+    case Double =>
+      obtain ⟨b, bv, rfl⟩ := (N.double_space _).mp inside
+      exact fun e => N.coded_double c b valid bv e.symm
+    case Float =>
+      obtain ⟨b, bv, rfl⟩ := (N.float_space _).mp inside
+      exact fun e => N.coded_float c b valid bv e.symm
     all_goals
       obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
       exact N.text_coded t c (Rowl.Strings.form_xml f) valid
@@ -370,6 +380,12 @@ theorem not_moment (N : Normative D) {k : datatypes.Kind} (mk : ¬ IsMomentKind 
       case Boolean =>
         obtain ⟨b, rfl⟩ := (N.boolean_space _).mp inside
         exact N.truth_moment b m valid
+      case Double =>
+        obtain ⟨b, bv, rfl⟩ := (N.double_space _).mp inside
+        exact fun e => N.moment_double m b valid bv e.symm
+      case Float =>
+        obtain ⟨b, bv, rfl⟩ := (N.float_space _).mp inside
+        exact fun e => N.moment_float m b valid bv e.symm
       all_goals
         obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
         exact N.text_moment t m (Rowl.Strings.form_xml f) valid
@@ -387,6 +403,82 @@ theorem stamp_datetime (N : Normative D) (y : Native) :
   rw [N.stamp_space, N.datetime_space]
   rintro ⟨m, mv, _, rfl⟩
   exact ⟨m, mv, rfl⟩
+
+/-- No value of another kind is a value of `xsd:double`. -/
+theorem not_double (N : Normative D) {k : datatypes.Kind} (ne : k ≠ .Double) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) (b : Binary) (valid : b.Valid doubleFormat) : y ≠ N.double b := by
+  by_cases numeric : Rowl.Datatypes.IsNumeric k
+  · obtain ⟨r, rfl⟩ := real_of_numeric N numeric inside
+    exact N.real_double r b valid
+  · by_cases ck : IsCoded k
+    · obtain ⟨c, cv, _, rfl⟩ := coded_of_kind N ck inside
+      exact N.coded_double c b cv valid
+    · by_cases mk : IsMomentKind k
+      · obtain ⟨m, mv, rfl⟩ := moment_of_kind N mk inside
+        exact N.moment_double m b mv valid
+      · cases k <;> simp only [IsMomentKind, IsCoded, Rowl.Datatypes.IsNumeric, not_true_eq_false,
+          not_false_eq_true, ne_eq, not_true_eq_false] at mk ck numeric ne
+        case String =>
+          obtain ⟨s, xs, rfl⟩ := (N.string_space _).mp inside
+          exact N.text_double s b xs valid
+        case Plain =>
+          rcases (N.plain_space _).mp inside with ⟨s, xs, rfl⟩ | ⟨s, l, xs, tl, rfl⟩
+          · exact N.text_double s b xs valid
+          · exact N.tagged_double s l b xs tl valid
+        case Boolean =>
+          obtain ⟨c, rfl⟩ := (N.boolean_space _).mp inside
+          exact N.truth_double c b valid
+        case Float =>
+          obtain ⟨a, av, rfl⟩ := (N.float_space _).mp inside
+          exact fun e => N.double_float b a valid av e.symm
+        all_goals
+          obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
+          exact N.text_double t b (Rowl.Strings.form_xml f) valid
+
+/-- No value of another kind is a value of `xsd:float`. -/
+theorem not_float (N : Normative D) {k : datatypes.Kind} (ne : k ≠ .Float) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) (b : Binary) (valid : b.Valid floatFormat) : y ≠ N.float b := by
+  by_cases numeric : Rowl.Datatypes.IsNumeric k
+  · obtain ⟨r, rfl⟩ := real_of_numeric N numeric inside
+    exact N.real_float r b valid
+  · by_cases ck : IsCoded k
+    · obtain ⟨c, cv, _, rfl⟩ := coded_of_kind N ck inside
+      exact N.coded_float c b cv valid
+    · by_cases mk : IsMomentKind k
+      · obtain ⟨m, mv, rfl⟩ := moment_of_kind N mk inside
+        exact N.moment_float m b mv valid
+      · cases k <;> simp only [IsMomentKind, IsCoded, Rowl.Datatypes.IsNumeric, not_true_eq_false,
+          not_false_eq_true, ne_eq, not_true_eq_false] at mk ck numeric ne
+        case String =>
+          obtain ⟨s, xs, rfl⟩ := (N.string_space _).mp inside
+          exact N.text_float s b xs valid
+        case Plain =>
+          rcases (N.plain_space _).mp inside with ⟨s, xs, rfl⟩ | ⟨s, l, xs, tl, rfl⟩
+          · exact N.text_float s b xs valid
+          · exact N.tagged_float s l b xs tl valid
+        case Boolean =>
+          obtain ⟨c, rfl⟩ := (N.boolean_space _).mp inside
+          exact N.truth_float c b valid
+        case Double =>
+          obtain ⟨a, av, rfl⟩ := (N.double_space _).mp inside
+          exact N.double_float a b av valid
+        all_goals
+          obtain ⟨t, f, rfl⟩ := (Rowl.Datatypes.subtype_space_iff N rfl _).mp inside
+          exact N.text_float t b (Rowl.Strings.form_xml f) valid
+
+/-- `xsd:double` is apart from every other kind. -/
+theorem double_apart (N : Normative D) {b : datatypes.Kind} (ne : b ≠ .Double) (y : Native) :
+    ¬ (D.valueSpace (typeOf .Double) y ∧ D.valueSpace (typeOf b) y) := by
+  rintro ⟨inA, inB⟩
+  obtain ⟨a, av, rfl⟩ := (N.double_space _).mp inA
+  exact not_double N ne inB a av rfl
+
+/-- `xsd:float` is apart from every other kind. -/
+theorem float_apart (N : Normative D) {b : datatypes.Kind} (ne : b ≠ .Float) (y : Native) :
+    ¬ (D.valueSpace (typeOf .Float) y ∧ D.valueSpace (typeOf b) y) := by
+  rintro ⟨inA, inB⟩
+  obtain ⟨a, av, rfl⟩ := (N.float_space _).mp inA
+  exact not_float N ne inB a av rfl
 
 end Values
 
@@ -549,7 +641,7 @@ variable {Object : Type u} {Value : Type v} {Native : Type w} {D : DatatypeMap N
   {context : data_ontology.Context}
 
 /-- The value of a literal value under the OWL 2 datatype map. -/
-def litOf (N : Normative D) (embed : ValueEmbedding D Value) (x : datatypes.DataValue) : Value :=
+noncomputable def litOf (N : Normative D) (embed : ValueEmbedding D Value) (x : datatypes.DataValue) : Value :=
   embed (valueOf N x)
 
 /-- The value of a real number under the OWL 2 datatype map. -/
@@ -1018,6 +1110,17 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
           fun mb _ _ y => lifted_apart N x0 interp (moment_apart N (a := .DateTime) trivial mb) y
         refine ⟨fun _ _ y => lifted_included N x0 interp (a := .DateTimeStamp) (b := .DateTime) (stamp_datetime N) y,
           ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;> exact apartM (by simp [IsMomentKind])
+      floats := by
+        have apartD : ∀ {b : datatypes.Kind}, b ≠ .Double →
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) x0) .Double b :=
+          fun ne _ _ y => lifted_apart N x0 interp (double_apart N ne) y
+        have apartF : ∀ {b : datatypes.Kind}, b ≠ .Float →
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) x0) .Float b :=
+          fun ne _ _ y => lifted_apart N x0 interp (float_apart N ne) y
+        refine ⟨⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_, ?_⟩, ⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_, ?_⟩, ?_⟩
+        all_goals first
+          | exact apartD (fun e => by cases e)
+          | exact apartF (fun e => by cases e)
       truths := fun boolean y holds => by
         obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
         cases y with
@@ -1106,7 +1209,7 @@ theorem lifted_satisfies (N : Normative D) (x0 : Object) (vocab : IsVocabulary D
   obtain ⟨res, run', facts⟩ := encode_meaning.{u,v,max u v,v} context good capacity capSmall items
   rw [run] at run'
   cases Result.ok_injective run'
-  obtain ⟨_, _, new, bits, order, means, _, sorted, _, known, iff⟩ := facts enc rfl
+  obtain ⟨_, _, _, new, bits, order, means, _, sorted, _, known, iff⟩ := facts enc rfl
   rw [iff]
   refine ⟨?_, lifted_frame N x0 vocab interp good known capacity.val bits order (fun o => (sorted o).1)⟩
   exact (means.1 I _ Sum.inl Plain (items.val.flatMap (fun i => axiomAtoms i.axiom)) (litOf N embed) (numOf N embed) _

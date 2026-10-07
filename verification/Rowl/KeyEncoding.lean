@@ -1410,11 +1410,17 @@ theorem any_universal_correct (roles : alloc.vec.Vec ObjectPropertyExpression) (
 termination_by roles.val.length - index.val
 decreasing_by omega
 
+/-- Whether the data values of a context let keys with data properties be
+    answered: its numbers are not ordered and no floating-point numbers are in
+    use. -/
+def PlainValues (context : data_ontology.Context) : Prop :=
+  context.kinds.ordered = false ∧ context.kinds.double = false ∧ context.kinds.float = false
+
 theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     (objects : alloc.vec.Vec ObjectPropertyExpression) (data : alloc.vec.Vec DataProperty)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.key_axioms context e objects data nodes counting out = .ok res ∧ ∀ out', res = some out' →
-      (data.val ≠ [] → context.kinds.ordered = false) ∧ ∃ datas, DataRoles context data.val datas ∧
+      (data.val ≠ [] → PlainValues context) ∧ ∃ datas, DataRoles context data.val datas ∧
         ∃ new, out'.val = out.val ++ new ∧
           KeyMeans.{w,x} context e objects.val datas (namesOf nodes.val)
             (decide (¬ Counted objects.val.length data.val.length counting))
@@ -1432,16 +1438,12 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
     | true => exact ⟨none, by simp [notEmpty, run], by simp⟩
     | false =>
       have noTop : ∀ r ∈ objects.val, RoleOf r ≠ topObject := by simpa using facts rfl
-      by_cases blocked : data.val.length ≠ 0 ∧ context.kinds.ordered = true
-      · have blocked' : alloc.vec.Vec.len data ≠ 0#usize := fun h => blocked.1 (by simpa using congrArg UScalar.val h)
-        exact ⟨none, by simp [notEmpty, run, blocked', blocked.2], by simp⟩
-      · have open' : ¬ ((alloc.vec.Vec.len data != 0#usize) && context.kinds.ordered) = true := by
-          intro h
-          simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h
-          exact blocked ⟨fun zero => h.1 (UScalar.eq_of_val_eq (by simpa using zero)), h.2⟩
-        obtain ⟨r1, run1, facts1⟩ := data_key_roles_spec context data 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
+      by_cases blocked : ¬ data.val = [] ∧ ((context.kinds.ordered = true ∨ context.kinds.double = true) ∨
+          context.kinds.float = true)
+      · exact ⟨none, by simp [notEmpty, run, blocked.1, blocked.2], by simp⟩
+      · obtain ⟨r1, run1, facts1⟩ := data_key_roles_spec context data 0#usize (alloc.vec.Vec.new ObjectPropertyExpression)
         cases r1 with
-        | none => exact ⟨none, by simp [notEmpty, run, open', run1], by simp⟩
+        | none => exact ⟨none, by simp [notEmpty, run, blocked, run1], by simp⟩
         | some datas =>
           obtain ⟨new0, value0, roles0⟩ := facts1 datas rfl
           simp only [zero_val, List.drop_zero, new_val, List.nil_append] at value0 roles0
@@ -1454,11 +1456,10 @@ theorem key_axioms_spec (context : data_ontology.Context) (e : ClassExpression)
           have dataRoles : ∀ q ∈ datas.val, DataKeyRole q := data_roles_key roles0
           obtain ⟨res, run2, facts2⟩ := key_with_spec.{w,x} context e objects datas nodes counting out nonempty noTop
             dataRoles
-          refine ⟨res, by simp [notEmpty, run, open', run1, run2], fun out' h => ?_⟩
+          refine ⟨res, by simp [notEmpty, run, blocked, run1, run2], fun out' h => ?_⟩
           obtain ⟨new, c, means⟩ := facts2 out' h
           refine ⟨fun hasData => ?_, datas.val, roles0, new, c, ?_⟩
-          · by_contra ordered
-            exact blocked ⟨fun zero => hasData (List.eq_nil_of_length_eq_zero zero), by simpa using ordered⟩
+          · refine ⟨?_, ?_, ?_⟩ <;> (rw [Bool.eq_false_iff]; intro h; exact blocked ⟨hasData, by simp [h]⟩)
           · have ne : datas.val ≠ [] ↔ data.val ≠ [] := by
               rw [ne_eq, ne_eq, ← List.length_eq_zero_iff, ← List.length_eq_zero_iff, sameLength]
             have e1 : decide (¬ Counted objects.val.length datas.val.length counting) =
@@ -1481,8 +1482,8 @@ def DataSharedIn (items : List AnnotatedAxiom) (counting : Bool) : Prop :=
     dps.val ≠ []
 
 /-- What the axioms of the keys of `items` say, for the named individuals
-    `names`: every key with a data property is in a context whose numbers are
-    not ordered, its data properties have roles, and its object properties
+    `names`: every key with a data property is in a context whose data values
+    are plain (`PlainValues`), its data properties have roles, and its object properties
     are roles of the context that are not the encoding's; in every
     interpretation that satisfies the axioms, in which `names` are in `N` and
     `mark` has the self loops the keys that are not counted need, every key
@@ -1493,7 +1494,7 @@ def DataSharedIn (items : List AnnotatedAxiom) (counting : Bool) : Prop :=
 def KeysMeans (context : data_ontology.Context) (items : List AnnotatedAxiom) (names : List NamedIndividual)
     (counting : Bool) (new : List AnnotatedAxiom) : Prop :=
   (∀ item ∈ items, ∀ e ops dps, item.axiom = .HasKey e ops dps →
-    (dps.val ≠ [] → context.kinds.ordered = false) ∧
+    (dps.val ≠ [] → PlainValues context) ∧
     ∃ datas, DataRoles context dps.val datas ∧ (ops.val ≠ [] ∨ datas ≠ []) ∧
       (∀ r ∈ ops.val, ¬ Reserved (RoleOf r).iri.spelling.val ∧ RoleOf r ∈ context.roles.val) ∧
       (names ≠ [] → ∃ e', data_ontology.encode_class context e = .ok (some e'))) ∧
@@ -1516,7 +1517,7 @@ theorem keys_means_nil (context : data_ontology.Context) (names : List NamedIndi
 
 theorem keys_means_cons {context : data_ontology.Context} {item : AnnotatedAxiom} {rest new1 new2 : List AnnotatedAxiom}
     {names : List NamedIndividual} {counting : Bool}
-    (head : ∀ e ops dps, item.axiom = .HasKey e ops dps → (dps.val ≠ [] → context.kinds.ordered = false) ∧
+    (head : ∀ e ops dps, item.axiom = .HasKey e ops dps → (dps.val ≠ [] → PlainValues context) ∧
       ∃ datas, DataRoles context dps.val datas ∧
         KeyMeans.{w,x} context e ops.val datas names (decide (¬ Counted ops.val.length dps.val.length counting))
           (decide (¬ Counted ops.val.length dps.val.length counting ∧ dps.val ≠ [])) new1)
@@ -1557,7 +1558,7 @@ theorem axiom_keys_spec (context : data_ontology.Context) (ax : Axiom) (nodes : 
     (counting : Bool) (out : alloc.vec.Vec AnnotatedAxiom) :
     ∃ res, key_ontology.axiom_keys context ax nodes counting out = .ok res ∧ ∀ out', res = some out' →
       ∃ new, out'.val = out.val ++ new ∧
-        (∀ e ops dps, ax = .HasKey e ops dps → (dps.val ≠ [] → context.kinds.ordered = false) ∧
+        (∀ e ops dps, ax = .HasKey e ops dps → (dps.val ≠ [] → PlainValues context) ∧
           ∃ datas, DataRoles context dps.val datas ∧
             KeyMeans.{w,x} context e ops.val datas (namesOf nodes.val)
               (decide (¬ Counted ops.val.length dps.val.length counting))
@@ -1831,7 +1832,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
     (capSmall : capacity.val < Usize.max / 16) (items : alloc.vec.Vec AnnotatedAxiom)
     (nodes : alloc.vec.Vec Individual) (counting : Bool) :
     ∃ res, key_ontology.encode context capacity items nodes counting = .ok res ∧ ∀ enc, res = some enc →
-      FineCuts context.cuts.val ∧ ValuesFit context ∧
+      FineCuts context.cuts.val ∧ ValuesFit context ∧ FloatRoom context capacity.val ∧
       ∃ (new0 newU newK : List AnnotatedAxiom) (bits : Usize) (order : List Usize),
         ItemsMeans.{u,v,w,x} context [] new0 ∧ ItemsMeans.{u,v,w,x} context (unkeyedItems items.val) newU ∧
         context.values.val.length ≤ 2 ^ bits.val ∧
@@ -1855,7 +1856,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   cases r0 with
   | none => exact ⟨none, by simp [run0], by simp⟩
   | some out =>
-  obtain ⟨fine, fit, new0, bits, order, means0, enough, sorted, roles, known, iff0⟩ := facts0 out rfl
+  obtain ⟨fine, fit, room, new0, bits, order, means0, enough, sorted, roles, known, iff0⟩ := facts0 out rfl
   obtain ⟨r1, run1, facts1⟩ := unkeyed_spec.{u,v,w,x} context items 0#usize out
   cases r1 with
   | none => exact ⟨none, by simp [run0, run1], by simp⟩
@@ -1879,7 +1880,7 @@ theorem encode_meaning (context : data_ontology.Context) (good : Good context) (
   refine ⟨r5, by simp [run0, run1, named_class_eq, object_class_eq, run2, run3, run4, run5], fun enc h => ?_⟩
   obtain ⟨newK, c5, meansK⟩ := facts5 enc h
   simp only [zero_val, List.drop_zero] at meansU plainN meansN meansK
-  refine ⟨fine, fit, new0, newU, newK, bits, order, by simpa [new_val] using means0, meansU, enough, sorted, roles,
+  refine ⟨fine, fit, room, new0, newU, newK, bits, order, by simpa [new_val] using means0, meansU, enough, sorted, roles,
     known, plainN, meansK, fun J => ?_⟩
   have apartIff : (∀ b ∈ [bare (.SubClassOf (.Class keyClass) (.ObjectComplementOf (.Class dataClass)))],
       satisfies J b.axiom) ↔ ∀ y, J.classes keyClass y → ¬ J.classes dataClass y := by

@@ -10,7 +10,7 @@ const STRING: &[u8] = b"http://www.w3.org/2001/XMLSchema#string";
 const PLAIN: &[u8] = b"http://www.w3.org/1999/02/22-rdf-syntax-ns#PlainLiteral";
 const BOOLEAN: &[u8] = b"http://www.w3.org/2001/XMLSchema#boolean";
 const LITERAL: &[u8] = b"http://www.w3.org/2000/01/rdf-schema#Literal";
-const DOUBLE: &[u8] = b"http://www.w3.org/2001/XMLSchema#double";
+const XML_LITERAL: &[u8] = b"http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral";
 
 fn iri(s: &[u8]) -> Iri {
     Iri {
@@ -128,9 +128,9 @@ fn a_functional_value_is_unique_by_value() {
 fn ill_formed_literals_and_other_datatypes_give_no_answer() {
     let ill = vec![valued(b"ex:age", b"ex:ann", int(b"4 2"))];
     assert_eq!(consistent(&ill), None);
-    let other = vec![valued(b"ex:age", b"ex:ann", literal(b"4.2", DOUBLE))];
+    let other = vec![valued(b"ex:age", b"ex:ann", literal(b"<a/>", XML_LITERAL))];
     assert_eq!(consistent(&other), None);
-    let ranged = vec![sub(class(b"ex:A"), some(b"ex:p", datatype(DOUBLE)))];
+    let ranged = vec![sub(class(b"ex:A"), some(b"ex:p", datatype(XML_LITERAL)))];
     assert_eq!(consistent(&ranged), None);
 }
 
