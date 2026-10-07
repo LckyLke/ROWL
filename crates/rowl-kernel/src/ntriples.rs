@@ -46,7 +46,7 @@ type Step<T> = Result<(T, usize), ReadError>;
 fn error(kind: ErrorKind, offset: usize) -> ReadError {
     ReadError { kind, offset }
 }
-fn at(bytes: &Vec<u8>, position: usize) -> Result<Option<(u32, usize)>, ReadError> {
+pub(crate) fn at(bytes: &Vec<u8>, position: usize) -> Result<Option<(u32, usize)>, ReadError> {
     match decode_next(bytes, position) {
         Decoded::End => Ok(None),
         Decoded::Scalar { codepoint, next } => Ok(Some((codepoint, next))),
@@ -125,7 +125,7 @@ fn skip_comment(bytes: &Vec<u8>, position: usize) -> Result<usize, ReadError> {
         _ => Ok(position),
     }
 }
-fn skip(bytes: &Vec<u8>, position: usize, lines: bool) -> Result<usize, ReadError> {
+pub(crate) fn skip(bytes: &Vec<u8>, position: usize, lines: bool) -> Result<usize, ReadError> {
     match at(bytes, position)? {
         Some((cp, next)) => {
             if horizontal(cp) || (lines && eol(cp)) {
@@ -144,7 +144,7 @@ fn skip(bytes: &Vec<u8>, position: usize, lines: bool) -> Result<usize, ReadErro
         None => Ok(position),
     }
 }
-fn hex(cp: u32) -> Option<u32> {
+pub(crate) fn hex(cp: u32) -> Option<u32> {
     if (cp >= 48) && (cp <= 57) {
         Some(cp - 48)
     } else if (cp >= 65) && (cp <= 70) {
@@ -175,7 +175,7 @@ fn unicode_escape(bytes: &Vec<u8>, slash: usize, mut next: usize, count: usize) 
     }
     Ok((value as u32, next))
 }
-fn escape(bytes: &Vec<u8>, slash: usize, after_slash: usize, iri: bool) -> Step<u32> {
+pub(crate) fn escape(bytes: &Vec<u8>, slash: usize, after_slash: usize, iri: bool) -> Step<u32> {
     let (marker, next) = required(bytes, after_slash)?;
     if marker == 117 {
         return unicode_escape(bytes, slash, next, 4);
@@ -213,7 +213,13 @@ fn iri_character(cp: u32) -> bool {
 }
 // The caller handles the closing delimiter first. This stage returns exactly
 // one decoded raw/escaped character or its original source diagnostic.
-fn quoted_item(bytes: &Vec<u8>, position: usize, cp: u32, next: usize, iri: bool) -> Step<u32> {
+pub(crate) fn quoted_item(
+    bytes: &Vec<u8>,
+    position: usize,
+    cp: u32,
+    next: usize,
+    iri: bool,
+) -> Step<u32> {
     if cp == 92 {
         escape(bytes, position, next, iri)
     } else {
@@ -223,7 +229,7 @@ fn quoted_item(bytes: &Vec<u8>, position: usize, cp: u32, next: usize, iri: bool
         Ok((cp, next))
     }
 }
-fn quoted(bytes: &Vec<u8>, start: usize, iri: bool, limit: usize) -> Step<Vec<u8>> {
+pub(crate) fn quoted(bytes: &Vec<u8>, start: usize, iri: bool, limit: usize) -> Step<Vec<u8>> {
     let opening = if iri { 60 } else { 34 };
     let closing = if iri { 62 } else { 34 };
     let mut position = expect(
@@ -261,10 +267,10 @@ fn read_iri(bytes: &Vec<u8>, start: usize, limit: usize) -> Step<RdfIri> {
         Err(error(ErrorKind::InvalidIri, start))
     }
 }
-fn in_range(cp: u32, lower: u32, upper: u32) -> bool {
+pub(crate) fn in_range(cp: u32, lower: u32, upper: u32) -> bool {
     (cp >= lower) && (cp <= upper)
 }
-fn pn_base(cp: u32) -> bool {
+pub(crate) fn pn_base(cp: u32) -> bool {
     in_range(cp, 65, 90)
         || in_range(cp, 97, 122)
         || in_range(cp, 0xc0, 0xd6)
@@ -283,7 +289,7 @@ fn pn_base(cp: u32) -> bool {
 fn pn_u(cp: u32) -> bool {
     pn_base(cp) || cp == 95 || cp == 58
 }
-fn ascii_digit(cp: u32) -> bool {
+pub(crate) fn ascii_digit(cp: u32) -> bool {
     cp >= 48 && cp <= 57
 }
 fn pn(cp: u32) -> bool {

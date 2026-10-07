@@ -1,10 +1,11 @@
 # Accepted serialization scope
 
 The user expanded the first-release requirement to standard RDF graph/dataset
-formats on 2026-09-30. The public bounded N-Triples reader now has **checked
-byte-to-graph totality and complete-acceptance proofs**. Its writer remains
-experimental, with serialization-isomorphism proofs pending. The other
-required formats are planned. No complete verified RDF/OWL frontend exists yet.
+formats on 2026-09-30. The public bounded N-Triples and Turtle readers now have
+**checked byte-to-graph totality and complete-acceptance proofs**. The
+N-Triples writer remains experimental, with serialization-isomorphism proofs
+pending. The other required formats and Turtle export are planned. No complete
+verified RDF/OWL frontend exists yet.
 
 The shared raw term/dataset representation and explicit graph-selection operation
 are now implemented. Lean proves exact graph-name comparison, total selection,
@@ -144,3 +145,47 @@ malformed input offsets, blank-label punctuation, distinct scope keys, invalid
 raw terms, preservation of ill-typed literals and exact byte/count budgets.
 The two CLI tests exercise a real maintenance graph and I/O failure handling.
 These tests provide evidence and do not replace the outstanding proofs.
+
+## Current Turtle implementation and checks
+
+`rowl_kernel::turtle::read` reads a whole RDF 1.1 Turtle document from its UTF-8
+bytes into the same raw graph as the N-Triples reader, against a base IRI and a
+blank-node scope that the caller supplies; `read_with_limits` adds limits on the
+bytes of a term and the number of triples. It accepts the whole grammar of
+section 6.5, with the longest-match tokens of the grammar's note, resolves
+relative IRIs by RFC 3986 section 5.2 against the base in force, requires RFC
+3987 IRIs and well-formed BCP 47 language tags, and gives the triples in the
+order of section 7. Labelled blank nodes keep their labels; the blank node of a
+property list or a collection member is labelled `0xFF` or `0xFE` followed by
+the decimal byte offset where it begins, which no UTF-8 label can contain. All
+blank nodes have the caller's scope, so independent documents need distinct
+scopes. A string's lexical form is its characters after unescaping; datatype
+IRIs and language-tag case are kept; numbers keep their spelling as lexical
+form with the datatype `xsd:integer`, `xsd:decimal` or `xsd:double`.
+
+`Turtle.lean` proves the reader against relations written from sections 6.5 and
+7: `read_with_limits_total_correct` (a graph of exactly the denoted triples in
+order, or the first error) and `read_with_limits_accepted_iff` (a graph exactly
+for Turtle documents within the limits). See m3-m4-progress.md for the parts.
+
+`Reasoner::from_turtle` reads the OWL ontology that a Turtle graph encodes
+through the verified reverse RDF mapping, with the scope `document` and no base
+of its own (`from_turtle_with_base` supplies one); the CLI's `check`, `classify`
+and `instances` commands read `.ttl` files this way, and the Python package
+reads Turtle with `syntax="turtle"` or from a `.ttl` file.
+
+```sh
+cargo run -p rowl-cli -- classify examples/medication-safety.ttl
+```
+
+```sh
+python3 scripts/fetch-turtle-suite.py /tmp/rowl-turtle-suite
+ROWL_TURTLE_SUITE_DIR=/tmp/rowl-turtle-suite \
+  cargo test -p rowl-kernel --test turtle -- --include-ignored
+```
+
+All 313 cases of the [W3C RDF 1.1 Turtle suite](https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-turtle/)
+pass: positive and negative syntax, negative evaluation, and evaluation cases
+whose graphs equal the expected N-Triples graphs up to blank-node isomorphism.
+Exact fetched-file hashes and the pinned `w3c/rdf-tests` commit are recorded in
+`turtle-suite.json`; the corpus stays outside this repository.

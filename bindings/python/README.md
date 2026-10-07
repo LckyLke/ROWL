@@ -2,9 +2,10 @@
 
 Python bindings for ROWL, an OWL 2 reasoner written in Rust whose reader,
 mapping and queries are proved in Lean against the OWL 2 Direct Semantics.
-A `Reasoner` reads an OWL Functional Syntax or N-Triples document once and
-answers any number of questions about it by IRI. An N-Triples graph is read as
-the OWL ontology it encodes by the verified reverse OWL RDF mapping.
+A `Reasoner` reads an OWL Functional Syntax, N-Triples or Turtle document
+once and answers any number of questions about it by IRI. An N-Triples or
+Turtle graph is read as the OWL ontology it encodes by the verified reverse OWL
+RDF mapping.
 
 ```python
 import rowl
@@ -20,8 +21,10 @@ with rowl.Reasoner.from_file("examples/medication-safety.ofn") as r:
     r.dl_violation()                                        # None: the document is OWL 2 DL
 ```
 
-`Reasoner.from_file` reads N-Triples for a `.nt` file and Functional Syntax
-otherwise; `Reasoner(text, syntax="ntriples")` reads N-Triples text.
+`Reasoner.from_file` reads N-Triples for a `.nt` file, Turtle for a `.ttl`
+file and Functional Syntax otherwise; `Reasoner(text, syntax="ntriples")` and
+`Reasoner(text, syntax="turtle")` read N-Triples and Turtle text. A relative IRI
+in Turtle needs an `@base` or `BASE` directive before it.
 
 Every answer is `True`, `False` or `None`. `None` means the question is
 outside the supported fragment (see the repository's `docs/status.md`) or a

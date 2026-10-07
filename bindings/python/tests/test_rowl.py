@@ -6,6 +6,7 @@ import rowl
 ROOT = Path(__file__).resolve().parents[3]
 MEDICATION = ROOT / "examples" / "medication-safety.ofn"
 MEDICATION_NT = ROOT / "examples" / "medication-safety.nt"
+MEDICATION_TTL = ROOT / "examples" / "medication-safety.ttl"
 IRI = "https://example.org/medication/"
 
 
@@ -70,7 +71,27 @@ class NTriples(unittest.TestCase):
         with self.assertRaises(rowl.DocumentRejected):
             rowl.Reasoner(undeclared, syntax="ntriples")
         with self.assertRaises(ValueError):
-            rowl.Reasoner("", syntax="turtle")
+            rowl.Reasoner("", syntax="rdfxml")
+
+
+class Turtle(unittest.TestCase):
+    def test_same_answers_as_functional_syntax(self):
+        with rowl.Reasoner.from_file(MEDICATION) as functional, \
+                rowl.Reasoner.from_file(MEDICATION_TTL) as turtle:
+            self.assertEqual(turtle.classes(), functional.classes())
+            self.assertEqual(turtle.individuals(), functional.individuals())
+            self.assertEqual(turtle.classify(), functional.classify())
+            alert = IRI + "AllergyAlert"
+            for person in ["alice", "bob", "carol"]:
+                self.assertIs(turtle.instance_of(IRI + person, alert),
+                              functional.instance_of(IRI + person, alert))
+
+    def test_rejected_and_unmapped_graphs(self):
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner("<a> <b> <c> .", syntax="turtle")
+        undeclared = "@prefix ex: <https://example.org/> .\nex:a ex:p ex:b .\n"
+        with self.assertRaises(rowl.DocumentRejected):
+            rowl.Reasoner(undeclared, syntax="turtle")
 
 
 class Errors(unittest.TestCase):

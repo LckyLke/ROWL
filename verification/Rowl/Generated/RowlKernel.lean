@@ -38683,7 +38683,7 @@ def ntriples.error
   ok { kind, offset }
 
 /-- [rowl_kernel::ntriples::copy_term]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 322:4-325:5 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 328:4-331:5 -/
 @[rust_loop]
 def ntriples.copy_term_loop
   (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize)
@@ -38702,7 +38702,7 @@ def ntriples.copy_term_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::copy_term]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 311:0-327:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 317:0-333:1 -/
 def ntriples.copy_term
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
   (limit : Std.Usize) :
@@ -49674,7 +49674,7 @@ def ntriples.iri_character (cp : Std.U32) : Result Bool := do
   else ok false
 
 /-- [rowl_kernel::ntriples::quoted_item]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 216:0-225:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 216:0-231:1 -/
 def ntriples.quoted_item
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
   (next : Std.Usize) (iri : Bool) :
@@ -49700,7 +49700,7 @@ def ntriples.quoted_item
       else ok (core.result.Result.Ok (cp, next))
 
 /-- [rowl_kernel::ntriples::quoted]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 240:4-254:5 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 246:4-260:5 -/
 @[rust_loop]
 def ntriples.quoted_loop
   (bytes : alloc.vec.Vec Std.U8) (iri : Bool) (limit : Std.Usize)
@@ -49744,7 +49744,7 @@ def ntriples.quoted_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::quoted]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 226:0-255:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 232:0-261:1 -/
 def ntriples.quoted
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (iri : Bool)
   (limit : Std.Usize) :
@@ -49772,7 +49772,7 @@ def ntriples.quoted
       ntriples.ReadError) residual
 
 /-- [rowl_kernel::ntriples::read_iri]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 256:0-263:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 262:0-269:1 -/
 def ntriples.read_iri
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
   Result (core.result.Result (rdf.RdfIri × Std.Usize) ntriples.ReadError)
@@ -49800,7 +49800,7 @@ def ntriples.read_iri
       residual
 
 /-- [rowl_kernel::ntriples::in_range]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 264:0-266:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 270:0-272:1 -/
 def ntriples.in_range
   (cp : Std.U32) (lower : Std.U32) (upper : Std.U32) : Result Bool := do
   if cp >= lower
@@ -49808,7 +49808,7 @@ def ntriples.in_range
   else ok false
 
 /-- [rowl_kernel::ntriples::pn_base]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 267:0-282:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 273:0-288:1 -/
 def ntriples.pn_base (cp : Std.U32) : Result Bool := do
   let b ← ntriples.in_range cp 65#u32 90#u32
   if b
@@ -49864,7 +49864,7 @@ def ntriples.pn_base (cp : Std.U32) : Result Bool := do
                           else ntriples.in_range cp 65536#u32 983039#u32
 
 /-- [rowl_kernel::ntriples::pn_u]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 283:0-285:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 289:0-291:1 -/
 def ntriples.pn_u (cp : Std.U32) : Result Bool := do
   let b ← ntriples.pn_base cp
   if b
@@ -49874,14 +49874,14 @@ def ntriples.pn_u (cp : Std.U32) : Result Bool := do
        else ok (cp = 58#u32)
 
 /-- [rowl_kernel::ntriples::ascii_digit]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 286:0-288:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 292:0-294:1 -/
 def ntriples.ascii_digit (cp : Std.U32) : Result Bool := do
   if cp >= 48#u32
   then ok (cp <= 57#u32)
   else ok false
 
 /-- [rowl_kernel::ntriples::pn]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 289:0-296:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 295:0-302:1 -/
 def ntriples.pn (cp : Std.U32) : Result Bool := do
   let b ← ntriples.pn_u cp
   if b
@@ -49909,7 +49909,7 @@ def ntriples.pn (cp : Std.U32) : Result Bool := do
                else ok false
 
 /-- [rowl_kernel::ntriples::blank_end]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 297:0-310:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 303:0-316:1 -/
 def ntriples.blank_end
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
   :
@@ -49936,7 +49936,7 @@ def ntriples.blank_end
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::blank]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 328:0-344:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 334:0-350:1 -/
 def ntriples.blank
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
   (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
@@ -50018,7 +50018,7 @@ def ntriples.blank
       residual
 
 /-- [rowl_kernel::ntriples::ascii_alpha]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 345:0-347:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 351:0-353:1 -/
 def ntriples.ascii_alpha (cp : Std.U32) : Result Bool := do
   if cp >= 65#u32
   then
@@ -50032,7 +50032,7 @@ def ntriples.ascii_alpha (cp : Std.U32) : Result Bool := do
        else ok false
 
 /-- [rowl_kernel::ntriples::tag_word]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 348:0-359:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 354:0-365:1 -/
 def ntriples.tag_word
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (letters : Bool) :
   Result (core.result.Result Std.Usize ntriples.ReadError)
@@ -50062,7 +50062,7 @@ def ntriples.tag_word
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::tag_tail]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 360:0-372:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 366:0-378:1 -/
 def ntriples.tag_tail
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (start : Std.Usize) :
   Result (core.result.Result Std.Usize ntriples.ReadError)
@@ -50097,7 +50097,7 @@ def ntriples.tag_tail
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::tag]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 373:0-385:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 379:0-391:1 -/
 def ntriples.tag
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
   Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
@@ -50150,7 +50150,7 @@ def ntriples.tag
       ntriples.ReadError) residual
 
 /-- [rowl_kernel::ntriples::same_literal_bytes]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 424:4-431:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 430:4-437:1 -/
 @[rust_loop]
 def ntriples.same_literal_bytes_loop
   (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) (i : Std.Usize) :
@@ -50170,7 +50170,7 @@ def ntriples.same_literal_bytes_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::same_literal_bytes]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 419:0-431:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 425:0-437:1 -/
 def ntriples.same_literal_bytes
   (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) : Result Bool := do
   let i := alloc.vec.Vec.len a
@@ -50180,7 +50180,7 @@ def ntriples.same_literal_bytes
   else ntriples.same_literal_bytes_loop a b 0#usize
 
 /-- [rowl_kernel::ntriples::literal_kind]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 386:0-412:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 392:0-418:1 -/
 def ntriples.literal_kind
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
   Result (core.result.Result (rdf.LiteralKind × Std.Usize) ntriples.ReadError)
@@ -50285,7 +50285,7 @@ def ntriples.literal_kind
       residual
 
 /-- [rowl_kernel::ntriples::literal]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 413:0-418:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 419:0-424:1 -/
 def ntriples.literal
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
   Result (core.result.Result (rdf.RdfLiteral × Std.Usize) ntriples.ReadError)
@@ -50319,7 +50319,7 @@ def ntriples.literal
       residual
 
 /-- [rowl_kernel::ntriples::subject]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 432:0-444:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 438:0-450:1 -/
 def ntriples.subject
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
   (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
@@ -50362,7 +50362,7 @@ def ntriples.subject
       residual
 
 /-- [rowl_kernel::ntriples::object]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 445:0-461:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 451:0-467:1 -/
 def ntriples.object
   (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
   (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
@@ -50416,7 +50416,7 @@ def ntriples.object
       residual
 
 /-- [rowl_kernel::ntriples::line_end]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 462:0-469:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 468:0-475:1 -/
 def ntriples.line_end
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
   Result (core.result.Result Unit ntriples.ReadError)
@@ -50440,7 +50440,7 @@ def ntriples.line_end
       Unit (core.convert.FromSame ntriples.ReadError) residual
 
 /-- [rowl_kernel::ntriples::read_triple]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 470:0-488:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 476:0-494:1 -/
 def ntriples.read_triple
   (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
   (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
@@ -50527,7 +50527,7 @@ def ntriples.read_triple
       residual
 
 /-- [rowl_kernel::ntriples::read_from]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 489:0-507:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 495:0-513:1 -/
 def ntriples.read_from
   (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
   (limits : ntriples.Limits) (position : Std.Usize)
@@ -50564,7 +50564,7 @@ def ntriples.read_from
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::read_impl]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 508:0-511:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 514:0-517:1 -/
 def ntriples.read_impl
   (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
   (limits : ntriples.Limits) :
@@ -50580,7 +50580,7 @@ def ntriples.read_impl
       rdf.RawGraph (core.convert.FromSame ntriples.ReadError) residual
 
 /-- [rowl_kernel::ntriples::read_with_limits]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 515:0-520:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 521:0-526:1
     Visibility: public -/
 def ntriples.read_with_limits
   (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
@@ -50593,7 +50593,7 @@ def ntriples.read_with_limits
   | core.result.Result.Err error => ok (ntriples.ReadResult.Error error)
 
 /-- [rowl_kernel::ntriples::read]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 523:0-532:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 529:0-538:1
     Visibility: public -/
 def ntriples.read
   (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8) :
@@ -50605,7 +50605,7 @@ def ntriples.read
     { max_term_bytes := i, max_triples := i1 }
 
 /-- [rowl_kernel::ntriples::WriteError]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 534:0-540:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 540:0-546:1
     Visibility: public -/
 @[discriminant isize]
 inductive ntriples.WriteError where
@@ -50616,7 +50616,7 @@ inductive ntriples.WriteError where
 | ResourceLimit : ntriples.WriteError
 
 /-- [rowl_kernel::ntriples::WriteResult]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 541:0-544:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 547:0-550:1
     Visibility: public -/
 @[discriminant isize]
 inductive ntriples.WriteResult where
@@ -50624,7 +50624,7 @@ inductive ntriples.WriteResult where
 | Error : ntriples.WriteError → ntriples.WriteResult
 
 /-- [rowl_kernel::ntriples::put]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 545:0-551:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 551:0-557:1 -/
 def ntriples.put
   (output : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
   Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
@@ -50636,7 +50636,7 @@ def ntriples.put
   else ok (core.result.Result.Err ntriples.WriteError.ResourceLimit, output1)
 
 /-- [rowl_kernel::ntriples::put_bytes]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 554:4-559:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 560:4-565:1 -/
 @[rust_loop]
 def ntriples.put_bytes_loop
   (output : alloc.vec.Vec Std.U8) (bytes : Slice Std.U8) (limit : Std.Usize)
@@ -50663,7 +50663,7 @@ def ntriples.put_bytes_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::put_bytes]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 552:0-559:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 558:0-565:1 -/
 @[reducible]
 def ntriples.put_bytes
   (output : alloc.vec.Vec Std.U8) (bytes : Slice Std.U8) (limit : Std.Usize) :
@@ -50673,7 +50673,7 @@ def ntriples.put_bytes
   ntriples.put_bytes_loop output bytes limit 0#usize
 
 /-- [rowl_kernel::ntriples::put_span]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 576:4-581:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 582:4-587:1 -/
 @[rust_loop]
 def ntriples.put_span_loop
   (output : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
@@ -50701,7 +50701,7 @@ def ntriples.put_span_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::put_span]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 568:0-581:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 574:0-587:1 -/
 @[reducible]
 def ntriples.put_span
   (output : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
@@ -50712,7 +50712,7 @@ def ntriples.put_span
   ntriples.put_span_loop output bytes «end» limit start
 
 /-- [rowl_kernel::ntriples::write_iri]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 560:0-567:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 566:0-573:1 -/
 def ntriples.write_iri
   (output : alloc.vec.Vec Std.U8) (value : rdf.RdfIri) (limit : Std.Usize) :
   Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
@@ -50751,7 +50751,7 @@ def ntriples.write_iri
   else ok (core.result.Result.Err ntriples.WriteError.InvalidIri, output)
 
 /-- [rowl_kernel::ntriples::write_units]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 582:0-611:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 588:0-617:1 -/
 def ntriples.write_units
   (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
   (i : Std.Usize) (limit : Std.Usize) :
@@ -50807,7 +50807,7 @@ def ntriples.write_units
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::write_lexical]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 612:0-616:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 618:0-622:1 -/
 def ntriples.write_lexical
   (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
   (limit : Std.Usize) :
@@ -50835,14 +50835,14 @@ def ntriples.write_lexical
     ok (r1, output1)
 
 /-- [rowl_kernel::ntriples::hex_digit]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 619:0-625:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 625:0-631:1 -/
 def ntriples.hex_digit (n : Std.U8) : Result Std.U8 := do
   if n < 10#u8
   then 48#u8 + n
   else 87#u8 + n
 
 /-- [rowl_kernel::ntriples::write_key]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 628:4-634:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 634:4-640:1 -/
 @[rust_loop]
 def ntriples.write_key_loop
   (output : alloc.vec.Vec Std.U8) (key : alloc.vec.Vec Std.U8)
@@ -50883,7 +50883,7 @@ def ntriples.write_key_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::write_key]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 626:0-634:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 632:0-640:1 -/
 @[reducible]
 def ntriples.write_key
   (output : alloc.vec.Vec Std.U8) (key : alloc.vec.Vec Std.U8)
@@ -50894,7 +50894,7 @@ def ntriples.write_key
   ntriples.write_key_loop output key limit 0#usize
 
 /-- [rowl_kernel::ntriples::write_blank]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 635:0-640:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 641:0-646:1 -/
 def ntriples.write_blank
   (output : alloc.vec.Vec Std.U8) (node : rdf.BlankNode) (limit : Std.Usize) :
   Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
@@ -50931,7 +50931,7 @@ def ntriples.write_blank
     ok (r1, output1)
 
 /-- [rowl_kernel::ntriples::write_subject]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 641:0-646:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 647:0-652:1 -/
 def ntriples.write_subject
   (output : alloc.vec.Vec Std.U8) (value : rdf.Subject) (limit : Std.Usize) :
   Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
@@ -50942,7 +50942,7 @@ def ntriples.write_subject
   | rdf.Subject.Blank b => ntriples.write_blank output b limit
 
 /-- [rowl_kernel::ntriples::write_object]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 647:0-674:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 653:0-680:1 -/
 def ntriples.write_object
   (output : alloc.vec.Vec Std.U8) (value : rdf.Object) (limit : Std.Usize) :
   Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
@@ -51012,7 +51012,7 @@ def ntriples.write_object
       ok (r1, output1)
 
 /-- [rowl_kernel::ntriples::write_impl]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 678:4-689:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 684:4-695:1 -/
 @[rust_loop]
 def ntriples.write_impl_loop
   (graph : rdf.RawGraph) (limit : Std.Usize) (output : alloc.vec.Vec Std.U8)
@@ -51083,7 +51083,7 @@ def ntriples.write_impl_loop
 partial_fixpoint
 
 /-- [rowl_kernel::ntriples::write_impl]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 675:0-689:1 -/
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 681:0-695:1 -/
 @[reducible]
 def ntriples.write_impl
   (graph : rdf.RawGraph) (limit : Std.Usize) :
@@ -51092,7 +51092,7 @@ def ntriples.write_impl
   ntriples.write_impl_loop graph limit (alloc.vec.Vec.new Std.U8) 0#usize
 
 /-- [rowl_kernel::ntriples::write]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 693:0-698:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 699:0-704:1
     Visibility: public -/
 def ntriples.write
   (graph : rdf.RawGraph) (max_output_bytes : Std.Usize) :
@@ -61220,5 +61220,3134 @@ def tbox.satisfiable_in
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
   let rb ← tbox.no_roles
   tbox.satisfiable_with concept axioms rb
+
+/-- [rowl_kernel::turtle::ErrorKind]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 40:0-76:1
+    Visibility: public -/
+@[discriminant isize]
+inductive turtle.ErrorKind where
+| MalformedUtf8 : turtle.ErrorKind
+| UnexpectedEnd : turtle.ErrorKind
+| InvalidCharacter : turtle.ErrorKind
+| InvalidEscape : turtle.ErrorKind
+| InvalidIri : turtle.ErrorKind
+| InvalidBlankLabel : turtle.ErrorKind
+| InvalidLanguageTag : turtle.ErrorKind
+| InvalidLiteralKind : turtle.ErrorKind
+| UndefinedPrefix : turtle.ErrorKind
+| ExpectedPrefix : turtle.ErrorKind
+| ExpectedIri : turtle.ErrorKind
+| ExpectedSubject : turtle.ErrorKind
+| ExpectedVerb : turtle.ErrorKind
+| ExpectedObject : turtle.ErrorKind
+| ExpectedPeriod : turtle.ErrorKind
+| ExpectedBracket : turtle.ErrorKind
+| ResourceLimit : turtle.ErrorKind
+
+/-- [rowl_kernel::turtle::ReadError]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 78:0-81:1
+    Visibility: public -/
+structure turtle.ReadError where
+  kind : turtle.ErrorKind
+  offset : Std.Usize
+
+/-- [rowl_kernel::turtle::ReadResult]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 83:0-86:1
+    Visibility: public -/
+@[discriminant isize]
+inductive turtle.ReadResult where
+| Graph : rdf.RawGraph → turtle.ReadResult
+| Error : turtle.ReadError → turtle.ReadResult
+
+/-- [rowl_kernel::turtle::Limits]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 88:0-91:1
+    Visibility: public -/
+structure turtle.Limits where
+  max_term_bytes : Std.Usize
+  max_triples : Std.Usize
+
+/-- [rowl_kernel::turtle::Prefix]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 94:0-97:1
+    Visibility: public -/
+structure turtle.Prefix where
+  «name» : alloc.vec.Vec Std.U8
+  iri : alloc.vec.Vec Std.U8
+
+/-- [rowl_kernel::turtle::error]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 103:0-105:1 -/
+def turtle.error
+  (kind : turtle.ErrorKind) (offset : Std.Usize) :
+  Result turtle.ReadError
+  := do
+  ok { kind, offset }
+
+/-- [rowl_kernel::turtle::kind_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 109:0-126:1 -/
+def turtle.kind_of (kind : ntriples.ErrorKind) : Result turtle.ErrorKind := do
+  match kind with
+  | ntriples.ErrorKind.MalformedUtf8 => ok turtle.ErrorKind.MalformedUtf8
+  | ntriples.ErrorKind.UnexpectedEnd => ok turtle.ErrorKind.UnexpectedEnd
+  | ntriples.ErrorKind.ExpectedIri => ok turtle.ErrorKind.ExpectedIri
+  | ntriples.ErrorKind.ExpectedSubject => ok turtle.ErrorKind.ExpectedSubject
+  | ntriples.ErrorKind.ExpectedObject => ok turtle.ErrorKind.ExpectedObject
+  | ntriples.ErrorKind.ExpectedPeriod => ok turtle.ErrorKind.ExpectedPeriod
+  | ntriples.ErrorKind.ExpectedLineEnd => ok turtle.ErrorKind.ExpectedPeriod
+  | ntriples.ErrorKind.InvalidCharacter => ok turtle.ErrorKind.InvalidCharacter
+  | ntriples.ErrorKind.InvalidEscape => ok turtle.ErrorKind.InvalidEscape
+  | ntriples.ErrorKind.InvalidIri => ok turtle.ErrorKind.InvalidIri
+  | ntriples.ErrorKind.InvalidBlankLabel =>
+    ok turtle.ErrorKind.InvalidBlankLabel
+  | ntriples.ErrorKind.InvalidLanguageTag =>
+    ok turtle.ErrorKind.InvalidLanguageTag
+  | ntriples.ErrorKind.InvalidLiteralKind =>
+    ok turtle.ErrorKind.InvalidLiteralKind
+  | ntriples.ErrorKind.ResourceLimit => ok turtle.ErrorKind.ResourceLimit
+
+/-- [rowl_kernel::turtle::from_ntriples]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 128:0-133:1 -/
+def turtle.from_ntriples
+  (e : ntriples.ReadError) : Result turtle.ReadError := do
+  let ek ← turtle.kind_of e.kind
+  ok { kind := ek, offset := e.offset }
+
+/-- [rowl_kernel::turtle::unit]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 136:0-141:1 -/
+def turtle.unit
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option (Std.U32 × Std.Usize)) turtle.ReadError)
+  := do
+  let r ← ntriples.at bytes position
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::needed]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 144:0-149:1 -/
+def turtle.needed
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.required bytes position
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::space]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 152:0-157:1 -/
+def turtle.space
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← ntriples.skip bytes position true
+  match r with
+  | core.result.Result.Ok next => ok (core.result.Result.Ok next)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::copied]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 160:0-165:1 -/
+def turtle.copied
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
+  := do
+  let r ← ntriples.copy_term bytes start «end» limit
+  match r with
+  | core.result.Result.Ok value => ok (core.result.Result.Ok value)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::quoted_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 168:0-173:1 -/
+def turtle.quoted_iri
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start true limit
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::quoted_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 176:0-181:1 -/
+def turtle.quoted_string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← ntriples.quoted bytes start false limit
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::string_item]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 185:0-190:1 -/
+def turtle.string_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (cp : Std.U32)
+  (next : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.quoted_item bytes position cp next false
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::string_escape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 193:0-198:1 -/
+def turtle.string_escape
+  (bytes : alloc.vec.Vec Std.U8) (slash : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← ntriples.escape bytes slash next false
+  match r with
+  | core.result.Result.Ok found => ok (core.result.Result.Ok found)
+  | core.result.Result.Err e =>
+    let re ← turtle.from_ntriples e
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::byte_is]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 201:0-203:1 -/
+def turtle.byte_is
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (value : Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    ok (i1 = value)
+  else ok false
+
+/-- [rowl_kernel::turtle::copy_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 210:0-217:1 -/
+def turtle.copy_from
+  (values : alloc.vec.Vec Std.U8) (index : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := alloc.vec.Vec.len values
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) values
+        index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    turtle.copy_from values i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::copy_bytes]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 206:0-208:1 -/
+def turtle.copy_bytes
+  (values : alloc.vec.Vec Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  turtle.copy_from values 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::turtle::constant_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 224:0-231:1 -/
+def turtle.constant_from
+  (values : Slice Std.U8) (index : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let i := Slice.len values
+  if index < i
+  then
+    let i1 ← Slice.index_usize values index
+    let out1 ← alloc.vec.Vec.push out i1
+    let i2 ← index + 1#usize
+    turtle.constant_from values i2 out1
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::constant]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 220:0-222:1 -/
+def turtle.constant
+  (values : Slice Std.U8) : Result (alloc.vec.Vec Std.U8) := do
+  turtle.constant_from values 0#usize (alloc.vec.Vec.new Std.U8)
+
+/-- [rowl_kernel::turtle::copy_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 233:0-237:1 -/
+def turtle.copy_iri (iri : rdf.RdfIri) : Result rdf.RdfIri := do
+  let v ← turtle.copy_bytes iri.spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::turtle::copy_subject]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 239:0-247:1 -/
+def turtle.copy_subject (subject : rdf.Subject) : Result rdf.Subject := do
+  match subject with
+  | rdf.Subject.Iri iri =>
+    let ri ← turtle.copy_iri iri
+    ok (rdf.Subject.Iri ri)
+  | rdf.Subject.Blank node =>
+    let v ← turtle.copy_bytes node.scope
+    let v1 ← turtle.copy_bytes node.label
+    ok (rdf.Subject.Blank { scope := v, label := v1 })
+
+/-- [rowl_kernel::turtle::object_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 250:0-255:1 -/
+def turtle.object_of (subject : rdf.Subject) : Result rdf.Object := do
+  match subject with
+  | rdf.Subject.Iri iri => ok (rdf.Object.Iri iri)
+  | rdf.Subject.Blank node => ok (rdf.Object.Blank node)
+
+/-- [rowl_kernel::turtle::rdf_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 257:0-261:1 -/
+def turtle.rdf_iri (spelling : Slice Std.U8) : Result rdf.RdfIri := do
+  let v ← turtle.constant spelling
+  ok { spelling := v }
+
+/-- [rowl_kernel::turtle::rdf_type]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 263:0-265:1 -/
+def turtle.rdf_type : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 116#u8, 121#u8, 112#u8,
+        101#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::rdf_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 267:0-269:1 -/
+def turtle.rdf_first : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 48#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 102#u8, 105#u8, 114#u8,
+        115#u8, 116#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::rdf_rest]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 271:0-273:1 -/
+def turtle.rdf_rest : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 47#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 114#u8, 101#u8, 115#u8,
+        116#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::rdf_nil]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 275:0-277:1 -/
+def turtle.rdf_nil : Result rdf.RdfIri := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 46#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 110#u8, 105#u8, 108#u8
+        ]))
+  turtle.rdf_iri s
+
+/-- [rowl_kernel::turtle::xsd]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 279:0-281:1 -/
+def turtle.xsd (kind : Slice Std.U8) : Result rdf.LiteralKind := do
+  let ri ← turtle.rdf_iri kind
+  ok (rdf.LiteralKind.Datatype ri)
+
+/-- [rowl_kernel::turtle::same_constant_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 295:0-305:1 -/
+def turtle.same_constant_from
+  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len value
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) value
+        index
+    let i2 ← Slice.index_usize pattern index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         turtle.same_constant_from value pattern i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::same_constant]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 291:0-293:1 -/
+def turtle.same_constant
+  (value : alloc.vec.Vec Std.U8) (pattern : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len value
+  let i1 := Slice.len pattern
+  if i = i1
+  then turtle.same_constant_from value pattern 0#usize
+  else ok false
+
+/-- [rowl_kernel::turtle::lang_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 284:0-289:1 -/
+def turtle.lang_string (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8, 110#u8,
+        103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  turtle.same_constant spelling s
+
+/-- [rowl_kernel::turtle::digits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 308:0-316:1 -/
+def turtle.digits
+  (number : Std.Usize) (out : alloc.vec.Vec Std.U8) :
+  Result (alloc.vec.Vec Std.U8)
+  := do
+  let out1 ←
+    if number < 10#usize
+    then ok out
+    else do
+         let i ← number / 10#usize
+         turtle.digits i out
+  let i ← number % 10#usize
+  let i1 ← lift (UScalar.cast .U8 i)
+  let i2 ← 48#u8 + i1
+  alloc.vec.Vec.push out1 i2
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::marked]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 319:0-323:1 -/
+def turtle.marked
+  (marker : Std.U8) (number : Std.Usize) : Result (alloc.vec.Vec Std.U8) := do
+  let label ← alloc.vec.Vec.push (alloc.vec.Vec.new Std.U8) marker
+  turtle.digits number label
+
+/-- [rowl_kernel::turtle::bracket_node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 326:0-331:1 -/
+def turtle.bracket_node
+  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result rdf.BlankNode
+  := do
+  let v ← turtle.copy_bytes scope
+  let v1 ← turtle.marked 255#u8 start
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::turtle::list_node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 334:0-339:1 -/
+def turtle.list_node
+  (scope : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result rdf.BlankNode
+  := do
+  let v ← turtle.copy_bytes scope
+  let v1 ← turtle.marked 254#u8 start
+  ok { scope := v, label := v1 }
+
+/-- [rowl_kernel::turtle::emit]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 342:0-354:1 -/
+def turtle.emit
+  (triples : alloc.vec.Vec rdf.Triple) (triple : rdf.Triple)
+  (limits : turtle.Limits) (position : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if i < limits.max_triples
+  then
+    let triples1 ← alloc.vec.Vec.push triples triple
+    ok (core.result.Result.Ok triples1)
+  else
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit position
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::pn_u]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 359:0-361:1 -/
+def turtle.pn_u (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_base cp
+  if b
+  then ok true
+  else ok (cp = 95#u32)
+
+/-- [rowl_kernel::turtle::pn_chars]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 364:0-371:1 -/
+def turtle.pn_chars (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else
+    if cp = 45#u32
+    then ok true
+    else
+      let b1 ← ntriples.ascii_digit cp
+      if b1
+      then ok true
+      else
+        if cp = 183#u32
+        then ok true
+        else
+          let b2 ← ntriples.in_range cp 768#u32 879#u32
+          if b2
+          then ok true
+          else ntriples.in_range cp 8255#u32 8256#u32
+
+/-- [rowl_kernel::turtle::label_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 374:0-376:1 -/
+def turtle.label_first (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else ntriples.ascii_digit cp
+
+/-- [rowl_kernel::turtle::local_first_char]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 380:0-382:1 -/
+def turtle.local_first_char (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_u cp
+  if b
+  then ok true
+  else if cp = 58#u32
+       then ok true
+       else ntriples.ascii_digit cp
+
+/-- [rowl_kernel::turtle::local_char]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 385:0-387:1 -/
+def turtle.local_char (cp : Std.U32) : Result Bool := do
+  let b ← turtle.pn_chars cp
+  if b
+  then ok true
+  else ok (cp = 58#u32)
+
+/-- [rowl_kernel::turtle::local_escape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 391:0-400:1 -/
+def turtle.local_escape (cp : Std.U32) : Result Bool := do
+  if cp = 33#u32
+  then ok true
+  else
+    let b ← ntriples.in_range cp 35#u32 47#u32
+    if b
+    then ok true
+    else
+      if cp = 59#u32
+      then ok true
+      else
+        if cp = 61#u32
+        then ok true
+        else
+          if cp = 63#u32
+          then ok true
+          else
+            if cp = 64#u32
+            then ok true
+            else if cp = 95#u32
+                 then ok true
+                 else ok (cp = 126#u32)
+
+/-- [rowl_kernel::turtle::plx_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 403:0-405:1 -/
+def turtle.plx_start (cp : Std.U32) : Result Bool := do
+  if cp = 37#u32
+  then ok true
+  else ok (cp = 92#u32)
+
+/-- [rowl_kernel::turtle::name_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 409:0-422:1 -/
+def turtle.name_end
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
+  :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok accepted)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.pn_chars cp
+      if b
+      then turtle.name_end bytes next next
+      else
+        if cp = 46#u32
+        then turtle.name_end bytes next accepted
+        else ok (core.result.Result.Ok accepted)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::prefix_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 425:0-432:1 -/
+def turtle.prefix_end
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.name_end bytes next next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 58#u8
+    if b
+    then ok (core.result.Result.Ok (some val))
+    else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::prefix_colon]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 435:0-448:1 -/
+def turtle.prefix_colon
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      if cp = 58#u32
+      then ok (core.result.Result.Ok (some start))
+      else
+        let b ← ntriples.pn_base cp
+        if b
+        then turtle.prefix_end bytes next
+        else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::hex_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 451:0-462:1 -/
+def turtle.hex_at
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      let o ← ntriples.hex cp
+      let b := core.option.Option.is_some o
+      if b
+      then ok (core.result.Result.Ok (some next))
+      else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::percent]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 465:0-470:1 -/
+def turtle.percent
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.hex_at bytes next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some second => turtle.hex_at bytes second
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::local_escaped]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 473:0-484:1 -/
+def turtle.local_escaped
+  (bytes : alloc.vec.Vec Std.U8) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, after) := p
+      let b ← turtle.local_escape cp
+      if b
+      then ok (core.result.Result.Ok (some after))
+      else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::plx]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 487:0-493:1 -/
+def turtle.plx
+  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  if cp = 37#u32
+  then turtle.percent bytes next
+  else turtle.local_escaped bytes next
+
+/-- [rowl_kernel::turtle::local_first]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 496:0-509:1 -/
+def turtle.local_first
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Option Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok none)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.plx_start cp
+      if b
+      then turtle.plx bytes cp next
+      else
+        let b1 ← turtle.local_first_char cp
+        if b1
+        then ok (core.result.Result.Ok (some next))
+        else ok (core.result.Result.Ok none)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Option Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::Local]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 512:0-516:1 -/
+@[discriminant isize]
+inductive turtle.Local where
+| Name : Std.Usize → turtle.Local
+| Dot : Std.Usize → turtle.Local
+| End : turtle.Local
+
+/-- [rowl_kernel::turtle::local_plx]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 519:0-524:1 -/
+def turtle.local_plx
+  (bytes : alloc.vec.Vec Std.U8) (cp : Std.U32) (next : Std.Usize) :
+  Result (core.result.Result turtle.Local turtle.ReadError)
+  := do
+  let r ← turtle.plx bytes cp next
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok turtle.Local.End)
+    | some after => ok (core.result.Result.Ok (turtle.Local.Name after))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Local (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::local_next]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 526:0-541:1 -/
+def turtle.local_next
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result turtle.Local turtle.ReadError)
+  := do
+  let r ← turtle.unit bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok turtle.Local.End)
+    | some p =>
+      let (cp, next) := p
+      let b ← turtle.plx_start cp
+      if b
+      then turtle.local_plx bytes cp next
+      else
+        let b1 ← turtle.local_char cp
+        if b1
+        then ok (core.result.Result.Ok (turtle.Local.Name next))
+        else
+          if cp = 46#u32
+          then ok (core.result.Result.Ok (turtle.Local.Dot next))
+          else ok (core.result.Result.Ok turtle.Local.End)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Local (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::local_rest]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 545:0-551:1 -/
+def turtle.local_rest
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (accepted : Std.Usize)
+  :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.local_next bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | turtle.Local.Name next => turtle.local_rest bytes next next
+    | turtle.Local.Dot next => turtle.local_rest bytes next accepted
+    | turtle.Local.End => ok (core.result.Result.Ok accepted)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::local_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 554:0-559:1 -/
+def turtle.local_end
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.local_first bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok start)
+    | some next => turtle.local_rest bytes next next
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::before]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 562:0-564:1 -/
+def turtle.before
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  if index < «end»
+  then let i := alloc.vec.Vec.len bytes
+       ok (index < i)
+  else ok false
+
+/-- [rowl_kernel::turtle::push_limited]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 567:0-574:1 -/
+def turtle.push_limited
+  (out : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let i := alloc.vec.Vec.len out
+  if i < limit
+  then let out1 ← alloc.vec.Vec.push out byte
+       ok (some out1)
+  else ok none
+
+/-- [rowl_kernel::turtle::escaped_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 577:0-583:1 -/
+def turtle.escaped_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Std.U8 × Std.Usize)
+  := do
+  let b ← turtle.before bytes index «end»
+  if b
+  then
+    let i ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let i1 ← index + 1#usize
+    ok (i, i1)
+  else ok (92#u8, index)
+
+/-- [rowl_kernel::turtle::local_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 587:0-593:1 -/
+def turtle.local_byte
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize) :
+  Result (Std.U8 × Std.Usize)
+  := do
+  let i ←
+    alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+      index
+  if i = 92#u8
+  then let i1 ← index + 1#usize
+       turtle.escaped_byte bytes i1 «end»
+  else let i1 ← index + 1#usize
+       ok (i, i1)
+
+/-- [rowl_kernel::turtle::unescape]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 597:0-613:1 -/
+def turtle.unescape
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) («end» : Std.Usize)
+  (out : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (Option (alloc.vec.Vec Std.U8))
+  := do
+  let b ← turtle.before bytes index «end»
+  if b
+  then
+    let (byte, next) ← turtle.local_byte bytes index «end»
+    let o ← turtle.push_limited out byte limit
+    match o with
+    | none => ok none
+    | some out1 => turtle.unescape bytes next «end» out1 limit
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::same_span_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 620:0-630:1 -/
+def turtle.same_span_from
+  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len «name»
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8)
+        «name» index
+    let i2 ← start + index
+    let i3 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i2
+    if i1 = i3
+    then
+      let i4 ← index + 1#usize
+      turtle.same_span_from «name» bytes start i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::same_span]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 616:0-618:1 -/
+def turtle.same_span
+  («name» : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) («end» : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len «name»
+  let i1 ← «end» - start
+  if i = i1
+  then turtle.same_span_from «name» bytes start 0#usize
+  else ok false
+
+/-- [rowl_kernel::turtle::lookup]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 633:0-649:1 -/
+def turtle.lookup
+  (prefixes : alloc.vec.Vec turtle.Prefix) (bytes : alloc.vec.Vec Std.U8)
+  (start : Std.Usize) («end» : Std.Usize) (count : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  if 0#usize < count
+  then
+    let i ← count - 1#usize
+    let p ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice turtle.Prefix)
+        prefixes i
+    let b ← turtle.same_span p.name bytes start «end»
+    if b
+    then ok (some i)
+    else turtle.lookup prefixes bytes start «end» i
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::valid_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 652:0-654:1 -/
+def turtle.valid_iri (bytes : alloc.vec.Vec Std.U8) : Result Bool := do
+  let mr ← iri.validate_iri bytes
+  match mr with
+  | regular.MatchResult.Matched b => if b
+                                     then ok true
+                                     else ok false
+  | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::turtle::checked_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 657:0-663:1 -/
+def turtle.checked_iri
+  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let b ← turtle.valid_iri spelling
+  if b
+  then ok (core.result.Result.Ok ({ spelling }, next))
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidIri start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::bounded_iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 666:0-672:1 -/
+def turtle.bounded_iri
+  (spelling : alloc.vec.Vec Std.U8) (start : Std.Usize) (next : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len spelling
+  if limit < i
+  then
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+    ok (core.result.Result.Err re)
+  else turtle.checked_iri spelling start next
+
+/-- [rowl_kernel::turtle::prefixed]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 676:0-694:1 -/
+def turtle.prefixed
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (colon : Std.Usize)
+  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len prefixes
+  let o ← turtle.lookup prefixes bytes start colon i
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.UndefinedPrefix start
+    ok (core.result.Result.Err re)
+  | some entry =>
+    let i1 ← colon + 1#usize
+    let r ← turtle.local_end bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let p ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          turtle.Prefix) prefixes entry
+      let «namespace» ← turtle.copy_bytes p.iri
+      let o1 ← turtle.unescape bytes i1 val «namespace» limit
+      match o1 with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+        ok (core.result.Result.Err re)
+      | some spelling => turtle.bounded_iri spelling start val limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::iri_ref]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 697:0-707:1 -/
+def turtle.iri_ref
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.quoted_iri bytes start limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (reference, next) := val
+    let b ← references.is_reference reference
+    if b
+    then
+      let o ← references.resolve base reference
+      match o with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.InvalidIri start
+        ok (core.result.Result.Err re)
+      | some spelling => turtle.bounded_iri spelling start next limit
+    else
+      let re ← turtle.error turtle.ErrorKind.InvalidIri start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::iri]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 710:0-725:1 -/
+def turtle.iri
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let b ← turtle.byte_is bytes start 60#u8
+  if b
+  then turtle.iri_ref bytes start base limit
+  else
+    let r ← turtle.prefix_colon bytes start
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      match val with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ExpectedIri start
+        ok (core.result.Result.Err re)
+      | some colon => turtle.prefixed bytes start colon prefixes limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::blank_label]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 728:0-747:1 -/
+def turtle.blank_label
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (scope : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.BlankNode × Std.Usize) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let b ← turtle.byte_is bytes i 58#u8
+  if b
+  then
+    let i1 ← start + 2#usize
+    let r ← turtle.needed bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (first, next) := val
+      let b1 ← turtle.label_first first
+      if b1
+      then
+        let r1 ← turtle.name_end bytes next next
+        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+        match cf1 with
+        | core.ops.control_flow.ControlFlow.Continue val1 =>
+          let r2 ← turtle.copied bytes i1 val1 limit
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let v ← turtle.copy_bytes scope
+            ok (core.result.Result.Ok ({ scope := v, label := val2 }, val1))
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+              turtle.ReadError) residual
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.BlankNode × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+      else
+        let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel i1
+        ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.BlankNode × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidBlankLabel start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::add]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 750:0-766:1 -/
+def turtle.add
+  (output : alloc.vec.Vec Std.U8) (value : Std.U32) (limit : Std.Usize)
+  (position : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) turtle.ReadError)
+  := do
+  let o ← encoding.encode value
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.InvalidEscape position
+    ok (core.result.Result.Err re)
+  | some encoded =>
+    let (b, output1) ← ntriples.append_encoded output encoded limit
+    if b
+    then ok (core.result.Result.Ok output1)
+    else
+      let re ← turtle.error turtle.ErrorKind.ResourceLimit position
+      ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::single_body]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 769:0-778:1 -/
+def turtle.single_body
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (output : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.needed bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = 39#u32
+    then ok (core.result.Result.Ok (output, next))
+    else
+      let r1 ← turtle.string_item bytes position cp next
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, «end») := val1
+        let r2 ← turtle.add output value limit position
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          turtle.single_body bytes «end» val2 limit
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::triple_quote]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 781:0-785:1 -/
+def turtle.triple_quote
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes position quote
+  if b
+  then
+    let i ← position + 1#usize
+    let b1 ← turtle.byte_is bytes i quote
+    if b1
+    then let i1 ← position + 2#usize
+         turtle.byte_is bytes i1 quote
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::long_item]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 788:0-795:1 -/
+def turtle.long_item
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result (Std.U32 × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.needed bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, next) := val
+    if cp = 92#u32
+    then turtle.string_escape bytes position next
+    else ok (core.result.Result.Ok val)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.U32 × Std.Usize) (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::long_body]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 800:0-808:1 -/
+def turtle.long_body
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (quote : Std.U8)
+  (output : alloc.vec.Vec Std.U8) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let b ← turtle.triple_quote bytes position quote
+  if b
+  then let i ← position + 3#usize
+       ok (core.result.Result.Ok (output, i))
+  else
+    let r ← turtle.long_item bytes position
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (value, «end») := val
+      let r1 ← turtle.add output value core.num.Usize.MAX position
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        turtle.long_body bytes «end» quote val1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::bounded_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 812:0-818:1 -/
+def turtle.bounded_string
+  (value : alloc.vec.Vec Std.U8) (start : Std.Usize) («end» : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i := alloc.vec.Vec.len value
+  if limit < i
+  then
+    let re ← turtle.error turtle.ErrorKind.ResourceLimit start
+    ok (core.result.Result.Err re)
+  else ok (core.result.Result.Ok (value, «end»))
+
+/-- [rowl_kernel::turtle::long_string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 822:0-827:1 -/
+def turtle.long_string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (quote : Std.U8)
+  (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i ← start + 3#usize
+  let r ← turtle.long_body bytes i quote (alloc.vec.Vec.new Std.U8)
+  match r with
+  | core.result.Result.Ok p =>
+    let (value, «end») := p
+    turtle.bounded_string value start «end» limit
+  | core.result.Result.Err _ =>
+    let i1 ← start + 2#usize
+    ok (core.result.Result.Ok (alloc.vec.Vec.new Std.U8, i1))
+
+/-- [rowl_kernel::turtle::string]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 830:0-840:1 -/
+def turtle.string
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let b ← turtle.triple_quote bytes start 34#u8
+  if b
+  then turtle.long_string bytes start 34#u8 limit
+  else
+    let b1 ← turtle.triple_quote bytes start 39#u8
+    if b1
+    then turtle.long_string bytes start 39#u8 limit
+    else
+      let b2 ← turtle.byte_is bytes start 34#u8
+      if b2
+      then turtle.quoted_string bytes start limit
+      else
+        let i ← start + 1#usize
+        turtle.single_body bytes i (alloc.vec.Vec.new Std.U8) limit
+
+/-- [rowl_kernel::turtle::letter_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1117:0-1119:1 -/
+def turtle.letter_byte (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::turtle::letters_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 843:0-853:1 -/
+def turtle.letters_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.letter_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.letters_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::digit_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 960:0-962:1 -/
+def turtle.digit_byte (byte : Std.U8) : Result Bool := do
+  if 48#u8 <= byte
+  then ok (byte <= 57#u8)
+  else ok false
+
+/-- [rowl_kernel::turtle::alnum_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 856:0-858:1 -/
+def turtle.alnum_byte (byte : Std.U8) : Result Bool := do
+  let b ← turtle.letter_byte byte
+  if b
+  then ok true
+  else turtle.digit_byte byte
+
+/-- [rowl_kernel::turtle::alnums_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 861:0-871:1 -/
+def turtle.alnums_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.alnum_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.alnums_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::subtags_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 875:0-886:1 -/
+def turtle.subtags_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← turtle.byte_is bytes index 45#u8
+  if b
+  then
+    let i ← index + 1#usize
+    let «end» ← turtle.alnums_end bytes i
+    if i < «end»
+    then turtle.subtags_end bytes «end»
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::language]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 890:0-903:1 -/
+def turtle.language
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let head ← turtle.letters_end bytes i
+  if i < head
+  then
+    let «end» ← turtle.subtags_end bytes head
+    let r ← turtle.copied bytes i «end» limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let b ← langtag.well_formed val
+      if b
+      then ok (core.result.Result.Ok (val, «end»))
+      else
+        let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
+        ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidLanguageTag start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::datatype]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 906:0-924:1 -/
+def turtle.datatype
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
+  := do
+  let i ← position + 1#usize
+  let b ← turtle.byte_is bytes i 94#u8
+  if b
+  then
+    let i1 ← position + 2#usize
+    let r ← turtle.space bytes i1
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let r1 ← turtle.iri bytes val base prefixes limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (datatype, next) := val1
+        let b1 ← turtle.lang_string datatype.spelling
+        if b1
+        then
+          let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
+          ok (core.result.Result.Err re)
+        else
+          ok (core.result.Result.Ok (rdf.LiteralKind.Datatype datatype, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  else
+    let re ← turtle.error turtle.ErrorKind.InvalidLiteralKind position
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::literal_kind]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 928:0-944:1 -/
+def turtle.literal_kind
+  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.LiteralKind × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.space bytes «end»
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 64#u8
+    if b
+    then
+      let r1 ← turtle.language bytes val limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (tag, next) := val1
+        ok (core.result.Result.Ok (rdf.LiteralKind.Language tag, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.LiteralKind × Std.Usize) (core.convert.FromSame
+          turtle.ReadError) residual
+    else
+      let b1 ← turtle.byte_is bytes val 94#u8
+      if b1
+      then turtle.datatype bytes val base prefixes limit
+      else
+        let s ←
+          lift (Array.to_slice
+            (Array.make 39#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              115#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+              ]))
+        let lk ← turtle.xsd s
+        ok (core.result.Result.Ok (lk, «end»))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.LiteralKind × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::literal]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 947:0-957:1 -/
+def turtle.literal
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (prefixes : alloc.vec.Vec turtle.Prefix)
+  (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.string bytes start limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (lexical, «end») := val
+    let r1 ← turtle.literal_kind bytes «end» base prefixes limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (kind, next) := val1
+      ok (core.result.Result.Ok ({ lexical, kind }, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::digits_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 965:0-975:1 -/
+def turtle.digits_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    let b ← turtle.digit_byte i1
+    if b
+    then let i2 ← index + 1#usize
+         turtle.digits_end bytes i2
+    else ok index
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::sign_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 978:0-980:1 -/
+def turtle.sign_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← turtle.byte_is bytes index 43#u8
+  if b
+  then ok true
+  else turtle.byte_is bytes index 45#u8
+
+/-- [rowl_kernel::turtle::exponent_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 983:0-985:1 -/
+def turtle.exponent_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let b ← turtle.byte_is bytes index 101#u8
+  if b
+  then ok true
+  else turtle.byte_is bytes index 69#u8
+
+/-- [rowl_kernel::turtle::unsigned]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 988:0-994:1 -/
+def turtle.unsigned
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Std.Usize := do
+  let b ← turtle.sign_at bytes index
+  if b
+  then index + 1#usize
+  else ok index
+
+/-- [rowl_kernel::turtle::exponent_digits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 997:0-1005:1 -/
+def turtle.exponent_digits
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let i ← index + 1#usize
+  let digits ← turtle.unsigned bytes i
+  let «end» ← turtle.digits_end bytes digits
+  if digits < «end»
+  then ok (some «end»)
+  else ok none
+
+/-- [rowl_kernel::turtle::exponent_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1008:0-1014:1 -/
+def turtle.exponent_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) :
+  Result (Option Std.Usize)
+  := do
+  let b ← turtle.exponent_at bytes index
+  if b
+  then turtle.exponent_digits bytes index
+  else ok none
+
+/-- [rowl_kernel::turtle::Number]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1017:0-1021:1 -/
+@[discriminant isize]
+inductive turtle.Number where
+| Integer : turtle.Number
+| Decimal : turtle.Number
+| Double : turtle.Number
+
+/-- [rowl_kernel::turtle::with_exponent]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1024:0-1029:1 -/
+def turtle.with_exponent
+  (bytes : alloc.vec.Vec Std.U8) («end» : Std.Usize) (plain : turtle.Number)
+  :
+  Result (Std.Usize × turtle.Number)
+  := do
+  let o ← turtle.exponent_end bytes «end»
+  match o with
+  | none => ok («end», plain)
+  | some after => ok (after, turtle.Number.Double)
+
+/-- [rowl_kernel::turtle::fraction]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1033:0-1045:1 -/
+def turtle.fraction
+  (bytes : alloc.vec.Vec Std.U8) (digits : Std.Usize) (point : Std.Usize) :
+  Result (Option (Std.Usize × turtle.Number))
+  := do
+  let i ← point + 1#usize
+  let «end» ← turtle.digits_end bytes i
+  if i < «end»
+  then
+    let p ← turtle.with_exponent bytes «end» turtle.Number.Decimal
+    ok (some p)
+  else
+    if digits < point
+    then
+      let o ← turtle.exponent_end bytes i
+      match o with
+      | none => ok (some (point, turtle.Number.Integer))
+      | some after => ok (some (after, turtle.Number.Double))
+    else ok none
+
+/-- [rowl_kernel::turtle::number_end]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1048:0-1058:1 -/
+def turtle.number_end
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (Option (Std.Usize × turtle.Number))
+  := do
+  let digits ← turtle.unsigned bytes start
+  let point ← turtle.digits_end bytes digits
+  let b ← turtle.byte_is bytes point 46#u8
+  if b
+  then turtle.fraction bytes digits point
+  else
+    if digits < point
+    then
+      let p ← turtle.with_exponent bytes point turtle.Number.Integer
+      ok (some p)
+    else ok none
+
+/-- [rowl_kernel::turtle::number]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1061:0-1074:1 -/
+def turtle.number
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.RdfLiteral × Std.Usize) turtle.ReadError)
+  := do
+  let o ← turtle.number_end bytes start
+  match o with
+  | none =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | some p =>
+    let («end», kind) := p
+    let r ← turtle.copied bytes start «end» limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      match kind with
+      | turtle.Number.Integer =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              105#u8, 110#u8, 116#u8, 101#u8, 103#u8, 101#u8, 114#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+      | turtle.Number.Decimal =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 40#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              100#u8, 101#u8, 99#u8, 105#u8, 109#u8, 97#u8, 108#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+      | turtle.Number.Double =>
+        let s ←
+          lift (Array.to_slice
+            (Array.make 39#usize [
+              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
+              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
+              103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8,
+              76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8,
+              100#u8, 111#u8, 117#u8, 98#u8, 108#u8, 101#u8
+              ]))
+        let kind1 ← turtle.xsd s
+        ok (core.result.Result.Ok ({ lexical := val, kind := kind1 }, «end»))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfLiteral × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+
+/-- [rowl_kernel::turtle::word_from]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1081:0-1091:1 -/
+def turtle.word_from
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8)
+  (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := Slice.len word
+  if index < i
+  then
+    let i1 ← start + index
+    let i2 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        i1
+    let i3 ← Slice.index_usize word index
+    if i2 = i3
+    then let i4 ← index + 1#usize
+         turtle.word_from bytes start word i4
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::word_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1077:0-1079:1 -/
+def turtle.word_at
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if start <= i
+  then
+    let i1 := Slice.len word
+    let i2 := alloc.vec.Vec.len bytes
+    let i3 ← i2 - start
+    if i1 <= i3
+    then turtle.word_from bytes start word 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::either]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1094:0-1096:1 -/
+def turtle.either
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (upper : Std.U8)
+  (lower : Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes index upper
+  if b
+  then ok true
+  else turtle.byte_is bytes index lower
+
+/-- [rowl_kernel::turtle::prefix_word]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1099:0-1106:1 -/
+def turtle.prefix_word
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
+  let b ← turtle.either bytes start 80#u8 112#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.either bytes i 82#u8 114#u8
+    if b1
+    then
+      let i1 ← start + 2#usize
+      let b2 ← turtle.either bytes i1 69#u8 101#u8
+      if b2
+      then
+        let i2 ← start + 3#usize
+        let b3 ← turtle.either bytes i2 70#u8 102#u8
+        if b3
+        then
+          let i3 ← start + 4#usize
+          let b4 ← turtle.either bytes i3 73#u8 105#u8
+          if b4
+          then let i4 ← start + 5#usize
+               turtle.either bytes i4 88#u8 120#u8
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::base_word]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1109:0-1114:1 -/
+def turtle.base_word
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) : Result Bool := do
+  let b ← turtle.either bytes start 66#u8 98#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.either bytes i 65#u8 97#u8
+    if b1
+    then
+      let i1 ← start + 2#usize
+      let b2 ← turtle.either bytes i1 83#u8 115#u8
+      if b2
+      then let i2 ← start + 3#usize
+           turtle.either bytes i2 69#u8 101#u8
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::tag_byte]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1122:0-1124:1 -/
+def turtle.tag_byte (byte : Std.U8) : Result Bool := do
+  let b ← turtle.letter_byte byte
+  if b
+  then ok true
+  else
+    let b1 ← turtle.digit_byte byte
+    if b1
+    then ok true
+    else ok (byte = 45#u8)
+
+/-- [rowl_kernel::turtle::tag_continues]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1127:0-1129:1 -/
+def turtle.tag_continues
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    turtle.tag_byte i1
+  else ok false
+
+/-- [rowl_kernel::turtle::at_keyword]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1133:0-1137:1 -/
+def turtle.at_keyword
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) (word : Slice Std.U8) :
+  Result Bool
+  := do
+  let b ← turtle.byte_is bytes start 64#u8
+  if b
+  then
+    let i ← start + 1#usize
+    let b1 ← turtle.word_at bytes i word
+    if b1
+    then
+      let i1 := Slice.len word
+      let i2 ← i + i1
+      let b2 ← turtle.tag_continues bytes i2
+      ok (¬ b2)
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::quote]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1140:0-1142:1 -/
+def turtle.quote (cp : Std.U32) : Result Bool := do
+  if cp = 34#u32
+  then ok true
+  else ok (cp = 39#u32)
+
+/-- [rowl_kernel::turtle::number_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1145:0-1147:1 -/
+def turtle.number_start (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.ascii_digit cp
+  if b
+  then ok true
+  else
+    if cp = 43#u32
+    then ok true
+    else if cp = 45#u32
+         then ok true
+         else ok (cp = 46#u32)
+
+/-- [rowl_kernel::turtle::word_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1150:0-1152:1 -/
+def turtle.word_start (cp : Std.U32) : Result Bool := do
+  let b ← ntriples.pn_base cp
+  if b
+  then ok true
+  else ok (cp = 58#u32)
+
+/-- [rowl_kernel::turtle::Start]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1155:0-1164:1 -/
+@[discriminant isize]
+inductive turtle.Start where
+| Iri : turtle.Start
+| Blank : turtle.Start
+| Bracket : turtle.Start
+| Paren : turtle.Start
+| Quote : turtle.Start
+| Number : turtle.Start
+| Word : turtle.Start
+| Other : turtle.Start
+
+/-- [rowl_kernel::turtle::start_of]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1166:0-1184:1 -/
+def turtle.start_of (cp : Std.U32) : Result turtle.Start := do
+  if cp = 60#u32
+  then ok turtle.Start.Iri
+  else
+    if cp = 95#u32
+    then ok turtle.Start.Blank
+    else
+      if cp = 91#u32
+      then ok turtle.Start.Bracket
+      else
+        if cp = 40#u32
+        then ok turtle.Start.Paren
+        else
+          let b ← turtle.quote cp
+          if b
+          then ok turtle.Start.Quote
+          else
+            let b1 ← turtle.number_start cp
+            if b1
+            then ok turtle.Start.Number
+            else
+              let b2 ← turtle.word_start cp
+              if b2
+              then ok turtle.Start.Word
+              else ok turtle.Start.Other
+
+/-- [rowl_kernel::turtle::boolean]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1187:0-1192:1 -/
+def turtle.boolean (lexical : Slice Std.U8) : Result rdf.RdfLiteral := do
+  let v ← turtle.constant lexical
+  let s ←
+    lift (Array.to_slice
+      (Array.make 40#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8,
+        104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8, 111#u8, 111#u8, 108#u8,
+        101#u8, 97#u8, 110#u8
+        ]))
+  let lk ← turtle.xsd s
+  ok { lexical := v, kind := lk }
+
+/-- [rowl_kernel::turtle::boolean_at]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1195:0-1203:1 -/
+def turtle.boolean_at
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+  let b ← turtle.word_at bytes start s
+  if b
+  then
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 4#usize [ 116#u8, 114#u8, 117#u8, 101#u8 ]))
+    let rl ← turtle.boolean s1
+    let i ← start + 4#usize
+    ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+    let b1 ← turtle.word_at bytes start s1
+    if b1
+    then
+      let s2 ←
+        lift (Array.to_slice
+          (Array.make 5#usize [ 102#u8, 97#u8, 108#u8, 115#u8, 101#u8 ]))
+      let rl ← turtle.boolean s2
+      let i ← start + 5#usize
+      ok (core.result.Result.Ok (rdf.Object.Literal rl, i))
+    else
+      let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+      ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::word_object]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1206:0-1219:1 -/
+def turtle.word_object
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (prefixes : alloc.vec.Vec turtle.Prefix) (limit : Std.Usize) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.prefix_colon bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => turtle.boolean_at bytes start
+    | some colon =>
+      let r1 ← turtle.prefixed bytes start colon prefixes limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (iri, next) := val1
+        ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+          residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::Context]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1223:0-1229:1 -/
+structure turtle.Context where
+  bytes : alloc.vec.Vec Std.U8
+  scope : alloc.vec.Vec Std.U8
+  base : alloc.vec.Vec Std.U8
+  prefixes : alloc.vec.Vec turtle.Prefix
+  limits : turtle.Limits
+
+/-- [rowl_kernel::turtle::term]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1233:0-1257:1 -/
+def turtle.term
+  (cx : turtle.Context) (start : Std.Usize) (kind : turtle.Start) :
+  Result (core.result.Result (rdf.Object × Std.Usize) turtle.ReadError)
+  := do
+  match kind with
+  | turtle.Start.Iri =>
+    let r ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (iri, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Iri iri, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Blank =>
+    let r ←
+      turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (node, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Blank node, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Bracket =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | turtle.Start.Paren =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+  | turtle.Start.Quote =>
+    let r ←
+      turtle.literal cx.bytes start cx.base cx.prefixes
+        cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (literal, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Number =>
+    let r ← turtle.number cx.bytes start cx.limits.max_term_bytes
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (literal, next) := val
+      ok (core.result.Result.Ok (rdf.Object.Literal literal, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.Object × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | turtle.Start.Word =>
+    turtle.word_object cx.bytes start cx.prefixes cx.limits.max_term_bytes
+  | turtle.Start.Other =>
+    let re ← turtle.error turtle.ErrorKind.ExpectedObject start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::verb_follows]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1427:0-1429:1 -/
+def turtle.verb_follows
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 != 59#u8
+    then if i1 != 46#u8
+         then ok (i1 != 93#u8)
+         else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::turtle::keyword_a]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1395:0-1401:1 -/
+def turtle.keyword_a
+  (cp : Std.U32) (start : Std.Usize) (next : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  if cp = 97#u32
+  then let ri ← turtle.rdf_type
+       ok (core.result.Result.Ok (ri, next))
+  else
+    let re ← turtle.error turtle.ErrorKind.ExpectedVerb start
+    ok (core.result.Result.Err re)
+
+/-- [rowl_kernel::turtle::verb]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1404:0-1423:1 -/
+def turtle.verb
+  (cx : turtle.Context) (position : Std.Usize) :
+  Result (core.result.Result (rdf.RdfIri × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.needed cx.bytes val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (cp, next) := val1
+      if cp = 60#u32
+      then turtle.iri_ref cx.bytes val cx.base cx.limits.max_term_bytes
+      else
+        let b ← turtle.word_start cp
+        if b
+        then
+          let r2 ← turtle.prefix_colon cx.bytes val
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            match val2 with
+            | none => turtle.keyword_a cp val next
+            | some colon =>
+              turtle.prefixed cx.bytes val colon cx.prefixes
+                cx.limits.max_term_bytes
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.RdfIri × Std.Usize) (core.convert.FromSame
+              turtle.ReadError) residual
+        else
+          let re ← turtle.error turtle.ErrorKind.ExpectedVerb val
+          ok (core.result.Result.Err re)
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.RdfIri × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+mutual
+
+/-- [rowl_kernel::turtle::node]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1261:0-1277:1 -/
+def turtle.node
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Object × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let r ← turtle.needed cx.bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, _) := val
+    let s ← turtle.start_of cp
+    match s with
+    | turtle.Start.Iri =>
+      let r1 ← turtle.term cx start turtle.Start.Iri
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Blank =>
+      let r1 ← turtle.term cx start turtle.Start.Blank
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Bracket =>
+      let r1 ← turtle.bracket cx start out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (node, next, out1, _) := val1
+        ok (core.result.Result.Ok (rdf.Object.Blank node, next, out1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Paren =>
+      let r1 ← turtle.collection cx start out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (head, next, out1) := val1
+        let o ← turtle.object_of head
+        ok (core.result.Result.Ok (o, next, out1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Quote =>
+      let r1 ← turtle.term cx start turtle.Start.Quote
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Number =>
+      let r1 ← turtle.term cx start turtle.Start.Number
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Word =>
+      let r1 ← turtle.term cx start turtle.Start.Word
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Other =>
+      let r1 ← turtle.term cx start turtle.Start.Other
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (value, next) := val1
+        ok (core.result.Result.Ok (value, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Object × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::bracket]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1281:0-1299:1 -/
+def turtle.bracket
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.BlankNode × Std.Usize × (alloc.vec.Vec
+    rdf.Triple) × Bool) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let r ← turtle.space cx.bytes i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 93#u8
+    if b
+    then
+      let bn ← turtle.bracket_node cx.scope start
+      let i1 ← val + 1#usize
+      ok (core.result.Result.Ok (bn, i1, out, false))
+    else
+      let bn ← turtle.bracket_node cx.scope start
+      let r1 ← turtle.predicate_object_list cx val (rdf.Subject.Blank bn) out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        let r2 ← turtle.space cx.bytes after
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let b1 ← turtle.byte_is cx.bytes val2 93#u8
+          if b1
+          then
+            let i1 ← val2 + 1#usize
+            ok (core.result.Result.Ok (bn, i1, out1, true))
+          else
+            let re ← turtle.error turtle.ErrorKind.ExpectedBracket val2
+            ok (core.result.Result.Err re)
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+            (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.BlankNode × Std.Usize × (alloc.vec.Vec rdf.Triple) × Bool)
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::collection]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1303:0-1312:1 -/
+def turtle.collection
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let i ← start + 1#usize
+  let r ← turtle.space cx.bytes i
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 41#u8
+    if b
+    then
+      let ri ← turtle.rdf_nil
+      let i1 ← val + 1#usize
+      ok (core.result.Result.Ok (rdf.Subject.Iri ri, i1, out))
+    else
+      let r1 ← turtle.member cx val out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        let r2 ← turtle.members cx after val out1
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let («end», out2) := val2
+          let bn ← turtle.list_node cx.scope val
+          ok (core.result.Result.Ok (rdf.Subject.Blank bn, «end», out2))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+            (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::member]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1316:0-1320:1 -/
+def turtle.member
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let bn ← turtle.list_node cx.scope start
+  let predicate ← turtle.rdf_first
+  turtle.object cx start (rdf.Subject.Blank bn) predicate out
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::members]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1324:0-1345:1 -/
+def turtle.members
+  (cx : turtle.Context) (position : Std.Usize) (last : Std.Usize)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let bn ← turtle.list_node cx.scope last
+    let b ← turtle.byte_is cx.bytes val 41#u8
+    if b
+    then
+      let ri ← turtle.rdf_rest
+      let ri1 ← turtle.rdf_nil
+      let r1 ←
+        turtle.emit out
+          {
+            subject := (rdf.Subject.Blank bn),
+            predicate := ri,
+            object := (rdf.Object.Iri ri1)
+          } cx.limits val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let i ← val + 1#usize
+        ok (core.result.Result.Ok (i, val1))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else
+      let ri ← turtle.rdf_rest
+      let bn1 ← turtle.list_node cx.scope val
+      let r1 ←
+        turtle.emit out
+          {
+            subject := (rdf.Subject.Blank bn),
+            predicate := ri,
+            object := (rdf.Object.Blank bn1)
+          } cx.limits val
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let r2 ← turtle.member cx val val1
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let (after, out1) := val2
+          turtle.members cx after val out1
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::object]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1348:0-1364:1 -/
+def turtle.object
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.node cx val out
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (value, next, out1) := val1
+      let s ← turtle.copy_subject subject
+      let ri ← turtle.copy_iri predicate
+      let r2 ←
+        turtle.emit out1 { subject := s, predicate := ri, object := value }
+          cx.limits val
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        ok (core.result.Result.Ok (next, val2))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::object_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1367:0-1376:1 -/
+def turtle.object_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.object cx position subject predicate out
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (next, out1) := val
+    turtle.more_objects cx next subject predicate out1
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::more_objects]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1378:0-1392:1 -/
+def turtle.more_objects
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (predicate : rdf.RdfIri) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 44#u8
+    if b
+    then
+      let i ← val + 1#usize
+      let r1 ← turtle.object cx i subject predicate out
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out1) := val1
+        turtle.more_objects cx after subject predicate out1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else ok (core.result.Result.Ok (val, out))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::predicate_object_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1432:0-1441:1 -/
+def turtle.predicate_object_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.verb cx position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (predicate, next) := val
+    let r1 ← turtle.object_list cx next subject predicate out
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (after, out1) := val1
+      turtle.more_predicates cx after subject out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::more_predicates]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1443:0-1457:1 -/
+def turtle.more_predicates
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 59#u8
+    if b
+    then
+      let i ← val + 1#usize
+      let r1 ← turtle.space cx.bytes i
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let b1 ← turtle.verb_follows cx.bytes val1
+        if b1
+        then
+          let r2 ← turtle.verb cx val1
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let (predicate, objects) := val2
+            let r3 ← turtle.object_list cx objects subject predicate out
+            let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+            match cf3 with
+            | core.ops.control_flow.ControlFlow.Continue val3 =>
+              let («end», out1) := val3
+              turtle.more_predicates cx «end» subject out1
+            | core.ops.control_flow.ControlFlow.Break residual =>
+              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+                (Std.Usize × (alloc.vec.Vec rdf.Triple))
+                (core.convert.FromSame turtle.ReadError) residual
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+              turtle.ReadError) residual
+        else turtle.more_predicates cx val1 subject out
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+          turtle.ReadError) residual
+    else ok (core.result.Result.Ok (val, out))
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::turtle::subject]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1460:0-1482:1 -/
+def turtle.subject
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (rdf.Subject × Std.Usize × (alloc.vec.Vec
+    rdf.Triple)) turtle.ReadError)
+  := do
+  let r ← turtle.needed cx.bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let (cp, _) := val
+    let s ← turtle.start_of cp
+    match s with
+    | turtle.Start.Iri =>
+      let r1 ← turtle.iri_ref cx.bytes start cx.base cx.limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (iri, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Blank =>
+      let r1 ←
+        turtle.blank_label cx.bytes start cx.scope cx.limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (node, next) := val1
+        ok (core.result.Result.Ok (rdf.Subject.Blank node, next, out))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Bracket =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Paren => turtle.collection cx start out
+    | turtle.Start.Quote =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Number =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+    | turtle.Start.Word =>
+      let r1 ← turtle.prefix_colon cx.bytes start
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        match val1 with
+        | none =>
+          let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+          ok (core.result.Result.Err re)
+        | some colon =>
+          let r2 ←
+            turtle.prefixed cx.bytes start colon cx.prefixes
+              cx.limits.max_term_bytes
+          let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+          match cf2 with
+          | core.ops.control_flow.ControlFlow.Continue val2 =>
+            let (iri, next) := val2
+            ok (core.result.Result.Ok (rdf.Subject.Iri iri, next, out))
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+              (core.convert.FromSame turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+          (core.convert.FromSame turtle.ReadError) residual
+    | turtle.Start.Other =>
+      let re ← turtle.error turtle.ErrorKind.ExpectedSubject start
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (rdf.Subject × Std.Usize × (alloc.vec.Vec rdf.Triple))
+      (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::optional_list]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1486:0-1493:1 -/
+def turtle.optional_list
+  (cx : turtle.Context) (position : Std.Usize) (subject : rdf.Subject)
+  (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let r ← turtle.space cx.bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is cx.bytes val 46#u8
+    if b
+    then ok (core.result.Result.Ok (val, out))
+    else turtle.predicate_object_list cx val subject out
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::triples]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1496:0-1509:1 -/
+def turtle.triples
+  (cx : turtle.Context) (start : Std.Usize) (out : alloc.vec.Vec rdf.Triple) :
+  Result (core.result.Result (Std.Usize × (alloc.vec.Vec rdf.Triple))
+    turtle.ReadError)
+  := do
+  let b ← turtle.byte_is cx.bytes start 91#u8
+  if b
+  then
+    let r ← turtle.bracket cx start out
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (node, next, out1, listed) := val
+      if listed
+      then turtle.optional_list cx next (rdf.Subject.Blank node) out1
+      else turtle.predicate_object_list cx next (rdf.Subject.Blank node) out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+  else
+    let r ← turtle.subject cx start out
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let (subject, next, out1) := val
+      turtle.predicate_object_list cx next subject out1
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (Std.Usize × (alloc.vec.Vec rdf.Triple)) (core.convert.FromSame
+        turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::period]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1512:0-1519:1 -/
+def turtle.period
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) :
+  Result (core.result.Result Std.Usize turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let b ← turtle.byte_is bytes val 46#u8
+    if b
+    then let i ← val + 1#usize
+         ok (core.result.Result.Ok i)
+    else
+      let re ← turtle.error turtle.ErrorKind.ExpectedPeriod val
+      ok (core.result.Result.Err re)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      Std.Usize (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::Statement]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1522:0-1528:1 -/
+@[discriminant isize]
+inductive turtle.Statement where
+| AtPrefix : Std.Usize → turtle.Statement
+| AtBase : Std.Usize → turtle.Statement
+| Prefix : Std.Usize → turtle.Statement
+| Base : Std.Usize → turtle.Statement
+| Triples : turtle.Statement
+
+/-- [rowl_kernel::turtle::sparql]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1532:0-1537:1 -/
+def turtle.sparql
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize)
+  (keyword : turtle.Statement) :
+  Result (core.result.Result turtle.Statement turtle.ReadError)
+  := do
+  let r ← turtle.prefix_colon bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | none => ok (core.result.Result.Ok keyword)
+    | some _ => ok (core.result.Result.Ok turtle.Statement.Triples)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      turtle.Statement (core.convert.FromSame turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::statement_start]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1539:0-1551:1 -/
+def turtle.statement_start
+  (bytes : alloc.vec.Vec Std.U8) (start : Std.Usize) :
+  Result (core.result.Result turtle.Statement turtle.ReadError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 6#usize [ 112#u8, 114#u8, 101#u8, 102#u8, 105#u8, 120#u8 ]))
+  let b ← turtle.at_keyword bytes start s
+  if b
+  then
+    let i ← start + 7#usize
+    ok (core.result.Result.Ok (turtle.Statement.AtPrefix i))
+  else
+    let s1 ←
+      lift (Array.to_slice
+        (Array.make 4#usize [ 98#u8, 97#u8, 115#u8, 101#u8 ]))
+    let b1 ← turtle.at_keyword bytes start s1
+    if b1
+    then
+      let i ← start + 5#usize
+      ok (core.result.Result.Ok (turtle.Statement.AtBase i))
+    else
+      let b2 ← turtle.prefix_word bytes start
+      if b2
+      then
+        let i ← start + 6#usize
+        turtle.sparql bytes start (turtle.Statement.Prefix i)
+      else
+        let b3 ← turtle.base_word bytes start
+        if b3
+        then
+          let i ← start + 4#usize
+          turtle.sparql bytes start (turtle.Statement.Base i)
+        else ok (core.result.Result.Ok turtle.Statement.Triples)
+
+/-- [rowl_kernel::turtle::prefix_name]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1555:0-1564:1 -/
+def turtle.prefix_name
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.prefix_colon bytes val
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      match val1 with
+      | none =>
+        let re ← turtle.error turtle.ErrorKind.ExpectedPrefix val
+        ok (core.result.Result.Err re)
+      | some colon =>
+        let r2 ← turtle.copied bytes val colon limit
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let i ← colon + 1#usize
+          ok (core.result.Result.Ok (val2, i))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+            turtle.ReadError) residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::prefix_declaration]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1567:0-1583:1 -/
+def turtle.prefix_declaration
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (turtle.Prefix × Std.Usize) turtle.ReadError)
+  := do
+  let r ← turtle.prefix_name bytes position limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let («name», after) := val
+    let r1 ← turtle.space bytes after
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← turtle.iri_ref bytes val1 base limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let («namespace», next) := val2
+        ok (core.result.Result.Ok ({ «name», iri := «namespace».spelling },
+          next))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (turtle.Prefix × Std.Usize) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::base_declaration]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1586:0-1595:1 -/
+def turtle.base_declaration
+  (bytes : alloc.vec.Vec Std.U8) (position : Std.Usize)
+  (base : alloc.vec.Vec Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result ((alloc.vec.Vec Std.U8) × Std.Usize)
+    turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← turtle.iri_ref bytes val base limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let (iri, next) := val1
+      ok (core.result.Result.Ok (iri.spelling, next))
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+        turtle.ReadError) residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      ((alloc.vec.Vec Std.U8) × Std.Usize) (core.convert.FromSame
+      turtle.ReadError) residual
+
+/-- [rowl_kernel::turtle::State]
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1598:0-1602:1 -/
+structure turtle.State where
+  base : alloc.vec.Vec Std.U8
+  prefixes : alloc.vec.Vec turtle.Prefix
+  triples : alloc.vec.Vec rdf.Triple
+
+/-- [rowl_kernel::turtle::declare]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1604:0-1607:1 -/
+def turtle.declare
+  (prefixes : alloc.vec.Vec turtle.Prefix) («prefix» : turtle.Prefix) :
+  Result (alloc.vec.Vec turtle.Prefix)
+  := do
+  alloc.vec.Vec.push prefixes «prefix»
+
+/-- [rowl_kernel::turtle::statement]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1610:0-1692:1 -/
+def turtle.statement
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : turtle.Limits) (start : Std.Usize) (state : turtle.State) :
+  Result (core.result.Result (Std.Usize × turtle.State) turtle.ReadError)
+  := do
+  let r ← turtle.statement_start bytes start
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    match val with
+    | turtle.Statement.AtPrefix after =>
+      let r1 ←
+        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («prefix», next) := val1
+        let r2 ← turtle.period bytes next
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          let prefixes ← turtle.declare state.prefixes «prefix»
+          ok (core.result.Result.Ok (val2, { state with prefixes }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.AtBase after =>
+      let r1 ←
+        turtle.base_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (base, next) := val1
+        let r2 ← turtle.period bytes next
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          ok (core.result.Result.Ok (val2, { state with base }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Prefix after =>
+      let r1 ←
+        turtle.prefix_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («prefix», «end») := val1
+        let prefixes ← turtle.declare state.prefixes «prefix»
+        ok (core.result.Result.Ok («end», { state with prefixes }))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Base after =>
+      let r1 ←
+        turtle.base_declaration bytes after state.base limits.max_term_bytes
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (base, «end») := val1
+        ok (core.result.Result.Ok («end», { state with base }))
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+    | turtle.Statement.Triples =>
+      let r1 ←
+        turtle.triples
+          {
+            bytes,
+            scope,
+            base := state.base,
+            prefixes := state.prefixes,
+            limits
+          } start state.triples
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let (after, out) := val1
+        let r2 ← turtle.period bytes after
+        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+        match cf2 with
+        | core.ops.control_flow.ControlFlow.Continue val2 =>
+          ok (core.result.Result.Ok (val2, { state with triples := out }))
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (Std.Usize × turtle.State) (core.convert.FromSame
+            turtle.ReadError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+          residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (Std.Usize × turtle.State) (core.convert.FromSame turtle.ReadError)
+      residual
+
+/-- [rowl_kernel::turtle::statements]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1695:0-1709:1 -/
+def turtle.statements
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (limits : turtle.Limits) (position : Std.Usize) (state : turtle.State) :
+  Result (core.result.Result (alloc.vec.Vec rdf.Triple) turtle.ReadError)
+  := do
+  let r ← turtle.space bytes position
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let i := alloc.vec.Vec.len bytes
+    if val < i
+    then
+      let r1 ← turtle.statement bytes scope limits val state
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let («end», state1) := val1
+        turtle.statements bytes scope limits «end» state1
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
+          residual
+    else ok (core.result.Result.Ok state.triples)
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec rdf.Triple) (core.convert.FromSame turtle.ReadError)
+      residual
+partial_fixpoint
+
+/-- [rowl_kernel::turtle::read_with_limits]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1715:0-1730:1
+    Visibility: public -/
+def turtle.read_with_limits
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (base : alloc.vec.Vec Std.U8) (limits : turtle.Limits) :
+  Result turtle.ReadResult
+  := do
+  let v ← turtle.copy_bytes base
+  let r ←
+    turtle.statements bytes scope limits 0#usize
+      {
+        base := v,
+        prefixes := (alloc.vec.Vec.new turtle.Prefix),
+        triples := (alloc.vec.Vec.new rdf.Triple)
+      }
+  match r with
+  | core.result.Result.Ok triples => ok (turtle.ReadResult.Graph { triples })
+  | core.result.Result.Err e => ok (turtle.ReadResult.Error e)
+
+/-- [rowl_kernel::turtle::read]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1733:0-1743:1
+    Visibility: public -/
+def turtle.read
+  (bytes : alloc.vec.Vec Std.U8) (scope : alloc.vec.Vec Std.U8)
+  (base : alloc.vec.Vec Std.U8) :
+  Result turtle.ReadResult
+  := do
+  turtle.read_with_limits bytes scope base
+    { max_term_bytes := core.num.Usize.MAX, max_triples := core.num.Usize.MAX }
 
 end RowlRust

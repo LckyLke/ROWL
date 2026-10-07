@@ -4995,3 +4995,116 @@ unchanged.
 
 This block adds 80 public theorems and 40 definitions. Totals are 2834 audited
 theorems, 1237 definitions, 548 Rust regressions and 3027 ledger obligations.
+
+## RDF 1.1 Turtle reader
+
+`turtle::read` reads a whole RDF 1.1 Turtle document from its UTF-8 bytes into
+a raw RDF graph, against a base IRI and a blank-node scope supplied by the
+caller; `turtle::read_with_limits` does the same within limits on the bytes of
+a term and on the number of triples, and `read` uses `usize::MAX` for both. The
+reader covers the grammar of section 6.5: `@prefix` and `@base` and the SPARQL
+`PREFIX` and `BASE` in any case, IRIREFs and prefixed names with local escapes,
+labelled blank nodes, `[]`, blank node property lists, collections, `a`,
+predicate-object and object lists, and every literal: short and long strings
+with escapes, language tags, datatypes, integers, decimals, doubles and
+booleans. Tokens are the longest matches of the grammar's note, so `true:x` and
+`a:b` are prefixed names rather than keywords and a name ends at its last
+character that is not a dot. A relative IRI is resolved by RFC 3986 section 5.2
+against the base in force (`references::resolve`). Every IRI reference must be
+an RFC 3987 IRI reference and every IRI it gives an RFC 3987 IRI; a relative
+reference without an absolute base is an error. Language tags must be
+well-formed BCP 47 tags. Triples come out in the order of section 7: the triples
+inside an object (a blank node property list or a collection) come before the
+triple that has the object, and each `rdf:rest` link of a collection before the
+triples of the next member. The blank node of a property list that begins at
+byte offset `n` has the label `0xFF` followed by the decimal digits of `n`, and
+the list node of a collection member at offset `n` the label `0xFE` followed by
+them. Document labels are UTF-8 and cannot contain these bytes, and every blank
+node has the caller's scope. The reader reuses the N-Triples readers for
+characters, white space, comments, escapes, IRIREF and STRING_LITERAL_QUOTE;
+`ntriples.rs` only makes nine of its functions visible to the crate.
+
+`TurtleTokens.lean` states the terminals as relations over byte positions,
+written from section 6.5 independently of the Rust code: `PrefixColon`
+(PNAME_NS), `LocalEnd` (PN_LOCAL with PLX), `Prefixed`, `IriRef`, `IriAt`,
+`BlankLabel`, `StringAt` with `SingleBody` and `LongString`, `LanguageAt`,
+`LiteralAt` with `DatatypeAt`, `NumberAt`, whose `NumberEnd` gives the end and
+datatype of INTEGER, DECIMAL and DOUBLE, `WordObject` for prefixed names and
+booleans, and `AtKeyword` and `AnyCase` for the directive keywords. Every token
+reader is proved total and exact: a `*_total_correct` theorem states that it
+returns exactly what its relation describes or the relation's first error with
+its kind and offset, and a `*_accepted` theorem that it reads every token the
+relation describes with that value (`iri_ref_total_correct`,
+`prefixed_accepted`, `literal_total_correct`, `number_accepted` and so on).
+
+`Turtle.lean` states the productions and their triples as relations:
+`NodeAt`, `BracketAt`, `CollectionAt`, `MembersAt`, `ObjectAt`, `ObjectsAt`,
+`MoreObjectsAt`, `ListAt` and `MorePredicatesAt` form one mutual family for the
+mutually recursive productions; `SubjectAt`, `TriplesAt`, `OpeningAt`,
+`PrefixDeclaration`, `BaseDeclaration`, `StatementAt` (with the base and the
+prefix declarations in force) and `StatementsAt` follow. `Document bs scope base
+termLimit tripleLimit ts` holds when the bytes `bs` are a Turtle document whose
+terms fit the term limit and that denotes the triples `ts` in order, at most the
+triple limit of them; `DocumentError` gives the first error of any other bytes.
+Triples are compared by their terms (`spo`), which determine them
+(`spo_injective`). The mutually recursive readers are proved by well-founded
+recursion on the remaining bytes and the rank of the production
+(`node_total_correct` to `more_predicates_total_correct`, and `node_accepted` to
+`more_predicates_accepted`). `read_with_limits_total_correct` proves that
+`read_with_limits` returns a graph whose triples are, in order, exactly the ones
+the bytes denote, or the first error of the bytes; `read_with_limits_accepted_iff`
+proves that it returns a graph exactly when `Document` holds for the graph's
+triples. `read_total_correct` and `read_accepted_iff` state the same for `read`.
+
+The relations are written from the Recommendation's grammar and its triple
+construction; they are not proved equal to a separate formal reading of the
+EBNF. The regression test runs all 313 cases of the W3C RDF 1.1 Turtle suite
+(`w3c/rdf-tests` at a pinned commit, file hashes in `turtle-suite.json`,
+fetched by `scripts/fetch-turtle-suite.py`), with each document read against
+its own URL as the suite's base: positive and negative syntax cases,
+negative evaluation cases, and evaluation cases compared with the expected
+N-Triples graph up to blank-node isomorphism. All pass. Fourteen further tests
+cover the constructs, longest matches, first-error offsets, limits and scopes.
+No Turtle document is read into an ontology yet, and Turtle export remains
+planned. The 140 Turtle functions extract to 5.5 MB of LLBC; the largest body,
+`statement`, has 0.75 MB.
+
+This block adds 303 public theorems and 149 definitions. Totals are 3137
+audited theorems, 1386 definitions, 562 Rust regressions and 3330 ledger
+obligations.
+
+## Reasoning over Turtle documents
+
+`Reasoner::from_turtle` reads a Turtle document with the verified reader of the
+previous section and the OWL ontology its graph encodes with the verified
+reverse RDF mapping (`rdf_mapping::map_graph`), exactly as
+`Reasoner::from_ntriples` does for N-Triples; a rejected document is
+`LoadError::Turtle` with the reader's error. The document gets the scope
+`document` and no base of its own, so a relative IRI needs an `@base` or `BASE`
+directive before it; `Reasoner::from_turtle_with_base` supplies a base. The
+CLI's `check`, `classify` and `instances` commands read `.ttl` files this way,
+the C interface has `rowl_reasoner_from_turtle`, and the Python package reads
+Turtle with `syntax="turtle"` and `.ttl` files in `Reasoner.from_file`.
+`examples/medication-safety.ttl` is the medication-safety example in compact
+Turtle, with prefixes, `a`, object and predicate-object lists, blank node
+property lists and a collection; like `medication-safety.nt` it leaves out the
+two axiom annotations, which the mapping does not read. Rust and Python tests
+check that it gives the same classes, individuals, classification and instance
+answers as `medication-safety.ofn`, that the reasons for rejected documents are
+reported, and that the CLI answers from it and reports the offset of a Turtle
+error.
+
+This glue adds no reasoning and no proof; the answers are those of the verified
+reader, mapping and queries. Classifying the generated EL ontology with 20 000
+classes takes 2.1 s from N-Triples, 3.3 s from the same graph in compact,
+subject-grouped Turtle (1.7 MB instead of 7.0 MB) and 14.7 s from Functional
+Syntax, with the same answers. Reading takes 0.14 s of the 3.3 s (the N-Triples
+reader needs 0.12 s for the N-Triples file, and the Turtle reader 0.20 s for the
+same bytes); the rest is mostly the RDF mapping, which takes 1.9 s for the
+triples in N-Triples order and 3.8 s in subject-grouped order. Merged with the
+hash-indexed RDF mapping, the same classifications take 0.56 s from N-Triples,
+0.61 s from compact Turtle and 1.56 s from Functional Syntax on a shared machine,
+with identical answers from the two RDF syntaxes.
+
+This block adds 0 public theorems and 0 definitions. Totals are 3137 audited
+theorems, 1386 definitions, 566 Rust regressions and 3330 ledger obligations.

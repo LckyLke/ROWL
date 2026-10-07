@@ -1,0 +1,43 @@
+# The medication-safety example as Turtle: the OWL 2 RDF mapping of
+# examples/medication-safety.ofn without its two axiom annotations.
+@prefix : <https://example.org/medication/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:records a owl:Ontology ;
+    rdfs:label "Medication safety" ;
+    rdfs:comment "An illustration of allergy checking, not clinical guidance." .
+
+:Penicillin a owl:Class ; owl:disjointWith :Macrolide .
+:Amoxicillin a owl:Class ; rdfs:subClassOf :Penicillin .
+:Macrolide a owl:Class .
+:Azithromycin a owl:Class ; rdfs:subClassOf :Macrolide .
+:PenicillinAllergy a owl:Class .
+:AllergyAlert a owl:Class .
+
+:contains a owl:ObjectProperty, owl:TransitiveProperty .
+:hasActiveIngredient a owl:ObjectProperty ; rdfs:subPropertyOf :contains .
+:receives a owl:ObjectProperty .
+:hasAllergy a owl:ObjectProperty .
+
+# A penicillin allergy and a medication containing a penicillin need an alert.
+[ a owl:Class ;
+  owl:intersectionOf (
+      [ a owl:Restriction ; owl:onProperty :hasAllergy ; owl:someValuesFrom :PenicillinAllergy ]
+      [ a owl:Restriction ; owl:onProperty :receives ;
+        owl:someValuesFrom [ a owl:Restriction ; owl:onProperty :contains ; owl:someValuesFrom :Penicillin ] ]
+  )
+] rdfs:subClassOf :AllergyAlert .
+
+:alice a owl:NamedIndividual,
+        [ a owl:Restriction ; owl:onProperty :hasAllergy ; owl:someValuesFrom :PenicillinAllergy ] ;
+    :receives :comboPack .
+:bob a owl:NamedIndividual ; :receives :comboPack .
+:carol a owl:NamedIndividual,
+        [ a owl:Restriction ; owl:onProperty :hasAllergy ; owl:someValuesFrom :PenicillinAllergy ] ;
+    :receives :tablet .
+:comboPack a owl:NamedIndividual ; :contains :capsule .
+:capsule a owl:NamedIndividual,
+        [ a owl:Restriction ; owl:onProperty :hasActiveIngredient ; owl:someValuesFrom :Amoxicillin ] .
+:tablet a owl:NamedIndividual,
+        [ a owl:Restriction ; owl:onProperty :hasActiveIngredient ; owl:someValuesFrom :Azithromycin ] .

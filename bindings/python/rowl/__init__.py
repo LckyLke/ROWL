@@ -1,9 +1,10 @@
 """Python bindings for ROWL, an OWL 2 reasoner with proved answers.
 
-A :class:`Reasoner` reads an OWL Functional Syntax or N-Triples document once
-and answers any number of questions about it by IRI. Every answer comes from the
-verified Rust pipeline (the document reader, the mapping into the OWL model —
-for N-Triples the reverse OWL RDF mapping — and the prepared queries), which is
+A :class:`Reasoner` reads an OWL Functional Syntax, N-Triples or Turtle
+document once and answers any number of questions about it by IRI. Every answer
+comes from the verified Rust pipeline (the document reader, the mapping into the
+OWL model — for N-Triples and Turtle the reverse OWL RDF mapping — and the
+prepared queries), which is
 proved against the OWL 2 Direct Semantics; this package only passes text across
 the C interface of the ``rowl-python`` crate.
 
@@ -97,6 +98,8 @@ _lib.rowl_reasoner_from_functional.argtypes = [_text, _size, ctypes.POINTER(ctyp
 _lib.rowl_reasoner_from_functional.restype = _handle
 _lib.rowl_reasoner_from_ntriples.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
 _lib.rowl_reasoner_from_ntriples.restype = _handle
+_lib.rowl_reasoner_from_turtle.argtypes = [_text, _size, ctypes.POINTER(ctypes.c_int32)]
+_lib.rowl_reasoner_from_turtle.restype = _handle
 _lib.rowl_reasoner_free.argtypes = [_handle]
 _lib.rowl_reasoner_free.restype = None
 _lib.rowl_consistent.argtypes = [_handle]
@@ -138,11 +141,12 @@ def _utf8(text: str) -> bytes:
 
 
 class Reasoner:
-    """An OWL Functional Syntax or N-Triples document read once.
+    """An OWL Functional Syntax, N-Triples or Turtle document read once.
 
-    ``syntax`` is ``"functional"`` (the default) or ``"ntriples"``; an
-    N-Triples graph is read as the OWL ontology it encodes by the verified
-    reverse RDF mapping.
+    ``syntax`` is ``"functional"`` (the default), ``"ntriples"`` or
+    ``"turtle"``; an N-Triples or Turtle graph is read as the OWL ontology it
+    encodes by the verified reverse RDF mapping. A relative IRI in Turtle needs
+    an ``@base`` or ``BASE`` directive before it.
 
     >>> r = Reasoner.from_file("examples/medication-safety.ofn")  # doctest: +SKIP
     >>> r.subsumed("https://example.org/medication/Amoxicillin",
@@ -159,8 +163,11 @@ class Reasoner:
         elif syntax == "ntriples":
             handle = _lib.rowl_reasoner_from_ntriples(data, len(data), ctypes.byref(status))
             rejected = "not an N-Triples document the verified reader accepts"
+        elif syntax == "turtle":
+            handle = _lib.rowl_reasoner_from_turtle(data, len(data), ctypes.byref(status))
+            rejected = "not a Turtle document the verified reader accepts"
         else:
-            raise ValueError("syntax must be 'functional' or 'ntriples'")
+            raise ValueError("syntax must be 'functional', 'ntriples' or 'turtle'")
         if not handle:
             if status.value == _REJECTED:
                 raise DocumentRejected(rejected)
@@ -174,11 +181,12 @@ class Reasoner:
 
     @classmethod
     def from_file(cls, path: Union[str, os.PathLike], syntax: Optional[str] = None) -> "Reasoner":
-        """Read a document from a file: N-Triples for a ``.nt`` file and
-        Functional Syntax otherwise, unless ``syntax`` says which."""
+        """Read a document from a file: N-Triples for a ``.nt`` file, Turtle
+        for a ``.ttl`` file and Functional Syntax otherwise, unless ``syntax``
+        says which."""
         path = Path(path)
         if syntax is None:
-            syntax = "ntriples" if path.suffix == ".nt" else "functional"
+            syntax = {".nt": "ntriples", ".ttl": "turtle"}.get(path.suffix, "functional")
         return cls(path.read_bytes(), syntax)
 
     def close(self) -> None:
