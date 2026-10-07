@@ -16,6 +16,7 @@ namespace Rowl.Classification
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
 open Rowl.Owl
 open Rowl.DatatypeMap (Normative)
+open Rowl.KeyEncoding (NamesKeyed)
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
 attribute [local instance] Classical.propDecidable
@@ -118,14 +119,15 @@ theorem not_subsumed_unsatisfiable {Native : Type w} (D : DatatypeMap Native) (V
     and vocabulary: `yes` means subsumed, `no` not subsumed. -/
 def Right (items : List AnnotatedAxiom) (a b : Class) (code : U8) : Prop :=
   (code.val = 2 → ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary),
-    IsVocabulary D V → Subsumed.{u, max w v, w} D V items (.Class a) (.Class b)) ∧
+    IsVocabulary D V → NamesKeyed V items → Subsumed.{u, max w v, w} D V items (.Class a) (.Class b)) ∧
   (code.val = 1 → ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary),
-    IsVocabulary D V → ¬ Subsumed.{u, max w v, w} D V items (.Class a) (.Class b))
+    IsVocabulary D V → NamesKeyed V items → ¬ Subsumed.{u, max w v, w} D V items (.Class a) (.Class b))
 
 /-- Satisfiability answers for the listed classes. -/
 def SatisfiableRight (items : List AnnotatedAxiom) (classes : List Class) (answers : List Bool) : Prop :=
   answers.length = classes.length ∧ ∀ (i : Nat) (c : Class) (s : Bool), classes[i]? = some c → answers[i]? = some s →
     ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+      NamesKeyed V items →
       (s = true ↔ ClassSatisfiable.{u, max w v, w} D V items (.Class c))
 
 /-! ### The told parents -/
@@ -823,8 +825,9 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
   obtain ⟨satRight, parentsOk, rowsRight⟩ := context
   obtain ⟨_, _, ca0, at_a0, rowSpec⟩ := rowRight
   have satA : ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+    NamesKeyed V items.val →
       ClassSatisfiable.{u, max w v, w} D V items.val (.Class ca0) :=
-    fun D normative V vocabulary => (satRight.2 a.val ca0 true at_a0 aSat D normative V vocabulary).mp rfl
+    fun D normative V vocabulary names => (satRight.2 a.val ca0 true at_a0 aSat D normative V vocabulary names).mp rfl
   rw [classification.settle]
   by_cases same : a = b
   · subst same
@@ -832,7 +835,7 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
     intro ca cb at_a at_b
     rw [at_a] at at_b
     cases Option.some.inj at_b
-    exact ⟨fun _ _ D _ V _ => subsumed_refl D V items.val _, fun one => by rw [yes_val] at one; omega⟩
+    exact ⟨fun _ _ D _ V _ _ => subsumed_refl D V items.val _, fun one => by rw [yes_val] at one; omega⟩
   · rw [unsatisfiable_spec]
     by_cases unsatB : satisfiable.val[b.val]? = some false
     · refine ⟨classification.NO, by simp [same, unsatB], by simp [no_val], ?_⟩
@@ -840,9 +843,9 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
       rw [at_a0] at at_a
       cases Option.some.inj at_a
       refine ⟨fun two => by rw [no_val] at two; omega, ?_⟩
-      intro _ _ D normative V vocabulary
-      exact not_subsumed_unsatisfiable D V items.val (satA D normative V vocabulary)
-        (fun sat => Bool.false_ne_true ((satRight.2 b.val cb false at_b unsatB D normative V vocabulary).mpr sat))
+      intro _ _ D normative V vocabulary names
+      exact not_subsumed_unsatisfiable D V items.val (satA D normative V vocabulary names)
+        (fun sat => Bool.false_ne_true ((satRight.2 b.val cb false at_b unsatB D normative V vocabulary names).mpr sat))
     · obtain ⟨t, tRun, tSpec⟩ := told_parent_spec parents a b
       cases t with
       | true =>
@@ -854,7 +857,7 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
         rw [at_b] at at_parent
         cases Option.some.inj at_child
         cases Option.some.inj at_parent
-        exact ⟨fun _ _ D _ V _ => told_subsumed D V items.val told, fun one => by rw [yes_val] at one; omega⟩
+        exact ⟨fun _ _ D _ V _ _ => told_subsumed D V items.val told, fun one => by rw [yes_val] at one; omega⟩
       | false =>
         obtain ⟨f, fRun, fSpec⟩ := refuted_spec row parents b
         cases f with
@@ -869,8 +872,8 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
           cases Option.some.inj at_child
           have refutedRight := rowSpec p.val classification.NO parent at_p at_parent
           refine ⟨fun two => by rw [no_val] at two; omega, ?_⟩
-          intro _ _ D normative V vocabulary sub
-          exact refutedRight.2 no_val D normative V vocabulary
+          intro _ _ D normative V vocabulary names sub
+          exact refutedRight.2 no_val D normative V vocabulary names
             (subsumed_trans D V items.val sub (told_subsumed D V items.val told))
         | false =>
           obtain ⟨i, iRun, iSpec⟩ := inherits_spec rows done parents a b
@@ -886,8 +889,8 @@ theorem settle_spec (items : alloc.vec.Vec AnnotatedAxiom) (classes : alloc.vec.
             rw [at_parent] at at_cq
             cases Option.some.inj at_cq
             have inheritedRight := qSpec b.val classification.YES cb at_qb at_b
-            exact ⟨fun _ _ D normative V vocabulary => subsumed_trans D V items.val
-                (told_subsumed D V items.val told) (inheritedRight.1 yes_val D normative V vocabulary),
+            exact ⟨fun _ _ D normative V vocabulary names => subsumed_trans D V items.val
+                (told_subsumed D V items.val told) (inheritedRight.1 yes_val D normative V vocabulary names),
               fun one => by rw [yes_val] at one; omega⟩
           | false =>
             refine ⟨classification.UNKNOWN, by simp [same, unsatB, tRun, fRun, iRun], by simp [unknown_val], ?_⟩
@@ -1158,6 +1161,7 @@ theorem escapes_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ont
     ∃ r, classification.escapes prepared classes group a start stop = .ok r ∧ ∀ answer, r = some answer →
       ∀ ca, classes.val[a.val]? = some ca →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val →
         (answer = true → ∀ (k : Nat) (b : Usize) (cb : Class), start.val ≤ k → k < stop.val →
           group.val[k]? = some b → classes.val[b.val]? = some cb →
           ¬ Subsumed.{u, max w v, w} D V items.val (.Class ca) (.Class cb)) ∧
@@ -1194,10 +1198,10 @@ theorem escapes_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ont
               .ObjectComplementOf (.Class classes.val[group.val[start.val].val]), rest⟩)
           refine ⟨result, by simp [alloc.vec.Vec.len_val, UScalar.lt_equiv, aIn, startIn, lookupS, firstIn, advance,
             oRun, lookupA, lookupF, namedA, namedF, run], ?_⟩
-          intro answer same ca at_a Native D normative V vocabulary
+          intro answer same ca at_a Native D normative V vocabulary names
           rw [List.getElem?_eq_getElem aIn] at at_a
           cases Option.some.inj at_a
-          have meaning := facts answer same D normative V vocabulary
+          have meaning := facts answer same D normative V vocabulary names
           refine ⟨?_, ?_⟩
           · intro yes k b cb low high at_k at_b
             apply escape_refutes D V items.val _ _ rest (meaning.mp yes) cb
@@ -1336,8 +1340,8 @@ theorem split_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontol
           classification.NO row rowRight (by simp [no_val])
           (fun k b ca cb low high at_k at_a at_b =>
             ⟨fun two => by rw [no_val] at two; omega,
-             fun _ _ D normative V vocabulary =>
-              (meaning ca at_a D normative V vocabulary).1 rfl k b cb low high at_k at_b⟩)
+             fun _ _ D normative V vocabulary names =>
+              (meaning ca at_a D normative V vocabulary names).1 rfl k b cb low high at_k at_b⟩)
         refine ⟨some r, by simp [UScalar.lt_equiv, more, oRun, run], ?_⟩
         intro row' same
         cases same
@@ -1361,8 +1365,8 @@ theorem split_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_ontol
             (fun k b ca cb low high at_k at_a at_b => by
               have kIs : k = start.val := by omega
               subst kIs
-              exact ⟨fun _ _ D normative V vocabulary =>
-                  (meaning ca at_a D normative V vocabulary).2 rfl (by omega) b cb at_k at_b,
+              exact ⟨fun _ _ D normative V vocabulary names =>
+                  (meaning ca at_a D normative V vocabulary names).2 rfl (by omega) b cb at_k at_b,
                 fun one => by rw [yes_val] at one; omega⟩)
           refine ⟨some r, by simp [UScalar.lt_equiv, more, oRun, widthRun, singleU, run], ?_⟩
           intro row' same
@@ -1536,8 +1540,8 @@ theorem row_of_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data_onto
     · intro b code cb at_b _
       have isYes := fullAll code (List.mem_of_getElem? at_b)
       subst isYes
-      refine ⟨fun _ _ D normative V vocabulary => unsatisfiable_subsumed D V items.val _ (fun sat =>
-        Bool.false_ne_true ((context.satisfiable.2 a.val ca false at_a aUnsat D normative V vocabulary).mpr sat)), ?_⟩
+      refine ⟨fun _ _ D normative V vocabulary names => unsatisfiable_subsumed D V items.val _ (fun sat =>
+        Bool.false_ne_true ((context.satisfiable.2 a.val ca false at_a aUnsat D normative V vocabulary names).mpr sat)), ?_⟩
       intro one
       rw [yes_val] at one
       omega
@@ -1704,6 +1708,7 @@ theorem satisfiable_from_spec (items : alloc.vec.Vec AnnotatedAxiom) (prepared :
     (out : alloc.vec.Vec Bool) (lengthIs : out.val.length = index.val) (inside : index.val ≤ classes.val.length)
     (sofar : ∀ i c s, i < index.val → classes.val[i]? = some c → out.val[i]? = some s →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V items.val →
         (s = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val (.Class c))) :
     ∃ r, classification.satisfiable_from prepared classes index out = .ok r ∧
       ∀ answers, r = some answers → SatisfiableRight.{u,v,w} items.val classes.val answers.val := by
@@ -1845,10 +1850,12 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data
         result.subsumed.val.length = classes.val.length ∧
         (∀ (i : Nat) (a : Class), classes.val[i]? = some a → ∃ s : Bool, result.satisfiable.val[i]? = some s ∧
           ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+            NamesKeyed V items.val →
             (s = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val (.Class a))) ∧
         (∀ (i j : Nat) (a b : Class), classes.val[i]? = some a → classes.val[j]? = some b →
           ∃ (row : alloc.vec.Vec Bool) (s : Bool), result.subsumed.val[i]? = some row ∧ row.val[j]? = some s ∧
             ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+              NamesKeyed V items.val →
               (s = true ↔ Subsumed.{u, max w v, w} D V items.val (.Class a) (.Class b))) := by
   rw [classification.classify]
   obtain ⟨sat, satRun, satSpec⟩ := satisfiable_from_spec.{u,v,w} items prepared data classes 0#usize
@@ -1905,7 +1912,7 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data
           rw [satRight.1]
           exact this
         exact ⟨answers.val[i], List.getElem?_eq_getElem iIn,
-          fun D normative V vocabulary => satRight.2 i a _ at_a (List.getElem?_eq_getElem iIn) D normative V vocabulary⟩
+          fun D normative V vocabulary names => satRight.2 i a _ at_a (List.getElem?_eq_getElem iIn) D normative V vocabulary names⟩
       · intro i j a b at_a at_b
         have iIn : i < final.val.length := by
           have := (List.getElem?_eq_some_iff.mp at_a).1
@@ -1921,7 +1928,7 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data
         obtain ⟨answersRow, at_answers, answersSpec⟩ := subsumedSpec i final.val[i] (List.getElem?_eq_getElem iIn)
         have codeAt := List.getElem?_eq_getElem jIn
         refine ⟨answersRow, _, at_answers, answersSpec j _ codeAt, ?_⟩
-        intro Native D normative V vocabulary
+        intro Native D normative V vocabulary names
         have right := rowSpec j _ b codeAt at_b
         rw [decide_eq_true_iff]
         rcases complete j _ codeAt with one | two
@@ -1930,8 +1937,8 @@ theorem classify_correct (items : alloc.vec.Vec AnnotatedAxiom) (prepared : data
             rw [same, yes_val] at one
             omega
           · intro sub
-            exact absurd sub (right.2 one D normative V vocabulary)
-        · exact ⟨fun _ => right.1 two D normative V vocabulary,
+            exact absurd sub (right.2 one D normative V vocabulary names)
+        · exact ⟨fun _ => right.1 two D normative V vocabulary names,
             fun _ => UScalar.eq_of_val_eq (by rw [two, yes_val])⟩
 
 end Rowl.Classification

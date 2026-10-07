@@ -1,5 +1,6 @@
 import Rowl.DataSound
 import Rowl.ShiOntology
+import Rowl.KeyModels
 
 /-!
 The ontology queries of `data_ontology` with data properties, literals and the
@@ -11,7 +12,11 @@ Semantics (`consistent_correct`, `class_satisfiable_correct`,
 `subsumed_correct`, `instance_of_correct`, and their prepared forms): the
 encoding of a closure has a model exactly when the closure has one
 (`lifted_satisfies`, `sound_satisfies`), and a question's encoding holds at the
-same elements as the question.
+same elements as the question. A closure with keys is encoded by
+`key_ontology` (`Rowl.KeyModels`): its answers hold for every vocabulary in
+which the closure's named individuals are named (`NamesKeyed`), the condition
+under which keys apply to them; for a closure without keys that condition asks
+nothing.
 -/
 namespace Rowl.DataOntology
 open Aeneas Aeneas.Std Aeneas.Std.Result RowlRust RowlRust.model
@@ -24,6 +29,8 @@ open Rowl.DataAxioms
 open Rowl.DataStructure
 open Rowl.DataComplete
 open Rowl.DataSound
+open Rowl.KeyEncoding (NamesKeyed Keyed closureIndividuals)
+open Rowl.KeyModels (keyed_encoded_model keyed_lifted_model)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 set_option maxHeartbeats 2000000
@@ -496,16 +503,76 @@ theorem class_known_spec (nodes : alloc.vec.Vec Individual) (c : ClassExpression
 termination_by sizeOf c
 decreasing_by all_goals (subst_vars; first | omega | (simp_wf; omega))
 
+/-- The individuals the actual kernel names for a closure with keys are not the
+    encoding's. -/
+theorem keyed_plain {context : data_ontology.Context} (good : Good context) {items : alloc.vec.Vec AnnotatedAxiom}
+    {nodes : alloc.vec.Vec Individual} {counting : Bool} {enc : alloc.vec.Vec AnnotatedAxiom}
+    (encRun : key_ontology.encode context items nodes counting = .ok (some enc)) {a : Individual}
+    (mem : a ∈ nodes.val) : Plain a := by
+  obtain ⟨res, run, facts⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} context good items nodes counting
+  rw [encRun] at run
+  cases Result.ok_injective run
+  obtain ⟨_, _, _, _, _, _, _, _, _, plainNodes, _⟩ := facts enc rfl
+  exact plainNodes a mem
+
+theorem named_known_spec (nodes : alloc.vec.Vec Individual) (a : NamedIndividual) :
+    ∃ b, data_ontology.named_known nodes a = .ok b ∧
+      (b = true → ¬ Reserved a.iri.spelling.val ∧ Individual.Named a ∈ nodes.val) := by
+  rw [data_ontology.named_known, reserved_correct]
+  by_cases reserved : Reserved a.iri.spelling.val
+  · exact ⟨false, by simp [reserved], by simp⟩
+  · obtain ⟨p, run, value⟩ := Rowl.AlcOntology.position_of nodes (.Named a)
+    have eta : (Individual.Named { iri := { spelling := a.iri.spelling } }) = .Named a := rfl
+    refine ⟨p != 0#usize, by simp [reserved, Rowl.Nnf.copy_bytes_identity, eta, run], fun yes => ⟨reserved, ?_⟩⟩
+    by_contra absent
+    have zero := Rowl.AlcOntology.positionFrom_absent nodes.val (.Named a) 0 absent
+    have : p = 0#usize := UScalar.eq_of_val_eq (by rw [value]; simpa [Rowl.AlcOntology.PositionOf] using zero)
+    simp [this] at yes
+
 /-! ### Prepared closures -/
 
 /-- What a prepared closure keeps: a closure without data as the SROIQ queries
     prepare it, or a good context, the closure's encoding as the SROIQ queries
-    prepare it, and individuals that the closure names. -/
+    prepare it, and individuals that the closure names; or, for a closure with
+    keys, a good context, the closure's key encoding as the SROIQ queries prepare
+    it, and exactly the individuals the closure names. -/
 def DataPrepared (items : alloc.vec.Vec AnnotatedAxiom) : data_ontology.Prepared → Prop
   | .Plain p => Rowl.ShiOntology.PreparedData items p
   | .Encoded context nodes p => Good context ∧
       (∃ enc, data_ontology.encode context items = .ok (some enc) ∧ Rowl.ShiOntology.PreparedData enc p) ∧
       Adds (alloc.vec.Vec.new Individual) nodes (itemIndividuals items.val)
+  | .Keyed context nodes p => Good context ∧
+      (∃ counting enc, key_ontology.encode context items nodes counting = .ok (some enc) ∧
+        Rowl.ShiOntology.PreparedData enc p) ∧
+      (∀ b, b ∈ nodes.val ↔ b ∈ closureIndividuals items.val) ∧ Keyed items.val
+
+theorem key_prepare_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : data_ontology.Context)
+    (good : Good context) (keyed : Keyed items.val) :
+    ∃ res, key_ontology.prepare items context = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
+  rw [key_ontology.prepare]
+  obtain ⟨c1, run1, good1⟩ := Rowl.KeyEncoding.keys_context_good context items 0#usize good
+  obtain ⟨c2, run2, good2⟩ := with_truths_good c1 good1
+  obtain ⟨r1, nodesRun, nodesFacts⟩ := Rowl.KeyEncoding.closure_nodes items
+  cases r1 with
+  | none => exact ⟨none, by simp [run1, run2, nodesRun], by simp⟩
+  | some n1 =>
+    obtain ⟨r2, keyRun, keyFacts⟩ := nodesFacts n1 rfl
+    cases r2 with
+    | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun], by simp⟩
+    | some nodes =>
+      obtain ⟨b, complexRun⟩ := Rowl.KeyEncoding.complex_roles_runs items 0#usize
+      obtain ⟨r3, encRun, _⟩ := Rowl.KeyEncoding.encode_meaning.{0,0,0,0} c2 good2 items nodes (!b)
+      cases r3 with
+      | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun, complexRun, encRun], by simp⟩
+      | some enc =>
+        obtain ⟨r4, prepRun, prepFacts⟩ := Rowl.ShiOntology.prepare_correct enc
+        cases r4 with
+        | none => exact ⟨none, by simp [run1, run2, nodesRun, keyRun, complexRun, encRun, prepRun], by simp⟩
+        | some sp =>
+          refine ⟨some (.Keyed c2 nodes sp), by simp [run1, run2, nodesRun, keyRun, complexRun, encRun, prepRun],
+            fun p h => ?_⟩
+          cases h
+          exact ⟨good2, ⟨_, enc, encRun, prepFacts sp rfl⟩, keyFacts nodes rfl, keyed⟩
 
 theorem data_free_runs (context : data_ontology.Context) : ∃ b, data_ontology.data_free context = .ok b := by
   rw [data_ontology.data_free]
@@ -516,6 +583,14 @@ theorem prepare_in_correct (items : alloc.vec.Vec AnnotatedAxiom) (context : dat
     (good : Good context) :
     ∃ res, data_ontology.prepare_in items context = .ok res ∧ ∀ p, res = some p → DataPrepared items p := by
   rw [data_ontology.prepare_in]
+  obtain ⟨k, keysRun, keysIff⟩ := Rowl.KeyEncoding.has_keys_correct items 0#usize
+  cases k with
+  | true =>
+    obtain ⟨item, mem, key⟩ := keysIff.mp rfl
+    obtain ⟨res, run, facts⟩ := key_prepare_correct items context good ⟨item, by simpa using mem, key⟩
+    exact ⟨res, by simp [keysRun, run], facts⟩
+  | false =>
+  simp only [keysRun, bind_ok, Bool.false_eq_true, ↓reduceIte]
   obtain ⟨b, freeRun⟩ := data_free_runs context
   cases b with
   | true =>
@@ -586,12 +661,28 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
     (data : DataPrepared items p) :
     ∃ result, data_ontology.prepared_consistent p = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+        NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, facts⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} items sp data
     exact ⟨result, by simpa [data_ontology.prepared_consistent] using run,
-      fun answer h _ D _ V vocab => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+  | Keyed context nodes sp =>
+    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+    obtain ⟨result, run, encodedSound⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} enc sp prepData
+    obtain ⟨result', run', encodedComplete⟩ :=
+      Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
+    have same : result' = result := Result.ok_injective (run'.symm.trans run)
+    subst same
+    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab names =>
+      ⟨fun yes => ?_, fun model => ?_⟩⟩
+    · obtain ⟨Object', Value', embed', J, modelJ⟩ := (encodedSound answer h D V vocab).mp yes
+      obtain ⟨Object, Value, embed, I, _, modelI, _⟩ :=
+        keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact modelJ [] (by simp)
+      exact ⟨Object, Value, embed, I, modelI⟩
+    · obtain ⟨Object, Value, embed, I, modelI⟩ := model
+      obtain ⟨J, modelJ, _⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names keyed modelI [] (by simp)
+      exact (encodedComplete answer h D V vocab).mpr ⟨Object ⊕ Value, Value, embed, J, modelJ⟩
   | Encoded context nodes sp =>
     obtain ⟨good, ⟨enc, encRun, prepData⟩, _⟩ := data
     obtain ⟨result, run, encodedSound⟩ := Rowl.ShiOntology.prepared_consistent_correct.{u,v,w} enc sp prepData
@@ -599,7 +690,7 @@ theorem prepared_consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : 
       Rowl.ShiOntology.prepared_consistent_correct.{max u w v,v,w} enc sp prepData
     have same : result' = result := Result.ok_injective (run'.symm.trans run)
     subst same
-    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab =>
+    refine ⟨result', by simpa [data_ontology.prepared_consistent] using run, fun answer h Native D N V vocab _ =>
       ⟨fun yes => ?_, fun model => ?_⟩⟩
     · obtain ⟨Object', Value', embed', J, ⟨_, jInterp, g, jSat⟩⟩ := (encodedSound answer h D V vocab).mp yes
       obtain ⟨bits, o, frame, enough, names, sat⟩ := sound_satisfies.{u,v,w,max w v} N good encRun
@@ -715,12 +806,50 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
     (data : DataPrepared items p) (e : ClassExpression) :
     ∃ result, data_ontology.prepared_class_satisfiable p e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+        NamesKeyed V items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_class_satisfiable_correct.{u,v,w} items sp data e
     exact ⟨result, by simpa [data_ontology.prepared_class_satisfiable] using run,
-      fun answer h _ D _ V vocab => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+  | Keyed context nodes sp =>
+    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+    obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
+    cases b with
+    | false => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun], by simp⟩
+    | true =>
+      obtain ⟨res, classRun⟩ := encode_class_runs context e
+      cases res with
+      | none => exact ⟨none, by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun], by simp⟩
+      | some e' =>
+        let query : ClassExpression :=
+          .ObjectIntersectionOf ⟨e', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
+        obtain ⟨result, run, _, encodedSound⟩ :=
+          Rowl.ShiOntology.prepared_class_satisfiable_correct.{u,v,w} enc sp prepData query
+        obtain ⟨result', run', _, encodedComplete⟩ :=
+          Rowl.ShiOntology.prepared_class_satisfiable_correct.{max u w v,v,w} enc sp prepData query
+        have same : result' = result := Result.ok_injective (run'.symm.trans run)
+        subst same
+        have known : ∀ x ∈ [e], ∀ a ∈ classIndividuals x, KnownTo nodes a := by
+          intro x mem
+          simp only [List.mem_singleton] at mem
+          subst mem
+          exact knownFacts rfl
+        refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun, object_class_eq,
+          data_ontology.and, run, query], fun answer h Native D N V vocab names => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+        · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
+          rw [and_denote, object_class_denote] at inQuery
+          obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
+            keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [e] known
+          obtain ⟨z, rfl⟩ := onto y inQuery.2
+          exact ⟨Object, Value, embed, I, modelI, z, (transfer e (by simp) e' classRun z).mpr inQuery.1⟩
+        · obtain ⟨Object, Value, embed, I, model, x, inE⟩ := holds
+          obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
+            keyed model [e] (fun c mem a inside => keyed_plain good encRun (known c mem a inside).2)
+          apply (encodedComplete answer h D V vocab).mpr
+          refine ⟨Object ⊕ Value, Value, embed, J, modelJ, .inl x, ?_⟩
+          rw [and_denote, object_class_denote]
+          exact ⟨(transfer e (by simp) e' classRun x).mp inE, elements x⟩
   | Encoded context nodes sp =>
     obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
     obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
@@ -745,7 +874,7 @@ theorem prepared_class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom
           subst mem
           exact knownFacts rfl
         refine ⟨result', by simp [data_ontology.prepared_class_satisfiable, knownRun, classRun, object_class_eq,
-          data_ontology.and, run, query], fun answer h Native D N V vocab => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+          data_ontology.and, run, query], fun answer h Native D N V vocab _ => ⟨fun yes => ?_, fun holds => ?_⟩⟩
         · obtain ⟨Object', Value', embed', J, model, y, inQuery⟩ := (encodedSound answer h D V vocab).mp yes
           rw [and_denote, object_class_denote] at inQuery
           obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
@@ -767,12 +896,65 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
     (data : DataPrepared items p) (sub sup : ClassExpression) :
     ∃ result, data_ontology.prepared_subsumed p sub sup = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+        NamesKeyed V items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_subsumed_correct.{u,v,w} items sp data sub sup
     exact ⟨result, by simpa [data_ontology.prepared_subsumed] using run,
-      fun answer h _ D _ V vocab => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+  | Keyed context nodes sp =>
+    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+    obtain ⟨b1, knownRun1, knownFacts1⟩ := class_known_spec nodes sub
+    obtain ⟨b2, knownRun2, knownFacts2⟩ := class_known_spec nodes sup
+    cases b1 with
+    | false => exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1], by simp⟩
+    | true =>
+    cases b2 with
+    | false => exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2], by simp⟩
+    | true =>
+    obtain ⟨r1, classRun1⟩ := encode_class_runs context sub
+    obtain ⟨r2, classRun2⟩ := encode_class_runs context sup
+    cases r1 with
+    | none =>
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+    | some sub' =>
+    cases r2 with
+    | none =>
+      exact ⟨none, by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2], by simp⟩
+    | some sup' =>
+    let query : ClassExpression :=
+      .ObjectIntersectionOf ⟨sub', .ObjectComplementOf (.Class dataClass), alloc.vec.Vec.new ClassExpression⟩
+    obtain ⟨result, run, _, encodedSound⟩ :=
+      Rowl.ShiOntology.prepared_subsumed_correct.{u,v,w} enc sp prepData query sup'
+    obtain ⟨result', run', _, encodedComplete⟩ :=
+      Rowl.ShiOntology.prepared_subsumed_correct.{max u w v,v,w} enc sp prepData query sup'
+    have same : result' = result := Result.ok_injective (run'.symm.trans run)
+    subst same
+    have known : ∀ x ∈ [sub, sup], ∀ a ∈ classIndividuals x, KnownTo nodes a := by
+      intro x mem
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at mem
+      rcases mem with rfl | rfl
+      · exact knownFacts1 rfl
+      · exact knownFacts2 rfl
+    refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2,
+      object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab names =>
+        ⟨fun yes => ?_, fun holds => ?_⟩⟩
+    · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
+      intro Object Value embed I model x inSub
+      obtain ⟨J, modelJ, elements, _, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
+        keyed model [sub, sup] (fun c mem a inside => keyed_plain good encRun (known c mem a inside).2)
+      have inQuery : classDenote J query (.inl x) := by
+        rw [and_denote, object_class_denote]
+        exact ⟨(transfer sub (by simp) sub' classRun1 x).mp inSub, elements x⟩
+      exact (transfer sup (by simp) sup' classRun2 x).mpr (encodedSubsumed _ _ _ J modelJ (.inl x) inQuery)
+    · apply (encodedSound answer h D V vocab).mpr
+      intro Object' Value' embed' J model y inQuery
+      rw [and_denote, object_class_denote] at inQuery
+      obtain ⟨Object, Value, embed, I, point, modelI, onto, _, transfer⟩ :=
+        keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [sub, sup] known
+      obtain ⟨z, rfl⟩ := onto y inQuery.2
+      exact (transfer sup (by simp) sup' classRun2 z).mp
+        (holds Object Value embed I modelI z ((transfer sub (by simp) sub' classRun1 z).mpr inQuery.1))
   | Encoded context nodes sp =>
     obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
     obtain ⟨b1, knownRun1, knownFacts1⟩ := class_known_spec nodes sub
@@ -808,7 +990,8 @@ theorem prepared_subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (p : da
       · exact knownFacts1 rfl
       · exact knownFacts2 rfl
     refine ⟨result', by simp [data_ontology.prepared_subsumed, knownRun1, knownRun2, classRun1, classRun2,
-      object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+      object_class_eq, data_ontology.and, run, query], fun answer h Native D N V vocab _ =>
+        ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedSubsumed := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model x inSub
       obtain ⟨J, modelJ, elements, _, transfer⟩ := lifted_model.{u,v,w} N vocab good encRun model [sub, sup]
@@ -834,12 +1017,63 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
     (data : DataPrepared items p) (a : NamedIndividual) (e : ClassExpression) :
     ∃ result, data_ontology.prepared_instance_of p a e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+        NamesKeyed V items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   cases p with
   | Plain sp =>
     obtain ⟨result, run, _, facts⟩ := Rowl.ShiOntology.prepared_instance_of_correct.{u,v,w} items sp data a e
     exact ⟨result, by simpa [data_ontology.prepared_instance_of] using run,
-      fun answer h _ D _ V vocab => facts answer h D V vocab⟩
+      fun answer h _ D _ V vocab _ => facts answer h D V vocab⟩
+  | Keyed context nodes sp =>
+    obtain ⟨good, ⟨counting, enc, encRun, prepData⟩, nodesExact, keyed⟩ := data
+    obtain ⟨k, namedRun, namedFacts⟩ := named_known_spec nodes a
+    cases k with
+    | false => exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun], by simp⟩
+    | true =>
+    obtain ⟨plainA, aIn⟩ := namedFacts rfl
+    obtain ⟨b, knownRun, knownFacts⟩ := class_known_spec nodes e
+    cases b with
+    | false =>
+      exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun], by simp⟩
+    | true =>
+    obtain ⟨res, classRun⟩ := encode_class_runs context e
+    cases res with
+    | none =>
+      exact ⟨none, by simp [data_ontology.prepared_instance_of, namedRun, knownRun, classRun], by simp⟩
+    | some e' =>
+    let query : ClassExpression := .ObjectUnionOf ⟨e', .Class dataClass, alloc.vec.Vec.new ClassExpression⟩
+    obtain ⟨result, run, _, encodedSound⟩ :=
+      Rowl.ShiOntology.prepared_instance_of_correct.{u,v,w} enc sp prepData a query
+    obtain ⟨result', run', _, encodedComplete⟩ :=
+      Rowl.ShiOntology.prepared_instance_of_correct.{max u w v,v,w} enc sp prepData a query
+    have same : result' = result := Result.ok_injective (run'.symm.trans run)
+    subst same
+    have known : ∀ x ∈ [e], ∀ b ∈ classIndividuals x, KnownTo nodes b := by
+      intro x mem
+      simp only [List.mem_singleton] at mem
+      subst mem
+      exact knownFacts rfl
+    refine ⟨result', by simp [data_ontology.prepared_instance_of, namedRun, knownRun, classRun,
+      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab names =>
+        ⟨fun yes => ?_, fun holds => ?_⟩⟩
+    · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
+      intro Object Value embed I model
+      obtain ⟨J, modelJ, elements, namesJ, transfer⟩ := keyed_lifted_model.{u,v,w} N vocab good encRun nodesExact names
+        keyed model [e] (fun c mem b inside => keyed_plain good encRun (known c mem b inside).2)
+      have holdsJ := encodedInstance _ _ _ J modelJ
+      rw [or_denote, namesJ a plainA] at holdsJ
+      rcases holdsJ with inE | isData
+      · exact (transfer e (by simp) e' classRun _).mpr inE
+      · exact absurd ((class_denote_named J _ _).mp isData) (elements _)
+    · apply (encodedSound answer h D V vocab).mpr
+      intro Object' Value' embed' J model
+      rw [or_denote]
+      by_cases isData : J.classes dataClass (J.namedIndividuals a)
+      · exact .inr ((class_denote_named J _ _).mpr isData)
+      · obtain ⟨Object, Value, embed, I, point, modelI, _, names', transfer⟩ :=
+          keyed_encoded_model.{u,v,w} N vocab good encRun nodesExact model [e] known
+        left
+        rw [← (names' a aIn).2]
+        exact (transfer e (by simp) e' classRun _).mp (holds Object Value embed I modelI)
   | Encoded context nodes sp =>
     obtain ⟨good, ⟨enc, encRun, prepData⟩, nodesAdd⟩ := data
     by_cases reserved : Reserved a.iri.spelling.val
@@ -868,7 +1102,8 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
       subst mem
       exact knownFacts rfl
     refine ⟨result', by simp [data_ontology.prepared_instance_of, reserved_correct, reserved, knownRun, classRun,
-      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab => ⟨fun yes => ?_, fun holds => ?_⟩⟩
+      data_class_eq, data_ontology.or, run, query], fun answer h Native D N V vocab _ =>
+        ⟨fun yes => ?_, fun holds => ?_⟩⟩
     · have encodedInstance := (encodedComplete answer h D V vocab).mp yes
       intro Object Value embed I model
       obtain ⟨J, modelJ, elements, names, transfer⟩ := lifted_model.{u,v,w} N vocab good encRun model [e]
@@ -893,7 +1128,7 @@ theorem prepared_instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (p :
 theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ result, data_ontology.consistent items = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+        NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
   obtain ⟨res, run, facts⟩ := prepare_correct items
   cases res with
   | none => exact ⟨none, by simp [data_ontology.consistent, run], by simp⟩
@@ -905,7 +1140,7 @@ theorem consistent_correct (items : alloc.vec.Vec AnnotatedAxiom) :
 theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : ClassExpression) :
     ∃ result, data_ontology.class_satisfiable items e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
+        NamesKeyed V items.val → (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V items.val e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
   obtain ⟨c3, run3, good3⟩ := with_truths_good c2 good2
@@ -920,7 +1155,7 @@ theorem class_satisfiable_correct (items : alloc.vec.Vec AnnotatedAxiom) (e : Cl
 theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : ClassExpression) :
     ∃ result, data_ontology.subsumed items sub sup = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
+        NamesKeyed V items.val → (answer = true ↔ Subsumed.{u, max w v, w} D V items.val sub sup) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good sub c1 good1
   obtain ⟨c3, run3, good3⟩ := class_context_good sup c2 good2
@@ -936,7 +1171,7 @@ theorem subsumed_correct (items : alloc.vec.Vec AnnotatedAxiom) (sub sup : Class
 theorem instance_of_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : NamedIndividual) (e : ClassExpression) :
     ∃ result, data_ontology.instance_of items a e = .ok result ∧ ∀ answer, result = some answer →
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
-        (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
+        NamesKeyed V items.val → (answer = true ↔ InstanceOf.{u, max w v, w} D V items.val a e) := by
   obtain ⟨c1, run1, good1⟩ := closure_context_good items
   obtain ⟨c2, run2, good2⟩ := class_context_good e c1 good1
   obtain ⟨c3, run3, good3⟩ := with_truths_good c2 good2

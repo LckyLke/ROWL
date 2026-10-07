@@ -29,6 +29,7 @@ open Rowl.FunctionalDocument (TailRun WithPrefixes)
 open Rowl.FunctionalModel (OntologyModel document_ontology_correct)
 open Rowl.Owl (DatatypeMap Vocabulary IsVocabulary Consistent ClassSatisfiable Subsumed InstanceOf)
 open Rowl.DatatypeMap (Normative)
+open Rowl.KeyEncoding (NamesKeyed)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 universe u v w
@@ -164,6 +165,7 @@ theorem source_consistent_correct (bytes : alloc.vec.Vec U8) (limits : DocumentL
         data_ontology.consistent ontology.axioms = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
           (answer = true ↔ Consistent.{u, max w v, w} D V ontology.axioms.val) := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · refine ⟨.Err error,by simp [source_reasoning.source_consistent,readRun],?_,?_,?_⟩
@@ -186,12 +188,13 @@ theorem source_consistent_complete (bytes : alloc.vec.Vec U8) (limits : Document
     (answer : Bool) (answered : source_reasoning.source_consistent bytes limits scope = .ok (.Ok (some answer))) :
     ∃ ontology, SourceOntology bytes limits scope ontology ∧
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
         Consistent.{u, max w v, w} D V ontology.axioms.val → answer = true := by
   obtain ⟨result,run,_,_,semantic⟩ := source_consistent_correct.{u,v,w} bytes limits scope
   rw [answered] at run
   cases Result.ok_injective run
   obtain ⟨ontology,source,exact⟩ := semantic answer rfl
-  exact ⟨ontology,source,fun D normative V vocabulary model => (exact D normative V vocabulary).mpr model⟩
+  exact ⟨ontology,source,fun D normative V vocabulary names model => (exact D normative V vocabulary names).mpr model⟩
 /-- Class satisfiability from source bytes always terminates. An error is
     exactly the reader's first error; otherwise the result is the kernel's
     satisfiability query on the raw OWL ontology of the bytes, and an answer is
@@ -205,6 +208,7 @@ theorem source_class_satisfiable_correct (bytes : alloc.vec.Vec U8) (limits : Do
         data_ontology.class_satisfiable ontology.axioms e = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
           (answer = true ↔ ClassSatisfiable.{u, max w v, w} D V ontology.axioms.val e) := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · refine ⟨.Err error,by simp [source_reasoning.source_class_satisfiable,readRun],?_,?_,?_⟩
@@ -229,12 +233,13 @@ theorem source_class_satisfiable_complete (bytes : alloc.vec.Vec U8) (limits : D
     (answered : source_reasoning.source_class_satisfiable bytes limits scope e = .ok (.Ok (some answer))) :
     ∃ ontology, SourceOntology bytes limits scope ontology ∧
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
         ClassSatisfiable.{u, max w v, w} D V ontology.axioms.val e → answer = true := by
   obtain ⟨result,run,_,_,semantic⟩ := source_class_satisfiable_correct.{u,v,w} bytes limits scope e
   rw [answered] at run
   cases Result.ok_injective run
   obtain ⟨ontology,source,exact⟩ := semantic answer rfl
-  exact ⟨ontology,source,fun D normative V vocabulary model => (exact D normative V vocabulary).mpr model⟩
+  exact ⟨ontology,source,fun D normative V vocabulary names model => (exact D normative V vocabulary names).mpr model⟩
 /-- Subsumption from source bytes always terminates. An error is exactly the
     reader's first error; otherwise the result is the kernel's subsumption query
     on the raw OWL ontology of the bytes, and an answer is exactly whether every
@@ -247,6 +252,7 @@ theorem source_subsumed_correct (bytes : alloc.vec.Vec U8) (limits : DocumentLim
         data_ontology.subsumed ontology.axioms sub sup = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
           (answer = true ↔ Subsumed.{u, max w v, w} D V ontology.axioms.val sub sup) := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · refine ⟨.Err error,by simp [source_reasoning.source_subsumed,readRun],?_,?_,?_⟩
@@ -268,12 +274,13 @@ theorem source_subsumed_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLimit
     (answered : source_reasoning.source_subsumed bytes limits scope sub sup = .ok (.Ok (some true))) :
     ∃ ontology, SourceOntology bytes limits scope ontology ∧
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
         Subsumed.{u, max w v, w} D V ontology.axioms.val sub sup := by
   obtain ⟨result,run,_,_,semantic⟩ := source_subsumed_correct.{u,v,w} bytes limits scope sub sup
   rw [answered] at run
   cases Result.ok_injective run
   obtain ⟨ontology,source,exact⟩ := semantic true rfl
-  exact ⟨ontology,source,fun D normative V vocabulary => (exact D normative V vocabulary).mp rfl⟩
+  exact ⟨ontology,source,fun D normative V vocabulary names => (exact D normative V vocabulary names).mp rfl⟩
 /-- Instance checking from source bytes always terminates. An error is exactly
     the reader's first error; otherwise the result is the kernel's instance
     query on the raw OWL ontology of the bytes, and an answer is exactly whether
@@ -287,6 +294,7 @@ theorem source_instance_of_correct (bytes : alloc.vec.Vec U8) (limits : Document
         data_ontology.instance_of ontology.axioms a e = .ok answer) ∧
       ∀ answer, result = .Ok (some answer) → ∃ ontology, SourceOntology bytes limits scope ontology ∧
         ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
           (answer = true ↔ InstanceOf.{u, max w v, w} D V ontology.axioms.val a e) := by
   rcases pipeline bytes limits scope with ⟨error,readRun⟩ | ⟨document,ontology,readRun,mappedRun,source⟩
   · refine ⟨.Err error,by simp [source_reasoning.source_instance_of,readRun],?_,?_,?_⟩
@@ -308,10 +316,11 @@ theorem source_instance_of_sound (bytes : alloc.vec.Vec U8) (limits : DocumentLi
     (answered : source_reasoning.source_instance_of bytes limits scope a e = .ok (.Ok (some true))) :
     ∃ ontology, SourceOntology bytes limits scope ontology ∧
       ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        NamesKeyed V ontology.axioms.val →
         InstanceOf.{u, max w v, w} D V ontology.axioms.val a e := by
   obtain ⟨result,run,_,_,semantic⟩ := source_instance_of_correct.{u,v,w} bytes limits scope a e
   rw [answered] at run
   cases Result.ok_injective run
   obtain ⟨ontology,source,exact⟩ := semantic true rfl
-  exact ⟨ontology,source,fun D normative V vocabulary => (exact D normative V vocabulary).mp rfl⟩
+  exact ⟨ontology,source,fun D normative V vocabulary names => (exact D normative V vocabulary names).mp rfl⟩
 end Rowl.SourceReasoning

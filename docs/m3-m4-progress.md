@@ -5330,3 +5330,105 @@ unchanged.
 
 This block adds 9 public theorems and 0 definitions. Totals are 3188 audited
 theorems, 1430 definitions, 586 Rust regressions and 3381 ledger obligations.
+
+## M5: Keys with object properties in the ontology queries
+
+The ontology queries now answer for closures with keys whose properties are
+object properties. A key `HasKey(CE (P1 … Pm) ())` says that two named instances
+of `CE` that share a named `Pi`-value for every `i` are equal (Direct
+Semantics §2.3.5). `data_ontology::prepare` hands a closure with a key to the
+new `key_ontology::prepare`, which encodes the keys into SROIQ axioms next to
+the data encoding of the other axioms, so the completion forest decides them;
+closures without keys take the same path as before.
+
+The encoding asserts a fresh class `N` (the name `[0, K]`) at every named
+individual of the closure, those of the keys' class expressions included, with
+`N` kept apart from the data nodes, and asks every key of the elements of `N`
+only. A key with one property `P`, in a closure without transitive properties
+and property chains (so that `P` is simple), becomes
+`N ⊑ ≤1 P⁻.(CE' ⊓ N)` for the encoding `CE'` of its class expression: a named
+value has at most one named instance of `CE` as its `P`-predecessor
+(`countedAxiom`). Every other key gets a role `mark` whose self loops mark the
+elements of `N` (`N ⊑ ∃mark.Self`), for each property the chain
+`Pi ∘ mark ∘ Pi⁻ ⊑ share(Pi)` (two elements that share a named `Pi`-value), and
+at every named individual `x` the assertion
+`x : ∀share(P1).(¬N ⊔ ¬CE' ⊔ {x} ⊔ ∀share(P2)⁻.¬{x} ⊔ … ⊔ ∀share(Pm)⁻.¬{x} ⊔ ∀share(P1)⁻.(¬{x} ⊔ ¬CE'))`.
+Its last disjunct says, at an element that shares a value with `x`, that `x`
+is not in `CE`, so the forest splits on `CE` at `x` only where some element
+shares a value with `x`. The form `x : ¬CE' ⊔ ∀share(P1).(…)` with the split at
+every named individual took 214 s on 51 patients with a two-property key and a
+contradicting inequality (debug build); this form takes 1.1 s.
+
+`IsInterpretation` only requires the individuals of the vocabulary to be
+named, and keys apply only to named individuals, so the answers are the Direct
+Semantics answers for every vocabulary that names the closure's individuals:
+`NamesKeyed V items` asks that every named individual of a closure with keys,
+its keys' class expressions included, be an individual of `V`, and asks
+nothing of a closure without keys, so the query theorems keep their strength
+there.
+
+`KeyEncoding.lean` specifies the actual kernel functions and what their axioms
+say: `counted_holds`, `chain_holds` and `shared_holds` give the meaning of the
+three axiom forms, `key_axioms_spec` and `keys_from_spec` prove `KeysMeans`
+(in an interpretation that satisfies the key axioms with the closure's named
+individuals in `N` and marked, every key holds for those individuals; and the
+axioms hold in every interpretation in which `mark` and `share` have their
+intended structure and the key holds for the elements of `N`),
+`encode_meaning` describes the whole encoding and `closure_nodes` proves that
+the kernel collects exactly the individuals the closure names.
+`KeyModels.lean` builds the models: `keyed_encoded_model` turns a model of the
+encoding into an OWL model of the closure whose named elements are exactly the
+closure's named individuals (`keyedSound`, the data encoding's interpretation
+with the other named individuals placed at the first of them), and
+`keyed_lifted_model` lifts an OWL model for a vocabulary that names the
+closure's individuals to a model of the encoding (`liftedN`: `N` the named
+elements, `mark` their self loops and those of the data values, `share(P)` the
+pairs that share such an element along `P`); in both, every question whose
+individuals the closure names holds exactly where its encoding does.
+`DataOntology.lean` proves the dispatch (`key_prepare_correct`,
+`prepare_in_correct`) and states `consistent_correct`,
+`class_satisfiable_correct`, `subsumed_correct`, `instance_of_correct` and
+their prepared forms with the `NamesKeyed` hypothesis; an instance question
+about a closure with keys must name an individual the closure names
+(`named_known_spec`), else it gets no answer. `Classification.classify_correct`
+and the source queries of `SourceReasoning.lean` carry the hypothesis along.
+
+The kernel module is `crates/rowl-kernel/src/key_ontology.rs`;
+`data_ontology.rs` gets the `Prepared::Keyed` variant, the dispatch, the keyed
+arms of the prepared queries and `named_known`, and makes a few helpers
+`pub(crate)`. Twelve regression tests (`crates/rowl-kernel/tests/key_ontology.rs`)
+cover two patients with the same named insurance id, who become equal and
+share their classes, and are different without the key; an asserted
+`DifferentIndividuals`, which makes the closure inconsistent; keys that apply
+only to instances of the key class and never to anonymous individuals or
+through unnamed values (an anonymous value, and a value that only an
+existential restriction provides); a key that resolves a disjunction; keys with
+several properties, which need every value shared; keys on inverse and
+transitive properties; nominals in key classes; prepared queries; and the keys
+that get no answer.
+
+Not done: keys with a data property, a key with no property or the universal
+role, and instance questions about individuals the closure does not name get
+no answer. Data-property keys need, in the model made from a model of the
+encoding, values of the named elements that differ unless their data nodes are
+the same literal node (the data encoding's values are chosen per element and
+may coincide across elements); with the five datatypes every boolean data node
+is one of the two truth literal nodes already. The ledger entries
+`calculus.KeysNamedSubjects` and `calculus.KeysNamedObjectValues` stay planned,
+like the other calculus entries, until full OWL 2 DL is covered.
+
+Before this block a closure with a key got no answer. With it, `rowl check`
+(release build, shared machine) on generated closures of `n` patients with
+named insurance ids, one more patient sharing the first one's values, and an
+inequality between the two that makes the closure inconsistent takes, for
+`HasKey(:Patient (:hasInsuranceId) ())` (the counted form), 0.47 s for
+`n = 100`, 19.6 s for `n = 400` (22.4 s without the inequality) and 320 s for
+`n = 1000`; for `HasKey(:Patient (:hasInsuranceId :hasBirthDate) ())` (the
+shared form) 0.45 s for `n = 50`, 1.6 s for `n = 100` and 13.0 s for `n = 200`
+(11.6 s without the inequality). The cost grows with the number of named
+individuals, each of which is a node of the completion forest; closures
+without keys are unaffected.
+
+This block adds 128 public theorems and 36 definitions. Totals are 3316
+audited theorems, 1466 definitions, 598 Rust regressions and 3509 ledger
+obligations.

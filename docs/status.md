@@ -1026,12 +1026,35 @@ progress. Full OWL parsing and executable reasoning are still future work.
   integers, decimals that are no integers, strings, tagged strings and values
   outside every datatype. Under every datatype map that is the OWL 2 map on the
   five datatypes an answer is therefore the Direct Semantics answer. Datatype
-  restrictions, datatype definitions, keys, the other datatypes,
-  `owl:topDataProperty` outside an inclusion into it and the universal role
-  outside its own axioms get no answer, as does a question that names an
-  individual the closure does not name. Since the source reasoning stage these
-  answers also come straight from Functional Syntax bytes, which the reader
-  reads with all their data axioms, data restrictions and data assertions.
+  restrictions, datatype definitions, keys with a data property, the other
+  datatypes, `owl:topDataProperty` outside an inclusion into it and the
+  universal role outside its own axioms get no answer, as does a question that
+  names an individual the closure does not name. Since the source reasoning
+  stage these answers also come straight from Functional Syntax bytes, which the
+  reader reads with all their data axioms, data restrictions and data
+  assertions.
+- M5 keys with object properties in the ontology queries (`key_ontology`): a
+  closure with `HasKey` axioms goes to `key_ontology::prepare`, which encodes
+  the keys next to the data encoding of the other axioms. A fresh class `N` is
+  asserted at every named individual of the closure, those of the keys' class
+  expressions included, and kept apart from the data nodes. A key with one
+  property `P`, in a closure without transitive properties and property
+  chains, becomes `N ⊑ ≤1 P⁻.(CE ⊓ N)`; every other key gets a role `mark`
+  whose self loops mark `N`, the chain `P ∘ mark ∘ P⁻ ⊑ share(P)` of each of its
+  properties and, at every named individual `x`, the assertion
+  `x : ∀share(P1).(¬N ⊔ ¬CE ⊔ {x} ⊔ ∀share(P2)⁻.¬{x} ⊔ … ⊔ ∀share(P1)⁻.(¬{x} ⊔ ¬CE))`.
+  A model of the encoding gives an OWL model of the closure whose named
+  elements are exactly the closure's named individuals
+  (`keyed_encoded_model`), and an OWL model lifts to a model of the encoding
+  with `N` its named elements (`keyed_lifted_model`), provided its vocabulary
+  names the closure's individuals, since keys apply only to named individuals.
+  So consistency, class satisfiability, subsumption, instance checking (about
+  an individual the closure names) and classification are proved to give the
+  Direct Semantics answer for every vocabulary that names the individuals of a
+  closure with keys (`NamesKeyed`, which asks nothing of a closure without
+  keys), also from source bytes. Keys apply neither to anonymous individuals
+  nor through unnamed values. Keys with a data property, no property or the
+  universal role get no answer.
 - Classification of named classes: `classification::classify` answers, for a
   prepared closure and a list of named classes, whether each class is
   satisfiable and, for every pair, whether the first is subsumed by the second.
@@ -1123,7 +1146,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 3188 audited public theorems and 1430 audited semantic definitions. Consistency,
+- 3316 audited public theorems and 1466 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1135,12 +1158,13 @@ progress. Full OWL parsing and executable reasoning are still future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  and data assertions over the five datatypes under the OWL 2 datatype map;
+  and data assertions over the five datatypes under the OWL 2 datatype map and
+  keys with object properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 586 Rust regression tests and 18 Python binding tests, plus separately fetched
+- 598 Rust regression tests and 18 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1157,7 +1181,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 3381-obligation release ledger and separate checked constructor and built-in inventories.
+- A 3509-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 

@@ -32,14 +32,19 @@
 //! every combination of datatypes outside the literals allow; and every OWL
 //! model, with its data values as data nodes, is a model of the encoding.
 //!
+//! A closure with keys is encoded by `key_ontology`, which adds the keys to
+//! this encoding of its other axioms.
+//!
 //! `None` means that the closure or the question uses a datatype restriction, a
-//! datatype definition, a key, another datatype, a literal outside its lexical
-//! space, `owl:topDataProperty` outside an inclusion into it, `owl:Thing` as a
-//! disjoint union, a number restriction along the universal role, the universal
-//! role included in another role (alone or in a chain), equivalent or inverse
-//! to a role, functional or inverse functional, or a name starting with the
-//! byte 0; that a question names an individual that is anonymous or that the
-//! closure does not mention; or that the queries give no answer.
+//! datatype definition, another datatype, a literal outside its lexical space,
+//! `owl:topDataProperty` outside an inclusion into it, `owl:Thing` as a disjoint
+//! union, a number restriction along the universal role, the universal role
+//! included in another role (alone or in a chain), equivalent or inverse to a
+//! role, functional or inverse functional, a key that `key_ontology` declines,
+//! or a name starting with the byte 0; that a question names an individual that
+//! is anonymous or that the closure does not mention, or, for a closure with
+//! keys, asks whether such an individual is an instance; or that the queries give
+//! no answer.
 #![allow(
     clippy::ptr_arg,
     clippy::question_mark,
@@ -55,6 +60,7 @@
 use crate::alc_ontology::{intern, position};
 use crate::concepts::copy_individual;
 use crate::datatypes::{in_kind, kind_of, literal_value, same_value, DataValue, Kind};
+use crate::key_ontology;
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange, Individual,
     Iri, Literal, NamedIndividual, NonEmpty, ObjectProperty, ObjectPropertyExpression,
@@ -155,7 +161,7 @@ fn named(role: &ObjectPropertyExpression) -> &ObjectProperty {
     }
 }
 /// Whether the role is the universal role or its inverse.
-fn universal(role: &ObjectPropertyExpression) -> bool {
+pub(crate) fn universal(role: &ObjectPropertyExpression) -> bool {
     is_top_object(named(role))
 }
 
@@ -196,14 +202,14 @@ fn bytes(value: usize, count: usize, mut out: Vec<u8>) -> Vec<u8> {
     }
 }
 /// The byte 0, a tag and `rest`.
-fn tagged_name(tag: u8, rest: Vec<u8>) -> Vec<u8> {
+pub(crate) fn tagged_name(tag: u8, rest: Vec<u8>) -> Vec<u8> {
     let mut spelling = Vec::new();
     spelling.push(0);
     spelling.push(tag);
     copy_after(&rest, 0, spelling)
 }
 /// `out` followed by `source[index..]`.
-fn copy_after(source: &Vec<u8>, index: usize, mut out: Vec<u8>) -> Vec<u8> {
+pub(crate) fn copy_after(source: &Vec<u8>, index: usize, mut out: Vec<u8>) -> Vec<u8> {
     if index < source.len() {
         out.push(source[index]);
         copy_after(source, index + 1, out)
@@ -221,7 +227,7 @@ fn data_class() -> ClassExpression {
     class_named(tagged_name(b'D', Vec::new()))
 }
 /// The complement of `D`.
-fn object_class() -> ClassExpression {
+pub(crate) fn object_class() -> ClassExpression {
     ClassExpression::ObjectComplementOf(Box::new(data_class()))
 }
 /// The index of a kind: integer 0, decimal 1, string 2, plain literal 3,
@@ -447,7 +453,7 @@ fn optional_range_context(context: Context, range: &Option<DataRange>) -> Contex
         None => context,
     }
 }
-fn class_context(context: Context, class: &ClassExpression) -> Context {
+pub(crate) fn class_context(context: Context, class: &ClassExpression) -> Context {
     match class {
         ClassExpression::Class(_) => context,
         ClassExpression::ObjectIntersectionOf(members)
@@ -495,7 +501,11 @@ fn members_context(context: Context, members: &AtLeastTwo<ClassExpression>) -> C
     let context = class_context(context, &members.second);
     classes_context(context, &members.rest, 0)
 }
-fn roles_context(context: Context, roles: &Vec<ObjectPropertyExpression>, index: usize) -> Context {
+pub(crate) fn roles_context(
+    context: Context,
+    roles: &Vec<ObjectPropertyExpression>,
+    index: usize,
+) -> Context {
     if index < roles.len() {
         roles_context(add_role(context, &roles[index]), roles, index + 1)
     } else {
@@ -507,7 +517,11 @@ fn role_members_context(context: Context, roles: &AtLeastTwo<ObjectPropertyExpre
     let context = add_role(context, &roles.second);
     roles_context(context, &roles.rest, 0)
 }
-fn data_list_context(context: Context, data: &Vec<DataProperty>, index: usize) -> Context {
+pub(crate) fn data_list_context(
+    context: Context,
+    data: &Vec<DataProperty>,
+    index: usize,
+) -> Context {
     if index < data.len() {
         data_list_context(add_data(context, &data[index]), data, index + 1)
     } else {
@@ -590,7 +604,7 @@ fn closure_context(items: &Vec<AnnotatedAxiom>) -> Context {
 }
 /// The context with both truth values among the literal values when the
 /// booleans are in use.
-fn with_truths(mut context: Context) -> Context {
+pub(crate) fn with_truths(mut context: Context) -> Context {
     if context.kinds.boolean {
         context.values = add_value(context.values, DataValue::Truth(true));
         context.values = add_value(context.values, DataValue::Truth(false));
@@ -614,14 +628,14 @@ fn positive(value: &Natural) -> bool {
         Natural::Succ(_) => true,
     }
 }
-fn and(left: ClassExpression, right: ClassExpression) -> ClassExpression {
+pub(crate) fn and(left: ClassExpression, right: ClassExpression) -> ClassExpression {
     ClassExpression::ObjectIntersectionOf(Box::new(AtLeastTwo {
         first: left,
         second: right,
         rest: Vec::new(),
     }))
 }
-fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
+pub(crate) fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
     ClassExpression::ObjectUnionOf(Box::new(AtLeastTwo {
         first: left,
         second: right,
@@ -630,7 +644,7 @@ fn or(left: ClassExpression, right: ClassExpression) -> ClassExpression {
 }
 /// A copy of an object property expression of the context, or of the
 /// universal role.
-fn object_role(
+pub(crate) fn object_role(
     context: &Context,
     role: &ObjectPropertyExpression,
 ) -> Option<ObjectPropertyExpression> {
@@ -652,7 +666,7 @@ fn object_role(
     }
 }
 /// A copy of an individual whose name is not the encoding's.
-fn object_individual_of(individual: &Individual) -> Option<Individual> {
+pub(crate) fn object_individual_of(individual: &Individual) -> Option<Individual> {
     match individual {
         Individual::Named(named) => {
             if reserved(&named.iri.spelling) {
@@ -1172,7 +1186,7 @@ fn encode_object_members(
 // ---------------------------------------------------------------------------
 
 /// `out` with the axiom; `None` when there is no room.
-fn push(mut out: Vec<AnnotatedAxiom>, axiom: Axiom) -> Option<Vec<AnnotatedAxiom>> {
+pub(crate) fn push(mut out: Vec<AnnotatedAxiom>, axiom: Axiom) -> Option<Vec<AnnotatedAxiom>> {
     if out.len() < usize::MAX {
         out.push(AnnotatedAxiom {
             annotations: Vec::new(),
@@ -1495,7 +1509,7 @@ fn encode_sub(
     }
 }
 /// `out` with the axioms an axiom becomes.
-fn encode_axiom(
+pub(crate) fn encode_axiom(
     context: &Context,
     item: &Axiom,
     out: Vec<AnnotatedAxiom>,
@@ -2079,7 +2093,10 @@ fn list_individuals(
 }
 /// `nodes` with the individuals of the nominals and value restrictions of a
 /// class expression.
-fn class_individuals(nodes: Vec<Individual>, class: &ClassExpression) -> Option<Vec<Individual>> {
+pub(crate) fn class_individuals(
+    nodes: Vec<Individual>,
+    class: &ClassExpression,
+) -> Option<Vec<Individual>> {
     match class {
         ClassExpression::ObjectIntersectionOf(members)
         | ClassExpression::ObjectUnionOf(members) => members_individuals(nodes, members),
@@ -2165,7 +2182,7 @@ fn axiom_individuals(nodes: Vec<Individual>, axiom: &Axiom) -> Option<Vec<Indivi
     }
 }
 /// `nodes` with the individuals that the axioms of `items[index..]` mention.
-fn items_individuals(
+pub(crate) fn items_individuals(
     nodes: Vec<Individual>,
     items: &Vec<AnnotatedAxiom>,
     index: usize,
@@ -2177,6 +2194,23 @@ fn items_individuals(
         }
     } else {
         Some(nodes)
+    }
+}
+/// Whether the named individual is among `nodes` and its name is not the
+/// encoding's.
+fn named_known(nodes: &Vec<Individual>, individual: &NamedIndividual) -> bool {
+    if reserved(&individual.iri.spelling) {
+        false
+    } else {
+        position(
+            nodes,
+            &Individual::Named(NamedIndividual {
+                iri: Iri {
+                    spelling: copy_bytes(&individual.iri.spelling),
+                },
+            }),
+            0,
+        ) != 0
     }
 }
 /// Whether the individual is named and among `nodes`.
@@ -2234,11 +2268,14 @@ fn classes_known(nodes: &Vec<Individual>, classes: &Vec<ClassExpression>, index:
 // ---------------------------------------------------------------------------
 
 /// A closure prepared for the queries: as it is when it has no data
-/// properties, literals or datatypes, and otherwise its context, the
-/// individuals it mentions and its encoding.
+/// properties, literals, datatypes or keys, otherwise its context, the
+/// individuals it mentions and its encoding, and for a closure with keys its
+/// context, the individuals it mentions (its keys' class expressions
+/// included) and its encoding with the keys (`key_ontology`).
 pub enum Prepared {
     Plain(shi_ontology::Prepared),
     Encoded(Context, Vec<Individual>, shi_ontology::Prepared),
+    Keyed(Context, Vec<Individual>, shi_ontology::Prepared),
 }
 /// Whether the context has no data properties, literal values or datatypes.
 fn data_free(context: &Context) -> bool {
@@ -2250,10 +2287,12 @@ fn data_free(context: &Context) -> bool {
         && !context.kinds.plain
         && !context.kinds.boolean
 }
-/// The closure prepared in the context: as it is when the context has no data,
-/// and otherwise encoded.
+/// The closure prepared in the context: encoded with its keys when it has
+/// keys, as it is when the context has no data, and otherwise encoded.
 fn prepare_in(items: &Vec<AnnotatedAxiom>, context: Context) -> Option<Prepared> {
-    if data_free(&context) {
+    if key_ontology::has_keys(items, 0) {
+        key_ontology::prepare(items, context)
+    } else if data_free(&context) {
         match shi_ontology::prepare(items) {
             Some(prepared) => Some(Prepared::Plain(prepared)),
             None => None,
@@ -2281,6 +2320,7 @@ pub fn prepared_consistent(prepared: &Prepared) -> Option<bool> {
     match prepared {
         Prepared::Plain(prepared) => shi_ontology::prepared_consistent(prepared),
         Prepared::Encoded(_, _, prepared) => shi_ontology::prepared_consistent(prepared),
+        Prepared::Keyed(_, _, prepared) => shi_ontology::prepared_consistent(prepared),
     }
 }
 /// Whether some model of the prepared closure has an instance of the class
@@ -2289,6 +2329,18 @@ pub fn prepared_class_satisfiable(prepared: &Prepared, class: &ClassExpression) 
     match prepared {
         Prepared::Plain(prepared) => shi_ontology::prepared_class_satisfiable(prepared, class),
         Prepared::Encoded(context, nodes, prepared) => {
+            if !class_known(nodes, class) {
+                return None;
+            }
+            match encode_class(context, class) {
+                Some(encoded) => shi_ontology::prepared_class_satisfiable(
+                    prepared,
+                    &and(encoded, object_class()),
+                ),
+                None => None,
+            }
+        }
+        Prepared::Keyed(context, nodes, prepared) => {
             if !class_known(nodes, class) {
                 return None;
             }
@@ -2322,10 +2374,23 @@ pub fn prepared_subsumed(
                 _ => None,
             }
         }
+        Prepared::Keyed(context, nodes, prepared) => {
+            if !(class_known(nodes, sub) && class_known(nodes, sup)) {
+                return None;
+            }
+            match (encode_class(context, sub), encode_class(context, sup)) {
+                (Some(sub), Some(sup)) => {
+                    shi_ontology::prepared_subsumed(prepared, &and(sub, object_class()), &sup)
+                }
+                _ => None,
+            }
+        }
     }
 }
 /// Whether the named individual is an instance of the class expression in
-/// every model of the prepared closure.
+/// every model of the prepared closure; for a closure with keys only about an
+/// individual the closure names, since keys apply to the named individuals of
+/// the vocabulary.
 pub fn prepared_instance_of(
     prepared: &Prepared,
     individual: &NamedIndividual,
@@ -2337,6 +2402,19 @@ pub fn prepared_instance_of(
         }
         Prepared::Encoded(context, nodes, prepared) => {
             if reserved(&individual.iri.spelling) || !class_known(nodes, class) {
+                return None;
+            }
+            match encode_class(context, class) {
+                Some(encoded) => shi_ontology::prepared_instance_of(
+                    prepared,
+                    individual,
+                    &or(encoded, data_class()),
+                ),
+                None => None,
+            }
+        }
+        Prepared::Keyed(context, nodes, prepared) => {
+            if !named_known(nodes, individual) || !class_known(nodes, class) {
                 return None;
             }
             match encode_class(context, class) {
