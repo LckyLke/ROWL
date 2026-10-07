@@ -3,7 +3,7 @@
 M0, M1 feasibility probes and M2 structural representation/independent semantics
 are complete. M3 and M4 have verified components; both milestones remain in
 progress. Functional Syntax, Turtle, N-Triples and RDF/XML documents are read,
-and SROIQ with nineteen datatypes is decided, with proofs (below); a decision
+and SROIQ with twenty-two datatypes is decided, with proofs (below); a decision
 procedure for all of OWL 2 DL, its other datatypes and facets and the other
 formats are future work.
 
@@ -1071,13 +1071,30 @@ formats are future work.
   and facet values from OWL 2 §4.1 and XML Schema 1.1); a model map over the
   reals satisfies it. Numbers can denote reals: Normative has an injective
   `real` embedding whose restriction to the rationals is the number embedding.
-  `literal_value` reads literals of all nineteen datatypes, `owl:rational` ones
+  `literal_value` reads literals of all these datatypes, `owl:rational` ones
   into fractions in lowest terms, the kernel orders numbers exactly by
   arithmetic on decimal digit strings (`numbers`, Rowl.Numbers) and evaluates
   the four facets on a number exactly (`compare_values_correct`,
   `facet_holds_correct`, `normative_facet`, `facet_applies_correct`).
   OwlSemantics' DatatypeMap no longer has the field `facetInSpace`, which read
   literally contradicts Table 4 for `owl:real` (see m3-m4-progress.md).
+- M5 IRIs and binary data: Normative also specifies `xsd:anyURI` (lexical
+  forms and values are strings of XML characters, the values IRIs apart from
+  the strings, OWL 2 §4.6), and `xsd:hexBinary` and `xsd:base64Binary`
+  (pairs of hexadecimal digits in either case; Base64 groups of four
+  characters with `=` padding and at most one space after each character but
+  the last), whose values are the octet sequences, once for each binary
+  datatype, so that the two are disjoint (§4.5). These values are the `Coded`
+  values, one to one and apart from the numbers, strings, tagged strings and
+  truth values, and the model map satisfies the extended specification.
+  `literal_value` reads their literals (`hex_from_correct`,
+  `base64_from_correct`; each form spells one octet sequence:
+  `hex_form_unique`, `base64_form_unique`), and the ontology queries take
+  them: each of the three datatypes in use gets a class apart from the others
+  and from the other datatypes (`sequence_axioms_spec`), and a model of the
+  encoding gives their data nodes IRIs of letters `a` or octet sequences of
+  zeros, infinitely many of each (`coded_space`). Facets on them get no
+  answer.
 - M5 numeric data ranges and range facets in the ontology queries: data ranges
   of `owl:real`, `owl:rational` and the twelve integer subtypes, and datatype
   restrictions of every numeric datatype by the four range facets with numeric
@@ -1099,8 +1116,8 @@ formats are future work.
   a bounded run of integers that holds an element's values by the axiom on the
   run or by the capacity (`run_count`, `peers_bound`, `sound_satisfies`). The query theorems keep their statements;
   `encode` now takes the capacity and a prepared closure leaves room for
-  questions that count 64 values. The other facets, facets on strings and data
-  ranges of the other datatypes get no answer. `examples/medication-dose.ofn`
+  questions that count 64 values. The other facets, facets on strings, IRIs
+  and octet sequences, and data ranges of the other datatypes get no answer. `examples/medication-dose.ofn`
   checks paracetamol doses against daily maximums from its bytes.
 - M5 data properties and literals in the ontology queries: consistency, class
   satisfiability, subsumption and instance checking (`data_ontology`) take data
@@ -1284,14 +1301,14 @@ formats are future work.
   equivalences, inverses, symmetry, transitivity and chains of object property
   expressions, with the universal and empty roles (SROIQ), also directly from
   Functional Syntax source bytes, and with data properties, data restrictions
-  over nineteen datatypes, with the range facets on the numeric ones, and data
+  over twenty-two datatypes, with the range facets on the numeric ones, and data
   assertions with their literals under the OWL 2 datatype map, and keys with
   object properties;
   EL ontologies are also classified and checked for consistency by a proved
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 666 Rust regression tests and 24 Python binding tests, plus separately fetched
+- 669 Rust regression tests and 24 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases, 313 Turtle cases and 166 RDF/XML
   cases, `scripts/fetch-*-suite.py`);
   maintenance OWL/RDF examples, a medication-safety example answered from its
@@ -1387,7 +1404,7 @@ catalog and the import closure are assembled from the bytes of the documents
 (`import_catalog`, `import_closure`).
 
 Datatype maps are explicit parameters with their stated laws, not an assumed
-external solver. Agreement with the OWL 2 map on nineteen datatypes and the
+external solver. Agreement with the OWL 2 map on twenty-two datatypes and the
 four range facets is specified (Rowl.DatatypeMap.Normative) and satisfiable,
 and the data queries, range facets included, are proved under every such map;
 the complete normative OWL map, its other datatypes and facets are

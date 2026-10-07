@@ -167,6 +167,12 @@ theorem value_datatype (N : Normative D) {x : datatypes.DataValue} (canonical : 
       (Rowl.Datatypes.normative_in_kind N canonical .Plain).mp (by simp [InKind])⟩
   | Truth b => exact ⟨typeOf .Boolean, Rowl.Datatypes.normative_supported N _,
       (Rowl.Datatypes.normative_in_kind N canonical .Boolean).mp (by simp [InKind])⟩
+  | Uri t => exact ⟨typeOf .AnyUri, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .AnyUri).mp (by simp [InKind])⟩
+  | Hex o => exact ⟨typeOf .HexBinary, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .HexBinary).mp (by simp [InKind])⟩
+  | Base64 o => exact ⟨typeOf .Base64Binary, Rowl.Datatypes.normative_supported N _,
+      (Rowl.Datatypes.normative_in_kind N canonical .Base64Binary).mp (by simp [InKind])⟩
 
 theorem integer_decimal (N : Normative D) (y : Native) :
     D.valueSpace integerType y → D.valueSpace decimalType y := by
@@ -240,6 +246,62 @@ theorem kinds_apart (N : Normative D) (y : Native) :
   have sp := string_plain N y
   refine ⟨fun h => dp ⟨id h.1, sp h.2⟩, fun h => dp ⟨id h.1, h.2⟩, fun h => db ⟨id h.1, h.2⟩,
     fun h => dp ⟨h.1, sp h.2⟩, dp, db, fun h => pb ⟨sp h.1, h.2⟩, pb⟩
+
+/-- The kinds whose values are IRIs or octet sequences. -/
+def IsCoded : datatypes.Kind → Prop
+  | .AnyUri | .HexBinary | .Base64Binary => True
+  | _ => False
+
+/-- The kind of a `Coded` value. -/
+def codedKind : DatatypeMap.Coded → datatypes.Kind
+  | .uri _ => .AnyUri
+  | .hex _ => .HexBinary
+  | .base64 _ => .Base64Binary
+
+/-- The values of a kind of IRIs or octet sequences are `Coded` values proper
+    of that kind. -/
+theorem coded_of_kind (N : Normative D) {k : datatypes.Kind} (ck : IsCoded k) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) : ∃ c : DatatypeMap.Coded, c.Valid ∧ codedKind c = k ∧ y = N.coded c := by
+  cases k <;> simp only [IsCoded] at ck
+  case AnyUri =>
+    obtain ⟨s, xs, rfl⟩ := (N.uri_space _).mp inside
+    exact ⟨.uri s, xs, rfl, rfl⟩
+  case HexBinary =>
+    obtain ⟨o, rfl⟩ := (N.hex_space _).mp inside
+    exact ⟨.hex o, trivial, rfl, rfl⟩
+  case Base64Binary =>
+    obtain ⟨o, rfl⟩ := (N.base64_space _).mp inside
+    exact ⟨.base64 o, trivial, rfl, rfl⟩
+
+/-- No value of another kind is a `Coded` value proper. -/
+theorem not_coded (N : Normative D) {k : datatypes.Kind} (ck : ¬ IsCoded k) {y : Native}
+    (inside : D.valueSpace (typeOf k) y) (c : DatatypeMap.Coded) (valid : c.Valid) : y ≠ N.coded c := by
+  by_cases numeric : Rowl.Datatypes.IsNumeric k
+  · obtain ⟨r, rfl⟩ := real_of_numeric N numeric inside
+    exact N.real_coded r c valid
+  · cases k <;> simp only [IsCoded, Rowl.Datatypes.IsNumeric, not_true_eq_false, not_false_eq_true] at ck numeric
+    case String =>
+      obtain ⟨s, xs, rfl⟩ := (N.string_space _).mp inside
+      exact N.text_coded s c xs valid
+    case Plain =>
+      rcases (N.plain_space _).mp inside with ⟨s, xs, rfl⟩ | ⟨s, l, xs, tl, rfl⟩
+      · exact N.text_coded s c xs valid
+      · exact N.tagged_coded s l c xs tl valid
+    case Boolean =>
+      obtain ⟨b, rfl⟩ := (N.boolean_space _).mp inside
+      exact N.truth_coded b c valid
+
+/-- A kind of IRIs or octet sequences is apart from every other kind. -/
+theorem coded_apart (N : Normative D) {a b : datatypes.Kind} (ca : IsCoded a) (ne : a ≠ b) (y : Native) :
+    ¬ (D.valueSpace (typeOf a) y ∧ D.valueSpace (typeOf b) y) := by
+  rintro ⟨inA, inB⟩
+  obtain ⟨c, valid, kindIs, rfl⟩ := coded_of_kind N ca inA
+  by_cases cb : IsCoded b
+  · obtain ⟨c', valid', kindIs', same⟩ := coded_of_kind N cb inB
+    have := N.coded_injective c c' valid valid' same
+    subst this
+    exact ne (kindIs.symm.trans kindIs')
+  · exact not_coded N cb inB c valid rfl
 
 end Values
 
@@ -857,6 +919,12 @@ theorem lifted_frame (N : Normative D) (x0 : Object) (vocab : IsVocabulary D V)
         (fun y => (numeric_apart N (a := .Real) (by simp [Rowl.Datatypes.IsNumeric]) y).2.2) y
       stringBoolean := fun _ _ y => lifted_apart N x0 interp (a := .String) (b := .Boolean) (fun y => (apart y).2.2.2.2.2.2.1) y
       plainBoolean := fun _ _ y => lifted_apart N x0 interp (a := .Plain) (b := .Boolean) (fun y => (apart y).2.2.2.2.2.2.2) y
+      sequences := by
+        have coded : ∀ {a b : datatypes.Kind}, IsCoded a → a ≠ b →
+            Apart context.kinds (lifted context I (litOf N embed) (numOf N embed) x0) a b :=
+          fun ca ne _ _ y => lifted_apart N x0 interp (coded_apart N ca ne) y
+        refine ⟨⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩, ?_, ?_, ?_⟩ <;>
+          exact coded trivial (by simp)
       truths := fun boolean y holds => by
         obtain ⟨_, _, _, _, _, _, types, _⟩ := interp
         cases y with

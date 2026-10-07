@@ -14,8 +14,9 @@ irrational numbers (`regionOf`), without the numbers of the literal values.
 Every such region but a bounded run of integers is infinite; a bounded run's
 integers that are no literal values have room for the node's distinct
 neighbours, by the axiom on the run or because the counts of the data
-restrictions are at most their number. Strings of the letter a, tagged strings
-and values outside every datatype serve the other data nodes. When the
+restrictions are at most their number. Strings of the letter a, tagged strings,
+IRIs of letters a, octet sequences of zeros and values outside every datatype
+serve the other data nodes. When the
 interpretation of the encoding satisfies a closure's encoding, the OWL
 interpretation satisfies the closure (`sound_satisfies`), and every class
 expression holds at an element exactly when its encoding does (`sound_class`).
@@ -143,11 +144,44 @@ theorem enumerate_injective (S : Set ℝ) {m n : ℕ} (vm : S.Infinite ∨ m < S
     rw [List.getD_eq_getElem _ _ sm, List.getD_eq_getElem _ _ sn] at same
     exact (List.Nodup.getElem_inj_iff (Finset.nodup_toList _)).mp same
 
+/-- The kinds of IRIs and of octet sequences, as regions of values. -/
+inductive Sequence where
+  | uri | hex | base64
+
+/-- The values of a `Sequence` region: IRIs of letters a, and octet
+    sequences of zeros. -/
+def codedAt : Sequence → ℕ → DatatypeMap.Coded
+  | .uri, n => .uri (aText n)
+  | .hex, n => .hex (List.replicate n 0#u8)
+  | .base64, n => .base64 (List.replicate n 0#u8)
+
+/-- The kind of a `Sequence` region. -/
+def sequenceKind : Sequence → datatypes.Kind
+  | .uri => .AnyUri
+  | .hex => .HexBinary
+  | .base64 => .Base64Binary
+
+theorem sequence_valid (s : Sequence) (n : ℕ) : (codedAt s n).Valid := by
+  cases s
+  · exact aText_xml n
+  · trivial
+  · trivial
+
+theorem sequence_injective {s s' : Sequence} {n n' : ℕ} (same : codedAt s n = codedAt s' n') : s = s' ∧ n = n' := by
+  cases s <;> cases s' <;> simp only [codedAt, reduceCtorEq, DatatypeMap.Coded.uri.injEq,
+    DatatypeMap.Coded.hex.injEq, DatatypeMap.Coded.base64.injEq] at same
+  · exact ⟨rfl, aText_injective same⟩
+  · exact ⟨rfl, by simpa using congrArg List.length same⟩
+  · exact ⟨rfl, by simpa using congrArg List.length same⟩
+
+theorem sequence_kind (s : Sequence) (n : ℕ) : codedKind (codedAt s n) = sequenceKind s := by
+  cases s <;> rfl
+
 /-- The regions of values that data nodes get: the reals of a level in the
     interval at a position of the cuts, strings of the letter a, tagged
-    strings, and values outside every datatype. -/
+    strings, IRIs and octet sequences, and values outside every datatype. -/
 inductive Region where
-  | number (position level : Nat) | string | tagged | other
+  | number (position level : Nat) | string | tagged | coded (s : Sequence) | other
 
 /-- Which indices of a region have values of their own. -/
 def Valid (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → Prop
@@ -172,6 +206,7 @@ noncomputable def regionValue (N : Normative D) (cs : List regions.Cut) (lits : 
   | .number p ℓ, n => embedValue (N.real (enumerate (regionSet cs lits p ℓ) n))
   | .string, n => embedValue (N.text (aText n))
   | .tagged, n => embedValue (N.tagged (aText n) enTag)
+  | .coded s, n => embedValue (N.coded (codedAt s n))
   | .other, n => ULift.up (.inr n)
 
 theorem level_unique {ℓ ℓ' : Nat} (h : ℓ ≤ 3) (h' : ℓ' ≤ 3) {r : ℝ} (a : AtLevel ℓ r) (a' : AtLevel ℓ' r) :
@@ -223,6 +258,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.real_tagged _ _ _ (aText_xml n') tag)
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.real_coded _ _ (sequence_valid s' n'))
     | other => simp [regionValue, embedValue] at same
   | string =>
     cases r' with
@@ -235,6 +273,9 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact absurd same (N.text_tagged _ _ _ (aText_xml n) (aText_xml n') tag)
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.text_coded _ _ (aText_xml n) (sequence_valid s' n'))
     | other => simp [regionValue, embedValue] at same
   | tagged =>
     cases r' with
@@ -247,12 +288,32 @@ theorem region_value_injective (N : Normative D) {cs : List regions.Cut} {lits :
     | tagged =>
       simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
       exact ⟨rfl, aText_injective (N.tagged_injective _ _ _ _ (aText_xml n) (aText_xml n') tag tag same).1⟩
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same (N.tagged_coded _ _ _ (aText_xml n) tag (sequence_valid s' n'))
+    | other => simp [regionValue, embedValue] at same
+  | coded s =>
+    cases r' with
+    | number p' ℓ' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.real_coded _ _ (sequence_valid s n))
+    | string =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.text_coded _ _ (aText_xml n') (sequence_valid s n))
+    | tagged =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      exact absurd same.symm (N.tagged_coded _ _ _ (aText_xml n') tag (sequence_valid s n))
+    | coded s' =>
+      simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+      obtain ⟨rfl, rfl⟩ := sequence_injective (N.coded_injective _ _ (sequence_valid s n) (sequence_valid s' n') same)
+      exact ⟨rfl, rfl⟩
     | other => simp [regionValue, embedValue] at same
   | other =>
     cases r' with
     | number p' ℓ' => simp [regionValue, embedValue] at same
     | string => simp [regionValue, embedValue] at same
     | tagged => simp [regionValue, embedValue] at same
+    | coded s' => simp [regionValue, embedValue] at same
     | other =>
       simp only [regionValue, ULift.up.injEq, Sum.inr.injEq] at same
       exact ⟨rfl, same⟩
@@ -271,6 +332,9 @@ theorem region_value_inj (N : Normative D) {cs : List regions.Cut} {lits : Set �
   | tagged =>
     simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
     exact aText_injective (N.tagged_injective _ _ _ _ (aText_xml a) (aText_xml b) enTag_value enTag_value same).1
+  | coded s =>
+    simp only [regionValue, embedValue, ULift.up.injEq, Sum.inl.injEq] at same
+    exact (sequence_injective (N.coded_injective _ _ (sequence_valid s a) (sequence_valid s b) same)).2
   | other =>
     simpa [regionValue] using same
 
@@ -295,6 +359,7 @@ def RegionIn (cs : List regions.Cut) (lits : Set ℝ) : Region → ℕ → datat
   | .number p ℓ, n, k => Rowl.Datatypes.IsNumeric k ∧ RealIn k (enumerate (regionSet cs lits p ℓ) n)
   | .string, _, k => k = .String ∨ k = .Plain
   | .tagged, _, k => k = .Plain
+  | .coded s, _, k => k = sequenceKind s
   | .other, _, _ => False
 
 theorem embedded_space {k : datatypes.Kind} (y0 : Native) :
@@ -309,7 +374,11 @@ theorem real_space (N : Normative D) (r : ℝ) (k : datatypes.Kind) :
     · rintro ⟨r', same, inK⟩; rw [N.real_injective same]; exact ⟨numeric, inK⟩
     · rintro ⟨_, inK⟩; exact ⟨r, rfl, inK⟩
   · simp only [numeric, false_and, iff_false]
-    cases k <;> simp only [Rowl.Datatypes.IsNumeric, not_true_eq_false] at numeric
+    by_cases ck : IsCoded k
+    · intro inside
+      obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
+      exact N.real_coded r c valid same
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
     · rw [typeOf, N.string_space]
       rintro ⟨s, xs, same⟩
       exact N.real_text r s xs same
@@ -328,7 +397,13 @@ theorem text_space (N : Normative D) (t : List U8) (xs : XmlText t) (k : datatyp
     constructor
     · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_text r t xs)
     · rintro (rfl | rfl) <;> simp [Rowl.Datatypes.IsNumeric] at numeric
-  · cases k <;> simp only [Rowl.Datatypes.IsNumeric, not_true_eq_false] at numeric
+  · by_cases ck : IsCoded k
+    · constructor
+      · intro inside
+        obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
+        exact absurd same (N.text_coded t c xs valid)
+      · rintro (rfl | rfl) <;> simp [IsCoded] at ck
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
     · simp only [typeOf, N.string_space, true_or, iff_true]
       exact ⟨t, xs, rfl⟩
     · simp only [typeOf, N.plain_space, or_true, iff_true]
@@ -343,13 +418,40 @@ theorem tagged_space (N : Normative D) (t l : List U8) (xs : XmlText t) (tl : Ta
     constructor
     · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_tagged r t l xs tl)
     · rintro rfl; simp [Rowl.Datatypes.IsNumeric] at numeric
-  · cases k <;> simp only [Rowl.Datatypes.IsNumeric, not_true_eq_false] at numeric
+  · by_cases ck : IsCoded k
+    · constructor
+      · intro inside
+        obtain ⟨c, valid, _, same⟩ := coded_of_kind N ck inside
+        exact absurd same (N.tagged_coded t l c xs tl valid)
+      · rintro rfl; simp [IsCoded] at ck
+    cases k <;> simp only [Rowl.Datatypes.IsNumeric, IsCoded, not_true_eq_false] at numeric ck
     · simp only [typeOf, N.string_space, reduceCtorEq, iff_false, not_exists, not_and]
       exact fun s xs' e => N.text_tagged s t l xs' xs tl e.symm
     · simp only [typeOf, N.plain_space, iff_true]
       exact .inr ⟨t, l, xs, tl, rfl⟩
     · simp only [typeOf, N.boolean_space, reduceCtorEq, iff_false, not_exists]
       exact fun b e => N.tagged_truth t l b xs tl e
+
+/-- An IRI or octet sequence is in the datatype of its own kind only. -/
+theorem coded_space (N : Normative D) (s : Sequence) (n : ℕ) (k : datatypes.Kind) :
+    D.valueSpace (typeOf k) (N.coded (codedAt s n)) ↔ k = sequenceKind s := by
+  by_cases ck : IsCoded k
+  · constructor
+    · intro inside
+      obtain ⟨c, valid, kindIs, same⟩ := coded_of_kind N ck inside
+      have := N.coded_injective _ _ (sequence_valid s n) valid same
+      subst this
+      rw [← kindIs, sequence_kind]
+    · rintro rfl
+      cases s
+      · exact (N.uri_space _).mpr ⟨_, aText_xml n, rfl⟩
+      · exact (N.hex_space _).mpr ⟨_, rfl⟩
+      · exact (N.base64_space _).mpr ⟨_, rfl⟩
+  · constructor
+    · intro inside
+      exact absurd rfl (not_coded N ck inside _ (sequence_valid s n))
+    · rintro rfl
+      exact absurd (by cases s <;> trivial) ck
 
 /-- A region's values are in the datatypes of the kinds `RegionIn` names. -/
 theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) (r : Region) (n : ℕ)
@@ -359,6 +461,7 @@ theorem region_space (N : Normative D) (cs : List regions.Cut) (lits : Set ℝ) 
   | number p ℓ => rw [regionValue, embedded_space, real_space N]; rfl
   | string => rw [regionValue, embedded_space, text_space N _ (aText_xml n)]; rfl
   | tagged => rw [regionValue, embedded_space, tagged_space N _ _ (aText_xml n) enTag_value]; rfl
+  | coded s => rw [regionValue, embedded_space, coded_space N s n]; rfl
   | other =>
     simp only [regionValue, embedValue, ULift.up.injEq, reduceCtorEq, and_false, exists_false, false_iff]
     exact id
@@ -403,6 +506,9 @@ noncomputable def regionOf (d : Object') : Region :=
   if NumericNode context J d then .number (positionOf context J order d) (levelOf context J d)
   else if InUse context J .String d then .string
   else if InUse context J .Plain d then .tagged
+  else if InUse context J .AnyUri d then .coded .uri
+  else if InUse context J .HexBinary d then .coded .hex
+  else if InUse context J .Base64Binary d then .coded .base64
   else .other
 
 theorem level_le (d : Object') : levelOf context J d ≤ 3 := by
@@ -438,6 +544,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.integerBoolean ui used d ⟨ai, h⟩
     · exact ⟨fun _ => trivial, fun _ => kinds.integerReal ui used d ai⟩
     · exact ⟨fun _ => rat, fun _ => kinds.integerRational ui used d ai⟩
+    · exact fun h => kinds.sequences.1.1 used ui d ⟨h, ai⟩
+    · exact fun h => kinds.sequences.2.1.1 used ui d ⟨h, ai⟩
+    · exact fun h => kinds.sequences.2.2.1.1 used ui d ⟨h, ai⟩
   by_cases hd : InUse context J .Decimal d
   · simp only [hi, hd, ↓reduceIte, AtLevel] at atLevel
     obtain ⟨ud, ad⟩ := hd
@@ -451,6 +560,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.decimalBoolean ud used d ⟨ad, h⟩
     · exact ⟨fun _ => trivial, fun _ => kinds.decimalReal ud used d ad⟩
     · exact ⟨fun _ => rat, fun _ => kinds.decimalRational ud used d ad⟩
+    · exact fun h => kinds.sequences.1.2.1 used ud d ⟨h, ad⟩
+    · exact fun h => kinds.sequences.2.1.2.1 used ud d ⟨h, ad⟩
+    · exact fun h => kinds.sequences.2.2.1.2.1 used ud d ⟨h, ad⟩
   by_cases hq : InUse context J .Rational d
   · simp only [hi, hd, hq, ↓reduceIte, AtLevel] at atLevel
     obtain ⟨uq, aq⟩ := hq
@@ -464,6 +576,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
     · exact fun h => kinds.rationalBoolean uq used d ⟨aq, h⟩
     · exact ⟨fun _ => trivial, fun _ => kinds.rationalReal uq used d aq⟩
     · exact ⟨fun _ => atLevel.1, fun _ => aq⟩
+    · exact fun h => kinds.sequences.1.2.2.1 used uq d ⟨h, aq⟩
+    · exact fun h => kinds.sequences.2.1.2.2.1 used uq d ⟨h, aq⟩
+    · exact fun h => kinds.sequences.2.2.1.2.2.1 used uq d ⟨h, aq⟩
   have hr : InUse context J .Real d := by
     rcases numeric with h | h | h | h
     · exact absurd h hi
@@ -483,6 +598,9 @@ theorem number_profile (kinds : KindFacts context J) {d : Object'} (numeric : Nu
   · exact fun h => kinds.realBoolean ur used d ⟨ar, h⟩
   · exact ⟨fun _ => trivial, fun _ => ar⟩
   · exact ⟨fun h => absurd h (notIn _ hq used), fun h => absurd h atLevel⟩
+  · exact fun h => kinds.sequences.1.2.2.2.1 used ur d ⟨h, ar⟩
+  · exact fun h => kinds.sequences.2.1.2.2.2.1 used ur d ⟨h, ar⟩
+  · exact fun h => kinds.sequences.2.2.1.2.2.2.1 used ur d ⟨h, ar⟩
 
 /-- A node that is no number has the classes of the strings, the plain
     literals and the values outside every datatype as its region says. -/
@@ -510,6 +628,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.stringBoolean us used d ⟨ast, h⟩
     · exact notIn _ nr used
     · exact notIn _ nq used
+    · exact fun h => kinds.sequences.1.2.2.2.2.1 used us d ⟨h, ast⟩
+    · exact fun h => kinds.sequences.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
+    · exact fun h => kinds.sequences.2.2.1.2.2.2.2.1 used us d ⟨h, ast⟩
   by_cases hp : InUse context J .Plain d
   · simp only [hs, hp, ↓reduceIte, RegionIn]
     obtain ⟨up, ap⟩ := hp
@@ -521,7 +642,55 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact fun h => kinds.plainBoolean up used d ⟨ap, h⟩
     · exact notIn _ nr used
     · exact notIn _ nq used
-  · simp only [hs, hp, ↓reduceIte, RegionIn, iff_false]
+    · exact fun h => kinds.sequences.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
+    · exact fun h => kinds.sequences.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
+    · exact fun h => kinds.sequences.2.2.1.2.2.2.2.2.1 used up d ⟨h, ap⟩
+  by_cases hu : InUse context J .AnyUri d
+  · simp only [hs, hp, hu, ↓reduceIte, RegionIn, sequenceKind]
+    obtain ⟨uu, au⟩ := hu
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact au
+    · exact fun h => kinds.sequences.2.2.2.1 uu used d ⟨au, h⟩
+    · exact fun h => kinds.sequences.2.2.2.2.1 uu used d ⟨au, h⟩
+  by_cases hh : InUse context J .HexBinary d
+  · simp only [hs, hp, hu, hh, ↓reduceIte, RegionIn, sequenceKind]
+    obtain ⟨uh, ah⟩ := hh
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact ah
+    · exact fun h => kinds.sequences.2.2.2.2.2 uh used d ⟨ah, h⟩
+  by_cases hb : InUse context J .Base64Binary d
+  · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, sequenceKind]
+    obtain ⟨ub, ab⟩ := hb
+    cases k <;> simp only [Used, Bool.false_eq_true] at used <;>
+      simp only [reduceCtorEq, iff_false, iff_true]
+    · exact notIn _ ni used
+    · exact notIn _ nd used
+    · exact notIn _ hs used
+    · exact notIn _ hp used
+    · exact notIn _ notBool used
+    · exact notIn _ nr used
+    · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact ab
+  · simp only [hs, hp, hu, hh, hb, ↓reduceIte, RegionIn, iff_false]
     cases k <;> simp only [Used, Bool.false_eq_true] at used
     · exact notIn _ ni used
     · exact notIn _ nd used
@@ -530,6 +699,9 @@ theorem text_profile (kinds : KindFacts context J) {d : Object'} (notNumeric : �
     · exact notIn _ notBool used
     · exact notIn _ nr used
     · exact notIn _ nq used
+    · exact notIn _ hu used
+    · exact notIn _ hh used
+    · exact notIn _ hb used
 
 end Profile
 
@@ -976,6 +1148,9 @@ theorem real_ne_value (N : Normative D) {val : datatypes.DataValue} (canonical :
   | Text t => exact N.real_text r _ canonical
   | Tagged t m => exact N.real_tagged r _ _ canonical.1 canonical.2
   | Truth b => exact N.real_truth r b
+  | Uri t => exact N.real_coded r _ canonical
+  | Hex o => exact N.real_coded r _ trivial
+  | Base64 o => exact N.real_coded r _ trivial
 
 theorem literal_value_at (setting : Setting context capacity bits order J) (i : Usize)
     (h : i.val < context.values.val.length) (n : ℕ) :
@@ -1363,6 +1538,7 @@ theorem value_node (setting : Setting context capacity bits order J) (o : Elemen
             reduceCtorEq] at same
           · exact absurd same.symm (N.real_text r _ (aText_xml _))
           · exact absurd same.symm (N.real_tagged r _ _ (aText_xml _) enTag_value)
+          all_goals exact absurd same.symm (N.real_coded r _ (sequence_valid _ _))
 
 theorem peers_same {z d d' : Object'} (same : regionOf context J order d = regionOf context J order d') :
     peers context J order atoms z d = peers context J order atoms z d' := by

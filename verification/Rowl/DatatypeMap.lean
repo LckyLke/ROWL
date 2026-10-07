@@ -6,8 +6,9 @@ import Mathlib.Data.Real.Basic
 Independent specification of the OWL 2 datatype map on the datatypes the
 reasoner knows (2012 Structural Specification §4, XML Schema 1.1 Part 2 and the
 rdf:PlainLiteral specification): `owl:real`, `owl:rational`, `xsd:decimal`,
-`xsd:integer` and its twelve subtypes, `xsd:string`, `rdf:PlainLiteral` and
-`xsd:boolean`, with the four range facets `xsd:minInclusive`,
+`xsd:integer` and its twelve subtypes, `xsd:string`, `rdf:PlainLiteral`,
+`xsd:boolean`, `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`, with the
+four range facets `xsd:minInclusive`,
 `xsd:maxInclusive`, `xsd:minExclusive` and `xsd:maxExclusive`.
 
 Numbers are real numbers: the value space of `owl:real` is the image of ℝ, and
@@ -74,6 +75,12 @@ def unsignedIntType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#
 def unsignedShortType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 117#u8, 110#u8, 115#u8, 105#u8, 103#u8, 110#u8, 101#u8, 100#u8, 83#u8, 104#u8, 111#u8, 114#u8, 116#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:unsignedByte` -/
 def unsignedByteType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 117#u8, 110#u8, 115#u8, 105#u8, 103#u8, 110#u8, 101#u8, 100#u8, 66#u8, 121#u8, 116#u8, 101#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:anyURI` -/
+def anyUriType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 97#u8, 110#u8, 121#u8, 85#u8, 82#u8, 73#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:hexBinary` -/
+def hexBinaryType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 104#u8, 101#u8, 120#u8, 66#u8, 105#u8, 110#u8, 97#u8, 114#u8, 121#u8] (by simp; scalar_tac)⟩⟩
+/-- `xsd:base64Binary` -/
+def base64BinaryType : Datatype := ⟨⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 98#u8, 97#u8, 115#u8, 101#u8, 54#u8, 52#u8, 66#u8, 105#u8, 110#u8, 97#u8, 114#u8, 121#u8] (by simp; scalar_tac)⟩⟩
 /-- `xsd:minInclusive` -/
 def minInclusiveFacet : Iri := ⟨alloc.vec.Vec.from [104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8, 50#u8, 48#u8, 48#u8, 49#u8, 47#u8, 88#u8, 77#u8, 76#u8, 83#u8, 99#u8, 104#u8, 101#u8, 109#u8, 97#u8, 35#u8, 109#u8, 105#u8, 110#u8, 73#u8, 110#u8, 99#u8, 108#u8, 117#u8, 115#u8, 105#u8, 118#u8, 101#u8] (by simp; scalar_tac)⟩
 /-- `xsd:maxInclusive` -/
@@ -157,6 +164,73 @@ def TruthForm (text : List U8) (b : Bool) : Prop :=
   (b = true ∧ (text = [116#u8, 114#u8, 117#u8, 101#u8] ∨ text = [49#u8])) ∨
   (b = false ∧ (text = [102#u8, 97#u8, 108#u8, 115#u8, 101#u8] ∨ text = [48#u8]))
 
+/-- The values of `xsd:anyURI`, `xsd:hexBinary` and `xsd:base64Binary`: an
+    IRI as the UTF-8 bytes of its characters, and the octets of either binary
+    datatype, each datatype with a copy of its own (§4.5, §4.6: the binary
+    value spaces are disjoint, and IRIs are not strings). -/
+inductive Coded where
+  | uri (s : List U8)
+  | hex (o : List U8)
+  | base64 (o : List U8)
+deriving DecidableEq
+
+/-- A `Coded` value proper: the bytes of an IRI are XML text. -/
+def Coded.Valid : Coded → Prop
+  | .uri s => XmlText s
+  | .hex _ => True
+  | .base64 _ => True
+
+/-- The value of a hexadecimal digit `[0-9a-fA-F]`. -/
+def hexDigitValue (byte : U8) : Option Nat :=
+  if 48 ≤ byte.val ∧ byte.val ≤ 57 then some (byte.val - 48)
+  else if 65 ≤ byte.val ∧ byte.val ≤ 70 then some (byte.val - 55)
+  else if 97 ≤ byte.val ∧ byte.val ≤ 102 then some (byte.val - 87)
+  else none
+
+/-- `text` is a lexical form `([0-9a-fA-F]{2})*` of `xsd:hexBinary` for the
+    octets `o` (XML Schema 1.1 Part 2 §3.3.15): two digits for each octet, the
+    first its high half. -/
+def HexForm : List U8 → List U8 → Prop
+  | [], o => o = []
+  | [_], _ => False
+  | a :: b :: rest, o => ∃ x y octet o', hexDigitValue a = some x ∧ hexDigitValue b = some y ∧
+      o = octet :: o' ∧ octet.val = 16 * x + y ∧ HexForm rest o'
+
+/-- The value of a character of the Base64 alphabet `[A-Za-z0-9+/]`. -/
+def base64Value (byte : U8) : Option Nat :=
+  if 65 ≤ byte.val ∧ byte.val ≤ 90 then some (byte.val - 65)
+  else if 97 ≤ byte.val ∧ byte.val ≤ 122 then some (byte.val - 71)
+  else if 48 ≤ byte.val ∧ byte.val ≤ 57 then some (byte.val + 4)
+  else if byte.val = 43 then some 62
+  else if byte.val = 47 then some 63
+  else none
+
+/-- `text` is `chars` with at most one space after each character but the last,
+    the spaces that the grammar of `xsd:base64Binary` allows. -/
+def Spaced : List U8 → List U8 → Prop
+  | text, [] => text = []
+  | text, [c] => text = [c]
+  | text, c :: d :: cs => ∃ rest, (text = c :: rest ∨ text = c :: 32#u8 :: rest) ∧ Spaced rest (d :: cs)
+
+/-- Base64 groups without spaces that encode the octets `o` (XML Schema 1.1
+    Part 2 §3.3.16, RFC 2045): groups of four characters of three octets each,
+    the last group possibly `a b c =` with `c` a multiple of four for two octets
+    or `a b = =` with `b` a multiple of sixteen for one. -/
+def Base64Chars : List U8 → List U8 → Prop
+  | [], o => o = []
+  | a :: b :: c :: d :: rest, o =>
+    ∃ va vb, base64Value a = some va ∧ base64Value b = some vb ∧
+      ((∃ vc vd x y z o', base64Value c = some vc ∧ base64Value d = some vd ∧ o = x :: y :: z :: o' ∧
+          x.val = va * 4 + vb / 16 ∧ y.val = vb % 16 * 16 + vc / 4 ∧ z.val = vc % 4 * 64 + vd ∧
+          Base64Chars rest o') ∨
+       (∃ vc x y, rest = [] ∧ base64Value c = some vc ∧ d = 61#u8 ∧ vc % 4 = 0 ∧ o = [x, y] ∧
+          x.val = va * 4 + vb / 16 ∧ y.val = vb % 16 * 16 + vc / 4) ∨
+       (∃ x, rest = [] ∧ c = 61#u8 ∧ d = 61#u8 ∧ vb % 16 = 0 ∧ o = [x] ∧ x.val = va * 4 + vb / 16))
+  | _, _ => False
+
+/-- `text` is a lexical form of `xsd:base64Binary` for the octets `o`. -/
+def Base64Form (text o : List U8) : Prop := ∃ chars, Spaced text chars ∧ Base64Chars chars o
+
 /-- A datatype map that is the OWL 2 datatype map on the datatypes here: they
     are supported, with these lexical spaces and lexical-to-value mappings; a
     number is the image of a real number, the rationals' images agreeing with
@@ -168,8 +242,12 @@ def TruthForm (text : List U8) (b : Bool) : Prop :=
     truth values; numbers, plain literals and truth values are pairwise
     different; the facet spaces of the numeric datatypes are the four range
     facets with every real (`owl:real`, `owl:rational`) or every value of the
-    datatype (XML Schema) as constraining value; and the facet value of a range
-    facet with a real constraining value is the set of reals on its side. -/
+    datatype (XML Schema) as constraining value; the facet value of a range
+    facet with a real constraining value is the set of reals on its side; and
+    the values of `xsd:anyURI` (the XML texts, with the identity as lexical
+    mapping), `xsd:hexBinary` and `xsd:base64Binary` (the octet sequences) are
+    the images of their `Coded` values, injectively and apart from the
+    numbers, plain literals and truth values. -/
 structure Normative {Native : Type w} (D : DatatypeMap Native) where
   number : ℚ → Native
   text : List U8 → Native
@@ -237,5 +315,23 @@ structure Normative {Native : Type w} (D : DatatypeMap Native) where
   max_inclusive_value : ∀ r y, D.facetValue maxInclusiveFacet (real r) y ↔ ∃ s, s ≤ r ∧ y = real s
   min_exclusive_value : ∀ r y, D.facetValue minExclusiveFacet (real r) y ↔ ∃ s, r < s ∧ y = real s
   max_exclusive_value : ∀ r y, D.facetValue maxExclusiveFacet (real r) y ↔ ∃ s, s < r ∧ y = real s
+  coded : Coded → Native
+  coded_injective : ∀ a b, a.Valid → b.Valid → coded a = coded b → a = b
+  real_coded : ∀ r a, a.Valid → real r ≠ coded a
+  text_coded : ∀ s a, XmlText s → a.Valid → text s ≠ coded a
+  tagged_coded : ∀ s l a, XmlText s → TagValue l → a.Valid → tagged s l ≠ coded a
+  truth_coded : ∀ b a, a.Valid → truth b ≠ coded a
+  uri_supported : D.supported anyUriType
+  hex_supported : D.supported hexBinaryType
+  base64_supported : D.supported base64BinaryType
+  uri_space : ∀ x, D.valueSpace anyUriType x ↔ ∃ s, XmlText s ∧ x = coded (.uri s)
+  hex_space : ∀ x, D.valueSpace hexBinaryType x ↔ ∃ o, x = coded (.hex o)
+  base64_space : ∀ x, D.valueSpace base64BinaryType x ↔ ∃ o, x = coded (.base64 o)
+  uri_lexical : ∀ t, D.lexicalSpace anyUriType t ↔ XmlText t
+  uri_value : ∀ t, XmlText t → D.lexicalValue anyUriType t = coded (.uri t)
+  hex_lexical : ∀ t, D.lexicalSpace hexBinaryType t ↔ ∃ o, HexForm t o
+  hex_value : ∀ t o, HexForm t o → D.lexicalValue hexBinaryType t = coded (.hex o)
+  base64_lexical : ∀ t, D.lexicalSpace base64BinaryType t ↔ ∃ o, Base64Form t o
+  base64_value : ∀ t o, Base64Form t o → D.lexicalValue base64BinaryType t = coded (.base64 o)
 
 end Rowl.DatatypeMap

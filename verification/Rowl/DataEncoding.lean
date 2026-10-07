@@ -258,6 +258,9 @@ def kindByte : datatypes.Kind → U8
   | .UnsignedInt => 16#u8
   | .UnsignedShort => 17#u8
   | .UnsignedByte => 18#u8
+  | .AnyUri => 19#u8
+  | .HexBinary => 20#u8
+  | .Base64Binary => 21#u8
 /-- The name of the class of a kind. -/
 def kindName (k : datatypes.Kind) : List U8 := [0#u8, 65#u8, kindByte k]
 /-- The name of a bit class. -/
@@ -434,6 +437,9 @@ def Used (kinds : data_ontology.Kinds) : datatypes.Kind → Bool
   | .Boolean => kinds.boolean
   | .Real => kinds.real
   | .Rational => kinds.rational
+  | .AnyUri => kinds.uri
+  | .HexBinary => kinds.hex
+  | .Base64Binary => kinds.base64
   | _ => false
 
 theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
@@ -441,10 +447,12 @@ theorem used_eq (kinds : data_ontology.Kinds) (k : datatypes.Kind) :
   cases k <;> rfl
 
 /-- The datatypes that the encoding gives a class: the five of the first
-    stage, the reals and the rationals; the subtypes of `xsd:integer` are
-    integers between cuts. -/
+    stage, the reals and the rationals, and `xsd:anyURI`, `xsd:hexBinary` and
+    `xsd:base64Binary`; the subtypes of `xsd:integer` are integers between
+    cuts. -/
 def Classic : datatypes.Kind → Prop
-  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational => True
+  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary =>
+    True
   | _ => False
 
 theorem used_classic {kinds : data_ontology.Kinds} {k : datatypes.Kind} (used : Used kinds k = true) : Classic k := by
@@ -1107,7 +1115,8 @@ theorem closure_context_good (items : alloc.vec.Vec AnnotatedAxiom) :
     ∃ r, data_ontology.closure_context items = .ok r ∧ Good r := by
   rw [data_ontology.closure_context]
   have empty : Good (data_ontology.Context.mk (alloc.vec.Vec.new datatypes.DataValue)
-      (data_ontology.Kinds.mk false false false false false false false false) (alloc.vec.Vec.new ObjectProperty)
+      (data_ontology.Kinds.mk false false false false false false false false false false false)
+      (alloc.vec.Vec.new ObjectProperty)
       (alloc.vec.Vec.new DataProperty) (alloc.vec.Vec.new regions.Cut)) := by
     simp [Good, GoodValues, GoodCuts, new_val]
   obtain ⟨r, run, rGood⟩ := items_context_good _ items 0#usize empty

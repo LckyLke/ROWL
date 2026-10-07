@@ -13,7 +13,9 @@
 //!   of bit classes that tells it apart from every other literal value;
 //! - every datatype of a data range becomes a class `A`, with the inclusions of
 //!   the datatypes (integers are decimals, decimals rationals, rationals reals,
-//!   strings plain literals) and their disjointness, and the booleans are the
+//!   strings plain literals) and their disjointness, the IRIs of `xsd:anyURI`
+//!   and the octets of `xsd:hexBinary` and of `xsd:base64Binary` apart from
+//!   every other datatype and from each other, and the booleans are the
 //!   individuals of `true` and `false`; `rdfs:Literal` is every data node;
 //! - when a datatype restriction or a subtype of `xsd:integer` is in use, the
 //!   numbers of the closure become cuts of the real line (`regions`), each with
@@ -104,6 +106,9 @@ pub struct Kinds {
     pub boolean: bool,
     pub real: bool,
     pub rational: bool,
+    pub uri: bool,
+    pub hex: bool,
+    pub base64: bool,
     pub ordered: bool,
 }
 /// What the encoding of a closure and its questions knows: the distinct
@@ -283,6 +288,9 @@ fn kind_index(kind: Kind) -> u8 {
         Kind::UnsignedInt => 16,
         Kind::UnsignedShort => 17,
         Kind::UnsignedByte => 18,
+        Kind::AnyUri => 19,
+        Kind::HexBinary => 20,
+        Kind::Base64Binary => 21,
     }
 }
 /// The class of a kind.
@@ -344,6 +352,9 @@ fn no_kinds() -> Kinds {
         boolean: false,
         real: false,
         rational: false,
+        uri: false,
+        hex: false,
+        base64: false,
         ordered: false,
     }
 }
@@ -357,6 +368,9 @@ fn used(kinds: &Kinds, kind: Kind) -> bool {
         Kind::Boolean => kinds.boolean,
         Kind::Real => kinds.real,
         Kind::Rational => kinds.rational,
+        Kind::AnyUri => kinds.uri,
+        Kind::HexBinary => kinds.hex,
+        Kind::Base64Binary => kinds.base64,
         _ => false,
     }
 }
@@ -370,6 +384,9 @@ fn bounded(kind: Kind) -> bool {
         Kind::Boolean => false,
         Kind::Real => false,
         Kind::Rational => false,
+        Kind::AnyUri => false,
+        Kind::HexBinary => false,
+        Kind::Base64Binary => false,
         _ => true,
     }
 }
@@ -379,6 +396,9 @@ fn numeric_kind(kind: Kind) -> bool {
         Kind::String => false,
         Kind::Plain => false,
         Kind::Boolean => false,
+        Kind::AnyUri => false,
+        Kind::HexBinary => false,
+        Kind::Base64Binary => false,
         _ => true,
     }
 }
@@ -411,6 +431,12 @@ fn with_kind(kinds: Kinds, kind: Kind) -> Kinds {
         },
         Kind::Rational => Kinds {
             rational: true,
+            ..kinds
+        },
+        Kind::AnyUri => Kinds { uri: true, ..kinds },
+        Kind::HexBinary => Kinds { hex: true, ..kinds },
+        Kind::Base64Binary => Kinds {
+            base64: true,
             ..kinds
         },
         _ => Kinds {
@@ -2244,6 +2270,56 @@ fn apart_axioms(
     };
     kinds_axiom(kinds, kind, Kind::Boolean, false, out)
 }
+/// `out` with a kind of IRIs or octets in use apart from the numbers, the
+/// strings, the plain literals and the booleans.
+fn distinct_axioms(
+    kinds: &Kinds,
+    kind: Kind,
+    out: Vec<AnnotatedAxiom>,
+) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match kinds_axiom(kinds, kind, Kind::Integer, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::Decimal, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::Rational, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, kind, Kind::Real, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    apart_axioms(kinds, kind, out)
+}
+/// `out` with the kinds of IRIs and octets in use apart from every other kind
+/// and from each other.
+fn sequence_axioms(kinds: &Kinds, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
+    let out = match distinct_axioms(kinds, Kind::AnyUri, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match distinct_axioms(kinds, Kind::HexBinary, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match distinct_axioms(kinds, Kind::Base64Binary, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::AnyUri, Kind::HexBinary, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match kinds_axiom(kinds, Kind::AnyUri, Kind::Base64Binary, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    kinds_axiom(kinds, Kind::HexBinary, Kind::Base64Binary, false, out)
+}
 /// `out` with the inclusions and disjointness of the kinds in use and the
 /// booleans.
 fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
@@ -2277,6 +2353,10 @@ fn kind_axioms(context: &Context, out: Vec<AnnotatedAxiom>) -> Option<Vec<Annota
         None => return None,
     };
     let out = match kinds_axiom(kinds, Kind::Plain, Kind::Boolean, false, out) {
+        Some(out) => out,
+        None => return None,
+    };
+    let out = match sequence_axioms(kinds, out) {
         Some(out) => out,
         None => return None,
     };
@@ -2449,6 +2529,18 @@ fn value_axioms(
             None => return None,
         };
         let out = match kind_member(context, Kind::Boolean, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::AnyUri, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::HexBinary, index, out) {
+            Some(out) => out,
+            None => return None,
+        };
+        let out = match kind_member(context, Kind::Base64Binary, index, out) {
             Some(out) => out,
             None => return None,
         };

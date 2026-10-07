@@ -6622,3 +6622,58 @@ This block adds 5 public theorems and 1 definition (`Rowl.Facts`). Totals are
 5453 audited theorems, 1818 definitions, 666 Rust regressions, 24 Python
 binding tests and 5646 ledger obligations.
 
+
+## Datatypes: IRIs and binary data
+
+The datatype map covered the numbers, strings, plain literals and truth
+values, nineteen of the thirty-three OWL 2 datatypes. `xsd:anyURI`,
+`xsd:hexBinary` and `xsd:base64Binary` follow.
+
+Specification. `Rowl.DatatypeMap.Coded` names the new values: an IRI as its
+string of XML characters, and an octet sequence once as hexadecimal and once
+as Base64 data. Normative gains an injective `coded` map whose image is apart
+from the reals, strings, tagged strings and truth values (`coded_injective`,
+`real_coded`, `text_coded`, `tagged_coded`, `truth_coded`), and the three
+datatypes with their lexical spaces and lexical-to-value mappings:
+`xsd:anyURI` reads every string of XML characters as the IRI with that
+string; `HexForm` is a sequence of pairs of hexadecimal digits in either
+case, high digit first; `Base64Form` drops at most one space after each
+character but the last (`Spaced`) and reads groups of four characters of the
+Base64 alphabet, the last group with one or two `=` and zero bits where the
+padding cuts the last character (`Base64Chars`), as XML Schema 1.1 states it.
+The value spaces are disjoint from each other and from the other datatypes:
+OWL 2 §4.5 keeps the two binary datatypes apart and §4.6 keeps IRIs apart from
+strings. The model map gets the three as well, so the specification stays
+satisfiable (`modelNormative`).
+
+Kernel. `datatypes::DataValue` gains `Uri`, `Hex` and `Base64`, and
+`kind_value` reads the three lexical spaces: `hex_from` two digits at a time
+(`hex_from_correct`), `unspaced` drops the single spaces (`unspaced_correct`)
+and `base64_from` reads groups of four sextets, the padded last group by
+`padded_one` and `padded_two` (`base64_from_correct`). Each form spells one
+octet sequence (`hex_form_unique`, `base64_form_unique`), so equal values are
+equal kernel values and `same_value` stays exact; `in_kind`, `kind_value` and
+`facet_applies` have the new arms, and no facet applies to the new kinds.
+
+Encoding. The kinds of the three datatypes get classes, and
+`data_ontology::sequence_axioms` makes each one disjoint from the numeric
+kinds, the strings, the plain literals, the truth values and the other two
+(`distinct_axioms_spec`, `sequence_axioms_spec`, `SequenceFacts`); every
+literal value of the new kinds is a member of its kind's class. An OWL model
+lifts as before, its new kinds apart by `coded_apart`. In the other
+direction, `DataSound` gets a region `coded` for each of the three: a data
+node that is no number, string or plain literal and whose class of IRIs,
+hexadecimal or Base64 data holds takes IRIs of letters `a` or octet sequences
+of zeros, all different and outside every other region (`sequence_valid`,
+`sequence_injective`, `coded_space`), infinitely many, so the counting of the
+other regions carries over.
+
+The regressions check the example of OWL 2 §4.5 (a hexadecimal value outside
+a range of Base64 data), that `0FB7` and `0fb7` are one hexadecimal value and
+`AQID` and `A Q I D` one Base64 value, that an IRI is no string, that three
+different IRIs fit a range of IRIs, that a literal outside the lexical space
+gets no answer, and instance questions over ranges of the new datatypes.
+
+This block adds 20 public theorems and 18 definitions. Totals are 5473
+audited theorems, 1836 definitions, 669 Rust regressions, 24 Python binding
+tests and 5666 ledger obligations.

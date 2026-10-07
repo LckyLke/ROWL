@@ -41,6 +41,9 @@ pub fn copy_value(value: &DataValue) -> DataValue {
         DataValue::Text(text) => DataValue::Text(copy_bytes(text)),
         DataValue::Tagged(text, tag) => DataValue::Tagged(copy_bytes(text), copy_bytes(tag)),
         DataValue::Truth(truth) => DataValue::Truth(*truth),
+        DataValue::Uri(text) => DataValue::Uri(copy_bytes(text)),
+        DataValue::Hex(octets) => DataValue::Hex(copy_bytes(octets)),
+        DataValue::Base64(octets) => DataValue::Base64(copy_bytes(octets)),
     }
 }
 /// The index of the cut of `value` on the side `open` in `cuts[index..]`.

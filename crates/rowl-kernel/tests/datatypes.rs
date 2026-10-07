@@ -323,3 +323,82 @@ fn range_facets_on_single_values() {
     assert!(!facet_applies(Kind::Byte, &dose));
     assert!(!facet_applies(Kind::String, &dose));
 }
+
+const ANY_URI: &[u8] = b"http://www.w3.org/2001/XMLSchema#anyURI";
+const HEX: &[u8] = b"http://www.w3.org/2001/XMLSchema#hexBinary";
+const BASE64: &[u8] = b"http://www.w3.org/2001/XMLSchema#base64Binary";
+
+#[test]
+fn iris_and_octets_are_values_of_their_own() {
+    assert!(matches!(kind_of(&datatype(ANY_URI)), Some(Kind::AnyUri)));
+    assert!(matches!(kind_of(&datatype(HEX)), Some(Kind::HexBinary)));
+    assert!(matches!(
+        kind_of(&datatype(BASE64)),
+        Some(Kind::Base64Binary)
+    ));
+    // anyURI: the lexical mapping is the identity, relative IRIs and spaces included.
+    let uri = value(b"http://example.org/a b", ANY_URI).expect("an IRI");
+    assert!(same_value(
+        &uri,
+        &DataValue::Uri(b"http://example.org/a b".to_vec())
+    ));
+    assert!(same(
+        &value(b"../relative", ANY_URI),
+        &DataValue::Uri(b"../relative".to_vec())
+    ));
+    assert!(value(b"\x01", ANY_URI).is_none());
+    assert!(in_kind(&uri, Kind::AnyUri));
+    assert!(!in_kind(&uri, Kind::String));
+    assert!(!same_value(
+        &uri,
+        &DataValue::Text(b"http://example.org/a b".to_vec())
+    ));
+    // hexBinary: two digits per octet, in either case.
+    let octets = DataValue::Hex(vec![0x0f, 0xb7]);
+    assert!(same(&value(b"0FB7", HEX), &octets));
+    assert!(same(&value(b"0fb7", HEX), &octets));
+    assert!(same(&value(b"", HEX), &DataValue::Hex(Vec::new())));
+    assert!(value(b"0FB", HEX).is_none());
+    assert!(value(b"0G", HEX).is_none());
+    assert!(value(b" 0F", HEX).is_none());
+    // base64Binary: groups of four, padding at the end, one space after a character.
+    let three = DataValue::Base64(vec![1, 2, 3]);
+    assert!(same(&value(b"AQID", BASE64), &three));
+    assert!(same(&value(b"A Q I D", BASE64), &three));
+    assert!(same(
+        &value(b"AQI=", BASE64),
+        &DataValue::Base64(vec![1, 2])
+    ));
+    assert!(same(&value(b"AQ==", BASE64), &DataValue::Base64(vec![1])));
+    assert!(same(&value(b"AQ= =", BASE64), &DataValue::Base64(vec![1])));
+    assert!(same(
+        &value(b"AQIDBA==", BASE64),
+        &DataValue::Base64(vec![1, 2, 3, 4])
+    ));
+    assert!(same(&value(b"", BASE64), &DataValue::Base64(Vec::new())));
+    for bad in [
+        &b"AQI"[..],
+        b"AR==",
+        b"AQJ=",
+        b" AQID",
+        b"AQID ",
+        b"AQ  ID",
+        b"AQ=I",
+        b"A=QI",
+        b"AQ==AQID",
+        b"AQ*D",
+    ] {
+        assert!(
+            value(bad, BASE64).is_none(),
+            "{}",
+            String::from_utf8_lossy(bad)
+        );
+    }
+    // The two binary datatypes have disjoint copies of the octet sequences.
+    let hex = value(b"0203", HEX).expect("octets");
+    let base64 = value(b"AgM=", BASE64).expect("octets");
+    assert!(!same_value(&hex, &base64));
+    assert!(in_kind(&hex, Kind::HexBinary) && !in_kind(&hex, Kind::Base64Binary));
+    assert!(in_kind(&base64, Kind::Base64Binary) && !in_kind(&base64, Kind::HexBinary));
+    assert!(!facet_applies(Kind::HexBinary, &number(false, b"1", b"")));
+}

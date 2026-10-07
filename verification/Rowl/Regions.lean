@@ -199,6 +199,9 @@ theorem floor_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
   | Text t => exact absurd c (by simp [CanonicalNumeric])
   | Tagged t g => exact absurd c (by simp [CanonicalNumeric])
   | Truth b => exact absurd c (by simp [CanonicalNumeric])
+  | Uri _ => exact absurd c (by simp [CanonicalNumeric])
+  | Hex _ => exact absurd c (by simp [CanonicalNumeric])
+  | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
 
 /-- The kernel rounds a number's magnitude up. -/
 theorem ceil_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
@@ -263,6 +266,9 @@ theorem ceil_magnitude_spec (v : datatypes.DataValue) (c : CanonicalNumeric v)
   | Text t => exact absurd c (by simp [CanonicalNumeric])
   | Tagged t g => exact absurd c (by simp [CanonicalNumeric])
   | Truth b => exact absurd c (by simp [CanonicalNumeric])
+  | Uri _ => exact absurd c (by simp [CanonicalNumeric])
+  | Hex _ => exact absurd c (by simp [CanonicalNumeric])
+  | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
 
 theorem below_zero_eq (v : datatypes.DataValue) : regions.below_zero v = .ok (negativeOf v) := by
   cases v <;> rfl

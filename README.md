@@ -7,7 +7,7 @@ ontology file to the final yes or no: every answer it gives is the one that the
 W3C OWL 2 semantics defines.**
 
 > **Status: research software, no release yet.** Proved today: reasoning in
-> SROIQ, the logic behind OWL 2 DL, with 19 of the 33 OWL 2 datatypes, for
+> SROIQ, the logic behind OWL 2 DL, with 22 of the 33 OWL 2 datatypes, for
 > documents in Functional Syntax, Turtle, N-Triples or RDF/XML. Not proved yet:
 > a decision procedure for all of OWL 2 DL. Outside the supported part, ROWL
 > answers "unknown"; it does not guess. [Status](#status) has the summary and
@@ -340,26 +340,30 @@ properties:
 
 ### Datatypes
 
-- **Supported:** 19 of the 33 OWL 2 datatypes: `xsd:string`, `rdf:PlainLiteral`,
-  `xsd:boolean`, `owl:real`, `owl:rational`, `xsd:decimal`, and `xsd:integer`
-  with its 12 subtypes, such as `xsd:nonNegativeInteger`.
+- **Supported:** 22 of the 33 OWL 2 datatypes: `xsd:string`, `rdf:PlainLiteral`,
+  `xsd:boolean`, `xsd:anyURI`, `xsd:hexBinary`, `xsd:base64Binary`, `owl:real`,
+  `owl:rational`, `xsd:decimal`, and `xsd:integer` with its 12 subtypes, such
+  as `xsd:nonNegativeInteger`. Values are compared, not spellings:
+  `"0FB7"^^xsd:hexBinary` and `"0fb7"^^xsd:hexBinary` are one value, while an
+  IRI is never a string and hexadecimal and Base64 data are never equal, as
+  OWL 2 requires.
 - **Facets:** `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
   `xsd:maxExclusive` on the numeric datatypes. Numbers are compared exactly:
   `"8001/2"^^owl:rational` and `"4000.5"^^xsd:decimal` are the same value.
 - **Not yet:** `xsd:double`, `xsd:float`, `xsd:dateTime`, `xsd:dateTimeStamp`,
-  `xsd:anyURI`, `xsd:hexBinary`, `xsd:base64Binary`, `rdf:XMLLiteral`, the
-  types derived from `xsd:string` (such as `xsd:token`), and the other facets
-  (such as `xsd:length` and `xsd:pattern`).
+  `rdf:XMLLiteral`, the types derived from `xsd:string` (such as `xsd:token`),
+  and the other facets (such as `xsd:length` and `xsd:pattern`).
 
 ### Questions
 
 - **Answered:** consistency, class satisfiability, subsumption, instance
-  checking, and classification of the named classes.
+  checking, classification of the named classes, and entailment of facts
+  about named individuals: property assertions, negative ones, and equality
+  and inequality of two individuals.
 - **Validation:** `rowl validate` and `dl_violation()` say whether a document
   is OWL 2 DL and name the first violation. The lexical forms of literals and
   facet values are not checked yet.
-- **Not yet:** entailment of other facts (property assertions, equality of
-  individuals), evidence for an answer that others can replay, and typed
+- **Not yet:** evidence for an answer that others can replay, and typed
   outcomes for cancellation and exhausted resources.
 
 ### Toward v0.1
@@ -369,7 +373,7 @@ remaining formats (reading N-Quads, TriG, JSON-LD and RDFa; writing RDF/XML,
 N-Quads, TriG and JSON-LD), entailment of named facts, typed outcomes for
 cancellation and exhausted resources, and one proved composition from the
 input bytes to the answers that covers all of it. The release ledger,
-[`docs/coverage.json`](docs/coverage.json), tracks 5646 obligations; 215 of
+[`docs/coverage.json`](docs/coverage.json), tracks 5666 obligations; 215 of
 them are still open. The next steps are in
 [docs/status.md](docs/status.md#next-milestones), and the milestones and
 release gates in [docs/architecture.md](docs/architecture.md#milestones).
@@ -432,7 +436,7 @@ Measured on a shared development machine; the
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 666 Rust regression tests
+cargo test --workspace         # 669 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

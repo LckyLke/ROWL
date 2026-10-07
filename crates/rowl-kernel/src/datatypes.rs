@@ -1,6 +1,7 @@
 //! The data values of the literals of the OWL 2 datatypes the reasoner knows:
 //! `owl:real`, `owl:rational`, `xsd:decimal`, `xsd:integer` and its twelve
-//! subtypes, `xsd:string`, `rdf:PlainLiteral` and `xsd:boolean`.
+//! subtypes, `xsd:string`, `rdf:PlainLiteral`, `xsd:boolean`, `xsd:anyURI`,
+//! `xsd:hexBinary` and `xsd:base64Binary`.
 //!
 //! A literal of one of them whose lexical form is in the datatype's lexical
 //! space has a value:
@@ -20,7 +21,13 @@
 //! - a plain literal `text@tag` is the string `text` when the tag after the
 //!   last `@` is empty, and otherwise the pair of `text` and the tag in lower
 //!   case, which must be a well-formed language tag;
-//! - a boolean `true`, `1`, `false` or `0` is a truth value.
+//! - a boolean `true`, `1`, `false` or `0` is a truth value;
+//! - an `xsd:anyURI` literal is the IRI of its characters, which must be XML
+//!   characters (XML Schema 1.1: the lexical mapping is the identity);
+//! - an `xsd:hexBinary` literal `([0-9a-fA-F]{2})*` is the octets its digit
+//!   pairs write, and an `xsd:base64Binary` literal, Base64 groups with at most
+//!   one space after each character but the last, the octets they encode; the
+//!   two datatypes have disjoint copies of the octet sequences as values.
 //!
 //! Numbers are compared exactly (`compare_values`), and the four range facets
 //! `xsd:minInclusive`, `xsd:maxInclusive`, `xsd:minExclusive` and
@@ -35,7 +42,8 @@
     clippy::match_like_matches_macro,
     clippy::vec_init_then_push,
     clippy::manual_filter,
-    clippy::manual_map
+    clippy::manual_map,
+    clippy::manual_is_multiple_of
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::langtag::well_formed;
 use crate::model::{Datatype, Iri, Literal};
@@ -61,6 +69,12 @@ pub enum DataValue {
     Tagged(Vec<u8>, Vec<u8>),
     /// A truth value.
     Truth(bool),
+    /// An IRI of `xsd:anyURI`, as the UTF-8 bytes of its characters.
+    Uri(Vec<u8>),
+    /// The octets of an `xsd:hexBinary` value.
+    Hex(Vec<u8>),
+    /// The octets of an `xsd:base64Binary` value.
+    Base64(Vec<u8>),
 }
 
 /// The datatypes.
@@ -85,6 +99,9 @@ pub enum Kind {
     UnsignedInt,
     UnsignedShort,
     UnsignedByte,
+    AnyUri,
+    HexBinary,
+    Base64Binary,
 }
 
 /// The range facets.
@@ -127,7 +144,10 @@ fn kind_at(index: u8) -> Kind {
         15 => Kind::UnsignedLong,
         16 => Kind::UnsignedInt,
         17 => Kind::UnsignedShort,
-        _ => Kind::UnsignedByte,
+        18 => Kind::UnsignedByte,
+        19 => Kind::AnyUri,
+        20 => Kind::HexBinary,
+        _ => Kind::Base64Binary,
     }
 }
 /// Whether the IRI is the kind's datatype.
@@ -163,11 +183,14 @@ fn is_type(iri: &Vec<u8>, kind: Kind) -> bool {
         Kind::UnsignedInt => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#unsignedInt"),
         Kind::UnsignedShort => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#unsignedShort"),
         Kind::UnsignedByte => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#unsignedByte"),
+        Kind::AnyUri => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#anyURI"),
+        Kind::HexBinary => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#hexBinary"),
+        Kind::Base64Binary => same_pattern(iri, b"http://www.w3.org/2001/XMLSchema#base64Binary"),
     }
 }
 /// The first kind from the position `index` on whose datatype the IRI is.
 fn kind_from(iri: &Vec<u8>, index: u8) -> Option<Kind> {
-    if index < 19 {
+    if index < 22 {
         if is_type(iri, kind_at(index)) {
             Some(kind_at(index))
         } else {
@@ -575,6 +598,9 @@ fn number_in_kind(value: &DataValue, whole: bool, kind: Kind) -> bool {
         Kind::Boolean => false,
         Kind::Real => true,
         Kind::Rational => true,
+        Kind::AnyUri => false,
+        Kind::HexBinary => false,
+        Kind::Base64Binary => false,
         _ => whole & above_lower(value, kind) & below_upper(value, kind),
     }
 }
@@ -588,6 +614,184 @@ fn bounded_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
                 None
             }
         }
+        None => None,
+    }
+}
+/// The value of a hexadecimal digit.
+fn hex_digit(byte: u8) -> Option<u8> {
+    if (48 <= byte) & (byte <= 57) {
+        Some(byte - 48)
+    } else if (65 <= byte) & (byte <= 70) {
+        Some(byte - 55)
+    } else if (97 <= byte) & (byte <= 102) {
+        Some(byte - 87)
+    } else {
+        None
+    }
+}
+/// `out` followed by the octet, when there is room.
+fn push_octet(mut out: Vec<u8>, octet: u8) -> Option<Vec<u8>> {
+    if out.len() < usize::MAX {
+        out.push(octet);
+        Some(out)
+    } else {
+        None
+    }
+}
+/// `out` followed by the octets that the hexadecimal digit pairs of
+/// `lexical[index..]` write; `None` when they are no such pairs.
+fn hex_from(lexical: &Vec<u8>, index: usize, out: Vec<u8>) -> Option<Vec<u8>> {
+    if index < lexical.len() {
+        if index + 1 < lexical.len() {
+            match hex_digit(lexical[index]) {
+                Some(high) => match hex_digit(lexical[index + 1]) {
+                    Some(low) => match push_octet(out, high * 16 + low) {
+                        Some(out) => hex_from(lexical, index + 2, out),
+                        None => None,
+                    },
+                    None => None,
+                },
+                None => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The value of a character of the Base64 alphabet.
+fn sextet(byte: u8) -> Option<u8> {
+    if (65 <= byte) & (byte <= 90) {
+        Some(byte - 65)
+    } else if (97 <= byte) & (byte <= 122) {
+        Some(byte - 71)
+    } else if (48 <= byte) & (byte <= 57) {
+        Some(byte + 4)
+    } else if byte == 43 {
+        Some(62)
+    } else if byte == 47 {
+        Some(63)
+    } else {
+        None
+    }
+}
+/// `out` followed by the characters of `lexical[index..]` without the single
+/// spaces that may follow each character but the last; `None` for any other
+/// space.
+fn unspaced(lexical: &Vec<u8>, index: usize, out: Vec<u8>) -> Option<Vec<u8>> {
+    if index < lexical.len() {
+        if lexical[index] == 32 {
+            None
+        } else {
+            match push_octet(out, lexical[index]) {
+                Some(out) => {
+                    if index + 1 < lexical.len() {
+                        if lexical[index + 1] == 32 {
+                            if index + 2 < lexical.len() {
+                                unspaced(lexical, index + 2, out)
+                            } else {
+                                None
+                            }
+                        } else {
+                            unspaced(lexical, index + 1, out)
+                        }
+                    } else {
+                        Some(out)
+                    }
+                }
+                None => None,
+            }
+        }
+    } else {
+        Some(out)
+    }
+}
+/// `out` followed by the octets of a final group `a b = =` of one octet.
+fn padded_one(chars: &Vec<u8>, index: usize, a: u8, b: u8, out: Vec<u8>) -> Option<Vec<u8>> {
+    if chars[index + 3] == 61 {
+        if index + 4 == chars.len() {
+            if b % 16 == 0 {
+                push_octet(out, a * 4 + b / 16)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+/// `out` followed by the octets of a final group `a b c =` of two octets.
+fn padded_two(chars: &Vec<u8>, index: usize, a: u8, b: u8, c: u8, out: Vec<u8>) -> Option<Vec<u8>> {
+    if index + 4 == chars.len() {
+        if c % 4 == 0 {
+            match push_octet(out, a * 4 + b / 16) {
+                Some(out) => push_octet(out, (b % 16) * 16 + c / 4),
+                None => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+/// `out` followed by the three octets of a full group `a b c d`.
+fn full_group(out: Vec<u8>, a: u8, b: u8, c: u8, d: u8) -> Option<Vec<u8>> {
+    match push_octet(out, a * 4 + b / 16) {
+        Some(out) => match push_octet(out, (b % 16) * 16 + c / 4) {
+            Some(out) => push_octet(out, (c % 4) * 64 + d),
+            None => None,
+        },
+        None => None,
+    }
+}
+/// `out` followed by the octets that the Base64 groups of `chars[index..]`
+/// encode; `None` when they are no such groups.
+fn base64_from(chars: &Vec<u8>, index: usize, out: Vec<u8>) -> Option<Vec<u8>> {
+    if index < chars.len() {
+        if 3 < chars.len() - index {
+            match sextet(chars[index]) {
+                Some(a) => match sextet(chars[index + 1]) {
+                    Some(b) => {
+                        if chars[index + 2] == 61 {
+                            padded_one(chars, index, a, b, out)
+                        } else {
+                            match sextet(chars[index + 2]) {
+                                Some(c) => {
+                                    if chars[index + 3] == 61 {
+                                        padded_two(chars, index, a, b, c, out)
+                                    } else {
+                                        match sextet(chars[index + 3]) {
+                                            Some(d) => match full_group(out, a, b, c, d) {
+                                                Some(out) => base64_from(chars, index + 4, out),
+                                                None => None,
+                                            },
+                                            None => None,
+                                        }
+                                    }
+                                }
+                                None => None,
+                            }
+                        }
+                    }
+                    None => None,
+                },
+                None => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// The octets of an `xsd:base64Binary` lexical form.
+fn base64_value(lexical: &Vec<u8>) -> Option<Vec<u8>> {
+    match unspaced(lexical, 0, Vec::new()) {
+        Some(chars) => base64_from(&chars, 0, Vec::new()),
         None => None,
     }
 }
@@ -613,6 +817,26 @@ pub fn kind_value(kind: Kind, lexical: &Vec<u8>) -> Option<DataValue> {
         Kind::Boolean => truth_value(lexical),
         Kind::Real => None,
         Kind::Rational => rational_value(lexical),
+        Kind::AnyUri => {
+            if xml_text(lexical) {
+                Some(DataValue::Uri(copy_range(
+                    lexical,
+                    0,
+                    lexical.len(),
+                    Vec::new(),
+                )))
+            } else {
+                None
+            }
+        }
+        Kind::HexBinary => match hex_from(lexical, 0, Vec::new()) {
+            Some(octets) => Some(DataValue::Hex(octets)),
+            None => None,
+        },
+        Kind::Base64Binary => match base64_value(lexical) {
+            Some(octets) => Some(DataValue::Base64(octets)),
+            None => None,
+        },
         _ => bounded_value(kind, lexical),
     }
 }
@@ -657,6 +881,18 @@ pub fn same_value(left: &DataValue, right: &DataValue) -> bool {
             DataValue::Truth(b) => *a == *b,
             _ => false,
         },
+        DataValue::Uri(a) => match right {
+            DataValue::Uri(b) => same_bytes(a, b),
+            _ => false,
+        },
+        DataValue::Hex(a) => match right {
+            DataValue::Hex(b) => same_bytes(a, b),
+            _ => false,
+        },
+        DataValue::Base64(a) => match right {
+            DataValue::Base64(b) => same_bytes(a, b),
+            _ => false,
+        },
     }
 }
 /// Whether the value is in the value space of the datatype of the kind.
@@ -679,6 +915,18 @@ pub fn in_kind(value: &DataValue, kind: Kind) -> bool {
         },
         DataValue::Truth(_) => match kind {
             Kind::Boolean => true,
+            _ => false,
+        },
+        DataValue::Uri(_) => match kind {
+            Kind::AnyUri => true,
+            _ => false,
+        },
+        DataValue::Hex(_) => match kind {
+            Kind::HexBinary => true,
+            _ => false,
+        },
+        DataValue::Base64(_) => match kind {
+            Kind::Base64Binary => true,
             _ => false,
         },
     }
@@ -895,6 +1143,9 @@ pub fn facet_applies(kind: Kind, bound: &DataValue) -> bool {
             Kind::String => false,
             Kind::Plain => false,
             Kind::Boolean => false,
+            Kind::AnyUri => false,
+            Kind::HexBinary => false,
+            Kind::Base64Binary => false,
             _ => in_kind(bound, kind),
         }
     } else {

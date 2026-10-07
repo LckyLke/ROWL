@@ -103,14 +103,14 @@ theorem datatype_eq_iff (a b : Datatype) : a = b ↔ a.iri.spelling.val = b.iri.
 def kindList : List datatypes.Kind :=
   [.Integer, .Decimal, .String, .Plain, .Boolean, .Real, .Rational, .NonNegativeInteger, .NonPositiveInteger,
    .PositiveInteger, .NegativeInteger, .Long, .Int, .Short, .Byte, .UnsignedLong, .UnsignedInt, .UnsignedShort,
-   .UnsignedByte]
+   .UnsignedByte, .AnyUri, .HexBinary, .Base64Binary]
 
 /-- The kind at each position of the list. -/
-theorem kind_at_eq (i : U8) (h : i.val < 19) :
-    datatypes.kind_at i = .ok (kindList.getD i.val .UnsignedByte) := by
+theorem kind_at_eq (i : U8) (h : i.val < 22) :
+    datatypes.kind_at i = .ok (kindList.getD i.val .Base64Binary) := by
   obtain ⟨⟨⟨n, hn⟩⟩⟩ := i
-  have hv : n < 19 := h
-  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18) with e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;> subst e <;> rfl
+  have hv : n < 22 := h
+  rcases (by omega : n = 0 ∨ n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 ∨ n = 8 ∨ n = 9 ∨ n = 10 ∨ n = 11 ∨ n = 12 ∨ n = 13 ∨ n = 14 ∨ n = 15 ∨ n = 16 ∨ n = 17 ∨ n = 18 ∨ n = 19 ∨ n = 20 ∨ n = 21) with e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e | e <;> subst e <;> rfl
 
 /-- The datatype of a kind. -/
 def typeOf : datatypes.Kind → Datatype
@@ -133,26 +133,30 @@ def typeOf : datatypes.Kind → Datatype
   | .UnsignedInt => unsignedIntType
   | .UnsignedShort => unsignedShortType
   | .UnsignedByte => unsignedByteType
+  | .AnyUri => anyUriType
+  | .HexBinary => hexBinaryType
+  | .Base64Binary => base64BinaryType
 
 theorem is_type_correct (iri : alloc.vec.Vec U8) (k : datatypes.Kind) :
     datatypes.is_type iri k = .ok (decide (iri.val = (typeOf k).iri.spelling.val)) := by
   cases k <;> simp [datatypes.is_type, same_pattern_total, Array.to_slice, Array.make, lift, typeOf, integerType,
     decimalType, stringType, plainType, booleanType, realType, rationalType, nonNegativeIntegerType,
     nonPositiveIntegerType, positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType,
-    unsignedLongType, unsignedIntType, unsignedShortType, unsignedByteType]
+    unsignedLongType, unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType,
+    base64BinaryType]
 
 /-- Whether the IRI is the spelling of the kind's datatype. -/
 def Spelled (iri : List U8) (k : datatypes.Kind) : Bool := decide (iri = (typeOf k).iri.spelling.val)
 
-theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 19) :
+theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 22) :
     datatypes.kind_from iri i = .ok ((kindList.drop i.val).find? (Spelled iri.val)) := by
   rw [datatypes.kind_from]
-  by_cases more : i.val < 19
-  · have more' : i < (19#u8) := by simp only [UScalar.lt_equiv]; simpa using more
-    have split : kindList.drop i.val = kindList.getD i.val .UnsignedByte :: kindList.drop (i.val + 1) := by
+  by_cases more : i.val < 22
+  · have more' : i < (22#u8) := by simp only [UScalar.lt_equiv]; simpa using more
+    have split : kindList.drop i.val = kindList.getD i.val .Base64Binary :: kindList.drop (i.val + 1) := by
       rw [List.drop_eq_getElem_cons (by simp [kindList]; omega), List.getD_eq_getElem]
     rw [split, List.find?_cons, if_pos more', kind_at_eq i more]
-    generalize kindList.getD i.val .UnsignedByte = k
+    generalize kindList.getD i.val .Base64Binary = k
     by_cases found : iri.val = (typeOf k).iri.spelling.val
     · have spelled : Spelled iri.val k = true := by simp [Spelled, found]
       have decided : decide (iri.val = (typeOf k).iri.spelling.val) = true := by simp [found]
@@ -163,10 +167,10 @@ theorem kind_from_correct (iri : alloc.vec.Vec U8) (i : U8) (h : i.val ≤ 19) :
       have ih := kind_from_correct iri next (by omega)
       rw [nextIs] at ih
       simp only [bind_ok, is_type_correct, found, decide_false, Bool.false_eq_true, ↓reduceIte, spelled, advance, ih]
-  · have done : i.val = 19 := by omega
-    have notMore : ¬ i < (19#u8) := by simp only [UScalar.lt_equiv]; simp; omega
+  · have done : i.val = 22 := by omega
+    have notMore : ¬ i < (22#u8) := by simp only [UScalar.lt_equiv]; simp; omega
     simp [notMore, done, kindList]
-termination_by 19 - i.val
+termination_by 22 - i.val
 decreasing_by omega
 
 /-- The kind of one of the datatypes: the first in the list. -/
@@ -182,7 +186,7 @@ theorem kindOf_typeOf (k : datatypes.Kind) : kindOf (typeOf k) = some k := by
   cases k <;> simp [kindOf, kindList, typeOf, datatype_eq_iff, integerType, decimalType, stringType, plainType,
     booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType, positiveIntegerType,
     negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType, unsignedIntType,
-    unsignedShortType, unsignedByteType]
+    unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType]
 
 theorem kindOf_some {dt : Datatype} {k : datatypes.Kind} (h : kindOf dt = some k) : dt = typeOf k := by
   have := List.find?_some h
@@ -2270,6 +2274,9 @@ theorem parts_of (v : datatypes.DataValue) (c : CanonicalNumeric v) (small : dig
   | Text _ => exact absurd c (by simp [CanonicalNumeric])
   | Tagged _ _ => exact absurd c (by simp [CanonicalNumeric])
   | Truth _ => exact absurd c (by simp [CanonicalNumeric])
+  | Uri _ => exact absurd c (by simp [CanonicalNumeric])
+  | Hex _ => exact absurd c (by simp [CanonicalNumeric])
+  | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
 
 theorem order_cross (a b c d : ℕ) (hb : 0 < b) (hd : 0 < d) :
     Rowl.Numbers.order (a * d) (c * b) = orderOf ((a : ℚ) / b) ((c : ℚ) / d) := by
@@ -2313,6 +2320,9 @@ theorem compare_magnitudes_spec (l r : datatypes.DataValue) (cl : CanonicalNumer
     | Text _ => exact absurd cr (by simp [CanonicalNumeric])
     | Tagged _ _ => exact absurd cr (by simp [CanonicalNumeric])
     | Truth _ => exact absurd cr (by simp [CanonicalNumeric])
+    | Uri _ => exact absurd cr (by simp [CanonicalNumeric])
+    | Hex _ => exact absurd cr (by simp [CanonicalNumeric])
+    | Base64 _ => exact absurd cr (by simp [CanonicalNumeric])
   | Fraction n a b =>
     have small' : 2 * (digitWidth (.Fraction n a b) + digitWidth r) + 8 < Usize.max := by
       rcases small with ⟨_, _, _, _, _, _, h, _⟩ | h
@@ -2323,6 +2333,9 @@ theorem compare_magnitudes_spec (l r : datatypes.DataValue) (cl : CanonicalNumer
   | Text _ => exact absurd cl (by simp [CanonicalNumeric])
   | Tagged _ _ => exact absurd cl (by simp [CanonicalNumeric])
   | Truth _ => exact absurd cl (by simp [CanonicalNumeric])
+  | Uri _ => exact absurd cl (by simp [CanonicalNumeric])
+  | Hex _ => exact absurd cl (by simp [CanonicalNumeric])
+  | Base64 _ => exact absurd cl (by simp [CanonicalNumeric])
 
 theorem negative_correct (v : datatypes.DataValue) : datatypes.negative v = .ok (negativeOf v) := by
   cases v <;> rfl
@@ -2338,6 +2351,9 @@ theorem magnitude_nonneg (v : datatypes.DataValue) : 0 ≤ magnitude v := by
   | Text _ => simp [magnitude]
   | Tagged _ _ => simp [magnitude]
   | Truth _ => simp [magnitude]
+  | Uri _ => simp [magnitude]
+  | Hex _ => simp [magnitude]
+  | Base64 _ => simp [magnitude]
 
 /-- A number is its sign times its magnitude, and a negative number is not zero. -/
 theorem numValue_sign (v : datatypes.DataValue) (c : CanonicalNumeric v) :
@@ -2370,6 +2386,9 @@ theorem numValue_sign (v : datatypes.DataValue) (c : CanonicalNumeric v) :
   | Text _ => exact absurd c (by simp [CanonicalNumeric])
   | Tagged _ _ => exact absurd c (by simp [CanonicalNumeric])
   | Truth _ => exact absurd c (by simp [CanonicalNumeric])
+  | Uri _ => exact absurd c (by simp [CanonicalNumeric])
+  | Hex _ => exact absurd c (by simp [CanonicalNumeric])
+  | Base64 _ => exact absurd c (by simp [CanonicalNumeric])
 
 /-- The kernel orders canonical numbers exactly. -/
 theorem compare_numbers_spec (l r : datatypes.DataValue) (cl : CanonicalNumeric l) (cr : CanonicalNumeric r)
@@ -2451,6 +2470,9 @@ theorem width_spec (v : datatypes.DataValue) :
   | Text _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
   | Tagged _ _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
   | Truth _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
+  | Uri _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
+  | Hex _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
+  | Base64 _ => exact ⟨0#usize, by rw [datatypes.width], by simp [digitWidth]⟩
 
 /-- The kernel's comparison of values: the exact order of two canonical
     numbers, and no answer for a value that is no number or for numbers too
@@ -2520,7 +2542,8 @@ def upperOf : datatypes.Kind → Option ℤ
 
 /-- The integer subtypes of `xsd:integer`. -/
 def IsSubtype : datatypes.Kind → Prop
-  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational => False
+  | .Integer | .Decimal | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary =>
+    False
   | _ => True
 
 /-- Whether a number, an integer when `whole`, is in the value space of a
@@ -2534,6 +2557,9 @@ def NumberIn (k : datatypes.Kind) (whole : Prop) (q : ℚ) : Prop :=
   | .Boolean => False
   | .Real => True
   | .Rational => True
+  | .AnyUri => False
+  | .HexBinary => False
+  | .Base64Binary => False
   | k => whole ∧ (∀ l, lowerOf k = some l → (l : ℚ) ≤ q) ∧ (∀ u, upperOf k = some u → q ≤ (u : ℚ))
 
 /-- The subtypes are those of the specification with their bounds. -/
@@ -2607,6 +2633,9 @@ theorem lower_bound_correct (k : datatypes.Kind) :
       ∀ v, r = some v → ∃ l, lowerOf k = some l ∧ BoundValue v l := by
   cases k with
   | Integer => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | AnyUri => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | HexBinary => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
+  | Base64Binary => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | Decimal => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | String => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
   | Plain => exact ⟨none, by simp [datatypes.lower_bound], by simp [lowerOf], by simp⟩
@@ -2691,6 +2720,9 @@ theorem upper_bound_correct (k : datatypes.Kind) :
       ∀ v, r = some v → ∃ u, upperOf k = some u ∧ BoundValue v u := by
   cases k with
   | Integer => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | AnyUri => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | HexBinary => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
+  | Base64Binary => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | Decimal => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | String => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
   | Plain => exact ⟨none, by simp [datatypes.upper_bound], by simp [upperOf], by simp⟩
@@ -2876,6 +2908,9 @@ def Canonical : datatypes.DataValue → Prop
   | .Text t => XmlText t.val
   | .Tagged t m => XmlText t.val ∧ TagValue m.val
   | .Truth _ => True
+  | .Uri t => XmlText t.val
+  | .Hex _ => True
+  | .Base64 _ => True
 
 /-- The lexical space of the datatype of a kind. -/
 def LexicalForm : datatypes.Kind → List U8 → Prop
@@ -2886,11 +2921,14 @@ def LexicalForm : datatypes.Kind → List U8 → Prop
   | .Boolean, t => ∃ b, TruthForm t b
   | .Real, _ => False
   | .Rational, t => ∃ q, RationalForm t q
+  | .AnyUri, t => XmlText t
+  | .HexBinary, t => ∃ o, HexForm t o
+  | .Base64Binary, t => ∃ o, Base64Form t o
   | k, t => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ IntegerForm t (z : ℚ)
 
 /-- The numeric datatypes. -/
 def IsNumeric : datatypes.Kind → Prop
-  | .String | .Plain | .Boolean => False
+  | .String | .Plain | .Boolean | .AnyUri | .HexBinary | .Base64Binary => False
   | _ => True
 
 /-- The real numbers of the value space of a numeric kind's datatype. -/
@@ -2903,6 +2941,9 @@ def RealIn (k : datatypes.Kind) (r : ℝ) : Prop :=
   | .Boolean => False
   | .Real => True
   | .Rational => ∃ q : ℚ, r = q
+  | .AnyUri => False
+  | .HexBinary => False
+  | .Base64Binary => False
   | k => ∃ z : ℤ, Bounded (lowerOf k) (upperOf k) z ∧ r = z
 
 variable {Native : Type w} {D : DatatypeMap Native}
@@ -2915,6 +2956,9 @@ def valueOf (N : Normative D) : datatypes.DataValue → Native
   | .Text t => N.text t.val
   | .Tagged t m => N.tagged t.val m.val
   | .Truth b => N.truth b
+  | .Uri t => N.coded (.uri t.val)
+  | .Hex o => N.coded (.hex o.val)
+  | .Base64 o => N.coded (.base64 o.val)
 
 theorem real_rat (N : Normative D) (q : ℚ) : N.number q = N.real q := (N.real_number q).symm
 
@@ -2948,6 +2992,9 @@ theorem numeric_space (N : Normative D) (k : datatypes.Kind) (numeric : IsNumeri
   | String => exact absurd numeric (by simp [IsNumeric])
   | Plain => exact absurd numeric (by simp [IsNumeric])
   | Boolean => exact absurd numeric (by simp [IsNumeric])
+  | AnyUri => exact absurd numeric (by simp [IsNumeric])
+  | HexBinary => exact absurd numeric (by simp [IsNumeric])
+  | Base64Binary => exact absurd numeric (by simp [IsNumeric])
   | Real => simp only [typeOf, N.real_space, RealIn, and_true]
   | Rational =>
     simp only [typeOf, N.rational_space, RealIn]
@@ -2980,6 +3027,9 @@ theorem normative_lexical (N : Normative D) (k : datatypes.Kind) (t : List U8) :
   | Boolean => exact N.boolean_lexical t
   | Real => simp only [LexicalForm, iff_false]; exact N.real_lexical t
   | Rational => exact N.rational_lexical t
+  | AnyUri => exact N.uri_lexical t
+  | HexBinary => exact N.hex_lexical t
+  | Base64Binary => exact N.base64_lexical t
   | NonNegativeInteger => exact subtype _ trivial
   | NonPositiveInteger => exact subtype _ trivial
   | PositiveInteger => exact subtype _ trivial
@@ -3004,6 +3054,9 @@ theorem normative_supported (N : Normative D) (k : datatypes.Kind) : D.supported
   | Boolean => exact N.boolean_supported
   | Real => exact N.real_supported
   | Rational => exact N.rational_supported
+  | AnyUri => exact N.uri_supported
+  | HexBinary => exact N.hex_supported
+  | Base64Binary => exact N.base64_supported
   | _ => exact subtype _ trivial
 
 theorem number_value_canonical {v : datatypes.DataValue} {q : ℚ} (h : NumberValue v q) : Canonical v := by
@@ -3038,6 +3091,798 @@ theorem whole_integer {n : Bool} {w f : List U8} (c : CanonicalNumber n w f) (em
     ∃ z : ℤ, numberOf n w f = z := by
   obtain ⟨z, hz⟩ := (numberOf_integer c).mpr empty
   exact ⟨z, hz⟩
+
+/-! ### IRIs and octets -/
+
+/-- The kernel's value of a hexadecimal digit. -/
+theorem hex_digit_correct (byte : U8) :
+    ∃ r, datatypes.hex_digit byte = .ok r ∧ r.map (·.val) = hexDigitValue byte := by
+  rw [datatypes.hex_digit]
+  by_cases h1 : 48 ≤ byte.val ∧ byte.val ≤ 57
+  · have := h1.1; have := h1.2
+    obtain ⟨d, sub, dValue⟩ := WP.spec_imp_exists (U8.sub_spec (x := byte) (y := 48#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [hexDigitValue, h1, dValue]⟩
+  by_cases h2 : 65 ≤ byte.val ∧ byte.val ≤ 70
+  · have := h2.1; have := h2.2
+    have n1 : ¬ byte.val ≤ 57 := by omega
+    obtain ⟨d, sub, dValue⟩ := WP.spec_imp_exists (U8.sub_spec (x := byte) (y := 55#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [hexDigitValue, h1, h2, dValue]⟩
+  by_cases h3 : 97 ≤ byte.val ∧ byte.val ≤ 102
+  · have := h3.1; have := h3.2
+    have n1 : ¬ byte.val ≤ 57 := by omega
+    have n2 : ¬ byte.val ≤ 70 := by omega
+    obtain ⟨d, sub, dValue⟩ := WP.spec_imp_exists (U8.sub_spec (x := byte) (y := 87#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [hexDigitValue, h1, h2, h3, dValue]⟩
+  refine ⟨none, ?_, by simp [hexDigitValue, h1, h2, h3]⟩
+  rcases (by omega : byte.val < 48 ∨ (57 < byte.val ∧ byte.val < 65) ∨ (70 < byte.val ∧ byte.val < 97) ∨
+      102 < byte.val) with r | ⟨r1, r2⟩ | ⟨r1, r2⟩ | r
+  · have : ¬ 48 ≤ byte.val := by omega
+    have : ¬ 65 ≤ byte.val := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ byte.val ≤ 57 := by omega
+    have : ¬ 65 ≤ byte.val := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ byte.val ≤ 57 := by omega
+    have : ¬ byte.val ≤ 70 := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ byte.val ≤ 57 := by omega
+    have : ¬ byte.val ≤ 70 := by omega
+    have : ¬ byte.val ≤ 102 := by omega
+    simp [UScalar.le_equiv, *]
+
+private theorem hex_digit_small {byte : U8} {d : Nat} (h : hexDigitValue byte = some d) : d < 16 := by
+  unfold hexDigitValue at h
+  split_ifs at h <;> simp at h <;> omega
+
+private theorem push_octet_spec (out : alloc.vec.Vec U8) (octet : U8) (room : out.val.length < Usize.max) :
+    ∃ v, datatypes.push_octet out octet = .ok (some v) ∧ v.val = out.val ++ [octet] := by
+  obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out octet room)
+  exact ⟨pushed, by simp [datatypes.push_octet, alloc.vec.Vec.len_val, usize_max_val, room, push], contents⟩
+
+/-- A hexadecimal lexical form has one value. -/
+theorem hex_form_unique : ∀ {t o o' : List U8}, HexForm t o → HexForm t o' → o = o'
+  | [], _, _, h, h' => by simp only [HexForm] at h h'; rw [h, h']
+  | [_], _, _, h, _ => by simp [HexForm] at h
+  | _ :: _ :: _, _, _, h, h' => by
+    obtain ⟨x, y, octet, o1, hx, hy, rfl, hv, hr⟩ := h
+    obtain ⟨x', y', octet', o1', hx', hy', rfl, hv', hr'⟩ := h'
+    rw [hx] at hx'; rw [hy] at hy'
+    simp only [Option.some.injEq] at hx' hy'
+    subst hx' hy'
+    rw [hex_form_unique hr hr', UScalar.eq_of_val_eq (hv.trans hv'.symm)]
+
+/-- The kernel reads exactly the hexadecimal lexical forms, each to its octets. -/
+theorem hex_from_correct (lexical : alloc.vec.Vec U8) (index : Usize) (out : alloc.vec.Vec U8)
+    (room : out.val.length ≤ index.val) :
+    ∃ r, datatypes.hex_from lexical index out = .ok r ∧
+      (∀ v, r = some v → ∃ o, v.val = out.val ++ o ∧ HexForm (lexical.val.drop index.val) o) ∧
+      (r = none → ∀ o, ¬ HexForm (lexical.val.drop index.val) o) := by
+  have size := lexical.property
+  rw [datatypes.hex_from]
+  by_cases more : index.val < lexical.val.length
+  · obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIs : next.val = index.val + 1 := by simpa using nextValue
+    have lookup1 : lexical.index_usize index = .ok lexical.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    by_cases pair : next.val < lexical.val.length
+    · have pair' : index.val + 1 < lexical.val.length := by omega
+      have lookup2 : lexical.index_usize next = .ok lexical.val[index.val + 1] := by
+        simp [alloc.vec.Vec.index_usize, nextIs, List.getElem?_eq_getElem pair']
+      have split : lexical.val.drop index.val =
+          lexical.val[index.val] :: lexical.val[index.val + 1] :: lexical.val.drop (index.val + 2) := by
+        rw [List.drop_eq_getElem_cons more, List.drop_eq_getElem_cons pair']
+      obtain ⟨r1, run1, value1⟩ := hex_digit_correct lexical.val[index.val]
+      cases r1 with
+      | none =>
+        refine ⟨none, by simp [UScalar.lt_equiv, more, advance, nextIs, pair', lookup1, run1], by simp,
+          fun _ o form => ?_⟩
+        rw [split] at form
+        obtain ⟨x, _, _, _, hx, _⟩ := form
+        rw [hx] at value1
+        simp at value1
+      | some high =>
+        obtain ⟨r2, run2, value2⟩ := hex_digit_correct lexical.val[index.val + 1]
+        cases r2 with
+        | none =>
+          refine ⟨none, by simp [UScalar.lt_equiv, more, advance, nextIs, pair', lookup1, lookup2, run1, run2],
+            by simp, fun _ o form => ?_⟩
+          rw [split] at form
+          obtain ⟨_, y, _, _, _, hy, _⟩ := form
+          rw [hy] at value2
+          simp at value2
+        | some low =>
+          have hv : hexDigitValue lexical.val[index.val] = some high.val := by simpa using value1.symm
+          have lv : hexDigitValue lexical.val[index.val + 1] = some low.val := by simpa using value2.symm
+          have hs := hex_digit_small hv
+          have ls := hex_digit_small lv
+          obtain ⟨m, mul, mValue⟩ := WP.spec_imp_exists
+            (UScalar.mul_spec (x := high) (y := 16#u8) (by scalar_tac))
+          have mIs : m.val = high.val * 16 := by simpa using mValue
+          obtain ⟨s, add, sValue⟩ := WP.spec_imp_exists (U8.add_spec (x := m) (y := low) (by scalar_tac))
+          have sIs : s.val = 16 * high.val + low.val := by rw [sValue, mIs]; ring
+          have roomOut : out.val.length < Usize.max := by omega
+          obtain ⟨pushed, push, contents⟩ := push_octet_spec out s roomOut
+          obtain ⟨after, advance2, afterValue⟩ := WP.spec_imp_exists
+            (Usize.add_spec (x := index) (y := 2#usize) (by scalar_tac))
+          have afterIs : after.val = index.val + 2 := by simpa using afterValue
+          obtain ⟨r, run, someCase, noneCase⟩ := hex_from_correct lexical after pushed
+            (by rw [contents, afterIs]; simp; omega)
+          rw [afterIs] at someCase noneCase
+          refine ⟨r, by simp [UScalar.lt_equiv, more, advance, nextIs, pair', lookup1, lookup2, run1, run2, mul,
+            add, push, advance2, run], fun v hv' => ?_, fun hn o form => ?_⟩
+          · obtain ⟨o, hvo, form⟩ := someCase v hv'
+            refine ⟨s :: o, by rw [hvo, contents]; simp, ?_⟩
+            rw [split]
+            exact ⟨high.val, low.val, s, o, hv, lv, rfl, sIs, form⟩
+          · rw [split] at form
+            obtain ⟨_, _, _, o', _, _, _, _, rest⟩ := form
+            exact noneCase hn o' rest
+    · have single : lexical.val.drop index.val = [lexical.val[index.val]] := by
+        rw [List.drop_eq_getElem_cons more, List.drop_eq_nil_of_le (by omega)]
+      refine ⟨none, by simp [UScalar.lt_equiv, more, advance, pair], by simp, fun _ o form => ?_⟩
+      rw [single] at form
+      simp [HexForm] at form
+  · refine ⟨some out, by simp [UScalar.lt_equiv, more], fun v hv => ⟨[], by cases hv; simp, ?_⟩, by simp⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp [HexForm]
+termination_by lexical.val.length - index.val
+decreasing_by omega
+
+/-- The kernel's value of a character of the Base64 alphabet. -/
+theorem sextet_correct (byte : U8) :
+    ∃ r, datatypes.sextet byte = .ok r ∧ r.map (·.val) = base64Value byte := by
+  rw [datatypes.sextet]
+  by_cases h1 : 65 ≤ byte.val ∧ byte.val ≤ 90
+  · have := h1.1; have := h1.2
+    obtain ⟨d, sub, dValue⟩ := WP.spec_imp_exists (U8.sub_spec (x := byte) (y := 65#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [base64Value, h1, dValue]⟩
+  by_cases h2 : 97 ≤ byte.val ∧ byte.val ≤ 122
+  · have := h2.1; have := h2.2
+    have n1 : ¬ byte.val ≤ 90 := by omega
+    obtain ⟨d, sub, dValue⟩ := WP.spec_imp_exists (U8.sub_spec (x := byte) (y := 71#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [base64Value, h1, h2, dValue]⟩
+  by_cases h3 : 48 ≤ byte.val ∧ byte.val ≤ 57
+  · have := h3.1; have := h3.2
+    have n1 : ¬ 65 ≤ byte.val := by omega
+    have n2 : ¬ 97 ≤ byte.val := by omega
+    obtain ⟨d, add, dValue⟩ := WP.spec_imp_exists (U8.add_spec (x := byte) (y := 4#u8) (by scalar_tac))
+    exact ⟨some d, by simp [UScalar.le_equiv, *], by simp [base64Value, h1, h2, h3, dValue]⟩
+  have n1 : ¬ (65 ≤ byte.val ∧ byte.val ≤ 90) := h1
+  by_cases h4 : byte.val = 43
+  · have e : byte = 43#u8 := UScalar.eq_of_val_eq (by simpa using h4)
+    subst e
+    exact ⟨some 62#u8, by simp [UScalar.le_equiv], by simp [base64Value]⟩
+  by_cases h5 : byte.val = 47
+  · have e : byte = 47#u8 := UScalar.eq_of_val_eq (by simpa using h5)
+    subst e
+    exact ⟨some 63#u8, by simp [UScalar.le_equiv], by simp [base64Value]⟩
+  have n4 : byte ≠ 43#u8 := fun e => h4 (by rw [e]; rfl)
+  have n5 : byte ≠ 47#u8 := fun e => h5 (by rw [e]; rfl)
+  refine ⟨none, ?_, by simp [base64Value, h1, h2, h3, h4, h5]⟩
+  rcases (by omega : byte.val < 48 ∨ (57 < byte.val ∧ byte.val < 65) ∨ (90 < byte.val ∧ byte.val < 97) ∨
+      122 < byte.val) with r | ⟨r1, r2⟩ | ⟨r1, r2⟩ | r
+  · have : ¬ 65 ≤ byte.val := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    have : ¬ 48 ≤ byte.val := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ 65 ≤ byte.val := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    have : ¬ byte.val ≤ 57 := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ byte.val ≤ 90 := by omega
+    have : ¬ 97 ≤ byte.val := by omega
+    have : ¬ byte.val ≤ 57 := by omega
+    simp [UScalar.le_equiv, *]
+  · have : ¬ byte.val ≤ 90 := by omega
+    have : ¬ byte.val ≤ 122 := by omega
+    have : ¬ byte.val ≤ 57 := by omega
+    simp [UScalar.le_equiv, *]
+
+private theorem sextet_small {byte : U8} {d : Nat} (h : base64Value byte = some d) : d < 64 := by
+  unfold base64Value at h
+  split_ifs at h <;> simp at h <;> omega
+
+private theorem space_no_sextet : base64Value 32#u8 = none := by decide
+private theorem pad_no_sextet : base64Value 61#u8 = none := by decide
+
+/-- The characters of Base64 groups are no spaces. -/
+theorem base64_chars_spaceless : ∀ {chars o : List U8}, Base64Chars chars o → (32#u8) ∉ chars
+  | [], _, _ => by simp
+  | a :: b :: c :: d :: rest, o, h => by
+    obtain ⟨va, vb, ha, hb, cases⟩ := h
+    have na : a ≠ 32#u8 := fun e => by rw [e, space_no_sextet] at ha; cases ha
+    have nb : b ≠ 32#u8 := fun e => by rw [e, space_no_sextet] at hb; cases hb
+    rcases cases with ⟨vc, vd, _, _, _, _, hc, hd, _, _, _, _, rest'⟩ | ⟨vc, _, _, rfl, hc, rfl, _⟩ |
+        ⟨_, rfl, rfl, rfl, _⟩
+    · have nc : c ≠ 32#u8 := fun e => by rw [e, space_no_sextet] at hc; cases hc
+      have nd : d ≠ 32#u8 := fun e => by rw [e, space_no_sextet] at hd; cases hd
+      have := base64_chars_spaceless rest'
+      simp only [List.mem_cons, not_or]
+      exact ⟨na.symm, nb.symm, nc.symm, nd.symm, this⟩
+    · have nc : c ≠ 32#u8 := fun e => by rw [e, space_no_sextet] at hc; cases hc
+      simp only [List.mem_cons, not_or, List.not_mem_nil]
+      exact ⟨na.symm, nb.symm, nc.symm, by decide, not_false⟩
+    · simp only [List.mem_cons, not_or, List.not_mem_nil]
+      exact ⟨na.symm, nb.symm, by decide, by decide, not_false⟩
+  | [_], _, h => by simp [Base64Chars] at h
+  | [_, _], _, h => by simp [Base64Chars] at h
+  | [_, _, _], _, h => by simp [Base64Chars] at h
+
+/-- Base64 groups have one value. -/
+theorem base64_chars_unique : ∀ {chars o o' : List U8}, Base64Chars chars o → Base64Chars chars o' → o = o'
+  | [], _, _, h, h' => by simp only [Base64Chars] at h h'; rw [h, h']
+  | a :: b :: c :: d :: rest, o, o', h, h' => by
+    obtain ⟨va, vb, ha, hb, cases⟩ := h
+    obtain ⟨va', vb', ha', hb', cases'⟩ := h'
+    rw [ha] at ha'; rw [hb] at hb'
+    simp only [Option.some.injEq] at ha' hb'
+    subst ha' hb'
+    rcases cases with ⟨vc, vd, x, y, z, o1, hc, hd, rfl, hx, hy, hz, r1⟩ |
+        ⟨vc, x, y, rfl, hc, rfl, _, rfl, hx, hy⟩ | ⟨x, rfl, rfl, rfl, _, rfl, hx⟩ <;>
+      rcases cases' with ⟨vc', vd', x', y', z', o1', hc', hd', rfl, hx', hy', hz', r1'⟩ |
+        ⟨vc', x', y', hrest', hc', hd', _, rfl, hx', hy'⟩ | ⟨x', hrest', hcpad', hdpad', _, rfl, hx'⟩
+    · rw [hc] at hc'; rw [hd] at hd'
+      simp only [Option.some.injEq] at hc' hd'
+      subst hc' hd'
+      rw [base64_chars_unique r1 r1', UScalar.eq_of_val_eq (hx.trans hx'.symm),
+        UScalar.eq_of_val_eq (hy.trans hy'.symm), UScalar.eq_of_val_eq (hz.trans hz'.symm)]
+    · rw [hd', pad_no_sextet] at hd; cases hd
+    · rw [hcpad', pad_no_sextet] at hc; cases hc
+    · rw [pad_no_sextet] at hd'; cases hd'
+    · rw [hc] at hc'
+      simp only [Option.some.injEq] at hc'
+      subst hc'
+      rw [UScalar.eq_of_val_eq (hx.trans hx'.symm), UScalar.eq_of_val_eq (hy.trans hy'.symm)]
+    · rw [hcpad', pad_no_sextet] at hc; cases hc
+    · rw [pad_no_sextet] at hc'; cases hc'
+    · rw [pad_no_sextet] at hc'; cases hc'
+    · rw [UScalar.eq_of_val_eq (hx.trans hx'.symm)]
+  | [_], _, _, h, _ => by simp [Base64Chars] at h
+  | [_, _], _, _, h, _ => by simp [Base64Chars] at h
+  | [_, _, _], _, _, h, _ => by simp [Base64Chars] at h
+
+/-- The first character of a spaced text is its first byte. -/
+private theorem spaced_head {text : List U8} {c : U8} {cs : List U8} (h : Spaced text (c :: cs)) :
+    ∃ rest, text = c :: rest := by
+  cases cs with
+  | nil => exact ⟨[], by simpa [Spaced] using h⟩
+  | cons d ds =>
+    obtain ⟨rest, shape, _⟩ := h
+    rcases shape with rfl | rfl
+    · exact ⟨rest, rfl⟩
+    · exact ⟨32#u8 :: rest, rfl⟩
+
+private theorem spaced_nil {chars : List U8} (h : Spaced [] chars) : chars = [] := by
+  cases chars with
+  | nil => rfl
+  | cons c cs =>
+    obtain ⟨rest, e⟩ := spaced_head h
+    cases e
+
+/-- The characters of a spaced text without spaces among them are unique. -/
+theorem spaced_unique : ∀ {text c1 c2 : List U8}, Spaced text c1 → Spaced text c2 → (32#u8) ∉ c1 →
+    (32#u8) ∉ c2 → c1 = c2
+  | text, [], c2, h1, h2, _, _ => by
+    simp only [Spaced] at h1
+    subst h1
+    exact (spaced_nil h2).symm
+  | text, [c], [], h1, h2, _, _ => by
+    simp only [Spaced] at h1 h2
+    rw [h1] at h2
+    cases h2
+  | text, [c], [d], h1, h2, _, _ => by
+    simp only [Spaced] at h1 h2
+    rw [h1] at h2
+    simp only [List.cons.injEq, and_true] at h2
+    rw [h2]
+  | text, [c], d :: e :: es, h1, h2, _, n2 => by
+    simp only [Spaced] at h1
+    subst h1
+    obtain ⟨rest, shape, inner⟩ := h2
+    rcases shape with e1 | e1
+    · simp only [List.cons.injEq] at e1
+      obtain ⟨_, rfl⟩ := e1
+      exact absurd (spaced_nil inner) (by simp)
+    · simp at e1
+  | text, c :: d :: cs, [], h1, h2, _, _ => by
+    simp only [Spaced] at h2
+    subst h2
+    obtain ⟨rest, e⟩ := spaced_head h1
+    cases e
+  | text, c :: d :: cs, [e], h1, h2, n1, _ => by
+    simp only [Spaced] at h2
+    subst h2
+    obtain ⟨rest, shape, inner⟩ := h1
+    rcases shape with e1 | e1
+    · simp only [List.cons.injEq] at e1
+      obtain ⟨_, rfl⟩ := e1
+      exact absurd (spaced_nil inner) (by simp)
+    · simp at e1
+  | text, c :: d :: cs, c' :: d' :: cs', h1, h2, n1, n2 => by
+    obtain ⟨r1, shape1, inner1⟩ := h1
+    obtain ⟨r2, shape2, inner2⟩ := h2
+    have nd : d ≠ 32#u8 := fun e => n1 (by rw [e]; simp)
+    have nd' : d' ≠ 32#u8 := fun e => n2 (by rw [e]; simp)
+    have tail1 : (32#u8) ∉ d :: cs := fun m => n1 (List.mem_cons_of_mem _ m)
+    have tail2 : (32#u8) ∉ d' :: cs' := fun m => n2 (List.mem_cons_of_mem _ m)
+    rcases shape1 with rfl | rfl <;> rcases shape2 with e2 | e2 <;> simp only [List.cons.injEq] at e2
+    · obtain ⟨rfl, rfl⟩ := e2
+      rw [spaced_unique inner1 inner2 tail1 tail2]
+    · obtain ⟨rfl, rfl⟩ := e2
+      obtain ⟨rest, e⟩ := spaced_head inner1
+      simp only [List.cons.injEq] at e
+      exact absurd e.1.symm nd
+    · obtain ⟨rfl, e2'⟩ := e2
+      obtain ⟨rest, e⟩ := spaced_head inner2
+      rw [e] at e2'
+      simp only [List.cons.injEq] at e2'
+      exact absurd e2'.1.symm nd'
+    · obtain ⟨rfl, _, rfl⟩ := e2
+      rw [spaced_unique inner1 inner2 tail1 tail2]
+
+/-- A Base64 lexical form has one value. -/
+theorem base64_form_unique {text o o' : List U8} (h : Base64Form text o) (h' : Base64Form text o') : o = o' := by
+  obtain ⟨c1, s1, b1⟩ := h
+  obtain ⟨c2, s2, b2⟩ := h'
+  rw [spaced_unique s1 s2 (base64_chars_spaceless b1) (base64_chars_spaceless b2)] at b1
+  exact base64_chars_unique b1 b2
+
+private theorem spaced_space {text chars : List U8} (h : Spaced (32#u8 :: text) chars) (n : (32#u8) ∉ chars) :
+    False := by
+  cases chars with
+  | nil => simp [Spaced] at h
+  | cons c cs =>
+    obtain ⟨rest, e⟩ := spaced_head h
+    simp only [List.cons.injEq] at e
+    exact n (by rw [← e.1]; simp)
+
+/-- The kernel removes exactly the spaces of the Base64 grammar: one after a
+    character, never first, last or twice. -/
+theorem unspaced_correct (lexical : alloc.vec.Vec U8) (index : Usize) (out : alloc.vec.Vec U8)
+    (room : out.val.length ≤ index.val) :
+    ∃ r, datatypes.unspaced lexical index out = .ok r ∧
+      (∀ v, r = some v → ∃ chars, v.val = out.val ++ chars ∧ Spaced (lexical.val.drop index.val) chars ∧
+        (32#u8) ∉ chars) ∧
+      (r = none → ∀ chars, (32#u8) ∉ chars → ¬ Spaced (lexical.val.drop index.val) chars) := by
+  have size := lexical.property
+  rw [datatypes.unspaced]
+  by_cases more : index.val < lexical.val.length
+  · have lookup : lexical.index_usize index = .ok lexical.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    have split := List.drop_eq_getElem_cons more
+    by_cases space : lexical.val[index.val] = 32#u8
+    · refine ⟨none, by simp [UScalar.lt_equiv, more, lookup, space], by simp, fun _ chars n form => ?_⟩
+      rw [split, space] at form
+      exact spaced_space form n
+    · have roomOut : out.val.length < Usize.max := by omega
+      obtain ⟨pushed, push, contents⟩ := push_octet_spec out lexical.val[index.val] roomOut
+      obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+        (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have nextIs : next.val = index.val + 1 := by simpa using nextValue
+      by_cases pair : index.val + 1 < lexical.val.length
+      · have lookup2 : lexical.index_usize next = .ok lexical.val[index.val + 1] := by
+          simp [alloc.vec.Vec.index_usize, nextIs, List.getElem?_eq_getElem pair]
+        have split2 : lexical.val.drop (index.val + 1) =
+            lexical.val[index.val + 1] :: lexical.val.drop (index.val + 2) :=
+          List.drop_eq_getElem_cons pair
+        by_cases space2 : lexical.val[index.val + 1] = 32#u8
+        · obtain ⟨after, advance2, afterValue⟩ := WP.spec_imp_exists
+            (Usize.add_spec (x := index) (y := 2#usize) (by scalar_tac))
+          have afterIs : after.val = index.val + 2 := by simpa using afterValue
+          by_cases third : index.val + 2 < lexical.val.length
+          · obtain ⟨r, run, someCase, noneCase⟩ := unspaced_correct lexical after pushed
+              (by rw [contents, afterIs]; simp; omega)
+            rw [afterIs] at someCase noneCase
+            have nonempty : lexical.val.drop (index.val + 2) ≠ [] := by
+              intro e; have := List.drop_eq_nil_iff.mp e; omega
+            refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, space, push, advance, nextIs, pair, lookup2,
+              space2, advance2, afterIs, third, run], fun v hv => ?_, fun hn chars n form => ?_⟩
+            · obtain ⟨chars, hvc, spaced, n⟩ := someCase v hv
+              cases chars with
+              | nil => exact absurd (by simpa [Spaced] using spaced) nonempty
+              | cons d ds =>
+                refine ⟨lexical.val[index.val] :: d :: ds, by rw [hvc, contents]; simp, ?_, ?_⟩
+                · rw [split, split2, space2]
+                  exact ⟨_, .inr rfl, spaced⟩
+                · simp only [List.mem_cons, not_or]
+                  exact ⟨fun e => space e.symm, by simpa using n⟩
+            · rw [split, split2, space2] at form
+              cases chars with
+              | nil => simp [Spaced] at form
+              | cons c cs =>
+                cases cs with
+                | nil => simp [Spaced] at form
+                | cons d ds =>
+                  obtain ⟨rest, shape, inner⟩ := form
+                  have tail : (32#u8) ∉ d :: ds := fun m => n (List.mem_cons_of_mem _ m)
+                  rcases shape with e | e <;> simp only [List.cons.injEq] at e
+                  · obtain ⟨_, rfl⟩ := e
+                    exact spaced_space inner tail
+                  · obtain ⟨_, _, rfl⟩ := e
+                    exact noneCase hn _ tail inner
+          · refine ⟨none, by simp [UScalar.lt_equiv, more, lookup, space, push, advance, nextIs, pair, lookup2,
+              space2, advance2, afterIs, third], by simp, fun _ chars n form => ?_⟩
+            have empty : lexical.val.drop (index.val + 2) = [] := List.drop_eq_nil_of_le (by omega)
+            rw [split, split2, space2, empty] at form
+            cases chars with
+            | nil => simp [Spaced] at form
+            | cons c cs =>
+              cases cs with
+              | nil => simp [Spaced] at form
+              | cons d ds =>
+                obtain ⟨rest, shape, inner⟩ := form
+                have tail : (32#u8) ∉ d :: ds := fun m => n (List.mem_cons_of_mem _ m)
+                rcases shape with e | e <;> simp only [List.cons.injEq] at e
+                · obtain ⟨_, rfl⟩ := e
+                  exact spaced_space inner tail
+                · obtain ⟨_, _, rfl⟩ := e
+                  exact absurd (spaced_nil inner) (by simp)
+        · obtain ⟨r, run, someCase, noneCase⟩ := unspaced_correct lexical next pushed
+            (by rw [contents, nextIs]; simp; omega)
+          rw [nextIs] at someCase noneCase
+          have nonempty : lexical.val.drop (index.val + 1) ≠ [] := by
+            intro e; have := List.drop_eq_nil_iff.mp e; omega
+          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, space, push, advance, nextIs, pair, lookup2, space2,
+            run], fun v hv => ?_, fun hn chars n form => ?_⟩
+          · obtain ⟨chars, hvc, spaced, n⟩ := someCase v hv
+            cases chars with
+            | nil => exact absurd (by simpa [Spaced] using spaced) nonempty
+            | cons d ds =>
+              refine ⟨lexical.val[index.val] :: d :: ds, by rw [hvc, contents]; simp, ?_, ?_⟩
+              · rw [split]
+                exact ⟨_, .inl rfl, spaced⟩
+              · simp only [List.mem_cons, not_or]
+                exact ⟨fun e => space e.symm, by simpa using n⟩
+          · rw [split] at form
+            cases chars with
+            | nil => (simp [Spaced] at form; omega)
+            | cons c cs =>
+              cases cs with
+              | nil =>
+                simp only [Spaced, List.cons.injEq] at form
+                exact nonempty form.2
+              | cons d ds =>
+                obtain ⟨rest, shape, inner⟩ := form
+                have tail : (32#u8) ∉ d :: ds := fun m => n (List.mem_cons_of_mem _ m)
+                rcases shape with e | e <;> simp only [List.cons.injEq] at e
+                · obtain ⟨_, rfl⟩ := e
+                  exact noneCase hn _ tail inner
+                · obtain ⟨_, e2⟩ := e
+                  rw [split2] at e2
+                  simp only [List.cons.injEq] at e2
+                  exact space2 e2.1
+      · have last : lexical.val.drop (index.val + 1) = [] := List.drop_eq_nil_of_le (by omega)
+        refine ⟨some pushed, by simp [UScalar.lt_equiv, more, lookup, space, push, advance, nextIs, pair],
+          fun v hv => ⟨[lexical.val[index.val]], by cases hv; rw [contents], ?_, ?_⟩, by simp⟩
+        · rw [split, last]; rfl
+        · simp only [List.mem_cons, List.not_mem_nil, or_false]
+          exact fun e => space e.symm
+  · refine ⟨some out, by simp [UScalar.lt_equiv, more], fun v hv => ⟨[], by cases hv; simp, ?_, by simp⟩, by simp⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    rfl
+termination_by lexical.val.length - index.val
+decreasing_by all_goals omega
+
+private theorem u8_mul {x : U8} {k : U8} (bound : x.val * k.val ≤ 255) :
+    ∃ y : U8, (x * k : Result U8) = .ok y ∧ y.val = x.val * k.val := by
+  obtain ⟨y, run, value⟩ := WP.spec_imp_exists (UScalar.mul_spec (x := x) (y := k) (by scalar_tac))
+  exact ⟨y, run, by simpa using value⟩
+
+private theorem u8_add {x y : U8} (bound : x.val + y.val ≤ 255) :
+    ∃ z : U8, (x + y : Result U8) = .ok z ∧ z.val = x.val + y.val := by
+  obtain ⟨z, run, value⟩ := WP.spec_imp_exists (U8.add_spec (x := x) (y := y) (by scalar_tac))
+  exact ⟨z, run, by simpa using value⟩
+
+private theorem u8_div {x : U8} {k : U8} (nonzero : k.val ≠ 0) :
+    ∃ y : U8, (x / k : Result U8) = .ok y ∧ y.val = x.val / k.val := by
+  obtain ⟨y, run, value⟩ := WP.spec_imp_exists (U8.div_spec (x := x) (y := k) nonzero)
+  exact ⟨y, run, by simpa using value⟩
+
+private theorem u8_rem {x : U8} {k : U8} (nonzero : k.val ≠ 0) :
+    ∃ y : U8, (x % k : Result U8) = .ok y ∧ y.val = x.val % k.val := by
+  obtain ⟨y, run, value⟩ := WP.spec_imp_exists (U8.rem_spec (x := x) (y := k) nonzero)
+  exact ⟨y, run, by simpa using value⟩
+
+private theorem padded_one_correct (chars : alloc.vec.Vec U8) (index : Usize) (a b : U8) (out : alloc.vec.Vec U8)
+    (more : index.val + 3 < chars.val.length) (va : a.val < 64) (vb : b.val < 64)
+    (room : out.val.length < Usize.max) :
+    ∃ r, datatypes.padded_one chars index a b out = .ok r ∧
+      (∀ v, r = some v → ∃ x : U8, v.val = out.val ++ [x] ∧ chars.val[index.val + 3] = 61#u8 ∧
+        index.val + 4 = chars.val.length ∧ b.val % 16 = 0 ∧ x.val = a.val * 4 + b.val / 16) ∧
+      (r = none → ¬ (chars.val[index.val + 3] = 61#u8 ∧ index.val + 4 = chars.val.length ∧ b.val % 16 = 0)) := by
+  have size := chars.property
+  rw [datatypes.padded_one]
+  obtain ⟨i3, add3, i3Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 3#usize) (by scalar_tac))
+  have i3Is : i3.val = index.val + 3 := by simpa using i3Value
+  have lookup : chars.index_usize i3 = .ok chars.val[index.val + 3] := by
+    simp [alloc.vec.Vec.index_usize, i3Is, List.getElem?_eq_getElem more]
+  by_cases pad : chars.val[index.val + 3] = 61#u8
+  · obtain ⟨i4, add4, i4Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 4#usize) (by scalar_tac))
+    have i4Is : i4.val = index.val + 4 := by simpa using i4Value
+    by_cases ends : index.val + 4 = chars.val.length
+    · have endsU : i4 = alloc.vec.Vec.len chars := UScalar.eq_of_val_eq (by simp [i4Is, ends])
+      obtain ⟨m, mRun, mValue⟩ := u8_rem (x := b) (k := 16#u8) (by simp)
+      by_cases zero : b.val % 16 = 0
+      · have mZero : m = 0#u8 := UScalar.eq_of_val_eq (by simp [mValue, zero])
+        obtain ⟨i, iRun, iValue⟩ := u8_mul (x := a) (k := 4#u8) (by simp; omega)
+        obtain ⟨j, jRun, jValue⟩ := u8_div (x := b) (k := 16#u8) (by simp)
+        obtain ⟨x, xRun, xValue⟩ := u8_add (x := i) (y := j) (by simp [iValue, jValue]; omega)
+        obtain ⟨v, push, contents⟩ := push_octet_spec out x room
+        refine ⟨some v, by simp [alloc.vec.Vec.index_slice_index, add3, lookup, pad, add4, endsU, mRun, mZero, iRun,
+          jRun, xRun, push], fun v' hv => ?_, by simp⟩
+        cases hv
+        exact ⟨x, contents, pad, ends, zero, by rw [xValue, iValue, jValue]; simp⟩
+      · have mNonzero : m ≠ 0#u8 := fun e => zero (by
+          have := congrArg UScalar.val e; simp [mValue] at this; omega)
+        exact ⟨none, by simp [alloc.vec.Vec.index_slice_index, add3, lookup, pad, add4, endsU, mRun, mNonzero],
+          by simp, fun _ ⟨_, _, z⟩ => zero z⟩
+    · have notEnds : i4 ≠ alloc.vec.Vec.len chars := fun e => ends (by
+        have := congrArg UScalar.val e; simp [i4Is] at this; omega)
+      exact ⟨none, by simp [alloc.vec.Vec.index_slice_index, add3, lookup, pad, add4, notEnds], by simp,
+        fun _ ⟨_, e, _⟩ => ends e⟩
+  · exact ⟨none, by simp [alloc.vec.Vec.index_slice_index, add3, lookup, pad], by simp, fun _ ⟨p, _⟩ => pad p⟩
+
+private theorem padded_two_correct (chars : alloc.vec.Vec U8) (index : Usize) (a b c : U8)
+    (out : alloc.vec.Vec U8) (va : a.val < 64) (vb : b.val < 64) (vc : c.val < 64)
+    (room : out.val.length + 1 < Usize.max) (fits : index.val + 4 ≤ Usize.max) :
+    ∃ r, datatypes.padded_two chars index a b c out = .ok r ∧
+      (∀ v, r = some v → ∃ x y : U8, v.val = out.val ++ [x, y] ∧ index.val + 4 = chars.val.length ∧
+        c.val % 4 = 0 ∧ x.val = a.val * 4 + b.val / 16 ∧ y.val = b.val % 16 * 16 + c.val / 4) ∧
+      (r = none → ¬ (index.val + 4 = chars.val.length ∧ c.val % 4 = 0)) := by
+  rw [datatypes.padded_two]
+  obtain ⟨i4, add4, i4Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 4#usize) (by scalar_tac))
+  have i4Is : i4.val = index.val + 4 := by simpa using i4Value
+  by_cases ends : index.val + 4 = chars.val.length
+  · have endsU : i4 = alloc.vec.Vec.len chars := UScalar.eq_of_val_eq (by simp [i4Is, ends])
+    obtain ⟨m, mRun, mValue⟩ := u8_rem (x := c) (k := 4#u8) (by simp)
+    by_cases zero : c.val % 4 = 0
+    · have mZero : m = 0#u8 := UScalar.eq_of_val_eq (by simp [mValue, zero])
+      obtain ⟨i, iRun, iValue⟩ := u8_mul (x := a) (k := 4#u8) (by simp; omega)
+      obtain ⟨j, jRun, jValue⟩ := u8_div (x := b) (k := 16#u8) (by simp)
+      obtain ⟨x, xRun, xValue⟩ := u8_add (x := i) (y := j) (by simp [iValue, jValue]; omega)
+      obtain ⟨v1, push1, contents1⟩ := push_octet_spec out x (by omega)
+      obtain ⟨p, pRun, pValue⟩ := u8_rem (x := b) (k := 16#u8) (by simp)
+      have pSmall : p.val < 16 := by rw [pValue]; simp; omega
+      obtain ⟨q, qRun, qValue⟩ := u8_mul (x := p) (k := 16#u8) (by simp; omega)
+      obtain ⟨k, kRun, kValue⟩ := u8_div (x := c) (k := 4#u8) (by simp)
+      obtain ⟨y, yRun, yValue⟩ := u8_add (x := q) (y := k) (by simp [qValue, kValue]; omega)
+      obtain ⟨v2, push2, contents2⟩ := push_octet_spec v1 y (by rw [contents1]; simp; omega)
+      refine ⟨some v2, by simp [add4, endsU, mRun, mZero, iRun, jRun, xRun, push1, pRun, qRun, kRun, yRun, push2],
+        fun v' hv => ?_, by simp⟩
+      cases hv
+      exact ⟨x, y, by rw [contents2, contents1]; simp, ends, zero, by rw [xValue, iValue, jValue]; simp,
+        by rw [yValue, qValue, kValue, pValue]; simp⟩
+    · have mNonzero : m ≠ 0#u8 := fun e => zero (by
+        have := congrArg UScalar.val e; simp [mValue] at this; omega)
+      exact ⟨none, by simp [add4, endsU, mRun, mNonzero], by simp, fun _ ⟨_, z⟩ => zero z⟩
+  · have notEnds : i4 ≠ alloc.vec.Vec.len chars := fun e => ends (by
+      have := congrArg UScalar.val e; simp [i4Is] at this; omega)
+    exact ⟨none, by simp [add4, notEnds], by simp, fun _ ⟨e, _⟩ => ends e⟩
+
+private theorem full_group_correct (out : alloc.vec.Vec U8) (a b c d : U8) (va : a.val < 64) (vb : b.val < 64)
+    (vc : c.val < 64) (vd : d.val < 64) (room : out.val.length + 2 < Usize.max) :
+    ∃ v, datatypes.full_group out a b c d = .ok (some v) ∧ ∃ x y z : U8, v.val = out.val ++ [x, y, z] ∧
+      x.val = a.val * 4 + b.val / 16 ∧ y.val = b.val % 16 * 16 + c.val / 4 ∧ z.val = c.val % 4 * 64 + d.val := by
+  rw [datatypes.full_group]
+  obtain ⟨i, iRun, iValue⟩ := u8_mul (x := a) (k := 4#u8) (by simp; omega)
+  obtain ⟨j, jRun, jValue⟩ := u8_div (x := b) (k := 16#u8) (by simp)
+  obtain ⟨x, xRun, xValue⟩ := u8_add (x := i) (y := j) (by simp [iValue, jValue]; omega)
+  obtain ⟨v1, push1, contents1⟩ := push_octet_spec out x (by omega)
+  obtain ⟨p, pRun, pValue⟩ := u8_rem (x := b) (k := 16#u8) (by simp)
+  have pSmall : p.val < 16 := by rw [pValue]; simp; omega
+  obtain ⟨q, qRun, qValue⟩ := u8_mul (x := p) (k := 16#u8) (by simp; omega)
+  obtain ⟨k, kRun, kValue⟩ := u8_div (x := c) (k := 4#u8) (by simp)
+  obtain ⟨y, yRun, yValue⟩ := u8_add (x := q) (y := k) (by simp [qValue, kValue]; omega)
+  obtain ⟨v2, push2, contents2⟩ := push_octet_spec v1 y (by rw [contents1]; simp; omega)
+  obtain ⟨e, eRun, eValue⟩ := u8_rem (x := c) (k := 4#u8) (by simp)
+  have eSmall : e.val < 4 := by rw [eValue]; simp; omega
+  obtain ⟨f, fRun, fValue⟩ := u8_mul (x := e) (k := 64#u8) (by simp; omega)
+  obtain ⟨z, zRun, zValue⟩ := u8_add (x := f) (y := d) (by simp [fValue]; omega)
+  obtain ⟨v3, push3, contents3⟩ := push_octet_spec v2 z (by rw [contents2, contents1]; simp; omega)
+  refine ⟨v3, by simp [iRun, jRun, xRun, push1, pRun, qRun, kRun, yRun, push2, eRun, fRun, zRun, push3], x, y, z,
+    by rw [contents3, contents2, contents1]; simp, by rw [xValue, iValue, jValue]; simp,
+    by rw [yValue, qValue, kValue, pValue]; simp, by rw [zValue, fValue, eValue]; simp⟩
+
+private theorem base64_short (l o : List U8) (pos : 0 < l.length) (short : l.length < 4) : ¬ Base64Chars l o := by
+  match l with
+  | [] => simp at pos
+  | [_] => simp [Base64Chars]
+  | [_, _] => simp [Base64Chars]
+  | [_, _, _] => simp [Base64Chars]
+  | _ :: _ :: _ :: _ :: _ => exact absurd short (by simp only [List.length_cons]; omega)
+
+/-- The kernel reads exactly the Base64 groups without spaces, each to its
+    octets. -/
+theorem base64_from_correct (chars : alloc.vec.Vec U8) (index : Usize) (out : alloc.vec.Vec U8)
+    (room : out.val.length ≤ index.val) :
+    ∃ r, datatypes.base64_from chars index out = .ok r ∧
+      (∀ v, r = some v → ∃ o, v.val = out.val ++ o ∧ Base64Chars (chars.val.drop index.val) o) ∧
+      (r = none → ∀ o, ¬ Base64Chars (chars.val.drop index.val) o) := by
+  have size := chars.property
+  rw [datatypes.base64_from]
+  by_cases more : index.val < chars.val.length
+  · obtain ⟨left, sub, leftValue⟩ := WP.spec_imp_exists
+      (Usize.sub_spec (x := alloc.vec.Vec.len chars) (y := index) (by simp; omega))
+    have leftIs : left.val = chars.val.length - index.val := by
+      have := leftValue
+      simp only [alloc.vec.Vec.len_val] at this
+      exact this.1
+    by_cases group : index.val + 3 < chars.val.length
+    · have three : 3 < left.val := by rw [leftIs]; omega
+      have h1 : index.val + 1 < chars.val.length := by omega
+      have h2 : index.val + 2 < chars.val.length := by omega
+      have split : chars.val.drop index.val = chars.val[index.val] :: chars.val[index.val + 1] ::
+          chars.val[index.val + 2] :: chars.val[index.val + 3] :: chars.val.drop (index.val + 4) := by
+        rw [List.drop_eq_getElem_cons more, List.drop_eq_getElem_cons h1, List.drop_eq_getElem_cons h2,
+          List.drop_eq_getElem_cons group]
+      have l0 : chars.index_usize index = .ok chars.val[index.val] := by
+        simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+      obtain ⟨i1, add1, i1Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+      have i1Is : i1.val = index.val + 1 := by simpa using i1Value
+      have l1 : chars.index_usize i1 = .ok chars.val[index.val + 1] := by
+        simp [alloc.vec.Vec.index_usize, i1Is, List.getElem?_eq_getElem h1]
+      obtain ⟨i2, add2, i2Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 2#usize) (by scalar_tac))
+      have i2Is : i2.val = index.val + 2 := by simpa using i2Value
+      have l2 : chars.index_usize i2 = .ok chars.val[index.val + 2] := by
+        simp [alloc.vec.Vec.index_usize, i2Is, List.getElem?_eq_getElem h2]
+      obtain ⟨i3, add3, i3Value⟩ := WP.spec_imp_exists (Usize.add_spec (x := index) (y := 3#usize) (by scalar_tac))
+      have i3Is : i3.val = index.val + 3 := by simpa using i3Value
+      have l3 : chars.index_usize i3 = .ok chars.val[index.val + 3] := by
+        simp [alloc.vec.Vec.index_usize, i3Is, List.getElem?_eq_getElem group]
+      obtain ⟨r1, run1, value1⟩ := sextet_correct chars.val[index.val]
+      cases r1 with
+      | none =>
+        refine ⟨none, by simp [UScalar.lt_equiv, more, sub, three, l0, run1], by simp, fun _ o form => ?_⟩
+        rw [split] at form
+        obtain ⟨va, _, ha, _⟩ := form
+        rw [ha] at value1
+        simp at value1
+      | some a =>
+        have va : base64Value chars.val[index.val] = some a.val := by simpa using value1.symm
+        have aSmall := sextet_small va
+        obtain ⟨r2, run2, value2⟩ := sextet_correct chars.val[index.val + 1]
+        cases r2 with
+        | none =>
+          refine ⟨none, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2], by simp,
+            fun _ o form => ?_⟩
+          rw [split] at form
+          obtain ⟨_, vb, _, hb, _⟩ := form
+          rw [hb] at value2
+          simp at value2
+        | some b =>
+          have vb : base64Value chars.val[index.val + 1] = some b.val := by simpa using value2.symm
+          have bSmall := sextet_small vb
+          by_cases pad2 : chars.val[index.val + 2] = 61#u8
+          · obtain ⟨r, run, someCase, noneCase⟩ :=
+              padded_one_correct chars index a b out group aSmall bSmall (by omega)
+            refine ⟨r, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2, add2, l2, pad2, run],
+              fun v hv => ?_, fun hn o form => ?_⟩
+            · obtain ⟨x, hvx, pad3, ends, zero, xv⟩ := someCase v hv
+              refine ⟨[x], hvx, ?_⟩
+              rw [split, List.drop_eq_nil_of_le (by omega)]
+              exact ⟨a.val, b.val, va, vb, .inr (.inr ⟨x, rfl, pad2, pad3, zero, rfl, xv⟩)⟩
+            · rw [split] at form
+              obtain ⟨va', vb', ha, hb, cases⟩ := form
+              rw [va] at ha; rw [vb] at hb
+              simp only [Option.some.injEq] at ha hb
+              subst ha hb
+              rcases cases with ⟨vc, _, _, _, _, _, hc, _⟩ | ⟨vc, _, _, _, hc, _⟩ | ⟨x, restNil, _, pad3, zero, _⟩
+              · rw [pad2, pad_no_sextet] at hc; cases hc
+              · rw [pad2, pad_no_sextet] at hc; cases hc
+              · have ends : index.val + 4 = chars.val.length := by
+                  have := List.drop_eq_nil_iff.mp restNil; omega
+                exact noneCase hn ⟨pad3, ends, zero⟩
+          · obtain ⟨r3, run3, value3⟩ := sextet_correct chars.val[index.val + 2]
+            cases r3 with
+            | none =>
+              refine ⟨none, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2, add2, l2, pad2,
+                run3], by simp, fun _ o form => ?_⟩
+              rw [split] at form
+              obtain ⟨_, _, _, _, cases⟩ := form
+              rcases cases with ⟨vc, _, _, _, _, _, hc, _⟩ | ⟨vc, _, _, _, hc, _⟩ | ⟨_, _, pad, _⟩
+              · rw [hc] at value3; simp at value3
+              · rw [hc] at value3; simp at value3
+              · exact pad2 pad
+            | some c =>
+              have vc : base64Value chars.val[index.val + 2] = some c.val := by simpa using value3.symm
+              have cSmall := sextet_small vc
+              by_cases pad3 : chars.val[index.val + 3] = 61#u8
+              · obtain ⟨r, run, someCase, noneCase⟩ :=
+                  padded_two_correct chars index a b c out aSmall bSmall cSmall (by omega) (by omega)
+                refine ⟨r, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2, add2, l2, pad2,
+                  run3, add3, l3, pad3, run], fun v hv => ?_, fun hn o form => ?_⟩
+                · obtain ⟨x, y, hvxy, ends, zero, xv, yv⟩ := someCase v hv
+                  refine ⟨[x, y], hvxy, ?_⟩
+                  rw [split, List.drop_eq_nil_of_le (by omega)]
+                  exact ⟨a.val, b.val, va, vb, .inr (.inl ⟨c.val, x, y, rfl, vc, pad3, zero, rfl, xv, yv⟩)⟩
+                · rw [split] at form
+                  obtain ⟨va', vb', ha, hb, cases⟩ := form
+                  rw [va] at ha; rw [vb] at hb
+                  simp only [Option.some.injEq] at ha hb
+                  subst ha hb
+                  rcases cases with ⟨vc', vd, _, _, _, _, _, hd, _⟩ | ⟨vc', _, _, restNil, hc, _, zero, _⟩ |
+                      ⟨_, _, pad, _⟩
+                  · rw [pad3, pad_no_sextet] at hd; cases hd
+                  · rw [vc] at hc
+                    simp only [Option.some.injEq] at hc
+                    subst hc
+                    have ends : index.val + 4 = chars.val.length := by
+                      have := List.drop_eq_nil_iff.mp restNil; omega
+                    exact noneCase hn ⟨ends, zero⟩
+                  · exact pad2 pad
+              · obtain ⟨r4, run4, value4⟩ := sextet_correct chars.val[index.val + 3]
+                cases r4 with
+                | none =>
+                  refine ⟨none, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2, add2, l2, pad2,
+                    run3, add3, l3, pad3, run4], by simp, fun _ o form => ?_⟩
+                  rw [split] at form
+                  obtain ⟨_, _, _, _, cases⟩ := form
+                  rcases cases with ⟨_, vd, _, _, _, _, _, hd, _⟩ | ⟨_, _, _, _, _, pad, _⟩ | ⟨_, _, _, pad, _⟩
+                  · rw [hd] at value4; simp at value4
+                  · exact pad3 pad
+                  · exact pad3 pad
+                | some d =>
+                  have vd : base64Value chars.val[index.val + 3] = some d.val := by simpa using value4.symm
+                  have dSmall := sextet_small vd
+                  obtain ⟨v1, full, x, y, z, contents, xv, yv, zv⟩ :=
+                    full_group_correct out a b c d aSmall bSmall cSmall dSmall (by omega)
+                  obtain ⟨i4, add4, i4Value⟩ := WP.spec_imp_exists
+                    (Usize.add_spec (x := index) (y := 4#usize) (by scalar_tac))
+                  have i4Is : i4.val = index.val + 4 := by simpa using i4Value
+                  obtain ⟨r, run, someCase, noneCase⟩ := base64_from_correct chars i4 v1
+                    (by rw [contents, i4Is]; simp; omega)
+                  rw [i4Is] at someCase noneCase
+                  refine ⟨r, by simp [UScalar.lt_equiv, more, sub, three, l0, run1, add1, l1, run2, add2, l2, pad2,
+                    run3, add3, l3, pad3, run4, full, add4, run], fun v hv => ?_, fun hn o form => ?_⟩
+                  · obtain ⟨o, hvo, rest⟩ := someCase v hv
+                    refine ⟨x :: y :: z :: o, by rw [hvo, contents]; simp, ?_⟩
+                    rw [split]
+                    exact ⟨a.val, b.val, va, vb, .inl ⟨c.val, d.val, x, y, z, o, vc, vd, rfl, xv, yv, zv, rest⟩⟩
+                  · rw [split] at form
+                    obtain ⟨_, _, _, _, cases⟩ := form
+                    rcases cases with ⟨_, _, _, _, _, o', _, _, _, _, _, _, rest⟩ | ⟨_, _, _, _, _, pad, _⟩ |
+                        ⟨_, _, _, pad, _⟩
+                    · exact noneCase hn o' rest
+                    · exact pad3 pad
+                    · exact pad3 pad
+    · have notThree : ¬ 3 < left.val := by rw [leftIs]; omega
+      refine ⟨none, by simp [UScalar.lt_equiv, more, sub, notThree], by simp, fun _ o form => ?_⟩
+      exact base64_short _ o (by simp; omega) (by simp; omega) form
+  · refine ⟨some out, by simp [UScalar.lt_equiv, more], fun v hv => ⟨[], by cases hv; simp, ?_⟩, by simp⟩
+    rw [List.drop_eq_nil_of_le (by omega)]
+    simp [Base64Chars]
+termination_by chars.val.length - index.val
+decreasing_by omega
+
+/-- The kernel reads exactly the lexical forms of `xsd:base64Binary`, each to
+    its octets. -/
+theorem base64_value_correct (lexical : alloc.vec.Vec U8) :
+    ∃ r, datatypes.base64_value lexical = .ok r ∧
+      (∀ v, r = some v → Base64Form lexical.val v.val) ∧ (r = none → ∀ o, ¬ Base64Form lexical.val o) := by
+  rw [datatypes.base64_value]
+  obtain ⟨r1, run1, someCase1, noneCase1⟩ := unspaced_correct lexical 0#usize (alloc.vec.Vec.new U8) (by simp)
+  simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at someCase1 noneCase1
+  cases r1 with
+  | none =>
+    refine ⟨none, by simp [run1], by simp, fun _ o ⟨chars, spaced, groups⟩ => ?_⟩
+    exact noneCase1 rfl chars (base64_chars_spaceless groups) spaced
+  | some chars =>
+    obtain ⟨cs, hcs, spaced, spaceless⟩ := someCase1 chars rfl
+    rw [new_val, List.nil_append] at hcs
+    obtain ⟨r2, run2, someCase2, noneCase2⟩ := base64_from_correct chars 0#usize (alloc.vec.Vec.new U8) (by simp)
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at someCase2 noneCase2
+    refine ⟨r2, by simp [run1, run2], fun v hv => ?_, fun hn o ⟨chars', spaced', groups⟩ => ?_⟩
+    · obtain ⟨o, hvo, groups⟩ := someCase2 v hv
+      rw [new_val, List.nil_append] at hvo
+      exact ⟨chars.val, by rw [hcs]; exact spaced, by rw [hvo]; exact groups⟩
+    · rw [← hcs] at spaced
+      have same := spaced_unique spaced' spaced (base64_chars_spaceless groups) (by rw [hcs]; exact spaceless)
+      rw [same] at groups
+      exact noneCase2 hn o groups
 
 /-- The kernel's reading of a lexical form is exact: a canonical value exactly
     for a lexical form in the lexical space of the kind's datatype, except an
@@ -3131,6 +3976,40 @@ theorem kind_value_correct (k : datatypes.Kind) (lexical : alloc.vec.Vec U8) :
   | UnsignedInt => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
   | UnsignedShort => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
   | UnsignedByte => obtain ⟨r, run, facts⟩ := subtype trivial; exact ⟨r, by rw [datatypes.kind_value]; exact run, facts⟩
+  | AnyUri =>
+    by_cases xml : XmlText lexical.val
+    · obtain ⟨copy, copyRun, copyValue⟩ := copy_range_correct lexical 0#usize (alloc.vec.Vec.len lexical)
+        (alloc.vec.Vec.new U8) (by simp) (by simp [new_val])
+      have same : copy.val = lexical.val := by
+        rw [copyValue, new_val, List.nil_append, alloc.vec.Vec.len_val, show ((0#usize : Usize).val) = 0 from rfl,
+          segment_take]
+        simp
+      refine ⟨some (.Uri copy), by simp [datatypes.kind_value, xml_text_correct, xml, copyRun], ?_, by simp⟩
+      rintro v ⟨⟩
+      exact ⟨by simp [Canonical, same, xml], xml, fun D N => by simp [valueOf, same, typeOf, N.uri_value _ xml]⟩
+    · exact ⟨none, by simp [datatypes.kind_value, xml_text_correct, xml], by simp, fun _ => .inl xml⟩
+  | HexBinary =>
+    obtain ⟨r, run, someCase, noneCase⟩ := hex_from_correct lexical 0#usize (alloc.vec.Vec.new U8) (by simp)
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at someCase noneCase
+    cases r with
+    | none =>
+      exact ⟨none, by simp [datatypes.kind_value, run], by simp, fun _ => .inl fun ⟨o, form⟩ => noneCase rfl o form⟩
+    | some octets =>
+      obtain ⟨o, ho, form⟩ := someCase octets rfl
+      rw [new_val, List.nil_append] at ho
+      refine ⟨some (.Hex octets), by simp [datatypes.kind_value, run], ?_, by simp⟩
+      rintro v ⟨⟩
+      exact ⟨trivial, ⟨_, form⟩, fun D N => by simp [valueOf, typeOf, ho, N.hex_value _ _ form]⟩
+  | Base64Binary =>
+    obtain ⟨r, run, someCase, noneCase⟩ := base64_value_correct lexical
+    cases r with
+    | none =>
+      exact ⟨none, by simp [datatypes.kind_value, run], by simp, fun _ => .inl fun ⟨o, form⟩ => noneCase rfl o form⟩
+    | some octets =>
+      have form := someCase octets rfl
+      refine ⟨some (.Base64 octets), by simp [datatypes.kind_value, run], ?_, by simp⟩
+      rintro v ⟨⟩
+      exact ⟨trivial, ⟨_, form⟩, fun D N => by simp [valueOf, typeOf, N.base64_value _ _ form]⟩
 
 /-- A literal has a value exactly when its datatype is one of the datatypes and
     its lexical form is in the lexical space, except an `owl:rational` form too
@@ -3212,6 +4091,9 @@ def InKind : datatypes.DataValue → datatypes.Kind → Prop
   | .Text _, k => k = .String ∨ k = .Plain
   | .Tagged _ _, k => k = .Plain
   | .Truth _, k => k = .Boolean
+  | .Uri _, k => k = .AnyUri
+  | .Hex _, k => k = .HexBinary
+  | .Base64 _, k => k = .Base64Binary
 
 theorem in_kind_correct (v : datatypes.DataValue) (canonical : Canonical v) (k : datatypes.Kind) :
     datatypes.in_kind v k = .ok (decide (InKind v k)) := by
@@ -3227,6 +4109,9 @@ theorem in_kind_correct (v : datatypes.DataValue) (canonical : Canonical v) (k :
   | Text t => cases k <;> simp [datatypes.in_kind, InKind]
   | Tagged t m => cases k <;> simp [datatypes.in_kind, InKind]
   | Truth b => cases k <;> simp [datatypes.in_kind, InKind]
+  | Uri t => cases k <;> simp [datatypes.in_kind, InKind]
+  | Hex o => cases k <;> simp [datatypes.in_kind, InKind]
+  | Base64 o => cases k <;> simp [datatypes.in_kind, InKind]
 
 /-- The reals of a numeric kind's value space that are canonical decimal
     numbers are those the kernel reads off them. -/
@@ -3265,6 +4150,9 @@ theorem number_realIn {n : Bool} {w f : List U8} (c : CanonicalNumber n w f) (k 
   | Boolean => exact absurd numeric (by simp [IsNumeric])
   | Real => simp [RealIn, NumberIn]
   | Rational => simp only [RealIn, NumberIn, iff_true]; exact ⟨_, rfl⟩
+  | AnyUri => exact absurd numeric (by simp [IsNumeric])
+  | HexBinary => exact absurd numeric (by simp [IsNumeric])
+  | Base64Binary => exact absurd numeric (by simp [IsNumeric])
   | _ => exact subtype trivial
 
 theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (k : datatypes.Kind)
@@ -3293,7 +4181,14 @@ theorem fraction_realIn {n : Bool} {a b : List U8} (c : CanonicalFraction a b) (
   | Boolean => exact absurd numeric (by simp [IsNumeric])
   | Real => simp [RealIn]
   | Rational => simp only [RealIn, true_or, or_true, iff_true]; exact ⟨_, rfl⟩
+  | AnyUri => exact absurd numeric (by simp [IsNumeric])
+  | HexBinary => exact absurd numeric (by simp [IsNumeric])
+  | Base64Binary => exact absurd numeric (by simp [IsNumeric])
   | _ => simp only [reduceCtorEq, or_self, iff_false]; exact subtype trivial
+
+/-- A number is no value of an IRI or of octets. -/
+private theorem number_coded (N : Normative D) (q : ℚ) (a : Coded) (valid : a.Valid) : N.number q ≠ N.coded a :=
+  fun e => N.real_coded q a valid (by rw [← real_rat]; exact e)
 
 /-- Under every datatype map that is the OWL 2 map on the datatypes here, a
     canonical value is in the value space of a kind's datatype exactly as the
@@ -3335,13 +4230,32 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
       constructor
       · rintro rfl; exact absurd numeric (by simp [IsNumeric])
       · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_truth r b)
+    | Uri t =>
+      have xt : XmlText t.val := canonical
+      simp only [InKind, valueOf]
+      constructor
+      · rintro rfl; exact absurd numeric (by simp [IsNumeric])
+      · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_coded r _ xt)
+    | Hex o =>
+      simp only [InKind, valueOf]
+      constructor
+      · rintro rfl; exact absurd numeric (by simp [IsNumeric])
+      · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_coded r (.hex o.val) trivial)
+    | Base64 o =>
+      simp only [InKind, valueOf]
+      constructor
+      · rintro rfl; exact absurd numeric (by simp [IsNumeric])
+      · rintro ⟨r, same, _⟩; exact absurd same.symm (N.real_coded r (.base64 o.val) trivial)
   · have numberNot : ∀ q, ¬ D.valueSpace (typeOf k) (N.number q) := by
       intro q
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
-        simp only [typeOf, N.string_space, N.plain_space, N.boolean_space, not_exists, not_and, not_or]
+        simp only [typeOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space, not_exists, not_and, not_or]
       · exact fun s xs e => N.number_text q s xs e
       · exact ⟨fun s xs e => N.number_text q s xs e, fun s l xs tl e => N.number_tagged q s l xs tl e⟩
       · exact fun b e => N.number_truth q b e
+      · exact fun s xs e => number_coded N q (.uri s) xs e
+      · exact fun o e => number_coded N q (.hex o) trivial e
+      · exact fun o e => number_coded N q (.base64 o) trivial e
     cases v with
     | Number n w f =>
       simp only [InKind, valueOf]
@@ -3354,27 +4268,88 @@ theorem normative_in_kind (N : Normative D) {v : datatypes.DataValue} (canonical
     | Text t =>
       have xt : XmlText t.val := canonical
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · exact ⟨fun _ => ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · exact ⟨fun _ => .inl ⟨_, xt, rfl⟩, fun _ => by simp⟩
       · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same (N.text_truth _ b xt)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same (N.text_coded _ (.uri s) xt xs)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.text_coded _ (.hex o) xt trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.text_coded _ (.base64 o) xt trivial)⟩
     | Tagged t m =>
       have xt : XmlText t.val := canonical.1
       have tm : TagValue m.val := canonical.2
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_tagged s _ _ xs xt tm)⟩
       · exact ⟨fun _ => .inr ⟨_, _, xt, tm, rfl⟩, fun _ => by simp⟩
       · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same (N.tagged_truth _ _ b xt tm)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same (N.tagged_coded _ _ (.uri s) xt tm xs)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.tagged_coded _ _ (.hex o) xt tm trivial)⟩
+      · refine ⟨fun h => by simp at h,
+          fun ⟨o, same⟩ => absurd same (N.tagged_coded _ _ (.base64 o) xt tm trivial)⟩
     | Truth b =>
       cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
-        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space]
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
       · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_truth s b xs)⟩
       · refine ⟨fun h => by simp at h, ?_⟩
         rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
         · exact absurd same.symm (N.text_truth s b xs)
         · exact absurd same.symm (N.tagged_truth s l b xs tl)
       · exact ⟨fun _ => ⟨b, rfl⟩, fun _ => by simp⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same (N.truth_coded _ (.uri s) xs)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.truth_coded _ (.hex o) trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => absurd same (N.truth_coded _ (.base64 o) trivial)⟩
+    | Uri t =>
+      have xt : XmlText t.val := canonical
+      cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.uri t.val) xs xt)⟩
+      · refine ⟨fun h => by simp at h, ?_⟩
+        rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
+        · exact absurd same.symm (N.text_coded s (.uri t.val) xs xt)
+        · exact absurd same.symm (N.tagged_coded s l (.uri t.val) xs tl xt)
+      · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same.symm (N.truth_coded b (.uri t.val) xt)⟩
+      · exact ⟨fun _ => ⟨_, xt, rfl⟩, fun _ => trivial⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => ?_⟩
+        have := N.coded_injective (.uri t.val) (.hex o) xt trivial same
+        cases this
+      · refine ⟨fun h => by simp at h, fun ⟨o, same⟩ => ?_⟩
+        have := N.coded_injective (.uri t.val) (.base64 o) xt trivial same
+        cases this
+    | Hex o =>
+      cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.hex o.val) xs trivial)⟩
+      · refine ⟨fun h => by simp at h, ?_⟩
+        rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
+        · exact absurd same.symm (N.text_coded s (.hex o.val) xs trivial)
+        · exact absurd same.symm (N.tagged_coded s l (.hex o.val) xs tl trivial)
+      · refine ⟨fun h => by simp at h, fun ⟨b, same⟩ => absurd same.symm (N.truth_coded b (.hex o.val) trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => ?_⟩
+        have := N.coded_injective (.hex o.val) (.uri s) trivial xs same
+        cases this
+      · exact ⟨fun _ => ⟨_, rfl⟩, fun _ => trivial⟩
+      · refine ⟨fun h => by simp at h, fun ⟨o', same⟩ => ?_⟩
+        have := N.coded_injective (.hex o.val) (.base64 o') trivial trivial same
+        cases this
+    | Base64 o =>
+      cases k <;> simp only [IsNumeric, not_true_eq_false, not_false_eq_true] at numeric <;>
+        simp only [InKind, typeOf, valueOf, N.string_space, N.plain_space, N.boolean_space, N.uri_space, N.hex_space, N.base64_space]
+      · refine ⟨fun h => by simp at h,
+          fun ⟨s, xs, same⟩ => absurd same.symm (N.text_coded s (.base64 o.val) xs trivial)⟩
+      · refine ⟨fun h => by simp at h, ?_⟩
+        rintro (⟨s, xs, same⟩ | ⟨s, l, xs, tl, same⟩)
+        · exact absurd same.symm (N.text_coded s (.base64 o.val) xs trivial)
+        · exact absurd same.symm (N.tagged_coded s l (.base64 o.val) xs tl trivial)
+      · refine ⟨fun h => by simp at h,
+          fun ⟨b, same⟩ => absurd same.symm (N.truth_coded b (.base64 o.val) trivial)⟩
+      · refine ⟨fun h => by simp at h, fun ⟨s, xs, same⟩ => ?_⟩
+        have := N.coded_injective (.base64 o.val) (.uri s) trivial xs same
+        cases this
+      · refine ⟨fun h => by simp at h, fun ⟨o', same⟩ => ?_⟩
+        have := N.coded_injective (.base64 o.val) (.hex o') trivial trivial same
+        cases this
+      · exact ⟨fun _ => ⟨_, rfl⟩, fun _ => trivial⟩
 
 private theorem vec_ext {a b : alloc.vec.Vec U8} (h : a.val = b.val) : a = b := by
   simpa [alloc.vec.Vec.eq_iff] using h
@@ -3394,6 +4369,9 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Text t => exact absurd same (N.number_text _ _ cb)
     | Tagged t m => exact absurd same (N.number_tagged _ _ _ cb.1 cb.2)
     | Truth b => exact absurd same (N.number_truth _ _)
+    | Uri t => exact absurd same (number_coded N _ (.uri t.val) cb)
+    | Hex o => exact absurd same (number_coded N _ (.hex o.val) trivial)
+    | Base64 o => exact absurd same (number_coded N _ (.base64 o.val) trivial)
   | Fraction n a' b' =>
     cases b with
     | Number n' w f => exact absurd (N.number_injective same) (fraction_ne_number (negative := n) ca)
@@ -3403,6 +4381,9 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Text t => exact absurd same (N.number_text _ _ cb)
     | Tagged t m => exact absurd same (N.number_tagged _ _ _ cb.1 cb.2)
     | Truth b => exact absurd same (N.number_truth _ _)
+    | Uri t => exact absurd same (number_coded N _ (.uri t.val) cb)
+    | Hex o => exact absurd same (number_coded N _ (.hex o.val) trivial)
+    | Base64 o => exact absurd same (number_coded N _ (.base64 o.val) trivial)
   | Text t =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_text _ _ ca)
@@ -3410,6 +4391,9 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Text t' => rw [vec_ext (N.text_injective _ _ ca cb same)]
     | Tagged t' m => exact absurd same (N.text_tagged _ _ _ ca cb.1 cb.2)
     | Truth b => exact absurd same (N.text_truth _ _ ca)
+    | Uri t' => exact absurd same (N.text_coded _ (.uri t'.val) ca cb)
+    | Hex o => exact absurd same (N.text_coded _ (.hex o.val) ca trivial)
+    | Base64 o => exact absurd same (N.text_coded _ (.base64 o.val) ca trivial)
   | Tagged t m =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_tagged _ _ _ ca.1 ca.2)
@@ -3419,6 +4403,9 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
       obtain ⟨e1, e2⟩ := N.tagged_injective _ _ _ _ ca.1 cb.1 ca.2 cb.2 same
       rw [vec_ext e1, vec_ext e2]
     | Truth b => exact absurd same (N.tagged_truth _ _ _ ca.1 ca.2)
+    | Uri t' => exact absurd same (N.tagged_coded _ _ (.uri t'.val) ca.1 ca.2 cb)
+    | Hex o => exact absurd same (N.tagged_coded _ _ (.hex o.val) ca.1 ca.2 trivial)
+    | Base64 o => exact absurd same (N.tagged_coded _ _ (.base64 o.val) ca.1 ca.2 trivial)
   | Truth x =>
     cases b with
     | Number n w f => exact absurd same.symm (N.number_truth _ _)
@@ -3426,6 +4413,48 @@ theorem value_injective (N : Normative D) {a b : datatypes.DataValue} (ca : Cano
     | Text t => exact absurd same.symm (N.text_truth _ _ cb)
     | Tagged t m => exact absurd same.symm (N.tagged_truth _ _ _ cb.1 cb.2)
     | Truth y => rw [N.truth_injective same]
+    | Uri t => exact absurd same (N.truth_coded _ (.uri t.val) cb)
+    | Hex o => exact absurd same (N.truth_coded _ (.hex o.val) trivial)
+    | Base64 o => exact absurd same (N.truth_coded _ (.base64 o.val) trivial)
+  | Uri t =>
+    cases b with
+    | Number n w f => exact absurd same.symm (number_coded N _ (.uri t.val) ca)
+    | Fraction n a' b' => exact absurd same.symm (number_coded N _ (.uri t.val) ca)
+    | Text t' => exact absurd same.symm (N.text_coded _ (.uri t.val) cb ca)
+    | Tagged t' m => exact absurd same.symm (N.tagged_coded _ _ (.uri t.val) cb.1 cb.2 ca)
+    | Truth y => exact absurd same.symm (N.truth_coded _ (.uri t.val) ca)
+    | Uri t' =>
+      have := N.coded_injective (.uri t.val) (.uri t'.val) ca cb same
+      simp only [Coded.uri.injEq] at this
+      rw [vec_ext this]
+    | Hex o => have := N.coded_injective (.uri t.val) (.hex o.val) ca trivial same; cases this
+    | Base64 o => have := N.coded_injective (.uri t.val) (.base64 o.val) ca trivial same; cases this
+  | Hex o =>
+    cases b with
+    | Number n w f => exact absurd same.symm (number_coded N _ (.hex o.val) trivial)
+    | Fraction n a' b' => exact absurd same.symm (number_coded N _ (.hex o.val) trivial)
+    | Text t' => exact absurd same.symm (N.text_coded _ (.hex o.val) cb trivial)
+    | Tagged t' m => exact absurd same.symm (N.tagged_coded _ _ (.hex o.val) cb.1 cb.2 trivial)
+    | Truth y => exact absurd same.symm (N.truth_coded _ (.hex o.val) trivial)
+    | Uri t' => have := N.coded_injective (.hex o.val) (.uri t'.val) trivial cb same; cases this
+    | Hex o' =>
+      have := N.coded_injective (.hex o.val) (.hex o'.val) trivial trivial same
+      simp only [Coded.hex.injEq] at this
+      rw [vec_ext this]
+    | Base64 o' => have := N.coded_injective (.hex o.val) (.base64 o'.val) trivial trivial same; cases this
+  | Base64 o =>
+    cases b with
+    | Number n w f => exact absurd same.symm (number_coded N _ (.base64 o.val) trivial)
+    | Fraction n a' b' => exact absurd same.symm (number_coded N _ (.base64 o.val) trivial)
+    | Text t' => exact absurd same.symm (N.text_coded _ (.base64 o.val) cb trivial)
+    | Tagged t' m => exact absurd same.symm (N.tagged_coded _ _ (.base64 o.val) cb.1 cb.2 trivial)
+    | Truth y => exact absurd same.symm (N.truth_coded _ (.base64 o.val) trivial)
+    | Uri t' => have := N.coded_injective (.base64 o.val) (.uri t'.val) trivial cb same; cases this
+    | Hex o' => have := N.coded_injective (.base64 o.val) (.hex o'.val) trivial trivial same; cases this
+    | Base64 o' =>
+      have := N.coded_injective (.base64 o.val) (.base64 o'.val) trivial trivial same
+      simp only [Coded.base64.injEq] at this
+      rw [vec_ext this]
 
 /-! ### The range facets -/
 
@@ -3549,7 +4578,7 @@ theorem normative_facet (N : Normative D) (F : datatypes.Facet) {bound value : d
 
 /-- The numeric datatypes of XML Schema here. -/
 def IsXsdNumeric : datatypes.Kind → Prop
-  | .String | .Plain | .Boolean | .Real | .Rational => False
+  | .String | .Plain | .Boolean | .Real | .Rational | .AnyUri | .HexBinary | .Base64Binary => False
   | _ => True
 
 theorem xsd_listed (k : datatypes.Kind) (h : IsXsdNumeric k) : typeOf k ∈ xsdNumericTypes := by
@@ -3580,6 +4609,9 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
     | Text t => exact N.real_text r _ c same.symm
     | Tagged t m => exact N.real_tagged r _ _ c.1 c.2 same.symm
     | Truth b => exact N.real_truth r b same.symm
+    | Uri t => exact N.real_coded r (.uri t.val) c same.symm
+    | Hex o => exact N.real_coded r (.hex o.val) trivial same.symm
+    | Base64 o => exact N.real_coded r (.base64 o.val) trivial same.symm
   by_cases xsd : IsXsdNumeric k
   · rw [facet_applies_xsd k xsd, numeric_correct]
     by_cases nb : IsNumber bound
@@ -3619,6 +4651,15 @@ theorem facet_applies_correct (k : datatypes.Kind) (bound : datatypes.DataValue)
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | Boolean =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | AnyUri =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | HexBinary =>
+      simp only [datatypes.facet_applies, numeric_correct]
+      exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
+    | Base64Binary =>
       simp only [datatypes.facet_applies, numeric_correct]
       exact ⟨false, by simp only [bind_ok, ite_self], fun _ _ _ _ h => absurd h (by simp [IsNumeric])⟩
     | _ => exact absurd trivial xsd
@@ -3760,6 +4801,7 @@ inductive ModelValue where
   | text (s : List U8)
   | tagged (s l : List U8)
   | truth (b : Bool)
+  | coded (a : Coded)
   | other
 
 /-- The ASCII lower case of a byte. -/
@@ -3796,6 +4838,9 @@ noncomputable def modelValue (k : datatypes.Kind) (t : List U8) : ModelValue :=
   | .Boolean => if h : ∃ b, TruthForm t b then .truth (Classical.choose h) else .other
   | .Real => .other
   | .Rational => if h : ∃ q, RationalForm t q then .real ((Classical.choose h : ℚ) : ℝ) else .other
+  | .AnyUri => .coded (.uri t)
+  | .HexBinary => if h : ∃ o, HexForm t o then .coded (.hex (Classical.choose h)) else .other
+  | .Base64Binary => if h : ∃ o, Base64Form t o then .coded (.base64 (Classical.choose h)) else .other
   | _ => if h : ∃ q, NumberForm true t q then .real ((Classical.choose h : ℚ) : ℝ) else .other
 
 /-- The value space of the datatype of a kind in the model map. -/
@@ -3803,6 +4848,9 @@ def ModelSpace : datatypes.Kind → ModelValue → Prop
   | .String, x => ∃ s, XmlText s ∧ x = .text s
   | .Plain, x => (∃ s, XmlText s ∧ x = .text s) ∨ ∃ s l, XmlText s ∧ TagValue l ∧ x = .tagged s l
   | .Boolean, x => ∃ b, x = .truth b
+  | .AnyUri, x => ∃ s, XmlText s ∧ x = .coded (.uri s)
+  | .HexBinary, x => ∃ o, x = .coded (.hex o)
+  | .Base64Binary, x => ∃ o, x = .coded (.base64 o)
   | k, x => ∃ r, x = .real r ∧ RealIn k r
 
 /-- The facet space of the datatype of a kind in the model map. -/
@@ -3811,6 +4859,9 @@ def ModelFacetSpace (k : datatypes.Kind) (f : Iri) (v : ModelValue) : Prop :=
   | .String => False
   | .Plain => False
   | .Boolean => False
+  | .AnyUri => False
+  | .HexBinary => False
+  | .Base64Binary => False
   | .Real => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | .Rational => f ∈ rangeFacets ∧ ∃ r, v = .real r
   | k => f ∈ rangeFacets ∧ ModelSpace k v
@@ -3870,6 +4921,84 @@ private theorem rational_utf8 {text : List U8} {q : ℚ} (form : RationalForm te
   · subst m; decide
   · exact ascii_of_digits dd b m
 
+private theorem hex_digit_ascii {byte : U8} {d : Nat} (h : hexDigitValue byte = some d) : byte.val < 128 := by
+  unfold hexDigitValue at h
+  split_ifs at h with h1 h2 h3 <;> omega
+
+private theorem hex_form_ascii : ∀ {t o : List U8}, HexForm t o → ∀ b ∈ t, b.val < 128
+  | [], _, _ => by simp
+  | [_], _, h => by simp [HexForm] at h
+  | a :: b :: rest, _, h => by
+    obtain ⟨x, y, _, o', hx, hy, _, _, hr⟩ := h
+    intro c mc
+    simp only [List.mem_cons] at mc
+    rcases mc with rfl | rfl | mc
+    · exact hex_digit_ascii hx
+    · exact hex_digit_ascii hy
+    · exact hex_form_ascii hr c mc
+
+private theorem sextet_ascii {byte : U8} {d : Nat} (h : base64Value byte = some d) : byte.val < 128 := by
+  unfold base64Value at h
+  split_ifs at h with h1 h2 h3 h4 h5 <;> omega
+
+private theorem base64_chars_ascii : ∀ {chars o : List U8}, Base64Chars chars o → ∀ c ∈ chars, c.val < 128
+  | [], _, _ => by simp
+  | a :: b :: c :: d :: rest, _, h => by
+    obtain ⟨va, vb, ha, hb, cases⟩ := h
+    intro e me
+    simp only [List.mem_cons] at me
+    rcases cases with ⟨vc, vd, _, _, _, _, hc, hd, _, _, _, _, hr⟩ | ⟨vc, _, _, rfl, hc, rfl, _⟩ |
+        ⟨_, rfl, rfl, rfl, _⟩
+    · rcases me with rfl | rfl | rfl | rfl | me
+      · exact sextet_ascii ha
+      · exact sextet_ascii hb
+      · exact sextet_ascii hc
+      · exact sextet_ascii hd
+      · exact base64_chars_ascii hr e me
+    · rcases me with rfl | rfl | rfl | rfl | me
+      · exact sextet_ascii ha
+      · exact sextet_ascii hb
+      · exact sextet_ascii hc
+      · decide
+      · simp at me
+    · rcases me with rfl | rfl | rfl | rfl | me
+      · exact sextet_ascii ha
+      · exact sextet_ascii hb
+      · decide
+      · decide
+      · simp at me
+  | [_], _, h => by simp [Base64Chars] at h
+  | [_, _], _, h => by simp [Base64Chars] at h
+  | [_, _, _], _, h => by simp [Base64Chars] at h
+
+private theorem spaced_from : ∀ {text chars : List U8}, Spaced text chars → ∀ b ∈ text, b ∈ chars ∨ b = 32#u8
+  | text, [], h => by simp only [Spaced] at h; subst h; simp
+  | text, [c], h => by simp only [Spaced] at h; subst h; simp
+  | text, c :: d :: cs, h => by
+    obtain ⟨rest, shape, inner⟩ := h
+    intro b mb
+    rcases shape with rfl | rfl
+    · simp only [List.mem_cons] at mb
+      rcases mb with rfl | mb
+      · exact .inl (by simp)
+      · rcases spaced_from inner b mb with m | sp
+        · exact .inl (List.mem_cons_of_mem _ m)
+        · exact .inr sp
+    · simp only [List.mem_cons] at mb
+      rcases mb with rfl | rfl | mb
+      · exact .inl (by simp)
+      · exact .inr rfl
+      · rcases spaced_from inner b mb with m | sp
+        · exact .inl (List.mem_cons_of_mem _ m)
+        · exact .inr sp
+
+private theorem base64_form_ascii {text o : List U8} (h : Base64Form text o) : ∀ b ∈ text, b.val < 128 := by
+  obtain ⟨chars, spaced, groups⟩ := h
+  intro b mb
+  rcases spaced_from spaced b mb with m | sp
+  · exact base64_chars_ascii groups b m
+  · rw [sp]; decide
+
 theorem modelValue_space (k : datatypes.Kind) (t : List U8) (form : LexicalForm k t) :
     ModelSpace k (modelValue k t) := by
   have subtype : IsSubtype k → ModelSpace k (modelValue k t) := by
@@ -3920,6 +5049,15 @@ theorem modelValue_space (k : datatypes.Kind) (t : List U8) (form : LexicalForm 
     have h : ∃ q, RationalForm t q := form
     simp only [modelValue, h, ↓reduceDIte, ModelSpace, RealIn]
     exact ⟨_, rfl, _, rfl⟩
+  | AnyUri => exact ⟨t, form, rfl⟩
+  | HexBinary =>
+    have h : ∃ o, HexForm t o := form
+    simp only [modelValue, h, ↓reduceDIte, ModelSpace]
+    exact ⟨_, rfl⟩
+  | Base64Binary =>
+    have h : ∃ o, Base64Form t o := form
+    simp only [modelValue, h, ↓reduceDIte, ModelSpace]
+    exact ⟨_, rfl⟩
   | _ => exact subtype trivial
 
 /-- The model map: the datatypes here with the specification's spaces, values,
@@ -3939,7 +5077,7 @@ noncomputable def modelMap : DatatypeMap ModelValue where
     cases k <;> simp_all [typeOf, datatype_eq_iff, Rowl.Owl.literalDatatype, integerType, decimalType, stringType,
       plainType, booleanType, realType, rationalType, nonNegativeIntegerType, nonPositiveIntegerType,
       positiveIntegerType, negativeIntegerType, longType, intType, shortType, byteType, unsignedLongType,
-      unsignedIntType, unsignedShortType, unsignedByteType]
+      unsignedIntType, unsignedShortType, unsignedByteType, anyUriType, hexBinaryType, base64BinaryType]
   lexicalUtf8 := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
     rw [kind] at kind'; cases kind'
@@ -3963,6 +5101,9 @@ noncomputable def modelMap : DatatypeMap ModelValue where
       rcases f with ⟨_, rfl | rfl⟩ | ⟨_, rfl | rfl⟩ <;> decide
     | Real => exact absurd form (by simp [LexicalForm])
     | Rational => obtain ⟨q, f⟩ := form; exact rational_utf8 f
+    | AnyUri => simpa using text_utf8 (Classical.choose_spec form)
+    | HexBinary => obtain ⟨o, f⟩ := form; exact ascii_utf8 _ (hex_form_ascii f)
+    | Base64Binary => obtain ⟨o, f⟩ := form; exact ascii_utf8 _ (base64_form_ascii f)
     | _ => exact subtype trivial
   lexicalInSpace := by
     rintro dt text ⟨k, kind⟩ ⟨k', kind', form⟩
@@ -4199,5 +5340,31 @@ noncomputable def modelNormative : Normative modelMap where
       · exact ⟨s, lt, rfl⟩
     · rintro ⟨s, lt, rfl⟩
       exact ⟨r, s, rfl, rfl, .inr (.inr (.inr ⟨trivial, lt⟩))⟩
+  coded := .coded
+  coded_injective := fun _ _ _ _ h => by cases h; rfl
+  real_coded := fun _ _ _ h => by cases h
+  text_coded := fun _ _ _ _ h => by cases h
+  tagged_coded := fun _ _ _ _ _ _ h => by cases h
+  truth_coded := fun _ _ _ h => by cases h
+  uri_supported := model_supported .AnyUri
+  hex_supported := model_supported .HexBinary
+  base64_supported := model_supported .Base64Binary
+  uri_space := fun x => by rw [show anyUriType = typeOf .AnyUri from rfl, model_space]; rfl
+  hex_space := fun x => by rw [show hexBinaryType = typeOf .HexBinary from rfl, model_space]; rfl
+  base64_space := fun x => by rw [show base64BinaryType = typeOf .Base64Binary from rfl, model_space]; rfl
+  uri_lexical := fun t => by rw [show anyUriType = typeOf .AnyUri from rfl, model_lexical]; rfl
+  uri_value := fun t _ => by rw [show anyUriType = typeOf .AnyUri from rfl, model_value]; rfl
+  hex_lexical := fun t => by rw [show hexBinaryType = typeOf .HexBinary from rfl, model_lexical]; rfl
+  hex_value := fun t o form => by
+    rw [show hexBinaryType = typeOf .HexBinary from rfl, model_value]
+    have h : ∃ o, HexForm t o := ⟨o, form⟩
+    simp only [modelValue, h, ↓reduceDIte]
+    rw [hex_form_unique (Classical.choose_spec h) form]
+  base64_lexical := fun t => by rw [show base64BinaryType = typeOf .Base64Binary from rfl, model_lexical]; rfl
+  base64_value := fun t o form => by
+    rw [show base64BinaryType = typeOf .Base64Binary from rfl, model_value]
+    have h : ∃ o, Base64Form t o := ⟨o, form⟩
+    simp only [modelValue, h, ↓reduceDIte]
+    rw [base64_form_unique (Classical.choose_spec h) form]
 
 end Rowl.Datatypes
