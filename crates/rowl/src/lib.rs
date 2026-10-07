@@ -55,6 +55,7 @@ pub mod experimental {
     pub use rowl_kernel::class_equality;
     pub use rowl_kernel::classification;
     pub use rowl_kernel::collection;
+    pub use rowl_kernel::components;
     pub use rowl_kernel::data_ontology;
     pub use rowl_kernel::datatype_definitions;
     pub use rowl_kernel::datatype_order;

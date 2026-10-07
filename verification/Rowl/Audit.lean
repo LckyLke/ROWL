@@ -173,6 +173,8 @@ import Rowl.DataStructure
 import Rowl.DataComplete
 import Rowl.DataSound
 import Rowl.KeyEncoding
+import Rowl.Partition
+import Rowl.Components
 import Rowl.KeyModels
 import Rowl.DataOntology
 import Rowl.Classification
@@ -5582,6 +5584,34 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.RdfWriteRead.triple_fault_shape
 #print axioms Rowl.RdfWriteRead.graph_fault_shape
 #print axioms Rowl.RdfWriteRead.ntriples_write_error_exact
+#print axioms Rowl.Partition.join_interpretation
+#print axioms Rowl.Partition.side_class
+#print axioms Rowl.Partition.left_range
+#print axioms Rowl.Partition.right_range
+#print axioms Rowl.Partition.left_side
+#print axioms Rowl.Partition.right_side
+#print axioms Rowl.Partition.plain_mono
+#print axioms Rowl.Partition.join_plain
+#print axioms Rowl.Partition.join_left_assertion
+#print axioms Rowl.Partition.join_right_assertion
+#print axioms Rowl.Partition.instance_part
+#print axioms Rowl.Components.standard_range_spec
+#print axioms Rowl.Components.plain_class_spec
+#print axioms Rowl.Components.plain_axiom_spec
+#print axioms Rowl.Components.plain_assertion_spec
+#print axioms Rowl.Components.plain_items_spec
+#print axioms Rowl.Components.plain_question_spec
+#print axioms Rowl.Components.any_member_spec
+#print axioms Rowl.Components.all_members_spec
+#print axioms Rowl.Components.component_total
+#print axioms Rowl.Components.closed_spec
+#print axioms Rowl.Components.copy_range_eq
+#print axioms Rowl.Components.copy_class_eq
+#print axioms Rowl.Components.copy_axiom_spec
+#print axioms Rowl.Components.kept_spec
+#print axioms Rowl.Components.select_spec
+#print axioms Rowl.Components.component_closure_correct
+#print axioms Rowl.Components.part_instance_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7375,3 +7405,19 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.DataRegions.literalReals
 #print axioms Rowl.DataRegions.ValuesFit
 #print axioms Rowl.DataRegions.namedList
+#print axioms Rowl.Partition.IsAssertion
+#print axioms Rowl.Partition.Meaningless
+#print axioms Rowl.Partition.NotTop
+#print axioms Rowl.Partition.Standard
+#print axioms Rowl.Partition.Plain
+#print axioms Rowl.Partition.SubNotTop
+#print axioms Rowl.Partition.PlainAxiom
+#print axioms Rowl.Partition.PlainAssertion
+#print axioms Rowl.Partition.join
+#print axioms Rowl.Partition.carry
+#print axioms Rowl.Components.Kept
+#print axioms Rowl.Partition.Closed
+#print axioms Rowl.Components.Normal
+#print axioms Rowl.Components.ClassOk
+#print axioms Rowl.Components.ItemOk
+#print axioms Rowl.Components.ClosedUnder

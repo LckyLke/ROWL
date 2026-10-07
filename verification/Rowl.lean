@@ -199,6 +199,8 @@ import Rowl.DataStructure
 import Rowl.DataComplete
 import Rowl.DataSound
 import Rowl.KeyEncoding
+import Rowl.Partition
+import Rowl.Components
 import Rowl.KeyModels
 import Rowl.DataOntology
 import Rowl.Classification

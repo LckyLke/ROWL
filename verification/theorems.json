@@ -6500,6 +6500,46 @@
         "Rowl.RdfWriteRead.graph_fault_shape",
         "Rowl.RdfWriteRead.ntriples_write_error_exact"
       ]
+    },
+    {
+      "module": "Rowl.Partition",
+      "namespace": "Rowl.Partition",
+      "theorems": [
+        "Rowl.Partition.join_interpretation",
+        "Rowl.Partition.side_class",
+        "Rowl.Partition.left_range",
+        "Rowl.Partition.right_range",
+        "Rowl.Partition.left_side",
+        "Rowl.Partition.right_side",
+        "Rowl.Partition.plain_mono",
+        "Rowl.Partition.join_plain",
+        "Rowl.Partition.join_left_assertion",
+        "Rowl.Partition.join_right_assertion",
+        "Rowl.Partition.instance_part"
+      ]
+    },
+    {
+      "module": "Rowl.Components",
+      "namespace": "Rowl.Components",
+      "theorems": [
+        "Rowl.Components.standard_range_spec",
+        "Rowl.Components.plain_class_spec",
+        "Rowl.Components.plain_axiom_spec",
+        "Rowl.Components.plain_assertion_spec",
+        "Rowl.Components.plain_items_spec",
+        "Rowl.Components.plain_question_spec",
+        "Rowl.Components.any_member_spec",
+        "Rowl.Components.all_members_spec",
+        "Rowl.Components.component_total",
+        "Rowl.Components.closed_spec",
+        "Rowl.Components.copy_range_eq",
+        "Rowl.Components.copy_class_eq",
+        "Rowl.Components.copy_axiom_spec",
+        "Rowl.Components.kept_spec",
+        "Rowl.Components.select_spec",
+        "Rowl.Components.component_closure_correct",
+        "Rowl.Components.part_instance_correct"
+      ]
     }
   ],
   "specifications": [
@@ -8295,6 +8335,22 @@
     "Rowl.DataRegions.freeIntegers",
     "Rowl.DataRegions.literalReals",
     "Rowl.DataRegions.ValuesFit",
-    "Rowl.DataRegions.namedList"
+    "Rowl.DataRegions.namedList",
+    "Rowl.Partition.IsAssertion",
+    "Rowl.Partition.Meaningless",
+    "Rowl.Partition.NotTop",
+    "Rowl.Partition.Standard",
+    "Rowl.Partition.Plain",
+    "Rowl.Partition.SubNotTop",
+    "Rowl.Partition.PlainAxiom",
+    "Rowl.Partition.PlainAssertion",
+    "Rowl.Partition.join",
+    "Rowl.Partition.carry",
+    "Rowl.Components.Kept",
+    "Rowl.Partition.Closed",
+    "Rowl.Components.Normal",
+    "Rowl.Components.ClassOk",
+    "Rowl.Components.ItemOk",
+    "Rowl.Components.ClosedUnder"
   ]
 }

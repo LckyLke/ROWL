@@ -13,6 +13,7 @@
 //! out answers; it adds no reasoning of its own. `dl_violation` reports, in
 //! words, the verdict of the verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
+use rowl_kernel::components::{component_closure, plain_question};
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
     prepared_subsumed, Prepared,
@@ -168,6 +169,11 @@ pub struct Reasoner {
     provenance: Option<Provenance>,
     prepared: OnceLock<Option<Prepared>>,
     violation: OnceLock<Option<String>>,
+    consistency: OnceLock<Option<bool>>,
+    /// Whether instance questions go to the parts of the closure: decided by
+    /// the first question that has a part, true when that part is less than
+    /// half of the closure.
+    split: OnceLock<bool>,
 }
 
 fn class_expression(iri: &str) -> ClassExpression {
@@ -673,6 +679,8 @@ impl Reasoner {
                 }),
                 prepared: OnceLock::new(),
                 violation: OnceLock::new(),
+                consistency: OnceLock::new(),
+                split: OnceLock::new(),
             }),
             Err(error) => Err(closure_error(error, &names)),
         }
@@ -683,6 +691,8 @@ impl Reasoner {
             provenance: None,
             prepared: OnceLock::new(),
             violation: OnceLock::new(),
+            consistency: OnceLock::new(),
+            split: OnceLock::new(),
         }
     }
     /// The names of the documents of the import closure, in catalog order;
@@ -709,13 +719,17 @@ impl Reasoner {
         &self.ontology
     }
     /// Whether the axioms have a model; an EL ontology is answered by
-    /// saturation without preparing the queries.
+    /// saturation without preparing the queries. The answer is computed on the
+    /// first call and kept.
     pub fn consistent(&self) -> Option<bool> {
-        if let Some(answer) = on_kernel_stack(|| saturation::consistent(&self.ontology.axioms)) {
-            return Some(answer);
-        }
-        let prepared = self.queries()?;
-        on_kernel_stack(|| prepared_consistent(prepared))
+        *self.consistency.get_or_init(|| {
+            if let Some(answer) = on_kernel_stack(|| saturation::consistent(&self.ontology.axioms))
+            {
+                return Some(answer);
+            }
+            let prepared = self.queries()?;
+            on_kernel_stack(|| prepared_consistent(prepared))
+        })
     }
     /// Whether some model of the axioms has an instance of `class`.
     pub fn satisfiable(&self, class: &ClassExpression) -> Option<bool> {
@@ -728,14 +742,49 @@ impl Reasoner {
         on_kernel_stack(|| prepared_subsumed(prepared, sub, sup))
     }
     /// Whether the named individual is an instance of `class` in every model.
+    /// When the axioms have a model, the question is first asked of the part
+    /// of the closure for the individual (`components::component_closure`):
+    /// the axioms other than assertions and the assertions connected to the
+    /// individual, which has the same answer (`part_instance_correct`), so
+    /// that independent records are answered one at a time.
     pub fn instance_of(&self, individual: &str, class: &ClassExpression) -> Option<bool> {
         let individual = NamedIndividual {
             iri: Iri {
                 spelling: individual.as_bytes().to_vec(),
             },
         };
+        if self.consistent() == Some(true) {
+            if let Some(answer) = self.part_instance_of(&individual, class) {
+                return Some(answer);
+            }
+        }
         let prepared = self.queries()?;
         on_kernel_stack(|| prepared_instance_of(prepared, &individual, class))
+    }
+    /// The answer of the part of the closure for the individual, when the
+    /// closure has one and splitting pays off.
+    fn part_instance_of(
+        &self,
+        individual: &NamedIndividual,
+        class: &ClassExpression,
+    ) -> Option<bool> {
+        if self.split.get() == Some(&false) {
+            return None;
+        }
+        on_kernel_stack(|| {
+            if !plain_question(class) {
+                return None;
+            }
+            let part = component_closure(&self.ontology.axioms, individual)?;
+            let pays = *self
+                .split
+                .get_or_init(|| 2 * part.len() < self.ontology.axioms.len());
+            if !pays {
+                return None;
+            }
+            let prepared = prepare(&part)?;
+            prepared_instance_of(&prepared, individual, class)
+        })
     }
     /// The first OWL 2 DL restriction the document's axioms violate, in words,
     /// or `None` when they satisfy all of them. It is computed on demand by

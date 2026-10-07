@@ -103,6 +103,8 @@ pub mod data_ontology;
 
 pub mod key_ontology;
 
+pub mod components;
+
 pub mod source_reasoning;
 
 // Frontend stages: text, IRI, RDF and Functional Syntax reading.

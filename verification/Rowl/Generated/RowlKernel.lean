@@ -27159,6 +27159,140 @@ def completion.base
                 axioms := axioms1
               })
 
+/-- [rowl_kernel::components::ROUNDS]
+    Source: 'crates/rowl-kernel/src/components.rs', lines 54:0-54:29
+    Visibility: public -/
+@[global_simps, irreducible] def components.ROUNDS : Std.Usize := 64#usize
+
+/-- [rowl_kernel::components::MEMBERS]
+    Source: 'crates/rowl-kernel/src/components.rs', lines 56:0-56:32
+    Visibility: public -/
+@[global_simps, irreducible] def components.MEMBERS : Std.Usize := 4096#usize
+
+/-- [rowl_kernel::components::assertion]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 63:0-74:1 -/
+def components.assertion («axiom» : model.Axiom) : Result Bool := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok false
+  | model.Axiom.SubClassOf _ _ => ok false
+  | model.Axiom.EquivalentClasses _ => ok false
+  | model.Axiom.DisjointClasses _ => ok false
+  | model.Axiom.DisjointUnion _ _ => ok false
+  | model.Axiom.SubObjectPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentObjectProperties _ => ok false
+  | model.Axiom.DisjointObjectProperties _ => ok false
+  | model.Axiom.InverseObjectProperties _ _ => ok false
+  | model.Axiom.ObjectPropertyDomain _ _ => ok false
+  | model.Axiom.ObjectPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalObjectProperty _ => ok false
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok false
+  | model.Axiom.ReflexiveObjectProperty _ => ok false
+  | model.Axiom.IrreflexiveObjectProperty _ => ok false
+  | model.Axiom.SymmetricObjectProperty _ => ok false
+  | model.Axiom.AsymmetricObjectProperty _ => ok false
+  | model.Axiom.TransitiveObjectProperty _ => ok false
+  | model.Axiom.SubDataPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentDataProperties _ => ok false
+  | model.Axiom.DisjointDataProperties _ => ok false
+  | model.Axiom.DataPropertyDomain _ _ => ok false
+  | model.Axiom.DataPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalDataProperty _ => ok false
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey _ _ _ => ok false
+  | model.Axiom.SameIndividual _ => ok true
+  | model.Axiom.DifferentIndividuals _ => ok true
+  | model.Axiom.ClassAssertion _ _ => ok true
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok true
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok true
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok true
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok true
+  | model.Axiom.AnnotationAssertion _ _ _ => ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok false
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok false
+  | model.Axiom.AnnotationPropertyRange _ _ => ok false
+
+/-- [rowl_kernel::components::meaningless]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 77:0-86:1 -/
+def components.meaningless («axiom» : model.Axiom) : Result Bool := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok true
+  | model.Axiom.SubClassOf _ _ => ok false
+  | model.Axiom.EquivalentClasses _ => ok false
+  | model.Axiom.DisjointClasses _ => ok false
+  | model.Axiom.DisjointUnion _ _ => ok false
+  | model.Axiom.SubObjectPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentObjectProperties _ => ok false
+  | model.Axiom.DisjointObjectProperties _ => ok false
+  | model.Axiom.InverseObjectProperties _ _ => ok false
+  | model.Axiom.ObjectPropertyDomain _ _ => ok false
+  | model.Axiom.ObjectPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalObjectProperty _ => ok false
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok false
+  | model.Axiom.ReflexiveObjectProperty _ => ok false
+  | model.Axiom.IrreflexiveObjectProperty _ => ok false
+  | model.Axiom.SymmetricObjectProperty _ => ok false
+  | model.Axiom.AsymmetricObjectProperty _ => ok false
+  | model.Axiom.TransitiveObjectProperty _ => ok false
+  | model.Axiom.SubDataPropertyOf _ _ => ok false
+  | model.Axiom.EquivalentDataProperties _ => ok false
+  | model.Axiom.DisjointDataProperties _ => ok false
+  | model.Axiom.DataPropertyDomain _ _ => ok false
+  | model.Axiom.DataPropertyRange _ _ => ok false
+  | model.Axiom.FunctionalDataProperty _ => ok false
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey _ _ _ => ok false
+  | model.Axiom.SameIndividual _ => ok false
+  | model.Axiom.DifferentIndividuals _ => ok false
+  | model.Axiom.ClassAssertion _ _ => ok false
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.AnnotationAssertion _ _ _ => ok true
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok true
+  | model.Axiom.AnnotationPropertyRange _ _ => ok true
+
+/-- [rowl_kernel::components::plain_role]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 88:0-90:1 -/
+def components.plain_role
+  (role : model.ObjectPropertyExpression) : Result Bool := do
+  let b ← data_ontology.universal role
+  ok (¬ b)
+
+/-- [rowl_kernel::components::plain_roles]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 91:0-101:1 -/
+def components.plain_roles
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let ope ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ObjectPropertyExpression) roles index
+    let b ← components.plain_role ope
+    if b
+    then let i1 ← index + 1#usize
+         components.plain_roles roles i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_role_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 102:0-112:1 -/
+def components.plain_role_members
+  (roles : model.AtLeastTwo model.ObjectPropertyExpression) : Result Bool := do
+  let b ← components.plain_role roles.first
+  if b
+  then
+    let b1 ← components.plain_role roles.second
+    if b1
+    then components.plain_roles roles.rest 0#usize
+    else ok false
+  else ok false
+
 /-- [rowl_kernel::data_ontology::is_top_data]:
     Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 165:0-170:1 -/
 def data_ontology.is_top_data
@@ -27173,6 +27307,1524 @@ def data_ontology.is_top_data
         80#u8, 114#u8, 111#u8, 112#u8, 101#u8, 114#u8, 116#u8, 121#u8
         ]))
   data_ontology.same_pattern property.iri.spelling s
+
+/-- [rowl_kernel::components::plain_data]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 114:0-116:1 -/
+def components.plain_data (property : model.DataProperty) : Result Bool := do
+  let b ← data_ontology.is_top_data property
+  ok (¬ b)
+
+/-- [rowl_kernel::components::plain_data_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 117:0-127:1 -/
+def components.plain_data_list
+  (properties : alloc.vec.Vec model.DataProperty) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len properties
+  if index < i
+  then
+    let dp ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataProperty) properties index
+    let b ← components.plain_data dp
+    if b
+    then let i1 ← index + 1#usize
+         components.plain_data_list properties i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_data_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 128:0-138:1 -/
+def components.plain_data_members
+  (properties : model.AtLeastTwo model.DataProperty) : Result Bool := do
+  let b ← components.plain_data properties.first
+  if b
+  then
+    let b1 ← components.plain_data properties.second
+    if b1
+    then components.plain_data_list properties.rest 0#usize
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::components::known_datatype]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 140:0-145:1 -/
+def components.known_datatype (datatype : model.Datatype) : Result Bool := do
+  let o ← datatypes.kind_of datatype
+  match o with
+  | none => data_ontology.is_literal datatype
+  | some _ => ok true
+
+/-- [rowl_kernel::components::known_literal]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 148:0-153:1 -/
+def components.known_literal (literal : model.Literal) : Result Bool := do
+  let o ← datatypes.literal_value literal
+  match o with
+  | none => ok false
+  | some _ => ok true
+
+/-- [rowl_kernel::components::known_literals]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 154:0-164:1 -/
+def components.known_literals
+  (literals : alloc.vec.Vec model.Literal) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len literals
+  if index < i
+  then
+    let l ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice model.Literal)
+        literals index
+    let b ← components.known_literal l
+    if b
+    then let i1 ← index + 1#usize
+         components.known_literals literals i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::range_facet]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 166:0-174:1 -/
+def components.range_facet (facet : model.FacetRestriction) : Result Bool := do
+  let o ← datatypes.facet_of facet.facet
+  match o with
+  | none => ok false
+  | some _ =>
+    let o1 ← datatypes.literal_value facet.value
+    match o1 with
+    | none => ok false
+    | some value => datatypes.numeric value
+
+/-- [rowl_kernel::components::range_facets]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 175:0-185:1 -/
+def components.range_facets
+  (facets : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len facets
+  if index < i
+  then
+    let fr ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.FacetRestriction) facets index
+    let b ← components.range_facet fr
+    if b
+    then let i1 ← index + 1#usize
+         components.range_facets facets i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::components::standard_range]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 188:0-212:1 -/
+def components.standard_range (range : model.DataRange) : Result Bool := do
+  match range with
+  | model.DataRange.Datatype datatype => components.known_datatype datatype
+  | model.DataRange.Intersection members => components.standard_members members
+  | model.DataRange.Union members => components.standard_members members
+  | model.DataRange.Complement inner => components.standard_range inner
+  | model.DataRange.OneOf literals =>
+    let b ← components.known_literal literals.first
+    if b
+    then components.known_literals literals.rest 0#usize
+    else ok false
+  | model.DataRange.Restriction datatype facets =>
+    let o ← datatypes.kind_of datatype
+    match o with
+    | none => ok false
+    | some _ =>
+      let b ← components.range_facet facets.first
+      if b
+      then components.range_facets facets.rest 0#usize
+      else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::components::standard_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 213:0-223:1 -/
+def components.standard_list
+  (ranges : alloc.vec.Vec model.DataRange) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len ranges
+  if index < i
+  then
+    let dr ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.DataRange) ranges index
+    let b ← components.standard_range dr
+    if b
+    then let i1 ← index + 1#usize
+         components.standard_list ranges i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::standard_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 224:0-234:1 -/
+def components.standard_members
+  (members : model.AtLeastTwo model.DataRange) : Result Bool := do
+  let b ← components.standard_range members.first
+  if b
+  then
+    let b1 ← components.standard_range members.second
+    if b1
+    then components.standard_list members.rest 0#usize
+    else ok false
+  else ok false
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::components::standard_filler]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 235:0-240:1 -/
+def components.standard_filler
+  (filler : Option model.DataRange) : Result Bool := do
+  match filler with
+  | none => ok true
+  | some range => components.standard_range range
+
+mutual
+
+/-- [rowl_kernel::components::plain_class]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 243:0-324:1 -/
+def components.plain_class
+  (expression : model.ClassExpression) (nominals : Bool) : Result Bool := do
+  match expression with
+  | model.ClassExpression.Class _ => ok true
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    components.plain_members members nominals
+  | model.ClassExpression.ObjectUnionOf members =>
+    components.plain_members members nominals
+  | model.ClassExpression.ObjectComplementOf inner =>
+    components.plain_class inner nominals
+  | model.ClassExpression.ObjectOneOf _ => ok nominals
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let b ← components.plain_role role
+    if b
+    then components.plain_class filler nominals
+    else ok false
+  | model.ClassExpression.ObjectAllValuesFrom role filler =>
+    let b ← components.plain_role role
+    if b
+    then components.plain_class filler nominals
+    else ok false
+  | model.ClassExpression.ObjectHasValue role _ =>
+    let b ← components.plain_role role
+    if b
+    then ok nominals
+    else ok false
+  | model.ClassExpression.ObjectHasSelf role => components.plain_role role
+  | model.ClassExpression.ObjectMinCardinality _ role filler =>
+    components.plain_counted role filler nominals
+  | model.ClassExpression.ObjectMaxCardinality _ role filler =>
+    components.plain_counted role filler nominals
+  | model.ClassExpression.ObjectExactCardinality _ role filler =>
+    components.plain_counted role filler nominals
+  | model.ClassExpression.DataSomeValuesFrom property range =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_range range
+    else ok false
+  | model.ClassExpression.DataAllValuesFrom property range =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_range range
+    else ok false
+  | model.ClassExpression.DataHasValue property literal =>
+    let b ← components.plain_data property
+    if b
+    then components.known_literal literal
+    else ok false
+  | model.ClassExpression.DataMinCardinality _ property filler =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_filler filler
+    else ok false
+  | model.ClassExpression.DataMaxCardinality _ property filler =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_filler filler
+    else ok false
+  | model.ClassExpression.DataExactCardinality _ property filler =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_filler filler
+    else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_counted]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 325:0-338:1 -/
+def components.plain_counted
+  (role : model.ObjectPropertyExpression)
+  (filler : Option model.ClassExpression) (nominals : Bool) :
+  Result Bool
+  := do
+  let b ← components.plain_role role
+  if b
+  then
+    match filler with
+    | none => ok true
+    | some filler1 => components.plain_class filler1 nominals
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 339:0-349:1 -/
+def components.plain_list
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (nominals : Bool) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let b ← components.plain_class ce nominals
+    if b
+    then let i1 ← index + 1#usize
+         components.plain_list classes i1 nominals
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 350:0-360:1 -/
+def components.plain_members
+  (members : model.AtLeastTwo model.ClassExpression) (nominals : Bool) :
+  Result Bool
+  := do
+  let b ← components.plain_class members.first nominals
+  if b
+  then
+    let b1 ← components.plain_class members.second nominals
+    if b1
+    then components.plain_list members.rest 0#usize nominals
+    else ok false
+  else ok false
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::components::plain_sub_role]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 361:0-366:1 -/
+def components.plain_sub_role
+  (sub : model.SubObjectPropertyExpression) : Result Bool := do
+  match sub with
+  | model.SubObjectPropertyExpression.Single role => components.plain_role role
+  | model.SubObjectPropertyExpression.Chain roles =>
+    components.plain_role_members roles
+
+/-- [rowl_kernel::components::plain_axiom]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 368:0-458:1 -/
+def components.plain_axiom («axiom» : model.Axiom) : Result Bool := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok false
+  | model.Axiom.SubClassOf sub sup =>
+    let b ← components.plain_class sub false
+    if b
+    then components.plain_class sup false
+    else ok false
+  | model.Axiom.EquivalentClasses members =>
+    components.plain_members members false
+  | model.Axiom.DisjointClasses members =>
+    components.plain_members members false
+  | model.Axiom.DisjointUnion _ members =>
+    components.plain_members members false
+  | model.Axiom.SubObjectPropertyOf sub sup =>
+    let b ← components.plain_sub_role sub
+    if b
+    then components.plain_role sup
+    else ok false
+  | model.Axiom.EquivalentObjectProperties roles =>
+    components.plain_role_members roles
+  | model.Axiom.DisjointObjectProperties roles =>
+    components.plain_role_members roles
+  | model.Axiom.InverseObjectProperties first second =>
+    let b ← components.plain_role first
+    if b
+    then components.plain_role second
+    else ok false
+  | model.Axiom.ObjectPropertyDomain role expression =>
+    let b ← components.plain_role role
+    if b
+    then components.plain_class expression false
+    else ok false
+  | model.Axiom.ObjectPropertyRange role expression =>
+    let b ← components.plain_role role
+    if b
+    then components.plain_class expression false
+    else ok false
+  | model.Axiom.FunctionalObjectProperty role => components.plain_role role
+  | model.Axiom.InverseFunctionalObjectProperty role =>
+    components.plain_role role
+  | model.Axiom.ReflexiveObjectProperty role => components.plain_role role
+  | model.Axiom.IrreflexiveObjectProperty role => components.plain_role role
+  | model.Axiom.SymmetricObjectProperty role => components.plain_role role
+  | model.Axiom.AsymmetricObjectProperty role => components.plain_role role
+  | model.Axiom.TransitiveObjectProperty role => components.plain_role role
+  | model.Axiom.SubDataPropertyOf sub sup =>
+    let b ← components.plain_data sub
+    if b
+    then components.plain_data sup
+    else ok false
+  | model.Axiom.EquivalentDataProperties properties =>
+    components.plain_data_members properties
+  | model.Axiom.DisjointDataProperties properties =>
+    components.plain_data_members properties
+  | model.Axiom.DataPropertyDomain property expression =>
+    let b ← components.plain_data property
+    if b
+    then components.plain_class expression false
+    else ok false
+  | model.Axiom.DataPropertyRange property range =>
+    let b ← components.plain_data property
+    if b
+    then components.standard_range range
+    else ok false
+  | model.Axiom.FunctionalDataProperty property =>
+    components.plain_data property
+  | model.Axiom.DatatypeDefinition _ _ => ok false
+  | model.Axiom.HasKey expression roles properties =>
+    let i := alloc.vec.Vec.len roles
+    if 0#usize < i
+    then
+      let b ← components.plain_class expression false
+      if b
+      then
+        let b1 ← components.plain_roles roles 0#usize
+        if b1
+        then components.plain_data_list properties 0#usize
+        else ok false
+      else ok false
+    else ok false
+  | model.Axiom.SameIndividual _ => ok false
+  | model.Axiom.DifferentIndividuals _ => ok false
+  | model.Axiom.ClassAssertion _ _ => ok false
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok false
+  | model.Axiom.DataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.NegativeDataPropertyAssertion _ _ _ => ok false
+  | model.Axiom.AnnotationAssertion _ _ _ => ok false
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok false
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok false
+  | model.Axiom.AnnotationPropertyRange _ _ => ok false
+
+/-- [rowl_kernel::components::plain_assertion]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 460:0-467:1 -/
+def components.plain_assertion («axiom» : model.Axiom) : Result Bool := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok true
+  | model.Axiom.SubClassOf _ _ => ok true
+  | model.Axiom.EquivalentClasses _ => ok true
+  | model.Axiom.DisjointClasses _ => ok true
+  | model.Axiom.DisjointUnion _ _ => ok true
+  | model.Axiom.SubObjectPropertyOf _ _ => ok true
+  | model.Axiom.EquivalentObjectProperties _ => ok true
+  | model.Axiom.DisjointObjectProperties _ => ok true
+  | model.Axiom.InverseObjectProperties _ _ => ok true
+  | model.Axiom.ObjectPropertyDomain _ _ => ok true
+  | model.Axiom.ObjectPropertyRange _ _ => ok true
+  | model.Axiom.FunctionalObjectProperty _ => ok true
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok true
+  | model.Axiom.ReflexiveObjectProperty _ => ok true
+  | model.Axiom.IrreflexiveObjectProperty _ => ok true
+  | model.Axiom.SymmetricObjectProperty _ => ok true
+  | model.Axiom.AsymmetricObjectProperty _ => ok true
+  | model.Axiom.TransitiveObjectProperty _ => ok true
+  | model.Axiom.SubDataPropertyOf _ _ => ok true
+  | model.Axiom.EquivalentDataProperties _ => ok true
+  | model.Axiom.DisjointDataProperties _ => ok true
+  | model.Axiom.DataPropertyDomain _ _ => ok true
+  | model.Axiom.DataPropertyRange _ _ => ok true
+  | model.Axiom.FunctionalDataProperty _ => ok true
+  | model.Axiom.DatatypeDefinition _ _ => ok true
+  | model.Axiom.HasKey _ _ _ => ok true
+  | model.Axiom.SameIndividual _ => ok true
+  | model.Axiom.DifferentIndividuals _ => ok true
+  | model.Axiom.ClassAssertion expression _ =>
+    components.plain_class expression true
+  | model.Axiom.ObjectPropertyAssertion _ _ _ => ok true
+  | model.Axiom.NegativeObjectPropertyAssertion _ _ _ => ok true
+  | model.Axiom.DataPropertyAssertion _ _ literal =>
+    components.known_literal literal
+  | model.Axiom.NegativeDataPropertyAssertion _ _ literal =>
+    components.known_literal literal
+  | model.Axiom.AnnotationAssertion _ _ _ => ok true
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok true
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok true
+  | model.Axiom.AnnotationPropertyRange _ _ => ok true
+
+/-- [rowl_kernel::components::plain_items]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 470:0-488:1 -/
+def components.plain_items
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let b ← components.assertion aa.axiom
+    let plain ←
+      if b
+      then components.plain_assertion aa.axiom
+      else
+        do
+        let b1 ← components.meaningless aa.axiom
+        if b1
+        then ok true
+        else components.plain_axiom aa.axiom
+    if plain
+    then let i1 ← index + 1#usize
+         components.plain_items items i1
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::plain_question]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 491:0-493:1
+    Visibility: public -/
+def components.plain_question
+  (expression : model.ClassExpression) : Result Bool := do
+  components.plain_class expression false
+
+/-- [rowl_kernel::components::any_member]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 500:0-510:1 -/
+def components.any_member
+  (members : alloc.vec.Vec model.Individual)
+  (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len named
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) named index
+    let i2 ← alc_ontology.position members i1 0#usize
+    if i2 != 0#usize
+    then ok true
+    else let i3 ← index + 1#usize
+         components.any_member members named i3
+  else ok false
+partial_fixpoint
+
+/-- [rowl_kernel::components::add_all]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 513:0-526:1 -/
+def components.add_all
+  (members : alloc.vec.Vec model.Individual)
+  (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len named
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) named index
+    let o ← alc_ontology.intern members i1
+    match o with
+    | none => ok none
+    | some members1 =>
+      let i2 ← index + 1#usize
+      components.add_all members1 named i2
+  else ok (some members)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::list_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2815:0-2828:1 -/
+def data_ontology.list_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) individuals index
+    let o ← alc_ontology.intern nodes i1
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i2 ← index + 1#usize
+      data_ontology.list_individuals nodes1 individuals i2
+  else ok (some nodes)
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::data_ontology::class_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2831:0-2854:1 -/
+def data_ontology.class_individuals
+  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
+  :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  match «class» with
+  | model.ClassExpression.Class _ => ok (some nodes)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    data_ontology.members_individuals nodes members
+  | model.ClassExpression.ObjectUnionOf members =>
+    data_ontology.members_individuals nodes members
+  | model.ClassExpression.ObjectComplementOf inner =>
+    data_ontology.class_individuals nodes inner
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      data_ontology.list_individuals nodes1 individuals.rest 0#usize
+  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
+    data_ontology.class_individuals nodes filler
+  | model.ClassExpression.ObjectAllValuesFrom _ filler =>
+    data_ontology.class_individuals nodes filler
+  | model.ClassExpression.ObjectHasValue _ individual =>
+    alc_ontology.intern nodes individual
+  | model.ClassExpression.ObjectHasSelf _ => ok (some nodes)
+  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
+    match filler with
+    | none => ok (some nodes)
+    | some filler1 => data_ontology.class_individuals nodes filler1
+  | model.ClassExpression.DataSomeValuesFrom _ _ => ok (some nodes)
+  | model.ClassExpression.DataAllValuesFrom _ _ => ok (some nodes)
+  | model.ClassExpression.DataHasValue _ _ => ok (some nodes)
+  | model.ClassExpression.DataMinCardinality _ _ _ => ok (some nodes)
+  | model.ClassExpression.DataMaxCardinality _ _ _ => ok (some nodes)
+  | model.ClassExpression.DataExactCardinality _ _ _ => ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::classes_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2855:0-2868:1 -/
+def data_ontology.classes_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let ce ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.ClassExpression) classes index
+    let o ← data_ontology.class_individuals nodes ce
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let i1 ← index + 1#usize
+      data_ontology.classes_individuals nodes1 classes i1
+  else ok (some nodes)
+partial_fixpoint
+
+/-- [rowl_kernel::data_ontology::members_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2869:0-2880:1 -/
+def data_ontology.members_individuals
+  (nodes : alloc.vec.Vec model.Individual)
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let o ← data_ontology.class_individuals nodes members.first
+  match o with
+  | none => ok none
+  | some nodes1 =>
+    let o1 ← data_ontology.class_individuals nodes1 members.second
+    match o1 with
+    | none => ok none
+    | some nodes2 =>
+      data_ontology.classes_individuals nodes2 members.rest 0#usize
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::data_ontology::axiom_individuals]:
+    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2882:0-2918:1 -/
+def data_ontology.axiom_individuals
+  (nodes : alloc.vec.Vec model.Individual) («axiom» : model.Axiom) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok (some nodes)
+  | model.Axiom.SubClassOf sub sup =>
+    let o ← data_ontology.class_individuals nodes sub
+    match o with
+    | none => ok none
+    | some nodes1 => data_ontology.class_individuals nodes1 sup
+  | model.Axiom.EquivalentClasses members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.DisjointClasses members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.DisjointUnion _ members =>
+    data_ontology.members_individuals nodes members
+  | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
+  | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
+  | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
+  | model.Axiom.ObjectPropertyDomain _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.ObjectPropertyRange _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
+  | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
+  | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
+  | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
+  | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
+  | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
+  | model.Axiom.DisjointDataProperties _ => ok (some nodes)
+  | model.Axiom.DataPropertyDomain _ «class» =>
+    data_ontology.class_individuals nodes «class»
+  | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
+  | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
+  | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
+  | model.Axiom.HasKey _ _ _ => ok (some nodes)
+  | model.Axiom.SameIndividual individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let o1 ← alc_ontology.intern nodes1 individuals.second
+      match o1 with
+      | none => ok none
+      | some nodes2 =>
+        data_ontology.list_individuals nodes2 individuals.rest 0#usize
+  | model.Axiom.DifferentIndividuals individuals =>
+    let o ← alc_ontology.intern nodes individuals.first
+    match o with
+    | none => ok none
+    | some nodes1 =>
+      let o1 ← alc_ontology.intern nodes1 individuals.second
+      match o1 with
+      | none => ok none
+      | some nodes2 =>
+        data_ontology.list_individuals nodes2 individuals.rest 0#usize
+  | model.Axiom.ClassAssertion «class» individual =>
+    let o ← alc_ontology.intern nodes individual
+    match o with
+    | none => ok none
+    | some nodes1 => data_ontology.class_individuals nodes1 «class»
+  | model.Axiom.ObjectPropertyAssertion _ source target =>
+    let o ← alc_ontology.intern nodes source
+    match o with
+    | none => ok none
+    | some nodes1 => alc_ontology.intern nodes1 target
+  | model.Axiom.NegativeObjectPropertyAssertion _ source target =>
+    let o ← alc_ontology.intern nodes source
+    match o with
+    | none => ok none
+    | some nodes1 => alc_ontology.intern nodes1 target
+  | model.Axiom.DataPropertyAssertion _ source _ =>
+    alc_ontology.intern nodes source
+  | model.Axiom.NegativeDataPropertyAssertion _ source _ =>
+    alc_ontology.intern nodes source
+  | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
+  | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
+
+/-- [rowl_kernel::components::grow]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 529:0-555:1 -/
+def components.grow
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (members : alloc.vec.Vec model.Individual) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let b ← components.assertion aa.axiom
+    if b
+    then
+      let o ←
+        data_ontology.axiom_individuals (alloc.vec.Vec.new model.Individual)
+          aa.axiom
+      match o with
+      | none => ok none
+      | some named =>
+        let b1 ← components.any_member members named 0#usize
+        if b1
+        then
+          let o1 ← components.add_all members named 0#usize
+          match o1 with
+          | none => ok none
+          | some members1 =>
+            let i1 ← index + 1#usize
+            components.grow items i1 members1
+        else let i1 ← index + 1#usize
+             components.grow items i1 members
+    else let i1 ← index + 1#usize
+         components.grow items i1 members
+  else ok (some members)
+partial_fixpoint
+
+/-- [rowl_kernel::components::component]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 558:0-578:1 -/
+def components.component
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (members : alloc.vec.Vec model.Individual) (rounds : Std.Usize) :
+  Result (Option (alloc.vec.Vec model.Individual))
+  := do
+  let before := alloc.vec.Vec.len members
+  let o ← components.grow items 0#usize members
+  match o with
+  | none => ok none
+  | some members1 =>
+    let i := alloc.vec.Vec.len members1
+    if i = before
+    then ok o
+    else
+      if rounds = 0#usize
+      then ok none
+      else
+        let i1 := alloc.vec.Vec.len members1
+        if components.MEMBERS < i1
+        then ok none
+        else let i2 ← rounds - 1#usize
+             components.component items members1 i2
+partial_fixpoint
+
+/-- [rowl_kernel::components::all_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 581:0-591:1 -/
+def components.all_members
+  (members : alloc.vec.Vec model.Individual)
+  (named : alloc.vec.Vec model.Individual) (index : Std.Usize) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len named
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.Individual) named index
+    let i2 ← alc_ontology.position members i1 0#usize
+    if i2 != 0#usize
+    then let i3 ← index + 1#usize
+         components.all_members members named i3
+    else ok false
+  else ok true
+partial_fixpoint
+
+/-- [rowl_kernel::components::closed]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 594:0-617:1 -/
+def components.closed
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (members : alloc.vec.Vec model.Individual) :
+  Result (Option Bool)
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let b ← components.assertion aa.axiom
+    if b
+    then
+      let o ←
+        data_ontology.axiom_individuals (alloc.vec.Vec.new model.Individual)
+          aa.axiom
+      match o with
+      | none => ok none
+      | some named =>
+        let b1 ← components.any_member members named 0#usize
+        if b1
+        then
+          let b2 ← components.all_members members named 0#usize
+          if b2
+          then let i1 ← index + 1#usize
+               components.closed items i1 members
+          else ok (some false)
+        else let i1 ← index + 1#usize
+             components.closed items i1 members
+    else let i1 ← index + 1#usize
+         components.closed items i1 members
+  else ok (some true)
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_natural]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 623:0-628:1 -/
+def components.copy_natural
+  (value : probes.Natural) : Result probes.Natural := do
+  match value with
+  | probes.Natural.Zero => ok probes.Natural.Zero
+  | probes.Natural.Succ inner =>
+    let n ← components.copy_natural inner
+    ok (probes.Natural.Succ n)
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_class_name]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 629:0-633:1 -/
+def components.copy_class_name
+  (expression : model.Class) : Result model.Class := do
+  let i ← nnf.copy_iri expression.iri
+  ok { iri := i }
+
+/-- [rowl_kernel::components::copy_datatype]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 634:0-638:1 -/
+def components.copy_datatype
+  (datatype : model.Datatype) : Result model.Datatype := do
+  let i ← nnf.copy_iri datatype.iri
+  ok { iri := i }
+
+/-- [rowl_kernel::components::copy_data_property]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 639:0-643:1 -/
+def components.copy_data_property
+  (property : model.DataProperty) : Result model.DataProperty := do
+  let i ← nnf.copy_iri property.iri
+  ok { iri := i }
+
+/-- [rowl_kernel::components::copy_literal]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 644:0-649:1 -/
+def components.copy_literal
+  (literal : model.Literal) : Result model.Literal := do
+  let v ← nnf.copy_bytes literal.lexical
+  let d ← components.copy_datatype literal.datatype
+  ok { lexical := v, datatype := d }
+
+/-- [rowl_kernel::components::copy_facet]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 650:0-655:1 -/
+def components.copy_facet
+  (facet : model.FacetRestriction) : Result model.FacetRestriction := do
+  let i ← nnf.copy_iri facet.facet
+  let l ← components.copy_literal facet.value
+  ok { facet := i, value := l }
+
+/-- [rowl_kernel::components::copy_literals]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 656:0-667:1 -/
+def components.copy_literals
+  (literals : alloc.vec.Vec model.Literal) (index : Std.Usize)
+  (out : alloc.vec.Vec model.Literal) :
+  Result (alloc.vec.Vec model.Literal)
+  := do
+  let i := alloc.vec.Vec.len literals
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let l ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.Literal) literals index
+      let l1 ← components.copy_literal l
+      let out1 ← alloc.vec.Vec.push out l1
+      let i2 ← index + 1#usize
+      components.copy_literals literals i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_facets]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 668:0-683:1 -/
+def components.copy_facets
+  (facets : alloc.vec.Vec model.FacetRestriction) (index : Std.Usize)
+  (out : alloc.vec.Vec model.FacetRestriction) :
+  Result (alloc.vec.Vec model.FacetRestriction)
+  := do
+  let i := alloc.vec.Vec.len facets
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let fr ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.FacetRestriction) facets index
+      let fr1 ← components.copy_facet fr
+      let out1 ← alloc.vec.Vec.push out fr1
+      let i2 ← index + 1#usize
+      components.copy_facets facets i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_individuals]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 684:0-699:1 -/
+def components.copy_individuals
+  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize)
+  (out : alloc.vec.Vec model.Individual) :
+  Result (alloc.vec.Vec model.Individual)
+  := do
+  let i := alloc.vec.Vec.len individuals
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let i2 ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.Individual) individuals index
+      let i3 ← concepts.copy_individual i2
+      let out1 ← alloc.vec.Vec.push out i3
+      let i4 ← index + 1#usize
+      components.copy_individuals individuals i4 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_roles]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 700:0-715:1 -/
+def components.copy_roles
+  (roles : alloc.vec.Vec model.ObjectPropertyExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ObjectPropertyExpression) :
+  Result (alloc.vec.Vec model.ObjectPropertyExpression)
+  := do
+  let i := alloc.vec.Vec.len roles
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let ope ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ObjectPropertyExpression) roles index
+      let ope1 ← concepts.copy_role ope
+      let out1 ← alloc.vec.Vec.push out ope1
+      let i2 ← index + 1#usize
+      components.copy_roles roles i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_data_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 716:0-731:1 -/
+def components.copy_data_list
+  (properties : alloc.vec.Vec model.DataProperty) (index : Std.Usize)
+  (out : alloc.vec.Vec model.DataProperty) :
+  Result (alloc.vec.Vec model.DataProperty)
+  := do
+  let i := alloc.vec.Vec.len properties
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let dp ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.DataProperty) properties index
+      let dp1 ← components.copy_data_property dp
+      let out1 ← alloc.vec.Vec.push out dp1
+      let i2 ← index + 1#usize
+      components.copy_data_list properties i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+mutual
+
+/-- [rowl_kernel::components::copy_range]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 732:0-752:1 -/
+def components.copy_range
+  (range : model.DataRange) : Result model.DataRange := do
+  match range with
+  | model.DataRange.Datatype datatype =>
+    let d ← components.copy_datatype datatype
+    ok (model.DataRange.Datatype d)
+  | model.DataRange.Intersection members =>
+    let alt ← components.copy_range_members members
+    ok (model.DataRange.Intersection alt)
+  | model.DataRange.Union members =>
+    let alt ← components.copy_range_members members
+    ok (model.DataRange.Union alt)
+  | model.DataRange.Complement inner =>
+    let dr ← components.copy_range inner
+    ok (model.DataRange.Complement dr)
+  | model.DataRange.OneOf literals =>
+    let l ← components.copy_literal literals.first
+    let v ←
+      components.copy_literals literals.rest 0#usize (alloc.vec.Vec.new
+        model.Literal)
+    ok (model.DataRange.OneOf { first := l, rest := v })
+  | model.DataRange.Restriction datatype facets =>
+    let d ← components.copy_datatype datatype
+    let fr ← components.copy_facet facets.first
+    let v ←
+      components.copy_facets facets.rest 0#usize (alloc.vec.Vec.new
+        model.FacetRestriction)
+    ok (model.DataRange.Restriction d { first := fr, rest := v })
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_range_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 753:0-768:1 -/
+def components.copy_range_list
+  (ranges : alloc.vec.Vec model.DataRange) (index : Std.Usize)
+  (out : alloc.vec.Vec model.DataRange) :
+  Result (alloc.vec.Vec model.DataRange)
+  := do
+  let i := alloc.vec.Vec.len ranges
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let dr ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.DataRange) ranges index
+      let dr1 ← components.copy_range dr
+      let out1 ← alloc.vec.Vec.push out dr1
+      let i2 ← index + 1#usize
+      components.copy_range_list ranges i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_range_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 769:0-775:1 -/
+def components.copy_range_members
+  (members : model.AtLeastTwo model.DataRange) :
+  Result (model.AtLeastTwo model.DataRange)
+  := do
+  let dr ← components.copy_range members.first
+  let dr1 ← components.copy_range members.second
+  let v ←
+    components.copy_range_list members.rest 0#usize (alloc.vec.Vec.new
+      model.DataRange)
+  ok { first := dr, second := dr1, rest := v }
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::components::copy_range_filler]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 776:0-781:1 -/
+def components.copy_range_filler
+  (filler : Option model.DataRange) : Result (Option model.DataRange) := do
+  match filler with
+  | none => ok none
+  | some range => let dr ← components.copy_range range
+                  ok (some dr)
+
+mutual
+
+/-- [rowl_kernel::components::copy_class]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 782:0-860:1 -/
+def components.copy_class
+  (expression : model.ClassExpression) : Result model.ClassExpression := do
+  match expression with
+  | model.ClassExpression.Class «name» =>
+    let c ← components.copy_class_name «name»
+    ok (model.ClassExpression.Class c)
+  | model.ClassExpression.ObjectIntersectionOf members =>
+    let alt ← components.copy_class_members members
+    ok (model.ClassExpression.ObjectIntersectionOf alt)
+  | model.ClassExpression.ObjectUnionOf members =>
+    let alt ← components.copy_class_members members
+    ok (model.ClassExpression.ObjectUnionOf alt)
+  | model.ClassExpression.ObjectComplementOf inner =>
+    let ce ← components.copy_class inner
+    ok (model.ClassExpression.ObjectComplementOf ce)
+  | model.ClassExpression.ObjectOneOf individuals =>
+    let i ← concepts.copy_individual individuals.first
+    let v ←
+      components.copy_individuals individuals.rest 0#usize (alloc.vec.Vec.new
+        model.Individual)
+    ok (model.ClassExpression.ObjectOneOf { first := i, rest := v })
+  | model.ClassExpression.ObjectSomeValuesFrom role filler =>
+    let ope ← concepts.copy_role role
+    let ce ← components.copy_class filler
+    ok (model.ClassExpression.ObjectSomeValuesFrom ope ce)
+  | model.ClassExpression.ObjectAllValuesFrom role filler =>
+    let ope ← concepts.copy_role role
+    let ce ← components.copy_class filler
+    ok (model.ClassExpression.ObjectAllValuesFrom ope ce)
+  | model.ClassExpression.ObjectHasValue role individual =>
+    let ope ← concepts.copy_role role
+    let i ← concepts.copy_individual individual
+    ok (model.ClassExpression.ObjectHasValue ope i)
+  | model.ClassExpression.ObjectHasSelf role =>
+    let ope ← concepts.copy_role role
+    ok (model.ClassExpression.ObjectHasSelf ope)
+  | model.ClassExpression.ObjectMinCardinality count role filler =>
+    let n ← components.copy_natural count
+    let ope ← concepts.copy_role role
+    let o ← components.copy_class_filler filler
+    ok (model.ClassExpression.ObjectMinCardinality n ope o)
+  | model.ClassExpression.ObjectMaxCardinality count role filler =>
+    let n ← components.copy_natural count
+    let ope ← concepts.copy_role role
+    let o ← components.copy_class_filler filler
+    ok (model.ClassExpression.ObjectMaxCardinality n ope o)
+  | model.ClassExpression.ObjectExactCardinality count role filler =>
+    let n ← components.copy_natural count
+    let ope ← concepts.copy_role role
+    let o ← components.copy_class_filler filler
+    ok (model.ClassExpression.ObjectExactCardinality n ope o)
+  | model.ClassExpression.DataSomeValuesFrom property range =>
+    let dp ← components.copy_data_property property
+    let dr ← components.copy_range range
+    ok (model.ClassExpression.DataSomeValuesFrom dp dr)
+  | model.ClassExpression.DataAllValuesFrom property range =>
+    let dp ← components.copy_data_property property
+    let dr ← components.copy_range range
+    ok (model.ClassExpression.DataAllValuesFrom dp dr)
+  | model.ClassExpression.DataHasValue property literal =>
+    let dp ← components.copy_data_property property
+    let l ← components.copy_literal literal
+    ok (model.ClassExpression.DataHasValue dp l)
+  | model.ClassExpression.DataMinCardinality count property filler =>
+    let n ← components.copy_natural count
+    let dp ← components.copy_data_property property
+    let o ← components.copy_range_filler filler
+    ok (model.ClassExpression.DataMinCardinality n dp o)
+  | model.ClassExpression.DataMaxCardinality count property filler =>
+    let n ← components.copy_natural count
+    let dp ← components.copy_data_property property
+    let o ← components.copy_range_filler filler
+    ok (model.ClassExpression.DataMaxCardinality n dp o)
+  | model.ClassExpression.DataExactCardinality count property filler =>
+    let n ← components.copy_natural count
+    let dp ← components.copy_data_property property
+    let o ← components.copy_range_filler filler
+    ok (model.ClassExpression.DataExactCardinality n dp o)
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_class_filler]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 861:0-866:1 -/
+def components.copy_class_filler
+  (filler : Option model.ClassExpression) :
+  Result (Option model.ClassExpression)
+  := do
+  match filler with
+  | none => ok none
+  | some expression => let ce ← components.copy_class expression
+                       ok (some ce)
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_class_list]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 867:0-882:1 -/
+def components.copy_class_list
+  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize)
+  (out : alloc.vec.Vec model.ClassExpression) :
+  Result (alloc.vec.Vec model.ClassExpression)
+  := do
+  let i := alloc.vec.Vec.len classes
+  if index < i
+  then
+    let i1 := alloc.vec.Vec.len out
+    if i1 < core.num.Usize.MAX
+    then
+      let ce ←
+        alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+          model.ClassExpression) classes index
+      let ce1 ← components.copy_class ce
+      let out1 ← alloc.vec.Vec.push out ce1
+      let i2 ← index + 1#usize
+      components.copy_class_list classes i2 out1
+    else ok out
+  else ok out
+partial_fixpoint
+
+/-- [rowl_kernel::components::copy_class_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 883:0-889:1 -/
+def components.copy_class_members
+  (members : model.AtLeastTwo model.ClassExpression) :
+  Result (model.AtLeastTwo model.ClassExpression)
+  := do
+  let ce ← components.copy_class members.first
+  let ce1 ← components.copy_class members.second
+  let v ←
+    components.copy_class_list members.rest 0#usize (alloc.vec.Vec.new
+      model.ClassExpression)
+  ok { first := ce, second := ce1, rest := v }
+partial_fixpoint
+
+end
+
+/-- [rowl_kernel::components::copy_role_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 890:0-898:1 -/
+def components.copy_role_members
+  (roles : model.AtLeastTwo model.ObjectPropertyExpression) :
+  Result (model.AtLeastTwo model.ObjectPropertyExpression)
+  := do
+  let ope ← concepts.copy_role roles.first
+  let ope1 ← concepts.copy_role roles.second
+  let v ←
+    components.copy_roles roles.rest 0#usize (alloc.vec.Vec.new
+      model.ObjectPropertyExpression)
+  ok { first := ope, second := ope1, rest := v }
+
+/-- [rowl_kernel::components::copy_data_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 899:0-905:1 -/
+def components.copy_data_members
+  (properties : model.AtLeastTwo model.DataProperty) :
+  Result (model.AtLeastTwo model.DataProperty)
+  := do
+  let dp ← components.copy_data_property properties.first
+  let dp1 ← components.copy_data_property properties.second
+  let v ←
+    components.copy_data_list properties.rest 0#usize (alloc.vec.Vec.new
+      model.DataProperty)
+  ok { first := dp, second := dp1, rest := v }
+
+/-- [rowl_kernel::components::copy_individual_members]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 906:0-912:1 -/
+def components.copy_individual_members
+  (individuals : model.AtLeastTwo model.Individual) :
+  Result (model.AtLeastTwo model.Individual)
+  := do
+  let i ← concepts.copy_individual individuals.first
+  let i1 ← concepts.copy_individual individuals.second
+  let v ←
+    components.copy_individuals individuals.rest 0#usize (alloc.vec.Vec.new
+      model.Individual)
+  ok { first := i, second := i1, rest := v }
+
+/-- [rowl_kernel::components::copy_sub_role]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 913:0-922:1 -/
+def components.copy_sub_role
+  (sub : model.SubObjectPropertyExpression) :
+  Result model.SubObjectPropertyExpression
+  := do
+  match sub with
+  | model.SubObjectPropertyExpression.Single role =>
+    let ope ← concepts.copy_role role
+    ok (model.SubObjectPropertyExpression.Single ope)
+  | model.SubObjectPropertyExpression.Chain roles =>
+    let alt ← components.copy_role_members roles
+    ok (model.SubObjectPropertyExpression.Chain alt)
+
+/-- [rowl_kernel::components::copy_axiom]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 925:0-1047:1 -/
+def components.copy_axiom
+  («axiom» : model.Axiom) : Result (Option model.Axiom) := do
+  match «axiom» with
+  | model.Axiom.Declaration _ => ok none
+  | model.Axiom.SubClassOf sub sup =>
+    let ce ← components.copy_class sub
+    let ce1 ← components.copy_class sup
+    ok (some (model.Axiom.SubClassOf ce ce1))
+  | model.Axiom.EquivalentClasses members =>
+    let alt ← components.copy_class_members members
+    ok (some (model.Axiom.EquivalentClasses alt))
+  | model.Axiom.DisjointClasses members =>
+    let alt ← components.copy_class_members members
+    ok (some (model.Axiom.DisjointClasses alt))
+  | model.Axiom.DisjointUnion «name» members =>
+    let c ← components.copy_class_name «name»
+    let alt ← components.copy_class_members members
+    ok (some (model.Axiom.DisjointUnion c alt))
+  | model.Axiom.SubObjectPropertyOf sub sup =>
+    let sope ← components.copy_sub_role sub
+    let ope ← concepts.copy_role sup
+    ok (some (model.Axiom.SubObjectPropertyOf sope ope))
+  | model.Axiom.EquivalentObjectProperties roles =>
+    let alt ← components.copy_role_members roles
+    ok (some (model.Axiom.EquivalentObjectProperties alt))
+  | model.Axiom.DisjointObjectProperties roles =>
+    let alt ← components.copy_role_members roles
+    ok (some (model.Axiom.DisjointObjectProperties alt))
+  | model.Axiom.InverseObjectProperties first second =>
+    let ope ← concepts.copy_role first
+    let ope1 ← concepts.copy_role second
+    ok (some (model.Axiom.InverseObjectProperties ope ope1))
+  | model.Axiom.ObjectPropertyDomain role expression =>
+    let ope ← concepts.copy_role role
+    let ce ← components.copy_class expression
+    ok (some (model.Axiom.ObjectPropertyDomain ope ce))
+  | model.Axiom.ObjectPropertyRange role expression =>
+    let ope ← concepts.copy_role role
+    let ce ← components.copy_class expression
+    ok (some (model.Axiom.ObjectPropertyRange ope ce))
+  | model.Axiom.FunctionalObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.FunctionalObjectProperty ope))
+  | model.Axiom.InverseFunctionalObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.InverseFunctionalObjectProperty ope))
+  | model.Axiom.ReflexiveObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.ReflexiveObjectProperty ope))
+  | model.Axiom.IrreflexiveObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.IrreflexiveObjectProperty ope))
+  | model.Axiom.SymmetricObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.SymmetricObjectProperty ope))
+  | model.Axiom.AsymmetricObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.AsymmetricObjectProperty ope))
+  | model.Axiom.TransitiveObjectProperty role =>
+    let ope ← concepts.copy_role role
+    ok (some (model.Axiom.TransitiveObjectProperty ope))
+  | model.Axiom.SubDataPropertyOf sub sup =>
+    let dp ← components.copy_data_property sub
+    let dp1 ← components.copy_data_property sup
+    ok (some (model.Axiom.SubDataPropertyOf dp dp1))
+  | model.Axiom.EquivalentDataProperties properties =>
+    let alt ← components.copy_data_members properties
+    ok (some (model.Axiom.EquivalentDataProperties alt))
+  | model.Axiom.DisjointDataProperties properties =>
+    let alt ← components.copy_data_members properties
+    ok (some (model.Axiom.DisjointDataProperties alt))
+  | model.Axiom.DataPropertyDomain property expression =>
+    let dp ← components.copy_data_property property
+    let ce ← components.copy_class expression
+    ok (some (model.Axiom.DataPropertyDomain dp ce))
+  | model.Axiom.DataPropertyRange property range =>
+    let dp ← components.copy_data_property property
+    let dr ← components.copy_range range
+    ok (some (model.Axiom.DataPropertyRange dp dr))
+  | model.Axiom.FunctionalDataProperty property =>
+    let dp ← components.copy_data_property property
+    ok (some (model.Axiom.FunctionalDataProperty dp))
+  | model.Axiom.DatatypeDefinition _ _ => ok none
+  | model.Axiom.HasKey expression roles properties =>
+    let ce ← components.copy_class expression
+    let v ←
+      components.copy_roles roles 0#usize (alloc.vec.Vec.new
+        model.ObjectPropertyExpression)
+    let v1 ←
+      components.copy_data_list properties 0#usize (alloc.vec.Vec.new
+        model.DataProperty)
+    ok (some (model.Axiom.HasKey ce v v1))
+  | model.Axiom.SameIndividual individuals =>
+    let alt ← components.copy_individual_members individuals
+    ok (some (model.Axiom.SameIndividual alt))
+  | model.Axiom.DifferentIndividuals individuals =>
+    let alt ← components.copy_individual_members individuals
+    ok (some (model.Axiom.DifferentIndividuals alt))
+  | model.Axiom.ClassAssertion expression individual =>
+    let ce ← components.copy_class expression
+    let i ← concepts.copy_individual individual
+    ok (some (model.Axiom.ClassAssertion ce i))
+  | model.Axiom.ObjectPropertyAssertion role source target =>
+    let ope ← concepts.copy_role role
+    let i ← concepts.copy_individual source
+    let i1 ← concepts.copy_individual target
+    ok (some (model.Axiom.ObjectPropertyAssertion ope i i1))
+  | model.Axiom.NegativeObjectPropertyAssertion role source target =>
+    let ope ← concepts.copy_role role
+    let i ← concepts.copy_individual source
+    let i1 ← concepts.copy_individual target
+    ok (some (model.Axiom.NegativeObjectPropertyAssertion ope i i1))
+  | model.Axiom.DataPropertyAssertion property source literal =>
+    let dp ← components.copy_data_property property
+    let i ← concepts.copy_individual source
+    let l ← components.copy_literal literal
+    ok (some (model.Axiom.DataPropertyAssertion dp i l))
+  | model.Axiom.NegativeDataPropertyAssertion property source literal =>
+    let dp ← components.copy_data_property property
+    let i ← concepts.copy_individual source
+    let l ← components.copy_literal literal
+    ok (some (model.Axiom.NegativeDataPropertyAssertion dp i l))
+  | model.Axiom.AnnotationAssertion _ _ _ => ok none
+  | model.Axiom.SubAnnotationPropertyOf _ _ => ok none
+  | model.Axiom.AnnotationPropertyDomain _ _ => ok none
+  | model.Axiom.AnnotationPropertyRange _ _ => ok none
+
+/-- [rowl_kernel::components::kept]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1055:0-1064:1 -/
+def components.kept
+  («axiom» : model.Axiom) (members : alloc.vec.Vec model.Individual) :
+  Result (Option Bool)
+  := do
+  let b ← components.assertion «axiom»
+  if b
+  then
+    let o ←
+      data_ontology.axiom_individuals (alloc.vec.Vec.new model.Individual)
+        «axiom»
+    match o with
+    | none => ok none
+    | some named =>
+      let b1 ← components.any_member members named 0#usize
+      ok (some b1)
+  else let b1 ← components.meaningless «axiom»
+       ok (some (¬ b1))
+
+/-- [rowl_kernel::components::select]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1066:0-1094:1 -/
+def components.select
+  (items : alloc.vec.Vec model.AnnotatedAxiom) (index : Std.Usize)
+  (members : alloc.vec.Vec model.Individual)
+  (out : alloc.vec.Vec model.AnnotatedAxiom) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let i := alloc.vec.Vec.len items
+  if index < i
+  then
+    let aa ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
+        model.AnnotatedAxiom) items index
+    let o ← components.kept aa.axiom members
+    match o with
+    | none => ok none
+    | some b =>
+      if b
+      then
+        let o1 ← components.copy_axiom aa.axiom
+        match o1 with
+        | none => ok none
+        | some copied =>
+          let i1 := alloc.vec.Vec.len out
+          if i1 < core.num.Usize.MAX
+          then
+            let out1 ←
+              alloc.vec.Vec.push out
+                ({
+                   annotations := (alloc.vec.Vec.new model.Annotation),
+                   «axiom» := copied
+                 } : model.AnnotatedAxiom)
+            let i2 ← index + 1#usize
+            components.select items i2 members out1
+          else ok none
+      else let i1 ← index + 1#usize
+           components.select items i1 members out
+  else ok (some out)
+partial_fixpoint
+
+/-- [rowl_kernel::components::component_closure]:
+    Source: 'crates/rowl-kernel/src/components.rs', lines 1098:0-1127:1
+    Visibility: public -/
+def components.component_closure
+  (items : alloc.vec.Vec model.AnnotatedAxiom)
+  (individual : model.NamedIndividual) :
+  Result (Option (alloc.vec.Vec model.AnnotatedAxiom))
+  := do
+  let b ← components.plain_items items 0#usize
+  if b
+  then
+    let i ← nnf.copy_iri individual.iri
+    let start ←
+      alloc.vec.Vec.push (alloc.vec.Vec.new model.Individual)
+        (model.Individual.Named { iri := i })
+    let o ← components.component items start components.ROUNDS
+    match o with
+    | none => ok none
+    | some members =>
+      let i1 ←
+        alc_ontology.position members (model.Individual.Named { iri := i })
+          0#usize
+      if i1 != 0#usize
+      then
+        let o1 ← components.closed items 0#usize members
+        match o1 with
+        | none => ok none
+        | some b1 =>
+          if b1
+          then
+            components.select items 0#usize members (alloc.vec.Vec.new
+              model.AnnotatedAxiom)
+          else ok none
+      else ok none
+  else ok none
 
 /-- [rowl_kernel::data_ontology::is_thing]:
     Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 177:0-179:1 -/
@@ -30201,207 +31853,6 @@ def data_ontology.encode
                 let i2 ← data_ontology.object_individual
                 data_ontology.push out5 (model.Axiom.ClassAssertion ce i2)
   else ok none
-
-/-- [rowl_kernel::data_ontology::list_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2815:0-2828:1 -/
-def data_ontology.list_individuals
-  (nodes : alloc.vec.Vec model.Individual)
-  (individuals : alloc.vec.Vec model.Individual) (index : Std.Usize) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len individuals
-  if index < i
-  then
-    let i1 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.Individual) individuals index
-    let o ← alc_ontology.intern nodes i1
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let i2 ← index + 1#usize
-      data_ontology.list_individuals nodes1 individuals i2
-  else ok (some nodes)
-partial_fixpoint
-
-mutual
-
-/-- [rowl_kernel::data_ontology::class_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2831:0-2854:1 -/
-def data_ontology.class_individuals
-  (nodes : alloc.vec.Vec model.Individual) («class» : model.ClassExpression)
-  :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  match «class» with
-  | model.ClassExpression.Class _ => ok (some nodes)
-  | model.ClassExpression.ObjectIntersectionOf members =>
-    data_ontology.members_individuals nodes members
-  | model.ClassExpression.ObjectUnionOf members =>
-    data_ontology.members_individuals nodes members
-  | model.ClassExpression.ObjectComplementOf inner =>
-    data_ontology.class_individuals nodes inner
-  | model.ClassExpression.ObjectOneOf individuals =>
-    let o ← alc_ontology.intern nodes individuals.first
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      data_ontology.list_individuals nodes1 individuals.rest 0#usize
-  | model.ClassExpression.ObjectSomeValuesFrom _ filler =>
-    data_ontology.class_individuals nodes filler
-  | model.ClassExpression.ObjectAllValuesFrom _ filler =>
-    data_ontology.class_individuals nodes filler
-  | model.ClassExpression.ObjectHasValue _ individual =>
-    alc_ontology.intern nodes individual
-  | model.ClassExpression.ObjectHasSelf _ => ok (some nodes)
-  | model.ClassExpression.ObjectMinCardinality _ _ filler =>
-    match filler with
-    | none => ok (some nodes)
-    | some filler1 => data_ontology.class_individuals nodes filler1
-  | model.ClassExpression.ObjectMaxCardinality _ _ filler =>
-    match filler with
-    | none => ok (some nodes)
-    | some filler1 => data_ontology.class_individuals nodes filler1
-  | model.ClassExpression.ObjectExactCardinality _ _ filler =>
-    match filler with
-    | none => ok (some nodes)
-    | some filler1 => data_ontology.class_individuals nodes filler1
-  | model.ClassExpression.DataSomeValuesFrom _ _ => ok (some nodes)
-  | model.ClassExpression.DataAllValuesFrom _ _ => ok (some nodes)
-  | model.ClassExpression.DataHasValue _ _ => ok (some nodes)
-  | model.ClassExpression.DataMinCardinality _ _ _ => ok (some nodes)
-  | model.ClassExpression.DataMaxCardinality _ _ _ => ok (some nodes)
-  | model.ClassExpression.DataExactCardinality _ _ _ => ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::data_ontology::classes_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2855:0-2868:1 -/
-def data_ontology.classes_individuals
-  (nodes : alloc.vec.Vec model.Individual)
-  (classes : alloc.vec.Vec model.ClassExpression) (index : Std.Usize) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let i := alloc.vec.Vec.len classes
-  if index < i
-  then
-    let ce ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice
-        model.ClassExpression) classes index
-    let o ← data_ontology.class_individuals nodes ce
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let i1 ← index + 1#usize
-      data_ontology.classes_individuals nodes1 classes i1
-  else ok (some nodes)
-partial_fixpoint
-
-/-- [rowl_kernel::data_ontology::members_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2869:0-2880:1 -/
-def data_ontology.members_individuals
-  (nodes : alloc.vec.Vec model.Individual)
-  (members : model.AtLeastTwo model.ClassExpression) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  let o ← data_ontology.class_individuals nodes members.first
-  match o with
-  | none => ok none
-  | some nodes1 =>
-    let o1 ← data_ontology.class_individuals nodes1 members.second
-    match o1 with
-    | none => ok none
-    | some nodes2 =>
-      data_ontology.classes_individuals nodes2 members.rest 0#usize
-partial_fixpoint
-
-end
-
-/-- [rowl_kernel::data_ontology::axiom_individuals]:
-    Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2882:0-2918:1 -/
-def data_ontology.axiom_individuals
-  (nodes : alloc.vec.Vec model.Individual) («axiom» : model.Axiom) :
-  Result (Option (alloc.vec.Vec model.Individual))
-  := do
-  match «axiom» with
-  | model.Axiom.Declaration _ => ok (some nodes)
-  | model.Axiom.SubClassOf sub sup =>
-    let o ← data_ontology.class_individuals nodes sub
-    match o with
-    | none => ok none
-    | some nodes1 => data_ontology.class_individuals nodes1 sup
-  | model.Axiom.EquivalentClasses members =>
-    data_ontology.members_individuals nodes members
-  | model.Axiom.DisjointClasses members =>
-    data_ontology.members_individuals nodes members
-  | model.Axiom.DisjointUnion _ members =>
-    data_ontology.members_individuals nodes members
-  | model.Axiom.SubObjectPropertyOf _ _ => ok (some nodes)
-  | model.Axiom.EquivalentObjectProperties _ => ok (some nodes)
-  | model.Axiom.DisjointObjectProperties _ => ok (some nodes)
-  | model.Axiom.InverseObjectProperties _ _ => ok (some nodes)
-  | model.Axiom.ObjectPropertyDomain _ «class» =>
-    data_ontology.class_individuals nodes «class»
-  | model.Axiom.ObjectPropertyRange _ «class» =>
-    data_ontology.class_individuals nodes «class»
-  | model.Axiom.FunctionalObjectProperty _ => ok (some nodes)
-  | model.Axiom.InverseFunctionalObjectProperty _ => ok (some nodes)
-  | model.Axiom.ReflexiveObjectProperty _ => ok (some nodes)
-  | model.Axiom.IrreflexiveObjectProperty _ => ok (some nodes)
-  | model.Axiom.SymmetricObjectProperty _ => ok (some nodes)
-  | model.Axiom.AsymmetricObjectProperty _ => ok (some nodes)
-  | model.Axiom.TransitiveObjectProperty _ => ok (some nodes)
-  | model.Axiom.SubDataPropertyOf _ _ => ok (some nodes)
-  | model.Axiom.EquivalentDataProperties _ => ok (some nodes)
-  | model.Axiom.DisjointDataProperties _ => ok (some nodes)
-  | model.Axiom.DataPropertyDomain _ «class» =>
-    data_ontology.class_individuals nodes «class»
-  | model.Axiom.DataPropertyRange _ _ => ok (some nodes)
-  | model.Axiom.FunctionalDataProperty _ => ok (some nodes)
-  | model.Axiom.DatatypeDefinition _ _ => ok (some nodes)
-  | model.Axiom.HasKey _ _ _ => ok (some nodes)
-  | model.Axiom.SameIndividual individuals =>
-    let o ← alc_ontology.intern nodes individuals.first
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let o1 ← alc_ontology.intern nodes1 individuals.second
-      match o1 with
-      | none => ok none
-      | some nodes2 =>
-        data_ontology.list_individuals nodes2 individuals.rest 0#usize
-  | model.Axiom.DifferentIndividuals individuals =>
-    let o ← alc_ontology.intern nodes individuals.first
-    match o with
-    | none => ok none
-    | some nodes1 =>
-      let o1 ← alc_ontology.intern nodes1 individuals.second
-      match o1 with
-      | none => ok none
-      | some nodes2 =>
-        data_ontology.list_individuals nodes2 individuals.rest 0#usize
-  | model.Axiom.ClassAssertion «class» individual =>
-    let o ← alc_ontology.intern nodes individual
-    match o with
-    | none => ok none
-    | some nodes1 => data_ontology.class_individuals nodes1 «class»
-  | model.Axiom.ObjectPropertyAssertion _ source target =>
-    let o ← alc_ontology.intern nodes source
-    match o with
-    | none => ok none
-    | some nodes1 => alc_ontology.intern nodes1 target
-  | model.Axiom.NegativeObjectPropertyAssertion _ source target =>
-    let o ← alc_ontology.intern nodes source
-    match o with
-    | none => ok none
-    | some nodes1 => alc_ontology.intern nodes1 target
-  | model.Axiom.DataPropertyAssertion _ source _ =>
-    alc_ontology.intern nodes source
-  | model.Axiom.NegativeDataPropertyAssertion _ source _ =>
-    alc_ontology.intern nodes source
-  | model.Axiom.AnnotationAssertion _ _ _ => ok (some nodes)
-  | model.Axiom.SubAnnotationPropertyOf _ _ => ok (some nodes)
-  | model.Axiom.AnnotationPropertyDomain _ _ => ok (some nodes)
-  | model.Axiom.AnnotationPropertyRange _ _ => ok (some nodes)
 
 /-- [rowl_kernel::data_ontology::items_individuals]:
     Source: 'crates/rowl-kernel/src/data_ontology.rs', lines 2920:0-2933:1 -/

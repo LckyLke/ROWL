@@ -6369,3 +6369,64 @@ and stale statements in status.md, formats.md and the Python documentation
 
 This block adds no theorems or definitions. Totals are 5399 audited theorems,
 1793 definitions, 654 Rust regressions and 5592 ledger obligations.
+
+## Performance: instance questions about one component
+
+Every instance question ran a tableau over the whole ABox, so listing the
+instances of a class over n individuals took n tableaux of size n: 53 s for the
+11 overdoses among 100 medication-dose prescriptions. Independent records do
+not need each other: a model of the assertions about some individuals and a
+model of the others combine into a model of both whenever they share no
+individual and the other axioms name no individual.
+
+`Rowl.Partition` proves this for the OWL 2 Direct Semantics. Call an axiom other
+than an assertion plain when it names no individual (no `ObjectOneOf` or
+`ObjectHasValue`), uses neither top property, defines no datatype, gives a key
+an object property, and has only standard data: datatypes that the datatype map
+supports or `rdfs:Literal`, literals of the vocabulary, and facets of the
+vocabulary whose facet values are datatype values (`Standard`). The disjoint
+union of two interpretations (`join`) puts the individuals of one part on the
+left and the others on the right; its data domain is the sum of the two data
+domains, with every datatype value of the right carried to the embedding of the
+same value on the left (`carry`), so literals, supported datatypes and range
+facets mean the same on both sides. `join_interpretation` proves it an
+interpretation for the vocabulary; `side_class` proves that a plain class
+expression means the same at an element of either side as in its own
+interpretation; `join_plain`, `join_left_assertion` and `join_right_assertion`
+prove that it satisfies the plain axioms that both interpretations satisfy and
+each side's assertions. `instance_part` concludes: when the closure has a model
+and its assertions fall into a part and a rest that share no individual, an
+instance question about an individual that the rest does not name, with a plain
+class expression without individuals, has the same answer for the part as for
+the closure. The part may hold copies of the closure's axioms and the rest
+declarations and annotation axioms.
+
+`components::component_closure` checks that every axiom of the closure is plain,
+a plain assertion or without meaning (`plain_items_spec`), finds the component
+of the named individual in rounds over the assertions, checks that it holds the
+individual and that every assertion that names one of its individuals names
+only its individuals (`closed_spec`), and copies the plain axioms and the
+assertions of the component without their annotations (`select_spec`,
+`copy_axiom_spec`). `component_closure_correct` gives the result the
+conditions of `instance_part`, and `part_instance_correct` composes them: for
+every datatype map that is the OWL 2 map on the datatypes of `datatypes` and
+every vocabulary, the instance question has the same answer for the part.
+`Reasoner::instance_of` asks the part when the closure is consistent and the
+class expression passes `plain_question`, and the whole closure otherwise; it
+keeps splitting when the first part is less than half of the closure. The
+consistency answer is now computed once and kept.
+
+| Listing instances | before | after |
+| --- | --- | --- |
+| 11 overdoses among 100 medication-dose prescriptions | 53 s | 0.41 s |
+| 37 overdoses among 100 records with age and dose groups | 26 s | 0.61 s |
+
+Listing the 43 overdoses among 300 prescriptions takes 2.28 s, of which the
+one consistency check of the whole closure takes 1.58 s. The regression
+`parts_answer_like_the_whole_closure` compares, for every
+individual with a part and every named class of four ontologies, the answer of
+the part with the answer of the whole closure.
+
+This block adds 28 public theorems (11 in `Rowl.Partition`, 17 in
+`Rowl.Components`) and 16 definitions. Totals are 5427 audited theorems, 1809
+definitions, 657 Rust regressions and 5620 ledger obligations.

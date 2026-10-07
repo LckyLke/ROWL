@@ -162,7 +162,7 @@ fn is_top_object(property: &ObjectProperty) -> bool {
         b"http://www.w3.org/2002/07/owl#topObjectProperty",
     )
 }
-fn is_top_data(property: &DataProperty) -> bool {
+pub(crate) fn is_top_data(property: &DataProperty) -> bool {
     same_pattern(
         &property.iri.spelling,
         b"http://www.w3.org/2002/07/owl#topDataProperty",
@@ -177,7 +177,7 @@ fn is_bottom_data(property: &DataProperty) -> bool {
 fn is_thing(class: &Class) -> bool {
     same_pattern(&class.iri.spelling, b"http://www.w3.org/2002/07/owl#Thing")
 }
-fn is_literal(datatype: &crate::model::Datatype) -> bool {
+pub(crate) fn is_literal(datatype: &crate::model::Datatype) -> bool {
     same_pattern(
         &datatype.iri.spelling,
         b"http://www.w3.org/2000/01/rdf-schema#Literal",
@@ -2879,7 +2879,7 @@ fn members_individuals(
     }
 }
 /// `nodes` with the individuals an axiom mentions.
-fn axiom_individuals(nodes: Vec<Individual>, axiom: &Axiom) -> Option<Vec<Individual>> {
+pub(crate) fn axiom_individuals(nodes: Vec<Individual>, axiom: &Axiom) -> Option<Vec<Individual>> {
     match axiom {
         Axiom::SubClassOf(sub, sup) => match class_individuals(nodes, sub) {
             Some(nodes) => class_individuals(nodes, sup),
