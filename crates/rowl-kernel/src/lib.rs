@@ -140,6 +140,8 @@ pub mod turtle;
 pub mod compiled;
 
 pub mod classification;
+pub mod rdfxml;
 pub mod saturation;
 pub mod snapshot;
 pub mod unicode;
+pub mod xml;

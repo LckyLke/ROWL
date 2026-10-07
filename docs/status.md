@@ -98,6 +98,32 @@ progress. Full OWL parsing and executable reasoning are still future work.
   not beginning with `//`; a proved counterexample shows that the RFC algorithm
   can leave the IRI grammar otherwise. `references::is_reference` is proved to
   accept exactly the UTF-8 spellings of RFC 3987 IRI references.
+- M3 XML 1.0 and Namespaces in XML 1.0 reading for RDF/XML (`xml::read`):
+  strict UTF-8 with a leading byte order mark dropped and line ends normalized,
+  the XML declaration, comments, processing instructions, a document type
+  declaration whose internal subset declares entities, elements, attributes
+  normalized as §3.3.3 prescribes, character data, CDATA sections, character
+  and entity references under an expansion budget, and namespace resolution
+  under every namespace constraint. Proved against an independent grammar over
+  code points: when the byte length plus the budget fits in `usize`, `read`
+  returns the element tree exactly for the supported documents, that tree is
+  unique, and every other input gives a typed error. Other encodings, element
+  type, attribute-list and notation declarations, parameter-entity references
+  and external or unparsed entities are declined.
+- M3 RDF/XML reading (`rdfxml::read_with_limits`, `rdfxml::graph`): RDF 1.1 XML
+  Syntax over the element trees of `xml::read`, with element and attribute
+  events, `xml:base` resolved by RFC 3986 section 5.2, `xml:lang`, node elements
+  with `rdf:ID`, `rdf:nodeID`, `rdf:about` or generated blank nodes, typed node
+  elements, property attributes, resource, literal, `parseType="Resource"`,
+  `parseType="Collection"` and empty property elements, `rdf:li`, reification by
+  `rdf:ID` with its uniqueness constraint, and blank nodes in a caller-supplied
+  scope. Proved against independent relations for sections 5 to 7: `graph`
+  returns exactly the triples, in order, that the grammar derives within the
+  term and item limits, and an error exactly when it derives none; from bytes,
+  `read_with_limits` returns a graph exactly when the XML grammar reads a tree
+  that has one, with those triples. `rdf:parseType="Literal"` is declined with a
+  typed error, since XML literals need XML canonicalization. The reasoner, the
+  CLI and the bindings do not read RDF/XML yet.
 - M3 compiled regular grammars. `compiled::compile` turns an expression into a
   table of nodes whose parts come before them, and the matcher keeps a state of
   continuation stacks of node indices, so it never copies the grammar. Against
@@ -1161,7 +1187,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   buckets by hash, built once, and check every candidate, so the proofs hold
   whatever the buckets contain; a generated 20 000-class ontology now maps in
   0.06 s instead of 2.5 s.
-- 4037 audited public theorems and 1494 audited semantic definitions. Consistency,
+- 4873 audited public theorems and 1644 audited semantic definitions. Consistency,
   class satisfiability, subsumption, instance checking and the classification
   of named classes are decided, with
   proofs against the OWL definitions, for axiom closures whose logical axioms are
@@ -1178,7 +1204,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   saturation procedure.
   No full OWL decision procedure is proved yet. See m3-m4-progress.md for the
   input contracts.
-- 597 Rust regression tests and 18 Python binding tests, plus separately fetched
+- 605 Rust regression tests and 18 Python binding tests, plus separately fetched
   W3C corpora (68 N-Triples syntax cases and 313 Turtle cases);
   maintenance OWL/RDF examples, a medication-safety example answered from its
   bytes, and CLI status/demo/check-nt/export-nt/validate commands. The SHI queries use
@@ -1195,7 +1221,7 @@ progress. Full OWL parsing and executable reasoning are still future work.
   Extraction rejects unknown external axioms/opaque declarations. Every public
   project theorem is audited; allowed logical axioms remain only propext,
   Classical.choice and Quot.sound.
-- A 4230-obligation release ledger and separate checked constructor and built-in inventories.
+- A 5066-obligation release ledger and separate checked constructor and built-in inventories.
   M2 representation entries and narrow M3/M4 proof obligations are covered;
   broad frontend/validation/reasoning requirements remain pending.
 
