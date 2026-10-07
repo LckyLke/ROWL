@@ -61425,504 +61425,825 @@ def names.validate_node
   let e ← names.node_grammar
   regular.matches_utf8 e bytes
 
-/-- [rowl_kernel::ntriples::WriteError]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 540:0-546:1
-    Visibility: public -/
-@[discriminant isize]
-inductive ntriples.WriteError where
-| InvalidIri : ntriples.WriteError
-| MalformedLiteralUtf8 : ntriples.WriteError
-| InvalidLanguageTag : ntriples.WriteError
-| InvalidLiteralKind : ntriples.WriteError
-| ResourceLimit : ntriples.WriteError
-
-/-- [rowl_kernel::ntriples::WriteResult]
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 547:0-550:1
-    Visibility: public -/
-@[discriminant isize]
-inductive ntriples.WriteResult where
-| Bytes : alloc.vec.Vec Std.U8 → ntriples.WriteResult
-| Error : ntriples.WriteError → ntriples.WriteResult
-
-/-- [rowl_kernel::ntriples::put]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 551:0-557:1 -/
-def ntriples.put
-  (output : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
+/-- [rowl_kernel::rdf_write::equal_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 319:0-329:1 -/
+def rdf_write.equal_from
+  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) (index : Std.Usize) :
+  Result Bool
   := do
-  let (b, output1) ← ntriples.push output byte limit
-  if b
-  then ok (core.result.Result.Ok (), output1)
-  else ok (core.result.Result.Err ntriples.WriteError.ResourceLimit, output1)
-
-/-- [rowl_kernel::ntriples::put_bytes]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 560:4-565:1 -/
-@[rust_loop]
-def ntriples.put_bytes_loop
-  (output : alloc.vec.Vec Std.U8) (bytes : Slice Std.U8) (limit : Std.Usize)
-  (i : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let i1 := Slice.len bytes
-  if i < i1
+  let i := alloc.vec.Vec.len a
+  if index < i
   then
-    let i2 ← Slice.index_usize bytes i
-    let (r, output1) ← ntriples.put output i2 limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let i3 ← i + 1#usize
-      ntriples.put_bytes_loop output1 bytes limit i3
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r1, output1)
-  else ok (core.result.Result.Ok (), output)
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) a
+        index
+    let i2 ← Slice.index_usize b index
+    if i1 = i2
+    then let i3 ← index + 1#usize
+         rdf_write.equal_from a b i3
+    else ok false
+  else ok true
 partial_fixpoint
 
-/-- [rowl_kernel::ntriples::put_bytes]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 558:0-565:1 -/
-@[reducible]
-def ntriples.put_bytes
-  (output : alloc.vec.Vec Std.U8) (bytes : Slice Std.U8) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  ntriples.put_bytes_loop output bytes limit 0#usize
+/-- [rowl_kernel::rdf_write::equal]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 332:0-338:1 -/
+def rdf_write.equal
+  (a : alloc.vec.Vec Std.U8) (b : Slice Std.U8) : Result Bool := do
+  let i := alloc.vec.Vec.len a
+  let i1 := Slice.len b
+  if i = i1
+  then rdf_write.equal_from a b 0#usize
+  else ok false
 
-/-- [rowl_kernel::ntriples::put_span]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 582:4-587:1 -/
-@[rust_loop]
-def ntriples.put_span_loop
-  (output : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
-  («end» : Std.Usize) (limit : Std.Usize) (p : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
+/-- [rowl_kernel::rdf_write::resolution_keeps]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 346:0-351:1 -/
+def rdf_write.resolution_keeps
+  (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  let o ← references.resolve (alloc.vec.Vec.new Std.U8) spelling
+  match o with
+  | none => ok false
+  | some target =>
+    let s := alloc.vec.Vec.deref spelling
+    rdf_write.equal target s
+
+/-- [rowl_kernel::rdf_write::absolute]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 341:0-343:1 -/
+def rdf_write.absolute (spelling : alloc.vec.Vec Std.U8) : Result Bool := do
+  let mr ← iri.validate_iri spelling
+  match mr with
+  | regular.MatchResult.Matched b => if b
+                                     then ok true
+                                     else ok false
+  | regular.MatchResult.MalformedUtf8 _ => ok false
+
+/-- [rowl_kernel::rdf_write::WriteError]
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 27:0-41:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_write.WriteError where
+| InvalidIri : rdf_write.WriteError
+| MalformedLiteralUtf8 : rdf_write.WriteError
+| InvalidLanguageTag : rdf_write.WriteError
+| InvalidLiteralKind : rdf_write.WriteError
+| IriChangedByResolution : rdf_write.WriteError
+| ResourceLimit : rdf_write.WriteError
+
+/-- [rowl_kernel::rdf_write::iri_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 354:0-364:1 -/
+def rdf_write.iri_fault
+  (iri : rdf.RdfIri) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
   := do
-  if p < «end»
+  let b ← rdf_write.absolute iri.spelling
+  if b
+  then
+    if resolved
+    then
+      let b1 ← rdf_write.resolution_keeps iri.spelling
+      if b1
+      then ok none
+      else ok (some rdf_write.WriteError.IriChangedByResolution)
+    else ok none
+  else ok (some rdf_write.WriteError.InvalidIri)
+
+/-- [rowl_kernel::rdf_write::datatype_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 436:0-445:1 -/
+def rdf_write.datatype_fault
+  (iri : rdf.RdfIri) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  let s ←
+    lift (Array.to_slice
+      (Array.make 53#usize [
+        104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8, 119#u8,
+        119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8, 103#u8, 47#u8,
+        49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8, 47#u8, 50#u8, 50#u8,
+        45#u8, 114#u8, 100#u8, 102#u8, 45#u8, 115#u8, 121#u8, 110#u8, 116#u8,
+        97#u8, 120#u8, 45#u8, 110#u8, 115#u8, 35#u8, 108#u8, 97#u8, 110#u8,
+        103#u8, 83#u8, 116#u8, 114#u8, 105#u8, 110#u8, 103#u8
+        ]))
+  let b ← rdf_write.equal iri.spelling s
+  if b
+  then ok (some rdf_write.WriteError.InvalidLiteralKind)
+  else rdf_write.iri_fault iri resolved
+
+/-- [rowl_kernel::rdf_write::ascii_letter]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 366:0-368:1 -/
+def rdf_write.ascii_letter (byte : Std.U8) : Result Bool := do
+  if 65#u8 <= byte
+  then
+    if byte <= 90#u8
+    then ok true
+    else if 97#u8 <= byte
+         then ok (byte <= 122#u8)
+         else ok false
+  else if 97#u8 <= byte
+       then ok (byte <= 122#u8)
+       else ok false
+
+/-- [rowl_kernel::rdf_write::ascii_alphanumeric]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 370:0-372:1 -/
+def rdf_write.ascii_alphanumeric (byte : Std.U8) : Result Bool := do
+  let b ← rdf_write.ascii_letter byte
+  if b
+  then ok true
+  else if 48#u8 <= byte
+       then ok (byte <= 57#u8)
+       else ok false
+
+/-- [rowl_kernel::rdf_write::tag_class]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 375:0-381:1 -/
+def rdf_write.tag_class (byte : Std.U8) (letters : Bool) : Result Bool := do
+  if letters
+  then rdf_write.ascii_letter byte
+  else rdf_write.ascii_alphanumeric byte
+
+/-- [rowl_kernel::rdf_write::tag_byte_at]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 384:0-386:1 -/
+def rdf_write.tag_byte_at
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (letters : Bool) :
+  Result Bool
+  := do
+  let i := alloc.vec.Vec.len bytes
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    rdf_write.tag_class i1 letters
+  else ok false
+
+/-- [rowl_kernel::rdf_write::word_end]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 389:0-395:1 -/
+def rdf_write.word_end
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) (letters : Bool) :
+  Result Std.Usize
+  := do
+  let b ← rdf_write.tag_byte_at bytes index letters
+  if b
+  then let i ← index + 1#usize
+       rdf_write.word_end bytes i letters
+  else ok index
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::subtags_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 398:0-411:1 -/
+def rdf_write.subtags_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let i := alloc.vec.Vec.len bytes
+  if i <= index
+  then ok true
+  else
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
+        index
+    if i1 != 45#u8
+    then ok false
+    else
+      let i2 ← index + 1#usize
+      let «end» ← rdf_write.word_end bytes i2 false
+      if «end» = i2
+      then ok false
+      else rdf_write.subtags_from bytes «end»
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::tag_form]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 415:0-422:1 -/
+def rdf_write.tag_form (tag : alloc.vec.Vec Std.U8) : Result Bool := do
+  let head ← rdf_write.word_end tag 0#usize true
+  if head = 0#usize
+  then ok false
+  else rdf_write.subtags_from tag head
+
+/-- [rowl_kernel::rdf_write::tag_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 425:0-433:1 -/
+def rdf_write.tag_fault
+  (tag : alloc.vec.Vec Std.U8) : Result (Option rdf_write.WriteError) := do
+  let b ← rdf_write.tag_form tag
+  if b
+  then
+    let b1 ← langtag.well_formed tag
+    if b1
+    then ok none
+    else ok (some rdf_write.WriteError.InvalidLanguageTag)
+  else ok (some rdf_write.WriteError.InvalidLanguageTag)
+
+/-- [rowl_kernel::rdf_write::utf8_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 309:0-315:1 -/
+def rdf_write.utf8_from
+  (bytes : alloc.vec.Vec Std.U8) (index : Std.Usize) : Result Bool := do
+  let d ← unicode.decode_next bytes index
+  match d with
+  | unicode.Decoded.End => ok true
+  | unicode.Decoded.Scalar _ next => rdf_write.utf8_from bytes next
+  | unicode.Decoded.Error _ => ok false
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::literal_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 448:0-457:1 -/
+def rdf_write.literal_fault
+  (literal : rdf.RdfLiteral) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  let b ← rdf_write.utf8_from literal.lexical 0#usize
+  if b
+  then
+    match literal.kind with
+    | rdf.LiteralKind.Datatype iri => rdf_write.datatype_fault iri resolved
+    | rdf.LiteralKind.Language tag => rdf_write.tag_fault tag
+  else ok (some rdf_write.WriteError.MalformedLiteralUtf8)
+
+/-- [rowl_kernel::rdf_write::object_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 466:0-472:1 -/
+def rdf_write.object_fault
+  (object : rdf.Object) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  match object with
+  | rdf.Object.Iri iri => rdf_write.iri_fault iri resolved
+  | rdf.Object.Blank _ => ok none
+  | rdf.Object.Literal literal => rdf_write.literal_fault literal resolved
+
+/-- [rowl_kernel::rdf_write::subject_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 459:0-464:1 -/
+def rdf_write.subject_fault
+  (subject : rdf.Subject) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  match subject with
+  | rdf.Subject.Iri iri => rdf_write.iri_fault iri resolved
+  | rdf.Subject.Blank _ => ok none
+
+/-- [rowl_kernel::rdf_write::triple_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 475:0-483:1 -/
+def rdf_write.triple_fault
+  (triple : rdf.Triple) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  let o ← rdf_write.subject_fault triple.subject resolved
+  match o with
+  | none =>
+    let o1 ← rdf_write.iri_fault triple.predicate resolved
+    match o1 with
+    | none => rdf_write.object_fault triple.object resolved
+    | some _ => ok o1
+  | some _ => ok o
+
+/-- [rowl_kernel::rdf_write::graph_fault]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 486:0-495:1 -/
+def rdf_write.graph_fault
+  (triples : alloc.vec.Vec rdf.Triple) (index : Std.Usize) (resolved : Bool) :
+  Result (Option rdf_write.WriteError)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let o ← rdf_write.triple_fault t resolved
+    match o with
+    | none =>
+      let i1 ← index + 1#usize
+      rdf_write.graph_fault triples i1 resolved
+    | some _ => ok o
+  else ok none
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::string_escape]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 202:0-214:1 -/
+def rdf_write.string_escape (cp : Std.U32) : Result Std.U8 := do
+  if cp = 34#u32
+  then ok 34#u8
+  else
+    if cp = 92#u32
+    then ok 92#u8
+    else
+      if cp = 10#u32
+      then ok 110#u8
+      else if cp = 13#u32
+           then ok 114#u8
+           else ok 0#u8
+
+/-- [rowl_kernel::rdf_write::put]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 50:0-57:1 -/
+def rdf_write.put
+  (output : alloc.vec.Vec Std.U8) (byte : Std.U8) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let i := alloc.vec.Vec.len output
+  if i < limit
+  then
+    let output1 ← alloc.vec.Vec.push output byte
+    ok (core.result.Result.Ok output1)
+  else ok (core.result.Result.Err rdf_write.WriteError.ResourceLimit)
+
+/-- [rowl_kernel::rdf_write::put_span]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 75:0-88:1 -/
+def rdf_write.put_span
+  (output : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) («end» : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  if index < «end»
   then
     let i ←
       alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) bytes
-        p
-    let (r, output1) ← ntriples.put output i limit
+        index
+    let r ← rdf_write.put output i limit
     let cf ← core.result.Result.Insts.CoreOpsTry.branch r
     match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let p1 ← p + 1#usize
-      ntriples.put_span_loop output1 bytes «end» limit p1
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r1, output1)
-  else ok (core.result.Result.Ok (), output)
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::put_span]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 574:0-587:1 -/
-@[reducible]
-def ntriples.put_span
-  (output : alloc.vec.Vec Std.U8) (bytes : alloc.vec.Vec Std.U8)
-  (start : Std.Usize) («end» : Std.Usize) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  ntriples.put_span_loop output bytes «end» limit start
-
-/-- [rowl_kernel::ntriples::write_iri]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 566:0-573:1 -/
-def ntriples.write_iri
-  (output : alloc.vec.Vec Std.U8) (value : rdf.RdfIri) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let mr ← iri.validate_iri value.spelling
-  let b ←
-    match mr with
-    | regular.MatchResult.Matched b1 => if b1
-                                        then ok true
-                                        else ok false
-    | regular.MatchResult.MalformedUtf8 _ => ok false
-  if b
-  then
-    let (r, output1) ← ntriples.put output 60#u8 limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let i := alloc.vec.Vec.len value.spelling
-      let (r1, output2) ←
-        ntriples.put_span output1 value.spelling 0#usize i limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        ntriples.put output2 62#u8 limit
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r2 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Unit (core.convert.FromSame ntriples.WriteError) residual
-        ok (r2, output2)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r1, output1)
-  else ok (core.result.Result.Err ntriples.WriteError.InvalidIri, output)
-
-/-- [rowl_kernel::ntriples::write_units]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 588:0-617:1 -/
-def ntriples.write_units
-  (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
-  (i : Std.Usize) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let d ← unicode.decode_next lexical i
-  match d with
-  | unicode.Decoded.End => ok (core.result.Result.Ok (), output)
-  | unicode.Decoded.Scalar codepoint next =>
-    let escape ←
-      match codepoint with
-      | 34#uscalar => ok (some 34#u8)
-      | 92#uscalar => ok (some 92#u8)
-      | 10#uscalar => ok (some 110#u8)
-      | 13#uscalar => ok (some 114#u8)
-      | _ => ok none
-    match escape with
-    | none =>
-      let (r, output1) ← ntriples.put_span output lexical i next limit
-      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-      match cf with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        ntriples.write_units output1 lexical next limit
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r1 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Unit (core.convert.FromSame ntriples.WriteError) residual
-        ok (r1, output1)
-    | some byte =>
-      let (r, output1) ← ntriples.put output 92#u8 limit
-      let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-      match cf with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        let (r1, output2) ← ntriples.put output1 byte limit
-        let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-        match cf1 with
-        | core.ops.control_flow.ControlFlow.Continue _ =>
-          ntriples.write_units output2 lexical next limit
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          let r2 ←
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              Unit (core.convert.FromSame ntriples.WriteError) residual
-          ok (r2, output2)
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r1 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Unit (core.convert.FromSame ntriples.WriteError) residual
-        ok (r1, output1)
-  | unicode.Decoded.Error _ =>
-    ok (core.result.Result.Err ntriples.WriteError.MalformedLiteralUtf8,
-      output)
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::write_lexical]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 618:0-622:1 -/
-def ntriples.write_lexical
-  (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
-  (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let (r, output1) ← ntriples.put output 34#u8 limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue _ =>
-    let (r1, output2) ← ntriples.write_units output1 lexical 0#usize limit
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      ntriples.put output2 34#u8 limit
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r2 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r2, output2)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let r1 ←
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        Unit (core.convert.FromSame ntriples.WriteError) residual
-    ok (r1, output1)
-
-/-- [rowl_kernel::ntriples::hex_digit]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 625:0-631:1 -/
-def ntriples.hex_digit (n : Std.U8) : Result Std.U8 := do
-  if n < 10#u8
-  then 48#u8 + n
-  else 87#u8 + n
-
-/-- [rowl_kernel::ntriples::write_key]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 634:4-640:1 -/
-@[rust_loop]
-def ntriples.write_key_loop
-  (output : alloc.vec.Vec Std.U8) (key : alloc.vec.Vec Std.U8)
-  (limit : Std.Usize) (i : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let i1 := alloc.vec.Vec.len key
-  if i < i1
-  then
-    let i2 ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key i
-    let i3 ← i2 / 16#u8
-    let i4 ← ntriples.hex_digit i3
-    let (r, output1) ← ntriples.put output i4 limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let i5 ← i2 % 16#u8
-      let i6 ← ntriples.hex_digit i5
-      let (r1, output2) ← ntriples.put output1 i6 limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        let i7 ← i + 1#usize
-        ntriples.write_key_loop output2 key limit i7
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r2 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Unit (core.convert.FromSame ntriples.WriteError) residual
-        ok (r2, output2)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r1, output1)
-  else ok (core.result.Result.Ok (), output)
-partial_fixpoint
-
-/-- [rowl_kernel::ntriples::write_key]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 632:0-640:1 -/
-@[reducible]
-def ntriples.write_key
-  (output : alloc.vec.Vec Std.U8) (key : alloc.vec.Vec Std.U8)
-  (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  ntriples.write_key_loop output key limit 0#usize
-
-/-- [rowl_kernel::ntriples::write_blank]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 641:0-646:1 -/
-def ntriples.write_blank
-  (output : alloc.vec.Vec Std.U8) (node : rdf.BlankNode) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  let s ← lift (Array.to_slice (Array.make 3#usize [ 95#u8, 58#u8, 98#u8 ]))
-  let (r, output1) ← ntriples.put_bytes output s limit
-  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-  match cf with
-  | core.ops.control_flow.ControlFlow.Continue _ =>
-    let (r1, output2) ← ntriples.write_key output1 node.scope limit
-    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-    match cf1 with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let (r2, output3) ← ntriples.put output2 95#u8 limit
-      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-      match cf2 with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        ntriples.write_key output3 node.label limit
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        let r3 ←
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            Unit (core.convert.FromSame ntriples.WriteError) residual
-        ok (r3, output3)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r2 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r2, output2)
-  | core.ops.control_flow.ControlFlow.Break residual =>
-    let r1 ←
-      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        Unit (core.convert.FromSame ntriples.WriteError) residual
-    ok (r1, output1)
-
-/-- [rowl_kernel::ntriples::write_subject]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 647:0-652:1 -/
-def ntriples.write_subject
-  (output : alloc.vec.Vec Std.U8) (value : rdf.Subject) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  match value with
-  | rdf.Subject.Iri i => ntriples.write_iri output i limit
-  | rdf.Subject.Blank b => ntriples.write_blank output b limit
-
-/-- [rowl_kernel::ntriples::write_object]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 653:0-680:1 -/
-def ntriples.write_object
-  (output : alloc.vec.Vec Std.U8) (value : rdf.Object) (limit : Std.Usize) :
-  Result ((core.result.Result Unit ntriples.WriteError) × (alloc.vec.Vec
-    Std.U8))
-  := do
-  match value with
-  | rdf.Object.Iri i => ntriples.write_iri output i limit
-  | rdf.Object.Blank b => ntriples.write_blank output b limit
-  | rdf.Object.Literal literal =>
-    let (r, output1) ← ntriples.write_lexical output literal.lexical limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      match literal.kind with
-      | rdf.LiteralKind.Datatype iri =>
-        let s ←
-          lift (Array.to_slice
-            (Array.make 53#usize [
-              104#u8, 116#u8, 116#u8, 112#u8, 58#u8, 47#u8, 47#u8, 119#u8,
-              119#u8, 119#u8, 46#u8, 119#u8, 51#u8, 46#u8, 111#u8, 114#u8,
-              103#u8, 47#u8, 49#u8, 57#u8, 57#u8, 57#u8, 47#u8, 48#u8, 50#u8,
-              47#u8, 50#u8, 50#u8, 45#u8, 114#u8, 100#u8, 102#u8, 45#u8,
-              115#u8, 121#u8, 110#u8, 116#u8, 97#u8, 120#u8, 45#u8, 110#u8,
-              115#u8, 35#u8, 108#u8, 97#u8, 110#u8, 103#u8, 83#u8, 116#u8,
-              114#u8, 105#u8, 110#u8, 103#u8
-              ]))
-        let b ← ntriples.same_literal_bytes iri.spelling s
-        if b
-        then
-          ok (core.result.Result.Err ntriples.WriteError.InvalidLiteralKind,
-            output1)
-        else
-          let s1 ←
-            lift (Array.to_slice (Array.make 2#usize [ 94#u8, 94#u8 ]))
-          let (r1, output2) ← ntriples.put_bytes output1 s1 limit
-          let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-          match cf1 with
-          | core.ops.control_flow.ControlFlow.Continue _ =>
-            ntriples.write_iri output2 iri limit
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            let r2 ←
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                Unit (core.convert.FromSame ntriples.WriteError) residual
-            ok (r2, output2)
-      | rdf.LiteralKind.Language tag =>
-        let b ← langtag.well_formed tag
-        if b
-        then
-          let (r1, output2) ← ntriples.put output1 64#u8 limit
-          let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-          match cf1 with
-          | core.ops.control_flow.ControlFlow.Continue _ =>
-            let i := alloc.vec.Vec.len tag
-            ntriples.put_span output2 tag 0#usize i limit
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            let r2 ←
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                Unit (core.convert.FromSame ntriples.WriteError) residual
-            ok (r2, output2)
-        else
-          ok (core.result.Result.Err ntriples.WriteError.InvalidLanguageTag,
-            output1)
-    | core.ops.control_flow.ControlFlow.Break residual =>
-      let r1 ←
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          Unit (core.convert.FromSame ntriples.WriteError) residual
-      ok (r1, output1)
-
-/-- [rowl_kernel::ntriples::write_impl]: loop 0:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 684:4-695:1 -/
-@[rust_loop]
-def ntriples.write_impl_loop
-  (graph : rdf.RawGraph) (limit : Std.Usize) (output : alloc.vec.Vec Std.U8)
-  (i : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec Std.U8) ntriples.WriteError)
-  := do
-  let i1 := alloc.vec.Vec.len graph.triples
-  if i < i1
-  then
-    let triple ←
-      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
-        graph.triples i
-    let (r, output1) ← ntriples.write_subject output triple.subject limit
-    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
-    match cf with
-    | core.ops.control_flow.ControlFlow.Continue _ =>
-      let (r1, output2) ← ntriples.put output1 32#u8 limit
-      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
-      match cf1 with
-      | core.ops.control_flow.ControlFlow.Continue _ =>
-        let (r2, output3) ← ntriples.write_iri output2 triple.predicate limit
-        let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
-        match cf2 with
-        | core.ops.control_flow.ControlFlow.Continue _ =>
-          let (r3, output4) ← ntriples.put output3 32#u8 limit
-          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
-          match cf3 with
-          | core.ops.control_flow.ControlFlow.Continue _ =>
-            let (r4, output5) ←
-              ntriples.write_object output4 triple.object limit
-            let cf4 ← core.result.Result.Insts.CoreOpsTry.branch r4
-            match cf4 with
-            | core.ops.control_flow.ControlFlow.Continue _ =>
-              let s ←
-                lift (Array.to_slice
-                  (Array.make 3#usize [ 32#u8, 46#u8, 10#u8 ]))
-              let (r5, output6) ← ntriples.put_bytes output5 s limit
-              let cf5 ← core.result.Result.Insts.CoreOpsTry.branch r5
-              match cf5 with
-              | core.ops.control_flow.ControlFlow.Continue _ =>
-                let i2 ← i + 1#usize
-                ntriples.write_impl_loop graph limit output6 i2
-              | core.ops.control_flow.ControlFlow.Break residual =>
-                core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                  (alloc.vec.Vec Std.U8) (core.convert.FromSame
-                  ntriples.WriteError) residual
-            | core.ops.control_flow.ControlFlow.Break residual =>
-              core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-                (alloc.vec.Vec Std.U8) (core.convert.FromSame
-                ntriples.WriteError) residual
-          | core.ops.control_flow.ControlFlow.Break residual =>
-            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-              (alloc.vec.Vec Std.U8) (core.convert.FromSame
-              ntriples.WriteError) residual
-        | core.ops.control_flow.ControlFlow.Break residual =>
-          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-            (alloc.vec.Vec Std.U8) (core.convert.FromSame ntriples.WriteError)
-            residual
-      | core.ops.control_flow.ControlFlow.Break residual =>
-        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-          (alloc.vec.Vec Std.U8) (core.convert.FromSame ntriples.WriteError)
-          residual
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i1 ← index + 1#usize
+      rdf_write.put_span val bytes i1 «end» limit
     | core.ops.control_flow.ControlFlow.Break residual =>
       core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
-        (alloc.vec.Vec Std.U8) (core.convert.FromSame ntriples.WriteError)
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
         residual
   else ok (core.result.Result.Ok output)
 partial_fixpoint
 
-/-- [rowl_kernel::ntriples::write_impl]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 681:0-695:1 -/
-@[reducible]
-def ntriples.write_impl
-  (graph : rdf.RawGraph) (limit : Std.Usize) :
-  Result (core.result.Result (alloc.vec.Vec Std.U8) ntriples.WriteError)
+/-- [rowl_kernel::rdf_write::put_string_character]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 217:0-232:1 -/
+def rdf_write.put_string_character
+  (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) (next : Std.Usize) (cp : Std.U32) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
   := do
-  ntriples.write_impl_loop graph limit (alloc.vec.Vec.new Std.U8) 0#usize
+  let marker ← rdf_write.string_escape cp
+  if marker = 0#u8
+  then rdf_write.put_span output lexical index next limit
+  else
+    let r ← rdf_write.put output 92#u8 limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      rdf_write.put val marker limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+
+/-- [rowl_kernel::rdf_write::put_string_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 235:0-249:1 -/
+def rdf_write.put_string_from
+  (output : alloc.vec.Vec Std.U8) (lexical : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let d ← unicode.decode_next lexical index
+  match d with
+  | unicode.Decoded.End => ok (core.result.Result.Ok output)
+  | unicode.Decoded.Scalar codepoint next =>
+    let r ←
+      rdf_write.put_string_character output lexical index next codepoint limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      rdf_write.put_string_from val lexical next limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | unicode.Decoded.Error _ =>
+    ok (core.result.Result.Err rdf_write.WriteError.MalformedLiteralUtf8)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::iri_raw]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 148:0-159:1 -/
+def rdf_write.iri_raw (cp : Std.U32) : Result Bool := do
+  if cp > 32#u32
+  then
+    if cp != 60#u32
+    then
+      if cp != 62#u32
+      then
+        if cp != 34#u32
+        then
+          if cp != 123#u32
+          then
+            if cp != 125#u32
+            then
+              if cp != 124#u32
+              then
+                if cp != 94#u32
+                then if cp != 96#u32
+                     then ok (cp != 92#u32)
+                     else ok false
+                else ok false
+              else ok false
+            else ok false
+          else ok false
+        else ok false
+      else ok false
+    else ok false
+  else ok false
+
+/-- [rowl_kernel::rdf_write::hex_upper]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 124:0-127:1 -/
+def rdf_write.hex_upper (n : Std.U32) : Result Std.U8 := do
+  let digit ← if n < 10#u32
+                then 48#u32 + n
+                else 55#u32 + n
+  ok (UScalar.cast .U8 digit)
+
+/-- [rowl_kernel::rdf_write::put_hex]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 131:0-138:1 -/
+def rdf_write.put_hex
+  (output : alloc.vec.Vec Std.U8) (value : Std.U32) (count : Std.U32)
+  (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  if count = 0#u32
+  then ok (core.result.Result.Ok output)
+  else
+    let i ← value / 16#u32
+    let i1 ← count - 1#u32
+    let r ← rdf_write.put_hex output i i1 limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i2 ← value % 16#u32
+      let i3 ← rdf_write.hex_upper i2
+      rdf_write.put val i3 limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::put_uchar]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 141:0-145:1 -/
+def rdf_write.put_uchar
+  (output : alloc.vec.Vec Std.U8) (cp : Std.U32) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let r ← rdf_write.put output 92#u8 limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← rdf_write.put val 85#u8 limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      rdf_write.put_hex val1 cp 8#u32 limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+      residual
+
+/-- [rowl_kernel::rdf_write::put_iri_character]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 162:0-175:1 -/
+def rdf_write.put_iri_character
+  (output : alloc.vec.Vec Std.U8) (spelling : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) (next : Std.Usize) (cp : Std.U32) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let b ← rdf_write.iri_raw cp
+  if b
+  then rdf_write.put_span output spelling index next limit
+  else rdf_write.put_uchar output cp limit
+
+/-- [rowl_kernel::rdf_write::put_iri_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 178:0-192:1 -/
+def rdf_write.put_iri_from
+  (output : alloc.vec.Vec Std.U8) (spelling : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let d ← unicode.decode_next spelling index
+  match d with
+  | unicode.Decoded.End => ok (core.result.Result.Ok output)
+  | unicode.Decoded.Scalar codepoint next =>
+    let r ←
+      rdf_write.put_iri_character output spelling index next codepoint limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      rdf_write.put_iri_from val spelling next limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | unicode.Decoded.Error _ =>
+    ok (core.result.Result.Err rdf_write.WriteError.InvalidIri)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::put_iri]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 195:0-199:1 -/
+def rdf_write.put_iri
+  (output : alloc.vec.Vec Std.U8) (iri : rdf.RdfIri) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let r ← rdf_write.put output 60#u8 limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← rdf_write.put_iri_from val iri.spelling 0#usize limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      rdf_write.put val1 62#u8 limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+      residual
+
+/-- [rowl_kernel::rdf_write::put_from]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 60:0-72:1 -/
+def rdf_write.put_from
+  (output : alloc.vec.Vec Std.U8) (bytes : Slice Std.U8) (index : Std.Usize)
+  (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let i := Slice.len bytes
+  if index < i
+  then
+    let i1 ← Slice.index_usize bytes index
+    let r ← rdf_write.put output i1 limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i2 ← index + 1#usize
+      rdf_write.put_from val bytes i2 limit
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  else ok (core.result.Result.Ok output)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::put_literal]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 252:0-266:1 -/
+def rdf_write.put_literal
+  (output : alloc.vec.Vec Std.U8) (literal : rdf.RdfLiteral)
+  (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let r ← rdf_write.put output 34#u8 limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← rdf_write.put_string_from val literal.lexical 0#usize limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← rdf_write.put val1 34#u8 limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        match literal.kind with
+        | rdf.LiteralKind.Datatype iri =>
+          let s ← lift (Array.to_slice (Array.make 2#usize [ 94#u8, 94#u8 ]))
+          let r3 ← rdf_write.put_from val2 s 0#usize limit
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            rdf_write.put_iri val3 iri limit
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (alloc.vec.Vec Std.U8) (core.convert.FromSame
+              rdf_write.WriteError) residual
+        | rdf.LiteralKind.Language tag =>
+          let r3 ← rdf_write.put val2 64#u8 limit
+          let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+          match cf3 with
+          | core.ops.control_flow.ControlFlow.Continue val3 =>
+            let i := alloc.vec.Vec.len tag
+            rdf_write.put_span val3 tag 0#usize i limit
+          | core.ops.control_flow.ControlFlow.Break residual =>
+            core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+              (alloc.vec.Vec Std.U8) (core.convert.FromSame
+              rdf_write.WriteError) residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+      residual
+
+/-- [rowl_kernel::rdf_write::hex_lower]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 91:0-97:1 -/
+def rdf_write.hex_lower (n : Std.U8) : Result Std.U8 := do
+  if n < 10#u8
+  then 48#u8 + n
+  else 87#u8 + n
+
+/-- [rowl_kernel::rdf_write::put_key]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 100:0-113:1 -/
+def rdf_write.put_key
+  (output : alloc.vec.Vec Std.U8) (key : alloc.vec.Vec Std.U8)
+  (index : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let i := alloc.vec.Vec.len key
+  if index < i
+  then
+    let i1 ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice Std.U8) key
+        index
+    let i2 ← i1 / 16#u8
+    let i3 ← rdf_write.hex_lower i2
+    let r ← rdf_write.put output i3 limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let i4 ← i1 % 16#u8
+      let i5 ← rdf_write.hex_lower i4
+      let r1 ← rdf_write.put val i5 limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let i6 ← index + 1#usize
+        rdf_write.put_key val1 key i6 limit
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  else ok (core.result.Result.Ok output)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::put_blank]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 116:0-121:1 -/
+def rdf_write.put_blank
+  (output : alloc.vec.Vec Std.U8) (node : rdf.BlankNode) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let s ← lift (Array.to_slice (Array.make 3#usize [ 95#u8, 58#u8, 98#u8 ]))
+  let r ← rdf_write.put_from output s 0#usize limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← rdf_write.put_key val node.scope 0#usize limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← rdf_write.put val1 95#u8 limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        rdf_write.put_key val2 node.label 0#usize limit
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+      residual
+
+/-- [rowl_kernel::rdf_write::put_object]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 275:0-281:1 -/
+def rdf_write.put_object
+  (output : alloc.vec.Vec Std.U8) (object : rdf.Object) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  match object with
+  | rdf.Object.Iri iri => rdf_write.put_iri output iri limit
+  | rdf.Object.Blank node => rdf_write.put_blank output node limit
+  | rdf.Object.Literal literal => rdf_write.put_literal output literal limit
+
+/-- [rowl_kernel::rdf_write::put_subject]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 268:0-273:1 -/
+def rdf_write.put_subject
+  (output : alloc.vec.Vec Std.U8) (subject : rdf.Subject) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  match subject with
+  | rdf.Subject.Iri iri => rdf_write.put_iri output iri limit
+  | rdf.Subject.Blank node => rdf_write.put_blank output node limit
+
+/-- [rowl_kernel::rdf_write::put_triple]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 284:0-290:1 -/
+def rdf_write.put_triple
+  (output : alloc.vec.Vec Std.U8) (triple : rdf.Triple) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let r ← rdf_write.put_subject output triple.subject limit
+  let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+  match cf with
+  | core.ops.control_flow.ControlFlow.Continue val =>
+    let r1 ← rdf_write.put val 32#u8 limit
+    let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+    match cf1 with
+    | core.ops.control_flow.ControlFlow.Continue val1 =>
+      let r2 ← rdf_write.put_iri val1 triple.predicate limit
+      let cf2 ← core.result.Result.Insts.CoreOpsTry.branch r2
+      match cf2 with
+      | core.ops.control_flow.ControlFlow.Continue val2 =>
+        let r3 ← rdf_write.put val2 32#u8 limit
+        let cf3 ← core.result.Result.Insts.CoreOpsTry.branch r3
+        match cf3 with
+        | core.ops.control_flow.ControlFlow.Continue val3 =>
+          rdf_write.put_object val3 triple.object limit
+        | core.ops.control_flow.ControlFlow.Break residual =>
+          core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+            (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+            residual
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  | core.ops.control_flow.ControlFlow.Break residual =>
+    core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+      (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+      residual
+
+/-- [rowl_kernel::rdf_write::put_lines]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 293:0-306:1 -/
+def rdf_write.put_lines
+  (output : alloc.vec.Vec Std.U8) (triples : alloc.vec.Vec rdf.Triple)
+  (index : Std.Usize) (limit : Std.Usize) :
+  Result (core.result.Result (alloc.vec.Vec Std.U8) rdf_write.WriteError)
+  := do
+  let i := alloc.vec.Vec.len triples
+  if index < i
+  then
+    let t ←
+      alloc.vec.Vec.index (core.slice.index.SliceIndexUsizeSlice rdf.Triple)
+        triples index
+    let r ← rdf_write.put_triple output t limit
+    let cf ← core.result.Result.Insts.CoreOpsTry.branch r
+    match cf with
+    | core.ops.control_flow.ControlFlow.Continue val =>
+      let s ←
+        lift (Array.to_slice (Array.make 3#usize [ 32#u8, 46#u8, 10#u8 ]))
+      let r1 ← rdf_write.put_from val s 0#usize limit
+      let cf1 ← core.result.Result.Insts.CoreOpsTry.branch r1
+      match cf1 with
+      | core.ops.control_flow.ControlFlow.Continue val1 =>
+        let i1 ← index + 1#usize
+        rdf_write.put_lines val1 triples i1 limit
+      | core.ops.control_flow.ControlFlow.Break residual =>
+        core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+          (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+          residual
+    | core.ops.control_flow.ControlFlow.Break residual =>
+      core.result.Result.Insts.CoreOpsTry_traitFromResidualResult.from_residual
+        (alloc.vec.Vec Std.U8) (core.convert.FromSame rdf_write.WriteError)
+        residual
+  else ok (core.result.Result.Ok output)
+partial_fixpoint
+
+/-- [rowl_kernel::rdf_write::WriteResult]
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 44:0-47:1
+    Visibility: public -/
+@[discriminant isize]
+inductive rdf_write.WriteResult where
+| Bytes : alloc.vec.Vec Std.U8 → rdf_write.WriteResult
+| Error : rdf_write.WriteError → rdf_write.WriteResult
+
+/-- [rowl_kernel::rdf_write::write_graph]:
+    Source: 'crates/rowl-kernel/src/rdf_write.rs', lines 499:0-507:1 -/
+def rdf_write.write_graph
+  (graph : rdf.RawGraph) (resolved : Bool) (limit : Std.Usize) :
+  Result rdf_write.WriteResult
+  := do
+  let o ← rdf_write.graph_fault graph.triples 0#usize resolved
+  match o with
+  | none =>
+    let r ←
+      rdf_write.put_lines (alloc.vec.Vec.new Std.U8) graph.triples 0#usize
+        limit
+    match r with
+    | core.result.Result.Ok bytes => ok (rdf_write.WriteResult.Bytes bytes)
+    | core.result.Result.Err error => ok (rdf_write.WriteResult.Error error)
+  | some error => ok (rdf_write.WriteResult.Error error)
 
 /-- [rowl_kernel::ntriples::write]:
-    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 699:0-704:1
+    Source: 'crates/rowl-kernel/src/ntriples.rs', lines 547:0-549:1
     Visibility: public -/
 def ntriples.write
   (graph : rdf.RawGraph) (max_output_bytes : Std.Usize) :
-  Result ntriples.WriteResult
+  Result rdf_write.WriteResult
   := do
-  let r ← ntriples.write_impl graph max_output_bytes
-  match r with
-  | core.result.Result.Ok bytes => ok (ntriples.WriteResult.Bytes bytes)
-  | core.result.Result.Err error => ok (ntriples.WriteResult.Error error)
+  rdf_write.write_graph graph false max_output_bytes
 
 /-- [rowl_kernel::prefixes::declarations]:
     Source: 'crates/rowl-kernel/src/prefixes.rs', lines 131:0-133:1
@@ -65441,5 +65762,14 @@ def tbox.satisfiable_in
   (concept : nnf.NnfConcept) (axioms : nnf.NnfConcept) : Result Bool := do
   let rb ← tbox.no_roles
   tbox.satisfiable_with concept axioms rb
+
+/-- [rowl_kernel::turtle::write]:
+    Source: 'crates/rowl-kernel/src/turtle.rs', lines 1752:0-1754:1
+    Visibility: public -/
+def turtle.write
+  (graph : rdf.RawGraph) (max_output_bytes : Std.Usize) :
+  Result rdf_write.WriteResult
+  := do
+  rdf_write.write_graph graph true max_output_bytes
 
 end RowlRust

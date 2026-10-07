@@ -132,6 +132,7 @@ pub mod ntriples;
 pub mod prefixes;
 pub mod rdf;
 pub mod rdf_mapping;
+pub mod rdf_write;
 pub mod references;
 pub mod regular;
 pub mod turtle;

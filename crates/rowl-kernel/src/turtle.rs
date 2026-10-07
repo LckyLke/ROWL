@@ -1741,3 +1741,14 @@ pub fn read(bytes: &Vec<u8>, scope: &Vec<u8>, base: &Vec<u8>) -> ReadResult {
         },
     )
 }
+
+pub use crate::rdf_write::{WriteError, WriteResult};
+
+/// Write `graph` as Turtle within `max_output_bytes` bytes: every triple on a
+/// line of its own, IRIs as IRIREFs and blank nodes with labels that encode
+/// their scope and label (see `rdf_write`). A graph with a term this form
+/// cannot carry, such as an IRI that the resolution of IRIREFs would change,
+/// is reported with its first such term.
+pub fn write(graph: &RawGraph, max_output_bytes: usize) -> WriteResult {
+    crate::rdf_write::write_graph(graph, true, max_output_bytes)
+}

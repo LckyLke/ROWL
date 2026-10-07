@@ -5566,3 +5566,70 @@ to this test. The new module checks in about 10 s with a peak under 3 GiB.
 This block adds 27 public theorems (two of them in `RdfReadAnnotations.lean` and
 one in `RdfReadAnnotated.lean`) and no definitions. Totals are 3814 audited
 theorems, 1449 definitions, 590 Rust regressions and 4007 ledger obligations.
+
+## M3: N-Triples and Turtle writers, proved by round trips
+
+`rdf_write.rs` replaces the experimental N-Triples writer with one writer for
+N-Triples and a canonical subset of Turtle: `ntriples::write` and
+`turtle::write` call `rdf_write::write_graph`, which first looks for a term the
+syntax cannot carry and then writes within the output-byte budget. Each triple
+is the line `subject predicate object .`; an IRI is an IRIREF that holds raw the
+characters an IRIREF may hold and writes the others as UCHARs `\U` with eight
+uppercase hexadecimal digits; a string writes `"`, `\`, line feed and carriage
+return as ECHARs and every other character raw; every literal carries its
+datatype or its language tag; a blank node of the scope `s` and the label `l` is
+`_:b`, the two lowercase hexadecimal digits of each byte of `s`, `_` and those of
+`l`. N-Triples cannot carry an IRI that is not an absolute RFC 3987 IRI, a
+lexical form that is not UTF-8, the datatype rdf:langString, or a tag that is
+not a well-formed BCP 47 tag of LANGTAG's form; the Turtle writer also rejects,
+with the new `WriteError::IriChangedByResolution`, an IRI that RFC 3986 section
+5.2 resolution changes, since Turtle resolves every IRIREF and the subset uses
+no prefixed names. Every line is also a Turtle statement, so the Turtle writer
+writes the same bytes for the graphs it accepts.
+
+`RdfWrite.lean` writes the text (`LinesText`, `TripleText`, `IriText`,
+`StringText`, `BlankText`, `WrittenLabel`) and the faults (`IriFault`,
+`LiteralFault`, `TripleFault`, `GraphFault`) as Lean functions of the graph,
+independently of the writer, and proves every writer function against them:
+`write_graph_total_correct`, `ntriples_write_total_correct` and
+`turtle_write_total_correct` state that the writers always return, with exactly
+`LinesText` of the triples when no term is at fault and the text fits the
+budget, the first fault in triple order otherwise, and `ResourceLimit` when the
+text is longer than the budget.
+
+`RdfWriteRead.lean` composes them with the verified readers.
+`ntriples_write_read`: the bytes `ntriples::write` returns are read by
+`ntriples::read`, in any blank node scope, as the graph's triples in order, each
+blank node becoming the blank node of the reader's scope labelled
+`WrittenLabel` of its scope and label (`renameTerm`). `turtle_write_read` proves
+the same through `turtle::read` against every base IRI shorter than
+`usize::MAX / 8` bytes (`resolves_any_base`: an IRI that resolution leaves
+against the empty base has a scheme and resolves to itself against every base).
+`written_label_injective` makes the renaming one to one, so the graph read back
+is the written graph up to a blank node bijection. The proofs derive the reader
+relations of `NTriples`, `TurtleTokens` and `Turtle` for the written bytes
+position by position: UCHAR digits (`hex_read`), IRIREF and string bodies
+(`iri_body_read`, `string_body_read`), labels (`blank_token_read`,
+`turtle_blank_read`), tags (`tag_token_read`, `turtle_tag_read`), literals,
+lines and documents (`lines_read`, `turtle_lines_read`). The N-Triples writer's
+faults are exact: `document_writable` proves that every N-Triples document,
+under any limits, denotes triples without faults (`xsd_string_absolute` shows
+that the datatype of simple literals is an absolute IRI), and
+`ntriples_write_error_exact` concludes that when the writer reports a fault, no
+graph that `ntriples::read` returns agrees with the graph up to blank nodes. The
+Turtle writer's `IriChangedByResolution` is a limit of its subset, not of Turtle,
+which can carry some such IRIs through prefixed names; the other Turtle faults
+are N-Triples faults, but no theorem yet states that no Turtle document carries
+them. Graph export is now verified for both syntaxes (`format.NTriplesExport`,
+`format.TurtleExport`); `format.RepresentabilityErrors` concerns RDF/XML and
+JSON-LD and stays planned.
+
+Seven regressions in `crates/rowl-kernel/tests/writers.rs` read written graphs
+back through both readers, check every fault kind, the first fault before an
+exhausted budget, dot segments kept in N-Triples and rejected in Turtle, and
+budgets of exactly the written length. All 68 W3C N-Triples cases still pass,
+every positive case written by the new writer and read back to an isomorphic
+graph (`rowl-frontend`'s suite test with the fetched corpus).
+
+This block adds 223 public theorems and 45 definitions. Totals are 4037 audited
+theorems, 1494 definitions, 597 Rust regressions and 4230 ledger obligations.

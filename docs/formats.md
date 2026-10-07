@@ -1,11 +1,11 @@
 # Accepted serialization scope
 
 The user expanded the first-release requirement to standard RDF graph/dataset
-formats on 2026-09-30. The public bounded N-Triples and Turtle readers now have
-**checked byte-to-graph totality and complete-acceptance proofs**. The
-N-Triples writer remains experimental, with serialization-isomorphism proofs
-pending. The other required formats and Turtle export are planned. No complete
-verified RDF/OWL frontend exists yet.
+formats on 2026-09-30. The public bounded N-Triples and Turtle readers have
+**checked byte-to-graph totality and complete-acceptance proofs**, and the
+N-Triples writer and a canonical Turtle writer are **proved by round trips
+through them** (Writers, below). The other required formats are planned. No
+complete verified RDF/OWL frontend exists yet.
 
 The shared raw term/dataset representation and explicit graph-selection operation
 are now implemented. Lean proves exact graph-name comparison, total selection,
@@ -14,8 +14,8 @@ acceptance iff names are unique. Raw term lexical validity remains a proof
 obligation; the documents of an import closure are read with blank identities
 in a scope of their own (`import_catalog`, below). N-Triples reads
 exact scoped terms from bytes under a supplied immutable scope and explicit
-term/count limits; default limits are input sized. Its export laws and the full
-verified multi-format OWL frontend remain pending.
+term/count limits; default limits are input sized. The full verified
+multi-format OWL frontend remains pending.
 
 | Format/version | Read | Export | Normative source |
 | --- | --- | --- | --- |
@@ -138,7 +138,8 @@ equalities of three or more members, inverse-property axioms whose first member
 is an inverse and object property assertions on an inverse, which the mapping
 writes as triples of other axioms. Canonical identity assignment across imports,
 the completeness of the mapping for annotations of annotations and for annotated
-axioms that a blank node represents, and parse-after-write graph-isomorphism laws remain pending. Extraction succeeds without unknown external
+axioms that a blank node represents remain pending; the parse-after-write laws
+of the writers are proved (Writers, below). Extraction succeeds without unknown external
 declarations; Lean checks the registered correctness theorems independently.
 
 ```sh
@@ -202,6 +203,44 @@ pass: positive and negative syntax, negative evaluation, and evaluation cases
 whose graphs equal the expected N-Triples graphs up to blank-node isomorphism.
 Exact fetched-file hashes and the pinned `w3c/rdf-tests` commit are recorded in
 `turtle-suite.json`; the corpus stays outside this repository.
+
+## Writers
+
+`rowl_kernel::ntriples::write` and `rowl_kernel::turtle::write` write a raw graph
+within an output-byte budget, through one writer (`rdf_write::write_graph`).
+Each triple is the line `subject predicate object .`, which is both N-Triples
+and Turtle. IRIs are IRIREFs, with UCHARs `\U` and eight hexadecimal digits for
+the characters an IRIREF cannot hold raw; strings write `"`, `\`, line feed and
+carriage return as ECHARs and every other character raw; every literal carries
+its datatype or language tag; a blank node of the scope `s` and the label `l` is
+written `_:b` followed by the lowercase hexadecimal digits of the bytes of `s`,
+`_` and those of `l`, so distinct blank nodes, of any scopes, get distinct
+labels. A graph that a syntax cannot carry gives the first offending term as a
+typed error: `InvalidIri` (not an absolute RFC 3987 IRI),
+`MalformedLiteralUtf8`, `InvalidLiteralKind` (the datatype rdf:langString) or
+`InvalidLanguageTag` (not a well-formed BCP 47 tag of LANGTAG's form), and for
+Turtle, whose readers resolve every IRIREF, `IriChangedByResolution` (an IRI
+that RFC 3986 section 5.2 resolution changes, such as one with dot segments);
+`ResourceLimit` reports an exhausted budget. The Turtle writer is a canonical
+subset: no prefixes, abbreviations or pretty printing.
+
+`RdfWrite.lean` gives the text and the faults as Lean functions of the graph
+and proves the writers return exactly them (`ntriples_write_total_correct`,
+`turtle_write_total_correct`). `RdfWriteRead.lean` proves the round trips: the
+verified readers read the written bytes back, in any blank node scope, and for
+Turtle against any base IRI shorter than `usize::MAX / 8` bytes, as the
+graph's triples in order with every blank node renamed one to one into the
+reader's scope (`ntriples_write_read`, `turtle_write_read`,
+`written_label_injective`). The N-Triples errors are exact: every N-Triples
+document denotes triples without faults, so when the writer reports one, no
+N-Triples document denotes the graph up to blank nodes
+(`ntriples_write_error_exact`). `IriChangedByResolution` marks the limit of the
+Turtle subset only: Turtle can carry some such IRIs through prefixed names.
+
+```sh
+cargo run -p rowl-cli -- export-nt examples/maintenance.nt > /tmp/maintenance.nt
+cargo test -p rowl-kernel --test writers
+```
 
 ## Import closures
 
