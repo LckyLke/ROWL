@@ -16,6 +16,11 @@ assertions and declarations and the assertions about the component.
 `part_instance_correct` gives the result the conditions of
 `Rowl.Partition.instance_part`: when the closure has a model, an instance
 question about the individual has the same answer for the part.
+
+`components::consistent_by_parts` decides consistency in the same way: it
+checks the axioms other than assertions, then the part of each component in
+turn, and `consistent_by_parts_correct` proves its answer to be whether the
+closure has a model (`Rowl.Partition.consistent_join`).
 -/
 
 namespace Rowl.Components
@@ -1011,6 +1016,136 @@ private theorem listed_individuals (ax : Axiom) :
     · exact new
   · exact add i
 
+/-! ## The table of individuals -/
+
+private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
+  simp [core.num.Usize.MAX]
+
+/-- The entry of the table for an axiom: the individuals of an assertion, and
+    none for any other axiom. -/
+def Entry (x : AnnotatedAxiom) (named : alloc.vec.Vec Individual) : Prop :=
+  (IsAssertion x.axiom → ∀ i, i ∈ named.val ↔ i ∈ axiomIndividuals x.axiom) ∧
+    (¬ IsAssertion x.axiom → named.val = [])
+
+/-- The table of a closure: an entry for each of its axioms. -/
+def TableOf (items : List AnnotatedAxiom) (table : List (alloc.vec.Vec Individual)) : Prop :=
+  table.length = items.length ∧ ∀ (j : Nat) x named, items[j]? = some x → table[j]? = some named → Entry x named
+
+/-- Whether an entry names a member. -/
+def Names (named : alloc.vec.Vec Individual) (members : List Individual) : Prop :=
+  ∃ i ∈ named.val, i ∈ members
+
+/-- What pushing the entry of the axiom at `index` keeps of the table facts. -/
+private theorem table_push {items : List AnnotatedAxiom} {index : Nat}
+    {out pushed table : List (alloc.vec.Vec Individual)} {named : alloc.vec.Vec Individual}
+    (more : index < items.length) (filled : out.length = index) (contents : pushed = out ++ [named])
+    (entry : Entry items[index] named)
+    (facts : table.length = items.length ∧ (∀ j : Nat, j < index + 1 → table[j]? = pushed[j]?) ∧
+      ∀ (j : Nat) x named, index + 1 ≤ j → items[j]? = some x → table[j]? = some named → Entry x named) :
+    table.length = items.length ∧ (∀ j : Nat, j < index → table[j]? = out[j]?) ∧
+      ∀ (j : Nat) x named, index ≤ j → items[j]? = some x → table[j]? = some named → Entry x named := by
+  obtain ⟨length, early, late⟩ := facts
+  refine ⟨length, fun j lj => ?_, fun j x named' lj mx mn => ?_⟩
+  · rw [early j (by omega), contents, List.getElem?_append_left (by omega)]
+  · rcases Nat.lt_or_ge j (index + 1) with small | large
+    · have jIs : j = index := by omega
+      rw [jIs] at mx mn
+      rw [early index (by omega), contents, List.getElem?_append_right (by omega), filled] at mn
+      simp only [Nat.sub_self, List.getElem?_cons_zero, Option.some.injEq] at mn
+      rw [List.getElem?_eq_getElem more] at mx
+      simp only [Option.some.injEq] at mx
+      rw [← mx, ← mn]
+      exact entry
+    · exact late j x named' large mx mn
+
+theorem individual_table_spec (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize)
+    (out : alloc.vec.Vec (alloc.vec.Vec Individual)) (filled : out.val.length = index.val)
+    (bound : index.val ≤ items.val.length) :
+    ∃ r, components.individual_table items index out = .ok r ∧ ∀ table, r = some table →
+      table.val.length = items.val.length ∧ (∀ j : Nat, j < index.val → table.val[j]? = out.val[j]?) ∧
+      ∀ (j : Nat) x named, index.val ≤ j → items.val[j]? = some x → table.val[j]? = some named → Entry x named := by
+  rw [components.individual_table]
+  by_cases more : index.val < items.val.length
+  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIs : next.val = index.val + 1 := by simpa using nextValue
+    by_cases assertion : IsAssertion items.val[index.val].axiom
+    · obtain ⟨r1, run1, listed⟩ := listed_individuals items.val[index.val].axiom
+      cases r1 with
+      | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1], by simp⟩
+      | some named =>
+        by_cases room : out.val.length < Usize.max
+        · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out named room)
+          obtain ⟨r, run, facts⟩ := individual_table_spec items next pushed
+            (by rw [contents, nextIs]; simp [filled]) (by omega)
+          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, alloc.vec.Vec.len_val,
+            usize_max_val, room, push, advance, run], fun table same => ?_⟩
+          have facts' := facts table same
+          rw [nextIs] at facts'
+          exact table_push more filled contents ⟨fun _ => listed named rfl, fun no => absurd assertion no⟩ facts'
+        · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, alloc.vec.Vec.len_val,
+            usize_max_val, room], by simp⟩
+    · by_cases room : out.val.length < Usize.max
+      · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists
+          (alloc.vec.Vec.push_spec out (alloc.vec.Vec.new Individual) room)
+        obtain ⟨r, run, facts⟩ := individual_table_spec items next pushed
+          (by rw [contents, nextIs]; simp [filled]) (by omega)
+        refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, alloc.vec.Vec.len_val,
+          usize_max_val, room, push, advance, run], fun table same => ?_⟩
+        have facts' := facts table same
+        rw [nextIs] at facts'
+        exact table_push more filled contents ⟨fun yes => absurd yes assertion, fun _ => rfl⟩ facts'
+      · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, alloc.vec.Vec.len_val,
+          usize_max_val, room], by simp⟩
+  · refine ⟨some out, by simp [UScalar.lt_equiv, more], fun table same => ?_⟩
+    cases same
+    refine ⟨by omega, fun j _ => rfl, fun j x named lj mx _ => ?_⟩
+    rw [List.getElem?_eq_none (by omega)] at mx
+    cases mx
+termination_by items.val.length - index.val
+decreasing_by all_goals omega
+
+/-- The table that `individual_table` builds from an empty one. -/
+private theorem table_of {items : alloc.vec.Vec AnnotatedAxiom} {table : alloc.vec.Vec (alloc.vec.Vec Individual)}
+    (facts : table.val.length = items.val.length ∧
+      (∀ j : Nat, j < (0#usize).val → table.val[j]? = (alloc.vec.Vec.new (alloc.vec.Vec Individual)).val[j]?) ∧
+      ∀ (j : Nat) x named, (0#usize).val ≤ j → items.val[j]? = some x → table.val[j]? = some named → Entry x named) :
+    TableOf items.val table.val :=
+  ⟨facts.1, fun j x named mx mn => facts.2.2 j x named (by simp) mx mn⟩
+
+/-- The entry of an axiom of a closure in its table. -/
+private theorem entry_of_get {items : List AnnotatedAxiom} {table : List (alloc.vec.Vec Individual)}
+    (tableOk : TableOf items table) {j : Nat} {x : AnnotatedAxiom} (hx : items[j]? = some x) :
+    ∃ named, table[j]? = some named ∧ Entry x named := by
+  obtain ⟨lj, -⟩ := List.getElem?_eq_some_iff.mp hx
+  have lj' : j < table.length := by rw [tableOk.1]; exact lj
+  exact ⟨table[j], List.getElem?_eq_getElem lj', tableOk.2 j x table[j] hx (List.getElem?_eq_getElem lj')⟩
+
+theorem names_member_spec (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (index : Usize)
+    (members : alloc.vec.Vec Individual) :
+    ∃ b, components.names_member table index members = .ok b ∧
+      (b = true ↔ ∃ named, table.val[index.val]? = some named ∧ Names named members.val) := by
+  rw [components.names_member]
+  by_cases more : index.val < table.val.length
+  · have lookup : table.index_usize index = .ok table.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨b, run, any⟩ := any_member_spec members table.val[index.val] 0#usize
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at any
+    refine ⟨b, by simp [UScalar.lt_equiv, more, lookup, run], ?_⟩
+    rw [any, List.getElem?_eq_getElem more]
+    constructor
+    · intro found
+      exact ⟨_, rfl, found⟩
+    · rintro ⟨named, same, found⟩
+      simp only [Option.some.injEq] at same
+      rw [same]
+      exact found
+  · refine ⟨false, by simp [UScalar.lt_equiv, more], ?_⟩
+    rw [List.getElem?_eq_none (by omega)]
+    simp
+
 /-! ## Finding the component -/
 
 private theorem add_all_total (members named : alloc.vec.Vec Individual) (index : Usize) :
@@ -1032,42 +1167,37 @@ private theorem add_all_total (members named : alloc.vec.Vec Individual) (index 
 termination_by named.val.length - index.val
 decreasing_by omega
 
-private theorem grow_total (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (members : alloc.vec.Vec Individual) :
-    ∃ r, components.grow items index members = .ok r := by
+private theorem grow_total (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (index : Usize)
+    (members : alloc.vec.Vec Individual) :
+    ∃ r, components.grow table index members = .ok r := by
   rw [components.grow]
-  by_cases more : index.val < items.val.length
-  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+  by_cases more : index.val < table.val.length
+  · have lookup : table.index_usize index = .ok table.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
-    by_cases assertion : IsAssertion items.val[index.val].axiom
-    · obtain ⟨r1, run1, -⟩ := listed_individuals items.val[index.val].axiom
-      cases r1 with
-      | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1]⟩
-      | some named =>
-        obtain ⟨b, runB, -⟩ := any_member_spec members named 0#usize
-        cases b with
-        | false =>
-          obtain ⟨r, run⟩ := grow_total items next members
-          exact ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, runB, advance, run]⟩
-        | true =>
-          obtain ⟨r2, run2⟩ := add_all_total members named 0#usize
-          cases r2 with
-          | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, runB, run2]⟩
-          | some members1 =>
-            obtain ⟨r, run⟩ := grow_total items next members1
-            exact ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, runB, run2, advance, run]⟩
-    · obtain ⟨r, run⟩ := grow_total items next members
-      exact ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, advance, run]⟩
+    obtain ⟨b, runB, -⟩ := any_member_spec members table.val[index.val] 0#usize
+    cases b with
+    | false =>
+      obtain ⟨r, run⟩ := grow_total table next members
+      exact ⟨r, by simp [UScalar.lt_equiv, more, lookup, runB, advance, run]⟩
+    | true =>
+      obtain ⟨r2, run2⟩ := add_all_total members table.val[index.val] 0#usize
+      cases r2 with
+      | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, runB, run2]⟩
+      | some members1 =>
+        obtain ⟨r, run⟩ := grow_total table next members1
+        exact ⟨r, by simp [UScalar.lt_equiv, more, lookup, runB, run2, advance, run]⟩
   · exact ⟨some members, by simp [UScalar.lt_equiv, more]⟩
-termination_by items.val.length - index.val
+termination_by table.val.length - index.val
 decreasing_by all_goals omega
 
-theorem component_total (items : alloc.vec.Vec AnnotatedAxiom) (members : alloc.vec.Vec Individual) (rounds : Usize) :
-    ∃ r, components.component items members rounds = .ok r := by
+theorem component_total (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (members : alloc.vec.Vec Individual)
+    (rounds : Usize) :
+    ∃ r, components.component table members rounds = .ok r := by
   rw [components.component]
-  obtain ⟨r1, run1⟩ := grow_total items 0#usize members
+  obtain ⟨r1, run1⟩ := grow_total table 0#usize members
   cases r1 with
   | none => exact ⟨none, by simp [run1]⟩
   | some members1 =>
@@ -1084,77 +1214,95 @@ theorem component_total (items : alloc.vec.Vec AnnotatedAxiom) (members : alloc.
           obtain ⟨fewer, sub, fewerValue⟩ := WP.spec_imp_exists
             (Usize.sub_spec (x := rounds) (y := 1#usize) (by simp; omega))
           have fewerIs : fewer.val = rounds.val - 1 := by simp at fewerValue; omega
-          obtain ⟨r, run⟩ := component_total items members1 fewer
+          obtain ⟨r, run⟩ := component_total table members1 fewer
           exact ⟨r, by simp [run1, alloc.vec.Vec.len_val, same, zero, UScalar.lt_equiv, large, sub, run]⟩
 termination_by rounds.val
 decreasing_by omega
 
-/-- Every assertion that names a member names only members. -/
-def ClosedUnder (items : List AnnotatedAxiom) (members : List Individual) : Prop :=
-  ∀ x ∈ items, IsAssertion x.axiom → (∃ i ∈ axiomIndividuals x.axiom, i ∈ members) →
-    ∀ i ∈ axiomIndividuals x.axiom, i ∈ members
+/-- Every entry that names a member names only members. -/
+def ClosedUnder (table : List (alloc.vec.Vec Individual)) (members : List Individual) : Prop :=
+  ∀ named ∈ table, Names named members → ∀ i ∈ named.val, i ∈ members
 
-theorem closed_spec (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (members : alloc.vec.Vec Individual) :
-    ∃ r, components.closed items index members = .ok r ∧ (r = some true → ClosedUnder (items.val.drop index.val) members.val) := by
+theorem closed_spec (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (index : Usize)
+    (members : alloc.vec.Vec Individual) :
+    ∃ b, components.closed table index members = .ok b ∧
+      (b = true → ClosedUnder (table.val.drop index.val) members.val) := by
   rw [components.closed]
-  by_cases more : index.val < items.val.length
-  · have lookup : items.index_usize index = .ok items.val[index.val] := by
+  by_cases more : index.val < table.val.length
+  · have lookup : table.index_usize index = .ok table.val[index.val] := by
       simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
     have split := List.drop_eq_getElem_cons more
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
-    obtain ⟨r, run, facts⟩ := closed_spec items next members
+    obtain ⟨b, run, facts⟩ := closed_spec table next members
     rw [nextIs] at facts
-    by_cases assertion : IsAssertion items.val[index.val].axiom
-    · obtain ⟨r1, run1, listed⟩ := listed_individuals items.val[index.val].axiom
-      cases r1 with
-      | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1], by simp⟩
-      | some named =>
-        have same := listed named rfl
-        obtain ⟨b1, run2, any⟩ := any_member_spec members named 0#usize
-        simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at any
-        cases b1 with
-        | false =>
-          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, run2, advance, run],
-            fun yes x member => ?_⟩
-          rw [split] at member
-          rcases List.mem_cons.mp member with rfl | later
-          · intro _ ⟨i, mi, inside⟩
-            exact absurd (any.mpr ⟨i, (same i).mpr mi, inside⟩) (by simp)
-          · exact facts yes x later
-        | true =>
-          obtain ⟨b2, run3, all⟩ := all_members_spec members named 0#usize
-          simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at all
-          cases b2 with
-          | false =>
-            exact ⟨some false, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, run2, run3],
-              by simp⟩
-          | true =>
-            refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, run1, run2, run3, advance,
-              run], fun yes x member => ?_⟩
-            rw [split] at member
-            rcases List.mem_cons.mp member with rfl | later
-            · intro _ _ i mi
-              exact all.mp rfl i ((same i).mpr mi)
-            · exact facts yes x later
-    · refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, assertion_eq, assertion, advance, run],
-        fun yes x member => ?_⟩
+    obtain ⟨b1, run1, any⟩ := any_member_spec members table.val[index.val] 0#usize
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at any
+    cases b1 with
+    | false =>
+      refine ⟨b, by simp [UScalar.lt_equiv, more, lookup, run1, advance, run], fun yes named member => ?_⟩
       rw [split] at member
       rcases List.mem_cons.mp member with rfl | later
-      · intro isAssertion
-        exact absurd isAssertion assertion
-      · exact facts yes x later
-  · refine ⟨some true, by simp [UScalar.lt_equiv, more], fun _ x member => ?_⟩
+      · rintro ⟨i, mi, inside⟩
+        exact absurd (any.mpr ⟨i, mi, inside⟩) (by simp)
+      · exact facts yes named later
+    | true =>
+      obtain ⟨b2, run2, all⟩ := all_members_spec members table.val[index.val] 0#usize
+      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at all
+      cases b2 with
+      | false => exact ⟨false, by simp [UScalar.lt_equiv, more, lookup, run1, run2], by simp⟩
+      | true =>
+        refine ⟨b, by simp [UScalar.lt_equiv, more, lookup, run1, run2, advance, run], fun yes named member => ?_⟩
+        rw [split] at member
+        rcases List.mem_cons.mp member with rfl | later
+        · intro _ i mi
+          exact all.mp rfl i mi
+        · exact facts yes named later
+  · refine ⟨true, by simp [UScalar.lt_equiv, more], fun _ named member => ?_⟩
     rw [List.drop_eq_nil_of_le (by omega)] at member
     cases member
-termination_by items.val.length - index.val
+termination_by table.val.length - index.val
 decreasing_by omega
 
-/-! ## Copies -/
+/-- `members_of` returns a component that holds the start and is closed. -/
+theorem members_of_spec (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (start : Individual) :
+    ∃ r, components.members_of table start = .ok r ∧ ∀ members, r = some members →
+      start ∈ members.val ∧ ClosedUnder table.val members.val := by
+  rw [components.members_of]
+  obtain ⟨first, pushFirst, -⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec (alloc.vec.Vec.new Individual)
+    start (by simp; scalar_tac))
+  obtain ⟨r1, run1⟩ := component_total table first components.ROUNDS
+  cases r1 with
+  | none => exact ⟨none, by simp [Rowl.Concepts.copy_individual_identity, pushFirst, run1], by simp⟩
+  | some members =>
+    obtain ⟨p, runP, memberP⟩ := position_member members start
+    by_cases inMembers : start ∈ members.val
+    · have nonzero : p ≠ 0#usize := fun same => (memberP.mpr inMembers) (by rw [same]; rfl)
+      have nonzeroVal := memberP.mpr inMembers
+      obtain ⟨b, run2, closedFacts⟩ := closed_spec table 0#usize members
+      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at closedFacts
+      cases b with
+      | false => exact ⟨none, by simp [Rowl.Concepts.copy_individual_identity, pushFirst, run1, runP, nonzero,
+          nonzeroVal, run2], by simp⟩
+      | true => exact ⟨some members, by simp [Rowl.Concepts.copy_individual_identity, pushFirst, run1, runP,
+          nonzero, nonzeroVal, run2], fun m same => by cases same; exact ⟨inMembers, closedFacts rfl⟩⟩
+    · have zero : p = 0#usize := UScalar.eq_of_val_eq (by simpa using mt memberP.mp inMembers)
+      exact ⟨none, by simp [Rowl.Concepts.copy_individual_identity, pushFirst, run1, runP, zero], by simp⟩
 
-private theorem usize_max_val : (core.num.Usize.MAX).val = Usize.max := by
-  simp [core.num.Usize.MAX]
+/-- A closed table closes the assertions of the closure. -/
+private theorem closed_items {items : List AnnotatedAxiom} {table : List (alloc.vec.Vec Individual)}
+    {members : List Individual} (tableOk : TableOf items table) (closed : ClosedUnder table members) :
+    ∀ x ∈ items, IsAssertion x.axiom → (∃ i ∈ axiomIndividuals x.axiom, i ∈ members) →
+      ∀ i ∈ axiomIndividuals x.axiom, i ∈ members := by
+  intro x mx assertion ⟨i, mi, inside⟩ k mk
+  obtain ⟨j, hj, same⟩ := List.getElem_of_mem mx
+  have hx : items[j]? = some x := by rw [List.getElem?_eq_getElem hj, same]
+  obtain ⟨named, atJ, entry⟩ := entry_of_get tableOk hx
+  have names := entry.1 assertion
+  exact closed named (List.mem_of_getElem? atJ) ⟨i, (names i).mpr mi, inside⟩ k ((names k).mpr mk)
+
+/-! ## Copies -/
 
 private theorem copy_natural_eq (n : probes.Natural) : components.copy_natural n = .ok n := by
   induction n with
@@ -1508,32 +1656,35 @@ def Kept (members : List Individual) (ax : Axiom) : Prop :=
 private theorem meaningless_individuals {ax : Axiom} (meaningless : Meaningless ax) : axiomIndividuals ax = [] := by
   cases ax <;> simp only [Meaningless] at meaningless <;> simp [axiomIndividuals]
 
-theorem kept_spec (ax : Axiom) (members : alloc.vec.Vec Individual) :
-    ∃ r, components.kept ax members = .ok r ∧ ∀ b, r = some b → (b = true ↔ Kept members.val ax) := by
+theorem kept_spec (items : alloc.vec.Vec AnnotatedAxiom) (table : alloc.vec.Vec (alloc.vec.Vec Individual))
+    (index : Usize) (members : alloc.vec.Vec Individual) (tableOk : TableOf items.val table.val)
+    (more : index.val < items.val.length) :
+    ∃ b, components.kept items table index members = .ok b ∧
+      (b = true ↔ Kept members.val items.val[index.val].axiom) := by
   rw [components.kept]
-  by_cases assertion : IsAssertion ax
-  · obtain ⟨r1, run1, listed⟩ := listed_individuals ax
-    cases r1 with
-    | none => exact ⟨none, by simp [assertion_eq, assertion, run1], by simp⟩
-    | some named =>
-      obtain ⟨b, run2, any⟩ := any_member_spec members named 0#usize
-      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at any
-      refine ⟨some b, by simp [assertion_eq, assertion, run1, run2], fun b' same => ?_⟩
-      cases same
-      rw [any]
-      simp only [Kept, assertion, true_and, not_true_eq_false, false_and, or_false]
-      constructor
-      · rintro ⟨i, mi, inside⟩
-        exact ⟨i, (listed named rfl i).mp mi, inside⟩
-      · rintro ⟨i, mi, inside⟩
-        exact ⟨i, (listed named rfl i).mpr mi, inside⟩
-  · refine ⟨some (!decide (Meaningless ax)), by simp [assertion_eq, assertion, meaningless_eq], fun b same => ?_⟩
-    cases same
+  have lookup : items.index_usize index = .ok items.val[index.val] := by
+    simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+  obtain ⟨named, atIndex, entry⟩ := entry_of_get tableOk (List.getElem?_eq_getElem more)
+  by_cases assertion : IsAssertion items.val[index.val].axiom
+  · obtain ⟨b, run, names⟩ := names_member_spec table index members
+    refine ⟨b, by simp [lookup, assertion_eq, assertion, run], ?_⟩
+    rw [names, atIndex]
+    constructor
+    · rintro ⟨n, same, i, mi, inside⟩
+      simp only [Option.some.injEq] at same
+      rw [← same] at mi
+      exact .inl ⟨assertion, i, (entry.1 assertion i).mp mi, inside⟩
+    · rintro (⟨_, i, mi, inside⟩ | ⟨no, _⟩)
+      · exact ⟨named, rfl, i, (entry.1 assertion i).mpr mi, inside⟩
+      · exact absurd assertion no
+  · refine ⟨!decide (Meaningless items.val[index.val].axiom), by simp [lookup, assertion_eq, assertion,
+      meaningless_eq], ?_⟩
     simp [Kept, assertion]
 
-theorem select_spec (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (members : alloc.vec.Vec Individual)
-    (out : alloc.vec.Vec AnnotatedAxiom) :
-    ∃ r, components.select items index members out = .ok r ∧ ∀ v, r = some v →
+theorem select_spec (items : alloc.vec.Vec AnnotatedAxiom) (table : alloc.vec.Vec (alloc.vec.Vec Individual))
+    (index : Usize) (members : alloc.vec.Vec Individual) (out : alloc.vec.Vec AnnotatedAxiom)
+    (tableOk : TableOf items.val table.val) :
+    ∃ r, components.select items table index members out = .ok r ∧ ∀ v, r = some v →
       (∀ y ∈ v.val, y ∈ out.val ∨ ∃ x ∈ items.val.drop index.val, Kept members.val x.axiom ∧ y.axiom = x.axiom) ∧
       (∀ x ∈ items.val.drop index.val, Kept members.val x.axiom → ∃ y ∈ v.val, y.axiom = x.axiom) ∧
       (∀ y ∈ out.val, y ∈ v.val) := by
@@ -1545,55 +1696,51 @@ theorem select_spec (items : alloc.vec.Vec AnnotatedAxiom) (index : Usize) (memb
     obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
       (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
     have nextIs : next.val = index.val + 1 := by simpa using nextValue
-    obtain ⟨r1, run1, facts1⟩ := kept_spec items.val[index.val].axiom members
-    cases r1 with
-    | none => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, run1], by simp⟩
-    | some b =>
-      have keptIff := facts1 b rfl
-      cases b with
-      | false =>
-        obtain ⟨r, run, facts⟩ := select_spec items next members out
-        refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, run1, advance, run], fun v same => ?_⟩
-        obtain ⟨sub, sup, keep⟩ := facts v same
-        rw [nextIs] at sub sup
-        refine ⟨fun y my => ?_, fun x mx kx => ?_, keep⟩
-        · rcases sub y my with inOut | ⟨x, mx, kx, ax⟩
-          · exact .inl inOut
-          · exact .inr ⟨x, by rw [split]; exact List.mem_cons_of_mem _ mx, kx, ax⟩
-        · rw [split] at mx
-          rcases List.mem_cons.mp mx with rfl | later
-          · exact absurd (keptIff.mpr kx) (by simp)
-          · exact sup x later kx
-      | true =>
-        have kx := keptIff.mp rfl
-        rcases copy_axiom_spec items.val[index.val].axiom with none' | some'
-        · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, run1, none'], by simp⟩
-        · by_cases room : out.val.length < Usize.max
-          · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out
-              ({ annotations := alloc.vec.Vec.new Annotation, «axiom» := items.val[index.val].axiom } : AnnotatedAxiom)
-              room)
-            obtain ⟨r, run, facts⟩ := select_spec items next members pushed
-            refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, run1, some', alloc.vec.Vec.len_val, usize_max_val,
-              room, push, advance, run], fun v same => ?_⟩
-            obtain ⟨sub, sup, keep⟩ := facts v same
-            rw [nextIs] at sub sup
-            have fresh : ({ annotations := alloc.vec.Vec.new Annotation, «axiom» := items.val[index.val].axiom } :
-                AnnotatedAxiom) ∈ v.val := keep _ (by rw [contents]; simp)
-            refine ⟨fun y my => ?_, fun x mx kx' => ?_, fun y my => keep y (by rw [contents]; simp [my])⟩
-            · rcases sub y my with inPushed | ⟨x, mx, kx', ax⟩
-              · rw [contents] at inPushed
-                rcases List.mem_append.mp inPushed with inOut | new
-                · exact .inl inOut
-                · simp only [List.mem_singleton] at new
-                  subst new
-                  exact .inr ⟨_, by rw [split]; exact List.mem_cons_self .., kx, rfl⟩
-              · exact .inr ⟨x, by rw [split]; exact List.mem_cons_of_mem _ mx, kx', ax⟩
-            · rw [split] at mx
-              rcases List.mem_cons.mp mx with rfl | later
-              · exact ⟨_, fresh, rfl⟩
-              · exact sup x later kx'
-          · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, run1, some', alloc.vec.Vec.len_val, usize_max_val,
-              room], by simp⟩
+    obtain ⟨b, run1, keptIff⟩ := kept_spec items table index members tableOk more
+    cases b with
+    | false =>
+      obtain ⟨r, run, facts⟩ := select_spec items table next members out tableOk
+      refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, run1, advance, run], fun v same => ?_⟩
+      obtain ⟨sub, sup, keep⟩ := facts v same
+      rw [nextIs] at sub sup
+      refine ⟨fun y my => ?_, fun x mx kx => ?_, keep⟩
+      · rcases sub y my with inOut | ⟨x, mx, kx, ax⟩
+        · exact .inl inOut
+        · exact .inr ⟨x, by rw [split]; exact List.mem_cons_of_mem _ mx, kx, ax⟩
+      · rw [split] at mx
+        rcases List.mem_cons.mp mx with rfl | later
+        · exact absurd (keptIff.mpr kx) (by simp)
+        · exact sup x later kx
+    | true =>
+      have kx := keptIff.mp rfl
+      rcases copy_axiom_spec items.val[index.val].axiom with none' | some'
+      · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, run1, none'], by simp⟩
+      · by_cases room : out.val.length < Usize.max
+        · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out
+            ({ annotations := alloc.vec.Vec.new Annotation, «axiom» := items.val[index.val].axiom } : AnnotatedAxiom)
+            room)
+          obtain ⟨r, run, facts⟩ := select_spec items table next members pushed tableOk
+          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, run1, some', alloc.vec.Vec.len_val, usize_max_val,
+            room, push, advance, run], fun v same => ?_⟩
+          obtain ⟨sub, sup, keep⟩ := facts v same
+          rw [nextIs] at sub sup
+          have fresh : ({ annotations := alloc.vec.Vec.new Annotation, «axiom» := items.val[index.val].axiom } :
+              AnnotatedAxiom) ∈ v.val := keep _ (by rw [contents]; simp)
+          refine ⟨fun y my => ?_, fun x mx kx' => ?_, fun y my => keep y (by rw [contents]; simp [my])⟩
+          · rcases sub y my with inPushed | ⟨x, mx, kx', ax⟩
+            · rw [contents] at inPushed
+              rcases List.mem_append.mp inPushed with inOut | new
+              · exact .inl inOut
+              · simp only [List.mem_singleton] at new
+                subst new
+                exact .inr ⟨_, by rw [split]; exact List.mem_cons_self .., kx, rfl⟩
+            · exact .inr ⟨x, by rw [split]; exact List.mem_cons_of_mem _ mx, kx', ax⟩
+          · rw [split] at mx
+            rcases List.mem_cons.mp mx with rfl | later
+            · exact ⟨_, fresh, rfl⟩
+            · exact sup x later kx'
+        · exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, run1, some', alloc.vec.Vec.len_val, usize_max_val,
+            room], by simp⟩
   · refine ⟨some out, by simp [UScalar.lt_equiv, more], fun v same => ?_⟩
     cases same
     refine ⟨fun y my => .inl my, fun x mx => ?_, fun y my => my⟩
@@ -1622,79 +1769,68 @@ theorem component_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) (a : Na
   cases b with
   | false => exact ⟨none, by simp [runItems], by simp⟩
   | true =>
-    have named : ({ iri := a.iri } : NamedIndividual) = a := by cases a; rfl
-    obtain ⟨start, pushStart, -⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec (alloc.vec.Vec.new Individual)
-      (Individual.Named { iri := a.iri }) (by simp; scalar_tac))
-    obtain ⟨r1, run1⟩ := component_total items start components.ROUNDS
-    cases r1 with
-    | none => exact ⟨none, by simp [runItems, Rowl.Nnf.copy_iri_identity, pushStart, run1], by simp⟩
-    | some members =>
-      obtain ⟨p, runP, memberP⟩ := position_member members (Individual.Named { iri := a.iri })
-      by_cases inMembers : Individual.Named { iri := a.iri } ∈ members.val
-      · have nonzero : p ≠ 0#usize := fun same => (memberP.mpr inMembers) (by rw [same]; rfl)
-        have nonzeroVal := memberP.mpr inMembers
+    obtain ⟨r0, run0, tableFacts⟩ := individual_table_spec items 0#usize
+      (alloc.vec.Vec.new (alloc.vec.Vec Individual)) (by simp) (by simp)
+    cases r0 with
+    | none => exact ⟨none, by simp [runItems, run0], by simp⟩
+    | some table =>
+      have tableOk := table_of (tableFacts table rfl)
+      have named : ({ iri := a.iri } : NamedIndividual) = a := by cases a; rfl
+      obtain ⟨r1, run1, memberFacts⟩ := members_of_spec table (Individual.Named { iri := a.iri })
+      cases r1 with
+      | none => exact ⟨none, by simp [runItems, run0, Rowl.Nnf.copy_iri_identity, run1], by simp⟩
+      | some members =>
+        obtain ⟨inMembers, closedTable⟩ := memberFacts members rfl
         rw [named] at inMembers
-        obtain ⟨r2, run2, closedFacts⟩ := closed_spec items 0#usize members
-        simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at closedFacts
-        cases r2 with
-        | none => exact ⟨none, by simp [runItems, Rowl.Nnf.copy_iri_identity, pushStart, run1, runP, nonzero, nonzeroVal, run2],
-            by simp⟩
-        | some c =>
-          cases c with
-          | false => exact ⟨none, by simp [runItems, Rowl.Nnf.copy_iri_identity, pushStart, run1, runP, nonzero,
-              run2], by simp⟩
-          | true =>
-            have isClosed := closedFacts rfl
-            obtain ⟨r3, run3, selectFacts⟩ := select_spec items 0#usize members (alloc.vec.Vec.new AnnotatedAxiom)
-            simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
-            refine ⟨r3, by simp [runItems, Rowl.Nnf.copy_iri_identity, pushStart, run1, runP, nonzero, nonzeroVal, run2, run3],
-              fun part same => ?_⟩
-            obtain ⟨sub, sup, -⟩ := selectFacts part same
-            classical
-            refine ⟨itemsOk rfl, items.val.filter (fun x => ¬ Kept members.val x.axiom), ?_, ?_, ?_, ?_, ?_⟩
-            · intro x mx
-              by_cases kx : Kept members.val x.axiom
-              · exact .inl (sup x mx kx)
-              · exact .inr (List.mem_filter.mpr ⟨mx, by simp [kx]⟩)
-            · intro y my
-              rcases sub y my with fresh | ⟨x, mx, -, ax⟩
-              · simp at fresh
-              · exact ⟨x, mx, ax.symm⟩
-            · intro x mx
-              have notKept : ¬ Kept members.val x.axiom := by simpa using (List.mem_filter.mp mx).2
-              by_cases assertion : IsAssertion x.axiom
-              · exact .inl assertion
-              · refine .inr ?_
-                by_contra meaningless
-                exact notKept (.inr ⟨assertion, meaningless⟩)
-            · intro x mx assertion y my i mi mi'
-              rcases sub x mx with fresh | ⟨x0, mx0, kx0, ax⟩
-              · simp at fresh
-              · rw [ax] at assertion mi
-                have touches : ∃ j ∈ axiomIndividuals x0.axiom, j ∈ members.val := by
-                  rcases kx0 with ⟨_, touch⟩ | ⟨no, _⟩
-                  · exact touch
-                  · exact absurd assertion no
-                have inside := isClosed x0 mx0 assertion touches i mi
-                have notKept : ¬ Kept members.val y.axiom := by simpa using (List.mem_filter.mp my).2
-                by_cases yAssertion : IsAssertion y.axiom
-                · exact notKept (.inl ⟨yAssertion, i, mi', inside⟩)
-                · have meaningless : Meaningless y.axiom := by
-                    by_contra other
-                    exact notKept (.inr ⟨yAssertion, other⟩)
-                  rw [meaningless_individuals meaningless] at mi'
-                  cases mi'
-            · intro y my mi
-              have notKept : ¬ Kept members.val y.axiom := by simpa using (List.mem_filter.mp my).2
-              by_cases yAssertion : IsAssertion y.axiom
-              · exact notKept (.inl ⟨yAssertion, _, mi, inMembers⟩)
-              · have meaningless : Meaningless y.axiom := by
-                  by_contra other
-                  exact notKept (.inr ⟨yAssertion, other⟩)
-                rw [meaningless_individuals meaningless] at mi
-                cases mi
-      · have zero : p = 0#usize := UScalar.eq_of_val_eq (by simpa using mt memberP.mp inMembers)
-        exact ⟨none, by simp [runItems, Rowl.Nnf.copy_iri_identity, pushStart, run1, runP, zero], by simp⟩
+        have isClosed := closed_items tableOk closedTable
+        obtain ⟨r3, run3, selectFacts⟩ := select_spec items table 0#usize members
+          (alloc.vec.Vec.new AnnotatedAxiom) tableOk
+        simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
+        refine ⟨r3, by simp [runItems, run0, Rowl.Nnf.copy_iri_identity, run1, run3], fun part same => ?_⟩
+        obtain ⟨sub, sup, -⟩ := selectFacts part same
+        classical
+        refine ⟨itemsOk rfl, items.val.filter (fun x => ¬ Kept members.val x.axiom), ?_, ?_, ?_, ?_, ?_⟩
+        · intro x mx
+          by_cases kx : Kept members.val x.axiom
+          · exact .inl (sup x mx kx)
+          · exact .inr (List.mem_filter.mpr ⟨mx, by simp [kx]⟩)
+        · intro y my
+          rcases sub y my with fresh | ⟨x, mx, -, ax⟩
+          · simp at fresh
+          · exact ⟨x, mx, ax.symm⟩
+        · intro x mx
+          have notKept : ¬ Kept members.val x.axiom := by simpa using (List.mem_filter.mp mx).2
+          by_cases assertion : IsAssertion x.axiom
+          · exact .inl assertion
+          · refine .inr ?_
+            by_contra meaningless
+            exact notKept (.inr ⟨assertion, meaningless⟩)
+        · intro x mx assertion y my i mi mi'
+          rcases sub x mx with fresh | ⟨x0, mx0, kx0, ax⟩
+          · simp at fresh
+          · rw [ax] at assertion mi
+            have touches : ∃ j ∈ axiomIndividuals x0.axiom, j ∈ members.val := by
+              rcases kx0 with ⟨_, touch⟩ | ⟨no, _⟩
+              · exact touch
+              · exact absurd assertion no
+            have inside := isClosed x0 mx0 assertion touches i mi
+            have notKept : ¬ Kept members.val y.axiom := by simpa using (List.mem_filter.mp my).2
+            by_cases yAssertion : IsAssertion y.axiom
+            · exact notKept (.inl ⟨yAssertion, i, mi', inside⟩)
+            · have meaningless : Meaningless y.axiom := by
+                by_contra other
+                exact notKept (.inr ⟨yAssertion, other⟩)
+              rw [meaningless_individuals meaningless] at mi'
+              cases mi'
+        · intro y my mi
+          have notKept : ¬ Kept members.val y.axiom := by simpa using (List.mem_filter.mp my).2
+          by_cases yAssertion : IsAssertion y.axiom
+          · exact notKept (.inl ⟨yAssertion, _, mi, inMembers⟩)
+          · have meaningless : Meaningless y.axiom := by
+              by_contra other
+              exact notKept (.inr ⟨yAssertion, other⟩)
+            rw [meaningless_individuals meaningless] at mi
+            cases mi
 
 /-- When `component_closure` returns a part for a named individual and the
     closure has a model, an instance question about the individual with a
@@ -1736,37 +1872,43 @@ theorem tbox_closure_correct (items : alloc.vec.Vec AnnotatedAxiom) :
   cases b with
   | false => exact ⟨none, by simp [runItems], by simp⟩
   | true =>
-    obtain ⟨r, run, selectFacts⟩ := select_spec items 0#usize (alloc.vec.Vec.new Individual)
-      (alloc.vec.Vec.new AnnotatedAxiom)
-    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
-    refine ⟨r, by simp [runItems, run], fun part same => ?_⟩
-    obtain ⟨sub, sup, -⟩ := selectFacts part same
-    have empty : (alloc.vec.Vec.new Individual).val = [] := rfl
-    rw [empty] at sub sup
-    classical
-    refine ⟨itemsOk rfl, items.val.filter (fun x => ¬ Kept [] x.axiom), ?_, ?_, ?_, ?_⟩
-    · intro x mx
-      by_cases kx : Kept [] x.axiom
-      · exact .inl (sup x mx kx)
-      · exact .inr (List.mem_filter.mpr ⟨mx, by simp [kx]⟩)
-    · intro y my
-      rcases sub y my with fresh | ⟨x, mx, -, ax⟩
-      · simp at fresh
-      · exact ⟨x, mx, ax.symm⟩
-    · intro x mx
-      have notKept : ¬ Kept [] x.axiom := by simpa using (List.mem_filter.mp mx).2
-      by_cases assertion : IsAssertion x.axiom
-      · exact .inl assertion
-      · refine .inr ?_
-        by_contra meaningless
-        exact notKept (.inr ⟨assertion, meaningless⟩)
-    · intro x mx assertion
-      rcases sub x mx with fresh | ⟨x0, _, kx0, ax⟩
-      · simp at fresh
-      · rw [ax] at assertion
-        rcases kx0 with ⟨_, _, _, none⟩ | ⟨no, _⟩
-        · simp at none
-        · exact no assertion
+    obtain ⟨r0, run0, tableFacts⟩ := individual_table_spec items 0#usize
+      (alloc.vec.Vec.new (alloc.vec.Vec Individual)) (by simp) (by simp)
+    cases r0 with
+    | none => exact ⟨none, by simp [runItems, run0], by simp⟩
+    | some table =>
+      have tableOk := table_of (tableFacts table rfl)
+      obtain ⟨r, run, selectFacts⟩ := select_spec items table 0#usize (alloc.vec.Vec.new Individual)
+        (alloc.vec.Vec.new AnnotatedAxiom) tableOk
+      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
+      refine ⟨r, by simp [runItems, run0, run], fun part same => ?_⟩
+      obtain ⟨sub, sup, -⟩ := selectFacts part same
+      have empty : (alloc.vec.Vec.new Individual).val = [] := rfl
+      rw [empty] at sub sup
+      classical
+      refine ⟨itemsOk rfl, items.val.filter (fun x => ¬ Kept [] x.axiom), ?_, ?_, ?_, ?_⟩
+      · intro x mx
+        by_cases kx : Kept [] x.axiom
+        · exact .inl (sup x mx kx)
+        · exact .inr (List.mem_filter.mpr ⟨mx, by simp [kx]⟩)
+      · intro y my
+        rcases sub y my with fresh | ⟨x, mx, -, ax⟩
+        · simp at fresh
+        · exact ⟨x, mx, ax.symm⟩
+      · intro x mx
+        have notKept : ¬ Kept [] x.axiom := by simpa using (List.mem_filter.mp mx).2
+        by_cases assertion : IsAssertion x.axiom
+        · exact .inl assertion
+        · refine .inr ?_
+          by_contra meaningless
+          exact notKept (.inr ⟨assertion, meaningless⟩)
+      · intro x mx assertion
+        rcases sub x mx with fresh | ⟨x0, _, kx0, ax⟩
+        · simp at fresh
+        · rw [ax] at assertion
+          rcases kx0 with ⟨_, _, _, none⟩ | ⟨no, _⟩
+          · simp at none
+          · exact no assertion
 
 /-- When `tbox_closure` returns the axioms other than assertions and the
     closure has a model, a class expression that `plain_question` accepts is
@@ -1813,5 +1955,446 @@ theorem part_subsumed_correct {items part : alloc.vec.Vec AnnotatedAxiom} {a b :
   exact subsumed_part vocab cover inside (fun x mx na => (itemsOk x mx D N V vocab).2 na)
     (fun x mx ia => (itemsOk x mx D N V vocab).1 ia) kinds (fun x mx ia => absurd ia (plainPart x mx))
     (closedA rfl D N V vocab) (closedB rfl D N V vocab) consistent
+
+/-! ## Consistency part by part -/
+
+/-- A vocabulary that names the individuals of a closure with keys names those
+    of copies of some of its axioms. -/
+private theorem keyed_inside {V : Vocabulary} {items part : List AnnotatedAxiom}
+    (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom)
+    (keyed : Rowl.KeyEncoding.NamesKeyed V items) : Rowl.KeyEncoding.NamesKeyed V part := by
+  intro keyedPart a member
+  obtain ⟨y, my, key⟩ := keyedPart
+  obtain ⟨x, mx, same⟩ := inside y my
+  have keyedItems : Rowl.KeyEncoding.Keyed items := ⟨x, mx, by rw [same]; exact key⟩
+  refine keyed keyedItems a ?_
+  simp only [Rowl.KeyEncoding.closureIndividuals, List.mem_flatMap] at member ⊢
+  obtain ⟨z, mz, mi⟩ := member
+  obtain ⟨x', mx', same'⟩ := inside z mz
+  exact ⟨x', mx', by rw [same']; exact mi⟩
+
+/-- Every assertion names an individual. -/
+private theorem assertion_names {ax : Axiom} (assertion : IsAssertion ax) : ∃ i, i ∈ axiomIndividuals ax := by
+  cases ax <;> simp only [IsAssertion] at assertion <;> simp [axiomIndividuals, AtLeastTwo.elements]
+
+/-- Whether the parts checked so far hold the axiom at an index: an axiom that
+    means something and is no assertion, or an assertion that is done. -/
+def Checked (done : List Bool) (j : Nat) (x : AnnotatedAxiom) : Prop :=
+  (¬ IsAssertion x.axiom ∧ ¬ Meaningless x.axiom) ∨ (IsAssertion x.axiom ∧ done[j]? = some true)
+
+/-- The axioms of a closure that the parts checked so far hold. -/
+noncomputable def checked (items : List AnnotatedAxiom) (done : List Bool) : List AnnotatedAxiom :=
+  (List.range items.length).filterMap fun j =>
+    match items[j]? with
+    | some x => if Checked done j x then some x else none
+    | none => none
+
+private theorem mem_checked {items : List AnnotatedAxiom} {done : List Bool} {x : AnnotatedAxiom} :
+    x ∈ checked items done ↔ ∃ j, items[j]? = some x ∧ Checked done j x := by
+  simp only [checked, List.mem_filterMap, List.mem_range]
+  constructor
+  · rintro ⟨j, -, h⟩
+    cases hx : items[j]? with
+    | none => simp [hx] at h
+    | some y =>
+      simp only [hx] at h
+      by_cases c : Checked done j y
+      · simp only [c, if_true, Option.some.injEq] at h
+        subst h
+        exact ⟨j, hx, c⟩
+      · simp [c] at h
+  · rintro ⟨j, hx, c⟩
+    obtain ⟨lj, -⟩ := List.getElem?_eq_some_iff.mp hx
+    exact ⟨j, lj, by simp [hx, c]⟩
+
+theorem falses_spec (count : Usize) (out : alloc.vec.Vec Bool) :
+    ∃ v, components.falses count out = .ok v ∧ ∀ j : Nat, v.val[j]? = some true → out.val[j]? = some true := by
+  rw [components.falses]
+  by_cases positive : 0 < count.val
+  · by_cases room : out.val.length < Usize.max
+    · obtain ⟨pushed, push, contents⟩ := WP.spec_imp_exists (alloc.vec.Vec.push_spec out false room)
+      obtain ⟨fewer, sub, fewerValue⟩ := WP.spec_imp_exists
+        (Usize.sub_spec (x := count) (y := 1#usize) (by simp; omega))
+      have fewerIs : fewer.val = count.val - 1 := by simp at fewerValue; omega
+      obtain ⟨v, run, facts⟩ := falses_spec fewer pushed
+      refine ⟨v, by simp [UScalar.lt_equiv, positive, alloc.vec.Vec.len_val, usize_max_val, room, push, sub, run],
+        fun j t => ?_⟩
+      have t' := facts j t
+      rw [contents] at t'
+      by_cases lj : j < out.val.length
+      · rwa [List.getElem?_append_left lj] at t'
+      · rw [List.getElem?_append_right (by omega)] at t'
+        rcases Nat.eq_zero_or_pos (j - out.val.length) with zero | pos
+        · rw [zero] at t'
+          simp at t'
+        · rw [List.getElem?_eq_none (by simp; omega)] at t'
+          cases t'
+    · exact ⟨out, by simp [UScalar.lt_equiv, positive, alloc.vec.Vec.len_val, usize_max_val, room], fun j t => t⟩
+  · exact ⟨out, by simp [UScalar.lt_equiv, positive], fun j t => t⟩
+termination_by count.val
+decreasing_by omega
+
+theorem open_from_spec (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (index : Usize)
+    (done : alloc.vec.Vec Bool) :
+    ∃ r, components.open_from table index done = .ok r ∧
+      (r = none → ∀ (j : Nat) named, index.val ≤ j → table.val[j]? = some named → named.val ≠ [] →
+        done.val[j]? = some true) ∧
+      (∀ o, r = some o → ∃ named, table.val[o.val]? = some named ∧ named.val ≠ []) := by
+  rw [components.open_from]
+  by_cases more : index.val < table.val.length
+  · have lookup : table.index_usize index = .ok table.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIs : next.val = index.val + 1 := by simpa using nextValue
+    by_cases empty : table.val[index.val].val = []
+    · obtain ⟨r, run, noneFacts, someFacts⟩ := open_from_spec table next done
+      rw [nextIs] at noneFacts
+      refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, alloc.vec.Vec.len_val, empty, advance, run],
+        fun none' j named lj mj ne => ?_, someFacts⟩
+      rcases Nat.lt_or_ge j (index.val + 1) with small | large
+      · have jIs : j = index.val := by omega
+        rw [jIs, List.getElem?_eq_getElem more] at mj
+        simp only [Option.some.injEq] at mj
+        rw [← mj] at ne
+        exact absurd empty ne
+      · exact noneFacts none' j named large mj ne
+    · by_cases inDone : index.val < done.val.length
+      · have lookupD : done.index_usize index = .ok done.val[index.val] := by
+          simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inDone]
+        cases flag : done.val[index.val] with
+        | true =>
+          obtain ⟨r, run, noneFacts, someFacts⟩ := open_from_spec table next done
+          rw [nextIs] at noneFacts
+          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, alloc.vec.Vec.len_val, empty, inDone, lookupD, flag,
+            advance, run], fun none' j named lj mj ne => ?_, someFacts⟩
+          rcases Nat.lt_or_ge j (index.val + 1) with small | large
+          · have jIs : j = index.val := by omega
+            rw [jIs, List.getElem?_eq_getElem inDone, flag]
+          · exact noneFacts none' j named large mj ne
+        | false =>
+          refine ⟨some index, by simp [UScalar.lt_equiv, more, lookup, alloc.vec.Vec.len_val, empty, inDone,
+            lookupD, flag], by simp, fun o same => ?_⟩
+          simp only [Option.some.injEq] at same
+          rw [← same]
+          exact ⟨_, List.getElem?_eq_getElem more, empty⟩
+      · refine ⟨some index, by simp [UScalar.lt_equiv, more, lookup, alloc.vec.Vec.len_val, empty, inDone],
+          by simp, fun o same => ?_⟩
+        simp only [Option.some.injEq] at same
+        rw [← same]
+        exact ⟨_, List.getElem?_eq_getElem more, empty⟩
+  · refine ⟨none, by simp [UScalar.lt_equiv, more], fun _ j named lj mj _ => ?_, by simp⟩
+    rw [List.getElem?_eq_none (by omega)] at mj
+    cases mj
+termination_by table.val.length - index.val
+decreasing_by all_goals omega
+
+theorem mark_spec (table : alloc.vec.Vec (alloc.vec.Vec Individual)) (index : Usize)
+    (members : alloc.vec.Vec Individual) (done : alloc.vec.Vec Bool) :
+    ∃ r, components.mark table index members done = .ok r ∧ ∀ done', r = some done' →
+      (∀ j : Nat, done'.val[j]? = some true → done.val[j]? = some true ∨
+        ∃ named, table.val[j]? = some named ∧ Names named members.val) ∧
+      (∀ (j : Nat) named, index.val ≤ j → table.val[j]? = some named → Names named members.val →
+        done.val[j]? ≠ some true) := by
+  rw [components.mark]
+  by_cases more : index.val < table.val.length
+  · have lookup : table.index_usize index = .ok table.val[index.val] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem more]
+    obtain ⟨next, advance, nextValue⟩ := WP.spec_imp_exists
+      (Usize.add_spec (x := index) (y := 1#usize) (by scalar_tac))
+    have nextIs : next.val = index.val + 1 := by simpa using nextValue
+    obtain ⟨b, runB, any⟩ := any_member_spec members table.val[index.val] 0#usize
+    simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at any
+    cases b with
+    | false =>
+      obtain ⟨r, run, facts⟩ := mark_spec table next members done
+      refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, runB, advance, run], fun done' same => ?_⟩
+      obtain ⟨grown, fresh⟩ := facts done' same
+      rw [nextIs] at fresh
+      refine ⟨grown, fun j named lj mj names => ?_⟩
+      rcases Nat.lt_or_ge j (index.val + 1) with small | large
+      · have jIs : j = index.val := by omega
+        rw [jIs, List.getElem?_eq_getElem more] at mj
+        simp only [Option.some.injEq] at mj
+        rw [← mj] at names
+        obtain ⟨i, mi, inside⟩ := names
+        exact absurd (any.mpr ⟨i, mi, inside⟩) (by simp)
+      · exact fresh j named large mj names
+    | true =>
+      by_cases inDone : index.val < done.val.length
+      · have lookupD : done.index_usize index = .ok done.val[index.val] := by
+          simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem inDone]
+        cases flag : done.val[index.val] with
+        | true => exact ⟨none, by simp [UScalar.lt_equiv, more, lookup, runB, alloc.vec.Vec.len_val, inDone,
+            lookupD, flag], by simp⟩
+        | false =>
+          obtain ⟨r, run, facts⟩ := mark_spec table next members (done.set index true)
+          refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, runB, alloc.vec.Vec.len_val, inDone, lookupD, flag,
+            alloc.vec.Vec.index_mut_usize, advance, run], fun done' same => ?_⟩
+          obtain ⟨grown, fresh⟩ := facts done' same
+          rw [nextIs] at fresh
+          refine ⟨fun j t => ?_, fun j named lj mj names => ?_⟩
+          · rcases grown j t with old | touched
+            · rw [alloc.vec.Vec.set_val_eq, List.getElem?_set] at old
+              by_cases same : index.val = j
+              · right
+                rw [← same, List.getElem?_eq_getElem more]
+                exact ⟨_, rfl, any.mp rfl⟩
+              · left
+                simpa [same] using old
+            · exact .inr touched
+          · rcases Nat.lt_or_ge j (index.val + 1) with small | large
+            · have jIs : j = index.val := by omega
+              rw [jIs, List.getElem?_eq_getElem inDone, flag]
+              simp
+            · have notDone := fresh j named large mj names
+              rw [alloc.vec.Vec.set_val_eq, List.getElem?_set] at notDone
+              have ne : index.val ≠ j := by omega
+              simpa [ne] using notDone
+      · obtain ⟨r, run, facts⟩ := mark_spec table next members done
+        refine ⟨r, by simp [UScalar.lt_equiv, more, lookup, runB, alloc.vec.Vec.len_val, inDone, advance, run],
+          fun done' same => ?_⟩
+        obtain ⟨grown, fresh⟩ := facts done' same
+        rw [nextIs] at fresh
+        refine ⟨grown, fun j named lj mj names => ?_⟩
+        rcases Nat.lt_or_ge j (index.val + 1) with small | large
+        · have jIs : j = index.val := by omega
+          rw [jIs, List.getElem?_eq_none (by omega)]
+          simp
+        · exact fresh j named large mj names
+  · refine ⟨some done, by simp [UScalar.lt_equiv, more], fun done' same => ?_⟩
+    simp only [Option.some.injEq] at same
+    subst same
+    refine ⟨fun j t => .inl t, fun j named lj mj _ => ?_⟩
+    rw [List.getElem?_eq_none (by omega)] at mj
+    cases mj
+termination_by table.val.length - index.val
+decreasing_by all_goals omega
+
+/-- One step of `parts_from`: a model of the checked axioms and a model of the
+    part of a closed component combine into a model of the checked axioms with
+    the assertions of the component done, provided that none of them was done
+    before. -/
+private theorem checked_step {Native : Type w} {D : DatatypeMap Native} (N : Normative D) {V : Vocabulary}
+    (vocab : IsVocabulary D V) {items part : List AnnotatedAxiom} {table : List (alloc.vec.Vec Individual)}
+    {members : List Individual} {done done' : List Bool}
+    (tableOk : TableOf items table) (itemsOk : ∀ x ∈ items, ItemOk.{w} x)
+    (closed : ClosedUnder table members)
+    (sub : ∀ y ∈ part, ∃ x ∈ items, Kept members x.axiom ∧ y.axiom = x.axiom)
+    (sup : ∀ x ∈ items, Kept members x.axiom → ∃ y ∈ part, y.axiom = x.axiom)
+    (grown : ∀ j : Nat, done'[j]? = some true → done[j]? = some true ∨
+      ∃ named, table[j]? = some named ∧ Names named members)
+    (fresh : ∀ (j : Nat) named, table[j]? = some named → Names named members → done[j]? ≠ some true)
+    (consistentPart : Consistent.{u, max w v, w} D V part)
+    (consistentDone : Consistent.{u, max w v, w} D V (checked items done)) :
+    Consistent.{u, max w v, w} D V (checked items done') := by
+  have isClosed := closed_items tableOk closed
+  have inItems : ∀ x ∈ checked items done', x ∈ items := fun x mx => by
+    obtain ⟨j, hx, -⟩ := mem_checked.mp mx
+    exact List.mem_of_getElem? hx
+  classical
+  refine consistent_join vocab (rest := (checked items done).filter (fun x => IsAssertion x.axiom))
+    (others := checked items done) ?cover
+    (fun x mx na => (itemsOk x (inItems x mx) D N V vocab).2 na)
+    (fun x mx ia => (itemsOk x (inItems x mx) D N V vocab).1 ia) ?kinds ?apart ?othersCover
+    consistentPart consistentDone
+  case cover =>
+    intro x mx
+    obtain ⟨j, hx, c⟩ := mem_checked.mp mx
+    rcases c with ⟨na, nm⟩ | ⟨ia, t⟩
+    · exact .inl (sup x (List.mem_of_getElem? hx) (.inr ⟨na, nm⟩))
+    · rcases grown j t with old | ⟨named, atJ, names⟩
+      · exact .inr (List.mem_filter.mpr ⟨mem_checked.mpr ⟨j, hx, .inr ⟨ia, old⟩⟩, by simp [ia]⟩)
+      · refine .inl (sup x (List.mem_of_getElem? hx) (.inl ⟨ia, ?_⟩))
+        have entry := tableOk.2 j x named hx atJ
+        obtain ⟨i, mi, inside⟩ := names
+        exact ⟨i, (entry.1 ia i).mp mi, inside⟩
+  case kinds =>
+    intro x mx
+    exact .inl (by simpa using (List.mem_filter.mp mx).2)
+  case apart =>
+    intro x mx ia y my i mi mi'
+    obtain ⟨x0, mx0, kx0, ax⟩ := sub x mx
+    rw [ax] at ia mi
+    have touches : ∃ k ∈ axiomIndividuals x0.axiom, k ∈ members := by
+      rcases kx0 with ⟨_, touch⟩ | ⟨no, _⟩
+      · exact touch
+      · exact absurd ia no
+    have inside := isClosed x0 mx0 ia touches i mi
+    obtain ⟨inDone, yAssertion⟩ := List.mem_filter.mp my
+    have yAssertion' : IsAssertion y.axiom := by simpa using yAssertion
+    obtain ⟨j, hy, c⟩ := mem_checked.mp inDone
+    have t : done[j]? = some true := by
+      rcases c with ⟨na, _⟩ | ⟨_, t⟩
+      · exact absurd yAssertion' na
+      · exact t
+    obtain ⟨named, atJ, entry⟩ := entry_of_get tableOk hy
+    exact fresh j named atJ ⟨i, (entry.1 yAssertion' i).mpr mi', inside⟩ t
+  case othersCover =>
+    intro x mx needed
+    rcases needed with ⟨na, nm⟩ | inRest
+    · obtain ⟨j, hx, -⟩ := mem_checked.mp mx
+      exact ⟨x, mem_checked.mpr ⟨j, hx, .inl ⟨na, nm⟩⟩, rfl⟩
+    · exact ⟨x, (List.mem_filter.mp inRest).1, rfl⟩
+
+/-- `parts_from` answers whether a closure of plain axioms, plain assertions
+    and axioms without meaning has a model, given that the axioms it has
+    checked so far have one: each part it checks holds copies of axioms of the
+    closure, and the parts of disjoint components combine. -/
+theorem parts_from_correct (items : alloc.vec.Vec AnnotatedAxiom) (table : alloc.vec.Vec (alloc.vec.Vec Individual))
+    (done : alloc.vec.Vec Bool) (rounds : Usize) (tableOk : TableOf items.val table.val) :
+    ∃ r, components.parts_from items table done rounds = .ok r ∧ ∀ answer, r = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native), Normative D → ∀ (V : Vocabulary), IsVocabulary D V →
+        Rowl.KeyEncoding.NamesKeyed V items.val → (∀ x ∈ items.val, ItemOk.{w} x) →
+        Consistent.{u, max w v, w} D V (checked items.val done.val) →
+        (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+  rw [components.parts_from]
+  obtain ⟨o, runOpen, noneFacts, someFacts⟩ := open_from_spec table 0#usize done
+  cases o with
+  | none =>
+    refine ⟨some true, by simp [runOpen], fun answer same => ?_⟩
+    simp only [Option.some.injEq] at same
+    subst same
+    intro Native D N V vocab keyed itemsOk consistent
+    simp only [true_iff]
+    refine consistent_cover (fun x mx meaningful => ⟨x, mem_checked.mpr ?_, rfl⟩) consistent
+    obtain ⟨j, hj, same⟩ := List.getElem_of_mem mx
+    have hx : items.val[j]? = some x := by rw [List.getElem?_eq_getElem hj, same]
+    refine ⟨j, hx, ?_⟩
+    by_cases assertion : IsAssertion x.axiom
+    · obtain ⟨named, atJ, entry⟩ := entry_of_get tableOk hx
+      obtain ⟨i, mi⟩ := assertion_names assertion
+      refine .inr ⟨assertion, noneFacts rfl j named (by simp) atJ ?_⟩
+      intro empty
+      have := (entry.1 assertion i).mpr mi
+      rw [empty] at this
+      cases this
+    · exact .inl ⟨assertion, meaningful⟩
+  | some opened =>
+    obtain ⟨named, atOpen, nonempty⟩ := someFacts opened rfl
+    have pos : 0 < named.val.length := List.length_pos_of_ne_nil nonempty
+    have lookupT : table.index_usize opened = .ok named := by
+      simp [alloc.vec.Vec.index_usize, atOpen]
+    have lookupS : named.index_usize 0#usize = .ok named.val[0] := by
+      simp [alloc.vec.Vec.index_usize, List.getElem?_eq_getElem pos]
+    obtain ⟨r1, run1, memberFacts⟩ := members_of_spec table named.val[0]
+    cases r1 with
+    | none => exact ⟨none, by simp [runOpen, lookupT, lookupS, run1], by simp⟩
+    | some members =>
+      obtain ⟨-, closed⟩ := memberFacts members rfl
+      obtain ⟨r2, run2, selectFacts⟩ := select_spec items table 0#usize members
+        (alloc.vec.Vec.new AnnotatedAxiom) tableOk
+      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
+      cases r2 with
+      | none => exact ⟨none, by simp [runOpen, lookupT, lookupS, run1, run2], by simp⟩
+      | some part =>
+        obtain ⟨sub0, sup, -⟩ := selectFacts part rfl
+        have sub : ∀ y ∈ part.val, ∃ x ∈ items.val, Kept members.val x.axiom ∧ y.axiom = x.axiom := by
+          intro y my
+          rcases sub0 y my with fresh | found
+          · simp at fresh
+          · exact found
+        have inside : ∀ y ∈ part.val, ∃ x ∈ items.val, x.axiom = y.axiom := fun y my => by
+          obtain ⟨x, mx, -, ax⟩ := sub y my
+          exact ⟨x, mx, ax.symm⟩
+        obtain ⟨r3, run3, consistentFacts⟩ := Rowl.DataOntology.consistent_correct.{u,v,w} part
+        cases r3 with
+        | none => exact ⟨none, by simp [runOpen, lookupT, lookupS, run1, run2, run3], by simp⟩
+        | some b =>
+          cases b with
+          | false =>
+            refine ⟨some false, by simp [runOpen, lookupT, lookupS, run1, run2, run3], fun answer same => ?_⟩
+            simp only [Option.some.injEq] at same
+            subst same
+            intro Native D N V vocab keyed _ _
+            simp only [Bool.false_eq_true, false_iff]
+            intro whole
+            have := (consistentFacts false rfl D N V vocab (keyed_inside inside keyed)).mpr
+              (consistent_inside inside whole)
+            cases this
+          | true =>
+            by_cases positive : 0 < rounds.val
+            · obtain ⟨r4, run4, markFacts⟩ := mark_spec table 0#usize members done
+              cases r4 with
+              | none => exact ⟨none, by simp [runOpen, lookupT, lookupS, run1, run2, run3, UScalar.lt_equiv,
+                  positive, run4], by simp⟩
+              | some done' =>
+                obtain ⟨grown, fresh⟩ := markFacts done' rfl
+                obtain ⟨fewer, subRun, fewerValue⟩ := WP.spec_imp_exists
+                  (Usize.sub_spec (x := rounds) (y := 1#usize) (by simp; omega))
+                have fewerIs : fewer.val = rounds.val - 1 := by simp at fewerValue; omega
+                obtain ⟨r, run, facts⟩ := parts_from_correct items table done' fewer tableOk
+                refine ⟨r, by simp [runOpen, lookupT, lookupS, run1, run2, run3, UScalar.lt_equiv, positive, run4,
+                  subRun, run], fun answer same => ?_⟩
+                intro Native D N V vocab keyed itemsOk consistent
+                refine facts answer same D N V vocab keyed itemsOk ?_
+                have consistentPart := (consistentFacts true rfl D N V vocab (keyed_inside inside keyed)).mp rfl
+                exact checked_step N vocab tableOk itemsOk closed sub sup grown
+                  (fun j named mj names => fresh j named (by simp) mj names) consistentPart consistent
+            · exact ⟨none, by simp [runOpen, lookupT, lookupS, run1, run2, run3, UScalar.lt_equiv, positive],
+                by simp⟩
+termination_by rounds.val
+decreasing_by omega
+
+/-- Consistency decided part by part: when `consistent_by_parts` answers, the
+    answer is whether the closure has a model, under every datatype map that
+    is the OWL 2 map on the datatypes of `datatypes` and for every vocabulary
+    that names the individuals of a closure with keys. -/
+theorem consistent_by_parts_correct (items : alloc.vec.Vec AnnotatedAxiom) :
+    ∃ result, components.consistent_by_parts items = .ok result ∧ ∀ answer, result = some answer →
+      ∀ {Native : Type w} (D : DatatypeMap Native) (_ : Normative D) (V : Vocabulary), IsVocabulary D V →
+        Rowl.KeyEncoding.NamesKeyed V items.val → (answer = true ↔ Consistent.{u, max w v, w} D V items.val) := by
+  rw [components.consistent_by_parts]
+  obtain ⟨b, runItems, itemsOk⟩ := plain_items_spec.{w} items 0#usize
+  simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at itemsOk
+  cases b with
+  | false => exact ⟨none, by simp [runItems], by simp⟩
+  | true =>
+    obtain ⟨r0, run0, tableFacts⟩ := individual_table_spec items 0#usize
+      (alloc.vec.Vec.new (alloc.vec.Vec Individual)) (by simp) (by simp)
+    cases r0 with
+    | none => exact ⟨none, by simp [runItems, run0], by simp⟩
+    | some table =>
+      have tableOk := table_of (tableFacts table rfl)
+      obtain ⟨r1, run1, selectFacts⟩ := select_spec items table 0#usize (alloc.vec.Vec.new Individual)
+        (alloc.vec.Vec.new AnnotatedAxiom) tableOk
+      simp only [show (0#usize).val = 0 from rfl, List.drop_zero] at selectFacts
+      cases r1 with
+      | none => exact ⟨none, by simp [runItems, run0, run1], by simp⟩
+      | some tbox =>
+        obtain ⟨sub0, sup, -⟩ := selectFacts tbox rfl
+        have inside : ∀ y ∈ tbox.val, ∃ x ∈ items.val, x.axiom = y.axiom := fun y my => by
+          rcases sub0 y my with fresh | ⟨x, mx, -, ax⟩
+          · simp at fresh
+          · exact ⟨x, mx, ax.symm⟩
+        obtain ⟨r2, run2, consistentFacts⟩ := Rowl.DataOntology.consistent_correct.{u,v,w} tbox
+        cases r2 with
+        | none => exact ⟨none, by simp [runItems, run0, run1, run2], by simp⟩
+        | some c =>
+          cases c with
+          | false =>
+            refine ⟨some false, by simp [runItems, run0, run1, run2], fun answer same => ?_⟩
+            simp only [Option.some.injEq] at same
+            subst same
+            intro Native D N V vocab keyed
+            simp only [Bool.false_eq_true, false_iff]
+            intro whole
+            have := (consistentFacts false rfl D N V vocab (keyed_inside inside keyed)).mpr
+              (consistent_inside inside whole)
+            cases this
+          | true =>
+            obtain ⟨flags, runFlags, noTrue⟩ := falses_spec (alloc.vec.Vec.len items) (alloc.vec.Vec.new Bool)
+            obtain ⟨r, run, facts⟩ := parts_from_correct.{u,v,w} items table flags (alloc.vec.Vec.len items)
+              tableOk
+            refine ⟨r, by simp [runItems, run0, run1, run2, runFlags, run], fun answer same => ?_⟩
+            intro Native D N V vocab keyed
+            refine facts answer same D N V vocab keyed (fun x mx => itemsOk rfl x mx) ?_
+            have tboxConsistent := (consistentFacts true rfl D N V vocab (keyed_inside inside keyed)).mp rfl
+            refine consistent_inside (fun y my => ?_) tboxConsistent
+            obtain ⟨j, hy, c⟩ := mem_checked.mp my
+            rcases c with ⟨na, nm⟩ | ⟨_, t⟩
+            · exact sup y (List.mem_of_getElem? hy) (.inr ⟨na, nm⟩)
+            · have := noTrue j t
+              simp at this
 
 end Rowl.Components

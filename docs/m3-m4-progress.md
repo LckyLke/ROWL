@@ -6464,3 +6464,57 @@ This block adds 6 public theorems (`join_model`, `satisfiable_part` and
 `part_satisfiable_correct` and `part_subsumed_correct` in `Rowl.Components`).
 Totals are 5433 audited theorems, 1809 definitions, 658 Rust regressions and
 5626 ledger obligations.
+
+## Performance: consistency part by part
+
+The consistency check ran one tableau over the whole closure, and every
+instance and class question waits for it: checking 300 medication-dose
+prescriptions took 1.5 s and 85 MB, and 800 records with age and dose groups
+6.2 s. The parts that answer instance questions answer consistency too: when
+the axioms other than assertions name no individual, the closure has a model
+exactly when those axioms have one together with each component of assertions,
+since models of parts that share no individual combine.
+
+`Rowl.Partition.join_model` now asks of the second model only the assertions of
+the rest and the meaningful axioms other than assertions. `consistent_join`
+combines a model of a part with a model of copies of the rest and of those
+axioms into a model of the closure, and `consistent_inside` and
+`consistent_cover` pass models between a closure and copies of its axioms or of
+its meaningful axioms. `components::consistent_by_parts` checks the closure as
+`component_closure` does and checks its axioms other than assertions; then,
+while some assertion is not done, it checks the part of the component of the
+first such assertion and marks the assertions of that component done. The
+individuals of each assertion are listed once, in a table
+(`individual_table_spec`), over which the component is grown and checked
+(`members_of_spec`, `closed_spec`), and `mark` refuses to mark an assertion
+twice (`mark_spec`), which keeps the parts apart. `parts_from_correct` carries
+the invariant that the axioms other than assertions together with the
+assertions done have a model, and `consistent_by_parts_correct` proves the
+answer to be whether the closure has a model, under every datatype map that is
+the OWL 2 map on the datatypes of `datatypes` and every vocabulary that names
+the individuals of a closure with keys. `Reasoner::consistent` asks it after
+saturation and before the whole tableau, and keeps the answer. The parts for
+instance questions and the axioms for class questions are selected through the
+same table, so they no longer list the individuals of every assertion again.
+
+| | before | after |
+| --- | --- | --- |
+| consistency, 300 medication-dose prescriptions | 1.52 s, 85 MB | 0.23 s, 13 MB |
+| consistency, 800 records with age and dose groups | 6.20 s, 119 MB | 0.98 s, 17 MB |
+| listing the 43 overdoses among 300 prescriptions | 2.74 s | 1.06 s |
+| listing the 73 overdoses among 200 records | 2.67 s | 1.14 s |
+| classification, 300 prescriptions | 1.63 s | 0.22 s |
+| classification, 800 records | 5.89 s | 0.79 s |
+
+The regression `consistency_part_by_part_is_consistency` compares the answer
+with that of the tableau over the whole closure for six closures: the two
+medication examples, eight generated records, the same records with a clash in
+one record, the medication-dose example made inconsistent by a hard maximum,
+and a closure without assertions.
+
+This block adds 11 public theorems (`consistent_inside`, `consistent_cover` and
+`consistent_join` in `Rowl.Partition`; `individual_table_spec`,
+`names_member_spec`, `members_of_spec`, `falses_spec`, `open_from_spec`,
+`mark_spec`, `parts_from_correct` and `consistent_by_parts_correct` in
+`Rowl.Components`) and 5 definitions. Totals are 5444 audited theorems, 1814
+definitions, 659 Rust regressions and 5637 ledger obligations.

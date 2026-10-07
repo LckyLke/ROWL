@@ -5598,6 +5598,9 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Partition.instance_part
 #print axioms Rowl.Partition.satisfiable_part
 #print axioms Rowl.Partition.subsumed_part
+#print axioms Rowl.Partition.consistent_inside
+#print axioms Rowl.Partition.consistent_cover
+#print axioms Rowl.Partition.consistent_join
 #print axioms Rowl.Components.standard_range_spec
 #print axioms Rowl.Components.plain_class_spec
 #print axioms Rowl.Components.plain_axiom_spec
@@ -5606,8 +5609,11 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.plain_question_spec
 #print axioms Rowl.Components.any_member_spec
 #print axioms Rowl.Components.all_members_spec
+#print axioms Rowl.Components.individual_table_spec
+#print axioms Rowl.Components.names_member_spec
 #print axioms Rowl.Components.component_total
 #print axioms Rowl.Components.closed_spec
+#print axioms Rowl.Components.members_of_spec
 #print axioms Rowl.Components.copy_range_eq
 #print axioms Rowl.Components.copy_class_eq
 #print axioms Rowl.Components.copy_axiom_spec
@@ -5618,6 +5624,11 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.tbox_closure_correct
 #print axioms Rowl.Components.part_satisfiable_correct
 #print axioms Rowl.Components.part_subsumed_correct
+#print axioms Rowl.Components.falses_spec
+#print axioms Rowl.Components.open_from_spec
+#print axioms Rowl.Components.mark_spec
+#print axioms Rowl.Components.parts_from_correct
+#print axioms Rowl.Components.consistent_by_parts_correct
 #print axioms Rowl.Owl.IsVocabulary
 #print axioms Rowl.Owl.IsInterpretation
 #print axioms Rowl.Owl.dataDenote
@@ -7427,3 +7438,8 @@ import Rowl.FunctionalScopes
 #print axioms Rowl.Components.ClassOk
 #print axioms Rowl.Components.ItemOk
 #print axioms Rowl.Components.ClosedUnder
+#print axioms Rowl.Components.Entry
+#print axioms Rowl.Components.TableOf
+#print axioms Rowl.Components.Names
+#print axioms Rowl.Components.Checked
+#print axioms Rowl.Components.checked

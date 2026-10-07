@@ -6518,7 +6518,10 @@
         "Rowl.Partition.join_model",
         "Rowl.Partition.instance_part",
         "Rowl.Partition.satisfiable_part",
-        "Rowl.Partition.subsumed_part"
+        "Rowl.Partition.subsumed_part",
+        "Rowl.Partition.consistent_inside",
+        "Rowl.Partition.consistent_cover",
+        "Rowl.Partition.consistent_join"
       ]
     },
     {
@@ -6533,8 +6536,11 @@
         "Rowl.Components.plain_question_spec",
         "Rowl.Components.any_member_spec",
         "Rowl.Components.all_members_spec",
+        "Rowl.Components.individual_table_spec",
+        "Rowl.Components.names_member_spec",
         "Rowl.Components.component_total",
         "Rowl.Components.closed_spec",
+        "Rowl.Components.members_of_spec",
         "Rowl.Components.copy_range_eq",
         "Rowl.Components.copy_class_eq",
         "Rowl.Components.copy_axiom_spec",
@@ -6544,7 +6550,12 @@
         "Rowl.Components.part_instance_correct",
         "Rowl.Components.tbox_closure_correct",
         "Rowl.Components.part_satisfiable_correct",
-        "Rowl.Components.part_subsumed_correct"
+        "Rowl.Components.part_subsumed_correct",
+        "Rowl.Components.falses_spec",
+        "Rowl.Components.open_from_spec",
+        "Rowl.Components.mark_spec",
+        "Rowl.Components.parts_from_correct",
+        "Rowl.Components.consistent_by_parts_correct"
       ]
     }
   ],
@@ -8357,6 +8368,11 @@
     "Rowl.Components.Normal",
     "Rowl.Components.ClassOk",
     "Rowl.Components.ItemOk",
-    "Rowl.Components.ClosedUnder"
+    "Rowl.Components.ClosedUnder",
+    "Rowl.Components.Entry",
+    "Rowl.Components.TableOf",
+    "Rowl.Components.Names",
+    "Rowl.Components.Checked",
+    "Rowl.Components.checked"
   ]
 }

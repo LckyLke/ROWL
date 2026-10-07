@@ -13,7 +13,9 @@
 //! out answers; it adds no reasoning of its own. `dl_violation` reports, in
 //! words, the verdict of the verified OWL 2 DL check `dl_validity::check_ontology`.
 use rowl_kernel::classification::classify;
-use rowl_kernel::components::{component_closure, plain_question, tbox_closure};
+use rowl_kernel::components::{
+    component_closure, consistent_by_parts, plain_question, tbox_closure,
+};
 use rowl_kernel::data_ontology::{
     prepare, prepared_class_satisfiable, prepared_consistent, prepared_instance_of,
     prepared_subsumed, Prepared,
@@ -724,12 +726,16 @@ impl Reasoner {
         &self.ontology
     }
     /// Whether the axioms have a model; an EL ontology is answered by
-    /// saturation without preparing the queries. The answer is computed on the
-    /// first call and kept.
+    /// saturation without preparing the queries, and a closure that falls
+    /// apart along its assertions part by part (`consistent_by_parts`). The
+    /// answer is computed on the first call and kept.
     pub fn consistent(&self) -> Option<bool> {
         *self.consistency.get_or_init(|| {
             if let Some(answer) = on_kernel_stack(|| saturation::consistent(&self.ontology.axioms))
             {
+                return Some(answer);
+            }
+            if let Some(answer) = on_kernel_stack(|| consistent_by_parts(&self.ontology.axioms)) {
                 return Some(answer);
             }
             let prepared = self.queries()?;

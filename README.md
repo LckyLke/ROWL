@@ -227,7 +227,7 @@ they say:
   RDF/XML). Whenever it finishes, its result is proved correct. These are facts
   about the mathematics of the code; they do not bound time or memory.
 - **No gaps in the proofs.** No `sorry`, no admitted lemma, no custom axiom.
-  `scripts/verify.py` checks that each of the 5433 public theorems and 1809
+  `scripts/verify.py` checks that each of the 5444 public theorems and 1814
   semantic definitions depends only on Lean's three standard axioms
   (`propext`, `Classical.choice` and `Quot.sound`).
 
@@ -362,7 +362,7 @@ remaining formats (reading N-Quads, TriG, JSON-LD and RDFa; writing RDF/XML,
 N-Quads, TriG and JSON-LD), entailment of named facts, typed outcomes for
 cancellation and exhausted resources, and one proved composition from the
 input bytes to the answers that covers all of it. The release ledger,
-[`docs/coverage.json`](docs/coverage.json), tracks 5626 obligations; 215 of
+[`docs/coverage.json`](docs/coverage.json), tracks 5637 obligations; 215 of
 them are still open. The next steps are in
 [docs/status.md](docs/status.md#next-milestones), and the milestones and
 release gates in [docs/architecture.md](docs/architecture.md#milestones).
@@ -414,17 +414,18 @@ Measured on a shared development machine; the
   Functional Syntax, in 0.4 to 0.7 s from Turtle or N-Triples, and in 1.3 s
   from its 7.9 MB RDF/XML form.
 - Ontologies outside EL go to the tableau procedures, which are slower. For
-  ontologies of independent records, instance questions ask only the record's
-  part and class questions only the axioms other than assertions: for 100
-  medication-dose prescriptions, listing the overdoses takes 0.4 s and
-  classifying the classes 0.3 s. Other performance work is in progress.
+  ontologies of independent records, consistency is checked record by record,
+  instance questions ask only the record's part and class questions only the
+  axioms other than assertions: for 300 medication-dose prescriptions, the
+  consistency check takes 0.2 s, listing the overdoses 1.1 s and classifying
+  the classes 0.2 s. Other performance work is in progress.
 
 ## Check the proofs yourself
 
 ```sh
 python3 scripts/bootstrap.py   # pinned Rust, Lean 4 and Aeneas (Linux x86_64, Python 3.12+)
 export PATH="$HOME/.cargo/bin:$HOME/.elan/bin:$PATH"
-cargo test --workspace         # 658 Rust regression tests
+cargo test --workspace         # 659 Rust regression tests
 python3 scripts/verify.py      # translate the Rust code again, rebuild every proof, audit the axioms
 ```
 

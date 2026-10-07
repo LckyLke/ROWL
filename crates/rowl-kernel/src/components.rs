@@ -38,11 +38,13 @@
     clippy::collapsible_match,
     clippy::redundant_pattern_matching,
     clippy::len_zero,
-    clippy::if_same_then_else
+    clippy::if_same_then_else,
+    clippy::question_mark,
+    clippy::collapsible_if
 )] // Indexed operations and explicit branches for the pinned extraction subset.
 use crate::alc_ontology::{intern, position};
 use crate::concepts::{copy_individual, copy_role};
-use crate::data_ontology::{axiom_individuals, is_literal, is_top_data, universal};
+use crate::data_ontology::{axiom_individuals, consistent, is_literal, is_top_data, universal};
 use crate::datatypes::{facet_of, kind_of, literal_value, numeric};
 use crate::model::{
     AnnotatedAxiom, AtLeastTwo, Axiom, Class, ClassExpression, DataProperty, DataRange, Datatype,
@@ -526,44 +528,70 @@ fn add_all(
         Some(members)
     }
 }
-/// `members` with the individuals of every assertion of `items[index..]` that
+/// `out` with the individuals of each axiom of `items[index..]`: those it
+/// names when it is an assertion, and none otherwise; `None` when there is no
+/// room.
+fn individual_table(
+    items: &Vec<AnnotatedAxiom>,
+    index: usize,
+    mut out: Vec<Vec<Individual>>,
+) -> Option<Vec<Vec<Individual>>> {
+    if index < items.len() {
+        let named = if assertion(&items[index].axiom) {
+            match axiom_individuals(Vec::new(), &items[index].axiom) {
+                Some(named) => named,
+                None => return None,
+            }
+        } else {
+            Vec::new()
+        };
+        if out.len() < usize::MAX {
+            out.push(named);
+            individual_table(items, index + 1, out)
+        } else {
+            None
+        }
+    } else {
+        Some(out)
+    }
+}
+/// Whether the axiom at `index` names a member, by the table.
+fn names_member(table: &Vec<Vec<Individual>>, index: usize, members: &Vec<Individual>) -> bool {
+    if index < table.len() {
+        any_member(members, &table[index], 0)
+    } else {
+        false
+    }
+}
+/// `members` with the individuals of every axiom of `table[index..]` that
 /// names a member; `None` when there is no room.
 fn grow(
-    items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
     index: usize,
     members: Vec<Individual>,
 ) -> Option<Vec<Individual>> {
-    if index < items.len() {
-        if assertion(&items[index].axiom) {
-            match axiom_individuals(Vec::new(), &items[index].axiom) {
-                Some(named) => {
-                    if any_member(&members, &named, 0) {
-                        match add_all(members, &named, 0) {
-                            Some(members) => grow(items, index + 1, members),
-                            None => None,
-                        }
-                    } else {
-                        grow(items, index + 1, members)
-                    }
-                }
+    if index < table.len() {
+        if any_member(&members, &table[index], 0) {
+            match add_all(members, &table[index], 0) {
+                Some(members) => grow(table, index + 1, members),
                 None => None,
             }
         } else {
-            grow(items, index + 1, members)
+            grow(table, index + 1, members)
         }
     } else {
         Some(members)
     }
 }
-/// The members, grown in rounds over the assertions until a round adds no
+/// The members, grown in rounds over the table until a round adds no
 /// individual, within `rounds` more rounds and `MEMBERS` individuals.
 fn component(
-    items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
     members: Vec<Individual>,
     rounds: usize,
 ) -> Option<Vec<Individual>> {
     let before = members.len();
-    match grow(items, 0, members) {
+    match grow(table, 0, members) {
         Some(members) => {
             if members.len() == before {
                 Some(members)
@@ -572,13 +600,12 @@ fn component(
             } else if MEMBERS < members.len() {
                 None
             } else {
-                component(items, members, rounds - 1)
+                component(table, members, rounds - 1)
             }
         }
         None => None,
     }
 }
-
 /// Whether every individual of `named[index..]` is a member.
 fn all_members(members: &Vec<Individual>, named: &Vec<Individual>, index: usize) -> bool {
     if index < named.len() {
@@ -591,30 +618,41 @@ fn all_members(members: &Vec<Individual>, named: &Vec<Individual>, index: usize)
         true
     }
 }
-/// Whether every assertion of `items[index..]` that names a member names only
-/// members; `None` when there is no room.
-fn closed(items: &Vec<AnnotatedAxiom>, index: usize, members: &Vec<Individual>) -> Option<bool> {
-    if index < items.len() {
-        if assertion(&items[index].axiom) {
-            match axiom_individuals(Vec::new(), &items[index].axiom) {
-                Some(named) => {
-                    if any_member(members, &named, 0) {
-                        if all_members(members, &named, 0) {
-                            closed(items, index + 1, members)
-                        } else {
-                            Some(false)
-                        }
-                    } else {
-                        closed(items, index + 1, members)
-                    }
-                }
-                None => None,
+/// Whether every axiom of `table[index..]` that names a member names only
+/// members.
+fn closed(table: &Vec<Vec<Individual>>, index: usize, members: &Vec<Individual>) -> bool {
+    if index < table.len() {
+        if any_member(members, &table[index], 0) {
+            if all_members(members, &table[index], 0) {
+                closed(table, index + 1, members)
+            } else {
+                false
             }
         } else {
-            closed(items, index + 1, members)
+            closed(table, index + 1, members)
         }
     } else {
-        Some(true)
+        true
+    }
+}
+/// The component of `start`, checked: it holds `start`, and every axiom of
+/// the table that names a member names only members.
+fn members_of(table: &Vec<Vec<Individual>>, start: &Individual) -> Option<Vec<Individual>> {
+    let mut first = Vec::new();
+    first.push(copy_individual(start));
+    match component(table, first, ROUNDS) {
+        Some(members) => {
+            if position(&members, start, 0) != 0 {
+                if closed(table, 0, &members) {
+                    Some(members)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        None => None,
     }
 }
 
@@ -1052,43 +1090,46 @@ fn copy_axiom(axiom: &Axiom) -> Option<Axiom> {
 // The part
 // ---------------------------------------------------------------------------
 
-/// Whether the part keeps the axiom: a meaningful axiom that is no assertion,
-/// or an assertion that names a member.
-fn kept(axiom: &Axiom, members: &Vec<Individual>) -> Option<bool> {
-    if assertion(axiom) {
-        match axiom_individuals(Vec::new(), axiom) {
-            Some(named) => Some(any_member(members, &named, 0)),
-            None => None,
-        }
+/// Whether a part keeps the axiom at `index`: a meaningful axiom that is no
+/// assertion, or an assertion that names a member.
+fn kept(
+    items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
+    index: usize,
+    members: &Vec<Individual>,
+) -> bool {
+    if assertion(&items[index].axiom) {
+        names_member(table, index, members)
     } else {
-        Some(!meaningless(axiom))
+        !meaningless(&items[index].axiom)
     }
 }
-/// `out` with copies of the axioms of `items[index..]` that the part keeps.
+/// `out` with copies of the axioms of `items[index..]` that a part keeps.
 fn select(
     items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
     index: usize,
     members: &Vec<Individual>,
     mut out: Vec<AnnotatedAxiom>,
 ) -> Option<Vec<AnnotatedAxiom>> {
     if index < items.len() {
-        match kept(&items[index].axiom, members) {
-            Some(true) => match copy_axiom(&items[index].axiom) {
+        if kept(items, table, index, members) {
+            match copy_axiom(&items[index].axiom) {
                 Some(copied) => {
                     if out.len() < usize::MAX {
                         out.push(AnnotatedAxiom {
                             annotations: Vec::new(),
                             axiom: copied,
                         });
-                        select(items, index + 1, members, out)
+                        select(items, table, index + 1, members, out)
                     } else {
                         None
                     }
                 }
                 None => None,
-            },
-            Some(false) => select(items, index + 1, members, out),
-            None => None,
+            }
+        } else {
+            select(items, table, index + 1, members, out)
         }
     } else {
         Some(out)
@@ -1102,23 +1143,14 @@ pub fn component_closure(
     individual: &NamedIndividual,
 ) -> Option<Vec<AnnotatedAxiom>> {
     if plain_items(items, 0) {
-        let named = Individual::Named(NamedIndividual {
-            iri: copy_iri(&individual.iri),
-        });
-        let mut start = Vec::new();
-        start.push(Individual::Named(NamedIndividual {
-            iri: copy_iri(&individual.iri),
-        }));
-        match component(items, start, ROUNDS) {
-            Some(members) => {
-                if position(&members, &named, 0) != 0 {
-                    match closed(items, 0, &members) {
-                        Some(true) => select(items, 0, &members, Vec::new()),
-                        Some(false) => None,
-                        None => None,
-                    }
-                } else {
-                    None
+        match individual_table(items, 0, Vec::new()) {
+            Some(table) => {
+                let start = Individual::Named(NamedIndividual {
+                    iri: copy_iri(&individual.iri),
+                });
+                match members_of(&table, &start) {
+                    Some(members) => select(items, &table, 0, &members, Vec::new()),
+                    None => None,
                 }
             }
             None => None,
@@ -1134,8 +1166,140 @@ pub fn component_closure(
 /// has the same answer for them as for the closure.
 pub fn tbox_closure(items: &Vec<AnnotatedAxiom>) -> Option<Vec<AnnotatedAxiom>> {
     if plain_items(items, 0) {
-        let members = Vec::new();
-        select(items, 0, &members, Vec::new())
+        match individual_table(items, 0, Vec::new()) {
+            Some(table) => {
+                let members = Vec::new();
+                select(items, &table, 0, &members, Vec::new())
+            }
+            None => None,
+        }
+    } else {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Consistency part by part
+// ---------------------------------------------------------------------------
+
+/// `out` with `count` more flags that are false.
+fn falses(count: usize, mut out: Vec<bool>) -> Vec<bool> {
+    if 0 < count {
+        if out.len() < usize::MAX {
+            out.push(false);
+            falses(count - 1, out)
+        } else {
+            out
+        }
+    } else {
+        out
+    }
+}
+/// The first index of `table[index..]` of an axiom that names an individual
+/// and is not done.
+fn open_from(table: &Vec<Vec<Individual>>, index: usize, done: &Vec<bool>) -> Option<usize> {
+    if index < table.len() {
+        if 0 < table[index].len() {
+            if index < done.len() {
+                if done[index] {
+                    open_from(table, index + 1, done)
+                } else {
+                    Some(index)
+                }
+            } else {
+                Some(index)
+            }
+        } else {
+            open_from(table, index + 1, done)
+        }
+    } else {
+        None
+    }
+}
+/// `done` with every axiom of `table[index..]` that names a member done;
+/// `None` when one of them is done already.
+fn mark(
+    table: &Vec<Vec<Individual>>,
+    index: usize,
+    members: &Vec<Individual>,
+    mut done: Vec<bool>,
+) -> Option<Vec<bool>> {
+    if index < table.len() {
+        if any_member(members, &table[index], 0) {
+            if index < done.len() {
+                if done[index] {
+                    None
+                } else {
+                    done[index] = true;
+                    mark(table, index + 1, members, done)
+                }
+            } else {
+                mark(table, index + 1, members, done)
+            }
+        } else {
+            mark(table, index + 1, members, done)
+        }
+    } else {
+        Some(done)
+    }
+}
+/// Whether a closure of plain axioms, plain assertions and axioms without
+/// meaning has a model, given that its axioms other than assertions together
+/// with its assertions that are done have one: the part of the component of
+/// the first assertion that is not done, then the next, within `rounds`
+/// parts.
+fn parts_from(
+    items: &Vec<AnnotatedAxiom>,
+    table: &Vec<Vec<Individual>>,
+    done: Vec<bool>,
+    rounds: usize,
+) -> Option<bool> {
+    match open_from(table, 0, &done) {
+        Some(open) => match members_of(table, &table[open][0]) {
+            Some(members) => match select(items, table, 0, &members, Vec::new()) {
+                Some(part) => match consistent(&part) {
+                    Some(true) => {
+                        if 0 < rounds {
+                            match mark(table, 0, &members, done) {
+                                Some(done) => parts_from(items, table, done, rounds - 1),
+                                None => None,
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    Some(false) => Some(false),
+                    None => None,
+                },
+                None => None,
+            },
+            None => None,
+        },
+        None => Some(true),
+    }
+}
+/// Whether the closure has a model, decided part by part when every axiom is
+/// plain, a plain assertion or without meaning: first its axioms other than
+/// assertions, then the part of each component of assertions, which holds
+/// those axioms too.
+pub fn consistent_by_parts(items: &Vec<AnnotatedAxiom>) -> Option<bool> {
+    if plain_items(items, 0) {
+        match individual_table(items, 0, Vec::new()) {
+            Some(table) => {
+                let members = Vec::new();
+                match select(items, &table, 0, &members, Vec::new()) {
+                    Some(tbox) => match consistent(&tbox) {
+                        Some(true) => {
+                            parts_from(items, &table, falses(items.len(), Vec::new()), items.len())
+                        }
+                        Some(false) => Some(false),
+                        None => None,
+                    },
+                    None => None,
+                }
+            }
+            None => None,
+        }
     } else {
         None
     }

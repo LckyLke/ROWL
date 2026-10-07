@@ -1570,9 +1570,10 @@ private theorem model_part {Native : Type w} {D : DatatypeMap Native} {V : Vocab
 
 /-- When the axioms other than assertions are plain and a closure's assertions
     fall into a part and a rest that share no individual, a model of the part
-    and a model of the closure combine into a model of the closure, with the
-    model of the part on the left. The part may hold copies of the closure's
-    axioms, and the rest may also hold axioms without meaning. -/
+    and a model of the rest and of the meaningful axioms other than assertions
+    combine into a model of the closure, with the model of the part on the
+    left. The part may hold copies of the closure's axioms, and the rest may
+    also hold axioms without meaning. -/
 theorem join_model (vocab : IsVocabulary D V) {items part rest : List AnnotatedAxiom}
     (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
     (plain : ∀ x ∈ items, ¬ IsAssertion x.axiom → PlainAxiom D V x.axiom)
@@ -1583,7 +1584,8 @@ theorem join_model (vocab : IsVocabulary D V) {items part rest : List AnnotatedA
     {O1 O2 : Type u} {V1 V2 : Type v} {e1 : ValueEmbedding D V1} {e2 : ValueEmbedding D V2}
     {I1 : Interpretation O1 V1} {I2 : Interpretation O2 V2}
     (h1 : IsInterpretation D e1 V I1) (sat1 : satisfiesClosure I1 part)
-    (h2 : IsInterpretation D e2 V I2) (sat2 : satisfiesClosure I2 items) :
+    (h2 : IsInterpretation D e2 V I2)
+    (sat2 : ∀ x ∈ items, (¬ IsAssertion x.axiom ∧ ¬ Meaningless x.axiom) ∨ x ∈ rest → satisfies I2 x.axiom) :
     Model D (leftEmbedding e1) V (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom) I1 I2) items := by
   refine ⟨vocab, join_interpretation V e1 e2 _ _ _ h1 h2,
     (join e1 e2 (fun i => ¬ ∃ y ∈ rest, i ∈ axiomIndividuals y.axiom) I1 I2).anonymousIndividuals, ?_⟩
@@ -1597,11 +1599,14 @@ theorem join_model (vocab : IsVocabulary D V) {items part rest : List AnnotatedA
         (fun i mi ⟨z, mz, mi'⟩ => apart y inPart (same ▸ assertion) z mz i (same ▸ mi) mi')
         (asserted x member assertion) sy
     · exact join_right_assertion vocab h1 h2 x.axiom assertion
-        (fun i mi other => other ⟨x, inRest, mi⟩) (asserted x member assertion) (sat2 x member)
+        (fun i mi other => other ⟨x, inRest, mi⟩) (asserted x member assertion) (sat2 x member (.inr inRest))
   · rcases cover x member with ⟨y, inPart, same⟩ | inRest
-    · have sy := sat1 y inPart
+    · by_cases meaningless : Meaningless x.axiom
+      · exact meaningless_satisfied _ meaningless
+      have sy := sat1 y inPart
       rw [same] at sy
-      exact join_plain vocab h1 h2 x.axiom (plain x member assertion) sy (sat2 x member)
+      exact join_plain vocab h1 h2 x.axiom (plain x member assertion) sy
+        (sat2 x member (.inl ⟨assertion, meaningless⟩))
     · rcases restKinds x inRest with isAssertion | meaningless
       · exact absurd isAssertion assertion
       · exact meaningless_satisfied _ meaningless
@@ -1637,7 +1642,7 @@ theorem instance_part (vocab : IsVocabulary D V) {items part rest : List Annotat
     by_contra notIn
     obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
     have model := join_model vocab cover plain asserted restKinds apart
-      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 (fun x mx _ => sat2 x mx)
     have holds := entailed (O1 ⊕ O2) (V1 ⊕ V2) (leftEmbedding e1) _ model
     have aLeft : ¬ ∃ y ∈ rest, Individual.Named a ∈ axiomIndividuals y.axiom :=
       fun ⟨y, my, mi⟩ => aApart y my mi
@@ -1668,7 +1673,7 @@ theorem satisfiable_part (vocab : IsVocabulary D V) {items part rest : List Anno
   · rintro ⟨O1, V1, e1, I1, ⟨_, h1, asg1, sat1⟩, x, member⟩
     obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
     have model := join_model vocab cover plain asserted restKinds apart
-      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 (fun x mx _ => sat2 x mx)
     exact ⟨O1 ⊕ O2, V1 ⊕ V2, leftEmbedding e1, _, model, .inl x, (left_class asg1 closed x).mpr member⟩
 
 /-- Under the same conditions, one closed class expression is subsumed by
@@ -1689,11 +1694,56 @@ theorem subsumed_part (vocab : IsVocabulary D V) {items part rest : List Annotat
     obtain ⟨_, h1, asg1, sat1⟩ := model1
     obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistent
     have model := join_model vocab cover plain asserted restKinds apart
-      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 sat2
+      (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 (fun x mx _ => sat2 x mx)
     have inB := sub (O1 ⊕ O2) (V1 ⊕ V2) (leftEmbedding e1) _ model (.inl x) ((left_class asg1 closedA x).mpr inA)
     exact (left_class asg1 closedB x).mp inB
   · intro sub O W emb I model x inA
     exact sub O W emb I (model_part inside model) x inA
+
+/-! ## Consistency part by part -/
+
+/-- A closure with a model gives a model to copies of some of its axioms. -/
+theorem consistent_inside {items part : List AnnotatedAxiom}
+    (inside : ∀ y ∈ part, ∃ x ∈ items, x.axiom = y.axiom)
+    (consistent : Consistent.{u,v,w} D V items) : Consistent.{u,v,w} D V part := by
+  obtain ⟨O, W, emb, I, model⟩ := consistent
+  exact ⟨O, W, emb, I, model_part inside model⟩
+
+/-- A model of copies of the axioms of a closure that mean something is a
+    model of the closure. -/
+theorem consistent_cover {items part : List AnnotatedAxiom}
+    (cover : ∀ x ∈ items, ¬ Meaningless x.axiom → ∃ y ∈ part, y.axiom = x.axiom)
+    (consistent : Consistent.{u,v,w} D V part) : Consistent.{u,v,w} D V items := by
+  obtain ⟨O, W, emb, I, vocab', h, asg, sat⟩ := consistent
+  refine ⟨O, W, emb, I, vocab', h, asg, fun x member => ?_⟩
+  by_cases meaningless : Meaningless x.axiom
+  · exact meaningless_satisfied _ meaningless
+  · obtain ⟨y, my, same⟩ := cover x member meaningless
+    rw [← same]
+    exact sat y my
+
+/-- When the axioms other than assertions are plain and a closure's assertions
+    fall into a part and a rest that share no individual, the closure has a
+    model when the part has one and copies of the rest and of the meaningful
+    axioms other than assertions have one. -/
+theorem consistent_join (vocab : IsVocabulary D V) {items part rest others : List AnnotatedAxiom}
+    (cover : ∀ x ∈ items, (∃ y ∈ part, y.axiom = x.axiom) ∨ x ∈ rest)
+    (plain : ∀ x ∈ items, ¬ IsAssertion x.axiom → PlainAxiom D V x.axiom)
+    (asserted : ∀ x ∈ items, IsAssertion x.axiom → PlainAssertion D V x.axiom)
+    (restKinds : ∀ x ∈ rest, IsAssertion x.axiom ∨ Meaningless x.axiom)
+    (apart : ∀ x ∈ part, IsAssertion x.axiom → ∀ y ∈ rest, ∀ i ∈ axiomIndividuals x.axiom,
+      i ∉ axiomIndividuals y.axiom)
+    (othersCover : ∀ x ∈ items, (¬ IsAssertion x.axiom ∧ ¬ Meaningless x.axiom) ∨ x ∈ rest →
+      ∃ y ∈ others, y.axiom = x.axiom)
+    (consistentPart : Consistent.{u,v,w} D V part) (consistentOthers : Consistent.{u,v,w} D V others) :
+    Consistent.{u,v,w} D V items := by
+  obtain ⟨O1, V1, e1, I1, _, h1, asg1, sat1⟩ := consistentPart
+  obtain ⟨O2, V2, e2, I2, _, h2, asg2, sat2⟩ := consistentOthers
+  refine ⟨O1 ⊕ O2, V1 ⊕ V2, leftEmbedding e1, _, join_model vocab cover plain asserted restKinds apart
+    (I1 := withAnonymous I1 asg1) (I2 := withAnonymous I2 asg2) h1 sat1 h2 (fun x mx needed => ?_)⟩
+  obtain ⟨y, my, same⟩ := othersCover x mx needed
+  rw [← same]
+  exact sat2 y my
 
 end Main
 

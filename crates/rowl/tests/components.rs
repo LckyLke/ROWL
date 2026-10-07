@@ -1,6 +1,8 @@
-use rowl::experimental::components::{component_closure, plain_question, tbox_closure};
+use rowl::experimental::components::{
+    component_closure, consistent_by_parts, plain_question, tbox_closure,
+};
 use rowl::experimental::data_ontology::{
-    prepare, prepared_class_satisfiable, prepared_instance_of, prepared_subsumed,
+    consistent, prepare, prepared_class_satisfiable, prepared_instance_of, prepared_subsumed,
 };
 use rowl::experimental::model::{Iri, NamedIndividual};
 use rowl::reasoner::{default_limits, named, Reasoner};
@@ -158,4 +160,51 @@ fn the_axioms_other_than_assertions_answer_class_questions_like_the_closure() {
         }
     }
     assert!(compared > 100, "the examples must have classes to compare");
+}
+
+#[test]
+fn consistency_part_by_part_is_consistency() {
+    let generated = records(8);
+    // The same records with one age group in both disjoint classes.
+    let clash = generated.replace(
+        "ClassAssertion(:Old :a5)",
+        "ClassAssertion(:Old :a5)\nClassAssertion(:Young :a5)",
+    );
+    assert_ne!(clash, generated);
+    let dose = include_str!("../../../examples/medication-dose.ofn");
+    let capped = dose.replacen(
+        "\n)",
+        "\nSubClassOf(:Paracetamol DataAllValuesFrom(:dailyDoseMg DatatypeRestriction(xsd:decimal xsd:maxInclusive \"4000\"^^xsd:decimal)))\n)",
+        1,
+    );
+    let sources: [&[u8]; 6] = [
+        include_bytes!("../../../examples/medication-dose.ofn"),
+        include_bytes!("../../../examples/medication-safety.ofn"),
+        generated.as_bytes(),
+        clash.as_bytes(),
+        capped.as_bytes(),
+        b"Prefix(:=<https://example.org/t/>)\nOntology(<https://example.org/t/onto>\nSubClassOf(:A :B)\n)\n",
+    ];
+    let mut answers = Vec::new();
+    for source in sources {
+        let Ok(reasoner) = Reasoner::from_functional(source, &default_limits()) else {
+            panic!("the document must load");
+        };
+        let axioms = &reasoner.ontology().axioms;
+        let by_parts = consistent_by_parts(axioms);
+        assert!(by_parts.is_some(), "the closure falls apart");
+        assert_eq!(by_parts, consistent(axioms));
+        answers.push(by_parts);
+    }
+    assert_eq!(
+        answers,
+        vec![
+            Some(true),
+            Some(true),
+            Some(true),
+            Some(false),
+            Some(false),
+            Some(true)
+        ]
+    );
 }
