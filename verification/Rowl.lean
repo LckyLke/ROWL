@@ -24,6 +24,10 @@ import Rowl.LangTag
 import Rowl.NTriples
 import Rowl.RdfMapping
 import Rowl.RdfMappingComplete
+import Rowl.RdfReadIndexes
+import Rowl.RdfReadExpressions
+import Rowl.RdfReadAxioms
+import Rowl.RdfReadOntology
 import Rowl.TopData
 import Rowl.Roles
 import Rowl.AnonymousGraph

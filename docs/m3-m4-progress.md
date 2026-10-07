@@ -4662,3 +4662,69 @@ blocks list their forward mappings in this order.
 
 This block adds 110 public theorems and 5 definitions. Totals are 2728 audited
 theorems, 1181 definitions, 521 Rust regressions and 2921 ledger obligations.
+
+## M3: reading every unannotated readable ontology back
+
+The completeness of the reverse RDF mapping now covers far more than the EL
+fragment. Four new modules prove it: `RdfReadIndexes.lean` (the indexes and the
+lookups, for triples at arbitrary positions), `RdfReadExpressions.lean` (every
+expression reader), `RdfReadAxioms.lean` (every axiom reader) and
+`RdfReadOntology.lean` (the header, the axiom loop and the main theorem).
+`RdfReadOntology.map_graph_complete`: for every `ReadableOntology`, a graph that
+lists the triples of its forward mapping (`TOntology` of `RdfMapping.lean`) in
+its order, with blank nodes distinct from each other and from the anonymous
+individuals its assertions are about (`FreshSupply`), is mapped to exactly that
+ontology, version IRI and imports included, with exactly those blank nodes. The
+Rust code is unchanged.
+
+`ReadableOntology` asks for the reserved-vocabulary condition of OWL 2 DL
+(`VocabularyOK`) and the typing constraints the reader relies on (`KindTyped`:
+every property used is declared or built in as one kind of property only, and no
+class is typed as a datatype, so that the reader tells an equivalence of classes
+from a datatype definition); no ontology annotations, and no annotation
+assertion about the ontology IRI, which the reader takes as an ontology
+annotation; and unannotated axioms that are `AxiomReadable`. That covers every
+kind of axiom, with class expressions (`ClassReadable`) and data ranges
+(`RangeReadable`) of every kind, except three forms that the mapping writes as
+triples of other axioms: equivalences of classes or properties and equalities of
+individuals of three or more members (written as pairwise triples, read back as
+pairwise axioms), inverse-property axioms whose first member is an inverse
+(written about a blank node, which the reader takes for an inverse property
+expression), and object property assertions on an inverse (written as an
+assertion on the property itself). Literals must not be `rdf:PlainLiteral` with
+an empty language tag (written as `xsd:string`), cardinalities are at most 10000
+(`CARDINALITY_LIMIT`), facets are those of OWL 2 (`owl2Facets`), and the datatype
+of a datatype definition is declared or built in.
+
+The proof works with blocks of triples at arbitrary positions rather than
+consecutive ones (`Ready`, `At`): the subject index is complete, the positions of
+a block are unused and hold its patterns, and every unused triple about one of
+its blank nodes is at one of its positions. On that footing every expression
+reader is complete (`class_reads` and `range_reads`, mutually recursive over all
+class expressions and data ranges, the list readers `cells_complete`,
+`class_list2_complete`, `property_list2_complete`, `data_list2_complete`,
+`key_members_complete` and the rest), and so is every axiom reader, from its main
+triple, through the dispatch on predicate and type (`read_axiom_*`, `typing_*`),
+using exactly the positions of its block and recording exactly its blank nodes,
+without annotations (`annotate_plain`, and `annotate_blank` for the axioms that a
+blank node represents): `axiom_reads`. `block_shape` describes the triples of
+each block, `graph_kinds` shows that the declarations of the graph type every IRI
+as the ontology does, `header_parts_imports` reads the imports, and
+`axioms_loop` runs the reader's loop over blocks in the order of their main
+triples, passing over used triples and over triples of later blocks.
+
+Not proved: annotated axioms and ontology annotations, graphs in another order
+(`axioms_loop` already allows triples of a block before its main triple, provided
+the reader passes over them, which is not yet shown), several reifications of one
+main triple, imports closure, and RDF datasets. The EL theorem of
+`RdfMappingComplete.lean` stays for EL ontologies that do not satisfy the
+vocabulary conditions.
+
+The regression test `readable_graphs_in_forward_order_read_back_exactly` reads
+`examples/dosing.nt`, the forward mapping of `examples/dosing.ofn` with every kind
+of axiom, class expression and data range, and checks that it reads back to the
+ontology the Functional Syntax reader reads from `dosing.ofn`, axiom by axiom,
+with the 71 blank nodes in allocation order.
+
+This block adds 479 public theorems and 15 definitions. Totals are 3207 audited
+theorems, 1196 definitions, 522 Rust regressions and 3400 ledger obligations.

@@ -1,6 +1,11 @@
+use rowl_kernel::axiom_equality::same_axiom;
 use rowl_kernel::data_ontology::{
     prepare, prepared_consistent, prepared_instance_of, prepared_subsumed,
 };
+use rowl_kernel::functional_annotations::AnnotationLimits;
+use rowl_kernel::functional_classes::ClassLimits;
+use rowl_kernel::functional_document::{read_document, DocumentLimits};
+use rowl_kernel::functional_model::document_ontology;
 use rowl_kernel::model::*;
 use rowl_kernel::ntriples::{read, ReadResult};
 use rowl_kernel::probes::Natural;
@@ -10,6 +15,8 @@ use rowl_kernel::rdf_mapping::map_graph;
 const MEDICATION: &[u8] = include_bytes!("../../../examples/medication-safety.nt");
 const ANNOTATED_MEDICATION: &[u8] =
     include_bytes!("../../../examples/medication-safety-annotated.nt");
+const DOSING: &[u8] = include_bytes!("../../../examples/dosing.nt");
+const DOSING_FUNCTIONAL: &[u8] = include_bytes!("../../../examples/dosing.ofn");
 const EX: &str = "https://example.org/medication/";
 
 fn graph(source: &[u8]) -> RawGraph {
@@ -653,4 +660,88 @@ fn el_graphs_in_forward_order_read_back_exactly() {
         .map(|label| label.as_bytes().to_vec())
         .collect();
     assert_eq!(labels, expected);
+}
+
+/// The ontology of a Functional Syntax document, its anonymous individuals in
+/// the scope `test` like the blank nodes of `graph`.
+fn functional_ontology(source: &[u8]) -> RawOntology {
+    let limits = DocumentLimits {
+        tokens: 10_000,
+        prefixes: 10,
+        prefix_value: 100,
+        imports: 10,
+        iri: 200,
+        axioms: 200,
+        annotations: AnnotationLimits {
+            depth: 2,
+            count: 10,
+            iri: 200,
+            lexical: 200,
+        },
+        classes: ClassLimits {
+            depth: 10,
+            count: 100,
+            iri: 200,
+        },
+    };
+    let document = match read_document(&source.to_vec(), &limits) {
+        Ok(document) => document,
+        Err(_) => panic!("the fixture is a Functional Syntax document"),
+    };
+    document_ontology(&document, &b"test".to_vec()).expect("every read document maps")
+}
+
+fn same_iri(left: &Iri, right: &Iri) -> bool {
+    left.spelling == right.spelling
+}
+
+#[test]
+fn readable_graphs_in_forward_order_read_back_exactly() {
+    // The forward mapping of an ontology of the fragment of
+    // RdfReadOntology.map_graph_complete, in order: a version IRI and an import,
+    // every kind of class expression and data range, and every kind of axiom,
+    // equivalences of two members and disjointness and difference of two and of
+    // three, an anonymous individual and inverse properties in many positions.
+    let expected = functional_ontology(DOSING_FUNCTIONAL);
+    let mapped = map_graph(&graph(DOSING)).expect("the graph is the image of its ontology");
+    let ontology = &mapped.ontology;
+    match (&ontology.identity, &expected.identity) {
+        (
+            OntologyIdentity::Named { ontology, version },
+            OntologyIdentity::Named {
+                ontology: expected_ontology,
+                version: expected_version,
+            },
+        ) => {
+            assert!(same_iri(ontology, expected_ontology));
+            match (version, expected_version) {
+                (Some(version), Some(expected_version)) => {
+                    assert!(same_iri(version, expected_version))
+                }
+                _ => panic!("both have a version IRI"),
+            }
+        }
+        _ => panic!("both are named"),
+    }
+    assert_eq!(ontology.imports.len(), 1);
+    assert!(same_iri(&ontology.imports[0], &expected.imports[0]));
+    assert!(ontology.annotations.is_empty() && expected.annotations.is_empty());
+    assert_eq!(ontology.axioms.len(), expected.axioms.len());
+    assert_eq!(ontology.axioms.len(), 80);
+    for (index, (read, written)) in ontology
+        .axioms
+        .iter()
+        .zip(expected.axioms.iter())
+        .enumerate()
+    {
+        assert!(same_axiom(read, written), "axiom {index} differs");
+    }
+    // The blank nodes in the order in which the forward mapping allocates them.
+    let labels: Vec<Vec<u8>> = mapped
+        .blanks
+        .iter()
+        .map(|node| node.label.clone())
+        .collect();
+    let allocated: Vec<Vec<u8>> = (1..=71).map(|n| format!("b{n}").into_bytes()).collect();
+    assert_eq!(labels, allocated);
 }
